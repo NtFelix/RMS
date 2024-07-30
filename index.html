@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anmeldung und Registrierung</title>
+    <link rel="stylesheet" href="assets/styles/login.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="assets/scripts/login-script.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h1>Rent Management System</h1>
+            <div class="tabs">
+                <button class="tab active" data-tab="login">Anmelden</button>
+                <button class="tab" data-tab="register">Registrieren</button>
+            </div>
+            <hr>
+            <div class="form-wrapper">
+                <form id="login-form" class="active">
+                    <input type="email" id="login-email" placeholder="E-Mail" required>
+                    <input type="password" id="login-password" placeholder="Passwort" required>
+                    <button type="submit">Anmelden</button>
+                </form>
+                <form id="register-form">
+                    <input type="text" id="register-firstname" placeholder="Vorname" required>
+                    <input type="text" id="register-lastname" placeholder="Nachname" required>
+                    <input type="email" id="register-email" placeholder="E-Mail" required>
+                    <input type="password" id="register-password" placeholder="Passwort" required>
+                    <button type="submit">Registrieren</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
