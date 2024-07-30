@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Willkommen - RMS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        #user-email {
+            font-weight: bold;
+            color: #007bff;
+        }
+        #logout-button {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #logout-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Willkommen im RMS</h1>
+        <p>Sie sind erfolgreich angemeldet als: <span id="user-email"></span></p>
+        <p>Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen.</p>
+        <button id="logout-button">Abmelden</button>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+        const supabaseUrl = 'https://dmrglslyrrqjlomjsbas.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtcmdsc2x5cnJxamxvbWpzYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4MTA0MzUsImV4cCI6MjAzNjM4NjQzNX0.pzm4EYAzxkCU-ZKAgybeNK9ERgdqBVdHlZbp1aEMndk'
+        const supabase = createClient(supabaseUrl, supabaseKey)
+
+        async function checkAuthStatus() {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user) {
+                document.getElementById('user-email').textContent = user.email
+            } else {
+                window.location.href = 'index.html' // Zurück zur Login-Seite, wenn nicht angemeldet
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                const { error } = await supabase.auth.signOut()
+                if (error) throw error
+                alert('Erfolgreich abgemeldet')
+                window.location.href = 'index.html'
+            } catch (error) {
+                alert('Fehler beim Abmelden: ' + error.message)
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkAuthStatus()
+            document.getElementById('logout-button').addEventListener('click', handleLogout)
+        })
+    </script>
+</body>
+</html>
