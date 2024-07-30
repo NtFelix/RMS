@@ -135,13 +135,22 @@ table {
     margin-top: 20px;
     border-radius: 10px;
     overflow: hidden;
+    font-size: 14px; /* Kleinere Schriftgröße für bessere Lesbarkeit */
 }
 
 th, td {
     border: 1px solid #ddd;
-    padding: 12px;
+    padding: 10px; /* Etwas kleineres Padding */
     text-align: left;
 }
+
+/* Rechtsausrichtung für numerische Werte */
+td:nth-child(2),
+td:nth-child(3),
+td:nth-child(4) {
+    text-align: right;
+}
+
 
 th {
     background-color: var(--primary-color);
