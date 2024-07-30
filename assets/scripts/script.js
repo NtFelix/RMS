@@ -44,13 +44,18 @@ async function ladeWohnungen() {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
             zeile.insertCell(1).textContent = wohnung.Größe;
-            zeile.insertCell(2).textContent = wohnung.Miete;
+            zeile.insertCell(2).textContent = wohnung.Miete.toFixed(2) + ' €';
+            
+            // Berechnung des Preises pro Quadratmeter
+            const preisProQm = wohnung.Miete / wohnung.Größe;
+            zeile.insertCell(3).textContent = preisProQm.toFixed(2) + ' €/m²';
         });
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthStatus();
