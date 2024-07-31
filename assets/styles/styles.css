@@ -15,11 +15,13 @@ body {
     padding: 0;
     background-color: var(--bg-color);
     color: var(--text-color);
+    padding-top: 60px; /* Erhöhen Sie diesen Wert, falls nötig */
 }
 
 .layout {
     display: flex;
     min-height: 100vh;
+    
 }
 
 .sidebar {
@@ -78,33 +80,54 @@ body {
 
 
 .search-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--primary-color);
+    padding: 10px;
+    z-index: 1000;
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
+    align-items: center;
 }
 
 #search-input {
     width: 50%;
-    padding: 10px;
+    max-width: 600px;
+    padding: 10px 40px 10px 15px;
     font-size: 16px;
-    border: 2px solid var(--primary-color);
-    border-radius: 5px 0 0 5px;
+    border: none;
+    border-radius: 25px;
     outline: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 #search-button {
-    padding: 10px 20px;
-    font-size: 16px;
-    background-color: var(--primary-color);
-    color: white;
+    position: absolute;
+    right: calc(25% - 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
     border: none;
-    border-radius: 0 5px 5px 0;
+    color: var(--primary-color);
+    font-size: 20px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: color 0.3s ease;
 }
 
 #search-button:hover {
-    background-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+@media (max-width: 768px) {
+    #search-input {
+        width: 70%;
+    }
+
+    #search-button {
+        right: calc(15% - 10px);
+    }
 }
 
 .suchergebnisse-container {
@@ -182,10 +205,13 @@ body {
 
 
 
+
 .main-content {
     flex-grow: 1;
     margin-left: calc(var(--sidebar-width) + var(--sidebar-margin) * 2);
     padding: 20px;
+    padding-top: 20px; /* Zusätzlicher Abstand für den Hauptinhalt */
+
 }
 
 header {
@@ -197,6 +223,8 @@ header {
     padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: relative; /* Stellen Sie sicher, dass der Header relativ positioniert ist */
+    z-index: 1; /* Setzen Sie einen z-index, falls nötig */
 }
 
 h1 {
@@ -261,6 +289,7 @@ h1 {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-top: 20px; /* Zusätzlicher Abstand für den Inhalt */
 }
 
 table {
