@@ -40,6 +40,9 @@ async function ladeWohnungen() {
         const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = ''; // Leere die Tabelle zuerst
 
+        let gesamtMiete = 0;
+        let anzahlWohnungen = data.length;
+
         data.forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
@@ -49,12 +52,20 @@ async function ladeWohnungen() {
             // Berechnung des Preises pro Quadratmeter
             const preisProQm = wohnung.Miete / wohnung.Größe;
             zeile.insertCell(3).textContent = preisProQm.toFixed(2) + ' €/m²';
+
+            gesamtMiete += wohnung.Miete;
         });
+
+        // Aktualisiere die Zusammenfassung
+        document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
+        document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
+
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 
 document.addEventListener('DOMContentLoaded', () => {
