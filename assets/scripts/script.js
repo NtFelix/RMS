@@ -44,7 +44,11 @@ async function durchsucheTabellen(suchbegriff) {
                 `Miete::text.ilike.%${suchbegriff}%`
             );
         } else if (tabelle === 'Mieter') {
-            query = query.or(`name.ilike.%${suchbegriff}%`);
+            query = query.or(
+                `name.ilike.%${suchbegriff}%`,
+                `email.ilike.%${suchbegriff}%`,
+                `telefonnummer.ilike.%${suchbegriff}%`
+            );
         }
 
         const { data, error } = await query;
@@ -62,7 +66,9 @@ async function durchsucheTabellen(suchbegriff) {
 
 
 
-function zeigeErgebnisse(ergebnisse, suchbegriff) {
+
+
+async function zeigeErgebnisse(ergebnisse, suchbegriff) {
     const modal = document.getElementById('suchergebnisse-container');
     const inhalt = document.getElementById('suchergebnisse-inhalt');
     inhalt.innerHTML = ''; // Leere den Inhalt
@@ -70,31 +76,74 @@ function zeigeErgebnisse(ergebnisse, suchbegriff) {
     if (ergebnisse.length === 0) {
         inhalt.innerHTML = '<p>Keine Ergebnisse gefunden.</p>';
     } else {
-        ergebnisse.forEach(ergebnis => {
+        for (const ergebnis of ergebnisse) {
             const item = document.createElement('div');
             item.className = 'suchergebnis-item';
 
             if (ergebnis.tabelle === 'Wohnungen') {
+                const mieteProQm = (ergebnis.Miete / ergebnis.Größe).toFixed(2);
+                
+                // Suche nach dem aktuellen Mieter
+                const { data: mieterData, error: mieterError } = await supabase
+                    .from('Mieter')
+                    .select('name, email, telefonnummer')
+                    .eq('wohnung-id', ergebnis.id)
+                    .is('auszug', null)
+                    .single();
+
+                let mieterInfo = 'Kein aktueller Mieter';
+                if (!mieterError && mieterData) {
+                    mieterInfo = `
+                        <p>Aktueller Mieter: ${mieterData.name}</p>
+                        <p>E-Mail: ${mieterData.email || '-'}</p>
+                        <p>Telefon: ${mieterData.telefonnummer || '-'}</p>
+                    `;
+                }
+
                 item.innerHTML = `
                     <h3>Wohnung: ${highlightText(ergebnis.Wohnung, suchbegriff)}</h3>
                     <p>Größe: ${highlightText(ergebnis.Größe.toString(), suchbegriff)} m²</p>
                     <p>Miete: ${highlightText(ergebnis.Miete.toFixed(2), suchbegriff)} €</p>
-                    <p>Preis pro m²: ${(ergebnis.Miete / ergebnis.Größe).toFixed(2)} €/m²</p>
+                    <p>Miete pro m²: ${mieteProQm} €/m²</p>
+                    <h4>Mieterdaten:</h4>
+                    ${mieterInfo}
                 `;
             } else if (ergebnis.tabelle === 'Mieter') {
+                // Der bestehende Code für Mieter bleibt unverändert
+                let wohnungInfo = 'Keine aktuelle Wohnung';
+                if (ergebnis['wohnung-id']) {
+                    const { data, error } = await supabase
+                        .from('Wohnungen')
+                        .select('*')
+                        .eq('id', ergebnis['wohnung-id'])
+                        .single();
+                    
+                    if (!error && data) {
+                        const mieteProQm = (data.Miete / data.Größe).toFixed(2);
+                        wohnungInfo = `
+                            <p>Aktuelle Wohnung: ${data.Wohnung}</p>
+                            <p>Größe: ${data.Größe} m²</p>
+                            <p>Miete: ${data.Miete.toFixed(2)} €</p>
+                            <p>Miete pro m²: ${mieteProQm} €/m²</p>
+                        `;
+                    }
+                }
+
                 item.innerHTML = `
                     <h3>Mieter: ${highlightText(ergebnis.name, suchbegriff)}</h3>
-                    <p>Wohnungs-ID: ${ergebnis['wohnung-id']}</p>
+                    <p>E-Mail: ${highlightText(ergebnis.email || '-', suchbegriff)}</p>
+                    <p>Telefon: ${highlightText(ergebnis.telefonnummer || '-', suchbegriff)}</p>
+                    ${wohnungInfo}
                 `;
             }
 
             inhalt.appendChild(item);
-        });
+        }
     }
 
     modal.style.display = 'block';
 
-    // Schließen-Funktionalität
+    // Schließen-Funktionalität bleibt unverändert
     const span = modal.querySelector('.close');
     span.onclick = function() {
         modal.style.display = 'none';
@@ -107,6 +156,10 @@ function zeigeErgebnisse(ergebnisse, suchbegriff) {
     }
 }
 
+
+
+
+
 async function handleSuche() {
     const suchbegriff = document.getElementById('search-input').value;
     if (suchbegriff.trim() === '') {
@@ -116,8 +169,9 @@ async function handleSuche() {
     }
 
     const ergebnisse = await durchsucheTabellen(suchbegriff);
-    zeigeErgebnisse(ergebnisse, suchbegriff);
+    await zeigeErgebnisse(ergebnisse, suchbegriff);
 }
+
 
 
 function highlightText(text, suchbegriff) {
