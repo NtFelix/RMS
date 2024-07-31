@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Willkommen - RMS</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="assets/styles/styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script type="module" src="assets/scripts/script.js"></script>
+</head>
+
+<body>
+    <div class="layout">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="logo">RMS</div>
+                <ul>
+                    <li><a href="#dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                    <li><a href="#ressourcen"><i class="fas fa-cube"></i> Ressourcen</a></li>
+                    <li><a href="#projekte"><i class="fas fa-project-diagram"></i> Projekte</a></li>
+                    <li><a href="#einstellungen"><i class="fas fa-cog"></i> Einstellungen</a></li>
+                </ul>
+            </div>
+        </nav>
+        <main class="main-content">
+            <header>
+                <h1>Willkommen im RMS</h1>
+                <div class="user-info">
+                    <span id="user-email"></span>
+                    <button id="logout-button">Abmelden</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <p>Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen. [Notiz] Man soll eine Reihe
+                    anklicken können und es öffnet sich ein Container mit allen Informationen.</p>
+                <h2>Wohnungsübersicht</h2>
+                <table id="wohnungen-tabelle">
+                    <thead>
+                        <tr>
+                            <th>Wohnung</th>
+                            <th>Größe (m²)</th>
+                            <th>Miete (€)</th>
+                            <th>Preis pro m²</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Hier werden die Daten dynamisch eingefügt -->
+                    </tbody>
+                </table>
+
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>
