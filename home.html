@@ -13,6 +13,16 @@
 </head>
 
 <body>
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" id="search-input" placeholder="Durchsuchen Sie die Datenbank...">
+            <button id="search-button">Suchen</button>
+        </div>
+    </div>
+    
+    
+
+    
     <div class="layout">
         <nav class="sidebar" id="sidebar">
             <div class="sidebar-content">
@@ -33,15 +43,38 @@
                     <button id="logout-button">Abmelden</button>
                 </div>
             </header>
+            <div id="suchergebnisse-container" class="modal">
+                <div class="modal-content">
+                    <span class="close">&times;</span>
+                    <h2>Suchergebnisse</h2>
+                    <div id="suchergebnisse-inhalt"></div>
+                </div>
+            </div>
+            
+            
+
+            <div class="dashboard-summary">
+                <div class="summary-card">
+                    <h3>Gesamtzahl Wohnungen</h3>
+                    <p id="total-wohnungen">0</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Monatlicher Mieteingang</h3>
+                    <p id="total-miete">0 €</p>
+                </div>
+            </div>
 
             <div class="content">
                 <p>Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen. [Notiz] Man soll eine Reihe
-                    anklicken können und es öffnet sich ein Container mit allen Informationen.</p>
+                    anklicken können und es öffnet sich ein Container mit allen Informationen.
+                    Außerdem ist ein Mieter erst ausgezogen, wenn ein datum beim Auszug eingetragen ist.
+                </p>
                 <h2>Wohnungsübersicht</h2>
                 <table id="wohnungen-tabelle">
                     <thead>
                         <tr>
                             <th>Wohnung</th>
+                            <th>Mieter</th>
                             <th>Größe (m²)</th>
                             <th>Miete (€)</th>
                             <th>Preis pro m²</th>
@@ -51,7 +84,6 @@
                         <!-- Hier werden die Daten dynamisch eingefügt -->
                     </tbody>
                 </table>
-
             </div>
         </main>
     </div>
