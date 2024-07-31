@@ -29,6 +29,124 @@ async function handleLogout() {
     }
 }
 
+
+async function durchsucheTabellen(suchbegriff) {
+    const tabellen = ['Wohnungen', 'Mieter'];
+    let ergebnisse = [];
+
+    for (const tabelle of tabellen) {
+        let query = supabase.from(tabelle).select('*');
+
+        if (tabelle === 'Wohnungen') {
+            query = query.or(
+                `Wohnung.ilike.%${suchbegriff}%`,
+                `Größe::text.ilike.%${suchbegriff}%`,
+                `Miete::text.ilike.%${suchbegriff}%`
+            );
+        } else if (tabelle === 'Mieter') {
+            query = query.or(`name.ilike.%${suchbegriff}%`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error(`Fehler beim Durchsuchen der Tabelle ${tabelle}:`, error);
+            continue;
+        }
+
+        ergebnisse = ergebnisse.concat(data.map(item => ({ ...item, tabelle })));
+    }
+
+    return ergebnisse;
+}
+
+
+
+function zeigeErgebnisse(ergebnisse, suchbegriff) {
+    const modal = document.getElementById('suchergebnisse-container');
+    const inhalt = document.getElementById('suchergebnisse-inhalt');
+    inhalt.innerHTML = ''; // Leere den Inhalt
+
+    if (ergebnisse.length === 0) {
+        inhalt.innerHTML = '<p>Keine Ergebnisse gefunden.</p>';
+    } else {
+        ergebnisse.forEach(ergebnis => {
+            const item = document.createElement('div');
+            item.className = 'suchergebnis-item';
+
+            if (ergebnis.tabelle === 'Wohnungen') {
+                item.innerHTML = `
+                    <h3>Wohnung: ${highlightText(ergebnis.Wohnung, suchbegriff)}</h3>
+                    <p>Größe: ${highlightText(ergebnis.Größe.toString(), suchbegriff)} m²</p>
+                    <p>Miete: ${highlightText(ergebnis.Miete.toFixed(2), suchbegriff)} €</p>
+                    <p>Preis pro m²: ${(ergebnis.Miete / ergebnis.Größe).toFixed(2)} €/m²</p>
+                `;
+            } else if (ergebnis.tabelle === 'Mieter') {
+                item.innerHTML = `
+                    <h3>Mieter: ${highlightText(ergebnis.name, suchbegriff)}</h3>
+                    <p>Wohnungs-ID: ${ergebnis['wohnung-id']}</p>
+                `;
+            }
+
+            inhalt.appendChild(item);
+        });
+    }
+
+    modal.style.display = 'block';
+
+    // Schließen-Funktionalität
+    const span = modal.querySelector('.close');
+    span.onclick = function() {
+        modal.style.display = 'none';
+    }
+
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            modal.style.display = 'none';
+        }
+    }
+}
+
+async function handleSuche() {
+    const suchbegriff = document.getElementById('search-input').value;
+    if (suchbegriff.trim() === '') {
+        document.getElementById('suchergebnisse-container').style.display = 'none';
+        await ladeWohnungen(); // Lade normale Ansicht, wenn Suchfeld leer ist
+        return;
+    }
+
+    const ergebnisse = await durchsucheTabellen(suchbegriff);
+    zeigeErgebnisse(ergebnisse, suchbegriff);
+}
+
+
+function highlightText(text, suchbegriff) {
+    if (!text) return '';
+    const regex = new RegExp(suchbegriff, 'gi');
+    return text.replace(regex, match => `<span class="highlight">${match}</span>`);
+}
+
+
+  
+
+
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuthStatus();
+    document.getElementById('logout-button').addEventListener('click', handleLogout);
+    ladeWohnungen();
+
+    // Neue Event-Listener für die Suche
+    document.getElementById('search-button').addEventListener('click', handleSuche);
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSuche();
+        }
+    });
+});
+
+
+
+
 async function ladeWohnungen() {
     try {
         const { data, error } = await supabase
