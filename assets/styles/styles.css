@@ -92,10 +92,17 @@ body {
     align-items: center;
 }
 
-#search-input {
+.search-wrapper {
+    position: relative;
     width: 50%;
     max-width: 600px;
-    padding: 10px 40px 10px 15px;
+    display: flex;
+    align-items: center;
+}
+
+#search-input {
+    width: 100%;
+    padding: 10px 100px 10px 15px; /* Erhöhtes rechtes Padding für den Button */
     font-size: 16px;
     border: none;
     border-radius: 25px;
@@ -105,30 +112,30 @@ body {
 
 #search-button {
     position: absolute;
-    right: calc(25% - 10px);
+    right: 5px;
     top: 50%;
     transform: translateY(-50%);
-    background: none;
+    background-color: var(--primary-color);
+    color: white;
     border: none;
-    color: var(--primary-color);
-    font-size: 20px;
+    border-radius: 20px;
+    padding: 8px 15px;
+    font-size: 14px;
     cursor: pointer;
-    transition: color 0.3s ease;
+    transition: background-color 0.3s ease;
 }
 
 #search-button:hover {
-    color: var(--secondary-color);
+    background-color: var(--secondary-color);
 }
 
 @media (max-width: 768px) {
-    #search-input {
-        width: 70%;
-    }
-
-    #search-button {
-        right: calc(15% - 10px);
+    .search-wrapper {
+        width: 90%;
     }
 }
+
+
 
 .suchergebnisse-container {
     max-width: 800px;
