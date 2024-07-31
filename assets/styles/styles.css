@@ -15,11 +15,13 @@ body {
     padding: 0;
     background-color: var(--bg-color);
     color: var(--text-color);
+    padding-top: 60px; /* Erhöhen Sie diesen Wert, falls nötig */
 }
 
 .layout {
     display: flex;
     min-height: 100vh;
+    
 }
 
 .sidebar {
@@ -75,10 +77,148 @@ body {
     text-align: center;
 }
 
+
+
+.search-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--primary-color);
+    padding: 10px;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.search-wrapper {
+    position: relative;
+    width: 50%;
+    max-width: 600px;
+    display: flex;
+    align-items: center;
+}
+
+#search-input {
+    width: 100%;
+    padding: 10px 100px 10px 15px; /* Erhöhtes rechtes Padding für den Button */
+    font-size: 16px;
+    border: none;
+    border-radius: 25px;
+    outline: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+#search-button {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+#search-button:hover {
+    background-color: var(--secondary-color);
+}
+
+@media (max-width: 768px) {
+    .search-wrapper {
+        width: 90%;
+    }
+}
+
+
+
+.suchergebnisse-container {
+    max-width: 800px;
+    margin: 20px auto;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    padding: 20px;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.suchergebnis-item {
+    border-bottom: 1px solid #eee;
+    padding: 15px 0;
+}
+
+.suchergebnis-item:last-child {
+    border-bottom: none;
+}
+
+.suchergebnis-item h3 {
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.suchergebnis-item p {
+    margin: 5px 0;
+}
+
+.highlight {
+    background-color: yellow;
+    font-weight: bold;
+}
+
+
+
+
+
+
+
 .main-content {
     flex-grow: 1;
     margin-left: calc(var(--sidebar-width) + var(--sidebar-margin) * 2);
     padding: 20px;
+    padding-top: 20px; /* Zusätzlicher Abstand für den Hauptinhalt */
+
 }
 
 header {
@@ -90,12 +230,42 @@ header {
     padding: 15px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: relative; /* Stellen Sie sicher, dass der Header relativ positioniert ist */
+    z-index: 1; /* Setzen Sie einen z-index, falls nötig */
 }
 
 h1 {
     color: var(--primary-color);
     margin: 0;
 }
+
+.dashboard-summary {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 20px;
+}
+
+.summary-card {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    text-align: center;
+    flex: 1;
+    margin: 0 10px;
+}
+
+.summary-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+}
+
+.summary-card p {
+    font-size: 24px;
+    font-weight: bold;
+    margin: 0;
+}
+
 
 .user-info {
     display: flex;
@@ -126,6 +296,7 @@ h1 {
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-top: 20px; /* Zusätzlicher Abstand für den Inhalt */
 }
 
 table {
@@ -135,21 +306,28 @@ table {
     margin-top: 20px;
     border-radius: 10px;
     overflow: hidden;
-    font-size: 14px; /* Kleinere Schriftgröße für bessere Lesbarkeit */
+    font-size: 14px;
 }
 
 th, td {
     border: 1px solid #ddd;
-    padding: 10px; /* Etwas kleineres Padding */
+    padding: 10px;
     text-align: left;
 }
 
 /* Rechtsausrichtung für numerische Werte */
-td:nth-child(2),
 td:nth-child(3),
-td:nth-child(4) {
+td:nth-child(4),
+td:nth-child(5) {
     text-align: right;
 }
+
+/* Hervorhebung für nicht vermietete Wohnungen */
+td:nth-child(2):contains('Nicht vermietet') {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
 
 
 th {
