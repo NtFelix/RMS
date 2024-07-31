@@ -167,21 +167,28 @@ table {
     margin-top: 20px;
     border-radius: 10px;
     overflow: hidden;
-    font-size: 14px; /* Kleinere Schriftgröße für bessere Lesbarkeit */
+    font-size: 14px;
 }
 
 th, td {
     border: 1px solid #ddd;
-    padding: 10px; /* Etwas kleineres Padding */
+    padding: 10px;
     text-align: left;
 }
 
 /* Rechtsausrichtung für numerische Werte */
-td:nth-child(2),
 td:nth-child(3),
-td:nth-child(4) {
+td:nth-child(4),
+td:nth-child(5) {
     text-align: right;
 }
+
+/* Hervorhebung für nicht vermietete Wohnungen */
+td:nth-child(2):contains('Nicht vermietet') {
+    color: #e74c3c;
+    font-weight: bold;
+}
+
 
 
 th {

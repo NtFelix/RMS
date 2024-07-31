@@ -33,7 +33,16 @@ async function ladeWohnungen() {
     try {
         const { data, error } = await supabase
             .from('Wohnungen')
-            .select('Wohnung, Größe, Miete');
+            .select(`
+                id,
+                Wohnung,
+                Größe,
+                Miete,
+                Mieter (
+                    name,
+                    auszug
+                )
+            `);
 
         if (error) throw error;
 
@@ -42,16 +51,33 @@ async function ladeWohnungen() {
 
         let gesamtMiete = 0;
         let anzahlWohnungen = data.length;
+        const heutigesDatum = new Date();
 
         data.forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
-            zeile.insertCell(1).textContent = wohnung.Größe;
-            zeile.insertCell(2).textContent = wohnung.Miete.toFixed(2) + ' €';
+
+            // Logik für den aktuellen Mieter
+            let mieterName = 'Nicht vermietet';
+            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+                const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                    if (!mieter.auszug) return true; // Kein Auszugsdatum gesetzt
+                    const auszugsDatum = new Date(mieter.auszug);
+                    return auszugsDatum > heutigesDatum; // Auszugsdatum in der Zukunft
+                });
+
+                if (aktuellerMieter) {
+                    mieterName = aktuellerMieter.name;
+                }
+            }
+            zeile.insertCell(1).textContent = mieterName;
+
+            zeile.insertCell(2).textContent = wohnung.Größe;
+            zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
             
             // Berechnung des Preises pro Quadratmeter
             const preisProQm = wohnung.Miete / wohnung.Größe;
-            zeile.insertCell(3).textContent = preisProQm.toFixed(2) + ' €/m²';
+            zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
 
             gesamtMiete += wohnung.Miete;
         });
@@ -65,6 +91,10 @@ async function ladeWohnungen() {
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
+
+
+
 
 
 
