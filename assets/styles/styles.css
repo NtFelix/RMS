@@ -382,3 +382,69 @@ table tr:last-child td:last-child {
         margin-left: 0;
     }
 }
+
+
+
+/* mieter.html */
+.mieter-liste table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.mieter-liste th, .mieter-liste td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.mieter-liste th {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.bearbeiten-btn, .loeschen-btn {
+    padding: 5px 10px;
+    margin: 2px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+.bearbeiten-btn {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.loeschen-btn {
+    background-color: #f44336;
+    color: white;
+}
+
+
+.modal-content form {
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content form label {
+    margin-top: 10px;
+}
+
+.modal-content form input,
+.modal-content form select {
+    margin-bottom: 10px;
+    padding: 5px;
+}
+
+.modal-content form button {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+.modal-content form button:hover {
+    background-color: var(--secondary-color);
+}
