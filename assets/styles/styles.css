@@ -464,7 +464,7 @@ table tr:last-child td:last-child {
     margin-bottom: 20px;
 }
 
-#add-mieter-button {
+.add-button {
     background-color: var(--primary-color);
     color: white;
     border: none;
@@ -474,7 +474,7 @@ table tr:last-child td:last-child {
     transition: background-color 0.3s ease;
 }
 
-#add-mieter-button:hover {
+.add-button:hover {
     background-color: var(--secondary-color);
 }
 
