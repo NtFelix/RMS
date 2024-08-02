@@ -6,53 +6,47 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
+function bestimmeWohnungStatus(wohnung) {
+    const heute = new Date();
+    const einzug = wohnung.einzug ? new Date(wohnung.einzug) : null;
+    const auszug = wohnung.auszug ? new Date(wohnung.auszug) : null;
+
+    if (einzug && einzug <= heute && (!auszug || auszug > heute)) {
+        return 'vermietet';
+    } else {
+        return 'frei';
+    }
+}
+
 function filterWohnungenNachStatus(wohnung) {
+    const status = bestimmeWohnungStatus(wohnung);
     switch (aktiverFilter) {
         case 'aktuell':
-            return wohnung.status === 'vermietet';
+            return status === 'vermietet';
         case 'vorherige':
-            return wohnung.status === 'frei';
+            return status === 'frei';
         default:
             return true;
     }
 }
 
-
 async function ladeWohnungen() {
     try {
-        // Lade alle Wohnungen
-        const { data: alleWohnungen, error: wohnungenError } = await supabase
+        const { data, error } = await supabase
             .from('Wohnungen')
             .select('*');
 
-        if (wohnungenError) throw wohnungenError;
-
-        // Lade alle Mieter mit ihren Wohnungs-IDs
-        const { data: mieter, error: mieterError } = await supabase
-            .from('Mieter')
-            .select('wohnung-id')
-            .not('wohnung-id', 'is', null);
-
-        if (mieterError) throw mieterError;
-
-        // Erstelle ein Set mit den IDs der belegten Wohnungen
-        const belegteWohnungsIds = new Set(mieter.map(m => m['wohnung-id']));
-
-        // Füge den Status zu jeder Wohnung hinzu
-        const wohnungenMitStatus = alleWohnungen.map(wohnung => ({
-            ...wohnung,
-            status: belegteWohnungsIds.has(wohnung.id) ? 'vermietet' : 'frei'
-        }));
+        if (error) throw error;
 
         const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = '';
 
-        wohnungenMitStatus.filter(filterWohnungenNachStatus).forEach(wohnung => {
+        data.filter(filterWohnungenNachStatus).forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
             zeile.insertCell(1).textContent = wohnung.Größe;
             zeile.insertCell(2).textContent = wohnung.Miete;
-            zeile.insertCell(3).textContent = wohnung.status;
+            zeile.insertCell(3).textContent = bestimmeWohnungStatus(wohnung);
 
             const aktionenZelle = zeile.insertCell(4);
             const bearbeitenButton = document.createElement('button');
@@ -66,7 +60,6 @@ async function ladeWohnungen() {
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
-
 
 function initFilterButtons() {
     const filterButtons = document.querySelectorAll('.filter-button');
@@ -100,7 +93,6 @@ async function speichereWohnungAenderungen(event) {
         Wohnung: wohnung,
         Größe: groesse,
         Miete: miete
-        // Der Status wird nicht direkt geändert, da er von der Mieterzuordnung abhängt
     };
 
     try {
@@ -167,59 +159,41 @@ async function speichereWohnung(event) {
         Wohnung: wohnung,
         Größe: groesse,
         Miete: miete
-        // Der Status wird automatisch als 'frei' gesetzt, wenn eine neue Wohnung hinzugefügt wird
     };
 
     try {
-        const { data, error } = await supabase
+        const { data: existingWohnung, error: checkError } = await supabase
             .from('Wohnungen')
-            .insert([wohnungData]);
+            .select('Wohnung')
+            .eq('Wohnung', wohnung)
+            .single();
 
-        if (error) throw error;
-        alert('Neue Wohnung erfolgreich hinzugefügt.');
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+
+        if (existingWohnung) {
+            const { data, error } = await supabase
+                .from('Wohnungen')
+                .update(wohnungData)
+                .eq('Wohnung', wohnung);
+
+            if (error) throw error;
+            alert('Wohnungsdaten erfolgreich aktualisiert.');
+        } else {
+            const { data, error } = await supabase
+                .from('Wohnungen')
+                .insert([wohnungData]);
+
+            if (error) throw error;
+            alert('Neue Wohnung erfolgreich hinzugefügt.');
+        }
+
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeWohnungen();
     } catch (error) {
-        console.error('Fehler beim Hinzufügen der Wohnung:', error.message);
-        alert('Fehler beim Hinzufügen der Wohnung. Bitte versuchen Sie es später erneut.');
-    }
-}
-
-async function handleSuche() {
-    const suchbegriff = document.getElementById('search-input').value.toLowerCase();
-    if (suchbegriff.trim() === '') {
-        ladeWohnungen();
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase
-            .from('Wohnungen')
-            .select('*')
-            .or(`Wohnung.ilike.%${suchbegriff}%,Größe::text.ilike.%${suchbegriff}%,Miete::text.ilike.%${suchbegriff}%,status.ilike.%${suchbegriff}%`);
-
-        if (error) throw error;
-
-        const suchergebnisseContainer = document.getElementById('suchergebnisse-container');
-        const suchergebnisseInhalt = document.getElementById('suchergebnisse-inhalt');
-        suchergebnisseInhalt.innerHTML = '';
-
-        if (data.length === 0) {
-            suchergebnisseInhalt.innerHTML = '<p>Keine Ergebnisse gefunden.</p>';
-        } else {
-            const ul = document.createElement('ul');
-            data.forEach(wohnung => {
-                const li = document.createElement('li');
-                li.textContent = `${wohnung.Wohnung} - ${wohnung.Größe}m² - ${wohnung.Miete}€ - ${wohnung.status}`;
-                ul.appendChild(li);
-            });
-            suchergebnisseInhalt.appendChild(ul);
-        }
-
-        suchergebnisseContainer.style.display = 'block';
-    } catch (error) {
-        console.error('Fehler bei der Suche:', error.message);
-        alert('Fehler bei der Suche. Bitte versuchen Sie es später erneut.');
+        console.error('Fehler beim Hinzufügen/Aktualisieren der Wohnung:', error.message);
+        alert('Fehler beim Hinzufügen/Aktualisieren der Wohnung. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -227,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ladeWohnungen();
     initFilterButtons();
 
-    const addButton = document.getElementById('add-wohnung-button');
+    const addButton = document.getElementById('add-wohnungen-button');
     addButton.addEventListener('click', oeffneHinzufuegenModal);
 
     const form = document.getElementById('wohnung-bearbeiten-form');
@@ -252,18 +226,4 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.style.display = 'none';
         }
     };
-
-    const searchButton = document.getElementById('search-button');
-    searchButton.addEventListener('click', handleSuche);
-
-    const searchInput = document.getElementById('search-input');
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleSuche();
-        }
-    });
-
-    const suchergebnisseContainer = document.getElementById('suchergebnisse-container');
-    const suchergebnisseClose = suchergebnisseContainer.querySelector('.close');
-    suchergebnisseClose.onclick = () => suchergebnisseContainer.style.display = 'none';
 });
