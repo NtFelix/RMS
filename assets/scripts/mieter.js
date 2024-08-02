@@ -193,3 +193,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+
+function filterMieter() {
+    const suchbegriff = document.getElementById('search-mieter-input').value.toLowerCase();
+    const tabelle = document.getElementById('mieter-tabelle');
+    const zeilen = tabelle.getElementsByTagName('tr');
+
+    for (let i = 1; i < zeilen.length; i++) { // Start bei 1, um den Header zu überspringen
+        const zeile = zeilen[i];
+        const zellen = zeile.getElementsByTagName('td');
+        let treffer = false;
+
+        for (let j = 0; j < zellen.length; j++) {
+            const zellText = zellen[j].textContent || zellen[j].innerText;
+            if (zellText.toLowerCase().indexOf(suchbegriff) > -1) {
+                treffer = true;
+                break;
+            }
+        }
+
+        if (treffer) {
+            zeile.style.display = "";
+        } else {
+            zeile.style.display = "none";
+        }
+    }
+}
+
+// Event-Listener für das Suchfeld
+document.addEventListener('DOMContentLoaded', () => {
+    const suchfeld = document.getElementById('search-mieter-input');
+    suchfeld.addEventListener('input', filterMieter);
+
+    // ... andere bestehende Event-Listener ...
+});
