@@ -42,16 +42,14 @@ async function ladeMieter() {
     }
 }
 
-async function ladeWohnungen() {
+async function ladeWohnungen(aktuelleWohnungId = null) {
     try {
-        // Zuerst holen wir alle Wohnungen
         const { data: alleWohnungen, error: wohnungenError } = await supabase
             .from('Wohnungen')
             .select('id, Wohnung');
 
         if (wohnungenError) throw wohnungenError;
 
-        // Dann holen wir alle belegten Wohnungen
         const { data: belegteWohnungen, error: mieterError } = await supabase
             .from('Mieter')
             .select('wohnung-id')
@@ -59,16 +57,14 @@ async function ladeWohnungen() {
 
         if (mieterError) throw mieterError;
 
-        // Erstellen Sie ein Set von belegten Wohnungs-IDs für schnellere Suche
         const belegteWohnungsIds = new Set(belegteWohnungen.map(m => m['wohnung-id']));
 
-        // Filtern Sie die freien Wohnungen
-        const freieWohnungen = alleWohnungen.filter(w => !belegteWohnungsIds.has(w.id));
+        const verfuegbareWohnungen = alleWohnungen.filter(w => !belegteWohnungsIds.has(w.id) || w.id === aktuelleWohnungId);
 
         const wohnungSelect = document.getElementById('wohnung');
-        wohnungSelect.innerHTML = '<option value="">Keine Wohnung</option>'; // Reset und füge "Keine Wohnung" Option hinzu
+        wohnungSelect.innerHTML = '<option value="">Keine Wohnung</option>';
 
-        freieWohnungen.forEach(wohnung => {
+        verfuegbareWohnungen.forEach(wohnung => {
             const option = document.createElement('option');
             option.value = wohnung.id;
             option.textContent = wohnung.Wohnung;
@@ -82,13 +78,18 @@ async function ladeWohnungen() {
 
 function oeffneBearbeitenModal(mieter) {
     const modal = document.getElementById('bearbeiten-modal');
-    document.getElementById('original-name').value = mieter.name; // Neues verstecktes Feld
+    document.getElementById('original-name').value = mieter.name;
     document.getElementById('name').value = mieter.name;
     document.getElementById('email').value = mieter.email || '';
     document.getElementById('telefon').value = mieter.telefonnummer || '';
-    document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
+    
+    // Lade Wohnungen mit der aktuellen Wohnung des Mieters
+    ladeWohnungen(mieter['wohnung-id']).then(() => {
+        document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
+    });
+    
     modal.style.display = 'block';
 }
 
