@@ -8,14 +8,16 @@ let aktiverFilter = 'alle';
 
 function bestimmeWohnungStatus(wohnung) {
     const heute = new Date();
-    const einzug = wohnung.einzug ? new Date(wohnung.einzug) : null;
-    const auszug = wohnung.auszug ? new Date(wohnung.auszug) : null;
+    if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+        const aktuellerMieter = wohnung.Mieter[0];
+        const einzug = aktuellerMieter.einzug ? new Date(aktuellerMieter.einzug) : null;
+        const auszug = aktuellerMieter.auszug ? new Date(aktuellerMieter.auszug) : null;
 
-    if (einzug && einzug <= heute && (!auszug || auszug > heute)) {
-        return 'vermietet';
-    } else {
-        return 'frei';
+        if (einzug && einzug <= heute && (!auszug || auszug > heute)) {
+            return 'vermietet';
+        }
     }
+    return 'frei';
 }
 
 function filterWohnungenNachStatus(wohnung) {
@@ -34,7 +36,13 @@ async function ladeWohnungen() {
     try {
         const { data, error } = await supabase
             .from('Wohnungen')
-            .select('*');
+            .select(`
+                *,
+                Mieter (
+                    einzug,
+                    auszug
+                )
+            `);
 
         if (error) throw error;
 
