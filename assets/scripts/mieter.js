@@ -113,10 +113,18 @@ async function speichereMieterAenderungen(event) {
     };
 
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('Mieter')
-            .update(updatedData)
-            .eq('name', originalName);
+            .update(updatedData);
+        
+        // Wenn der Name geändert wurde, aktualisieren wir basierend auf dem ursprünglichen Namen
+        if (originalName !== name) {
+            query = query.eq('name', originalName);
+        } else {
+            query = query.eq('name', name);
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
@@ -256,12 +264,35 @@ async function speichereMieter(event) {
     };
 
     try {
-        const { data, error } = await supabase
+        // Überprüfen, ob ein Mieter mit diesem Namen bereits existiert
+        const { data: existingMieter, error: checkError } = await supabase
             .from('Mieter')
-            .upsert([mieterData], { onConflict: 'name' });
+            .select('name')
+            .eq('name', name)
+            .single();
 
-        if (error) throw error;
-        alert('Mieter erfolgreich hinzugefügt oder aktualisiert.');
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+
+        if (existingMieter) {
+            // Mieter existiert bereits, aktualisiere die Daten
+            const { data, error } = await supabase
+                .from('Mieter')
+                .update(mieterData)
+                .eq('name', name);
+
+            if (error) throw error;
+            alert('Mieterdaten erfolgreich aktualisiert.');
+        } else {
+            // Mieter existiert nicht, füge einen neuen hinzu
+            const { data, error } = await supabase
+                .from('Mieter')
+                .insert([mieterData]);
+
+            if (error) throw error;
+            alert('Neuer Mieter erfolgreich hinzugefügt.');
+        }
 
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeMieter(); // Aktualisiere die Tabelle
