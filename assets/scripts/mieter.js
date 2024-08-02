@@ -95,7 +95,7 @@ function oeffneBearbeitenModal(mieter) {
 async function speichereMieterAenderungen(event) {
     event.preventDefault();
     
-    const originalName = document.getElementById('original-name').value; // Neues verstecktes Feld für den ursprünglichen Namen
+    const originalName = document.getElementById('original-name').value;
     const name = document.getElementById('name').value;
     const email = document.getElementById('email').value;
     const telefonnummer = document.getElementById('telefon').value;
@@ -113,27 +113,6 @@ async function speichereMieterAenderungen(event) {
     };
 
     try {
-        // Prüfe, ob ein Mieter mit dem neuen Namen bereits existiert (außer es ist der ursprüngliche Name)
-        if (name !== originalName) {
-            const { data: existingMieter, error: searchError } = await supabase
-                .from('Mieter')
-                .select('name')
-                .eq('name', name)
-                .single();
-
-            if (searchError && searchError.code !== 'PGRST116') {
-                throw searchError;
-            }
-
-            if (existingMieter) {
-                const shouldOverwrite = confirm(`Ein Mieter mit dem Namen "${name}" existiert bereits. Möchten Sie die Daten überschreiben?`);
-                if (!shouldOverwrite) {
-                    return; // Abbrechen, wenn der Benutzer nicht überschreiben möchte
-                }
-            }
-        }
-
-        // Aktualisiere den Mieter
         const { data, error } = await supabase
             .from('Mieter')
             .update(updatedData)
@@ -149,6 +128,7 @@ async function speichereMieterAenderungen(event) {
         alert('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 document.addEventListener('DOMContentLoaded', () => {
     ladeMieter();
@@ -276,42 +256,12 @@ async function speichereMieter(event) {
     };
 
     try {
-        // Überprüfen, ob der Mieter bereits existiert
-        const { data: existingMieter, error: checkError } = await supabase
+        const { data, error } = await supabase
             .from('Mieter')
-            .select('name')
-            .eq('name', name)
-            .single();
+            .upsert([mieterData], { onConflict: 'name' });
 
-        if (checkError && checkError.code !== 'PGRST116') {
-            throw checkError;
-        }
-
-        if (existingMieter) {
-            // Mieter existiert bereits, fragen Sie den Benutzer, ob er aktualisieren möchte
-            const shouldUpdate = confirm(`Ein Mieter mit dem Namen "${name}" existiert bereits. Möchten Sie die Daten aktualisieren?`);
-            
-            if (shouldUpdate) {
-                const { data, error } = await supabase
-                    .from('Mieter')
-                    .update(mieterData)
-                    .eq('name', name);
-
-                if (error) throw error;
-                alert('Mieterdaten erfolgreich aktualisiert.');
-            } else {
-                alert('Vorgang abgebrochen. Bitte wählen Sie einen anderen Namen.');
-                return;
-            }
-        } else {
-            // Mieter existiert nicht, fügen Sie einen neuen hinzu
-            const { data, error } = await supabase
-                .from('Mieter')
-                .insert([mieterData]);
-
-            if (error) throw error;
-            alert('Mieter erfolgreich hinzugefügt.');
-        }
+        if (error) throw error;
+        alert('Mieter erfolgreich hinzugefügt oder aktualisiert.');
 
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeMieter(); // Aktualisiere die Tabelle
@@ -320,6 +270,7 @@ async function speichereMieter(event) {
         alert('Fehler beim Hinzufügen/Aktualisieren des Mieters. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 // Event-Listener hinzufügen
 document.addEventListener('DOMContentLoaded', () => {
