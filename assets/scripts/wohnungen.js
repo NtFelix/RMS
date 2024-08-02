@@ -32,6 +32,11 @@ function filterWohnungenNachStatus(wohnung) {
     }
 }
 
+function berechneMieteProQm(miete, groesse) {
+    if (groesse <= 0) return 'N/A';
+    return (miete / groesse).toFixed(2);
+}
+
 async function ladeWohnungen() {
     try {
         const { data, error } = await supabase
@@ -52,11 +57,12 @@ async function ladeWohnungen() {
         data.filter(filterWohnungenNachStatus).forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
-            zeile.insertCell(1).textContent = wohnung.Größe;
-            zeile.insertCell(2).textContent = wohnung.Miete;
-            zeile.insertCell(3).textContent = bestimmeWohnungStatus(wohnung);
+            zeile.insertCell(1).textContent = wohnung.Größe + ' m²';  // Einheit für Größe hinzugefügt
+            zeile.insertCell(2).textContent = wohnung.Miete + ' €';   // Einheit für Miete hinzugefügt
+            zeile.insertCell(3).textContent = berechneMieteProQm(wohnung.Miete, wohnung.Größe) + ' €/m²';
+            zeile.insertCell(4).textContent = bestimmeWohnungStatus(wohnung);
 
-            const aktionenZelle = zeile.insertCell(4);
+            const aktionenZelle = zeile.insertCell(5);
             const bearbeitenButton = document.createElement('button');
             bearbeitenButton.textContent = 'Bearbeiten';
             bearbeitenButton.className = 'bearbeiten-button';
@@ -68,6 +74,7 @@ async function ladeWohnungen() {
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 function initFilterButtons() {
     const filterButtons = document.querySelectorAll('.filter-button');
@@ -204,6 +211,8 @@ async function speichereWohnung(event) {
         alert('Fehler beim Hinzufügen/Aktualisieren der Wohnung. Bitte versuchen Sie es später erneut.');
     }
 }
+
+
 
 document.addEventListener('DOMContentLoaded', () => {
     ladeWohnungen();
