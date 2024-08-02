@@ -82,22 +82,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function ladeWohnungen(aktuelleWohnungId = null) {
     try {
+        // Alle Wohnungen laden
         const { data: alleWohnungen, error: wohnungenError } = await supabase
             .from('Wohnungen')
             .select('id, Wohnung');
 
         if (wohnungenError) throw wohnungenError;
 
+        // Aktuell belegte Wohnungen laden
+        const heute = new Date().toISOString().split('T')[0]; // Heutiges Datum im Format YYYY-MM-DD
         const { data: belegteWohnungen, error: mieterError } = await supabase
             .from('Mieter')
             .select('wohnung-id')
-            .not('wohnung-id', 'is', null);
+            .not('wohnung-id', 'is', null)
+            .or(`auszug.is.null,auszug.gt.${heute}`); // Nur Mieter ohne Auszugsdatum oder mit Auszugsdatum in der Zukunft
 
         if (mieterError) throw mieterError;
 
         const belegteWohnungsIds = new Set(belegteWohnungen.map(m => m['wohnung-id']));
 
-        const verfuegbareWohnungen = alleWohnungen.filter(w => !belegteWohnungsIds.has(w.id) || w.id === aktuelleWohnungId);
+        // Verfügbare Wohnungen filtern
+        const verfuegbareWohnungen = alleWohnungen.filter(w => 
+            !belegteWohnungsIds.has(w.id) || w.id === aktuelleWohnungId
+        );
 
         const wohnungSelect = document.getElementById('wohnung');
         wohnungSelect.innerHTML = '<option value="">Keine Wohnung</option>';
@@ -113,6 +120,7 @@ async function ladeWohnungen(aktuelleWohnungId = null) {
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 function oeffneBearbeitenModal(mieter) {
     const modal = document.getElementById('bearbeiten-modal');
