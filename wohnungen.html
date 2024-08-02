@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wohnungen Verwaltung</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="assets/styles/styles.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script type="module" src="assets/scripts/wohnungen.js"></script>
+</head>
+<body>
+    <div class="search-container">
+        <div class="search-wrapper">
+            <input type="text" id="search-input" placeholder="Suchen Sie nach Wohnungen...">
+            <button id="search-button">Suchen</button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                <div class="logo">RMS</div>
+                <ul>
+                    <li><a href="home.html"><i class="fas fa-home"></i> Dashboard</a></li>
+                    <li><a href="mieter.html" class="active"><i class="fas fa-users"></i> Mieter</a></li>
+                    <li><a href="wohnungen.html"><i class="fas fa-building"></i> Wohnungen</a></li>
+                    <li><a href="#"><i class="fas fa-cog"></i> Einstellungen</a></li>
+                </ul>
+            </div>
+        </nav>
+        <main class="main-content">
+            <header>
+                <h1>Wohnungen verwalten</h1>
+                <div class="user-info">
+                    <span id="user-email"></span>
+                    <button id="logout-button">Abmelden</button>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="toolbar">
+                    <button id="add-mieter-button">Wohnung hinzufügen</button>
+                    <div class="mieter-filter">
+                        <button class="filter-button active" data-filter="alle">Alle</button>
+                        <button class="filter-button" data-filter="aktuell">Vermietet</button>
+                        <button class="filter-button" data-filter="vorherige">Frei</button>
+                    </div>
+                    <input type="text" id="search-mieter-input" placeholder="Wohnung suchen">
+                </div>
+                
+                
+                <h2>Mieterliste</h2>
+                <!-- Innerhalb der Tabelle -->
+                
+                <table id="wohnungen-tabelle">
+                    <thead>
+                        <tr>
+                            <th>Wohnung</th>
+                            <th>Größe</th>
+                            <th>Miete</th>
+                            <th>Status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Hier werden die Mieterdaten dynamisch eingefügt -->
+                    </tbody>
+                </table>
+
+                <!-- Fügen Sie dieses Modal am Ende des body-Tags hinzu -->
+                <div id="bearbeiten-modal" class="modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h2>Wohnung bearbeiten</h2>
+                        <form id="wohnung-bearbeiten-form">
+                            <input type="hidden" id="original-wohnung" name="original-wohnung">
+                            <label for="wohnung">Wohnung:</label>
+                            <input type="text" id="wohnung" name="wohnung" required>
+                            <label for="groesse">Größe (m²):</label>
+                            <input type="number" id="groesse" name="groesse" required>
+                            <label for="miete">Miete (€):</label>
+                            <input type="number" id="miete" name="miete" required>
+                            <button type="submit">Speichern</button>
+                        </form>
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+
+    <div id="suchergebnisse-container" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Suchergebnisse</h2>
+            <div id="suchergebnisse-inhalt"></div>
+        </div>
+    </div>
+
+</body>
+</html>
