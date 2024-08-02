@@ -131,13 +131,13 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
     
-    // Lade Wohnungen mit der aktuellen Wohnung des Mieters
     ladeWohnungen(mieter['wohnung-id']).then(() => {
         document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
     });
     
     modal.style.display = 'block';
 }
+
 
 async function speichereMieterAenderungen(event) {
     event.preventDefault();

@@ -478,7 +478,7 @@ table tr:last-child td:last-child {
     background-color: var(--secondary-color);
 }
 
-.mieter-filter {
+.mieter-filter, .wohnung-filter {
     display: flex;
     justify-content: center;
 }
