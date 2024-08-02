@@ -30,6 +30,7 @@ async function ladeMieter() {
                 telefonnummer,
                 einzug,
                 auszug,
+                notiz,
                 Wohnungen (id, Wohnung)
             `);
 
@@ -130,7 +131,8 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('telefon').value = mieter.telefonnummer || '';
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
-    
+    document.getElementById('notiz').value = mieter.notiz || '';
+
     ladeWohnungen(mieter['wohnung-id']).then(() => {
         document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
     });
@@ -149,6 +151,7 @@ async function speichereMieterAenderungen(event) {
     const wohnungId = document.getElementById('wohnung').value;
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
+    const notiz = document.getElementById('notiz').value; // Neue Zeile
 
     const updatedData = {
         name,
@@ -156,7 +159,8 @@ async function speichereMieterAenderungen(event) {
         telefonnummer,
         'wohnung-id': wohnungId || null,
         einzug: einzug || null,
-        auszug: auszug || null
+        auszug: auszug || null,
+        notiz: notiz // Neue Zeile
     };
 
     try {
@@ -300,6 +304,7 @@ async function speichereMieter(event) {
     const wohnungId = document.getElementById('wohnung').value;
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
+    const notiz = document.getElementById('notiz').value; // Neue Zeile
 
     const mieterData = {
         name,
@@ -307,7 +312,8 @@ async function speichereMieter(event) {
         telefonnummer,
         'wohnung-id': wohnungId || null,
         einzug: einzug || null,
-        auszug: auszug || null
+        auszug: auszug || null,
+        notiz: notiz // Neue Zeile
     };
 
     try {
