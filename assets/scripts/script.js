@@ -244,7 +244,7 @@ async function ladeWohnungen() {
             }
             zeile.insertCell(1).textContent = mieterName;
 
-            zeile.insertCell(2).textContent = wohnung.Größe;
+            zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
             zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
             
             // Berechnung des Preises pro Quadratmeter
