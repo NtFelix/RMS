@@ -464,7 +464,7 @@ table tr:last-child td:last-child {
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: 12px;
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
@@ -477,6 +477,7 @@ table tr:last-child td:last-child {
     padding: 10px;
     font-size: 16px;
     border: 1px solid #ddd;
-    border-radius: 5px;
+    border-radius: 12px;
     outline: none;
+    width: 300px;
 }
