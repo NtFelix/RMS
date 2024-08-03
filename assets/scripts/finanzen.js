@@ -7,27 +7,6 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
-async function ladeWohnungen() {
-    try {
-        const { data, error } = await supabase
-            .from('Wohnungen')
-            .select('id, Wohnung');
-
-        if (error) throw error;
-
-        const wohnungSelect = document.getElementById('wohnung-id');
-        wohnungSelect.innerHTML = '<option value="">Wählen Sie eine Wohnung</option>';
-        data.forEach(wohnung => {
-            const option = document.createElement('option');
-            option.value = wohnung.id;
-            option.textContent = wohnung.Wohnung;
-            wohnungSelect.appendChild(option);
-        });
-    } catch (error) {
-        console.error('Fehler beim Laden der Wohnungen:', error.message);
-    }
-}
-
 async function ladeTransaktionen() {
     try {
         const { data, error } = await supabase
@@ -74,46 +53,68 @@ function initFilterButtons() {
     });
 }
 
+async function ladeWohnungen() {
+    try {
+        const { data, error } = await supabase
+            .from('Wohnungen')
+            .select('id, Wohnung');
+
+        if (error) throw error;
+
+        const wohnungSelect = document.getElementById('wohnung-id');
+        wohnungSelect.innerHTML = '<option value="">Wählen Sie eine Wohnung</option>';
+        data.forEach(wohnung => {
+            const option = document.createElement('option');
+            option.value = wohnung.id;
+            option.textContent = wohnung.Wohnung;
+            wohnungSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Fehler beim Laden der Wohnungen:', error.message);
+        alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+    }
+}
+
 function oeffneBearbeitenModal(transaktion) {
     const modal = document.getElementById('bearbeiten-modal');
     document.getElementById('original-transaktion-id').value = transaktion.id;
-    ladeWohnungen().then(() => {
-        document.getElementById('wohnung-id').value = transaktion['wohnung-id'];
-    });
+    document.getElementById('wohnung-id').value = transaktion['wohnung-id'];
     document.getElementById('name').value = transaktion.name;
     document.getElementById('datum').value = transaktion['transaction-datum'];
     document.getElementById('betrag').value = transaktion.betrag;
     modal.style.display = 'block';
 }
 
+function schliesseBearbeitenModal() {
+    const modal = document.getElementById('bearbeiten-modal');
+    modal.style.display = 'none';
+}
+
 async function speichereTransaktionAenderungen(event) {
     event.preventDefault();
     const originalTransaktionId = document.getElementById('original-transaktion-id').value;
     const wohnungId = document.getElementById('wohnung-id').value;
-    const transaktionId = document.getElementById('transaktion-id').value;
     const name = document.getElementById('name').value;
     const datum = document.getElementById('datum').value;
     const betrag = document.getElementById('betrag').value;
 
     const updatedData = {
         'wohnung-id': wohnungId,
-        id: transaktionId,
         name: name,
         'transaction-datum': datum,
         betrag: betrag
     };
 
     try {
-        let query = supabase
+        const { data, error } = await supabase
             .from('transaktionen')
             .update(updatedData)
             .eq('id', originalTransaktionId);
 
-        const { data, error } = await query;
         if (error) throw error;
 
         alert('Änderungen erfolgreich gespeichert.');
-        document.getElementById('bearbeiten-modal').style.display = 'none';
+        schliesseBearbeitenModal();
         ladeTransaktionen();
     } catch (error) {
         console.error('Fehler beim Aktualisieren der Transaktion:', error.message);
@@ -122,7 +123,7 @@ async function speichereTransaktionAenderungen(event) {
 }
 
 function filterTransaktionen() {
-    const suchbegriff = document.getElementById('search-transaktion-input').value.toLowerCase();
+    const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
     const tabelle = document.getElementById('transaktionen-tabelle');
     const zeilen = tabelle.getElementsByTagName('tr');
 
@@ -155,52 +156,30 @@ function oeffneHinzufuegenModal() {
 async function speichereTransaktion(event) {
     event.preventDefault();
     const wohnungId = document.getElementById('wohnung-id').value;
-    const transaktionId = document.getElementById('transaktion-id').value;
     const name = document.getElementById('name').value;
     const datum = document.getElementById('datum').value;
     const betrag = document.getElementById('betrag').value;
 
     const transaktionData = {
         'wohnung-id': wohnungId,
-        id: transaktionId,
         name: name,
         'transaction-datum': datum,
         betrag: betrag
     };
 
     try {
-        const { data: existingTransaktion, error: checkError } = await supabase
+        const { data, error } = await supabase
             .from('transaktionen')
-            .select('id')
-            .eq('id', transaktionId)
-            .single();
+            .insert([transaktionData]);
 
-        if (checkError && checkError.code !== 'PGRST116') {
-            throw checkError;
-        }
+        if (error) throw error;
 
-        if (existingTransaktion) {
-            const { data, error } = await supabase
-                .from('transaktionen')
-                .update(transaktionData)
-                .eq('id', transaktionId);
-
-            if (error) throw error;
-            alert('Transaktionsdaten erfolgreich aktualisiert.');
-        } else {
-            const { data, error } = await supabase
-                .from('transaktionen')
-                .insert([transaktionData]);
-
-            if (error) throw error;
-            alert('Neue Transaktion erfolgreich hinzugefügt.');
-        }
-
-        document.getElementById('bearbeiten-modal').style.display = 'none';
+        alert('Neue Transaktion erfolgreich hinzugefügt.');
+        schliesseBearbeitenModal();
         ladeTransaktionen();
     } catch (error) {
-        console.error('Fehler beim Hinzufügen/Aktualisieren der Transaktion:', error.message);
-        alert('Fehler beim Hinzufügen/Aktualisieren der Transaktion. Bitte versuchen Sie es später erneut.');
+        console.error('Fehler beim Hinzufügen der Transaktion:', error.message);
+        alert('Fehler beim Hinzufügen der Transaktion. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -209,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ladeWohnungen();
     initFilterButtons();
 
-    const addButton = document.getElementById('add-transaktion-button');
+    const addButton = document.getElementById('add-transaction-button');
     addButton.addEventListener('click', oeffneHinzufuegenModal);
 
     const form = document.getElementById('transaktion-bearbeiten-form');
@@ -223,15 +202,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const suchfeld = document.getElementById('search-transaktion-input');
+    const suchfeld = document.getElementById('search-table-input');
     suchfeld.addEventListener('input', filterTransaktionen);
 
     const modal = document.getElementById('bearbeiten-modal');
     const span = modal.querySelector('.close');
-    span.onclick = () => modal.style.display = 'none';
+    span.onclick = schliesseBearbeitenModal;
     window.onclick = (event) => {
         if (event.target == modal) {
-            modal.style.display = 'none';
+            schliesseBearbeitenModal();
         }
     };
 });
