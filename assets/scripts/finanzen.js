@@ -14,28 +14,39 @@ async function ladeTransaktionen() {
             .select(`
                 *,
                 Wohnungen (Wohnung)
-            `);
+            `)
+            .order('transaction-date', { ascending: false });
 
         if (error) throw error;
+
+        const jetzt = new Date();
+        const startDiesesJahr = new Date(jetzt.getFullYear(), 0, 1);
+
+        const gefilterteData = data.filter(transaktion => {
+            const transaktionsDatum = new Date(transaktion['transaction-date']);
+            switch (aktiverFilter) {
+                case 'aktuell':
+                    return transaktionsDatum >= startDiesesJahr;
+                case 'vorherige':
+                    return transaktionsDatum < startDiesesJahr;
+                default:
+                    return true;
+            }
+        });
 
         const tabelle = document.getElementById('transaktionen-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = '';
 
-        data.forEach(transaktion => {
+        gefilterteData.forEach(transaktion => {
             const zeile = tabelle.insertRow();
             
-            // Wohnungsname anstelle der ID
             zeile.insertCell(0).textContent = transaktion.Wohnungen ? transaktion.Wohnungen.Wohnung : 'Keine Wohnung';
-            
-            // Name der Transaktion
             zeile.insertCell(1).textContent = transaktion.name;
             
-            // Datum im deutschen Format (DD.MM.YYYY)
             const datum = new Date(transaktion['transaction-date']);
             const formattedDate = datum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
             zeile.insertCell(2).textContent = formattedDate;
             
-            // Betrag mit zwei Dezimalstellen und Währungssymbol
             zeile.insertCell(3).textContent = `${transaktion.betrag.toFixed(2)} €`;
 
             const aktionenZelle = zeile.insertCell(4);
@@ -62,6 +73,7 @@ function initFilterButtons() {
         });
     });
 }
+
 
 async function ladeWohnungen() {
     try {
