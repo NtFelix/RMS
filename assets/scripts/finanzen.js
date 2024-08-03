@@ -23,10 +23,20 @@ async function ladeTransaktionen() {
 
         data.forEach(transaktion => {
             const zeile = tabelle.insertRow();
+            
+            // Wohnungsname anstelle der ID
             zeile.insertCell(0).textContent = transaktion.Wohnungen ? transaktion.Wohnungen.Wohnung : 'Keine Wohnung';
+            
+            // Name der Transaktion
             zeile.insertCell(1).textContent = transaktion.name;
-            zeile.insertCell(2).textContent = transaktion['transaction-datum'];
-            zeile.insertCell(3).textContent = transaktion.betrag + ' €';
+            
+            // Datum im deutschen Format (DD.MM.YYYY)
+            const datum = new Date(transaktion['transaction-date']);
+            const formattedDate = datum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            zeile.insertCell(2).textContent = formattedDate;
+            
+            // Betrag mit zwei Dezimalstellen und Währungssymbol
+            zeile.insertCell(3).textContent = `${transaktion.betrag.toFixed(2)} €`;
 
             const aktionenZelle = zeile.insertCell(4);
             const bearbeitenButton = document.createElement('button');
@@ -80,7 +90,7 @@ function oeffneBearbeitenModal(transaktion) {
     document.getElementById('original-transaktion-id').value = transaktion.id;
     document.getElementById('wohnung-id').value = transaktion['wohnung-id'];
     document.getElementById('name').value = transaktion.name;
-    document.getElementById('datum').value = transaktion['transaction-datum'];
+    document.getElementById('datum').value = transaktion['transaction-date'];
     document.getElementById('betrag').value = transaktion.betrag;
     modal.style.display = 'block';
 }
@@ -101,7 +111,7 @@ async function speichereTransaktionAenderungen(event) {
     const updatedData = {
         'wohnung-id': wohnungId,
         name: name,
-        'transaction-datum': datum,
+        'transaction-date': datum,
         betrag: betrag
     };
 
@@ -163,7 +173,7 @@ async function speichereTransaktion(event) {
     const transaktionData = {
         'wohnung-id': wohnungId,
         name: name,
-        'transaction-datum': datum,
+        'transaction-date': datum,
         betrag: betrag
     };
 
