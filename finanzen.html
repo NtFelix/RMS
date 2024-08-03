@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="de">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mieter - RMS</title>
+    <title>Finanzen</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/styles/styles.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script type="module" src="assets/scripts/mieter.js"></script>
+    <script type="module" src="assets/scripts/finanzen.js"></script>
 </head>
-
 <body>
     <div class="search-container">
         <div class="search-wrapper">
-            <input type="text" id="search-input" placeholder="Suchen Sie nach Mietern...">
+            <input type="text" id="search-input" placeholder="Durchsuchen Sie Ihre Daten...">
             <button id="search-button">Suchen</button>
         </div>
     </div>
@@ -36,7 +34,7 @@
         </nav>
         <main class="main-content">
             <header>
-                <h1>Mieterübersicht</h1>
+                <h1>Finanzen</h1>
                 <div class="user-info">
                     <span id="user-email"></span>
                     <button id="logout-button">Abmelden</button>
@@ -45,64 +43,56 @@
 
             <div class="content">
                 <div class="toolbar">
-                    <button class="add-button" id="add-mieter-button">Mieter hinzufügen</button>
-                    <div class="mieter-filter">
-                        <button class="filter-button active" data-filter="alle">Alle Mieter</button>
-                        <button class="filter-button" data-filter="aktuell">Aktuelle Mieter</button>
-                        <button class="filter-button" data-filter="vorherige">Vorherige Mieter</button>
+                    <button class="add-button" id="add-transaction-button">Transaktion hinzufügen</button>
+                    <div class="transaction-filter">
+                        <button class="filter-button active" data-filter="alle">Alle</button>
+                        <button class="filter-button" data-filter="aktuell"> Dieses Jahr</button>
+                        <button class="filter-button" data-filter="vorherige">Vorherige Jahre</button>
                     </div>
-                    <input type="text" id="search-table-input" placeholder="Mieter suchen">
+                    <input type="text" id="search-table-input" placeholder="Transaktion suchen">
                 </div>
                 
                 
-                <h2>Mieterliste</h2>
+                <h2>Finanzliste</h2>
                 <!-- Innerhalb der Tabelle -->
                 
-                <table id="mieter-tabelle">
+                <table id="transaktionen-tabelle">
                     <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>E-Mail</th>
-                            <th>Telefon</th>
                             <th>Wohnung</th>
+                            <th>Name</th>
+                            <th>Datum</th>
+                            <th>Betrag</th>
                             <th>Aktionen</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <!-- Hier werden die Mieterdaten dynamisch eingefügt -->
+                        <!-- Daten werden hier dynamisch eingefügt -->
                     </tbody>
                 </table>
+            
 
                 <!-- Fügen Sie dieses Modal am Ende des body-Tags hinzu -->
                 <div id="bearbeiten-modal" class="modal">
                     <div class="modal-content">
                         <span class="close">&times;</span>
-                        <h2>Mieter bearbeiten</h2>
-                        <form id="mieter-bearbeiten-form">
-                            <input type="hidden" id="original-name">
-                            <input type="hidden" id="mieter-id">
+                        <h2>Transaktion bearbeiten</h2>
+                        <form id="transaktion-bearbeiten-form">
+                            <input type="hidden" id="original-transaktion-id">
+                            <label for="wohnung-id">Wohnung:</label>
+                            <select id="wohnung-id" required></select>
                             <label for="name">Name:</label>
                             <input type="text" id="name" required>
-                            <label for="email">E-Mail:</label>
-                            <input type="email" id="email">
-                            <label for="telefon">Telefon:</label>
-                            <input type="tel" id="telefon">
-                            <label for="wohnung">Wohnung:</label>
-                            <select id="wohnung">
-                                <option value="">Keine Wohnung</option>
-                                <!-- Wohnungen werden dynamisch geladen -->
-                            </select>
-                            <label for="einzug">Einzugsdatum:</label>
-                            <input type="date" id="einzug">
-                            <label for="auszug">Auszugsdatum:</label>
-                            <input type="date" id="auszug">
-                            <label for="notiz">Notizen:</label>
-                            <textarea id="notiz" rows="4"></textarea>
-
+                            <label for="datum">Datum:</label>
+                            <input type="date" id="datum" required>
+                            <label for="betrag">Betrag:</label>
+                            <input type="number" id="betrag" required>
                             <button type="submit">Speichern</button>
                         </form>
                     </div>
                 </div>
+
+
             </div>
         </main>
     </div>
