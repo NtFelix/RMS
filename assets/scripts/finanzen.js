@@ -9,7 +9,10 @@ let aktiverFilter = 'alle';
 
 async function ladeTransaktionen() {
     try {
-        const { data, error } = await supabase
+        const wohnungId = document.getElementById('wohnung-select').value;
+        const jahr = document.getElementById('jahr-select').value;
+
+        let query = supabase
             .from('transaktionen')
             .select(`
                 *,
@@ -17,27 +20,24 @@ async function ladeTransaktionen() {
             `)
             .order('transaction-date', { ascending: false });
 
+        if (wohnungId) {
+            query = query.eq('wohnung-id', wohnungId);
+        }
+
+        if (jahr) {
+            const startDate = `${jahr}-01-01`;
+            const endDate = `${jahr}-12-31`;
+            query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
+        }
+
+        const { data, error } = await query;
+
         if (error) throw error;
-
-        const jetzt = new Date();
-        const startDiesesJahr = new Date(jetzt.getFullYear(), 0, 1);
-
-        const gefilterteData = data.filter(transaktion => {
-            const transaktionsDatum = new Date(transaktion['transaction-date']);
-            switch (aktiverFilter) {
-                case 'aktuell':
-                    return transaktionsDatum >= startDiesesJahr;
-                case 'vorherige':
-                    return transaktionsDatum < startDiesesJahr;
-                default:
-                    return true;
-            }
-        });
 
         const tabelle = document.getElementById('transaktionen-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = '';
 
-        gefilterteData.forEach(transaktion => {
+        data.forEach(transaktion => {
             const zeile = tabelle.insertRow();
             
             zeile.insertCell(0).textContent = transaktion.Wohnungen ? transaktion.Wohnungen.Wohnung : 'Keine Wohnung';
@@ -205,10 +205,56 @@ async function speichereTransaktion(event) {
     }
 }
 
+async function ladeWohnungenUndJahre() {
+    try {
+        const { data: wohnungen, error: wohnungenError } = await supabase
+            .from('Wohnungen')
+            .select('id, Wohnung');
+
+        if (wohnungenError) throw wohnungenError;
+
+        const wohnungSelects = document.querySelectorAll('#wohnung-select, #wohnung-id');
+        wohnungSelects.forEach(select => {
+            select.innerHTML = '<option value="">Wählen Sie eine Wohnung</option>';
+            wohnungen.forEach(wohnung => {
+                const option = document.createElement('option');
+                option.value = wohnung.id;
+                option.textContent = wohnung.Wohnung;
+                select.appendChild(option);
+            });
+        });
+
+        const { data: transaktionen, error: transaktionenError } = await supabase
+            .from('transaktionen')
+            .select('transaction-date');
+
+        if (transaktionenError) throw transaktionenError;
+
+        const jahre = [...new Set(transaktionen.map(t => new Date(t['transaction-date']).getFullYear()))].sort((a, b) => b - a);
+        const jahrSelect = document.getElementById('jahr-select');
+        jahrSelect.innerHTML = '<option value="">Alle Jahre</option>';
+        jahre.forEach(jahr => {
+            const option = document.createElement('option');
+            option.value = jahr;
+            option.textContent = jahr;
+            jahrSelect.appendChild(option);
+        });
+
+    } catch (error) {
+        console.error('Fehler beim Laden der Wohnungen und Jahre:', error.message);
+        alert('Fehler beim Laden der Filteroptionen. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Fügen Sie diese Funktion zu Ihrem bestehenden Code hinzu und rufen Sie sie auf
 document.addEventListener('DOMContentLoaded', () => {
     ladeTransaktionen();
-    ladeWohnungen();
+    ladeWohnungenUndJahre();
     initFilterButtons();
+
+    // Fügen Sie Event-Listener für die neuen Select-Elemente hinzu
+    document.getElementById('wohnung-select').addEventListener('change', ladeTransaktionen);
+    document.getElementById('jahr-select').addEventListener('change', ladeTransaktionen);
 
     const addButton = document.getElementById('add-transaction-button');
     addButton.addEventListener('click', oeffneHinzufuegenModal);

@@ -508,6 +508,29 @@ table tr:last-child td:last-child {
     width: 300px;
 }
 
+
+.filter-selects {
+    display: flex;
+    gap: 10px;
+}
+
+select {
+    padding: 5px 10px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: var(--button-radius);
+    background-color: white;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+select:hover, select:focus {
+    border-color: var(--primary-color);
+}
+
+
+
 table button {
     background-color: var(--primary-color);
     color: white;

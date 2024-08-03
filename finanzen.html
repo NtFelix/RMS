@@ -44,9 +44,19 @@
             <div class="content">
                 <div class="toolbar">
                     <button class="add-button" id="add-transaction-button">Transaktion hinzufügen</button>
+                    <div class="filter-selects">
+                        <select id="wohnung-select">
+                            <option value="">Alle Wohnungen</option>
+                            <!-- Optionen werden dynamisch mit JavaScript hinzugefügt -->
+                        </select>
+                        <select id="jahr-select">
+                            <option value="">Alle Jahre</option>
+                            <!-- Optionen werden dynamisch mit JavaScript hinzugefügt -->
+                        </select>
+                    </div>
                     <div class="transaction-filter">
                         <button class="filter-button active" data-filter="alle">Alle</button>
-                        <button class="filter-button" data-filter="aktuell"> Dieses Jahr</button>
+                        <button class="filter-button" data-filter="aktuell">Dieses Jahr</button>
                         <button class="filter-button" data-filter="vorherige">Vorherige Jahre</button>
                     </div>
                     <input type="text" id="search-table-input" placeholder="Transaktion suchen">
