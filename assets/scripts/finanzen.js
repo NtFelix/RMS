@@ -375,36 +375,26 @@ function exportToCSV() {
 function showContextMenu(event, transaktionId) {
     event.preventDefault();
     
-    // Entfernen Sie ein möglicherweise bereits vorhandenes Kontextmenü
     const existingMenu = document.getElementById('context-menu');
     if (existingMenu) {
         existingMenu.remove();
     }
     
-    // Erstellen Sie das Kontextmenü
     const contextMenu = document.createElement('div');
     contextMenu.id = 'context-menu';
-    contextMenu.style.position = 'absolute';
     contextMenu.style.left = `${event.pageX}px`;
     contextMenu.style.top = `${event.pageY}px`;
-    contextMenu.style.backgroundColor = 'white';
-    contextMenu.style.border = '1px solid black';
-    contextMenu.style.padding = '5px';
     
-    // Fügen Sie den Löschen-Button hinzu
     const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Löschen';
-    deleteButton.onclick = () => confirmDelete(transaktionId);
+    deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i> Löschen';
+    deleteButton.onclick = () => showConfirmDialog(transaktionId);
     contextMenu.appendChild(deleteButton);
     
-    // Fügen Sie das Kontextmenü zum Dokument hinzu
     document.body.appendChild(contextMenu);
     
-    // Entfernen Sie das Kontextmenü, wenn woanders geklickt wird
     document.addEventListener('click', removeContextMenu);
 }
 
-// Funktion zum Entfernen des Kontextmenüs
 function removeContextMenu() {
     const contextMenu = document.getElementById('context-menu');
     if (contextMenu) {
@@ -413,14 +403,37 @@ function removeContextMenu() {
     document.removeEventListener('click', removeContextMenu);
 }
 
-// Funktion zur Bestätigung des Löschvorgangs
-function confirmDelete(transaktionId) {
-    if (confirm('Sind Sie sicher, dass Sie diese Transaktion löschen möchten?')) {
+function showConfirmDialog(transaktionId) {
+    const overlay = document.createElement('div');
+    overlay.id = 'overlay';
+    
+    const dialog = document.createElement('div');
+    dialog.id = 'confirm-dialog';
+    dialog.innerHTML = `
+        <h2>Transaktion löschen</h2>
+        <p>Sind Sie sicher, dass Sie diese Transaktion löschen möchten?</p>
+        <button class="confirm">Löschen</button>
+        <button class="cancel">Abbrechen</button>
+    `;
+    
+    dialog.querySelector('.confirm').onclick = () => {
         deleteTransaction(transaktionId);
-    }
+        removeConfirmDialog();
+    };
+    
+    dialog.querySelector('.cancel').onclick = removeConfirmDialog;
+    
+    document.body.appendChild(overlay);
+    document.body.appendChild(dialog);
 }
 
-// Funktion zum Löschen der Transaktion
+function removeConfirmDialog() {
+    const overlay = document.getElementById('overlay');
+    const dialog = document.getElementById('confirm-dialog');
+    if (overlay) overlay.remove();
+    if (dialog) dialog.remove();
+}
+
 async function deleteTransaction(transaktionId) {
     try {
         const { error } = await supabase
@@ -430,11 +443,23 @@ async function deleteTransaction(transaktionId) {
 
         if (error) throw error;
 
-        // Aktualisieren Sie die Tabelle und die Zusammenfassung
         ladeTransaktionen();
         aktualisiereDashboardZusammenfassung();
         
-        alert('Transaktion erfolgreich gelöscht.');
+        const notification = document.createElement('div');
+        notification.textContent = 'Transaktion erfolgreich gelöscht.';
+        notification.style.position = 'fixed';
+        notification.style.top = '20px';
+        notification.style.right = '20px';
+        notification.style.backgroundColor = '#4CAF50';
+        notification.style.color = 'white';
+        notification.style.padding = '15px';
+        notification.style.borderRadius = '4px';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
     } catch (error) {
         console.error('Fehler beim Löschen der Transaktion:', error.message);
         alert('Fehler beim Löschen der Transaktion. Bitte versuchen Sie es später erneut.');
