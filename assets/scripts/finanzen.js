@@ -59,6 +59,7 @@ async function ladeTransaktionen() {
             bearbeitenButton.onclick = () => oeffneBearbeitenModal(transaktion);
             aktionenZelle.appendChild(bearbeitenButton);
         });
+        await aktualisiereDashboardZusammenfassung();
     } catch (error) {
         console.error('Fehler beim Laden der Transaktionen:', error.message);
         alert('Fehler beim Laden der Transaktionen. Bitte versuchen Sie es später erneut.');
@@ -279,9 +280,29 @@ async function ladeWohnungenUndJahre() {
 
 async function aktualisiereDashboardZusammenfassung() {
     try {
-        const { data, error } = await supabase
+        const wohnungId = document.getElementById('wohnung-select').value;
+        const jahr = document.getElementById('jahr-select').value;
+        const transaktionstyp = document.getElementById('transaktionstyp-select').value;
+
+        let query = supabase
             .from('transaktionen')
             .select('betrag, ist_einnahmen');
+
+        if (wohnungId) {
+            query = query.eq('wohnung-id', wohnungId);
+        }
+
+        if (jahr) {
+            const startDate = `${jahr}-01-01`;
+            const endDate = `${jahr}-12-31`;
+            query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
+        }
+
+        if (transaktionstyp !== '') {
+            query = query.eq('ist_einnahmen', transaktionstyp === 'true');
+        }
+
+        const { data, error } = await query;
 
         if (error) throw error;
 
