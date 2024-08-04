@@ -53,11 +53,11 @@
                             <option value="">Alle Jahre</option>
                             <!-- Optionen werden dynamisch mit JavaScript hinzugefügt -->
                         </select>
-                    </div>
-                    <div class="transaction-filter">
-                        <button class="filter-button active" data-filter="alle">Alle</button>
-                        <button class="filter-button" data-filter="aktuell">Dieses Jahr</button>
-                        <button class="filter-button" data-filter="vorherige">Vorherige Jahre</button>
+                        <select id="transaktionstyp-select">
+                            <option value="">Alle Transaktionen</option>
+                            <option value="true">Einnahmen</option>
+                            <option value="false">Ausgaben</option>
+                        </select>
                     </div>
                     <input type="text" id="search-table-input" placeholder="Transaktion suchen">
                 </div>
@@ -73,6 +73,7 @@
                             <th>Name</th>
                             <th>Datum</th>
                             <th>Betrag</th>
+                            <th>Transaktionstyp</th>
                             <th>Aktionen</th>
                         </tr>
                     </thead>
@@ -94,7 +95,12 @@
                             <label for="name">Name:</label>
                             <input type="text" id="name" required>
                             <label for="datum">Datum:</label>
-                            <input type="date" id="datum" required>
+                            <input type="date" id="datum" required>                            
+                            <label for="ist-einnahmen">Transaktionstyp:</label>
+                            <select id="ist-einnahmen" required>
+                                <option value="true">Einnahme</option>
+                                <option value="false">Ausgabe</option>
+                            </select>
                             <label for="betrag">Betrag:</label>
                             <input type="number" id="betrag" required>
                             <label for="notizen">Notizen:</label>
