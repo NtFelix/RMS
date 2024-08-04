@@ -30,6 +30,14 @@ async function ladeTransaktionen() {
             query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
         }
 
+        // Anwenden des Button-Filters
+        const currentYear = new Date().getFullYear();
+        if (aktiverFilter === 'aktuell') {
+            query = query.gte('transaction-date', `${currentYear}-01-01`);
+        } else if (aktiverFilter === 'vorherige') {
+            query = query.lt('transaction-date', `${currentYear}-01-01`);
+        }
+
         const { data, error } = await query;
 
         if (error) throw error;
@@ -39,14 +47,11 @@ async function ladeTransaktionen() {
 
         data.forEach(transaktion => {
             const zeile = tabelle.insertRow();
-            
             zeile.insertCell(0).textContent = transaktion.Wohnungen ? transaktion.Wohnungen.Wohnung : 'Keine Wohnung';
             zeile.insertCell(1).textContent = transaktion.name;
-            
             const datum = new Date(transaktion['transaction-date']);
             const formattedDate = datum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
             zeile.insertCell(2).textContent = formattedDate;
-            
             zeile.insertCell(3).textContent = `${transaktion.betrag.toFixed(2)} €`;
 
             const aktionenZelle = zeile.insertCell(4);
