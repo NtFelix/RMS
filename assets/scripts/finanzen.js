@@ -11,6 +11,7 @@ async function ladeTransaktionen() {
     try {
         const wohnungId = document.getElementById('wohnung-select').value;
         const jahr = document.getElementById('jahr-select').value;
+        const transaktionstyp = document.getElementById('transaktionstyp-select').value;
 
         let query = supabase
             .from('transaktionen')
@@ -30,6 +31,10 @@ async function ladeTransaktionen() {
             query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
         }
 
+        if (transaktionstyp !== '') {
+            query = query.eq('ist_einnahmen', transaktionstyp === 'true');
+        }
+
         const { data, error } = await query;
 
         if (error) throw error;
@@ -45,8 +50,9 @@ async function ladeTransaktionen() {
             const formattedDate = datum.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
             zeile.insertCell(2).textContent = formattedDate;
             zeile.insertCell(3).textContent = `${transaktion.betrag.toFixed(2)} €`;
+            zeile.insertCell(4).textContent = transaktion.ist_einnahmen ? 'Einnahme' : 'Ausgabe';
 
-            const aktionenZelle = zeile.insertCell(4);
+            const aktionenZelle = zeile.insertCell(5);
             const bearbeitenButton = document.createElement('button');
             bearbeitenButton.textContent = 'Bearbeiten';
             bearbeitenButton.className = 'bearbeiten-button';
@@ -94,14 +100,19 @@ async function ladeWohnungen() {
     }
 }
 
-function oeffneBearbeitenModal(transaktion) {
+async function oeffneBearbeitenModal(transaktion) {
     const modal = document.getElementById('bearbeiten-modal');
+    
+    await ladeWohnungen();
+    
     document.getElementById('original-transaktion-id').value = transaktion.id;
     document.getElementById('wohnung-id').value = transaktion['wohnung-id'];
     document.getElementById('name').value = transaktion.name;
     document.getElementById('datum').value = transaktion['transaction-date'];
     document.getElementById('betrag').value = transaktion.betrag;
-    document.getElementById('notizen').value = transaktion.notizen || ''; // Hier werden die Notizen geladen
+    document.getElementById('ist-einnahmen').value = transaktion.ist_einnahmen.toString();
+    document.getElementById('notizen').value = transaktion.notizen || '';
+    
     modal.style.display = 'block';
 }
 
@@ -117,6 +128,7 @@ async function speichereTransaktionAenderungen(event) {
     const name = document.getElementById('name').value;
     const datum = document.getElementById('datum').value;
     const betrag = document.getElementById('betrag').value;
+    const istEinnahmen = document.getElementById('ist-einnahmen').value === 'true';
     const notizen = document.getElementById('notizen').value;
 
     const updatedData = {
@@ -124,6 +136,7 @@ async function speichereTransaktionAenderungen(event) {
         name: name,
         'transaction-date': datum,
         betrag: betrag,
+        ist_einnahmen: istEinnahmen,
         notizen: notizen
     };
 
@@ -166,10 +179,14 @@ function filterTransaktionen() {
     }
 }
 
-function oeffneHinzufuegenModal() {
+async function oeffneHinzufuegenModal() {
     const modal = document.getElementById('bearbeiten-modal');
     const form = document.getElementById('transaktion-bearbeiten-form');
     form.reset();
+    
+    // Laden Sie die Wohnungen
+    await ladeWohnungen();
+    
     document.getElementById('original-transaktion-id').value = '';
     modal.querySelector('h2').textContent = 'Neue Transaktion hinzufügen';
     modal.style.display = 'block';
@@ -181,6 +198,7 @@ async function speichereTransaktion(event) {
     const name = document.getElementById('name').value;
     const datum = document.getElementById('datum').value;
     const betrag = document.getElementById('betrag').value;
+    const istEinnahmen = document.getElementById('ist-einnahmen').value === 'true';
     const notizen = document.getElementById('notizen').value;
 
     const transaktionData = {
@@ -188,6 +206,7 @@ async function speichereTransaktion(event) {
         name: name,
         'transaction-date': datum,
         betrag: betrag,
+        ist_einnahmen: istEinnahmen,
         notizen: notizen
     };
 
@@ -215,15 +234,13 @@ async function ladeWohnungenUndJahre() {
 
         if (wohnungenError) throw wohnungenError;
 
-        const wohnungSelects = document.querySelectorAll('#wohnung-select, #wohnung-id');
-        wohnungSelects.forEach(select => {
-            select.innerHTML = '<option value="">Wählen Sie eine Wohnung</option>';
-            wohnungen.forEach(wohnung => {
-                const option = document.createElement('option');
-                option.value = wohnung.id;
-                option.textContent = wohnung.Wohnung;
-                select.appendChild(option);
-            });
+        const wohnungSelect = document.getElementById('wohnung-select');
+        wohnungSelect.innerHTML = '<option value="">Alle Wohnungen</option>';
+        wohnungen.forEach(wohnung => {
+            const option = document.createElement('option');
+            option.value = wohnung.id;
+            option.textContent = wohnung.Wohnung;
+            wohnungSelect.appendChild(option);
         });
 
         const { data: transaktionen, error: transaktionenError } = await supabase
@@ -242,6 +259,14 @@ async function ladeWohnungenUndJahre() {
             jahrSelect.appendChild(option);
         });
 
+        // Initialisiere den Transaktionstyp-Selektor
+        const transaktionsTypSelect = document.getElementById('transaktionstyp-select');
+        transaktionsTypSelect.innerHTML = `
+            <option value="">Alle Transaktionen</option>
+            <option value="true">Einnahmen</option>
+            <option value="false">Ausgaben</option>
+        `;
+
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen und Jahre:', error.message);
         alert('Fehler beim Laden der Filteroptionen. Bitte versuchen Sie es später erneut.');
@@ -249,14 +274,15 @@ async function ladeWohnungenUndJahre() {
 }
 
 // Fügen Sie diese Funktion zu Ihrem bestehenden Code hinzu und rufen Sie sie auf
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    await ladeWohnungen();
     ladeTransaktionen();
     ladeWohnungenUndJahre();
-    initFilterButtons();
 
-    // Fügen Sie Event-Listener für die neuen Select-Elemente hinzu
     document.getElementById('wohnung-select').addEventListener('change', ladeTransaktionen);
     document.getElementById('jahr-select').addEventListener('change', ladeTransaktionen);
+    document.getElementById('transaktionstyp-select').addEventListener('change', ladeTransaktionen);
+
 
     const addButton = document.getElementById('add-transaction-button');
     addButton.addEventListener('click', oeffneHinzufuegenModal);
