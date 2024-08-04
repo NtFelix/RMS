@@ -30,14 +30,6 @@ async function ladeTransaktionen() {
             query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
         }
 
-        // Anwenden des Button-Filters
-        const currentYear = new Date().getFullYear();
-        if (aktiverFilter === 'aktuell') {
-            query = query.gte('transaction-date', `${currentYear}-01-01`);
-        } else if (aktiverFilter === 'vorherige') {
-            query = query.lt('transaction-date', `${currentYear}-01-01`);
-        }
-
         const { data, error } = await query;
 
         if (error) throw error;
@@ -109,6 +101,7 @@ function oeffneBearbeitenModal(transaktion) {
     document.getElementById('name').value = transaktion.name;
     document.getElementById('datum').value = transaktion['transaction-date'];
     document.getElementById('betrag').value = transaktion.betrag;
+    document.getElementById('notizen').value = transaktion.notizen || ''; // Hier werden die Notizen geladen
     modal.style.display = 'block';
 }
 
@@ -124,12 +117,14 @@ async function speichereTransaktionAenderungen(event) {
     const name = document.getElementById('name').value;
     const datum = document.getElementById('datum').value;
     const betrag = document.getElementById('betrag').value;
+    const notizen = document.getElementById('notizen').value;
 
     const updatedData = {
         'wohnung-id': wohnungId,
         name: name,
         'transaction-date': datum,
-        betrag: betrag
+        betrag: betrag,
+        notizen: notizen
     };
 
     try {
@@ -186,12 +181,14 @@ async function speichereTransaktion(event) {
     const name = document.getElementById('name').value;
     const datum = document.getElementById('datum').value;
     const betrag = document.getElementById('betrag').value;
+    const notizen = document.getElementById('notizen').value;
 
     const transaktionData = {
         'wohnung-id': wohnungId,
         name: name,
         'transaction-date': datum,
-        betrag: betrag
+        betrag: betrag,
+        notizen: notizen
     };
 
     try {
