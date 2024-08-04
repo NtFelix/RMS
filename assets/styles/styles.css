@@ -33,7 +33,7 @@ body {
     top: 50%;
     left: var(--sidebar-margin);
     transform: translateY(-50%);
-    border-radius: 15px;
+    border-radius: 20px;
     box-shadow: 2px 0 10px rgba(0,0,0,0.1);
     overflow: hidden;
 }
@@ -230,6 +230,7 @@ body {
     margin-left: calc(var(--sidebar-width) + var(--sidebar-margin) * 2);
     padding: 20px;
     padding-top: 20px; /* Zusätzlicher Abstand für den Hauptinhalt */
+    border-radius: 20px;
 
 }
 
@@ -261,7 +262,7 @@ h1 {
     background-color: var(--primary-color);
     color: white;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 20px;
     text-align: center;
     flex: 1;
     margin: 0 10px;
@@ -306,7 +307,7 @@ h1 {
 .content {
     background-color: white;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     margin-top: 20px; /* Zusätzlicher Abstand für den Inhalt */
 }
