@@ -329,7 +329,46 @@ async function aktualisiereDashboardZusammenfassung() {
     }
 }
 
-// Fügen Sie diese Funktion zu Ihrem bestehenden Code hinzu und rufen Sie sie auf
+// Fügen Sie diese neue Funktion hinzu
+function exportToCSV() {
+    const table = document.getElementById('transaktionen-tabelle');
+    let csv = [];
+    
+    // Header
+    let header = [];
+    for (let i = 0; i < table.rows[0].cells.length - 1; i++) { // -1 to exclude the "Aktionen" column
+        header.push(table.rows[0].cells[i].innerText);
+    }
+    csv.push(header.join(','));
+    
+    // Rows
+    for (let i = 1; i < table.rows.length; i++) {
+        let row = [];
+        for (let j = 0; j < table.rows[i].cells.length - 1; j++) { // -1 to exclude the "Aktionen" column
+            let cell = table.rows[i].cells[j].innerText;
+            // Wenn die Zelle ein Komma enthält, setzen Sie den Inhalt in Anführungszeichen
+            cell = cell.includes(',') ? `"${cell}"` : cell;
+            row.push(cell);
+        }
+        csv.push(row.join(','));
+    }
+    
+    // Erstellen Sie einen Blob und einen Download-Link
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "transaktionen_export.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// Modifizieren Sie die DOMContentLoaded Event Listener Funktion
 document.addEventListener('DOMContentLoaded', async () => {
     await ladeWohnungen();
     ladeTransaktionen();
@@ -340,20 +379,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('jahr-select').addEventListener('change', ladeTransaktionen);
     document.getElementById('transaktionstyp-select').addEventListener('change', ladeTransaktionen);
 
-
     const addButton = document.getElementById('add-transaction-button');
     addButton.addEventListener('click', oeffneHinzufuegenModal);
 
-    const form = document.getElementById('transaktion-bearbeiten-form');
-    form.addEventListener('submit', (event) => {
-        event.preventDefault();
-        const originalTransaktionId = document.getElementById('original-transaktion-id').value;
-        if (originalTransaktionId) {
-            speichereTransaktionAenderungen(event);
-        } else {
-            speichereTransaktion(event);
-        }
-    });
+    // Fügen Sie diesen neuen Code hinzu
+    const exportButton = document.getElementById('export-csv-button');
+    exportButton.addEventListener('click', exportToCSV);
 
     const suchfeld = document.getElementById('search-table-input');
     suchfeld.addEventListener('input', filterTransaktionen);
