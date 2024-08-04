@@ -58,6 +58,9 @@ async function ladeTransaktionen() {
             bearbeitenButton.className = 'bearbeiten-button';
             bearbeitenButton.onclick = () => oeffneBearbeitenModal(transaktion);
             aktionenZelle.appendChild(bearbeitenButton);
+
+            // Fügen Sie den Event-Listener für den Rechtsklick hinzu
+            zeile.addEventListener('contextmenu', (event) => showContextMenu(event, transaktion.id));
         });
         await aktualisiereDashboardZusammenfassung();
     } catch (error) {
@@ -367,6 +370,78 @@ function exportToCSV() {
         document.body.removeChild(link);
     }
 }
+
+
+function showContextMenu(event, transaktionId) {
+    event.preventDefault();
+    
+    // Entfernen Sie ein möglicherweise bereits vorhandenes Kontextmenü
+    const existingMenu = document.getElementById('context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    // Erstellen Sie das Kontextmenü
+    const contextMenu = document.createElement('div');
+    contextMenu.id = 'context-menu';
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = `${event.pageX}px`;
+    contextMenu.style.top = `${event.pageY}px`;
+    contextMenu.style.backgroundColor = 'white';
+    contextMenu.style.border = '1px solid black';
+    contextMenu.style.padding = '5px';
+    
+    // Fügen Sie den Löschen-Button hinzu
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Löschen';
+    deleteButton.onclick = () => confirmDelete(transaktionId);
+    contextMenu.appendChild(deleteButton);
+    
+    // Fügen Sie das Kontextmenü zum Dokument hinzu
+    document.body.appendChild(contextMenu);
+    
+    // Entfernen Sie das Kontextmenü, wenn woanders geklickt wird
+    document.addEventListener('click', removeContextMenu);
+}
+
+// Funktion zum Entfernen des Kontextmenüs
+function removeContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+        contextMenu.remove();
+    }
+    document.removeEventListener('click', removeContextMenu);
+}
+
+// Funktion zur Bestätigung des Löschvorgangs
+function confirmDelete(transaktionId) {
+    if (confirm('Sind Sie sicher, dass Sie diese Transaktion löschen möchten?')) {
+        deleteTransaction(transaktionId);
+    }
+}
+
+// Funktion zum Löschen der Transaktion
+async function deleteTransaction(transaktionId) {
+    try {
+        const { error } = await supabase
+            .from('transaktionen')
+            .delete()
+            .eq('id', transaktionId);
+
+        if (error) throw error;
+
+        // Aktualisieren Sie die Tabelle und die Zusammenfassung
+        ladeTransaktionen();
+        aktualisiereDashboardZusammenfassung();
+        
+        alert('Transaktion erfolgreich gelöscht.');
+    } catch (error) {
+        console.error('Fehler beim Löschen der Transaktion:', error.message);
+        alert('Fehler beim Löschen der Transaktion. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+
 
 // Modifizieren Sie die DOMContentLoaded Event Listener Funktion
 document.addEventListener('DOMContentLoaded', async () => {
