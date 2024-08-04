@@ -151,6 +151,8 @@ async function speichereTransaktionAenderungen(event) {
         alert('Änderungen erfolgreich gespeichert.');
         schliesseBearbeitenModal();
         ladeTransaktionen();
+        aktualisiereDashboardZusammenfassung();
+        ladeWohnungen();
     } catch (error) {
         console.error('Fehler beim Aktualisieren der Transaktion:', error.message);
         alert('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
@@ -220,6 +222,8 @@ async function speichereTransaktion(event) {
         alert('Neue Transaktion erfolgreich hinzugefügt.');
         schliesseBearbeitenModal();
         ladeTransaktionen();
+        aktualisiereDashboardZusammenfassung();
+        ladeWohnungen();
     } catch (error) {
         console.error('Fehler beim Hinzufügen der Transaktion:', error.message);
         alert('Fehler beim Hinzufügen der Transaktion. Bitte versuchen Sie es später erneut.');
@@ -273,11 +277,43 @@ async function ladeWohnungenUndJahre() {
     }
 }
 
+async function aktualisiereDashboardZusammenfassung() {
+    try {
+        const { data, error } = await supabase
+            .from('transaktionen')
+            .select('betrag, ist_einnahmen');
+
+        if (error) throw error;
+
+        let einnahmen = 0;
+        let ausgaben = 0;
+
+        data.forEach(transaktion => {
+            if (transaktion.ist_einnahmen) {
+                einnahmen += parseFloat(transaktion.betrag);
+            } else {
+                ausgaben += parseFloat(transaktion.betrag);
+            }
+        });
+
+        const saldo = einnahmen - ausgaben;
+
+        document.getElementById('total-earnings').textContent = einnahmen.toFixed(2) + ' €';
+        document.getElementById('total-cost').textContent = ausgaben.toFixed(2) + ' €';
+        document.getElementById('saldo').textContent = saldo.toFixed(2) + ' €';
+
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren der Dashboard-Zusammenfassung:', error.message);
+        alert('Fehler beim Laden der Dashboard-Daten. Bitte versuchen Sie es später erneut.');
+    }
+}
+
 // Fügen Sie diese Funktion zu Ihrem bestehenden Code hinzu und rufen Sie sie auf
 document.addEventListener('DOMContentLoaded', async () => {
     await ladeWohnungen();
     ladeTransaktionen();
     ladeWohnungenUndJahre();
+    aktualisiereDashboardZusammenfassung();
 
     document.getElementById('wohnung-select').addEventListener('change', ladeTransaktionen);
     document.getElementById('jahr-select').addEventListener('change', ladeTransaktionen);
