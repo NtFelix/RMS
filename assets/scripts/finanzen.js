@@ -412,8 +412,10 @@ function showConfirmDialog(transaktionId) {
     dialog.innerHTML = `
         <h2>Transaktion löschen</h2>
         <p>Sind Sie sicher, dass Sie diese Transaktion löschen möchten?</p>
-        <button class="confirm">Löschen</button>
-        <button class="cancel">Abbrechen</button>
+        <div class="button-container">
+            <button class="cancel">Abbrechen</button>
+            <button class="confirm">Löschen</button>
+        </div>
     `;
     
     dialog.querySelector('.confirm').onclick = () => {
@@ -427,12 +429,38 @@ function showConfirmDialog(transaktionId) {
     document.body.appendChild(dialog);
 }
 
+function showNotification(message, type = 'success') {
+    const existingNotification = document.getElementById('notification');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+
+    const notification = document.createElement('div');
+    notification.id = 'notification';
+    notification.className = type;
+    notification.innerHTML = `
+        <p>${message}</p>
+        <button class="close-btn">&times;</button>
+    `;
+
+    notification.querySelector('.close-btn').onclick = () => notification.remove();
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        notification.remove();
+    }, 5000);
+}
+
+
+
 function removeConfirmDialog() {
     const overlay = document.getElementById('overlay');
     const dialog = document.getElementById('confirm-dialog');
     if (overlay) overlay.remove();
     if (dialog) dialog.remove();
 }
+
 
 async function deleteTransaction(transaktionId) {
     try {
@@ -446,27 +474,12 @@ async function deleteTransaction(transaktionId) {
         ladeTransaktionen();
         aktualisiereDashboardZusammenfassung();
         
-        const notification = document.createElement('div');
-        notification.textContent = 'Transaktion erfolgreich gelöscht.';
-        notification.style.position = 'fixed';
-        notification.style.top = '20px';
-        notification.style.right = '20px';
-        notification.style.backgroundColor = '#4CAF50';
-        notification.style.color = 'white';
-        notification.style.padding = '15px';
-        notification.style.borderRadius = '4px';
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
+        showNotification('Transaktion erfolgreich gelöscht.');
     } catch (error) {
         console.error('Fehler beim Löschen der Transaktion:', error.message);
-        alert('Fehler beim Löschen der Transaktion. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Löschen der Transaktion. Bitte versuchen Sie es später erneut.', 'error');
     }
 }
-
-
 
 // Modifizieren Sie die DOMContentLoaded Event Listener Funktion
 document.addEventListener('DOMContentLoaded', async () => {
