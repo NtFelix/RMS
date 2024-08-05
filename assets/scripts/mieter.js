@@ -55,7 +55,7 @@ async function ladeMieter() {
         });
     } catch (error) {
         console.error('Fehler beim Laden der Mieter:', error.message);
-        alert('Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -118,7 +118,7 @@ async function ladeWohnungen(aktuelleWohnungId = null) {
         });
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
-        alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -179,12 +179,12 @@ async function speichereMieterAenderungen(event) {
 
         if (error) throw error;
 
-        alert('Änderungen erfolgreich gespeichert.');
+        showNotification('Änderungen erfolgreich gespeichert.');
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeMieter(); // Aktualisiere die Tabelle
     } catch (error) {
         console.error('Fehler beim Aktualisieren des Mieters:', error.message);
-        alert('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -336,7 +336,7 @@ async function speichereMieter(event) {
                 .eq('name', name);
 
             if (error) throw error;
-            alert('Mieterdaten erfolgreich aktualisiert.');
+            showNotification('Mieterdaten erfolgreich aktualisiert.');
         } else {
             // Mieter existiert nicht, füge einen neuen hinzu
             const { data, error } = await supabase
@@ -344,14 +344,14 @@ async function speichereMieter(event) {
                 .insert([mieterData]);
 
             if (error) throw error;
-            alert('Neuer Mieter erfolgreich hinzugefügt.');
+            showNotification('Neuer Mieter erfolgreich hinzugefügt.');
         }
 
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeMieter(); // Aktualisiere die Tabelle
     } catch (error) {
         console.error('Fehler beim Hinzufügen/Aktualisieren des Mieters:', error.message);
-        alert('Fehler beim Hinzufügen/Aktualisieren des Mieters. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Hinzufügen/Aktualisieren des Mieters. Bitte versuchen Sie es später erneut.');
     }
 }
 

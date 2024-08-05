@@ -449,28 +449,6 @@ function showConfirmDialog(transaktionId) {
     document.body.appendChild(dialog);
 }
 
-function showNotification(message, type = 'success') {
-    const existingNotification = document.getElementById('notification');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-
-    const notification = document.createElement('div');
-    notification.id = 'notification';
-    notification.className = type;
-    notification.innerHTML = `
-        <p>${message}</p>
-        <button class="close-btn">&times;</button>
-    `;
-
-    notification.querySelector('.close-btn').onclick = () => notification.remove();
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-        notification.remove();
-    }, 5000);
-}
 
 
 
