@@ -22,10 +22,10 @@ async function handleLogout() {
     try {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
-        alert('Erfolgreich abgemeldet');
+        showNotification('Erfolgreich abgemeldet');
         window.location.href = 'index.html';
     } catch (error) {
-        alert('Fehler beim Abmelden: ' + error.message);
+        showNotification('Fehler beim Abmelden: ' + error.message);
     }
 }
 
@@ -254,7 +254,7 @@ async function ladeWohnungen() {
         document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
-        alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -292,7 +292,7 @@ async function mieteBezahlt(wohnungId, betrag) {
         }
 
         if (existingPayment) {
-            alert(`Die Miete für Wohnung ${wohnungNummer} wurde in diesem Monat bereits als bezahlt markiert.`);
+            showNotification(`Die Miete für Wohnung ${wohnungNummer} wurde in diesem Monat bereits als bezahlt markiert.`);
             return;
         }
 
@@ -312,11 +312,11 @@ async function mieteBezahlt(wohnungId, betrag) {
 
         if (error) throw error;
 
-        alert(`Miete für Wohnung ${wohnungNummer} von ${mieterName} erfolgreich als bezahlt markiert.`);
+        showNotification(`Miete für Wohnung ${wohnungNummer} von ${mieterName} erfolgreich als bezahlt markiert.`);
         ladeWohnungen();
     } catch (error) {
         console.error('Fehler beim Markieren der Miete als bezahlt:', error.message);
-        alert('Fehler beim Markieren der Miete als bezahlt. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Markieren der Miete als bezahlt. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -396,7 +396,7 @@ async function ladeMieter() {
       durchschnittlicheMietdauer + " Monate";
   } catch (error) {
     console.error("Fehler beim Laden der Mieter:", error.message);
-    alert(
+    showNotification(
       "Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut."
     );
   }
