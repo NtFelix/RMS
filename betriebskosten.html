@@ -85,36 +85,28 @@
                 <div id="bearbeiten-modal" class="modal">
                     <div class="modal-content">
                         <span class="close">&times;</span>
-                        <h2>Betriebskostenabrechnung bearbeiten</h2>
+                        <h2>Neue Betriebskostenabrechnung hinzufügen</h2>
                         <form id="betriebskosten-bearbeiten-form">
                             <label for="year">Jahr:</label>
                             <input type="number" id="year" name="year" required>
                 
-                            <label for="heating_cost">Heizkosten:</label>
-                            <input type="number" id="heating_cost" name="heating_cost" step="0.01" required>
+                            <div id="nebenkostenarten-container">
+                                <!-- Hier werden die Nebenkostenarten dynamisch hinzugefügt -->
+                            </div>
                 
-                            <label for="water_cost">Wasserkosten:</label>
-                            <input type="number" id="water_cost" name="water_cost" step="0.01" required>
-                
-                            <label for="electricity_cost">Stromkosten:</label>
-                            <input type="number" id="electricity_cost" name="electricity_cost" step="0.01" required>
-                
-                            <label for="cleaning_cost">Reinigungskosten:</label>
-                            <input type="number" id="cleaning_cost" name="cleaning_cost" step="0.01" required>
-                
-                            <label for="other_cost">Sonstige Kosten:</label>
-                            <input type="number" id="other_cost" name="other_cost" step="0.01" required>
-                
-                            <button type="submit">Speichern</button>
+                            <button type="button" id="add-nebenkostenart">Nebenkostenart hinzufügen</button>
+                            <button type="submit" id="speichern-button">Speichern</button>
                         </form>
                     </div>
                 </div>
                 
-                
-                
+                </div>
                 
 
-
+                
+                
+                
+                
 
             </div>
         </main>

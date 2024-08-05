@@ -39,21 +39,124 @@ async function loadBetriebskosten() {
 }
 
 // Funktion zum Öffnen des Bearbeitungsmodals
+let nebenkostenarten = ['heating_cost', 'water_cost', 'electricity_cost', 'cleaning_cost', 'other_cost'];
+
+function createNebenkostenartInput(title, amount) {
+    const div = document.createElement('div');
+    div.className = 'nebenkostenart-input';
+    div.innerHTML = `
+        <input type="text" value="${title}" required>
+        <input type="number" value="${amount}" step="0.01" required>
+        <button type="button" class="remove-nebenkostenart">Entfernen</button>
+    `;
+    return div;
+}
+
+
+function addNebenkostenart() {
+  const container = document.getElementById('nebenkostenarten-container');
+  
+  const div = document.createElement('div');
+  div.className = 'nebenkostenart-input';
+  
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.placeholder = 'Kostenart';
+  titleInput.required = true;
+  
+  const amountInput = document.createElement('input');
+  amountInput.type = 'number';
+  amountInput.step = '0.01';
+  amountInput.placeholder = 'Betrag';
+  amountInput.required = true;
+  
+  const selectInput = document.createElement('select');
+  const option1 = document.createElement('option');
+  option1.value = 'pro_flaeche';
+  option1.textContent = 'pro Fläche';
+  const option2 = document.createElement('option');
+  option2.value = 'pro_mieter';
+  option2.textContent = 'pro Mieter';
+  selectInput.appendChild(option1);
+  selectInput.appendChild(option2);
+  
+  const removeButton = document.createElement('button');
+  removeButton.type = 'button';
+  removeButton.textContent = 'Entfernen';
+  removeButton.onclick = function() {
+    container.removeChild(div);
+  };
+  
+  div.appendChild(titleInput);
+  div.appendChild(amountInput);
+  div.appendChild(selectInput);
+  div.appendChild(removeButton);
+  
+  container.appendChild(div);
+}
+
+  
+
+
+// Der Rest des Codes bleibt größtenteils unverändert
+
+
+function removeNebenkostenart(event) {
+    if (event.target.classList.contains('remove-nebenkostenart')) {
+        const inputDiv = event.target.closest('.nebenkostenart-input');
+        const artName = inputDiv.querySelector('input').id;
+        nebenkostenarten = nebenkostenarten.filter(art => art !== artName);
+        inputDiv.remove();
+    }
+}
+
+function populateModal(year = null) {
+    const form = document.getElementById('betriebskosten-bearbeiten-form');
+    const container = document.getElementById('nebenkostenarten-container');
+    container.innerHTML = '';
+    
+    if (year) {
+        document.getElementById('year').value = year;
+        // Hier können Sie die Logik zum Laden der bestehenden Daten einfügen
+    } else {
+        form.reset();
+    }
+
+    nebenkostenarten.forEach(art => {
+        container.appendChild(createNebenkostenartInput(art));
+    });
+}
+
 function openEditModal(year) {
     const modal = document.querySelector('#bearbeiten-modal');
     const modalContent = modal.querySelector('.modal-content');
     const modalTitle = modalContent.querySelector('h2');
+    const container = document.getElementById('nebenkostenarten-container');
     
     if (year) {
         modalTitle.textContent = `Betriebskostenabrechnung für ${year} bearbeiten`;
-        // Hier kannst du die Logik hinzufügen, um die Daten für das angegebene Jahr aus der Datenbank zu laden und in das Formular einzufügen
+        // Hier könnten Sie vorhandene Daten laden, falls nötig
     } else {
         modalTitle.textContent = 'Neue Betriebskostenabrechnung hinzufügen';
-        // Hier kannst du die Logik hinzufügen, um das Formular zurückzusetzen
     }
+    
+    // Leeren Sie den Container für Nebenkostenarten
+    container.innerHTML = '';
+    
+    // Setzen Sie das Jahr-Feld zurück
+    document.getElementById('year').value = '';
     
     modal.style.display = 'block';
 }
+
+
+// Event Listeners
+document.getElementById('add-nebenkostenart').addEventListener('click', addNebenkostenart);
+document.getElementById('nebenkostenarten-container').addEventListener('click', removeNebenkostenart);
+document.querySelector('#add-nebenkosten-button').addEventListener('click', () => openEditModal());
+
+// Bestehende Event Listener...
+
 
 // Event Listener für das Schließen des Modals
 document.querySelectorAll('.modal .close').forEach(closeButton => {
@@ -70,6 +173,7 @@ function openAddModal() {
     modalContent.querySelector('h2').textContent = 'Neue Betriebskostenabrechnung hinzufügen';
     modal.style.display = 'block';
 }
+
 
 
 // Event Listener für das Schließen des Modals
