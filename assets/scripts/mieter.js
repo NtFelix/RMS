@@ -31,6 +31,7 @@ async function ladeMieter() {
                 einzug,
                 auszug,
                 notiz,
+                nebenkosten,
                 Wohnungen (id, Wohnung)
             `);
 
@@ -45,8 +46,9 @@ async function ladeMieter() {
             zeile.insertCell(1).textContent = mieter.email || '-';
             zeile.insertCell(2).textContent = mieter.telefonnummer || '-';
             zeile.insertCell(3).textContent = mieter.Wohnungen ? mieter.Wohnungen.Wohnung : 'Keine Wohnung';
+            zeile.insertCell(4).textContent = mieter.nebenkosten ? `${mieter.nebenkosten} €` : '-';
             
-            const aktionenZelle = zeile.insertCell(4);
+            const aktionenZelle = zeile.insertCell(5);
             const bearbeitenButton = document.createElement('button');
             bearbeitenButton.textContent = 'Bearbeiten';
             bearbeitenButton.className = 'bearbeiten-button';
@@ -132,6 +134,7 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
     document.getElementById('notiz').value = mieter.notiz || '';
+    document.getElementById('nebenkosten').value = mieter.nebenkosten || '';
 
     ladeWohnungen(mieter['wohnung-id']).then(() => {
         document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
@@ -151,7 +154,8 @@ async function speichereMieterAenderungen(event) {
     const wohnungId = document.getElementById('wohnung').value;
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
-    const notiz = document.getElementById('notiz').value; // Neue Zeile
+    const notiz = document.getElementById('notiz').value;
+    const nebenkosten = document.getElementById('nebenkosten').value;
 
     const updatedData = {
         name,
@@ -160,7 +164,8 @@ async function speichereMieterAenderungen(event) {
         'wohnung-id': wohnungId || null,
         einzug: einzug || null,
         auszug: auszug || null,
-        notiz: notiz // Neue Zeile
+        notiz: notiz,
+        nebenkosten: nebenkosten ? parseFloat(nebenkosten) : null
     };
 
     try {
@@ -168,7 +173,6 @@ async function speichereMieterAenderungen(event) {
             .from('Mieter')
             .update(updatedData);
         
-        // Wenn der Name geändert wurde, aktualisieren wir basierend auf dem ursprünglichen Namen
         if (originalName !== name) {
             query = query.eq('name', originalName);
         } else {
@@ -181,7 +185,7 @@ async function speichereMieterAenderungen(event) {
 
         showNotification('Änderungen erfolgreich gespeichert.');
         document.getElementById('bearbeiten-modal').style.display = 'none';
-        ladeMieter(); // Aktualisiere die Tabelle
+        ladeMieter();
     } catch (error) {
         console.error('Fehler beim Aktualisieren des Mieters:', error.message);
         showNotification('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
@@ -304,7 +308,8 @@ async function speichereMieter(event) {
     const wohnungId = document.getElementById('wohnung').value;
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
-    const notiz = document.getElementById('notiz').value; // Neue Zeile
+    const notiz = document.getElementById('notiz').value;
+    const nebenkosten = document.getElementById('nebenkosten').value;
 
     const mieterData = {
         name,
@@ -313,11 +318,11 @@ async function speichereMieter(event) {
         'wohnung-id': wohnungId || null,
         einzug: einzug || null,
         auszug: auszug || null,
-        notiz: notiz // Neue Zeile
+        notiz: notiz,
+        nebenkosten: nebenkosten ? parseFloat(nebenkosten) : null
     };
 
     try {
-        // Überprüfen, ob ein Mieter mit diesem Namen bereits existiert
         const { data: existingMieter, error: checkError } = await supabase
             .from('Mieter')
             .select('name')
@@ -329,7 +334,6 @@ async function speichereMieter(event) {
         }
 
         if (existingMieter) {
-            // Mieter existiert bereits, aktualisiere die Daten
             const { data, error } = await supabase
                 .from('Mieter')
                 .update(mieterData)
@@ -338,7 +342,6 @@ async function speichereMieter(event) {
             if (error) throw error;
             showNotification('Mieterdaten erfolgreich aktualisiert.');
         } else {
-            // Mieter existiert nicht, füge einen neuen hinzu
             const { data, error } = await supabase
                 .from('Mieter')
                 .insert([mieterData]);
@@ -348,7 +351,7 @@ async function speichereMieter(event) {
         }
 
         document.getElementById('bearbeiten-modal').style.display = 'none';
-        ladeMieter(); // Aktualisiere die Tabelle
+        ladeMieter();
     } catch (error) {
         console.error('Fehler beim Hinzufügen/Aktualisieren des Mieters:', error.message);
         showNotification('Fehler beim Hinzufügen/Aktualisieren des Mieters. Bitte versuchen Sie es später erneut.');
