@@ -9,6 +9,7 @@ async function loadBetriebskosten() {
     const { data, error } = await supabase
         .from('betriebskosten')
         .select('*')
+        .order('year', { ascending: false })
 
     if (error) {
         console.error('Fehler beim Laden der Betriebskostenabrechnungen:', error)
