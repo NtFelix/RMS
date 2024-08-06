@@ -66,7 +66,155 @@ function openEditModal(entry = null) {
         addNebenkostenart(); // Füge ein leeres Eingabefeld hinzu
     }
     
+    // Remove existing buttons if they exist
+    const existingButtonContainer = document.querySelector('.button-container');
+    if (existingButtonContainer) {
+        existingButtonContainer.remove();
+    }
+
+    // Add new buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+    buttonContainer.style.marginTop = '0px';
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'space-between';
+
+    const saveButton = document.createElement('button');
+    saveButton.textContent = 'Speichern';
+    saveButton.type = 'button';
+    saveButton.onclick = saveBetriebskostenabrechnung;
+    
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'Fortfahren';
+    continueButton.type = 'button';
+    continueButton.onclick = () => {
+        modal.style.display = 'none';
+        showOverview();
+        
+    };
+
+    buttonContainer.appendChild(saveButton);
+    buttonContainer.appendChild(continueButton);
+
+    const form = document.getElementById('betriebskosten-bearbeiten-form');
+    form.appendChild(buttonContainer);
+    
     modal.style.display = 'block';
+}
+
+// Function to show the overview
+function showOverview() {
+    const bearbeitenModal = document.querySelector('#bearbeiten-modal');
+    bearbeitenModal.style.display = 'none';
+
+    const nebenkostenarten = [];
+    const betrag = [];
+    const berechnungsarten = [];
+    
+    document.querySelectorAll('.nebenkostenart-input').forEach(div => {
+        const inputs = div.querySelectorAll('input');
+        const select = div.querySelector('select');
+        
+        nebenkostenarten.push(inputs[0].value);
+        betrag.push(parseFloat(inputs[1].value));
+        berechnungsarten.push(select.value);
+    });
+
+    const totalArea = 2225; // Assume this is the total area in square meters
+
+    const overviewModal = document.createElement('div');
+    overviewModal.className = 'modal';
+    overviewModal.style.display = 'block';
+    overviewModal.style.position = 'fixed';
+    overviewModal.style.zIndex = '2';
+    overviewModal.style.left = '0';
+    overviewModal.style.top = '0';
+    overviewModal.style.width = '100%';
+    overviewModal.style.height = '100%';
+    overviewModal.style.overflow = 'auto';
+    overviewModal.style.backgroundColor = 'rgba(0,0,0,0.4)';
+
+    const overviewContent = document.createElement('div');
+    overviewContent.className = 'modal-content';
+    overviewContent.style.backgroundColor = '#fefefe';
+    overviewContent.style.margin = '5% auto';
+    overviewContent.style.padding = '20px';
+    overviewContent.style.border = '1px solid #888';
+    overviewContent.style.width = '80%';
+    overviewContent.style.maxWidth = '800px';
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close';
+    closeBtn.innerHTML = '&times;';
+    closeBtn.style.color = '#aaa';
+    closeBtn.style.float = 'right';
+    closeBtn.style.fontSize = '28px';
+    closeBtn.style.fontWeight = 'bold';
+    closeBtn.style.cursor = 'pointer';
+    closeBtn.onclick = () => overviewModal.style.display = 'none';
+
+    overviewContent.appendChild(closeBtn);
+
+    const title = document.createElement('h2');
+    title.textContent = 'Übersicht der Betriebskosten';
+    overviewContent.appendChild(title);
+
+    const table = document.createElement('table');
+    table.style.width = '100%';
+    table.style.borderCollapse = 'collapse';
+
+    const headerRow = table.insertRow();
+    ['Pos.', 'Leistungsart', 'Gesamtkosten In €', 'Kosten Pro qm'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.style.border = '1px solid black';
+        th.style.padding = '8px';
+        th.style.textAlign = 'left';
+        headerRow.appendChild(th);
+    });
+
+    let totalCost = 0;
+
+    nebenkostenarten.forEach((art, index) => {
+        const row = table.insertRow();
+        const cellPos = row.insertCell(0);
+        const cellArt = row.insertCell(1);
+        const cellGesamt = row.insertCell(2);
+        const cellProQm = row.insertCell(3);
+
+        cellPos.textContent = index + 1;
+        cellArt.textContent = art;
+        cellGesamt.textContent = betrag[index].toFixed(2) + ' €';
+        const costPerSqm = betrag[index] / totalArea;
+        cellProQm.textContent = costPerSqm.toFixed(2) + ' €';
+
+        totalCost += betrag[index];
+
+        [cellPos, cellArt, cellGesamt, cellProQm].forEach(cell => {
+            cell.style.border = '1px solid black';
+            cell.style.padding = '8px';
+        });
+    });
+
+    const totalRow = table.insertRow();
+    const cellTotalLabel = totalRow.insertCell(0);
+    cellTotalLabel.colSpan = 2;
+    cellTotalLabel.textContent = 'Gesamtkosten';
+    const cellTotal = totalRow.insertCell(1);
+    cellTotal.textContent = totalCost.toFixed(2) + ' €';
+    const cellTotalPerSqm = totalRow.insertCell(2);
+    const totalCostPerSqm = totalCost / totalArea;
+    cellTotalPerSqm.textContent = totalCostPerSqm.toFixed(2) + ' €';
+
+    [cellTotalLabel, cellTotal, cellTotalPerSqm].forEach(cell => {
+        cell.style.border = '1px solid black';
+        cell.style.padding = '8px';
+        cell.style.fontWeight = 'bold';
+    });
+
+    overviewContent.appendChild(table);
+    overviewModal.appendChild(overviewContent);
+    document.body.appendChild(overviewModal);
 }
 
 function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pro_flaeche') {
@@ -131,9 +279,7 @@ document.querySelectorAll('.modal .close').forEach(closeButton => {
 });
 
 // Funktion zum Speichern der Betriebskostenabrechnung
-async function saveBetriebskostenabrechnung(event) {
-    event.preventDefault();
-    
+async function saveBetriebskostenabrechnung() {
     const year = document.getElementById('year').value;
     const nebenkostenarten = [];
     const betrag = [];
@@ -159,8 +305,10 @@ async function saveBetriebskostenabrechnung(event) {
     
     if (error) {
         console.error('Fehler beim Speichern:', error);
+        showNotification('Fehler beim Speichern der Betriebskostenabrechnung', 'error');
     } else {
         console.log('Erfolgreich gespeichert:', data);
+        showNotification('Betriebskostenabrechnung erfolgreich gespeichert', 'success');
         document.querySelector('#bearbeiten-modal').style.display = 'none';
         loadBetriebskosten(); // Aktualisiere die Tabelle
     }
