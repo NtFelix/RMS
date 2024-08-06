@@ -21,7 +21,6 @@ async function loadBetriebskosten() {
 
     data.forEach(entry => {
         const row = document.createElement('tr')
-
         const yearCell = document.createElement('td')
         yearCell.textContent = entry.year
         row.appendChild(yearCell)
@@ -45,14 +44,14 @@ function openEditModal(entry = null) {
     const modalTitle = modalContent.querySelector('h2');
     const container = document.getElementById('nebenkostenarten-container');
     const yearInput = document.getElementById('year');
-    
+
     container.innerHTML = ''; // Leere den Container
-    
+
     if (entry && entry.nebenkostenarten && entry.betrag && entry.berechnungsarten) {
         modalTitle.textContent = `Betriebskostenabrechnung für ${entry.year} bearbeiten`;
         yearInput.value = entry.year;
-        
-        // Lade die Daten aus den Arrays
+
+        // Lade die Daten aus den Arrays...
         entry.nebenkostenarten.forEach((kostenart, index) => {
             const div = createNebenkostenartInput(
                 kostenart,
@@ -66,7 +65,7 @@ function openEditModal(entry = null) {
         yearInput.value = '';
         addNebenkostenart(); // Füge ein leeres Eingabefeld hinzu
     }
-    
+
     // Remove existing buttons if they exist
     const existingButtonContainer = document.querySelector('.button-container');
     if (existingButtonContainer) {
@@ -76,7 +75,7 @@ function openEditModal(entry = null) {
     // Add new buttons
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'button-container';
-    buttonContainer.style.marginTop = '0px';
+    buttonContainer.style.marginTop = '20px';
     buttonContainer.style.display = 'flex';
     buttonContainer.style.justifyContent = 'space-between';
 
@@ -84,14 +83,13 @@ function openEditModal(entry = null) {
     saveButton.textContent = 'Speichern';
     saveButton.type = 'button';
     saveButton.onclick = saveBetriebskostenabrechnung;
-    
+
     const continueButton = document.createElement('button');
     continueButton.textContent = 'Fortfahren';
     continueButton.type = 'button';
     continueButton.onclick = () => {
         modal.style.display = 'none';
         showOverview();
-        
     };
 
     buttonContainer.appendChild(saveButton);
@@ -99,11 +97,12 @@ function openEditModal(entry = null) {
 
     const form = document.getElementById('betriebskosten-bearbeiten-form');
     form.appendChild(buttonContainer);
-    
+
     modal.style.display = 'block';
 }
 
 // Function to show the overview
+// Korrigierte showOverview Funktion
 function showOverview() {
     const bearbeitenModal = document.querySelector('#bearbeiten-modal');
     bearbeitenModal.style.display = 'none';
@@ -111,11 +110,10 @@ function showOverview() {
     const nebenkostenarten = [];
     const betrag = [];
     const berechnungsarten = [];
-    
+
     document.querySelectorAll('.nebenkostenart-input').forEach(div => {
         const inputs = div.querySelectorAll('input');
         const select = div.querySelector('select');
-        
         nebenkostenarten.push(inputs[0].value);
         betrag.push(parseFloat(inputs[1].value));
         berechnungsarten.push(select.value);
@@ -146,7 +144,7 @@ function showOverview() {
 
     const closeBtn = document.createElement('span');
     closeBtn.className = 'close';
-    closeBtn.innerHTML = '&times;';
+    closeBtn.innerHTML = '×';
     closeBtn.style.color = '#aaa';
     closeBtn.style.float = 'right';
     closeBtn.style.fontSize = '28px';
@@ -214,13 +212,135 @@ function showOverview() {
     });
 
     overviewContent.appendChild(table);
+
+    // Füge den "Fortfahren" Button hinzu
+    const continueButton = document.createElement('button');
+    continueButton.textContent = 'Fortfahren';
+    continueButton.onclick = erstelleDetailAbrechnung;
+    continueButton.style.marginTop = '20px';
+    continueButton.style.padding = '10px 20px';
+    continueButton.style.fontSize = '16px';
+    continueButton.style.cursor = 'pointer';
+    overviewContent.appendChild(continueButton);
+
     overviewModal.appendChild(overviewContent);
     document.body.appendChild(overviewModal);
+}
+
+// Funktion zum Erstellen der detaillierten Abrechnung pro Wohnung
+async function erstelleDetailAbrechnung() {
+    const { data: wohnungen, error: wohnungenError } = await supabase
+        .from('Wohnungen')
+        .select('*');
+
+    if (wohnungenError) {
+        console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+        return;
+    }
+
+    const { data: betriebskosten, error: betriebskostenError } = await supabase
+        .from('betriebskosten')
+        .select('*')
+        .order('year', { ascending: false })
+        .limit(1);
+
+    if (betriebskostenError) {
+        console.error('Fehler beim Laden der Betriebskosten:', betriebskostenError);
+        return;
+    }
+
+    if (betriebskosten.length === 0) {
+        console.error('Keine Betriebskosten gefunden');
+        return;
+    }
+
+    const aktuelleKosten = betriebskosten[0];
+
+    const abrechnungsModal = document.createElement('div');
+    abrechnungsModal.className = 'modal';
+    abrechnungsModal.style.display = 'block';
+
+    const abrechnungContent = document.createElement('div');
+    abrechnungContent.className = 'modal-content';
+    abrechnungContent.style.maxHeight = '80vh';
+    abrechnungContent.style.overflowY = 'auto';
+
+    const closeBtn = document.createElement('span');
+    closeBtn.className = 'close';
+    closeBtn.innerHTML = '×';
+    closeBtn.onclick = () => abrechnungsModal.style.display = 'none';
+    abrechnungContent.appendChild(closeBtn);
+
+    wohnungen.forEach(wohnung => {
+        const title = document.createElement('h2');
+        title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung}`;
+
+        const table = document.createElement('table');
+        table.style.width = '100%';
+        table.style.borderCollapse = 'collapse';
+        table.style.marginBottom = '30px';
+
+        // Tabellenkopf
+        const headerRow = table.insertRow();
+        ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'].forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            th.style.border = '1px solid black';
+            th.style.padding = '8px';
+            headerRow.appendChild(th);
+        });
+
+        // Daten einfügen
+        let gesamtKostenanteil = 0;
+        aktuelleKosten.nebenkostenarten.forEach((art, index) => {
+            const row = table.insertRow();
+            const betrag = aktuelleKosten.betrag[index];
+            const kostenProQm = betrag / 2225; // Gesamtfläche aus dem Bild
+            const kostenanteil = kostenProQm * wohnung.Größe;
+
+            [
+                art,
+                betrag.toFixed(2) + ' €',
+                '2225',
+                kostenProQm.toFixed(2) + ' €',
+                kostenanteil.toFixed(2) + ' €'
+            ].forEach(text => {
+                const cell = row.insertCell();
+                cell.textContent = text;
+                cell.style.border = '1px solid black';
+                cell.style.padding = '8px';
+            });
+
+            gesamtKostenanteil += kostenanteil;
+        });
+
+        // Gesamtzeile
+        const totalRow = table.insertRow();
+        const totalCell = totalRow.insertCell();
+        totalCell.colSpan = 4;
+        totalCell.textContent = 'Gesamtkosten';
+        totalCell.style.fontWeight = 'bold';
+        const totalAmountCell = totalRow.insertCell();
+        totalAmountCell.textContent = gesamtKostenanteil.toFixed(2) + ' €';
+        totalAmountCell.style.fontWeight = 'bold';
+
+        [totalCell, totalAmountCell].forEach(cell => {
+            cell.style.border = '1px solid black';
+            cell.style.padding = '8px';
+        });
+
+        abrechnungContent.appendChild(title);
+        abrechnungContent.appendChild(table);
+    });
+
+    abrechnungsModal.appendChild(abrechnungContent);
+    document.body.appendChild(abrechnungsModal);
 }
 
 function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pro_flaeche') {
     const div = document.createElement('div');
     div.className = 'nebenkostenart-input';
+
     
     const titleInput = document.createElement('input');
     titleInput.type = 'text';
