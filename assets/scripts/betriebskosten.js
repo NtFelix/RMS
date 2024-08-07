@@ -227,227 +227,221 @@ function showOverview() {
     document.body.appendChild(overviewModal);
 }
 
-// Modify the erstelleDetailAbrechnung function
 async function erstelleDetailAbrechnung() {
     const { data: wohnungen, error: wohnungenError } = await supabase
-        .from('Wohnungen')
-        .select('*');
-
+      .from('Wohnungen')
+      .select('*');
+  
     if (wohnungenError) {
-        console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
-        return;
+      console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+      return;
     }
-
+  
     const { data: betriebskosten, error: betriebskostenError } = await supabase
-        .from('betriebskosten')
-        .select('*')
-        .order('year', { ascending: false })
-        .limit(1);
-
+      .from('betriebskosten')
+      .select('*')
+      .order('year', { ascending: false })
+      .limit(1);
+  
     if (betriebskostenError) {
-        console.error('Fehler beim Laden der Betriebskosten:', betriebskostenError);
-        return;
+      console.error('Fehler beim Laden der Betriebskosten:', betriebskostenError);
+      return;
     }
-
+  
     if (betriebskosten.length === 0) {
-        console.error('Keine Betriebskosten gefunden');
-        return;
+      console.error('Keine Betriebskosten gefunden');
+      return;
     }
-
+  
     const aktuelleKosten = betriebskosten[0];
-
+    const gesamtFlaeche = 2225; // Gesamtfläche in qm
+  
     const abrechnungsModal = document.createElement('div');
     abrechnungsModal.className = 'modal';
     abrechnungsModal.style.display = 'block';
-
+  
     const abrechnungContent = document.createElement('div');
     abrechnungContent.className = 'modal-content';
     abrechnungContent.style.maxHeight = '80vh';
     abrechnungContent.style.overflowY = 'auto';
-
+  
     const closeBtn = document.createElement('span');
     closeBtn.className = 'close';
     closeBtn.innerHTML = '×';
     closeBtn.onclick = () => abrechnungsModal.style.display = 'none';
     abrechnungContent.appendChild(closeBtn);
-
+  
     wohnungen.forEach(wohnung => {
-        const title = document.createElement('h2');
-        title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung}`;
-
-        const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.marginBottom = '30px';
-
-        // Tabellenkopf
-        const headerRow = table.insertRow();
-        ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'].forEach(text => {
-            const th = document.createElement('th');
-            th.textContent = text;
-            th.style.border = '1px solid black';
-            th.style.padding = '8px';
-            headerRow.appendChild(th);
+      const title = document.createElement('h2');
+      title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung}`;
+  
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.marginBottom = '30px';
+  
+      // Tabellenkopf
+      const headerRow = table.insertRow();
+      ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'].forEach(text => {
+        const th = document.createElement('th');
+        th.textContent = text;
+        th.style.border = '1px solid black';
+        th.style.padding = '8px';
+        headerRow.appendChild(th);
+      });
+  
+      // Daten einfügen
+      let gesamtKostenanteil = 0;
+      aktuelleKosten.nebenkostenarten.forEach((art, index) => {
+        const row = table.insertRow();
+        const betrag = aktuelleKosten.betrag[index];
+        const berechnungsart = aktuelleKosten.berechnungsarten[index];
+        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? gesamtFlaeche : wohnungen.length;
+        const kostenProEinheit = betrag / verteilerEinheit;
+        const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
+  
+        [
+          art,
+          betrag.toFixed(2) + ' €',
+          verteilerEinheit.toString(),
+          kostenProEinheit.toFixed(2) + ' €',
+          kostenanteil.toFixed(2) + ' €'
+        ].forEach(text => {
+          const cell = row.insertCell();
+          cell.textContent = text;
+          cell.style.border = '1px solid black';
+          cell.style.padding = '8px';
         });
-
-        // Daten einfügen
-        let gesamtKostenanteil = 0;
-        aktuelleKosten.nebenkostenarten.forEach((art, index) => {
-            const row = table.insertRow();
-            const betrag = aktuelleKosten.betrag[index];
-            const kostenProQm = betrag / 2225; // Gesamtfläche aus dem Bild
-            const kostenanteil = kostenProQm * wohnung.Größe;
-
-            [
-                art,
-                betrag.toFixed(2) + ' €',
-                '2225',
-                kostenProQm.toFixed(2) + ' €',
-                kostenanteil.toFixed(2) + ' €'
-            ].forEach(text => {
-                const cell = row.insertCell();
-                cell.textContent = text;
-                cell.style.border = '1px solid black';
-                cell.style.padding = '8px';
-            });
-
-            gesamtKostenanteil += kostenanteil;
-        });
-
-        // Gesamtzeile
-        const totalRow = table.insertRow();
-        const totalCell = totalRow.insertCell();
-        totalCell.colSpan = 4;
-        totalCell.textContent = 'Gesamtkosten';
-        totalCell.style.fontWeight = 'bold';
-        const totalAmountCell = totalRow.insertCell();
-        totalAmountCell.textContent = gesamtKostenanteil.toFixed(2) + ' €';
-        totalAmountCell.style.fontWeight = 'bold';
-
-        [totalCell, totalAmountCell].forEach(cell => {
-            cell.style.border = '1px solid black';
-            cell.style.padding = '8px';
-        });
-
-        abrechnungContent.appendChild(title);
-        abrechnungContent.appendChild(table);
-        const exportButton = document.createElement('button');
-        exportButton.textContent = 'Zu PDF exportieren';
-        exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
-        exportButton.style.marginTop = '10px';
-        exportButton.style.padding = '5px 10px';
-        exportButton.style.fontSize = '14px';
-        exportButton.style.cursor = 'pointer';
-        abrechnungContent.appendChild(exportButton);
+  
+        gesamtKostenanteil += kostenanteil;
+      });
+  
+      // Gesamtzeile
+      const totalRow = table.insertRow();
+      const totalCell = totalRow.insertCell();
+      totalCell.colSpan = 4;
+      totalCell.textContent = 'Betriebskosten gesamt';
+      totalCell.style.fontWeight = 'bold';
+      const totalAmountCell = totalRow.insertCell();
+      totalAmountCell.textContent = gesamtKostenanteil.toFixed(2) + ' €';
+      totalAmountCell.style.fontWeight = 'bold';
+  
+      [totalCell, totalAmountCell].forEach(cell => {
+        cell.style.border = '1px solid black';
+        cell.style.padding = '8px';
+      });
+  
+      abrechnungContent.appendChild(title);
+      abrechnungContent.appendChild(table);
+  
+      const exportButton = document.createElement('button');
+      exportButton.textContent = 'Zu PDF exportieren';
+      exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
+      exportButton.style.marginTop = '10px';
+      exportButton.style.padding = '5px 10px';
+      exportButton.style.fontSize = '14px';
+      exportButton.style.cursor = 'pointer';
+      abrechnungContent.appendChild(exportButton);
     });
-
+  
     abrechnungsModal.appendChild(abrechnungContent);
     document.body.appendChild(abrechnungsModal);
-}
-
-
-function generatePDF(wohnung, betriebskosten) {
+  }
+  
+  
+  
+  
+  function generatePDF(wohnung, betriebskosten) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
+    const gesamtFlaeche = 2225; // Gesamtfläche in qm
+  
     // Set font
     doc.setFont("helvetica");
-    
+  
     // Header
     doc.setFontSize(10);
     doc.text("Christina Plant, Kirchbrändelring 21a, 76669 Bad Schönborn", 20, 20);
-
+  
     // Title
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text("Jahresabrechnung", 20, 40);
-
+    doc.text("Jahresabrechnung", 20, 30);
+  
     // Period
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum`, 20, 50);
-    doc.text(`01.01.${betriebskosten.year} - 31.12.${betriebskosten.year}`, 20, 55);
-
+    doc.text(`Zeitraum: 01.01.${betriebskosten.year} - 31.12.${betriebskosten.year}`, 20, 40);
+  
     // Property details
-    doc.text(`Objekt: Wichertstraße 67, 10439 Berlin, SF 1. OG re., ${wohnung.Größe} qm`, 20, 65);
-
+    doc.text(`Objekt: Wichertstraße 67, 10439 Berlin, ${wohnung.Wohnung}, ${wohnung.Größe} qm`, 20, 50);
+  
     // Table
-    const headers = ["Leistungsart", "Gesamtkosten In €", "Verteiler Einheit/ qm", "Kosten Pro qm", "Kostenanteil In €"];
     const data = betriebskosten.nebenkostenarten.map((art, index) => {
         const gesamtkosten = betriebskosten.betrag[index];
-        const kostenProQm = gesamtkosten / 2225;
-        const kostenanteil = kostenProQm * wohnung.Größe;
+        const berechnungsart = betriebskosten.berechnungsarten[index];
+        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? 2225 : wohnungen.length;
+        const kostenProEinheit = gesamtkosten / verteilerEinheit;
+        const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
         return [
-            art,
-            gesamtkosten.toFixed(2),
-            betriebskosten.berechnungsarten[index] === 'pro_flaeche' ? "2225" : "pro Mieter",
-            kostenProQm.toFixed(2),
-            kostenanteil.toFixed(2)
+          art,
+          gesamtkosten.toFixed(2),
+          verteilerEinheit.toString(),
+          kostenProEinheit.toFixed(2),
+          kostenanteil.toFixed(2)
         ];
-    });
-
+      });
+  
     doc.autoTable({
-        head: [headers],
-        body: data,
-        startY: 70,
-        styles: { fontSize: 8, cellPadding: 1.5 },
-        columnStyles: {
-            0: { cellWidth: 50 },
-            1: { cellWidth: 30, halign: 'right' },
-            2: { cellWidth: 30, halign: 'center' },
-            3: { cellWidth: 30, halign: 'right' },
-            4: { cellWidth: 30, halign: 'right' }
-        },
-        didParseCell: function(data) {
-            if (data.section === 'head') {
-                data.cell.styles.fillColor = [200, 200, 200];
-            }
+      head: [headers],
+      body: data,
+      startY: 60,
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      columnStyles: {
+        0: { cellWidth: 50 },
+        1: { cellWidth: 30, halign: 'right' },
+        2: { cellWidth: 30, halign: 'center' },
+        3: { cellWidth: 30, halign: 'right' },
+        4: { cellWidth: 30, halign: 'right' }
+      },
+      didParseCell: function(data) {
+        if (data.section === 'head') {
+          data.cell.styles.fillColor = [200, 200, 200];
         }
+      }
     });
-
+  
     const gesamtsumme = data.reduce((sum, row) => sum + parseFloat(row[4]), 0);
-
     const finalY = doc.lastAutoTable.finalY || 150;
-
+  
     // Betriebskosten gesamt
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("Betriebskosten gesamt", 20, finalY + 10);
     doc.text(`${gesamtsumme.toFixed(2)} €`, 170, finalY + 10, { align: 'right' });
-
-    // Wasserverbrauch
-    doc.setFont("helvetica", "normal");
-    doc.text("Wasserverbrauch m³", 20, finalY + 20);
-    doc.text("52,29", 170, finalY + 20, { align: 'right' });
-    doc.text("4,23/ Cbm", 190, finalY + 20, { align: 'right' });
-
-    // Verbrauch alter WZ m³
-    doc.text("Verbrauch alter WZ m³", 20, finalY + 25);
-    doc.text("51,92", 170, finalY + 25, { align: 'right' });
-    doc.text("01.01.-12.12.", 190, finalY + 25, { align: 'right' });
-
-    // Verbrauch neuer WZ m³
-    doc.text("Verbrauch neuer WZ m³", 20, finalY + 30);
-    doc.text("0,37", 170, finalY + 30, { align: 'right' });
-    doc.text("13.12.-31.12.", 190, finalY + 30, { align: 'right' });
-
-    // Gesamt
-    doc.setFont("helvetica", "bold");
-    doc.text("Gesamt", 20, finalY + 40);
-    doc.text("806,95 €", 170, finalY + 40, { align: 'right' });
-
-    // Bereits geleistete Zahlungen
-    doc.setFont("helvetica", "normal");
-    doc.text("bereits geleistete Zahlungen", 20, finalY + 50);
-    doc.text("480,00 €", 170, finalY + 50, { align: 'right' });
-
-    // Nachzahlung
-    doc.setFont("helvetica", "bold");
-    doc.text("Nachzahlung", 20, finalY + 60);
-    doc.text("326,95 €", 170, finalY + 60, { align: 'right' });
-
+  
     doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
-}
+  }
+  
+
+  
+  
+  // Event Listeners
+  document.querySelector('#add-nebenkosten-button').addEventListener('click', async () => {
+    await openEditModal();
+  });
+    document.querySelectorAll('.modal .close').forEach(closeButton => {
+    closeButton.onclick = function () {
+      const modal = this.closest('.modal');
+      modal.style.display = 'none';
+    };
+  });
+  
+  // Laden der Betriebskostenabrechnungen beim Laden der Seite
+  document.addEventListener('DOMContentLoaded', erstelleDetailAbrechnung);
+  
+  
+
 
 function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pro_flaeche') {
     const div = document.createElement('div');
