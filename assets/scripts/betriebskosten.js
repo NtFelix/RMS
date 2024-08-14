@@ -362,6 +362,15 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
             const exportButton = document.createElement('button');
             exportButton.textContent = 'Zu PDF exportieren';
+            exportButton.onclick = async () => {
+                console.log('Export button clicked for wohnung:', wohnung);
+                try {
+                    await generatePDF(wohnung, aktuelleKosten);
+                } catch (error) {
+                    console.error('Error in generatePDF:', error);
+                    showNotification('Fehler beim Generieren der PDF. Bitte versuchen Sie es erneut.', 'error');
+                }
+            };
             exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
             exportButton.style.marginTop = '10px';
             exportButton.style.padding = '5px 10px';
@@ -383,11 +392,54 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
 
 
-// Die generatePDF Funktion muss aktualisiert werden, um die headers zu definieren
-function generatePDF(wohnung, betriebskosten) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const gesamtFlaeche = 2225; // Gesamtfläche in qm
+async function generatePDF(wohnung, betriebskosten) {
+    console.log('Wohnung data:', wohnung);
+    console.log('Betriebskosten data:', betriebskosten);
+
+    if (!wohnung || !wohnung.id) {
+        console.error('Invalid wohnung data:', wohnung);
+        showNotification('Fehler: Ungültige Wohnungsdaten', 'error');
+        return;
+    }
+
+    console.log('Fetching Mieter data for wohnung-id:', wohnung.id);
+
+    // Fetch Mieter data using wohnung-id
+    const { data: mieterData, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('*')
+        .eq('wohnung-id', wohnung.id)
+        .single();
+
+    console.log('Mieter data:', mieterData);
+    console.log('Mieter error:', mieterError);
+
+    if (mieterError) {
+        console.error('Error fetching Mieter data:', mieterError);
+        showNotification('Fehler beim Laden der Mieterdaten. Bitte versuchen Sie es erneut.', 'error');
+        return;
+    }
+
+    let mieter;
+    if (!mieterData) {
+        console.warn('No Mieter data found for wohnung-id:', wohnung.id);
+        // Create a default mieter object with placeholder data
+        mieter = {
+            name: 'Unbekannt',
+            wasserverbrauch: 0,
+            verbrauch_alter_wz: 0,
+            verbrauch_neuer_wz: 0,
+            nebenkosten: 0 // Default to 0 if no data is found
+        };
+    } else {
+        mieter = mieterData;
+    }
+
+    // Log the mieter data to check if nebenkosten is present
+    console.log('Mieter object:', mieter);
+
+    // PDF generation code
+    const doc = new jspdf.jsPDF();
 
     // Set font
     doc.setFont("helvetica");
@@ -409,14 +461,17 @@ function generatePDF(wohnung, betriebskosten) {
     // Property details
     doc.text(`Objekt: Wichertstraße 67, 10439 Berlin, ${wohnung.Wohnung}, ${wohnung.Größe} qm`, 20, 50);
 
-    // Define headers here
+    // Define headers
     const headers = ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'];
 
-    // Table
+    // Calculate total area (assuming it's not provided in the data)
+    const gesamtFlaeche = 2225; // You might want to fetch this from your database
+
+    // Prepare data
     const data = betriebskosten.nebenkostenarten.map((art, index) => {
         const gesamtkosten = betriebskosten.betrag[index];
         const berechnungsart = betriebskosten.berechnungsarten[index];
-        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? 2225 : wohnungen.length;
+        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? gesamtFlaeche : 1; // Assuming 1 apartment per Wohnung
         const kostenProEinheit = gesamtkosten / verteilerEinheit;
         const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
         return [
@@ -428,6 +483,7 @@ function generatePDF(wohnung, betriebskosten) {
         ];
     });
 
+    // Create table
     doc.autoTable({
         head: [headers],
         body: data,
@@ -456,8 +512,35 @@ function generatePDF(wohnung, betriebskosten) {
     doc.text("Betriebskosten gesamt", 20, finalY + 10);
     doc.text(`${gesamtsumme.toFixed(2)} €`, 170, finalY + 10, { align: 'right' });
 
+    // Water consumption
+    doc.setFont("helvetica", "normal");
+    doc.text(`Wasserverbrauch m³: ${mieter.wasserverbrauch?.toFixed(2) || 'N/A'}`, 20, finalY + 20);
+    doc.text(`Verbrauch alter WZ m³: ${mieter.verbrauch_alter_wz?.toFixed(2) || 'N/A'}`, 20, finalY + 25);
+    doc.text(`Verbrauch neuer WZ m³: ${mieter.verbrauch_neuer_wz?.toFixed(2) || 'N/A'}`, 20, finalY + 30);
+
+    // Additional calculations
+    const gesamtBetrag = gesamtsumme;
+    const monatlicheNebenkosten = mieter.nebenkosten || 0; // Use the nebenkosten from the Mieter table
+    console.log('Monatliche Nebenkosten:', monatlicheNebenkosten);
+    const bereitsBezahlt = monatlicheNebenkosten * 12; // Multiply by 12 for the whole year
+    const nachzahlung = gesamtBetrag - bereitsBezahlt;
+
+    // Display results
+    doc.setFont("helvetica", "bold");
+    doc.text("Gesamt", 20, finalY + 40);
+    doc.text(`${gesamtBetrag.toFixed(2)} €`, 170, finalY + 40, { align: 'right' });
+
+    doc.setFont("helvetica", "normal");
+    doc.text("bereits geleistete Zahlungen", 20, finalY + 45);
+    doc.text(`${bereitsBezahlt.toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
+
+    doc.setFont("helvetica", "bold");
+    doc.text("Nachzahlung", 20, finalY + 50);
+    doc.text(`${nachzahlung.toFixed(2)} €`, 170, finalY + 50, { align: 'right' });
+
     doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
 }
+
 
 
 // Event Listeners
@@ -579,4 +662,7 @@ async function saveBetriebskostenabrechnung() {
 document.getElementById('betriebskosten-bearbeiten-form').addEventListener('submit', saveBetriebskostenabrechnung);
 
 // Lade die Betriebskostenabrechnungen beim Laden der Seite
-document.addEventListener('DOMContentLoaded', loadBetriebskosten);
+document.addEventListener('DOMContentLoaded', () => {
+    const currentYear = new Date().getFullYear();
+    loadBetriebskosten();
+});
