@@ -277,7 +277,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
         return;
     }
 
-
     const aktuelleKosten = betriebskosten;
     const gesamtFlaeche = 2225; // Gesamtfläche in qm
 
@@ -297,16 +296,16 @@ async function erstelleDetailAbrechnung(selectedYear) {
     abrechnungContent.appendChild(closeBtn);
 
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
-        wohnungen.forEach(wohnung => {
+        for (const wohnung of wohnungen) {
             const title = document.createElement('h2');
             title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung}`;
 
-            const table = document.createElement('table');
-            table.style.width = '100%';
-            table.style.borderCollapse = 'collapse';
-            table.style.borderRadius = '12px';
-            table.style.border = '1px solid transparent';
-            table.style.marginBottom = '30px';
+            const table = document.createElement("table");
+            table.style.width = "100%";
+            table.style.borderCollapse = "collapse";
+            table.style.borderRadius = "12px";
+            table.style.border = "1px solid transparent";
+            table.style.marginBottom = "30px";
 
             // Tabellenkopf
             const headerRow = table.insertRow();
@@ -346,15 +345,54 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
             // Gesamtzeile
             const totalRow = table.insertRow();
-            const totalCell = totalRow.insertCell();
-            totalCell.colSpan = 4;
-            totalCell.textContent = 'Betriebskosten gesamt';
-            totalCell.style.fontWeight = 'bold';
-            const totalAmountCell = totalRow.insertCell();
-            totalAmountCell.textContent = gesamtKostenanteil.toFixed(2) + ' €';
-            totalAmountCell.style.fontWeight = 'bold';
+            const cellTotalLabel = totalRow.insertCell();
+            cellTotalLabel.colSpan = 4;
+            cellTotalLabel.textContent = 'Betriebskosten gesamt';
+            cellTotalLabel.style.fontWeight = 'bold';
+            const cellTotal = totalRow.insertCell();
+            cellTotal.textContent = gesamtKostenanteil.toFixed(2) + ' €';
+            cellTotal.style.fontWeight = 'bold';
 
-            [totalCell, totalAmountCell].forEach(cell => {
+            [cellTotalLabel, cellTotal].forEach(cell => {
+                cell.style.border = '1px solid black';
+                cell.style.padding = '8px';
+            });
+
+            // Bereits geleistete Zahlungen
+            const { data: mieterData } = await supabase
+                .from('Mieter')
+                .select('nebenkosten')
+                .eq('wohnung-id', wohnung.id)
+                .single();
+
+            const monatlicheNebenkosten = mieterData?.nebenkosten || 0;
+            const bereitsBezahlt = monatlicheNebenkosten * 12;
+
+            const paidRow = table.insertRow();
+            const cellPaidLabel = paidRow.insertCell();
+            cellPaidLabel.colSpan = 4;
+            cellPaidLabel.textContent = 'Bereits geleistete Zahlungen';
+            cellPaidLabel.style.fontWeight = 'bold';
+            const cellPaid = paidRow.insertCell();
+            cellPaid.textContent = bereitsBezahlt.toFixed(2) + ' €';
+            cellPaid.style.fontWeight = 'bold';
+
+            [cellPaidLabel, cellPaid].forEach(cell => {
+                cell.style.border = '1px solid black';
+                cell.style.padding = '8px';
+            });
+
+            // Nachzahlung/Rückerstattung
+            const balanceRow = table.insertRow();
+            const cellBalanceLabel = balanceRow.insertCell();
+            cellBalanceLabel.colSpan = 4;
+            cellBalanceLabel.textContent = gesamtKostenanteil > bereitsBezahlt ? 'Nachzahlung' : 'Rückerstattung';
+            cellBalanceLabel.style.fontWeight = 'bold';
+            const cellBalance = balanceRow.insertCell();
+            cellBalance.textContent = Math.abs(gesamtKostenanteil - bereitsBezahlt).toFixed(2) + ' €';
+            cellBalance.style.fontWeight = 'bold';
+
+            [cellBalanceLabel, cellBalance].forEach(cell => {
                 cell.style.border = '1px solid black';
                 cell.style.padding = '8px';
             });
@@ -364,22 +402,13 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
             const exportButton = document.createElement('button');
             exportButton.textContent = 'Zu PDF exportieren';
-            exportButton.onclick = async () => {
-                console.log('Export button clicked for wohnung:', wohnung);
-                try {
-                    await generatePDF(wohnung, aktuelleKosten);
-                } catch (error) {
-                    console.error('Error in generatePDF:', error);
-                    showNotification('Fehler beim Generieren der PDF. Bitte versuchen Sie es erneut.', 'error');
-                }
-            };
             exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
             exportButton.style.marginTop = '10px';
             exportButton.style.padding = '5px 10px';
             exportButton.style.fontSize = '14px';
             exportButton.style.cursor = 'pointer';
             abrechnungContent.appendChild(exportButton);
-        });
+        }
     } else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
         const errorMessage = document.createElement('p');
