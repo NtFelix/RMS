@@ -168,9 +168,12 @@ async function showOverview(year) {
     title.textContent = `Übersicht der Betriebskosten für ${year}`;
     overviewContent.appendChild(title);
 
-    const table = document.createElement('table');
-    table.style.width = '100%';
-    table.style.borderCollapse = 'collapse';
+    const table = document.createElement("table");
+    table.style.width = "100%";
+    table.style.borderCollapse = "collapse";
+    table.style.borderRadius = "12px";
+    table.style.border = "1px solid transparent";
+    table.style.marginBottom = "30px";
 
     const headerRow = table.insertRow();
     ['Pos.', 'Leistungsart', 'Gesamtkosten In €', 'Kosten Pro qm'].forEach(text => {
