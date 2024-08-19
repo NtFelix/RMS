@@ -105,6 +105,12 @@ function openEditModal(entry = null) {
     const form = document.getElementById('betriebskosten-bearbeiten-form');
     form.appendChild(buttonContainer);
 
+    const wasserzaehlerButton = document.createElement("button");
+    wasserzaehlerButton.textContent = "Wasserzähler-Daten";
+    wasserzaehlerButton.onclick = openWasserzaehlerModal;
+    buttonContainer.appendChild(wasserzaehlerButton);
+  
+
     modal.style.display = 'block';
 }
 
@@ -700,3 +706,73 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentYear = new Date().getFullYear();
     loadBetriebskosten();
 });
+
+function openWasserzaehlerModal(event) {
+    event.preventDefault(); // Verhindert das Standard-Verhalten des Buttons
+  
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.style.display = "block";
+  
+    const modalContent = document.createElement("div");
+    modalContent.className = "modal-content";
+  
+    const closeBtn = document.createElement("span");
+    closeBtn.className = "close";
+    closeBtn.innerHTML = "&times;";
+    closeBtn.onclick = () => modal.remove(); // Entfernt das Modal statt es nur zu verstecken
+  
+    const title = document.createElement("h2");
+    title.textContent = "Wasserzähler-Daten";
+  
+    const form = document.createElement("form");
+    form.onsubmit = saveWasserzaehlerData;
+  
+    const inputs = [
+      { name: "mieter-id", type: "text", placeholder: "Mieter ID" },
+      { name: "ablesung-datum", type: "date", placeholder: "Ablesedatum" },
+      { name: "zählerstand", type: "number", placeholder: "Zählerstand" },
+      { name: "verbrauch", type: "number", placeholder: "Verbrauch" }
+    ];
+  
+    inputs.forEach(input => {
+      const label = document.createElement("label");
+      label.textContent = input.placeholder;
+      const inputElement = document.createElement("input");
+      inputElement.type = input.type;
+      inputElement.name = input.name;
+      inputElement.placeholder = input.placeholder;
+      inputElement.required = true;
+      form.appendChild(label);
+      form.appendChild(inputElement);
+    });
+  
+    const submitButton = document.createElement("button");
+    submitButton.type = "submit";
+    submitButton.textContent = "Speichern";
+  
+    form.appendChild(submitButton);
+    modalContent.appendChild(closeBtn);
+    modalContent.appendChild(title);
+    modalContent.appendChild(form);
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+  }
+
+  async function saveWasserzaehlerData(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
+  
+    const { error } = await supabase
+      .from("Wasserzähler")
+      .insert([data]);
+  
+    if (error) {
+      console.error("Fehler beim Speichern der Wasserzähler-Daten:", error);
+      showNotification("Fehler beim Speichern der Wasserzähler-Daten", "error");
+    } else {
+      showNotification("Wasserzähler-Daten erfolgreich gespeichert", "success");
+      event.target.closest(".modal").remove();
+    }
+  }
