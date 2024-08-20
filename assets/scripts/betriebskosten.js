@@ -105,10 +105,8 @@ function openEditModal(entry = null) {
     const form = document.getElementById('betriebskosten-bearbeiten-form');
     form.appendChild(buttonContainer);
 
-    const wasserzaehlerButton = document.createElement("button");
-    wasserzaehlerButton.textContent = "Wasserzähler-Daten";
-    wasserzaehlerButton.onclick = openWasserzaehlerModal;
-    buttonContainer.appendChild(wasserzaehlerButton);
+
+
   
 
     modal.style.display = 'block';
@@ -249,6 +247,16 @@ async function showOverview(year) {
 
     overviewModal.appendChild(overviewContent);
     document.body.appendChild(overviewModal);
+
+    const wasserzaehlerButton = document.createElement("button");
+    wasserzaehlerButton.textContent = "Wasserzählerstände bearbeiten";
+    wasserzaehlerButton.onclick = () => openWasserzaehlerModal(year);
+    wasserzaehlerButton.style.marginTop = "20px";
+    wasserzaehlerButton.style.marginLeft = "10px";
+    wasserzaehlerButton.style.padding = "10px 20px";
+    wasserzaehlerButton.style.fontSize = "16px";
+    wasserzaehlerButton.style.cursor = "pointer";
+    overviewContent.appendChild(wasserzaehlerButton);
 }
 
 async function erstelleDetailAbrechnung(selectedYear) {
@@ -707,72 +715,111 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBetriebskosten();
 });
 
-function openWasserzaehlerModal(event) {
-    event.preventDefault(); // Verhindert das Standard-Verhalten des Buttons
+
+async function openWasserzaehlerModal(year) {
+    const modal = document.querySelector("#wasserzaehler-modal");
+    const modalContent = modal.querySelector(".modal-content");
+    modalContent.innerHTML = ""; // Leere den Modal-Inhalt
   
-    const modal = document.createElement("div");
-    modal.className = "modal";
-    modal.style.display = "block";
-  
-    const modalContent = document.createElement("div");
-    modalContent.className = "modal-content";
+    const title = document.createElement("h2");
+    title.textContent = `Wasserzählerstände für ${year}`;
+    modalContent.appendChild(title);
   
     const closeBtn = document.createElement("span");
     closeBtn.className = "close";
     closeBtn.innerHTML = "&times;";
-    closeBtn.onclick = () => modal.remove(); // Entfernt das Modal statt es nur zu verstecken
+    closeBtn.onclick = () => modal.style.display = "none";
+    modalContent.appendChild(closeBtn);
   
-    const title = document.createElement("h2");
-    title.textContent = "Wasserzähler-Daten";
+    // Lade Wasserzählerdaten für das angegebene Jahr
+    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
+      .from("Wasserzähler")
+      .select(`
+        *,
+        Mieter (name, "wohnung-id")
+      `)
+      .eq("year", year);
   
-    const form = document.createElement("form");
-    form.onsubmit = saveWasserzaehlerData;
+    if (wasserzaehlerError) {
+      console.error("Fehler beim Laden der Wasserzählerdaten:", wasserzaehlerError);
+      return;
+    }
   
-    const inputs = [
-      { name: "mieter-id", type: "text", placeholder: "Mieter ID" },
-      { name: "ablesung-datum", type: "date", placeholder: "Ablesedatum" },
-      { name: "zählerstand", type: "number", placeholder: "Zählerstand" },
-      { name: "verbrauch", type: "number", placeholder: "Verbrauch" }
-    ];
+    // Lade die Wohnungsdaten separat
+    const { data: wohnungenData, error: wohnungenError } = await supabase
+      .from("Wohnungen")
+      .select("id, Wohnung");
   
-    inputs.forEach(input => {
-      const label = document.createElement("label");
-      label.textContent = input.placeholder;
-      const inputElement = document.createElement("input");
-      inputElement.type = input.type;
-      inputElement.name = input.name;
-      inputElement.placeholder = input.placeholder;
-      inputElement.required = true;
-      form.appendChild(label);
-      form.appendChild(inputElement);
+    if (wohnungenError) {
+      console.error("Fehler beim Laden der Wohnungsdaten:", wohnungenError);
+      return;
+    }
+  
+    // Erstelle ein Mapping von Wohnungs-IDs zu Wohnungsnummern
+    const wohnungenMap = Object.fromEntries(wohnungenData.map(w => [w.id, w.Wohnung]));
+  
+    // Erstelle Formular für jeden Wasserzähler-Eintrag
+    wasserzaehlerData.forEach(wasserzaehler => {
+      const wasserzaehlerForm = document.createElement("form");
+      wasserzaehlerForm.className = "wasserzaehler-form";
+  
+      const mieterName = document.createElement("h3");
+      const wohnungNummer = wohnungenMap[wasserzaehler.Mieter["wohnung-id"]] || "Unbekannt";
+      mieterName.textContent = `${wasserzaehler.Mieter.name} - Wohnung ${wohnungNummer}`;
+      wasserzaehlerForm.appendChild(mieterName);
+  
+      const dateInput = document.createElement("input");
+      dateInput.type = "date";
+      dateInput.required = true;
+      dateInput.value = wasserzaehler["ablesung-datum"] || "";
+      wasserzaehlerForm.appendChild(dateInput);
+  
+      const standInput = document.createElement("input");
+      standInput.type = "number";
+      standInput.step = "0.01";
+      standInput.required = true;
+      standInput.placeholder = "Zählerstand";
+      standInput.value = wasserzaehler.zählerstand || "";
+      wasserzaehlerForm.appendChild(standInput);
+  
+      const verbrauchInput = document.createElement("input");
+      verbrauchInput.type = "number";
+      verbrauchInput.step = "0.01";
+      verbrauchInput.required = true;
+      verbrauchInput.placeholder = "Verbrauch";
+      verbrauchInput.value = wasserzaehler.verbrauch || "";
+      wasserzaehlerForm.appendChild(verbrauchInput);
+  
+      const saveButton = document.createElement("button");
+      saveButton.type = "submit";
+      saveButton.textContent = "Speichern";
+      wasserzaehlerForm.appendChild(saveButton);
+  
+      wasserzaehlerForm.onsubmit = async (e) => {
+        e.preventDefault();
+        const data = {
+          "mieter-id": wasserzaehler["mieter-id"],
+          year: year,
+          "ablesung-datum": dateInput.value,
+          zählerstand: parseFloat(standInput.value),
+          verbrauch: parseFloat(verbrauchInput.value)
+        };
+  
+        const { error } = await supabase
+          .from("Wasserzähler")
+          .update(data)
+          .eq("id", wasserzaehler.id);
+  
+        if (error) {
+          console.error("Fehler beim Speichern:", error);
+          alert("Fehler beim Speichern der Daten");
+        } else {
+          alert("Daten erfolgreich gespeichert");
+        }
+      };
+  
+      modalContent.appendChild(wasserzaehlerForm);
     });
   
-    const submitButton = document.createElement("button");
-    submitButton.type = "submit";
-    submitButton.textContent = "Speichern";
-  
-    form.appendChild(submitButton);
-    modalContent.appendChild(closeBtn);
-    modalContent.appendChild(title);
-    modalContent.appendChild(form);
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-  }
-
-  async function saveWasserzaehlerData(event) {
-    event.preventDefault();
-    const formData = new FormData(event.target);
-    const data = Object.fromEntries(formData.entries());
-  
-    const { error } = await supabase
-      .from("Wasserzähler")
-      .insert([data]);
-  
-    if (error) {
-      console.error("Fehler beim Speichern der Wasserzähler-Daten:", error);
-      showNotification("Fehler beim Speichern der Wasserzähler-Daten", "error");
-    } else {
-      showNotification("Wasserzähler-Daten erfolgreich gespeichert", "success");
-      event.target.closest(".modal").remove();
-    }
-  }
+    modal.style.display = "block";
+}
