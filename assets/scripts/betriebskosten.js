@@ -720,106 +720,137 @@ async function openWasserzaehlerModal(year) {
     const modal = document.querySelector("#wasserzaehler-modal");
     const modalContent = modal.querySelector(".modal-content");
     modalContent.innerHTML = ""; // Leere den Modal-Inhalt
-  
+
     const title = document.createElement("h2");
     title.textContent = `Wasserzählerstände für ${year}`;
     modalContent.appendChild(title);
-  
+
     const closeBtn = document.createElement("span");
     closeBtn.className = "close";
-    closeBtn.innerHTML = "&times;";
+    closeBtn.innerHTML = "×";
     closeBtn.onclick = () => modal.style.display = "none";
     modalContent.appendChild(closeBtn);
-  
-    // Lade Wasserzählerdaten für das angegebene Jahr
-    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
-      .from("Wasserzähler")
-      .select(`
-        *,
-        Mieter (name, "wohnung-id")
-      `)
-      .eq("year", year);
-  
-    if (wasserzaehlerError) {
-      console.error("Fehler beim Laden der Wasserzählerdaten:", wasserzaehlerError);
-      return;
+
+    // Lade Mieter-Daten
+    const { data: mieterData, error: mieterError } = await supabase
+        .from("Mieter")
+        .select("wohnung-id, name");
+
+    if (mieterError) {
+        console.error("Fehler beim Laden der Mieter-Daten:", mieterError);
+        return;
     }
-  
-    // Lade die Wohnungsdaten separat
+
+    // Lade die Wohnungsdaten
     const { data: wohnungenData, error: wohnungenError } = await supabase
-      .from("Wohnungen")
-      .select("id, Wohnung");
-  
+        .from("Wohnungen")
+        .select("id, Wohnung");
+
     if (wohnungenError) {
-      console.error("Fehler beim Laden der Wohnungsdaten:", wohnungenError);
-      return;
+        console.error("Fehler beim Laden der Wohnungsdaten:", wohnungenError);
+        return;
     }
-  
+
     // Erstelle ein Mapping von Wohnungs-IDs zu Wohnungsnummern
     const wohnungenMap = Object.fromEntries(wohnungenData.map(w => [w.id, w.Wohnung]));
-  
-    // Erstelle Formular für jeden Wasserzähler-Eintrag
-    wasserzaehlerData.forEach(wasserzaehler => {
-      const wasserzaehlerForm = document.createElement("form");
-      wasserzaehlerForm.className = "wasserzaehler-form";
-  
-      const mieterName = document.createElement("h3");
-      const wohnungNummer = wohnungenMap[wasserzaehler.Mieter["wohnung-id"]] || "Unbekannt";
-      mieterName.textContent = `${wasserzaehler.Mieter.name} - Wohnung ${wohnungNummer}`;
-      wasserzaehlerForm.appendChild(mieterName);
-  
-      const dateInput = document.createElement("input");
-      dateInput.type = "date";
-      dateInput.required = true;
-      dateInput.value = wasserzaehler["ablesung-datum"] || "";
-      wasserzaehlerForm.appendChild(dateInput);
-  
-      const standInput = document.createElement("input");
-      standInput.type = "number";
-      standInput.step = "0.01";
-      standInput.required = true;
-      standInput.placeholder = "Zählerstand";
-      standInput.value = wasserzaehler.zählerstand || "";
-      wasserzaehlerForm.appendChild(standInput);
-  
-      const verbrauchInput = document.createElement("input");
-      verbrauchInput.type = "number";
-      verbrauchInput.step = "0.01";
-      verbrauchInput.required = true;
-      verbrauchInput.placeholder = "Verbrauch";
-      verbrauchInput.value = wasserzaehler.verbrauch || "";
-      wasserzaehlerForm.appendChild(verbrauchInput);
-  
-      const saveButton = document.createElement("button");
-      saveButton.type = "submit";
-      saveButton.textContent = "Speichern";
-      wasserzaehlerForm.appendChild(saveButton);
-  
-      wasserzaehlerForm.onsubmit = async (e) => {
-        e.preventDefault();
-        const data = {
-          "mieter-id": wasserzaehler["mieter-id"],
-          year: year,
-          "ablesung-datum": dateInput.value,
-          zählerstand: parseFloat(standInput.value),
-          verbrauch: parseFloat(verbrauchInput.value)
-        };
-  
-        const { error } = await supabase
-          .from("Wasserzähler")
-          .update(data)
-          .eq("id", wasserzaehler.id);
-  
-        if (error) {
-          console.error("Fehler beim Speichern:", error);
-          alert("Fehler beim Speichern der Daten");
-        } else {
-          alert("Daten erfolgreich gespeichert");
-        }
-      };
-  
-      modalContent.appendChild(wasserzaehlerForm);
+
+    // Erstelle ein Auswahlmenü für die Mieter
+    const mieterSelect = document.createElement("select");
+    mieterSelect.id = "mieter-select";
+
+    const defaultOption = document.createElement("option");
+    defaultOption.value = "";
+    defaultOption.textContent = "Mieter auswählen";
+    mieterSelect.appendChild(defaultOption);
+
+    mieterData.forEach(mieter => {
+        const option = document.createElement("option");
+        option.value = mieter["wohnung-id"];
+        const wohnungNummer = wohnungenMap[mieter["wohnung-id"]] || "Unbekannt";
+        option.textContent = `${mieter.name} - Wohnung ${wohnungNummer}`;
+        mieterSelect.appendChild(option);
     });
-  
+
+    modalContent.appendChild(mieterSelect);
+
+    // Erstelle Formular für den ausgewählten Mieter
+    const wasserzaehlerForm = document.createElement("form");
+    wasserzaehlerForm.className = "wasserzaehler-form";
+    modalContent.appendChild(wasserzaehlerForm);
+
+    // Event Listener für das Ändern des ausgewählten Mieters
+    mieterSelect.addEventListener("change", async () => {
+        const selectedMieterId = mieterSelect.value;
+
+        if (!selectedMieterId) {
+            wasserzaehlerForm.innerHTML = ""; // Leere das Formular, wenn kein Mieter ausgewählt ist
+            return;
+        }
+
+        // Lade Wasserzählerdaten für den ausgewählten Mieter und das angegebene Jahr
+        const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
+            .from("Wasserzähler")
+            .select("*")
+            .eq("mieter-id", selectedMieterId)
+            .eq("year", year);
+
+        if (wasserzaehlerError) {
+            console.error("Fehler beim Laden der Wasserzählerdaten:", wasserzaehlerError);
+            return;
+        }
+
+        wasserzaehlerForm.innerHTML = ""; // Leere das Formular
+
+        const dateInput = document.createElement("input");
+        dateInput.type = "date";
+        dateInput.required = true;
+        dateInput.value = wasserzaehlerData.length > 0 ? wasserzaehlerData[0]["ablesung-datum"] : "";
+        wasserzaehlerForm.appendChild(dateInput);
+
+        const standInput = document.createElement("input");
+        standInput.type = "number";
+        standInput.step = "0.01";
+        standInput.required = true;
+        standInput.placeholder = "Zählerstand";
+        standInput.value = wasserzaehlerData.length > 0 ? wasserzaehlerData[0].zählerstand : "";
+        wasserzaehlerForm.appendChild(standInput);
+
+        const verbrauchInput = document.createElement("input");
+        verbrauchInput.type = "number";
+        verbrauchInput.step = "0.01";
+        verbrauchInput.required = true;
+        verbrauchInput.placeholder = "Verbrauch";
+        verbrauchInput.value = wasserzaehlerData.length > 0 ? wasserzaehlerData[0].verbrauch : "";
+        wasserzaehlerForm.appendChild(verbrauchInput);
+
+        const saveButton = document.createElement("button");
+        saveButton.type = "submit";
+        saveButton.textContent = "Speichern";
+        wasserzaehlerForm.appendChild(saveButton);
+
+        wasserzaehlerForm.onsubmit = async (e) => {
+            e.preventDefault();
+
+            const data = {
+                "mieter-id": selectedMieterId,
+                year: year,
+                "ablesung-datum": dateInput.value,
+                zählerstand: parseFloat(standInput.value),
+                verbrauch: parseFloat(verbrauchInput.value)
+            };
+
+            const { error } = wasserzaehlerData.length > 0
+                ? await supabase.from("Wasserzähler").update(data).eq("id", wasserzaehlerData[0].id)
+                : await supabase.from("Wasserzähler").insert(data);
+
+            if (error) {
+                console.error("Fehler beim Speichern:", error);
+                alert("Fehler beim Speichern der Daten");
+            } else {
+                alert("Daten erfolgreich gespeichert");
+            }
+        };
+    });
+
     modal.style.display = "block";
 }
