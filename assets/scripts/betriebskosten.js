@@ -716,10 +716,81 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+// Funktion zum Laden der Wasserzähler-Daten
+async function loadWasserzaehlerData(wohnungId, year) {
+    try {
+        // Laden der Mieterdaten
+        const { data: mieterData, error: mieterError } = await supabase
+            .from("Mieter")
+            .select("name")
+            .eq("wohnung-id", wohnungId)
+            .single();
+
+        if (mieterError) throw mieterError;
+
+        // Laden der Wohnungsdaten
+        const { data: wohnungData, error: wohnungError } = await supabase
+            .from("Wohnungen")
+            .select("Wohnung")
+            .eq("id", wohnungId)
+            .single();
+
+        if (wohnungError) throw wohnungError;
+
+        console.log("Mieterdaten:", mieterData);
+        console.log("Wohnungsdaten:", wohnungData);
+
+        // Laden der Wasserzähler-Daten
+        const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
+            .from("Wasserzähler")
+            .select("*")
+            .eq("mieter-id", wohnungId)
+            .eq("year", year);
+
+        if (wasserzaehlerError) {
+            console.error("Fehler beim Laden der Wasserzähler-Daten:", wasserzaehlerError);
+            throw wasserzaehlerError;
+        }
+
+        console.log("Rohe Wasserzähler-Daten:", wasserzaehlerData);
+
+        if (wasserzaehlerData.length === 0) {
+            console.log(`Keine Wasserzählerdaten für Mieter-ID ${wohnungId} und Jahr ${year} gefunden.`);
+            
+            // Zusätzliche Überprüfung: Alle Wasserzählerdaten für diesen Mieter anzeigen
+            const { data: allData, error: allDataError } = await supabase
+                .from("Wasserzähler")
+                .select("*")
+                .eq("mieter-id", wohnungId);
+            
+            if (allDataError) {
+                console.error("Fehler beim Laden aller Wasserzählerdaten:", allDataError);
+            } else {
+                console.log("Alle verfügbaren Wasserzählerdaten für diesen Mieter:", allData);
+            }
+        } else {
+            console.log(`Wasserzählerdaten für ${mieterData.name} in Wohnung ${wohnungData.Wohnung} für das Jahr ${year}:`);
+            wasserzaehlerData.forEach(eintrag => {
+                console.log(`Datum: ${eintrag['ablesung-datum']}, Zählerstand: ${eintrag.zählerstand}, Verbrauch: ${eintrag.verbrauch}`);
+            });
+        }
+
+    } catch (error) {
+        console.error("Fehler beim Laden der Daten:", error);
+    }
+}
+
+// Beispielaufruf der Funktion
+document.addEventListener("DOMContentLoaded", () => {
+    const wohnungId = "IHRE_WOHNUNG_ID"; // Ersetzen Sie dies durch eine gültige UUID
+    const year = new Date().getFullYear();
+    loadWasserzaehlerData(wohnungId, year);
+});
+
 async function openWasserzaehlerModal(year) {
     const modal = document.querySelector("#wasserzaehler-modal");
     const modalContent = modal.querySelector(".modal-content");
-    modalContent.innerHTML = ""; // Leere den Modal-Inhalt
+    modalContent.innerHTML = ""; // Clear the modal content
 
     const title = document.createElement("h2");
     title.textContent = `Wasserzählerstände für ${year}`;
@@ -727,21 +798,27 @@ async function openWasserzaehlerModal(year) {
 
     const closeBtn = document.createElement("span");
     closeBtn.className = "close";
-    closeBtn.innerHTML = "×";
+    closeBtn.innerHTML = "&times;";
     closeBtn.onclick = () => modal.style.display = "none";
     modalContent.appendChild(closeBtn);
 
-    // Lade Mieter-Daten
-    const { data: mieterData, error: mieterError } = await supabase
+    // Load all tenant data for the dropdown, only including active tenants
+    const currentDate = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
+    const { data: mietersData, error: mietersError } = await supabase
         .from("Mieter")
-        .select("wohnung-id, name");
+        .select(`
+            "wohnung-id",
+            name
+        `)
+        .lte('einzug', currentDate)
+        .or(`auszug.is.null,auszug.gt.${currentDate}`);
 
-    if (mieterError) {
-        console.error("Fehler beim Laden der Mieter-Daten:", mieterError);
+    if (mietersError) {
+        console.error("Fehler beim Laden der Mieterdaten:", mietersError);
         return;
     }
 
-    // Lade die Wohnungsdaten
+    // Load apartment data
     const { data: wohnungenData, error: wohnungenError } = await supabase
         .from("Wohnungen")
         .select("id, Wohnung");
@@ -751,106 +828,180 @@ async function openWasserzaehlerModal(year) {
         return;
     }
 
-    // Erstelle ein Mapping von Wohnungs-IDs zu Wohnungsnummern
+    // Create a mapping of apartment IDs to apartment numbers
     const wohnungenMap = Object.fromEntries(wohnungenData.map(w => [w.id, w.Wohnung]));
 
-    // Erstelle ein Auswahlmenü für die Mieter
-    const mieterSelect = document.createElement("select");
-    mieterSelect.id = "mieter-select";
-
-    const defaultOption = document.createElement("option");
-    defaultOption.value = "";
-    defaultOption.textContent = "Mieter auswählen";
-    mieterSelect.appendChild(defaultOption);
-
-    mieterData.forEach(mieter => {
+    // Create tenant selection dropdown
+    const tenantSelect = document.createElement("select");
+    tenantSelect.id = "tenant-select";
+    mietersData.forEach(mieter => {
         const option = document.createElement("option");
         option.value = mieter["wohnung-id"];
-        const wohnungNummer = wohnungenMap[mieter["wohnung-id"]] || "Unbekannt";
-        option.textContent = `${mieter.name} - Wohnung ${wohnungNummer}`;
-        mieterSelect.appendChild(option);
+        option.textContent = `${mieter.name} (${wohnungenMap[mieter["wohnung-id"]]})`;
+        tenantSelect.appendChild(option);
     });
+    modalContent.appendChild(tenantSelect);
 
-    modalContent.appendChild(mieterSelect);
+    // Load Wasserzaehler data when tenant is selected
+    tenantSelect.onchange = async () => {
+        const wohnungId = tenantSelect.value;
+        await loadWasserzaehlerData(wohnungId, year);
+    };
 
-    // Erstelle Formular für den ausgewählten Mieter
-    const wasserzaehlerForm = document.createElement("form");
-    wasserzaehlerForm.className = "wasserzaehler-form";
-    modalContent.appendChild(wasserzaehlerForm);
+    modal.style.display = "block";
+}
 
-    // Event Listener für das Ändern des ausgewählten Mieters
-    mieterSelect.addEventListener("change", async () => {
-        const selectedMieterId = mieterSelect.value;
+function createFormElements(container) {
+    const form = document.createElement("form");
+    form.className = "wasserzaehler-form";
 
-        if (!selectedMieterId) {
-            wasserzaehlerForm.innerHTML = ""; // Leere das Formular, wenn kein Mieter ausgewählt ist
-            return;
+    const mieterName = document.createElement("h3");
+    mieterName.id = "mieter-name";
+    form.appendChild(mieterName);
+
+    const dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.id = "ablesung-datum";
+    dateInput.required = true;
+    form.appendChild(dateInput);
+
+    const standInput = document.createElement("input");
+    standInput.type = "number";
+    standInput.id = "zaehlerstand";
+    standInput.step = "0.01";
+    standInput.required = true;
+    standInput.placeholder = "Zählerstand";
+    form.appendChild(standInput);
+
+    const verbrauchInput = document.createElement("input");
+    verbrauchInput.type = "number";
+    verbrauchInput.id = "verbrauch";
+    verbrauchInput.step = "0.01";
+    verbrauchInput.required = true;
+    verbrauchInput.placeholder = "Verbrauch";
+    form.appendChild(verbrauchInput);
+
+    const saveButton = document.createElement("button");
+    saveButton.type = "submit";
+    saveButton.textContent = "Speichern";
+    form.appendChild(saveButton);
+
+    form.onsubmit = handleFormSubmit;
+
+    container.appendChild(form);
+}
+
+async function loadTenantData(wohnungId, year) {
+    const formContainer = document.getElementById("wasserzaehler-form-container");
+    if (!wohnungId) {
+        formContainer.textContent = "Bitte wählen Sie einen gültigen Mieter aus.";
+        return;
+    }
+
+    try {
+        console.log(`Lade Daten für Wohnung ${wohnungId} und Jahr ${year}`);
+
+        // Load apartment data
+        const { data: wohnungData, error: wohnungError } = await supabase
+            .from("Wohnungen")
+            .select("Wohnung")
+            .eq("id", wohnungId)
+            .single();
+
+        if (wohnungError) throw wohnungError;
+        console.log("Wohnungsdaten:", wohnungData);
+
+        // Load tenant data
+        const { data: mieterData, error: mieterError } = await supabase
+            .from("Mieter")
+            .select("name")
+            .eq("wohnung-id", wohnungId);
+
+        if (mieterError) throw mieterError;
+
+        if (mieterData.length === 2) {
+            console.warn(`Multiple tenants found for wohnung-id: ${wohnungId}. Using the most recent tenant.`);
+            // Assuming your tenant data has a `moveInDate` field to determine the most recent tenant
+            mieterData.sort((a, b) => new Date(b.moveInDate) - new Date(a.moveInDate));
+        }
+        
+        const mieterName = mieterData[0].name;
+        const mieterNameElement = document.getElementById("mieter-name");
+        if (mieterNameElement) {
+            mieterNameElement.textContent = `${mieterName} - Wohnung ${wohnungData.Wohnung}`;
         }
 
-        // Lade Wasserzählerdaten für den ausgewählten Mieter und das angegebene Jahr
+        // Try to load data for the specified year
         const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
             .from("Wasserzähler")
             .select("*")
-            .eq("mieter-id", selectedMieterId)
-            .eq("year", year);
+            .eq("mieter-id", wohnungId)
+            .eq("year", year)
+            .order('ablesung-datum', { ascending: false })
+            .limit(1);
 
-        if (wasserzaehlerError) {
-            console.error("Fehler beim Laden der Wasserzählerdaten:", wasserzaehlerError);
-            return;
+        if (wasserzaehlerError) throw wasserzaehlerError;
+
+        if (!wasserzaehlerData.length) {
+            console.log("Keine Wasserzählerdaten für das angegebene Jahr gefunden.");
+        } else {
+            // Assuming wasserzaehlerData contains fields `stand`, `datum`, etc.
+            const { stand, datum, otherField } = wasserzaehlerData[0];  // Adjust field names as necessary
+
+            // Populate the input fields with the retrieved data
+            document.getElementById("wasserzaehler-stand").value = stand || '';
+            document.getElementById("wasserzaehler-datum").value = datum || '';
+            document.getElementById("wasserzaehler-other-field").value = otherField || '';
         }
 
-        wasserzaehlerForm.innerHTML = ""; // Leere das Formular
+    } catch (error) {
+        console.error("Fehler beim Laden der Daten:", error);
+    }
+}
 
-        const dateInput = document.createElement("input");
-        dateInput.type = "date";
-        dateInput.required = true;
-        dateInput.value = wasserzaehlerData.length > 0 ? wasserzaehlerData[0]["ablesung-datum"] : "";
-        wasserzaehlerForm.appendChild(dateInput);
+async function handleFormSubmit(e) {
+    e.preventDefault();
+    const wohnungId = document.getElementById("tenant-select").value;
+    const year = new Date().getFullYear(); // Angenommen, wir arbeiten mit dem aktuellen Jahr
+    const data = {
+        "mieter-id": wohnungId,
+        year: year,
+        "ablesung-datum": document.getElementById("ablesung-datum").value,
+        zählerstand: parseFloat(document.getElementById("zaehlerstand").value),
+        verbrauch: parseFloat(document.getElementById("verbrauch").value)
+    };
 
-        const standInput = document.createElement("input");
-        standInput.type = "number";
-        standInput.step = "0.01";
-        standInput.required = true;
-        standInput.placeholder = "Zählerstand";
-        standInput.value = wasserzaehlerData.length > 0 ? wasserzaehlerData[0].zählerstand : "";
-        wasserzaehlerForm.appendChild(standInput);
+    try {
+        // Überprüfen Sie zuerst, ob ein Eintrag existiert
+        const { data: existingData, error: checkError } = await supabase
+            .from("Wasserzähler")
+            .select("id")
+            .eq("mieter-id", wohnungId)
+            .eq("year", year)
+            .single();
 
-        const verbrauchInput = document.createElement("input");
-        verbrauchInput.type = "number";
-        verbrauchInput.step = "0.01";
-        verbrauchInput.required = true;
-        verbrauchInput.placeholder = "Verbrauch";
-        verbrauchInput.value = wasserzaehlerData.length > 0 ? wasserzaehlerData[0].verbrauch : "";
-        wasserzaehlerForm.appendChild(verbrauchInput);
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
 
-        const saveButton = document.createElement("button");
-        saveButton.type = "submit";
-        saveButton.textContent = "Speichern";
-        wasserzaehlerForm.appendChild(saveButton);
+        let result;
+        if (existingData) {
+            // Update existierenden Eintrag
+            result = await supabase
+                .from("Wasserzähler")
+                .update(data)
+                .eq("id", existingData.id);
+        } else {
+            // Füge neuen Eintrag hinzu
+            result = await supabase
+                .from("Wasserzähler")
+                .insert(data);
+        }
 
-        wasserzaehlerForm.onsubmit = async (e) => {
-            e.preventDefault();
-
-            const data = {
-                "mieter-id": selectedMieterId,
-                year: year,
-                "ablesung-datum": dateInput.value,
-                zählerstand: parseFloat(standInput.value),
-                verbrauch: parseFloat(verbrauchInput.value)
-            };
-
-            const { error } = wasserzaehlerData.length > 0
-                ? await supabase.from("Wasserzähler").update(data).eq("id", wasserzaehlerData[0].id)
-                : await supabase.from("Wasserzähler").insert(data);
-
-            if (error) {
-                console.error("Fehler beim Speichern:", error);
-                alert("Fehler beim Speichern der Daten");
-            } else {
-                alert("Daten erfolgreich gespeichert");
-            }
-        };
-    });
-
-    modal.style.display = "block";
+        if (result.error) throw result.error;
+        alert("Daten erfolgreich gespeichert");
+    } catch (error) {
+        console.error("Fehler beim Speichern:", error);
+        alert("Fehler beim Speichern der Daten: " + error.message);
+    }
 }
