@@ -791,62 +791,88 @@ async function openWasserzaehlerModal(year) {
         const selectedMieterName = select.options[select.selectedIndex].text.split(' - ')[0];
         console.log('Selected Wohnung ID:', selectedWohnungId);
         console.log('Selected Mieter Name:', selectedMieterName);
-
+    
         const { data: allWasserzaehlerData, error: allWasserzaehlerError } = await supabase
             .from('Wasserzähler')
             .select('*')
             .order('ablesung-datum', { ascending: true });
-
+    
         console.log('All Wasserzaehler data:', allWasserzaehlerData);
-
+    
         if (allWasserzaehlerError) {
             console.error('Error fetching all water meter data:', allWasserzaehlerError);
             dataContainer.innerHTML = '<p>Fehler beim Laden aller Wasserzählerdaten</p>';
             return;
         }
-
+    
         // Filtern der Daten basierend auf dem Mieternamen und dem Jahr
         const wasserzaehlerData = allWasserzaehlerData.filter(data => 
             data['mieter-id'] === selectedMieterName && data.year === parseInt(year)
         );
-
+    
         console.log('Filtered Wasserzaehler data:', wasserzaehlerData);
-
+    
         if (wasserzaehlerData.length === 0) {
             console.log('No water meter data found for the selected tenant and year');
             dataContainer.innerHTML = `<p>Keine Wasserzählerdaten für diesen Mieter (Name: ${selectedMieterName}) und das Jahr ${year} gefunden</p>`;
             return;
         }
-
-        // Tabellenerstellung
-        const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.marginTop = '20px';
-
-        const headers = ['Datum', 'Zählerstand', 'Verbrauch'];
-        const headerRow = table.insertRow();
-        headers.forEach(header => {
-            const th = document.createElement('th');
-            th.textContent = header;
-            th.style.border = '1px solid black';
-            th.style.padding = '8px';
-            th.style.backgroundColor = '#f2f2f2';
-            headerRow.appendChild(th);
-        });
-
-        wasserzaehlerData.forEach(data => {
-            const row = table.insertRow();
-            [data['ablesung-datum'], data.zählerstand, data.verbrauch].forEach(text => {
-                const cell = row.insertCell();
-                cell.textContent = text;
-                cell.style.border = '1px solid black';
-                cell.style.padding = '8px';
-            });
-        });
-
+    
+        // Entfernen aller vorhandenen Inhalte des dataContainers
         dataContainer.innerHTML = '';
-        dataContainer.appendChild(table);
+    
+        // Erstellen von Eingabefeldern für jedes Datenfeld
+        wasserzaehlerData.forEach(data => {
+            const datumInput = document.createElement('input');
+            datumInput.type = 'text';
+            datumInput.value = data['ablesung-datum'];
+            datumInput.style.marginBottom = '10px';
+    
+            const zaehlerstandInput = document.createElement('input');
+            zaehlerstandInput.type = 'text';
+            zaehlerstandInput.value = data['zählerstand'];
+            zaehlerstandInput.style.marginBottom = '10px';
+    
+            const verbrauchInput = document.createElement('input');
+            verbrauchInput.type = 'text';
+            verbrauchInput.value = data['verbrauch'];
+            verbrauchInput.style.marginBottom = '10px';
+    
+            dataContainer.appendChild(datumInput);
+            dataContainer.appendChild(document.createElement('br'));
+            dataContainer.appendChild(zaehlerstandInput);
+            dataContainer.appendChild(document.createElement('br'));
+            dataContainer.appendChild(verbrauchInput);
+            dataContainer.appendChild(document.createElement('br'));
+        });
+    
+        // Hinzufügen eines Speichern-Buttons
+        const saveButton = document.createElement('button');
+        saveButton.textContent = 'Speichern';
+        saveButton.onclick = async () => {
+            const updatedData = wasserzaehlerData.map((data, index) => {
+                return {
+                    ...data,
+                    'ablesung-datum': dataContainer.querySelectorAll('input')[index * 3].value,
+                    'zählerstand': dataContainer.querySelectorAll('input')[index * 3 + 1].value,
+                    'verbrauch': dataContainer.querySelectorAll('input')[index * 3 + 2].value
+                };
+            });
+    
+            const { data: saveData, error: saveError } = await supabase
+                .from('Wasserzähler')
+                .upsert(updatedData);
+    
+            if (saveError) {
+                console.error('Fehler beim Speichern der Wasserzählerdaten:', saveError);
+                showNotification('Fehler beim Speichern der Wasserzählerdaten', 'error');
+            } else {
+                console.log('Wasserzählerdaten erfolgreich gespeichert:', saveData);
+                showNotification('Wasserzählerdaten erfolgreich gespeichert', 'success');
+            }
+        };
+    
+        dataContainer.appendChild(saveButton);
     };
 
     modal.appendChild(modalContent);
