@@ -785,7 +785,7 @@ async function openWasserzaehlerModal(year) {
     const dataContainer = document.createElement('div');
     dataContainer.id = 'wasserzaehler-data';
     modalContent.appendChild(dataContainer);
-
+    
     select.onchange = async () => {
         const selectedWohnungId = select.value;
         const selectedMieterName = select.options[select.selectedIndex].text.split(' - ')[0];
@@ -824,14 +824,19 @@ async function openWasserzaehlerModal(year) {
         // Erstellen von Eingabefeldern für jedes Datenfeld
         wasserzaehlerData.forEach(data => {
             const datumInput = document.createElement('input');
-            datumInput.type = 'text';
+            datumInput.type = 'date';
             datumInput.value = data['ablesung-datum'];
-            datumInput.style.marginBottom = '10px';
+            datumInput.classList.add('input-style'); // assuming 'input-style' is the class used in the Hinzufügen version
     
             const zaehlerstandInput = document.createElement('input');
             zaehlerstandInput.type = 'text';
             zaehlerstandInput.value = data['zählerstand'];
-            zaehlerstandInput.style.marginBottom = '10px';
+            zaehlerstandInput.classList.add('input-style'); // assuming 'input-style' is the class used in the Hinzufügen version
+    
+            // Append inputs to dataContainer or relevant parent element
+            dataContainer.appendChild(datumInput);
+            dataContainer.appendChild(zaehlerstandInput);
+    
     
             const verbrauchInput = document.createElement('input');
             verbrauchInput.type = 'text';
