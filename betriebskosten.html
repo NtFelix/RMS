@@ -108,8 +108,22 @@
                 
                 <div id="wasserzaehler-modal" class="modal">
                     <div class="modal-content">
-                      <!-- Der Inhalt wird dynamisch durch JavaScript generiert -->
+                        <span class="close">&times;</span>
+                        <h2>Wasserzählerstände</h2>
+                        <form id="wasserzaehler-form">
+                            <div class="form-group">
+                                <label for="mieter-select">Mieter:</label>
+                                <select id="mieter-select">
+                                    <!-- Mieter werden dynamisch geladen -->
+                                </select>
+                            </div>
+                            <div id="wasserzaehler-data">
+                                <!-- Wasserzählerdaten werden dynamisch geladen -->
+                            </div>
+                            <button type="submit">Speichern</button>
+                        </form>
                     </div>
+                </div>
                     
                 
                 
