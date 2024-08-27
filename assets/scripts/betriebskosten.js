@@ -739,7 +739,6 @@ async function openWasserzaehlerModal(year) {
 
     console.log('Fetched mieter data:', mieter);
 
-    // Erstellen Sie eine Zuordnung von Namen zu Wohnungs-IDs
     const nameToIdMap = mieter.reduce((acc, m) => {
         acc[m.name] = m['wohnung-id'];
         return acc;
@@ -759,6 +758,7 @@ async function openWasserzaehlerModal(year) {
     modalContent.style.border = '1px solid #888';
     modalContent.style.width = '80%';
     modalContent.style.maxWidth = '800px';
+    modalContent.style.borderRadius = 'var(--button-radius)';
 
     const closeBtn = document.createElement('span');
     closeBtn.className = 'close';
@@ -770,8 +770,21 @@ async function openWasserzaehlerModal(year) {
     title.textContent = `Wasserzählerstände für ${year}`;
     modalContent.appendChild(title);
 
+    const form = document.createElement('form');
+    form.style.display = 'flex';
+    form.style.flexDirection = 'column';
+
+    const selectLabel = document.createElement('label');
+    selectLabel.textContent = 'Mieter auswählen:';
+    selectLabel.style.marginTop = '10px';
+    form.appendChild(selectLabel);
+
     const select = document.createElement('select');
     select.id = 'mieter-select';
+    select.style.marginBottom = '10px';
+    select.style.padding = '10px';
+    select.style.border = '1px solid #ddd';
+    select.style.borderRadius = 'var(--button-radius)';
     mieter.forEach(m => {
         if (m.Wohnungen && m.Wohnungen.Wohnung) {
             const option = document.createElement('option');
@@ -780,94 +793,121 @@ async function openWasserzaehlerModal(year) {
             select.appendChild(option);
         }
     });
-    modalContent.appendChild(select);
+    form.appendChild(select);
 
     const dataContainer = document.createElement('div');
     dataContainer.id = 'wasserzaehler-data';
-    modalContent.appendChild(dataContainer);
-    
+    form.appendChild(dataContainer);
+
+    modalContent.appendChild(form);
+
     select.onchange = async () => {
         const selectedWohnungId = select.value;
         const selectedMieterName = select.options[select.selectedIndex].text.split(' - ')[0];
         console.log('Selected Wohnung ID:', selectedWohnungId);
         console.log('Selected Mieter Name:', selectedMieterName);
-    
+
         const { data: allWasserzaehlerData, error: allWasserzaehlerError } = await supabase
             .from('Wasserzähler')
             .select('*')
             .order('ablesung-datum', { ascending: true });
-    
+
         console.log('All Wasserzaehler data:', allWasserzaehlerData);
-    
+
         if (allWasserzaehlerError) {
             console.error('Error fetching all water meter data:', allWasserzaehlerError);
             dataContainer.innerHTML = '<p>Fehler beim Laden aller Wasserzählerdaten</p>';
             return;
         }
-    
-        // Filtern der Daten basierend auf dem Mieternamen und dem Jahr
+
         const wasserzaehlerData = allWasserzaehlerData.filter(data => 
             data['mieter-id'] === selectedMieterName && data.year === parseInt(year)
         );
-    
+
         console.log('Filtered Wasserzaehler data:', wasserzaehlerData);
-    
+
         if (wasserzaehlerData.length === 0) {
             console.log('No water meter data found for the selected tenant and year');
             dataContainer.innerHTML = `<p>Keine Wasserzählerdaten für diesen Mieter (Name: ${selectedMieterName}) und das Jahr ${year} gefunden</p>`;
             return;
         }
-    
-        // Entfernen aller vorhandenen Inhalte des dataContainers
+
         dataContainer.innerHTML = '';
-    
-        // Erstellen von Eingabefeldern für jedes Datenfeld
-        wasserzaehlerData.forEach(data => {
+
+        wasserzaehlerData.forEach((data, index) => {
+            const fieldset = document.createElement('fieldset');
+            fieldset.style.border = 'none';
+            fieldset.style.padding = '0';
+            fieldset.style.margin = '0 0 20px 0';
+
+            const legend = document.createElement('legend');
+            legend.textContent = `Eintrag ${index + 1}`;
+            legend.style.fontWeight = 'bold';
+            fieldset.appendChild(legend);
+
+            const datumLabel = document.createElement('label');
+            datumLabel.textContent = 'Ablesedatum:';
+            datumLabel.style.marginTop = '10px';
+            fieldset.appendChild(datumLabel);
+
             const datumInput = document.createElement('input');
             datumInput.type = 'date';
             datumInput.value = data['ablesung-datum'];
-            datumInput.classList.add('input-style'); // assuming 'input-style' is the class used in the Hinzufügen version
-    
+            applyInputStyles(datumInput);
+            fieldset.appendChild(datumInput);
+
+            const zaehlerstandLabel = document.createElement('label');
+            zaehlerstandLabel.textContent = 'Zählerstand:';
+            zaehlerstandLabel.style.marginTop = '10px';
+            fieldset.appendChild(zaehlerstandLabel);
+
             const zaehlerstandInput = document.createElement('input');
             zaehlerstandInput.type = 'text';
             zaehlerstandInput.value = data['zählerstand'];
-            zaehlerstandInput.classList.add('input-style'); // assuming 'input-style' is the class used in the Hinzufügen version
-    
-            // Append inputs to dataContainer or relevant parent element
-            dataContainer.appendChild(datumInput);
-            dataContainer.appendChild(zaehlerstandInput);
-    
-    
+            applyInputStyles(zaehlerstandInput);
+            fieldset.appendChild(zaehlerstandInput);
+
+            const verbrauchLabel = document.createElement('label');
+            verbrauchLabel.textContent = 'Verbrauch:';
+            verbrauchLabel.style.marginTop = '10px';
+            fieldset.appendChild(verbrauchLabel);
+
             const verbrauchInput = document.createElement('input');
             verbrauchInput.type = 'text';
             verbrauchInput.value = data['verbrauch'];
-            verbrauchInput.style.marginBottom = '10px';
-    
-            dataContainer.appendChild(datumInput);
-            dataContainer.appendChild(document.createElement('br'));
-            dataContainer.appendChild(zaehlerstandInput);
-            dataContainer.appendChild(document.createElement('br'));
-            dataContainer.appendChild(verbrauchInput);
-            dataContainer.appendChild(document.createElement('br'));
+            applyInputStyles(verbrauchInput);
+            fieldset.appendChild(verbrauchInput);
+
+            dataContainer.appendChild(fieldset);
         });
-    
-        // Hinzufügen eines Speichern-Buttons
+
         const saveButton = document.createElement('button');
         saveButton.textContent = 'Speichern';
-        saveButton.onclick = async () => {
+        saveButton.style.marginTop = '20px';
+        saveButton.style.padding = '10px';
+        saveButton.style.backgroundColor = 'var(--primary-color)';
+        saveButton.style.color = 'white';
+        saveButton.style.borderRadius = 'var(--button-radius)';
+        saveButton.style.border = 'none';
+        saveButton.style.cursor = 'pointer';
+        saveButton.onmouseover = () => saveButton.style.backgroundColor = 'var(--secondary-color)';
+        saveButton.onmouseout = () => saveButton.style.backgroundColor = 'var(--primary-color)';
+        saveButton.onclick = async (e) => {
+            e.preventDefault();
             const updatedData = wasserzaehlerData.map((data, index) => {
+                const fieldset = dataContainer.querySelectorAll('fieldset')[index];
                 return {
                     ...data,
-                    'ablesung-datum': dataContainer.querySelectorAll('input')[index * 3].value,
-                    'zählerstand': dataContainer.querySelectorAll('input')[index * 3 + 1].value,
-                    'verbrauch': dataContainer.querySelectorAll('input')[index * 3 + 2].value
+                    'ablesung-datum': fieldset.querySelector('input[type="date"]').value,
+                    'zählerstand': fieldset.querySelectorAll('input[type="text"]')[0].value,
+                    'verbrauch': fieldset.querySelectorAll('input[type="text"]')[1].value
                 };
             });
-    
+
             const { data: saveData, error: saveError } = await supabase
                 .from('Wasserzähler')
                 .upsert(updatedData);
-    
+
             if (saveError) {
                 console.error('Fehler beim Speichern der Wasserzählerdaten:', saveError);
                 showNotification('Fehler beim Speichern der Wasserzählerdaten', 'error');
@@ -876,8 +916,8 @@ async function openWasserzaehlerModal(year) {
                 showNotification('Wasserzählerdaten erfolgreich gespeichert', 'success');
             }
         };
-    
-        dataContainer.appendChild(saveButton);
+
+        form.appendChild(saveButton);
     };
 
     modal.appendChild(modalContent);
@@ -890,4 +930,13 @@ async function openWasserzaehlerModal(year) {
         console.log('No tenants with assigned apartments found');
         dataContainer.innerHTML = '<p>Keine Mieter mit zugewiesenen Wohnungen gefunden</p>';
     }
+}
+
+function applyInputStyles(input) {
+    input.style.marginBottom = '10px';
+    input.style.padding = '10px';
+    input.style.border = '1px solid #ddd';
+    input.style.borderRadius = 'var(--button-radius)';
+    input.style.width = '100%';
+    input.style.boxSizing = 'border-box';
 }
