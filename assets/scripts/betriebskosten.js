@@ -4,7 +4,69 @@ const supabaseUrl = 'https://dmrglslyrrqjlomjsbas.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtcmdsc2x5cnJxamxvbWpzYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4MTA0MzUsImV4cCI6MjAzNjM4NjQzNX0.pzm4EYAzxkCU-ZKAgybeNK9ERgdqBVdHlZbp1aEMndk';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Funktion zum Laden der Betriebskostenabrechnungen
+// Add this function to create and show the context menu
+function showContextMenu(event, year) {
+    event.preventDefault();
+    
+    const existingMenu = document.getElementById('context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    const contextMenu = document.createElement('div');
+    contextMenu.id = 'context-menu';
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = `${event.pageX}px`;
+    contextMenu.style.top = `${event.pageY}px`;
+    contextMenu.style.backgroundColor = '#f9f9f9';
+    contextMenu.style.color = '#000000';
+    contextMenu.style.border = '1px solid #ccc';
+    contextMenu.style.padding = '4px';
+    contextMenu.style.borderRadius = '10px';
+    contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    
+    const overview = createContextMenuItem('Übersicht', () => showOverview(year));
+    const editButton = createContextMenuItem('Bearbeiten', () => openEditModal(year));
+    const waterButton = createContextMenuItem('Wasserzählerdaten', () => openWasserzaehlerModal(year));
+    
+    contextMenu.appendChild(overview);
+    contextMenu.appendChild(editButton);
+    contextMenu.appendChild(waterButton);
+    
+    document.body.appendChild(contextMenu);
+    
+    document.addEventListener('click', removeContextMenu);
+}
+
+// Helper function to create context menu items
+function createContextMenuItem(text, onClick) {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.onclick = onClick;
+    button.style.display = 'block';
+    button.style.width = '100%';
+    button.style.padding = '8px';
+    button.style.textAlign = 'left';
+    button.style.border = 'none';
+    button.style.borderRadius = '8px';
+    button.style.backgroundColor = 'transparent';
+    button.style.color = 'black';
+    button.style.cursor = 'pointer';
+    button.onmouseover = () => button.style.backgroundColor = '#e9e9e9';
+    button.onmouseout = () => button.style.backgroundColor = 'transparent';
+    return button;
+}
+
+// Function to remove the context menu
+function removeContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+        contextMenu.remove();
+    }
+    document.removeEventListener('click', removeContextMenu);
+}
+
+// Modify the loadBetriebskosten function to add context menu functionality
 async function loadBetriebskosten() {
     const { data, error } = await supabase
         .from('betriebskosten')
@@ -33,12 +95,16 @@ async function loadBetriebskosten() {
         editButton.onclick = () => openEditModal(entry);
         actionCell.appendChild(editButton);
 
-        // Der "Fertigstellen" Button wurde hier entfernt
-
         row.appendChild(actionCell);
         tableBody.appendChild(row);
+
+        // Add context menu event listener
+        row.addEventListener('contextmenu', (event) => showContextMenu(event, entry.year));
     });
 }
+
+// Make sure to call loadBetriebskosten() when the page loads
+document.addEventListener('DOMContentLoaded', loadBetriebskosten);
 
 // Funktion zum Öffnen des Bearbeitungsmodals
 function openEditModal(entry = null) {
@@ -979,3 +1045,6 @@ function applyInputStyles(input) {
     input.style.width = '100%';
     input.style.boxSizing = 'border-box';
 }
+
+
+
