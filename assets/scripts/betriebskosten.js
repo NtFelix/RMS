@@ -758,7 +758,7 @@ async function openWasserzaehlerModal(year) {
     modalContent.style.border = '1px solid #888';
     modalContent.style.width = '80%';
     modalContent.style.maxWidth = '800px';
-    modalContent.style.borderRadius = 'var(--button-radius)';
+    modalContent.style.borderRadius = '20px';
 
     const closeBtn = document.createElement('span');
     closeBtn.className = 'close';
