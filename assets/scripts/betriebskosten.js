@@ -107,7 +107,7 @@ async function loadBetriebskosten() {
 document.addEventListener('DOMContentLoaded', loadBetriebskosten);
 
 // Funktion zum Öffnen des Bearbeitungsmodals
-function openEditModal(entry = null) {
+async function openEditModal(entry = null) {
     const modal = document.querySelector('#bearbeiten-modal');
     const modalContent = modal.querySelector('.modal-content');
     const modalTitle = modalContent.querySelector('h2');
@@ -116,18 +116,57 @@ function openEditModal(entry = null) {
 
     container.innerHTML = ''; // Leere den Container
 
-    if (entry && entry.nebenkostenarten && entry.betrag && entry.berechnungsarten) {
+    if (entry && typeof entry === 'object' && entry.year) {
+        // Wenn entry ein Objekt ist und eine year-Eigenschaft hat
         modalTitle.textContent = `Betriebskostenabrechnung für ${entry.year} bearbeiten`;
         yearInput.value = entry.year;
 
-        entry.nebenkostenarten.forEach((kostenart, index) => {
-            const div = createNebenkostenartInput(
-                kostenart,
-                entry.betrag[index],
-                entry.berechnungsarten[index]
-            );
-            container.appendChild(div);
-        });
+        // Lade die Daten für das gegebene Jahr
+        const { data, error } = await supabase
+            .from('betriebskosten')
+            .select('*')
+            .eq('year', entry.year)
+            .single();
+
+        if (error) {
+            console.error('Fehler beim Laden der Betriebskosten:', error);
+            showNotification('Fehler beim Laden der Daten', 'error');
+        } else if (data) {
+            data.nebenkostenarten.forEach((kostenart, index) => {
+                const div = createNebenkostenartInput(
+                    kostenart,
+                    data.betrag[index],
+                    data.berechnungsarten[index]
+                );
+                container.appendChild(div);
+            });
+        }
+    } else if (typeof entry === 'number' || typeof entry === 'string') {
+        // Wenn entry eine Zahl oder String ist (vermutlich das Jahr)
+        const year = parseInt(entry);
+        modalTitle.textContent = `Betriebskostenabrechnung für ${year} bearbeiten`;
+        yearInput.value = year;
+
+        // Lade die Daten für das gegebene Jahr
+        const { data, error } = await supabase
+            .from('betriebskosten')
+            .select('*')
+            .eq('year', year)
+            .single();
+
+        if (error) {
+            console.error('Fehler beim Laden der Betriebskosten:', error);
+            showNotification('Fehler beim Laden der Daten', 'error');
+        } else if (data) {
+            data.nebenkostenarten.forEach((kostenart, index) => {
+                const div = createNebenkostenartInput(
+                    kostenart,
+                    data.betrag[index],
+                    data.berechnungsarten[index]
+                );
+                container.appendChild(div);
+            });
+        }
     } else {
         modalTitle.textContent = 'Neue Betriebskostenabrechnung hinzufügen';
         yearInput.value = '';
