@@ -7,12 +7,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Add this function to create and show the context menu
 function showContextMenu(event, year) {
     event.preventDefault();
-    
+
     const existingMenu = document.getElementById('context-menu');
     if (existingMenu) {
         existingMenu.remove();
     }
-    
+
     const contextMenu = document.createElement('div');
     contextMenu.id = 'context-menu';
     contextMenu.style.position = 'absolute';
@@ -24,26 +24,25 @@ function showContextMenu(event, year) {
     contextMenu.style.padding = '4px';
     contextMenu.style.borderRadius = '10px';
     contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
-    
-    const overview = createContextMenuItem('Übersicht', () => showOverview(year));
-    const editButton = createContextMenuItem('Bearbeiten', () => openEditModal(year));
-    const waterButton = createContextMenuItem('Wasserzählerdaten', () => openWasserzaehlerModal(year));
-    
+
+    const overview = createContextMenuItem('Übersicht', () => showOverview(year), 'fa-solid fa-bar-chart');
+    const editButton = createContextMenuItem('Bearbeiten', () => openEditModal(year), 'fa-solid fa-edit');
+    const waterButton = createContextMenuItem('Wasserzählerdaten', () => openWasserzaehlerModal(year), 'fa-solid fa-tint');
+
     contextMenu.appendChild(overview);
     contextMenu.appendChild(editButton);
     contextMenu.appendChild(waterButton);
-    
+
     document.body.appendChild(contextMenu);
-    
+
     document.addEventListener('click', removeContextMenu);
 }
 
 // Helper function to create context menu items
-function createContextMenuItem(text, onClick) {
+function createContextMenuItem(text, onClick, iconClass) {
     const button = document.createElement('button');
-    button.textContent = text;
-    button.onclick = onClick;
-    button.style.display = 'block';
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
     button.style.width = '100%';
     button.style.padding = '8px';
     button.style.textAlign = 'left';
@@ -54,6 +53,20 @@ function createContextMenuItem(text, onClick) {
     button.style.cursor = 'pointer';
     button.onmouseover = () => button.style.backgroundColor = '#e9e9e9';
     button.onmouseout = () => button.style.backgroundColor = 'transparent';
+
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.style.marginRight = '8px';
+    icon.style.width = '20px';
+    icon.style.textAlign = 'center';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+
+    button.appendChild(icon);
+    button.appendChild(textSpan);
+    button.onclick = onClick;
+
     return button;
 }
 
