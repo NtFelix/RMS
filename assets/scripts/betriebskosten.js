@@ -126,15 +126,27 @@ async function openEditModal(entry = null) {
     const modalTitle = modalContent.querySelector('h2');
     const container = document.getElementById('nebenkostenarten-container');
     const yearInput = document.getElementById('year');
+    let gesamtflaecheInput = document.getElementById('gesamtflaeche');
 
     container.innerHTML = ''; // Leere den Container
 
+    // Wenn das Gesamtfläche-Eingabefeld nicht existiert, erstelle es
+    if (!gesamtflaecheInput) {
+        gesamtflaecheInput = document.createElement('input');
+        gesamtflaecheInput.type = 'number';
+        gesamtflaecheInput.id = 'gesamtflaeche';
+        gesamtflaecheInput.placeholder = 'Gesamtfläche in m²';
+        gesamtflaecheInput.required = true;
+        
+        // Füge das Eingabefeld vor dem Container ein
+        const form = document.getElementById('betriebskosten-bearbeiten-form');
+        form.insertBefore(gesamtflaecheInput, container);
+    }
+
     if (entry && typeof entry === 'object' && entry.year) {
-        // Wenn entry ein Objekt ist und eine year-Eigenschaft hat
         modalTitle.textContent = `Betriebskostenabrechnung für ${entry.year} bearbeiten`;
         yearInput.value = entry.year;
 
-        // Lade die Daten für das gegebene Jahr
         const { data, error } = await supabase
             .from('betriebskosten')
             .select('*')
@@ -145,6 +157,7 @@ async function openEditModal(entry = null) {
             console.error('Fehler beim Laden der Betriebskosten:', error);
             showNotification('Fehler beim Laden der Daten', 'error');
         } else if (data) {
+            gesamtflaecheInput.value = data.gesamtflaeche || ''; // Setze den Wert für die Gesamtfläche
             data.nebenkostenarten.forEach((kostenart, index) => {
                 const div = createNebenkostenartInput(
                     kostenart,
@@ -155,12 +168,10 @@ async function openEditModal(entry = null) {
             });
         }
     } else if (typeof entry === 'number' || typeof entry === 'string') {
-        // Wenn entry eine Zahl oder String ist (vermutlich das Jahr)
         const year = parseInt(entry);
         modalTitle.textContent = `Betriebskostenabrechnung für ${year} bearbeiten`;
         yearInput.value = year;
 
-        // Lade die Daten für das gegebene Jahr
         const { data, error } = await supabase
             .from('betriebskosten')
             .select('*')
@@ -171,6 +182,7 @@ async function openEditModal(entry = null) {
             console.error('Fehler beim Laden der Betriebskosten:', error);
             showNotification('Fehler beim Laden der Daten', 'error');
         } else if (data) {
+            gesamtflaecheInput.value = data.gesamtflaeche || ''; // Setze den Wert für die Gesamtfläche
             data.nebenkostenarten.forEach((kostenart, index) => {
                 const div = createNebenkostenartInput(
                     kostenart,
@@ -183,6 +195,7 @@ async function openEditModal(entry = null) {
     } else {
         modalTitle.textContent = 'Neue Betriebskostenabrechnung hinzufügen';
         yearInput.value = '';
+        gesamtflaecheInput.value = ''; // Leeres Feld für neue Einträge
         addNebenkostenart(); // Füge ein leeres Eingabefeld hinzu
     }
 
@@ -221,11 +234,8 @@ async function openEditModal(entry = null) {
     buttonContainer.appendChild(continueButton);
 
     const form = document.getElementById('betriebskosten-bearbeiten-form');
+    form.insertBefore(gesamtflaecheInput, container);    
     form.appendChild(buttonContainer);
-
-
-
-  
 
     modal.style.display = 'block';
 }
@@ -795,6 +805,7 @@ document.querySelectorAll('.modal .close').forEach(closeButton => {
 // Funktion zum Speichern der Betriebskostenabrechnung
 async function saveBetriebskostenabrechnung() {
     const year = document.getElementById('year').value;
+    const gesamtflaeche = document.getElementById('gesamtflaeche').value;
     const nebenkostenarten = [];
     const betrag = [];
     const berechnungsarten = [];
@@ -812,6 +823,7 @@ async function saveBetriebskostenabrechnung() {
         .from('betriebskosten')
         .upsert({
             year,
+            gesamtflaeche: parseFloat(gesamtflaeche),
             nebenkostenarten,
             betrag,
             berechnungsarten
