@@ -96,10 +96,18 @@ async function loadBetriebskosten() {
 
     data.forEach(entry => {
         const row = document.createElement('tr');
+        // Jahr Spalte
         const yearCell = document.createElement('td');
         yearCell.textContent = entry.year;
         row.appendChild(yearCell);
 
+        // Gesamtfläche Spalte
+        const gesamtflaecheCell = document.createElement('td');
+        gesamtflaecheCell.textContent = entry.gesamtflaeche ? `${entry.gesamtflaeche} m²` : 'Nicht angegeben';
+        row.appendChild(gesamtflaecheCell);
+
+        // Aktionen Spalte (falls vorhanden, bleibt unverändert)
+        
         const actionCell = document.createElement('td');
 
         const editButton = document.createElement('button');
