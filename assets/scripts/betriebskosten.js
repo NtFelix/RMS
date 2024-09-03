@@ -1043,59 +1043,114 @@ async function openWasserzaehlerModal(year) {
 
     saveButton.onclick = async (e) => {
         e.preventDefault();
-        const selectedMieterName = select.options[select.selectedIndex].text.split(' - ')[0];
+        const selectedMieterName = select.options[select.selectedIndex].text.split(' - ')[0].trim();
+        
+        console.log('Ausgewählter Mietername:', selectedMieterName);
+    
+        // Hole alle Mieter, um mögliche Übereinstimmungen zu finden
+        const { data: allMieter, error: allMieterError } = await supabase
+            .from('Mieter')
+            .select('name');
+    
+        if (allMieterError) {
+            console.error('Fehler beim Abrufen aller Mieter:', allMieterError);
+            showNotification('Fehler beim Abrufen der Mieterdaten', 'error');
+            return;
+        }
+    
+        console.log('Alle Mieter in der Datenbank:', allMieter.map(m => m.name));
+    
+        // Suche nach dem Mieter mit einer flexibleren Methode
+        const matchingMieter = allMieter.find(m => 
+            m.name.toLowerCase().trim() === selectedMieterName.toLowerCase().trim()
+        );
+    
+        if (!matchingMieter) {
+            console.error('Fehler: Mieter nicht gefunden');
+            console.log('Verfügbare Mieter:', allMieter.map(m => m.name));
+            showNotification(`Fehler: Der ausgewählte Mieter "${selectedMieterName}" existiert nicht in der Datenbank. Bitte überprüfen Sie den Namen.`, 'error');
+            return;
+        }
+    
+        const mieterName = matchingMieter.name;  // Verwende den exakten Namen aus der Datenbank
+    
+        // Rest des Codes bleibt größtenteils unverändert
         const updatedData = Array.from(dataContainer.querySelectorAll('fieldset')).map((fieldset, index) => {
             const existingData = currentWasserzaehlerData[index];
             return {
-                id: existingData.id, // This will be null for new entries
+                id: existingData && existingData.id ? existingData.id : undefined,
                 'ablesung-datum': fieldset.querySelector('input[type="date"]').value,
                 'zählerstand': fieldset.querySelectorAll('input[type="text"]')[0].value,
                 'verbrauch': fieldset.querySelectorAll('input[type="text"]')[1].value,
-                'mieter-name': selectedMieterName,
+                'mieter-name': mieterName,  // Verwende den exakten Namen aus der Datenbank
                 year: parseInt(year)
             };
         });
-
-        // Split the data into new entries and existing entries
-        const newEntries = updatedData.filter(entry => entry.id === null);
-        const existingEntries = updatedData.filter(entry => entry.id !== null);
-
+    
+        // Teile die Daten in neue und bestehende Einträge auf
+        const newEntries = updatedData.filter(entry => entry.id === undefined);
+        const existingEntries = updatedData.filter(entry => entry.id !== undefined);
+    
         let saveError = null;
-
-        // Insert new entries
+    
+        // Füge neue Einträge ein
         if (newEntries.length > 0) {
             const { data: insertData, error: insertError } = await supabase
                 .from('Wasserzähler')
-                .insert(newEntries);
+                .insert(newEntries.map(entry => {
+                    const { id, ...rest } = entry;
+                    return rest;
+                }));
             
             if (insertError) {
                 console.error('Fehler beim Einfügen neuer Wasserzählerdaten:', insertError);
                 saveError = insertError;
             }
         }
-
-        // Update existing entries
+    
+        // Aktualisiere bestehende Einträge
         if (existingEntries.length > 0) {
             const { data: updateData, error: updateError } = await supabase
                 .from('Wasserzähler')
-                .upsert(existingEntries, { onConflict: ['id'] });
+                .upsert(existingEntries, { 
+                    onConflict: ['id'],
+                    ignoreDuplicates: false
+                });
             
             if (updateError) {
                 console.error('Fehler beim Aktualisieren vorhandener Wasserzählerdaten:', updateError);
                 saveError = updateError;
             }
         }
-
+    
         if (saveError) {
             console.error('Fehler beim Speichern der Wasserzählerdaten:', saveError);
             showNotification('Fehler beim Speichern der Wasserzählerdaten', 'error');
         } else {
             console.log('Wasserzählerdaten erfolgreich gespeichert');
             showNotification('Wasserzählerdaten erfolgreich gespeichert', 'success');
-            // Reload the data to reflect any changes (like new IDs for new entries)
-            select.dispatchEvent(new Event('change'));
+            // Lade die Daten neu, um Änderungen zu reflektieren
+            await loadWasserzaehlerData(mieterName, year);
         }
     };
+    
+    // Funktion zum Laden der Wasserzählerdaten
+    async function loadWasserzaehlerData(mieterName, year) {
+        const { data, error } = await supabase
+            .from('Wasserzähler')
+            .select('*')
+            .eq('mieter-name', mieterName)
+            .eq('year', year)
+            .order('ablesung-datum', { ascending: true });
+    
+        if (error) {
+            console.error('Fehler beim Laden der Wasserzählerdaten:', error);
+            showNotification('Fehler beim Laden der Wasserzählerdaten', 'error');
+        } else {
+            currentWasserzaehlerData = data;
+            updateDataContainer(data);
+        }
+    }
 
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
