@@ -70,7 +70,7 @@ notizen (text)
 
 **Tabelle: Wasserzähler**
 
-mieter-id (uuid) (Verbindung zu “Mieter”)
+mieter-name (text) (Verbindung zu “Mieter”)
 
 year (int4) (Verbindung zu “betriebskosten”)
 
