@@ -974,7 +974,7 @@ async function openWasserzaehlerModal(year) {
         }
 
         currentWasserzaehlerData = allWasserzaehlerData.filter(data => 
-            data['mieter-id'] === selectedMieterName && data.year === parseInt(year)
+            data['mieter-name'] === selectedMieterName && data.year === parseInt(year)
         );
 
         console.log('Filtered Wasserzaehler data:', currentWasserzaehlerData);
@@ -986,7 +986,7 @@ async function openWasserzaehlerModal(year) {
                 'ablesung-datum': '',
                 'zählerstand': '',
                 'verbrauch': '',
-                'mieter-id': selectedMieterName,
+                'mieter-name': selectedMieterName,
                 year: parseInt(year)
             }];
         }
@@ -1051,7 +1051,7 @@ async function openWasserzaehlerModal(year) {
                 'ablesung-datum': fieldset.querySelector('input[type="date"]').value,
                 'zählerstand': fieldset.querySelectorAll('input[type="text"]')[0].value,
                 'verbrauch': fieldset.querySelectorAll('input[type="text"]')[1].value,
-                'mieter-id': selectedMieterName,
+                'mieter-name': selectedMieterName,
                 year: parseInt(year)
             };
         });
