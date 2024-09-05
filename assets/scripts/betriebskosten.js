@@ -860,7 +860,6 @@ document.addEventListener('DOMContentLoaded', () => {
 async function openWasserzaehlerModal(year) {
     console.log('Opening Wasserzaehler modal for year:', year);
 
-
     const { data: mieter, error: mieterError } = await supabase
         .from('Mieter')
         .select(`
@@ -870,30 +869,24 @@ async function openWasserzaehlerModal(year) {
         `)
         .is('auszug', null);
 
-
     if (mieterError) {
         console.error('Error fetching tenants:', mieterError);
         showNotification('Fehler beim Laden der Mieterdaten', 'error');
         return;
     }
 
-
     console.log('Fetched mieter data:', mieter);
-
 
     const nameToIdMap = mieter.reduce((acc, m) => {
         acc[m.name] = m['wohnung-id'];
         return acc;
     }, {});
 
-
     console.log('Name to ID map:', nameToIdMap);
-
 
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
-
 
     const modalContent = document.createElement('div');
     modalContent.className = 'modal-content';
@@ -905,29 +898,37 @@ async function openWasserzaehlerModal(year) {
     modalContent.style.maxWidth = '800px';
     modalContent.style.borderRadius = '20px';
 
-
     const closeBtn = document.createElement('span');
     closeBtn.className = 'close';
     closeBtn.innerHTML = '&times;';
     closeBtn.onclick = () => modal.style.display = 'none';
     modalContent.appendChild(closeBtn);
 
-
     const title = document.createElement('h2');
     title.textContent = `Wasserzählerstände für ${year}`;
     modalContent.appendChild(title);
-
 
     const form = document.createElement('form');
     form.style.display = 'flex';
     form.style.flexDirection = 'column';
 
+    // Add input field for wasserzaehler-gesamtkosten
+    const gesamtkostenLabel = document.createElement('label');
+    gesamtkostenLabel.textContent = 'Wasserzähler Gesamtkosten:';
+    gesamtkostenLabel.style.marginTop = '10px';
+    form.appendChild(gesamtkostenLabel);
+
+    const gesamtkostenInput = document.createElement('input');
+    gesamtkostenInput.type = 'number';
+    gesamtkostenInput.id = 'wasserzaehler-gesamtkosten';
+    gesamtkostenInput.step = '0.01';
+    applyInputStyles(gesamtkostenInput);
+    form.appendChild(gesamtkostenInput);
 
     const selectLabel = document.createElement('label');
     selectLabel.textContent = 'Mieter auswählen:';
     selectLabel.style.marginTop = '10px';
     form.appendChild(selectLabel);
-
 
     const select = document.createElement('select');
     select.id = 'mieter-select';
@@ -945,11 +946,9 @@ async function openWasserzaehlerModal(year) {
     });
     form.appendChild(select);
 
-
     const dataContainer = document.createElement('div');
     dataContainer.id = 'wasserzaehler-data';
     form.appendChild(dataContainer);
-
 
     const saveButton = document.createElement('button');
     saveButton.textContent = 'Speichern';
@@ -964,12 +963,23 @@ async function openWasserzaehlerModal(year) {
     saveButton.onmouseout = () => saveButton.style.backgroundColor = 'var(--primary-color)';
     form.appendChild(saveButton);
 
-
     modalContent.appendChild(form);
-
 
     let currentWasserzaehlerData = null;
 
+    // Load wasserzaehler-gesamtkosten when opening the modal
+    const { data: betriebskostenData, error: betriebskostenError } = await supabase
+        .from('betriebskosten')
+        .select('wasserzaehler-gesamtkosten')
+        .eq('year', year)
+        .single();
+
+    if (betriebskostenError) {
+        console.error('Error fetching betriebskosten:', betriebskostenError);
+        showNotification('Fehler beim Laden der Betriebskosten', 'error');
+    } else if (betriebskostenData) {
+        gesamtkostenInput.value = betriebskostenData['wasserzaehler-gesamtkosten'] || '';
+    }
 
     select.onchange = async () => {
         const selectedWohnungId = select.value;
@@ -977,10 +987,8 @@ async function openWasserzaehlerModal(year) {
         console.log('Selected Wohnung ID:', selectedWohnungId);
         console.log('Selected Mieter Name:', selectedMieterName);
 
-
         await loadWasserzaehlerData(selectedMieterName, year);
     };
-
 
     saveButton.onclick = async (e) => {
         e.preventDefault();
@@ -988,7 +996,7 @@ async function openWasserzaehlerModal(year) {
         
         console.log('Ausgewählter Mietername:', selectedMieterName);
     
-        // Hole alle Mieter, um mögliche Übereinstimmungen zu finden
+        // Fetch all tenants to find possible matches
         const { data: allMieter, error: allMieterError } = await supabase
             .from('Mieter')
             .select('name');
@@ -1001,7 +1009,7 @@ async function openWasserzaehlerModal(year) {
     
         console.log('Alle Mieter in der Datenbank:', allMieter.map(m => m.name));
     
-        // Suche nach dem Mieter mit einer flexibleren Methode
+        // Search for the tenant with a more flexible method
         const matchingMieter = allMieter.find(m => 
             m.name.toLowerCase().trim() === selectedMieterName.toLowerCase().trim()
         );
@@ -1013,7 +1021,7 @@ async function openWasserzaehlerModal(year) {
             return;
         }
     
-        const mieterName = matchingMieter.name;  // Verwende den exakten Namen aus der Datenbank
+        const mieterName = matchingMieter.name;  // Use the exact name from the database
     
         const updatedData = {
             'ablesung-datum': dataContainer.querySelector('input[type="date"]').value,
@@ -1061,18 +1069,32 @@ async function openWasserzaehlerModal(year) {
             }
         }
     
+        // Update wasserzaehler-gesamtkosten in betriebskosten table
+        const gesamtkosten = parseFloat(gesamtkostenInput.value);
+        if (!isNaN(gesamtkosten)) {
+            const { data: betriebskostenData, error: betriebskostenError } = await supabase
+                .from('betriebskosten')
+                .update({ 'wasserzaehler-gesamtkosten': gesamtkosten })
+                .eq('year', parseInt(year));
+
+            if (betriebskostenError) {
+                console.error('Fehler beim Aktualisieren der Betriebskosten:', betriebskostenError);
+                showNotification('Fehler beim Speichern der Gesamtkosten', 'error');
+            }
+        }
+
         if (saveError) {
             console.error('Fehler beim Speichern der Wasserzählerdaten:', saveError);
             showNotification('Fehler beim Speichern der Wasserzählerdaten', 'error');
         } else {
             console.log('Wasserzählerdaten erfolgreich gespeichert');
             showNotification('Wasserzählerdaten erfolgreich gespeichert', 'success');
-            // Lade die Daten neu, um Änderungen zu reflektieren
+            // Reload the data to reflect changes
             await loadWasserzaehlerData(mieterName, year);
         }
     };
     
-    // Funktion zum Laden der Wasserzählerdaten
+    // Function to load Wasserzähler data
     async function loadWasserzaehlerData(mieterName, year) {
         const { data, error } = await supabase
             .from('Wasserzähler')
@@ -1098,7 +1120,6 @@ async function openWasserzaehlerModal(year) {
         }
         updateDataContainer(currentWasserzaehlerData);
     }
-
 
     function updateDataContainer(data) {
         dataContainer.innerHTML = '';
@@ -1146,10 +1167,8 @@ async function openWasserzaehlerModal(year) {
         dataContainer.appendChild(fieldset);
     }
 
-
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
-
 
     if (select.options.length > 0) {
         console.log('Triggering change event for the first option');
@@ -1160,7 +1179,6 @@ async function openWasserzaehlerModal(year) {
     }
 }
 
-
 function applyInputStyles(input) {
     input.style.marginBottom = '10px';
     input.style.padding = '10px';
@@ -1169,6 +1187,3 @@ function applyInputStyles(input) {
     input.style.width = '100%';
     input.style.boxSizing = 'border-box';
 }
-
-
-
