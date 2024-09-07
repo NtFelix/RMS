@@ -283,7 +283,7 @@ async function showOverview(year) {
         return;
     }
 
-    const totalArea = 2225; // Assume this is the total area in square meters
+    const totalArea = betriebskosten.gesamtflaeche; // Use the total area from the database
 
     const overviewModal = document.createElement('div');
     overviewModal.className = 'modal';
@@ -399,6 +399,7 @@ async function showOverview(year) {
     document.body.appendChild(overviewModal);
 }
 
+
 async function erstelleDetailAbrechnung(selectedYear) {
     if (isNaN(selectedYear)) {
         console.error('Ungültiges Jahr:', selectedYear);
@@ -435,7 +436,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
     }
 
     const aktuelleKosten = betriebskosten;
-    const gesamtFlaeche = 2225; // Gesamtfläche in qm
+    const gesamtFlaeche = betriebskosten.gesamtflaeche; // Use the total area from the database
 
     const abrechnungsModal = document.createElement('div');
     abrechnungsModal.className = 'modal';
@@ -652,8 +653,8 @@ async function generatePDF(wohnung, betriebskosten) {
     // Define headers
     const headers = ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'];
 
-    // Calculate total area (assuming it's not provided in the data)
-    const gesamtFlaeche = 2225; // You might want to fetch this from your database
+    // Use gesamtflaeche from betriebskosten table
+    const gesamtFlaeche = betriebskosten.gesamtflaeche;
 
     // Prepare data
     const data = betriebskosten.nebenkostenarten.map((art, index) => {
