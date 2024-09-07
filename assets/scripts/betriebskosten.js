@@ -395,8 +395,8 @@ async function showOverview(year) {
     wasserzaehlerButton.style.fontSize = '16px';
     wasserzaehlerButton.style.cursor = 'pointer';
 
-    buttonContainer.appendChild(continueButton);
     buttonContainer.appendChild(wasserzaehlerButton);
+    buttonContainer.appendChild(continueButton);
 
     overviewContent.appendChild(buttonContainer);
 
