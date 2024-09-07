@@ -140,14 +140,20 @@ async function openEditModal(entry = null) {
 
     // Wenn das Gesamtfläche-Eingabefeld nicht existiert, erstelle es
     if (!gesamtflaecheInput) {
+        // Erstelle einen Titel für das Gesamtfläche-Eingabefeld
+        const gesamtflaecheTitle = document.createElement('label');
+        gesamtflaecheTitle.textContent = 'Gesamtfläche:';
+        gesamtflaecheTitle.style.marginBottom = '5px';
+
         gesamtflaecheInput = document.createElement('input');
         gesamtflaecheInput.type = 'number';
         gesamtflaecheInput.id = 'gesamtflaeche';
         gesamtflaecheInput.placeholder = 'Gesamtfläche in m²';
         gesamtflaecheInput.required = true;
         
-        // Füge das Eingabefeld vor dem Container ein
+        // Füge den Titel und das Eingabefeld vor dem Container ein
         const form = document.getElementById('betriebskosten-bearbeiten-form');
+        form.insertBefore(gesamtflaecheTitle, container);
         form.insertBefore(gesamtflaecheInput, container);
     }
 
@@ -242,7 +248,6 @@ async function openEditModal(entry = null) {
     buttonContainer.appendChild(continueButton);
 
     const form = document.getElementById('betriebskosten-bearbeiten-form');
-    form.insertBefore(gesamtflaecheInput, container);    
     form.appendChild(buttonContainer);
 
     modal.style.display = 'block';
