@@ -79,6 +79,7 @@ function removeContextMenu() {
     document.removeEventListener('click', removeContextMenu);
 }
 
+
 // Modify the loadBetriebskosten function to add context menu functionality
 async function loadBetriebskosten() {
     const { data, error } = await supabase
@@ -372,28 +373,42 @@ async function showOverview(year) {
     overviewContent.appendChild(table);
 
     const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'button-container';
+    buttonContainer.style.marginTop = '20px';
     buttonContainer.style.display = 'flex';
     buttonContainer.style.justifyContent = 'space-between';
-    buttonContainer.style.marginTop = '20px';
+
+    const wasserzaehlerButton = document.createElement('button');
+    wasserzaehlerButton.textContent = 'Wasserzählerstände bearbeiten';
+    wasserzaehlerButton.type = 'button';
+    wasserzaehlerButton.style.marginTop = '20px';
+    wasserzaehlerButton.style.padding = '10px';
+    wasserzaehlerButton.style.backgroundColor = 'var(--primary-color)';
+    wasserzaehlerButton.style.color = 'white';
+    wasserzaehlerButton.style.borderRadius = 'var(--button-radius)';
+    wasserzaehlerButton.style.border = 'none';
+    wasserzaehlerButton.style.cursor = 'pointer';
+    wasserzaehlerButton.onmouseover = () => wasserzaehlerButton.style.backgroundColor = 'var(--secondary-color)';
+    wasserzaehlerButton.onmouseout = () => wasserzaehlerButton.style.backgroundColor = 'var(--primary-color)';
+    wasserzaehlerButton.onclick = () => openWasserzaehlerModal(year);
 
     const continueButton = document.createElement('button');
     continueButton.textContent = 'Fortfahren';
     continueButton.type = 'button';
+    continueButton.style.marginTop = '20px';
+    continueButton.style.padding = '10px';
+    continueButton.style.backgroundColor = 'var(--primary-color)';
+    continueButton.style.color = 'white';
+    continueButton.style.borderRadius = 'var(--button-radius)';
+    continueButton.style.border = 'none';
+    continueButton.style.cursor = 'pointer';
+    continueButton.onmouseover = () => continueButton.style.backgroundColor = 'var(--secondary-color)';
+    continueButton.onmouseout = () => continueButton.style.backgroundColor = 'var(--primary-color)';
     continueButton.onclick = (event) => {
         event.preventDefault();
         overviewModal.style.display = 'none';
         erstelleDetailAbrechnung(year);
     };
-    continueButton.style.padding = '10px 20px';
-    continueButton.style.fontSize = '16px';
-    continueButton.style.cursor = 'pointer';
-
-    const wasserzaehlerButton = document.createElement('button');
-    wasserzaehlerButton.textContent = 'Wasserzählerstände bearbeiten';
-    wasserzaehlerButton.onclick = () => openWasserzaehlerModal(year);
-    wasserzaehlerButton.style.padding = '10px 20px';
-    wasserzaehlerButton.style.fontSize = '16px';
-    wasserzaehlerButton.style.cursor = 'pointer';
 
     buttonContainer.appendChild(wasserzaehlerButton);
     buttonContainer.appendChild(continueButton);
