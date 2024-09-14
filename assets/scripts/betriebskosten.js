@@ -289,7 +289,31 @@ async function showOverview(year) {
         return;
     }
 
-    const totalArea = betriebskosten.gesamtflaeche; // Use the total area from the database
+    console.log('Geladene Betriebskosten:', betriebskosten);  // Debugging-Ausgabe
+
+    // Korrekte Referenzierung der Wasserzähler-Gesamtkosten
+    const wasserzaehlerGesamtkosten = betriebskosten['wasserzaehler-gesamtkosten'] || 0;
+
+    // Gesamtverbrauch aus der Wasserzähler-Tabelle ermitteln
+    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
+        .from('Wasserzähler')
+        .select('verbrauch')
+        .eq('year', year);
+
+    if (wasserzaehlerError) {
+        console.error('Fehler beim Laden der Wasserzählerdaten:', wasserzaehlerError);
+        showNotification('Fehler beim Laden der Wasserzählerdaten. Bitte versuchen Sie es erneut.');
+        return;
+    }
+
+    console.log('Geladene Wasserzählerdaten:', wasserzaehlerData);  // Debugging-Ausgabe
+
+    const gesamtverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
+    
+    // Vermeiden Sie Division durch Null
+    const wasserkostenProKubik = gesamtverbrauch > 0 ? wasserzaehlerGesamtkosten / gesamtverbrauch : 0;
+
+    const totalArea = betriebskosten.gesamtflaeche;
 
     const overviewModal = document.createElement('div');
     overviewModal.className = 'modal';
@@ -371,6 +395,16 @@ async function showOverview(year) {
     });
 
     overviewContent.appendChild(table);
+
+    // Zusätzliche Wasserkosten-Informationen
+    const waterInfoDiv = document.createElement('div');
+    waterInfoDiv.innerHTML = `
+        <h3>Wasserkosten</h3>
+        <p>Gesamtverbrauch: ${gesamtverbrauch.toFixed(2)} m³</p>
+        <p>Gesamtkosten: ${wasserzaehlerGesamtkosten.toFixed(2)} €</p>
+        <p>Kosten pro m³: ${wasserkostenProKubik.toFixed(2)} €</p>
+    `;
+    overviewContent.appendChild(waterInfoDiv);
 
     const buttonContainer = document.createElement('div');
     buttonContainer.className = 'button-container';
