@@ -490,7 +490,23 @@ async function erstelleDetailAbrechnung(selectedYear) {
     }
 
     const aktuelleKosten = betriebskosten;
-    const gesamtFlaeche = betriebskosten.gesamtflaeche; // Use the total area from the database
+    const gesamtFlaeche = betriebskosten.gesamtflaeche;
+    const wasserzaehlerGesamtkosten = betriebskosten['wasserzaehler-gesamtkosten'] || 0;
+
+    // Fetch total water consumption for the year
+    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
+        .from('Wasserzähler')
+        .select('verbrauch')
+        .eq('year', selectedYear);
+
+    if (wasserzaehlerError) {
+        console.error('Fehler beim Laden der Wasserzählerdaten:', wasserzaehlerError);
+        showNotification('Fehler beim Laden der Wasserzählerdaten. Bitte versuchen Sie es erneut.');
+        return;
+    }
+
+    const gesamtverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
+    const wasserkostenProKubik = gesamtverbrauch > 0 ? wasserzaehlerGesamtkosten / gesamtverbrauch : 0;
 
     const abrechnungsModal = document.createElement('div');
     abrechnungsModal.className = 'modal';
@@ -509,8 +525,26 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
         for (const wohnung of wohnungen) {
+            // Fetch tenant data
+            const { data: mieterData, error: mieterError } = await supabase
+                .from('Mieter')
+                .select('name, nebenkosten')
+                .eq('wohnung-id', wohnung.id);
+
+            let tenantName = 'Keine Mieterdaten verfügbar';
+            let monatlicheNebenkosten = 0;
+
+            if (mieterError) {
+                console.error('Fehler beim Laden der Mieterdaten:', mieterError);
+            } else if (mieterData && mieterData.length > 0) {
+                tenantName = mieterData[0].name;
+                monatlicheNebenkosten = mieterData[0].nebenkosten || 0;
+            } else {
+                console.warn('Keine Mieterdaten für Wohnung gefunden:', wohnung.Wohnung);
+            }
+
             const title = document.createElement('h2');
-            title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung}`;
+            title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung} - ${tenantName}`;
 
             const table = document.createElement("table");
             table.style.width = "100%";
@@ -519,7 +553,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
             table.style.border = "1px solid transparent";
             table.style.marginBottom = "30px";
 
-            // Tabellenkopf
+            // Table header
             const headerRow = table.insertRow();
             ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'].forEach(text => {
                 const th = document.createElement('th');
@@ -529,16 +563,17 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 headerRow.appendChild(th);
             });
 
-            // Daten einfügen
+            // Insert data
             let gesamtKostenanteil = 0;
-            aktuelleKosten.nebenkostenarten.forEach((art, index) => {
-                const row = table.insertRow();
+            for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
+                const art = aktuelleKosten.nebenkostenarten[index];
                 const betrag = aktuelleKosten.betrag[index];
                 const berechnungsart = aktuelleKosten.berechnungsarten[index];
                 const verteilerEinheit = berechnungsart === 'pro_flaeche' ? gesamtFlaeche : wohnungen.length;
                 const kostenProEinheit = betrag / verteilerEinheit;
                 const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
 
+                const row = table.insertRow();
                 [
                     art,
                     betrag.toFixed(2) + ' €',
@@ -553,9 +588,45 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 });
 
                 gesamtKostenanteil += kostenanteil;
+            }
+
+            let tenantWasserverbrauch = 0;
+            let tenantWasserkosten = 0;
+
+            if (tenantName !== 'Keine Mieterdaten verfügbar') {
+                const { data: tenantWasserData, error: tenantWasserError } = await supabase
+                    .from('Wasserzähler')
+                    .select('verbrauch')
+                    .eq('year', selectedYear)
+                    .eq('mieter-name', tenantName)
+                    .single();
+
+                if (tenantWasserError || !tenantWasserData) {
+                    console.warn('Keine Wasserzählerdaten für Mieter gefunden:', tenantName);
+                } else {
+                    tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
+                    tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
+                }
+            }
+
+            // Add water costs row
+            const waterRow = table.insertRow();
+            [
+                'Wasserkosten',
+                wasserzaehlerGesamtkosten.toFixed(2) + ' €',
+                gesamtverbrauch.toFixed(2) + ' m³',
+                wasserkostenProKubik.toFixed(2) + ' €/m³',
+                tenantWasserkosten.toFixed(2) + ' €'
+            ].forEach(text => {
+                const cell = waterRow.insertCell();
+                cell.textContent = text;
+                cell.style.border = '1px solid black';
+                cell.style.padding = '8px';
             });
 
-            // Gesamtzeile
+            gesamtKostenanteil += tenantWasserkosten;
+
+            // Total row
             const totalRow = table.insertRow();
             const cellTotalLabel = totalRow.insertCell();
             cellTotalLabel.colSpan = 4;
@@ -570,14 +641,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            // Bereits geleistete Zahlungen
-            const { data: mieterData } = await supabase
-                .from('Mieter')
-                .select('nebenkosten')
-                .eq('wohnung-id', wohnung.id)
-                .single();
-
-            const monatlicheNebenkosten = mieterData?.nebenkosten || 0;
+            // Already paid amounts
             const bereitsBezahlt = monatlicheNebenkosten * 12;
 
             const paidRow = table.insertRow();
@@ -594,7 +658,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            // Nachzahlung/Rückerstattung
+            // Balance due/refund
             const balanceRow = table.insertRow();
             const cellBalanceLabel = balanceRow.insertCell();
             cellBalanceLabel.colSpan = 4;
@@ -611,6 +675,15 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
             abrechnungContent.appendChild(title);
             abrechnungContent.appendChild(table);
+
+            // Water consumption details
+            const detailsDiv = document.createElement('div');
+            detailsDiv.innerHTML = `
+                <h3>Wasserverbrauch Details</h3>
+                <p>Gesamtverbrauch: ${tenantWasserverbrauch.toFixed(2)} m³</p>
+                <p>Wasserkosten: ${tenantWasserkosten.toFixed(2)} €</p>
+            `;
+            abrechnungContent.appendChild(detailsDiv);
 
             const exportButton = document.createElement('button');
             exportButton.textContent = 'Zu PDF exportieren';
