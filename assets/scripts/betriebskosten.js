@@ -739,20 +739,46 @@ async function generatePDF(wohnung, betriebskosten) {
     let mieter;
     if (!mieterData) {
         console.warn('No Mieter data found for wohnung-id:', wohnung.id);
-        // Create a default mieter object with placeholder data
         mieter = {
             name: 'Unbekannt',
-            wasserverbrauch: 0,
-            verbrauch_alter_wz: 0,
-            verbrauch_neuer_wz: 0,
-            nebenkosten: 0 // Default to 0 if no data is found
+            nebenkosten: 0
         };
     } else {
         mieter = mieterData;
     }
 
-    // Log the mieter data to check if nebenkosten is present
-    console.log('Mieter object:', mieter);
+    // Fetch Wasserzähler data for the specific tenant
+    const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
+        .from('Wasserzähler')
+        .select('verbrauch')
+        .eq('mieter-name', mieter.name)
+        .eq('year', betriebskosten.year)
+        .single();
+
+    if (wasserzaehlerError) {
+        console.error('Error fetching Wasserzähler data:', wasserzaehlerError);
+        showNotification('Fehler beim Laden der Wasserzählerdaten. Bitte versuchen Sie es erneut.', 'error');
+        return;
+    }
+
+    const tenantWasserverbrauch = wasserzaehlerData ? wasserzaehlerData.verbrauch || 0 : 0;
+    const wasserzaehlerGesamtkosten = betriebskosten['wasserzaehler-gesamtkosten'] || 0;
+
+    // Fetch total water consumption for the year
+    const { data: totalWasserzaehlerData, error: totalWasserzaehlerError } = await supabase
+        .from('Wasserzähler')
+        .select('verbrauch')
+        .eq('year', betriebskosten.year);
+
+    if (totalWasserzaehlerError) {
+        console.error('Error fetching total Wasserzähler data:', totalWasserzaehlerError);
+        showNotification('Fehler beim Laden der gesamten Wasserzählerdaten. Bitte versuchen Sie es erneut.', 'error');
+        return;
+    }
+
+    const gesamtverbrauch = totalWasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
+    const wasserkostenProKubik = gesamtverbrauch > 0 ? wasserzaehlerGesamtkosten / gesamtverbrauch : 0;
+    const tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
 
     // PDF generation code
     const doc = new jspdf.jsPDF();
@@ -778,19 +804,20 @@ async function generatePDF(wohnung, betriebskosten) {
     doc.text(`Objekt: Wichertstraße 67, 10439 Berlin, ${wohnung.Wohnung}, ${wohnung.Größe} qm`, 20, 50);
 
     // Define headers
-    const headers = ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'];
+    const headers = ['Pos.', 'Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'];
 
     // Use gesamtflaeche from betriebskosten table
-    const gesamtFlaeche = betriebskosten.gesamtflaeche;
+    const totalArea = betriebskosten.gesamtflaeche;
 
     // Prepare data
     const data = betriebskosten.nebenkostenarten.map((art, index) => {
         const gesamtkosten = betriebskosten.betrag[index];
         const berechnungsart = betriebskosten.berechnungsarten[index];
-        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? gesamtFlaeche : 1; // Assuming 1 apartment per Wohnung
+        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? totalArea : 1;
         const kostenProEinheit = gesamtkosten / verteilerEinheit;
         const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
         return [
+            index + 1,
             art,
             gesamtkosten.toFixed(2),
             verteilerEinheit.toString(),
@@ -799,6 +826,16 @@ async function generatePDF(wohnung, betriebskosten) {
         ];
     });
 
+    // Add water costs row
+    data.push([
+        data.length + 1,
+        'Wasserkosten',
+        wasserzaehlerGesamtkosten.toFixed(2),
+        gesamtverbrauch.toFixed(2),
+        wasserkostenProKubik.toFixed(2),
+        tenantWasserkosten.toFixed(2)
+    ]);
+
     // Create table
     doc.autoTable({
         head: [headers],
@@ -806,11 +843,12 @@ async function generatePDF(wohnung, betriebskosten) {
         startY: 60,
         styles: { fontSize: 8, cellPadding: 1.5 },
         columnStyles: {
-            0: { cellWidth: 50 },
-            1: { cellWidth: 30, halign: 'right' },
-            2: { cellWidth: 30, halign: 'center' },
-            3: { cellWidth: 30, halign: 'right' },
-            4: { cellWidth: 30, halign: 'right' }
+            0: { cellWidth: 20, halign: 'center' },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 30, halign: 'right' },
+            3: { cellWidth: 30, halign: 'center' },
+            4: { cellWidth: 30, halign: 'right' },
+            5: { cellWidth: 30, halign: 'right' }
         },
         didParseCell: function (data) {
             if (data.section === 'head') {
@@ -819,7 +857,7 @@ async function generatePDF(wohnung, betriebskosten) {
         }
     });
 
-    const gesamtsumme = data.reduce((sum, row) => sum + parseFloat(row[4]), 0);
+    const gesamtsumme = data.reduce((sum, row) => sum + parseFloat(row[5]), 0);
     const finalY = doc.lastAutoTable.finalY || 150;
 
     // Betriebskosten gesamt
@@ -830,29 +868,29 @@ async function generatePDF(wohnung, betriebskosten) {
 
     // Water consumption
     doc.setFont("helvetica", "normal");
-    doc.text(`Wasserverbrauch m³: ${mieter.wasserverbrauch?.toFixed(2) || 'N/A'}`, 20, finalY + 20);
-    doc.text(`Verbrauch alter WZ m³: ${mieter.verbrauch_alter_wz?.toFixed(2) || 'N/A'}`, 20, finalY + 25);
-    doc.text(`Verbrauch neuer WZ m³: ${mieter.verbrauch_neuer_wz?.toFixed(2) || 'N/A'}`, 20, finalY + 30);
+    doc.text(`Wasserverbrauch m³: ${tenantWasserverbrauch.toFixed(2)}`, 20, finalY + 20);
+    doc.text(`Wasserkosten: ${tenantWasserkosten.toFixed(2)} €`, 20, finalY + 25);
+    doc.text(`(${wasserkostenProKubik.toFixed(2)} €/Cbm)`, 120, finalY + 25);
 
     // Additional calculations
     const gesamtBetrag = gesamtsumme;
-    const monatlicheNebenkosten = mieter.nebenkosten || 0; // Use the nebenkosten from the Mieter table
+    const monatlicheNebenkosten = mieter.nebenkosten || 0;
     console.log('Monatliche Nebenkosten:', monatlicheNebenkosten);
-    const bereitsBezahlt = monatlicheNebenkosten * 12; // Multiply by 12 for the whole year
+    const bereitsBezahlt = monatlicheNebenkosten * 12;
     const nachzahlung = gesamtBetrag - bereitsBezahlt;
 
     // Display results
     doc.setFont("helvetica", "bold");
-    doc.text("Gesamt", 20, finalY + 40);
-    doc.text(`${gesamtBetrag.toFixed(2)} €`, 170, finalY + 40, { align: 'right' });
+    doc.text("Gesamt", 20, finalY + 35);
+    doc.text(`${gesamtBetrag.toFixed(2)} €`, 170, finalY + 35, { align: 'right' });
 
     doc.setFont("helvetica", "normal");
-    doc.text("bereits geleistete Zahlungen", 20, finalY + 45);
-    doc.text(`${bereitsBezahlt.toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
+    doc.text("bereits geleistete Zahlungen", 20, finalY + 40);
+    doc.text(`${bereitsBezahlt.toFixed(2)} €`, 170, finalY + 40, { align: 'right' });
 
     doc.setFont("helvetica", "bold");
-    doc.text("Nachzahlung", 20, finalY + 50);
-    doc.text(`${nachzahlung.toFixed(2)} €`, 170, finalY + 50, { align: 'right' });
+    doc.text("Nachzahlung", 20, finalY + 45);
+    doc.text(`${nachzahlung.toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
 
     doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
 }
