@@ -91,10 +91,26 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
     document.getElementById('notiz').value = mieter.notiz || '';
-    document.getElementById('nebenkosten-betrag').value = mieter['nebenkosten-betrag'] ? mieter['nebenkosten-betrag'].join(', ') : '';
+    
+    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
+    if (nebenkostenBetragInput) {
+        nebenkostenBetragInput.value = Array.isArray(mieter['nebenkosten-betrag']) 
+            ? mieter['nebenkosten-betrag'].join(', ') 
+            : '';
+    }
+
+    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
+    if (nebenkostenDatumInput) {
+        nebenkostenDatumInput.value = Array.isArray(mieter['nebenkosten-datum']) 
+            ? mieter['nebenkosten-datum'].join(', ') 
+            : '';
+    }
 
     ladeWohnungen(mieter['wohnung-id']).then(() => {
-        document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
+        const wohnungSelect = document.getElementById('wohnung');
+        if (wohnungSelect) {
+            wohnungSelect.value = mieter['wohnung-id'] || '';
+        }
     });
     
     modal.style.display = 'block';
@@ -111,7 +127,16 @@ async function speichereMieterAenderungen(event) {
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
     const notiz = document.getElementById('notiz').value;
-    const nebenkostenBetrag = document.getElementById('nebenkosten-betrag').value.split(',').map(num => parseFloat(num.trim())).filter(num => !isNaN(num));
+    
+    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
+    const nebenkostenBetrag = nebenkostenBetragInput 
+        ? nebenkostenBetragInput.value.split(',').map(num => parseFloat(num.trim())).filter(num => !isNaN(num))
+        : [];
+
+    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
+    const nebenkostenDatum = nebenkostenDatumInput 
+        ? nebenkostenDatumInput.value.split(',').map(date => date.trim()).filter(date => isValidDate(date))
+        : [];
 
     const updatedData = {
         name,
@@ -121,7 +146,8 @@ async function speichereMieterAenderungen(event) {
         einzug: einzug || null,
         auszug: auszug || null,
         notiz: notiz,
-        'nebenkosten-betrag': nebenkostenBetrag
+        'nebenkosten-betrag': nebenkostenBetrag,
+        'nebenkosten-datum': nebenkostenDatum
     };
 
     try {
@@ -158,7 +184,16 @@ async function speichereMieter(event) {
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
     const notiz = document.getElementById('notiz').value;
-    const nebenkostenBetrag = document.getElementById('nebenkosten-betrag').value.split(',').map(num => parseFloat(num.trim())).filter(num => !isNaN(num));
+    
+    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
+    const nebenkostenBetrag = nebenkostenBetragInput 
+        ? nebenkostenBetragInput.value.split(',').map(num => parseFloat(num.trim())).filter(num => !isNaN(num))
+        : [];
+
+    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
+    const nebenkostenDatum = nebenkostenDatumInput 
+        ? nebenkostenDatumInput.value.split(',').map(date => date.trim()).filter(date => isValidDate(date))
+        : [];
 
     const mieterData = {
         name,
@@ -168,7 +203,8 @@ async function speichereMieter(event) {
         einzug: einzug || null,
         auszug: auszug || null,
         notiz: notiz,
-        'nebenkosten-betrag': nebenkostenBetrag
+        'nebenkosten-betrag': nebenkostenBetrag,
+        'nebenkosten-datum': nebenkostenDatum
     };
 
     try {
@@ -207,6 +243,13 @@ async function speichereMieter(event) {
     }
 }
 
+// Hilfsfunktion zur Überprüfung des Datumformats
+function isValidDate(dateString) {
+    const regex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!regex.test(dateString)) return false;
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date) && date.toISOString().slice(0, 10) === dateString;
+}
 
 async function ladeWohnungen(aktuelleWohnungId = null) {
     try {
