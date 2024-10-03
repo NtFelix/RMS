@@ -83,28 +83,35 @@
                         <h2>Mieter bearbeiten</h2>
                         <form id="mieter-bearbeiten-form">
                             <input type="hidden" id="original-name">
-                            <input type="hidden" id="mieter-id">
                             <label for="name">Name:</label>
                             <input type="text" id="name" required>
                             <label for="email">E-Mail:</label>
                             <input type="email" id="email">
                             <label for="telefon">Telefon:</label>
                             <input type="tel" id="telefon">
-                            <label for="wohnung">Wohnung:</label>
-                            <select id="wohnung">
-                                <option value="">Keine Wohnung</option>
-                                <!-- Wohnungen werden dynamisch geladen -->
-                            </select>
-                            <label for="nebenkosten-betrag">Nebenkosten-Beträge (kommagetrennt):</label>
-                            <input type="text" id="nebenkosten-betrag">
-                            <label for="nebenkosten-datum">Nebenkosten-Daten (kommagetrennt, YYYY-MM-DD):</label>
-                            <input type="text" id="nebenkosten-datum">
                             <label for="einzug">Einzugsdatum:</label>
                             <input type="date" id="einzug">
                             <label for="auszug">Auszugsdatum:</label>
                             <input type="date" id="auszug">
-                            <label for="notiz">Notizen:</label>
-                            <textarea id="notiz" rows="2.3"></textarea>
+                            <label for="notiz">Notiz:</label>
+                            <textarea id="notiz"></textarea>
+                            
+                            <h3>Nebenkosten</h3>
+                            <table id="nebenkosten-tabelle">
+                                <!-- Wird dynamisch gefüllt -->
+                            </table>
+                
+                            <div>
+                                <input type="number" id="neuer-nebenkosten-betrag" placeholder="Neuer Betrag" step="0.01">
+                                <input type="date" id="neuer-nebenkosten-datum">
+                                <button type="button" id="nebenkosten-hinzufuegen">Hinzufügen</button>
+                            </div>
+                
+                            <label for="wohnung">Wohnung:</label>
+                            <select id="wohnung">
+                                <!-- Wird dynamisch gefüllt -->
+                            </select>
+                
                             <button type="submit">Speichern</button>
                         </form>
                     </div>

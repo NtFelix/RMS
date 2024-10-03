@@ -42,6 +42,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function oeffneBearbeitenModal(mieter) {
     const modal = document.getElementById('bearbeiten-modal');
+    if (!modal) {
+        console.error('Modal element nicht gefunden');
+        return;
+    }
     
     // Grundlegende Mieterdaten
     document.getElementById('original-name').value = mieter.name;
@@ -52,23 +56,35 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('auszug').value = mieter.auszug || '';
     document.getElementById('notiz').value = mieter.notiz || '';
     
-    // Nebenkosten Beträge
-    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
-    if (nebenkostenBetragInput) {
-        const betragWerte = mieter['nebenkosten-betrag'];
-        nebenkostenBetragInput.value = Array.isArray(betragWerte) 
-            ? betragWerte.join(', ') 
-            : '';
+    // Nebenkosten Tabelle
+    const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
+    if (!nebenkostenTabelle) {
+        console.error('Nebenkosten-Tabelle nicht gefunden');
+        return;
     }
 
-    // Nebenkosten Datum
-    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
-    if (nebenkostenDatumInput) {
-        const datumWerte = mieter['nebenkosten-datum'];
-        nebenkostenDatumInput.value = Array.isArray(datumWerte) 
-            ? datumWerte.join(', ') 
-            : '';
+    nebenkostenTabelle.innerHTML = ''; // Tabelle leeren
+
+    const betragWerte = mieter['nebenkosten-betrag'] || [];
+    const datumWerte = mieter['nebenkosten-datum'] || [];
+
+    // Tabellenkopf
+    const kopfzeile = nebenkostenTabelle.insertRow();
+    kopfzeile.innerHTML = '<th>Datum</th><th>Betrag (€)</th>';
+
+    // Tabelleninhalt
+    for (let i = 0; i < Math.max(betragWerte.length, datumWerte.length); i++) {
+        const zeile = nebenkostenTabelle.insertRow();
+        zeile.insertCell(0).textContent = datumWerte[i] || '';
+        zeile.insertCell(1).textContent = betragWerte[i] || '';
     }
+
+    // Eingabefelder für neue Nebenkosten
+    const neuerBetragInput = document.getElementById('neuer-nebenkosten-betrag');
+    const neuesDatumInput = document.getElementById('neuer-nebenkosten-datum');
+    
+    if (neuerBetragInput) neuerBetragInput.value = '';
+    if (neuesDatumInput) neuesDatumInput.value = new Date().toISOString().split('T')[0]; // Heutiges Datum
 
     // Wohnungsdaten laden
     ladeWohnungen(mieter['wohnung-id']).then(() => {
@@ -80,6 +96,103 @@ function oeffneBearbeitenModal(mieter) {
     
     modal.style.display = 'block';
 }
+
+// Funktion zum Hinzufügen von Nebenkosten zur Verlaufstabelle
+function fuegeNebenkostenHinzu() {
+    const betrag = document.getElementById('neuer-nebenkosten-betrag').value;
+    const datum = document.getElementById('neuer-nebenkosten-datum').value;
+
+    if (!betrag || !datum) {
+        showNotification('Bitte geben Sie sowohl einen Betrag als auch ein Datum ein.');
+        return;
+    }
+
+    const tabelle = document.getElementById('nebenkosten-tabelle');
+    const neueZeile = tabelle.insertRow(-1);
+    const datumZelle = neueZeile.insertCell(0);
+    const betragZelle = neueZeile.insertCell(1);
+
+    datumZelle.textContent = datum;
+    betragZelle.textContent = parseFloat(betrag).toFixed(2) + ' €';
+
+    // Eingabefelder zurücksetzen
+    document.getElementById('neuer-nebenkosten-betrag').value = '';
+    document.getElementById('neuer-nebenkosten-datum').value = new Date().toISOString().split('T')[0];
+}
+
+// Aktualisierte Funktion zum Speichern der Mieteränderungen
+async function speichereMieterAenderungen(event) {
+    event.preventDefault();
+    
+    const originalName = document.getElementById('original-name').value;
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const telefonnummer = document.getElementById('telefon').value;
+    const wohnungId = document.getElementById('wohnung').value;
+    const einzug = document.getElementById('einzug').value;
+    const auszug = document.getElementById('auszug').value;
+    const notiz = document.getElementById('notiz').value;
+    
+    // Nebenkosten aus der Tabelle auslesen
+    const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
+    const nebenkostenBetrag = [];
+    const nebenkostenDatum = [];
+
+    for (let i = 1; i < nebenkostenTabelle.rows.length; i++) { // Start bei 1, um den Header zu überspringen
+        const zeile = nebenkostenTabelle.rows[i];
+        nebenkostenDatum.push(zeile.cells[0].textContent);
+        nebenkostenBetrag.push(parseFloat(zeile.cells[1].textContent));
+    }
+
+    const updatedData = {
+        name,
+        email,
+        telefonnummer,
+        'wohnung-id': wohnungId || null,
+        einzug: einzug || null,
+        auszug: auszug || null,
+        notiz: notiz,
+        'nebenkosten-betrag': nebenkostenBetrag,
+        'nebenkosten-datum': nebenkostenDatum
+    };
+
+    try {
+        let query = supabase
+            .from('Mieter')
+            .update(updatedData);
+        
+        if (originalName !== name) {
+            query = query.eq('name', originalName);
+        } else {
+            query = query.eq('name', name);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        showNotification('Änderungen erfolgreich gespeichert.');
+        document.getElementById('bearbeiten-modal').style.display = 'none';
+        ladeMieter(); // Aktualisiere die Mieterliste
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren des Mieters:', error.message);
+        showNotification('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Event-Listener für den "Hinzufügen" Button der Nebenkosten
+document.addEventListener('DOMContentLoaded', () => {
+    const nebenkostenHinzufuegenButton = document.getElementById('nebenkosten-hinzufuegen');
+    if (nebenkostenHinzufuegenButton) {
+        nebenkostenHinzufuegenButton.addEventListener('click', fuegeNebenkostenHinzu);
+    }
+
+    const mieterBearbeitenForm = document.getElementById('mieter-bearbeiten-form');
+    if (mieterBearbeitenForm) {
+        mieterBearbeitenForm.addEventListener('submit', speichereMieterAenderungen);
+    }
+});
+
 
 async function ladeMieter() {
     try {
@@ -124,63 +237,7 @@ async function ladeMieter() {
     }
 }
 
-async function speichereMieterAenderungen(event) {
-    event.preventDefault();
-    
-    const originalName = document.getElementById('original-name').value;
-    const name = document.getElementById('name').value;
-    const email = document.getElementById('email').value;
-    const telefonnummer = document.getElementById('telefon').value;
-    const wohnungId = document.getElementById('wohnung').value;
-    const einzug = document.getElementById('einzug').value;
-    const auszug = document.getElementById('auszug').value;
-    const notiz = document.getElementById('notiz').value;
-    
-    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
-    const nebenkostenBetrag = nebenkostenBetragInput 
-        ? nebenkostenBetragInput.value.split(',').map(num => parseFloat(num.trim())).filter(num => !isNaN(num))
-        : [];
 
-    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
-    const nebenkostenDatum = nebenkostenDatumInput 
-        ? nebenkostenDatumInput.value.split(',').map(date => date.trim()).filter(date => isValidDate(date))
-        : [];
-
-    const updatedData = {
-        name,
-        email,
-        telefonnummer,
-        'wohnung-id': wohnungId || null,
-        einzug: einzug || null,
-        auszug: auszug || null,
-        notiz: notiz,
-        'nebenkosten-betrag': nebenkostenBetrag,
-        'nebenkosten-datum': nebenkostenDatum
-    };
-
-    try {
-        let query = supabase
-            .from('Mieter')
-            .update(updatedData);
-        
-        if (originalName !== name) {
-            query = query.eq('name', originalName);
-        } else {
-            query = query.eq('name', name);
-        }
-
-        const { data, error } = await query;
-
-        if (error) throw error;
-
-        showNotification('Änderungen erfolgreich gespeichert.');
-        document.getElementById('bearbeiten-modal').style.display = 'none';
-        ladeMieter();
-    } catch (error) {
-        console.error('Fehler beim Aktualisieren des Mieters:', error.message);
-        showNotification('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
-    }
-}
 
 async function speichereMieter(event) {
     event.preventDefault();
