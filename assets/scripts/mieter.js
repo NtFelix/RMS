@@ -40,6 +40,47 @@ document.addEventListener('DOMContentLoaded', () => {
     // ... andere bestehende Event-Listener ...
 });
 
+function oeffneBearbeitenModal(mieter) {
+    const modal = document.getElementById('bearbeiten-modal');
+    
+    // Grundlegende Mieterdaten
+    document.getElementById('original-name').value = mieter.name;
+    document.getElementById('name').value = mieter.name;
+    document.getElementById('email').value = mieter.email || '';
+    document.getElementById('telefon').value = mieter.telefonnummer || '';
+    document.getElementById('einzug').value = mieter.einzug || '';
+    document.getElementById('auszug').value = mieter.auszug || '';
+    document.getElementById('notiz').value = mieter.notiz || '';
+    
+    // Nebenkosten Beträge
+    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
+    if (nebenkostenBetragInput) {
+        const betragWerte = mieter['nebenkosten-betrag'];
+        nebenkostenBetragInput.value = Array.isArray(betragWerte) 
+            ? betragWerte.join(', ') 
+            : '';
+    }
+
+    // Nebenkosten Datum
+    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
+    if (nebenkostenDatumInput) {
+        const datumWerte = mieter['nebenkosten-datum'];
+        nebenkostenDatumInput.value = Array.isArray(datumWerte) 
+            ? datumWerte.join(', ') 
+            : '';
+    }
+
+    // Wohnungsdaten laden
+    ladeWohnungen(mieter['wohnung-id']).then(() => {
+        const wohnungSelect = document.getElementById('wohnung');
+        if (wohnungSelect) {
+            wohnungSelect.value = mieter['wohnung-id'] || '';
+        }
+    });
+    
+    modal.style.display = 'block';
+}
+
 async function ladeMieter() {
     try {
         const { data, error } = await supabase
@@ -53,6 +94,7 @@ async function ladeMieter() {
                 auszug,
                 notiz,
                 nebenkosten-betrag,
+                nebenkosten-datum,
                 Wohnungen (id, Wohnung)
             `);
 
@@ -80,40 +122,6 @@ async function ladeMieter() {
         console.error('Fehler beim Laden der Mieter:', error.message);
         showNotification('Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut.');
     }
-}
-
-function oeffneBearbeitenModal(mieter) {
-    const modal = document.getElementById('bearbeiten-modal');
-    document.getElementById('original-name').value = mieter.name;
-    document.getElementById('name').value = mieter.name;
-    document.getElementById('email').value = mieter.email || '';
-    document.getElementById('telefon').value = mieter.telefonnummer || '';
-    document.getElementById('einzug').value = mieter.einzug || '';
-    document.getElementById('auszug').value = mieter.auszug || '';
-    document.getElementById('notiz').value = mieter.notiz || '';
-    
-    const nebenkostenBetragInput = document.getElementById('nebenkosten-betrag');
-    if (nebenkostenBetragInput) {
-        nebenkostenBetragInput.value = Array.isArray(mieter['nebenkosten-betrag']) 
-            ? mieter['nebenkosten-betrag'].join(', ') 
-            : '';
-    }
-
-    const nebenkostenDatumInput = document.getElementById('nebenkosten-datum');
-    if (nebenkostenDatumInput) {
-        nebenkostenDatumInput.value = Array.isArray(mieter['nebenkosten-datum']) 
-            ? mieter['nebenkosten-datum'].join(', ') 
-            : '';
-    }
-
-    ladeWohnungen(mieter['wohnung-id']).then(() => {
-        const wohnungSelect = document.getElementById('wohnung');
-        if (wohnungSelect) {
-            wohnungSelect.value = mieter['wohnung-id'] || '';
-        }
-    });
-    
-    modal.style.display = 'block';
 }
 
 async function speichereMieterAenderungen(event) {
