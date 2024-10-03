@@ -95,6 +95,8 @@ function oeffneBearbeitenModal(mieter) {
     });
     
     modal.style.display = 'block';
+    zeile.addEventListener('contextmenu', entferneNebenkostenEintrag);
+
 }
 
 // Funktion zum Hinzufügen von Nebenkosten zur Verlaufstabelle
@@ -115,9 +117,21 @@ function fuegeNebenkostenHinzu() {
     datumZelle.textContent = datum;
     betragZelle.textContent = parseFloat(betrag).toFixed(2) + ' €';
 
+    // Rechtsklick-Event hinzufügen
+    neueZeile.addEventListener('contextmenu', entferneNebenkostenEintrag);
+
     // Eingabefelder zurücksetzen
     document.getElementById('neuer-nebenkosten-betrag').value = '';
     document.getElementById('neuer-nebenkosten-datum').value = new Date().toISOString().split('T')[0];
+}
+
+// Funktion zum Entfernen eines Nebenkosten-Eintrags
+function entferneNebenkostenEintrag(event) {
+    event.preventDefault(); // Verhindert das Standard-Kontextmenü
+    const zeile = event.target.closest('tr');
+    if (zeile && confirm('Möchten Sie diesen Eintrag wirklich löschen?')) {
+        zeile.remove();
+    }
 }
 
 // Aktualisierte Funktion zum Speichern der Mieteränderungen
@@ -190,6 +204,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const mieterBearbeitenForm = document.getElementById('mieter-bearbeiten-form');
     if (mieterBearbeitenForm) {
         mieterBearbeitenForm.addEventListener('submit', speichereMieterAenderungen);
+    }
+
+    // Rechtsklick-Event für bestehende Tabellenzeilen hinzufügen
+    const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
+    if (nebenkostenTabelle) {
+        const zeilen = nebenkostenTabelle.getElementsByTagName('tr');
+        for (let i = 1; i < zeilen.length; i++) { // Start bei 1, um den Header zu überspringen
+            zeilen[i].addEventListener('contextmenu', entferneNebenkostenEintrag);
+        }
     }
 });
 
