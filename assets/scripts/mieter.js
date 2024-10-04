@@ -65,18 +65,23 @@ function oeffneBearbeitenModal(mieter) {
 
     nebenkostenTabelle.innerHTML = ''; // Tabelle leeren
 
-    const betragWerte = mieter['nebenkosten-betrag'] || [];
-    const datumWerte = mieter['nebenkosten-datum'] || [];
+    let betragWerte = mieter['nebenkosten-betrag'] || [];
+    let datumWerte = mieter['nebenkosten-datum'] || [];
+
+    // Sortiere die Nebenkosten
+    const sortierteWerte = sortNebenkostenByDate(betragWerte, datumWerte);
+    betragWerte = sortierteWerte.sortierteBetragWerte;
+    datumWerte = sortierteWerte.sortierteDatumWerte;
 
     // Tabellenkopf
     const kopfzeile = nebenkostenTabelle.insertRow();
     kopfzeile.innerHTML = '<th>Datum</th><th>Betrag (€)</th>';
 
     // Tabelleninhalt
-    for (let i = 0; i < Math.max(betragWerte.length, datumWerte.length); i++) {
+    for (let i = 0; i < betragWerte.length; i++) {
         const zeile = nebenkostenTabelle.insertRow();
-        zeile.insertCell(0).textContent = datumWerte[i] || '';
-        zeile.insertCell(1).textContent = betragWerte[i] || '';
+        zeile.insertCell(0).textContent = datumWerte[i];
+        zeile.insertCell(1).textContent = betragWerte[i];
         zeile.addEventListener('contextmenu', entferneNebenkostenEintrag);
     }
 
@@ -96,8 +101,43 @@ function oeffneBearbeitenModal(mieter) {
     });
     
     modal.style.display = 'block';
-    zeile.addEventListener('contextmenu', entferneNebenkostenEintrag);
+}
 
+// Neue Funktion zum Sortieren der Nebenkosten-Tabelle
+function sortiereNebenkostenTabelle() {
+    const tabelle = document.getElementById('nebenkosten-tabelle');
+    const zeilen = Array.from(tabelle.rows).slice(1); // Ignoriere den Header
+
+    zeilen.sort((a, b) => {
+        const datumA = new Date(a.cells[0].textContent);
+        const datumB = new Date(b.cells[0].textContent);
+        return datumA - datumB;
+    });
+
+    // Entferne alle Zeilen außer dem Header
+    while (tabelle.rows.length > 1) {
+        tabelle.deleteRow(1);
+    }
+
+    // Füge die sortierten Zeilen wieder hinzu
+    zeilen.forEach(zeile => tabelle.appendChild(zeile));
+}
+
+function sortNebenkostenByDate(betragWerte, datumWerte) {
+    // Erstelle ein Array von Objekten mit Datum und Betrag
+    let kombiniert = datumWerte.map((datum, index) => ({
+        datum: new Date(datum),
+        betrag: betragWerte[index]
+    }));
+
+    // Sortiere das Array nach Datum (aufsteigend)
+    kombiniert.sort((a, b) => a.datum - b.datum);
+
+    // Trenne die sortierten Werte wieder in separate Arrays
+    return {
+        sortierteDatumWerte: kombiniert.map(item => item.datum.toISOString().split('T')[0]),
+        sortierteBetragWerte: kombiniert.map(item => item.betrag)
+    };
 }
 
 // Funktion zum Hinzufügen von Nebenkosten zur Verlaufstabelle
@@ -120,6 +160,9 @@ function fuegeNebenkostenHinzu() {
 
     // Rechtsklick-Event hinzufügen
     neueZeile.addEventListener('contextmenu', entferneNebenkostenEintrag);
+
+    // Sortiere die Tabelle nach dem Hinzufügen
+    sortiereNebenkostenTabelle();
 
     // Eingabefelder zurücksetzen
     document.getElementById('neuer-nebenkosten-betrag').value = '';
@@ -165,6 +208,8 @@ async function speichereMieterAenderungen(event) {
         nebenkostenBetrag.push(parseFloat(zeile.cells[1].textContent));
     }
 
+    const sortierteWerte = sortNebenkostenByDate(nebenkostenBetrag, nebenkostenDatum);
+
     const updatedData = {
         name,
         email,
@@ -173,8 +218,8 @@ async function speichereMieterAenderungen(event) {
         einzug: einzug || null,
         auszug: auszug || null,
         notiz: notiz,
-        'nebenkosten-betrag': nebenkostenBetrag,
-        'nebenkosten-datum': nebenkostenDatum
+        'nebenkosten-betrag': sortierteWerte.sortierteBetragWerte,
+        'nebenkosten-datum': sortierteWerte.sortierteDatumWerte
     };
 
     try {
