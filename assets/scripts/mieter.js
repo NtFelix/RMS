@@ -524,14 +524,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function oeffneHinzufuegenModal() {
     const modal = document.getElementById('bearbeiten-modal');
+    if (!modal) {
+        console.error('Modal element nicht gefunden');
+        return;
+    }
+
     const form = document.getElementById('mieter-bearbeiten-form');
+    if (!form) {
+        console.error('Formular nicht gefunden');
+        return;
+    }
 
     // Formular zurücksetzen
     form.reset();
-    document.getElementById('mieter-id').value = '';
 
     // Modaltitel ändern
-    modal.querySelector('h2').textContent = 'Neuen Mieter hinzufügen';
+    const modalTitle = modal.querySelector('h2');
+    if (modalTitle) {
+        modalTitle.textContent = 'Neuen Mieter hinzufügen';
+    }
+
+    // Mieter-ID zurücksetzen (falls vorhanden)
+    const mieterIdInput = document.getElementById('mieter-id');
+    if (mieterIdInput) {
+        mieterIdInput.value = '';
+    }
+
+    // Nebenkosten-Tabelle leeren
+    const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
+    if (nebenkostenTabelle) {
+        nebenkostenTabelle.innerHTML = '<tr><th>Datum</th><th>Betrag (€)</th></tr>';
+    }
+
+    // Eingabefelder für neue Nebenkosten zurücksetzen
+    const neuerBetragInput = document.getElementById('neuer-nebenkosten-betrag');
+    const neuesDatumInput = document.getElementById('neuer-nebenkosten-datum');
+    
+    if (neuerBetragInput) neuerBetragInput.value = '';
+    if (neuesDatumInput) neuesDatumInput.value = new Date().toISOString().split('T')[0]; // Heutiges Datum
+
+    // Wohnungen neu laden
+    ladeWohnungen();
 
     // Modal anzeigen
     modal.style.display = 'block';
