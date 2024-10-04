@@ -77,6 +77,7 @@ function oeffneBearbeitenModal(mieter) {
         const zeile = nebenkostenTabelle.insertRow();
         zeile.insertCell(0).textContent = datumWerte[i] || '';
         zeile.insertCell(1).textContent = betragWerte[i] || '';
+        zeile.addEventListener('contextmenu', entferneNebenkostenEintrag);
     }
 
     // Eingabefelder für neue Nebenkosten
@@ -149,6 +150,12 @@ async function speichereMieterAenderungen(event) {
     
     // Nebenkosten aus der Tabelle auslesen
     const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
+    if (nebenkostenTabelle) {
+        const zeilen = nebenkostenTabelle.getElementsByTagName('tr');
+        for (let i = 1; i < zeilen.length; i++) { // Start bei 1, um den Header zu überspringen
+            zeilen[i].addEventListener('contextmenu', entferneNebenkostenEintrag);
+        }
+    }
     const nebenkostenBetrag = [];
     const nebenkostenDatum = [];
 
