@@ -105,10 +105,18 @@
                                 <!-- Wird dynamisch gefüllt -->
                             </table>
                 
-                            <div>
-                                <input type="number" id="neuer-nebenkosten-betrag" placeholder="Neuer Betrag" step="0.01">
-                                <input type="date" id="neuer-nebenkosten-datum">
-                                <button type="button" id="nebenkosten-hinzufuegen">Hinzufügen</button>
+                            <div class="nebenkosten-eingabe">
+                                <div class="input-container">
+                                    <div class="input-group">
+                                        <label for="neuer-nebenkosten-betrag">Betrag (€):</label>
+                                        <input type="number" id="neuer-nebenkosten-betrag" placeholder="0.00" step="0.01" min="0">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="neuer-nebenkosten-datum">Datum:</label>
+                                        <input type="date" id="neuer-nebenkosten-datum">
+                                    </div>
+                                </div>
+                                <button type="button" id="nebenkosten-hinzufuegen" class="btn-hinzufuegen">Hinzufügen</button>
                             </div>
                 
 

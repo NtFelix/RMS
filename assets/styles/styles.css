@@ -786,3 +786,54 @@ table button:hover {
 
 
 
+
+
+.nebenkosten-eingabe {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+    width: 100%;
+}
+
+.input-container {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.input-group label {
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    color: var(--text-color);
+}
+
+.input-group input {
+    padding: 8px;
+    border: 1px solid var(--secondary-color);
+    border-radius: var(--button-radius);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.btn-hinzufuegen {
+    padding: 10px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--button-radius);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%;
+    font-weight: bold;
+}
+
+.btn-hinzufuegen:hover {
+    background-color: var(--secondary-color);
+}
