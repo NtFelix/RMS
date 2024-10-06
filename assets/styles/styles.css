@@ -788,25 +788,10 @@ table button:hover {
 
 
 
-.nebenkosten-eingabe {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-top: 15px;
-    width: 100%;
-}
 
-.input-container {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-}
 
-.input-group {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-}
+
+
 
 .input-group label {
     font-size: 0.9em;
@@ -814,12 +799,18 @@ table button:hover {
     color: var(--text-color);
 }
 
+.input-group {
+    display: flex;
+    flex-direction: column;
+    margin-top: 7px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
 .input-group input {
-    padding: 8px;
-    border: 1px solid var(--secondary-color);
-    border-radius: var(--button-radius);
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px;
 }
 
 .btn-hinzufuegen {
@@ -832,6 +823,7 @@ table button:hover {
     transition: background-color 0.3s;
     width: 100%;
     font-weight: bold;
+    box-sizing: border-box;
 }
 
 .btn-hinzufuegen:hover {
