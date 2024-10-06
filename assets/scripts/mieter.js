@@ -297,7 +297,27 @@ async function ladeMieter() {
             zeile.insertCell(1).textContent = mieter.email || '-';
             zeile.insertCell(2).textContent = mieter.telefonnummer || '-';
             zeile.insertCell(3).textContent = mieter.Wohnungen ? mieter.Wohnungen.Wohnung : 'Keine Wohnung';
-            zeile.insertCell(4).textContent = mieter['nebenkosten-betrag'] ? `${mieter['nebenkosten-betrag'].join(', ')} €` : '-';
+            
+            // Nebenkosten verarbeiten
+            let nebenkostenText = '-';
+            if (mieter['nebenkosten-betrag'] && mieter['nebenkosten-datum']) {
+                const nebenkosten = mieter['nebenkosten-betrag'].map((betrag, index) => ({
+                    betrag,
+                    datum: mieter['nebenkosten-datum'][index]
+                }));
+                
+                // Sortieren nach Datum (neueste zuerst) und die letzten 3 auswählen
+                const letzteNebenkosten = nebenkosten
+                    .sort((a, b) => new Date(b.datum) - new Date(a.datum))
+                    .slice(0, 3);
+                
+                // Umkehren der Reihenfolge, sodass die älteste zuerst kommt
+                nebenkostenText = letzteNebenkosten
+                    .reverse()
+                    .map(nk => `${nk.betrag} €`)
+                    .join(', ');
+            }
+            zeile.insertCell(4).textContent = nebenkostenText;
             
             const aktionenZelle = zeile.insertCell(5);
             const bearbeitenButton = document.createElement('button');
