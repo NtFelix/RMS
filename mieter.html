@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Willkommen - RMS</title>
+    <title>Mieter - RMS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/styles/styles.css">
 
@@ -19,9 +19,6 @@
             <button id="search-button">Suchen</button>
         </div>
     </div>
-    
-    
-
     
     <div class="layout">
         <nav class="sidebar" id="sidebar">
@@ -39,7 +36,7 @@
         </nav>
         <main class="main-content">
             <header>
-                <h1>Willkommen im RMS</h1>
+                <h1>Mieterübersicht</h1>
                 <div class="user-info">
                     <span id="user-email"></span>
                     <button id="logout-button">Abmelden</button>
@@ -53,33 +50,28 @@
                 </div>
             </div>
             
-            
-
             <div class="dashboard-summary">
                 <div class="summary-card">
-                    <h3>Gesamtzahl Wohnungen</h3>
-                    <p id="total-wohnungen">0</p>
+                    <h3>Gesamtzahl Mieter</h3>
+                    <p id="total-mieter">0</p>
                 </div>
                 <div class="summary-card">
-                    <h3>Monatlicher Mieteingang</h3>
-                    <p id="total-miete">0 €</p>
+                    <h3>Durchschnittliche Mietdauer</h3>
+                    <p id="avg-mietdauer">0 Monate</p>
                 </div>
             </div>
 
             <div class="content">
-                <p>Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen. [Notiz] Man soll eine Reihe
-                    anklicken können und es öffnet sich ein Container mit allen Informationen.
-                    Außerdem ist ein Mieter erst ausgezogen, wenn ein datum beim Auszug eingetragen ist.
-                </p>
-                <h2>Wohnungsübersicht</h2>
-                <table id="wohnungen-tabelle">
+                <h2>Mieterübersicht</h2>
+                <table id="mieter-tabelle">
                     <thead>
                         <tr>
+                            <th>Name</th>
+                            <th>E-Mail</th>
+                            <th>Telefonnummer</th>
+                            <th>Einzug</th>
+                            <th>Auszug</th>
                             <th>Wohnung</th>
-                            <th>Mieter</th>
-                            <th>Größe (m²)</th>
-                            <th>Miete (€)</th>
-                            <th>Preis pro m²</th>
                         </tr>
                     </thead>
                     <tbody>
