@@ -8,7 +8,15 @@ async function ladeMieter() {
     try {
         const { data, error } = await supabase
             .from('Mieter')
-            .select('*, Wohnungen(id, Wohnung)');
+            .select(`
+                wohnung-id,
+                name,
+                email,
+                telefonnummer,
+                einzug,
+                auszug,
+                Wohnungen (id, Wohnung)
+            `);
 
         if (error) throw error;
 
@@ -21,7 +29,7 @@ async function ladeMieter() {
             zeile.insertCell(1).textContent = mieter.email || '-';
             zeile.insertCell(2).textContent = mieter.telefonnummer || '-';
             zeile.insertCell(3).textContent = mieter.Wohnungen ? mieter.Wohnungen.Wohnung : 'Keine Wohnung';
-            
+
             const aktionenZelle = zeile.insertCell(4);
             const bearbeitenButton = document.createElement('button');
             bearbeitenButton.textContent = 'Bearbeiten';
@@ -35,52 +43,100 @@ async function ladeMieter() {
 }
 
 async function ladeWohnungen() {
-    const { data, error } = await supabase.from('Wohnungen').select('id, Wohnung');
-    if (error) {
+    try {
+        // Zuerst holen wir alle Wohnungen
+        const { data: alleWohnungen, error: wohnungenError } = await supabase
+            .from('Wohnungen')
+            .select('id, Wohnung');
+
+        if (wohnungenError) throw wohnungenError;
+
+        // Dann holen wir alle belegten Wohnungen
+        const { data: belegteWohnungen, error: mieterError } = await supabase
+            .from('Mieter')
+            .select('wohnung-id')
+            .not('wohnung-id', 'is', null);
+
+        if (mieterError) throw mieterError;
+
+        // Erstellen Sie ein Set von belegten Wohnungs-IDs für schnellere Suche
+        const belegteWohnungsIds = new Set(belegteWohnungen.map(m => m['wohnung-id']));
+
+        // Filtern Sie die freien Wohnungen
+        const freieWohnungen = alleWohnungen.filter(w => !belegteWohnungsIds.has(w.id));
+
+        const wohnungSelect = document.getElementById('wohnung');
+        wohnungSelect.innerHTML = '<option value="">Keine Wohnung</option>'; // Reset und füge "Keine Wohnung" Option hinzu
+
+        freieWohnungen.forEach(wohnung => {
+            const option = document.createElement('option');
+            option.value = wohnung.id;
+            option.textContent = wohnung.Wohnung;
+            wohnungSelect.appendChild(option);
+        });
+    } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
-        return;
+        alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
-    const wohnungSelect = document.getElementById('wohnung');
-    data.forEach(wohnung => {
-        const option = document.createElement('option');
-        option.value = wohnung.id;
-        option.textContent = wohnung.Wohnung;
-        wohnungSelect.appendChild(option);
-    });
 }
 
 function oeffneBearbeitenModal(mieter) {
     const modal = document.getElementById('bearbeiten-modal');
-    document.getElementById('mieter-id').value = mieter['wohnung-id'];
+    document.getElementById('mieter-id').value = mieter['wohnung-id'] || ''; // Setze auf leere Zeichenkette, wenn keine Wohnung zugewiesen
     document.getElementById('name').value = mieter.name;
     document.getElementById('email').value = mieter.email || '';
     document.getElementById('telefon').value = mieter.telefonnummer || '';
     document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
+    document.getElementById('einzug').value = mieter.einzug || '';
+    document.getElementById('auszug').value = mieter.auszug || '';
     modal.style.display = 'block';
 }
 
 async function speichereMieterAenderungen(event) {
     event.preventDefault();
+
     const mieterId = document.getElementById('mieter-id').value;
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const telefonnummer = document.getElementById('telefon').value;
+    const wohnungId = document.getElementById('wohnung').value;
+    const einzug = document.getElementById('einzug').value;
+    const auszug = document.getElementById('auszug').value;
+
     const updatedData = {
-        name: document.getElementById('name').value,
-        email: document.getElementById('email').value,
-        telefonnummer: document.getElementById('telefon').value,
-        'wohnung-id': document.getElementById('wohnung').value || null
+        name,
+        email,
+        telefonnummer,
+        einzug: einzug || null,
+        auszug: auszug || null
     };
 
-    const { error } = await supabase
-        .from('Mieter')
-        .update(updatedData)
-        .eq('wohnung-id', mieterId);
+    if (wohnungId) {
+        updatedData['wohnung-id'] = wohnungId;
+    }
 
-    if (error) {
-        console.error('Fehler beim Aktualisieren des Mieters:', error.message);
-        alert('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
-    } else {
+    try {
+        let query;
+
+        if (mieterId) {
+            // Wenn der Mieter bereits eine Wohnung hat, aktualisieren wir anhand der wohnung-id
+            query = supabase.from('Mieter').update(updatedData).eq('wohnung-id', mieterId);
+        } else {
+            // Wenn der Mieter noch keine Wohnung hat, fügen wir einen neuen Eintrag hinzu
+            updatedData['wohnung-id'] = wohnungId; // Setze die neue wohnung-id
+            query = supabase.from('Mieter').insert(updatedData);
+        }
+
+        const { data, error } = await query;
+
+        if (error) throw error;
+
         alert('Änderungen erfolgreich gespeichert.');
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeMieter(); // Aktualisiere die Tabelle
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren des Mieters:', error.message);
+        alert('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -88,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ladeMieter();
     ladeWohnungen();
     document.getElementById('mieter-bearbeiten-form').addEventListener('submit', speichereMieterAenderungen);
-    
+
     // Schließen-Funktionalität für das Modal
     const modal = document.getElementById('bearbeiten-modal');
     const span = modal.querySelector('.close');
@@ -104,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ladeMieter();
     ladeWohnungen();
     document.getElementById('mieter-bearbeiten-form').addEventListener('submit', speichereMieterAenderungen);
-    
+
     // Schließen-Funktionalität für das Modal
     const modal = document.getElementById('bearbeiten-modal');
     const span = modal.querySelector('.close');
@@ -136,4 +192,140 @@ document.addEventListener('DOMContentLoaded', () => {
             handleSuche();
         }
     });
+});
+
+
+function filterMieter() {
+    const suchbegriff = document.getElementById('search-mieter-input').value.toLowerCase();
+    const tabelle = document.getElementById('mieter-tabelle');
+    const zeilen = tabelle.getElementsByTagName('tr');
+
+    for (let i = 1; i < zeilen.length; i++) { // Start bei 1, um den Header zu überspringen
+        const zeile = zeilen[i];
+        const zellen = zeile.getElementsByTagName('td');
+        let treffer = false;
+
+        for (let j = 0; j < zellen.length; j++) {
+            const zellText = zellen[j].textContent || zellen[j].innerText;
+            if (zellText.toLowerCase().indexOf(suchbegriff) > -1) {
+                treffer = true;
+                break;
+            }
+        }
+
+        if (treffer) {
+            zeile.style.display = "";
+        } else {
+            zeile.style.display = "none";
+        }
+    }
+}
+
+// Event-Listener für das Suchfeld
+document.addEventListener('DOMContentLoaded', () => {
+    const suchfeld = document.getElementById('search-mieter-input');
+    suchfeld.addEventListener('input', filterMieter);
+
+    // ... andere bestehende Event-Listener ...
+});
+
+function oeffneHinzufuegenModal() {
+    const modal = document.getElementById('bearbeiten-modal');
+    const form = document.getElementById('mieter-bearbeiten-form');
+
+    // Formular zurücksetzen
+    form.reset();
+    document.getElementById('mieter-id').value = '';
+
+    // Modaltitel ändern
+    modal.querySelector('h2').textContent = 'Neuen Mieter hinzufügen';
+
+    // Modal anzeigen
+    modal.style.display = 'block';
+}
+
+
+
+async function speichereMieter(event) {
+    event.preventDefault();
+    
+    const name = document.getElementById('name').value;
+    const email = document.getElementById('email').value;
+    const telefonnummer = document.getElementById('telefon').value;
+    const wohnungId = document.getElementById('wohnung').value;
+    const einzug = document.getElementById('einzug').value;
+    const auszug = document.getElementById('auszug').value;
+
+    const mieterData = {
+        name,
+        email,
+        telefonnummer,
+        'wohnung-id': wohnungId || null,
+        einzug: einzug || null,
+        auszug: auszug || null
+    };
+
+    try {
+        // Überprüfen, ob der Mieter bereits existiert
+        const { data: existingMieter, error: checkError } = await supabase
+            .from('Mieter')
+            .select('name')
+            .eq('name', name)
+            .single();
+
+        if (checkError && checkError.code !== 'PGRST116') {
+            throw checkError;
+        }
+
+        if (existingMieter) {
+            // Mieter existiert bereits, fragen Sie den Benutzer, ob er aktualisieren möchte
+            const shouldUpdate = confirm(`Ein Mieter mit dem Namen "${name}" existiert bereits. Möchten Sie die Daten aktualisieren?`);
+            
+            if (shouldUpdate) {
+                const { data, error } = await supabase
+                    .from('Mieter')
+                    .update(mieterData)
+                    .eq('name', name);
+
+                if (error) throw error;
+                alert('Mieterdaten erfolgreich aktualisiert.');
+            } else {
+                alert('Vorgang abgebrochen. Bitte wählen Sie einen anderen Namen.');
+                return;
+            }
+        } else {
+            // Mieter existiert nicht, fügen Sie einen neuen hinzu
+            const { data, error } = await supabase
+                .from('Mieter')
+                .insert([mieterData]);
+
+            if (error) throw error;
+            alert('Mieter erfolgreich hinzugefügt.');
+        }
+
+        document.getElementById('bearbeiten-modal').style.display = 'none';
+        ladeMieter(); // Aktualisiere die Tabelle
+    } catch (error) {
+        console.error('Fehler beim Hinzufügen/Aktualisieren des Mieters:', error.message);
+        alert('Fehler beim Hinzufügen/Aktualisieren des Mieters. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Event-Listener hinzufügen
+document.addEventListener('DOMContentLoaded', () => {
+    const addButton = document.getElementById('add-mieter-button');
+    addButton.addEventListener('click', oeffneHinzufuegenModal);
+
+    const form = document.getElementById('mieter-bearbeiten-form');
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const mieterId = document.getElementById('mieter-id').value;
+        if (mieterId) {
+            speichereMieterAenderungen(event);
+        } else {
+            speichereMieter(event);
+        }
+    });
+
+    // ... andere bestehende Event-Listener ...
 });
