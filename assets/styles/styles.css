@@ -7,6 +7,7 @@
     --bg-color: #ecf0f1;
     --sidebar-width: 250px;
     --sidebar-margin: 20px;
+    --button-radius: 12px;
 }
 
 body {
@@ -141,7 +142,8 @@ body {
     max-width: 800px;
     margin: 20px auto;
     background-color: white;
-    border-radius: 10px;
+    border-radius: var(--button-radius);
+    border-radius: 20px;
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
     padding: 20px;
 }
@@ -165,7 +167,7 @@ body {
     border: 1px solid #888;
     width: 80%;
     max-width: 600px;
-    border-radius: 10px;
+    border-radius: 20px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     max-height: 80%; /* Maximale Höhe */
     overflow-y: auto; /* Ermöglicht Scrollen innerhalb des Inhalts */
@@ -292,7 +294,7 @@ h1 {
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: var(--button-radius);
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
@@ -435,7 +437,9 @@ table tr:last-child td:last-child {
 .modal-content form input,
 .modal-content form select {
     margin-bottom: 10px;
-    padding: 5px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: var(--button-radius);
 }
 
 .modal-content form button {
@@ -443,6 +447,7 @@ table tr:last-child td:last-child {
     padding: 10px;
     background-color: var(--primary-color);
     color: white;
+    border-radius: var(--button-radius);
     border: none;
     cursor: pointer;
 }
@@ -464,7 +469,7 @@ table tr:last-child td:last-child {
     color: white;
     border: none;
     padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: var(--button-radius);
     cursor: pointer;
     transition: background-color 0.3s ease;
 }
@@ -477,6 +482,23 @@ table tr:last-child td:last-child {
     padding: 10px;
     font-size: 16px;
     border: 1px solid #ddd;
-    border-radius: 5px;
+    border-radius: var(--button-radius);
     outline: none;
+    width: 300px;
+}
+
+table button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    height: 100%;
+    width: 100%;
+    border-radius: var(--button-radius);
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+table button:hover {
+    background-color: var(--secondary-color);
 }
