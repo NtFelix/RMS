@@ -42,8 +42,14 @@
             </header>
 
             <div class="content">
+                <div class="toolbar">
+                    <button id="add-mieter-button">Mieter hinzufügen</button>
+                    <input type="text" id="search-mieter-input" placeholder="Mieter suchen">
+                </div>
+                
                 <h2>Mieterliste</h2>
                 <!-- Innerhalb der Tabelle -->
+                
                 <table id="mieter-tabelle">
                     <thead>
                         <tr>
@@ -77,6 +83,10 @@
                                 <option value="">Keine Wohnung</option>
                                 <!-- Wohnungen werden dynamisch geladen -->
                             </select>
+                            <label for="einzug">Einzugsdatum:</label>
+                            <input type="date" id="einzug">
+                            <label for="auszug">Auszugsdatum:</label>
+                            <input type="date" id="auszug">
                             <button type="submit">Speichern</button>
                         </form>
                     </div>
