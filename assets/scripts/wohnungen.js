@@ -6,22 +6,48 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
+function bestimmeWohnungStatus(wohnung) {
+    const heute = new Date();
+    if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+        const aktuellerMieter = wohnung.Mieter[0];
+        const einzug = aktuellerMieter.einzug ? new Date(aktuellerMieter.einzug) : null;
+        const auszug = aktuellerMieter.auszug ? new Date(aktuellerMieter.auszug) : null;
+
+        if (einzug && einzug <= heute && (!auszug || auszug > heute)) {
+            return 'vermietet';
+        }
+    }
+    return 'frei';
+}
+
 function filterWohnungenNachStatus(wohnung) {
+    const status = bestimmeWohnungStatus(wohnung);
     switch (aktiverFilter) {
-        case 'vermietet':
-            return wohnung.status === 'vermietet';
-        case 'frei':
-            return wohnung.status === 'frei';
+        case 'aktuell':
+            return status === 'vermietet';
+        case 'vorherige':
+            return status === 'frei';
         default:
             return true;
     }
+}
+
+function berechneMieteProQm(miete, groesse) {
+    if (groesse <= 0) return 'N/A';
+    return (miete / groesse).toFixed(2);
 }
 
 async function ladeWohnungen() {
     try {
         const { data, error } = await supabase
             .from('Wohnungen')
-            .select('*');
+            .select(`
+                *,
+                Mieter (
+                    einzug,
+                    auszug
+                )
+            `);
 
         if (error) throw error;
 
@@ -31,11 +57,12 @@ async function ladeWohnungen() {
         data.filter(filterWohnungenNachStatus).forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
-            zeile.insertCell(1).textContent = wohnung.Größe;
-            zeile.insertCell(2).textContent = wohnung.Miete;
-            zeile.insertCell(3).textContent = wohnung.status || 'frei';
+            zeile.insertCell(1).textContent = wohnung.Größe + ' m²';  // Einheit für Größe hinzugefügt
+            zeile.insertCell(2).textContent = wohnung.Miete + ' €';   // Einheit für Miete hinzugefügt
+            zeile.insertCell(3).textContent = berechneMieteProQm(wohnung.Miete, wohnung.Größe) + ' €/m²';
+            zeile.insertCell(4).textContent = bestimmeWohnungStatus(wohnung);
 
-            const aktionenZelle = zeile.insertCell(4);
+            const aktionenZelle = zeile.insertCell(5);
             const bearbeitenButton = document.createElement('button');
             bearbeitenButton.textContent = 'Bearbeiten';
             bearbeitenButton.className = 'bearbeiten-button';
@@ -47,6 +74,7 @@ async function ladeWohnungen() {
         alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 function initFilterButtons() {
     const filterButtons = document.querySelectorAll('.filter-button');
@@ -123,11 +151,7 @@ function filterWohnungen() {
             }
         }
 
-        if (treffer) {
-            zeile.style.display = "";
-        } else {
-            zeile.style.display = "none";
-        }
+        zeile.style.display = treffer ? "" : "none";
     }
 }
 
@@ -149,8 +173,7 @@ async function speichereWohnung(event) {
     const wohnungData = {
         Wohnung: wohnung,
         Größe: groesse,
-        Miete: miete,
-        status: 'frei'
+        Miete: miete
     };
 
     try {
@@ -189,64 +212,13 @@ async function speichereWohnung(event) {
     }
 }
 
-async function handleSuche() {
-    const suchbegriff = document.getElementById('search-input').value;
-    if (suchbegriff.trim() === '') {
-        await ladeWohnungen();
-        return;
-    }
 
-    try {
-        const { data, error } = await supabase
-            .from('Wohnungen')
-            .select('*')
-            .or(`Wohnung.ilike.%${suchbegriff}%,Größe::text.ilike.%${suchbegriff}%,Miete::text.ilike.%${suchbegriff}%,status.ilike.%${suchbegriff}%`);
-
-        if (error) throw error;
-
-        const suchergebnisseContainer = document.getElementById('suchergebnisse-container');
-        const suchergebnisseInhalt = document.getElementById('suchergebnisse-inhalt');
-        suchergebnisseInhalt.innerHTML = '';
-
-        if (data.length > 0) {
-            const table = document.createElement('table');
-            table.innerHTML = `
-                <thead>
-                    <tr>
-                        <th>Wohnung</th>
-                        <th>Größe</th>
-                        <th>Miete</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${data.map(wohnung => `
-                        <tr>
-                            <td>${wohnung.Wohnung}</td>
-                            <td>${wohnung.Größe}</td>
-                            <td>${wohnung.Miete}</td>
-                            <td>${wohnung.status || 'frei'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            `;
-            suchergebnisseInhalt.appendChild(table);
-        } else {
-            suchergebnisseInhalt.textContent = 'Keine Ergebnisse gefunden.';
-        }
-
-        suchergebnisseContainer.style.display = 'block';
-    } catch (error) {
-        console.error('Fehler bei der Suche:', error.message);
-        alert('Fehler bei der Suche. Bitte versuchen Sie es später erneut.');
-    }
-}
 
 document.addEventListener('DOMContentLoaded', () => {
     ladeWohnungen();
     initFilterButtons();
 
-    const addButton = document.getElementById('add-mieter-button');
+    const addButton = document.getElementById('add-wohnungen-button');
     addButton.addEventListener('click', oeffneHinzufuegenModal);
 
     const form = document.getElementById('wohnung-bearbeiten-form');
@@ -271,18 +243,4 @@ document.addEventListener('DOMContentLoaded', () => {
             modal.style.display = 'none';
         }
     };
-
-    const searchButton = document.getElementById('search-button');
-    searchButton.addEventListener('click', handleSuche);
-
-    const searchInput = document.getElementById('search-input');
-    searchInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleSuche();
-        }
-    });
-
-    const suchergebnisseContainer = document.getElementById('suchergebnisse-container');
-    const suchergebnisseClose = suchergebnisseContainer.querySelector('.close');
-    suchergebnisseClose.onclick = () => suchergebnisseContainer.style.display = 'none';
 });
