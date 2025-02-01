@@ -4,6 +4,21 @@ const supabaseUrl = 'https://dmrglslyrrqjlomjsbas.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtcmdsc2x5cnJxamxvbWpzYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4MTA0MzUsImV4cCI6MjAzNjM4NjQzNX0.pzm4EYAzxkCU-ZKAgybeNK9ERgdqBVdHlZbp1aEMndk';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+
+let aktiverFilter = 'alle';
+
+function filterMieterNachStatus(mieter) {
+    const heute = new Date();
+    switch (aktiverFilter) {
+        case 'aktuell':
+            return !mieter.auszug || new Date(mieter.auszug) > heute;
+        case 'vorherige':
+            return mieter.auszug && new Date(mieter.auszug) <= heute;
+        default:
+            return true;
+    }
+}
+
 async function ladeMieter() {
     try {
         const { data, error } = await supabase
@@ -23,16 +38,17 @@ async function ladeMieter() {
         const tabelle = document.getElementById('mieter-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = '';
 
-        data.forEach(mieter => {
+        data.filter(filterMieterNachStatus).forEach(mieter => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = mieter.name;
             zeile.insertCell(1).textContent = mieter.email || '-';
             zeile.insertCell(2).textContent = mieter.telefonnummer || '-';
             zeile.insertCell(3).textContent = mieter.Wohnungen ? mieter.Wohnungen.Wohnung : 'Keine Wohnung';
-
+            
             const aktionenZelle = zeile.insertCell(4);
             const bearbeitenButton = document.createElement('button');
             bearbeitenButton.textContent = 'Bearbeiten';
+            bearbeitenButton.className = 'bearbeiten-button';
             bearbeitenButton.onclick = () => oeffneBearbeitenModal(mieter);
             aktionenZelle.appendChild(bearbeitenButton);
         });
@@ -41,6 +57,28 @@ async function ladeMieter() {
         alert('Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut.');
     }
 }
+
+function initFilterButtons() {
+    const filterButtons = document.querySelectorAll('.filter-button');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            aktiverFilter = button.dataset.filter;
+            ladeMieter();
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    ladeMieter();
+    ladeWohnungen();
+    initFilterButtons();
+    // ... andere bestehende Event-Listener ...
+});
+
+
+
 
 async function ladeWohnungen(aktuelleWohnungId = null) {
     try {

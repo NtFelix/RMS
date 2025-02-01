@@ -478,6 +478,26 @@ table tr:last-child td:last-child {
     background-color: var(--secondary-color);
 }
 
+.mieter-filter {
+    display: flex;
+    justify-content: center;
+}
+
+.filter-button {
+    background-color: #f0f0f0;
+    border: none;
+    padding: 10px 20px;
+    margin: 0 5px;
+    cursor: pointer;
+    border-radius: var(--button-radius);
+    transition: background-color 0.3s;
+}
+
+.filter-button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
 #search-mieter-input {
     padding: 10px;
     font-size: 16px;
@@ -502,3 +522,7 @@ table button {
 table button:hover {
     background-color: var(--secondary-color);
 }
+
+
+
+
