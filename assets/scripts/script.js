@@ -275,3 +275,94 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logout-button').addEventListener('click', handleLogout);
     ladeWohnungen();
 });
+
+
+
+
+
+//mieter.html
+async function ladeMieter() {
+  try {
+    const { data, error } = await supabase.from("Mieter").select(`
+      name,
+      email,
+      telefonnummer,
+      einzug,
+      auszug,
+      Wohnungen (
+        Wohnung
+      )
+    `);
+
+    if (error) throw error;
+
+    const tabelle = document
+      .getElementById("mieter-tabelle")
+      .getElementsByTagName("tbody")[0];
+    tabelle.innerHTML = ""; // Leere die Tabelle zuerst
+
+    let gesamtMieter = data.length;
+    let gesamtMietdauer = 0;
+    const heutigesDatum = new Date();
+
+    data.forEach((mieter) => {
+      const zeile = tabelle.insertRow();
+      zeile.insertCell(0).textContent = mieter.name;
+      zeile.insertCell(1).textContent = mieter.email || "-";
+      zeile.insertCell(2).textContent = mieter.telefonnummer || "-";
+      zeile.insertCell(3).textContent = mieter.einzug
+        ? new Date(mieter.einzug).toLocaleDateString()
+        : "-";
+      zeile.insertCell(4).textContent = mieter.auszug
+        ? new Date(mieter.auszug).toLocaleDateString()
+        : "Aktuell";
+      zeile.insertCell(5).textContent = mieter.Wohnungen
+        ? mieter.Wohnungen.Wohnung
+        : "-";
+
+      // Berechnung der Mietdauer
+      if (mieter.einzug) {
+        const einzugsDatum = new Date(mieter.einzug);
+        const auszugsDatum = mieter.auszug
+          ? new Date(mieter.auszug)
+          : heutigesDatum;
+        const mietdauerInMonaten =
+          (auszugsDatum - einzugsDatum) / (1000 * 60 * 60 * 24 * 30.44); // Ungefähre Anzahl der Monate
+        gesamtMietdauer += mietdauerInMonaten;
+      }
+    });
+
+    // Aktualisiere die Zusammenfassung
+    document.getElementById("total-mieter").textContent = gesamtMieter;
+    const durchschnittlicheMietdauer =
+      gesamtMieter > 0 ? (gesamtMietdauer / gesamtMieter).toFixed(1) : 0;
+    document.getElementById("avg-mietdauer").textContent =
+      durchschnittlicheMietdauer + " Monate";
+  } catch (error) {
+    console.error("Fehler beim Laden der Mieter:", error.message);
+    alert(
+      "Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut."
+    );
+  }
+}
+
+// Passen Sie den DOMContentLoaded Event-Listener an
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuthStatus();
+    document.getElementById('logout-button').addEventListener('click', handleLogout);
+    
+    // Prüfen Sie, auf welcher Seite wir uns befinden
+    if (window.location.pathname.includes('mieter.html')) {
+        ladeMieter();
+    } else {
+        ladeWohnungen();
+    }
+
+    // Neue Event-Listener für die Suche
+    document.getElementById('search-button').addEventListener('click', handleSuche);
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSuche();
+        }
+    });
+});
