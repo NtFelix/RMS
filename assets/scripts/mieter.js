@@ -30,6 +30,7 @@ async function ladeMieter() {
                 telefonnummer,
                 einzug,
                 auszug,
+                notiz,
                 Wohnungen (id, Wohnung)
             `);
 
@@ -82,22 +83,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function ladeWohnungen(aktuelleWohnungId = null) {
     try {
+        // Alle Wohnungen laden
         const { data: alleWohnungen, error: wohnungenError } = await supabase
             .from('Wohnungen')
             .select('id, Wohnung');
 
         if (wohnungenError) throw wohnungenError;
 
+        // Aktuell belegte Wohnungen laden
+        const heute = new Date().toISOString().split('T')[0]; // Heutiges Datum im Format YYYY-MM-DD
         const { data: belegteWohnungen, error: mieterError } = await supabase
             .from('Mieter')
             .select('wohnung-id')
-            .not('wohnung-id', 'is', null);
+            .not('wohnung-id', 'is', null)
+            .or(`auszug.is.null,auszug.gt.${heute}`); // Nur Mieter ohne Auszugsdatum oder mit Auszugsdatum in der Zukunft
 
         if (mieterError) throw mieterError;
 
         const belegteWohnungsIds = new Set(belegteWohnungen.map(m => m['wohnung-id']));
 
-        const verfuegbareWohnungen = alleWohnungen.filter(w => !belegteWohnungsIds.has(w.id) || w.id === aktuelleWohnungId);
+        // Verfügbare Wohnungen filtern
+        const verfuegbareWohnungen = alleWohnungen.filter(w => 
+            !belegteWohnungsIds.has(w.id) || w.id === aktuelleWohnungId
+        );
 
         const wohnungSelect = document.getElementById('wohnung');
         wohnungSelect.innerHTML = '<option value="">Keine Wohnung</option>';
@@ -114,6 +122,7 @@ async function ladeWohnungen(aktuelleWohnungId = null) {
     }
 }
 
+
 function oeffneBearbeitenModal(mieter) {
     const modal = document.getElementById('bearbeiten-modal');
     document.getElementById('original-name').value = mieter.name;
@@ -122,14 +131,15 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('telefon').value = mieter.telefonnummer || '';
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
-    
-    // Lade Wohnungen mit der aktuellen Wohnung des Mieters
+    document.getElementById('notiz').value = mieter.notiz || '';
+
     ladeWohnungen(mieter['wohnung-id']).then(() => {
         document.getElementById('wohnung').value = mieter['wohnung-id'] || '';
     });
     
     modal.style.display = 'block';
 }
+
 
 async function speichereMieterAenderungen(event) {
     event.preventDefault();
@@ -141,6 +151,7 @@ async function speichereMieterAenderungen(event) {
     const wohnungId = document.getElementById('wohnung').value;
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
+    const notiz = document.getElementById('notiz').value; // Neue Zeile
 
     const updatedData = {
         name,
@@ -148,7 +159,8 @@ async function speichereMieterAenderungen(event) {
         telefonnummer,
         'wohnung-id': wohnungId || null,
         einzug: einzug || null,
-        auszug: auszug || null
+        auszug: auszug || null,
+        notiz: notiz // Neue Zeile
     };
 
     try {
@@ -292,6 +304,7 @@ async function speichereMieter(event) {
     const wohnungId = document.getElementById('wohnung').value;
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
+    const notiz = document.getElementById('notiz').value; // Neue Zeile
 
     const mieterData = {
         name,
@@ -299,7 +312,8 @@ async function speichereMieter(event) {
         telefonnummer,
         'wohnung-id': wohnungId || null,
         einzug: einzug || null,
-        auszug: auszug || null
+        auszug: auszug || null,
+        notiz: notiz // Neue Zeile
     };
 
     try {
