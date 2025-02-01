@@ -134,7 +134,7 @@ async function speichereWohnungAenderungen(event) {
 }
 
 function filterWohnungen() {
-    const suchbegriff = document.getElementById('search-mieter-input').value.toLowerCase();
+    const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
     const tabelle = document.getElementById('wohnungen-tabelle');
     const zeilen = tabelle.getElementsByTagName('tr');
 
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const suchfeld = document.getElementById('search-mieter-input');
+    const suchfeld = document.getElementById('search-table-input');
     suchfeld.addEventListener('input', filterWohnungen);
 
     const modal = document.getElementById('bearbeiten-modal');
