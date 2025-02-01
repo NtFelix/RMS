@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 function filterMieter() {
-    const suchbegriff = document.getElementById('search-mieter-input').value.toLowerCase();
+    const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
     const tabelle = document.getElementById('mieter-tabelle');
     const zeilen = tabelle.getElementsByTagName('tr');
 
@@ -272,7 +272,7 @@ function filterMieter() {
 
 // Event-Listener für das Suchfeld
 document.addEventListener('DOMContentLoaded', () => {
-    const suchfeld = document.getElementById('search-mieter-input');
+    const suchfeld = document.getElementById('search-table-input');
     suchfeld.addEventListener('input', filterMieter);
 
     // ... andere bestehende Event-Listener ...
