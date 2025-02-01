@@ -82,7 +82,7 @@ async function ladeWohnungen() {
 
 function oeffneBearbeitenModal(mieter) {
     const modal = document.getElementById('bearbeiten-modal');
-    document.getElementById('mieter-id').value = mieter['wohnung-id'] || ''; // Setze auf leere Zeichenkette, wenn keine Wohnung zugewiesen
+    document.getElementById('original-name').value = mieter.name; // Neues verstecktes Feld
     document.getElementById('name').value = mieter.name;
     document.getElementById('email').value = mieter.email || '';
     document.getElementById('telefon').value = mieter.telefonnummer || '';
@@ -94,8 +94,8 @@ function oeffneBearbeitenModal(mieter) {
 
 async function speichereMieterAenderungen(event) {
     event.preventDefault();
-
-    const mieterId = document.getElementById('mieter-id').value;
+    
+    const originalName = document.getElementById('original-name').value; // Neues verstecktes Feld für den ursprünglichen Namen
     const name = document.getElementById('name').value;
     const email = document.getElementById('email').value;
     const telefonnummer = document.getElementById('telefon').value;
@@ -107,27 +107,37 @@ async function speichereMieterAenderungen(event) {
         name,
         email,
         telefonnummer,
+        'wohnung-id': wohnungId || null,
         einzug: einzug || null,
         auszug: auszug || null
     };
 
-    if (wohnungId) {
-        updatedData['wohnung-id'] = wohnungId;
-    }
-
     try {
-        let query;
+        // Prüfe, ob ein Mieter mit dem neuen Namen bereits existiert (außer es ist der ursprüngliche Name)
+        if (name !== originalName) {
+            const { data: existingMieter, error: searchError } = await supabase
+                .from('Mieter')
+                .select('name')
+                .eq('name', name)
+                .single();
 
-        if (mieterId) {
-            // Wenn der Mieter bereits eine Wohnung hat, aktualisieren wir anhand der wohnung-id
-            query = supabase.from('Mieter').update(updatedData).eq('wohnung-id', mieterId);
-        } else {
-            // Wenn der Mieter noch keine Wohnung hat, fügen wir einen neuen Eintrag hinzu
-            updatedData['wohnung-id'] = wohnungId; // Setze die neue wohnung-id
-            query = supabase.from('Mieter').insert(updatedData);
+            if (searchError && searchError.code !== 'PGRST116') {
+                throw searchError;
+            }
+
+            if (existingMieter) {
+                const shouldOverwrite = confirm(`Ein Mieter mit dem Namen "${name}" existiert bereits. Möchten Sie die Daten überschreiben?`);
+                if (!shouldOverwrite) {
+                    return; // Abbrechen, wenn der Benutzer nicht überschreiben möchte
+                }
+            }
         }
 
-        const { data, error } = await query;
+        // Aktualisiere den Mieter
+        const { data, error } = await supabase
+            .from('Mieter')
+            .update(updatedData)
+            .eq('name', originalName);
 
         if (error) throw error;
 
