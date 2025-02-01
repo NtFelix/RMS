@@ -435,7 +435,8 @@ table tr:last-child td:last-child {
 }
 
 .modal-content form input,
-.modal-content form select {
+.modal-content form select, 
+.modal-content form textarea {
     margin-bottom: 10px;
     padding: 10px;
     border: 1px solid #ddd;
@@ -478,7 +479,7 @@ table tr:last-child td:last-child {
     background-color: var(--secondary-color);
 }
 
-.mieter-filter {
+.mieter-filter, .wohnung-filter {
     display: flex;
     justify-content: center;
 }
