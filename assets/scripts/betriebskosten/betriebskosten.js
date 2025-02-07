@@ -705,9 +705,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
     document.body.appendChild(abrechnungsModal);
 }
 
-
-
-
 async function generatePDF(wohnung, betriebskosten) {
     console.log('Wohnung data:', wohnung);
     console.log('Betriebskosten data:', betriebskosten);
