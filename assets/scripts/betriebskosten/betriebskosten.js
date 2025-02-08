@@ -2,7 +2,7 @@ import { supabase } from '../supabase.js';
 import { showContextMenu, openEditModal, addNebenkostenart } from './betriebskostenUI.js';
 import { openWasserzaehlerModal } from './betriebskostenWasser.js';
 import { generatePDF } from './betriebskostenPDF.js';
-import { showOverview, erstelleDetailAbrechnung } from './shared.js';  // Add this import
+import { showOverview, erstelleDetailAbrechnung, setLoadBetriebskosten } from './shared.js';
 
 // Modify the loadBetriebskosten function to add context menu functionality
 async function loadBetriebskosten() {
@@ -49,6 +49,9 @@ async function loadBetriebskosten() {
     });
 }
 
+// Register loadBetriebskosten with shared.js
+setLoadBetriebskosten(loadBetriebskosten);
+
 // Make sure to call loadBetriebskosten() when the page loads
 document.addEventListener('DOMContentLoaded', loadBetriebskosten);
 
@@ -79,7 +82,11 @@ document.querySelectorAll('.modal .close').forEach(closeButton => {
 });
 
 // Laden der Betriebskostenabrechnungen beim Laden der Seite
-document.addEventListener('DOMContentLoaded', erstelleDetailAbrechnung);
+document.addEventListener('DOMContentLoaded', () => {
+    const currentYear = new Date().getFullYear();
+    loadBetriebskosten();
+    // Only call erstelleDetailAbrechnung when needed, not on page load
+});
 
 
 // Event Listeners
