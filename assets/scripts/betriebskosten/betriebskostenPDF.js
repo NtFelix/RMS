@@ -1,4 +1,5 @@
 import { supabase } from '../supabase.js';
+import { calculateMonthlyPayments } from './shared.js';
 
 /**
  * Generates a PDF document for the given wohnung and betriebskosten data.
@@ -55,16 +56,20 @@ async function generatePDF(wohnung, betriebskosten) {
         .from('Wasserzähler')
         .select('verbrauch')
         .eq('mieter-name', mieter.name)
-        .eq('year', betriebskosten.year)
-        .single();
+        .eq('year', betriebskosten.year);
 
+    let tenantWasserverbrauch = 0;
     if (wasserzaehlerError) {
         console.error('Error fetching Wasserzähler data:', wasserzaehlerError);
-        showNotification('Fehler beim Laden der Wasserzählerdaten. Bitte versuchen Sie es erneut.', 'error');
-        return;
+        // Continue with 0 consumption instead of returning
+        console.warn(`Using 0 consumption for tenant ${mieter.name}`);
+    } else if (wasserzaehlerData && wasserzaehlerData.length > 0) {
+        // Sum up all consumption values in case there are multiple entries
+        tenantWasserverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
+    } else {
+        console.warn(`No water consumption data found for tenant ${mieter.name}`);
     }
 
-    const tenantWasserverbrauch = wasserzaehlerData ? wasserzaehlerData.verbrauch || 0 : 0;
     const wasserzaehlerGesamtkosten = betriebskosten['wasserzaehler-gesamtkosten'] || 0;
 
     // Fetch total water consumption for the year
@@ -73,13 +78,14 @@ async function generatePDF(wohnung, betriebskosten) {
         .select('verbrauch')
         .eq('year', betriebskosten.year);
 
+    let gesamtverbrauch = 0;
     if (totalWasserzaehlerError) {
         console.error('Error fetching total Wasserzähler data:', totalWasserzaehlerError);
-        showNotification('Fehler beim Laden der gesamten Wasserzählerdaten. Bitte versuchen Sie es erneut.', 'error');
-        return;
+        // Continue with calculations using 0 total consumption
+    } else if (totalWasserzaehlerData) {
+        gesamtverbrauch = totalWasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
     }
 
-    const gesamtverbrauch = totalWasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
     const wasserkostenProKubik = gesamtverbrauch > 0 ? wasserzaehlerGesamtkosten / gesamtverbrauch : 0;
     const tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
 
@@ -139,20 +145,21 @@ async function generatePDF(wohnung, betriebskosten) {
         tenantWasserkosten.toFixed(2)
     ]);
 
-    // Create table
+    // Create table with adjusted column widths
     doc.autoTable({
         head: [headers],
         body: data,
         startY: 60,
         styles: { fontSize: 8, cellPadding: 1.5 },
         columnStyles: {
-            0: { cellWidth: 20, halign: 'center' },
-            1: { cellWidth: 50 },
-            2: { cellWidth: 30, halign: 'right' },
-            3: { cellWidth: 30, halign: 'center' },
-            4: { cellWidth: 30, halign: 'right' },
-            5: { cellWidth: 30, halign: 'right' }
+            0: { cellWidth: 15 },         // Pos. (schmaler)
+            1: { cellWidth: 40 },         // Leistungsart (etwas schmaler)
+            2: { cellWidth: 25, halign: 'right' },  // Gesamtkosten
+            3: { cellWidth: 25, halign: 'center' }, // Verteiler
+            4: { cellWidth: 25, halign: 'right' },  // Kosten Pro qm
+            5: { cellWidth: 25, halign: 'right' }   // Kostenanteil
         },
+        margin: { left: 20, right: 20 },  // Seitenränder anpassen
         didParseCell: function (data) {
             if (data.section === 'head') {
                 data.cell.styles.fillColor = [200, 200, 200];
@@ -175,12 +182,15 @@ async function generatePDF(wohnung, betriebskosten) {
     doc.text(`Wasserkosten: ${tenantWasserkosten.toFixed(2)} €`, 20, finalY + 25);
     doc.text(`(${wasserkostenProKubik.toFixed(2)} €/Cbm)`, 120, finalY + 25);
 
-    // Additional calculations
+    // Berechnungen mit den korrekten Zahlungen
     const gesamtBetrag = gesamtsumme;
-    const monatlicheNebenkosten = mieter.nebenkosten || 0;
-    console.log('Monatliche Nebenkosten:', monatlicheNebenkosten);
-    const bereitsBezahlt = monatlicheNebenkosten * 12;
-    const nachzahlung = gesamtBetrag - bereitsBezahlt;
+    const totalPaid = await calculateMonthlyPayments([mieter], betriebskosten.year)
+        .then(result => result.totalPaid)
+        .catch(error => {
+            console.error('Fehler bei der Berechnung der Zahlungen:', error);
+            return 0;
+        });
+    const nachzahlung = gesamtBetrag - totalPaid;
 
     // Display results
     doc.setFont("helvetica", "bold");
@@ -189,11 +199,12 @@ async function generatePDF(wohnung, betriebskosten) {
 
     doc.setFont("helvetica", "normal");
     doc.text("bereits geleistete Zahlungen", 20, finalY + 40);
-    doc.text(`${bereitsBezahlt.toFixed(2)} €`, 170, finalY + 40, { align: 'right' });
+    doc.text(`${totalPaid.toFixed(2)} €`, 170, finalY + 40, { align: 'right' });
 
     doc.setFont("helvetica", "bold");
-    doc.text("Nachzahlung", 20, finalY + 45);
-    doc.text(`${nachzahlung.toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
+    const zahlungsText = nachzahlung >= 0 ? "Nachzahlung" : "Rückerstattung";
+    doc.text(zahlungsText, 20, finalY + 45);
+    doc.text(`${Math.abs(nachzahlung).toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
 
     doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
 }
