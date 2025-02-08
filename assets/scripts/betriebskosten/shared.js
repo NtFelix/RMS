@@ -1,15 +1,23 @@
 import { supabase } from '../supabase.js';
 import { generatePDF } from './betriebskostenPDF.js';
 
-let loadBetriebskosten;
+let loadBetriebskosten = () => console.warn('loadBetriebskosten not yet initialized');
 let openWasserzaehlerModal;
 
 export function setLoadBetriebskosten(func) {
-    loadBetriebskosten = func;
+    if (typeof func === 'function') {
+        loadBetriebskosten = func;
+    } else {
+        console.error('setLoadBetriebskosten expects a function');
+    }
 }
 
 export function setOpenWasserzaehlerModal(func) {
-    openWasserzaehlerModal = func;
+    if (typeof func === 'function') {
+        openWasserzaehlerModal = func;
+    } else {
+        console.error('setOpenWasserzaehlerModal expects a function');
+    }
 }
 
 /**
@@ -513,5 +521,6 @@ export {
     supabase,
     showOverview,
     saveBetriebskostenabrechnung,
-    erstelleDetailAbrechnung
+    erstelleDetailAbrechnung,
+    loadBetriebskosten
 };
