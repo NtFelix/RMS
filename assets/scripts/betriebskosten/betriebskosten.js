@@ -67,8 +67,6 @@ function handleFinishClick(year) {
     }
 }
 
-// Remove erstelleDetailAbrechnung function from here since it's now in shared.js
-
 
 // Event Listeners
 document.querySelector('#add-nebenkosten-button').addEventListener('click', async () => {

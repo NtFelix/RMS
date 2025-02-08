@@ -85,7 +85,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
             // Fetch tenant data
             const { data: mieterData, error: mieterError } = await supabase
                 .from('Mieter')
-                .select('name, nebenkosten')
+                .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
                 .eq('wohnung-id', wohnung.id);
             let tenantName = 'Keine Mieterdaten verfügbar';
             let monatlicheNebenkosten = 0;
@@ -141,16 +141,17 @@ async function erstelleDetailAbrechnung(selectedYear) {
             let tenantWasserverbrauch = 0;
             let tenantWasserkosten = 0;
             if (tenantName !== 'Keine Mieterdaten verfügbar') {
-                // Update the query to properly encode special characters
                 const { data: tenantWasserData, error: tenantWasserError } = await supabase
                     .from('Wasserzähler')
                     .select('verbrauch')
                     .eq('year', selectedYear)
-                    .eq('mieter-name', encodeURIComponent(tenantName))
+                    .eq('mieter-name', tenantName) // Remove encodeURIComponent
                     .single();
 
                 if (tenantWasserError || !tenantWasserData) {
-                    console.warn('Keine Wasserzählerdaten für Mieter gefunden:', tenantName);
+                    console.warn(`Keine Wasserzählerdaten für Mieter gefunden: ${tenantName}`);
+                    tenantWasserverbrauch = 0;
+                    tenantWasserkosten = 0;
                 } else {
                     tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
                     tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
@@ -189,36 +190,46 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            // Already paid amounts
-            const bereitsBezahlt = monatlicheNebenkosten * 12;
-            const paidRow = table.insertRow();
-            const cellPaidLabel = paidRow.insertCell();
-            cellPaidLabel.colSpan = 4;
-            cellPaidLabel.textContent = 'Bereits geleistete Zahlungen';
-            cellPaidLabel.style.fontWeight = 'bold';
-            const cellPaid = paidRow.insertCell();
-            cellPaid.textContent = bereitsBezahlt.toFixed(2) + ' €';
-            cellPaid.style.fontWeight = 'bold';
+            // Replace the previous payment calculation with the new one
+            const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
 
-            [cellPaidLabel, cellPaid].forEach(cell => {
-                cell.style.border = '1px solid black';
-                cell.style.padding = '8px';
-            });
+            // Add monthly payment breakdown
+            const paymentDetailsDiv = document.createElement('div');
+            paymentDetailsDiv.innerHTML = `
+                <h3>Vorauszahlungen ${selectedYear}</h3>
+                <table style="width:100%; margin-bottom:20px;">
+                    <tr>
+                        <th>Monat</th>
+                        <th>Vorauszahlung</th>
+                        <th>Hinweis</th>
+                    </tr>
+                    ${monthlyBreakdown.map(payment => `
+                        <tr>
+                            <td>${payment.month}</td>
+                            <td>${payment.betrag.toFixed(2)} €</td>
+                            <td>${payment.note}</td>
+                        </tr>
+                    `).join('')}
+                    <tr style="font-weight:bold;">
+                        <td colspan="1">Gesamt:</td>
+                        <td>${totalPaid.toFixed(2)} €</td>
+                        <td></td>
+                    </tr>
+                </table>
+            `;
 
-            // Balance due/refund
+            // Update the balance calculation using totalPaid instead of the old calculation
             const balanceRow = table.insertRow();
             const cellBalanceLabel = balanceRow.insertCell();
             cellBalanceLabel.colSpan = 4;
-            cellBalanceLabel.textContent = gesamtKostenanteil > bereitsBezahlt ? 'Nachzahlung' : 'Rückerstattung';
+            cellBalanceLabel.textContent = gesamtKostenanteil > totalPaid ? 'Nachzahlung' : 'Rückerstattung';
             cellBalanceLabel.style.fontWeight = 'bold';
             const cellBalance = balanceRow.insertCell();
-            cellBalance.textContent = Math.abs(gesamtKostenanteil - bereitsBezahlt).toFixed(2) + ' €';
+            cellBalance.textContent = Math.abs(gesamtKostenanteil - totalPaid).toFixed(2) + ' €';
             cellBalance.style.fontWeight = 'bold';
 
-            [cellBalanceLabel, cellBalance].forEach(cell => {
-                cell.style.border = '1px solid black';
-                cell.style.padding = '8px';
-            });
+            // Add the payment details before the export button
+            abrechnungContent.appendChild(paymentDetailsDiv);
 
             abrechnungContent.appendChild(title);
             abrechnungContent.appendChild(table);
@@ -250,6 +261,126 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
     abrechnungsModal.appendChild(abrechnungContent);
     document.body.appendChild(abrechnungsModal);
+}
+
+/**
+ * Calculates the monthly payments for a given year based on the provided Mieter data.
+ * Returns an object with two properties: `monthlyBreakdown` and `totalPaid`.
+ * `monthlyBreakdown` is an array of objects with the following properties:
+ * - `month`: The month of the year (1-12)
+ * - `days`: The number of days in the month to be charged
+ * - `betrag`: The applicable Nebenkostenbetrag for this month
+ * - `note`: A note explaining any adjustments made to the calculation
+ * `totalPaid` is the total amount paid for the year.
+ * @param {array} mieterData - The Mieter data.
+ * @param {number} year - The year for which to calculate the payments.
+ * @returns {object} An object with the `monthlyBreakdown` and `totalPaid` properties.
+ */
+async function calculateMonthlyPayments(mieterData, year) {
+    if (!mieterData || !mieterData.length) return { monthlyBreakdown: [], totalPaid: 0 };
+
+    const mieter = mieterData[0];
+    const payments = [];
+    let totalPaid = 0;
+
+    // Sicherheitsprüfungen für die Arrays
+    if (!mieter['nebenkosten-betrag'] || !mieter['nebenkosten-datum'] || 
+        !Array.isArray(mieter['nebenkosten-betrag']) || !Array.isArray(mieter['nebenkosten-datum'])) {
+        return {
+            monthlyBreakdown: [{
+                month: 1,
+                betrag: 0,
+                note: 'Keine Nebenkostendaten verfügbar'
+            }],
+            totalPaid: 0
+        };
+    }
+
+    const yearStart = new Date(year, 0, 1);
+    const einzug = mieter.einzug ? new Date(mieter.einzug) : yearStart;
+    const auszug = mieter.auszug ? new Date(mieter.auszug) : null;
+    const isEinzugFirstOfMonth = einzug.getDate() === 1;
+
+    // Convert arrays to sorted payment periods with validation and check for month start
+    const periods = mieter['nebenkosten-betrag']
+        .map((betrag, index) => {
+            const datum = mieter['nebenkosten-datum'][index];
+            if (!datum) return null;
+            const date = new Date(datum);
+            return {
+                betrag: betrag || 0,
+                datum: date,
+                isMonthStart: date.getDate() === 1
+            };
+        })
+        .filter(period => period !== null)
+        .sort((a, b) => a.datum - b.datum);
+
+    if (periods.length === 0) {
+        periods.push({
+            betrag: 0,
+            datum: yearStart,
+            isMonthStart: true
+        });
+    }
+
+    for (let month = 0; month < 12; month++) {
+        const currentDate = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        
+        // Prüfen, ob der Monat innerhalb der Mietzeit liegt
+        const isAfterEinzug = currentDate >= einzug || 
+            (isEinzugFirstOfMonth && currentDate.getMonth() === einzug.getMonth() && currentDate.getFullYear() === einzug.getFullYear());
+        const isBeforeAuszug = !auszug || currentDate <= auszug;
+
+        if (!isAfterEinzug || !isBeforeAuszug) {
+            payments.push({
+                month: month + 1,
+                betrag: 0,
+                note: 'Außerhalb Mietzeit'
+            });
+            continue;
+        }
+
+        // Find applicable payment amount for this month
+        let applicablePeriod = periods
+            .filter(p => {
+                if (p.isMonthStart) {
+                    // Bei Monatsbeginn auch Änderungen vom aktuellen Monat berücksichtigen
+                    return p.datum <= lastDayOfMonth;
+                } else {
+                    // Sonst nur Änderungen aus vorherigen Monaten
+                    return p.datum < currentDate;
+                }
+            })
+            .slice(-1)[0];
+
+        if (!applicablePeriod) {
+            payments.push({
+                month: month + 1,
+                betrag: 0,
+                note: 'Kein Nebenkostenbetrag gefunden'
+            });
+            continue;
+        }
+
+        let note = 'Monatliche Vorauszahlung';
+        if (applicablePeriod.datum.getMonth() === month && applicablePeriod.isMonthStart) {
+            note = 'Neue Vorauszahlung ab diesem Monat';
+        } else if (month === einzug.getMonth() && isEinzugFirstOfMonth) {
+            note = 'Vorauszahlung ab Einzug (Monatsbeginn)';
+        }
+
+        payments.push({
+            month: month + 1,
+            betrag: applicablePeriod.betrag,
+            note: note
+        });
+
+        totalPaid += applicablePeriod.betrag;
+    }
+
+    return { monthlyBreakdown: payments, totalPaid };
 }
 
 /**
@@ -464,7 +595,6 @@ async function showOverview(year) {
 
 // Funktion zum Speichern der Betriebskostenabrechnung
 async function saveBetriebskostenabrechnung() {
-    // ...existing saveBetriebskostenabrechnung code...
     const year = document.getElementById("year").value;
     const gesamtflaeche = document.getElementById("gesamtflaeche").value;
     const nebenkostenarten = [];
