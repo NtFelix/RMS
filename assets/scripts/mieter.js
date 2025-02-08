@@ -408,7 +408,18 @@ async function ladeMieter() {
         data.filter(filterMieterNachStatus).forEach(mieter => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = mieter.name;
-            zeile.insertCell(1).textContent = mieter.email || '-';
+            
+            // E-Mail-Zelle mit klickbarem Link
+            const emailZelle = zeile.insertCell(1);
+            if (mieter.email) {
+                const emailLink = document.createElement('a');
+                emailLink.href = `mailto:${mieter.email}`;
+                emailLink.textContent = mieter.email;
+                emailZelle.appendChild(emailLink);
+            } else {
+                emailZelle.textContent = '-';
+            }
+            
             zeile.insertCell(2).textContent = mieter.telefonnummer || '-';
             zeile.insertCell(3).textContent = mieter.Wohnungen ? mieter.Wohnungen.Wohnung : 'Keine Wohnung';
             
