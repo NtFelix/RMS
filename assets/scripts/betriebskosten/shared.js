@@ -365,9 +365,13 @@ async function calculateMonthlyPayments(mieterData, year) {
         }
 
         let note = 'Monatliche Vorauszahlung';
-        if (applicablePeriod.datum.getMonth() === month && applicablePeriod.isMonthStart) {
+        if (applicablePeriod.datum.getMonth() === month && 
+            applicablePeriod.datum.getFullYear() === year && 
+            applicablePeriod.isMonthStart) {
             note = 'Neue Vorauszahlung ab diesem Monat';
-        } else if (month === einzug.getMonth() && isEinzugFirstOfMonth) {
+        } else if (month === einzug.getMonth() && 
+                   einzug.getFullYear() === year && 
+                   isEinzugFirstOfMonth) {
             note = 'Vorauszahlung ab Einzug (Monatsbeginn)';
         }
 
