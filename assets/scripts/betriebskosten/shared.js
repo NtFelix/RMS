@@ -656,5 +656,6 @@ export {
     showOverview,
     saveBetriebskostenabrechnung,
     erstelleDetailAbrechnung,
-    loadBetriebskosten
+    loadBetriebskosten,
+    calculateMonthlyPayments  // Add this line
 };
