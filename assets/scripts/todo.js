@@ -35,7 +35,7 @@ function showContextMenu(event, todoId) {
     const statusButton = createContextMenuItem(
         'Status ändern',
         () => toggleTodoStatus(todoId),
-        'fa-solid fa-check'
+        'fa fa-check-square'
     );
     const editButton = createContextMenuItem('Bearbeiten', () => editTodo(todoId), 'fa-solid fa-edit');
     const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(todoId), 'fa-solid fa-trash');
