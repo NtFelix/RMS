@@ -13,7 +13,7 @@ async function checkAuthStatus() {
     }
 }
 
-function showContextMenu(event, todoId) {
+async function showContextMenu(event, todoId) {
     const existingMenu = document.getElementById('context-menu');
     if (existingMenu) {
         existingMenu.remove();
@@ -31,11 +31,16 @@ function showContextMenu(event, todoId) {
     contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
     contextMenu.style.zIndex = '1000';
 
-    
+    const { data: todo } = await supabase
+        .from('todos')
+        .select('status')
+        .eq('id', todoId)
+        .single();
+
     const statusButton = createContextMenuItem(
-        'Status ändern',
+        todo.status ? 'Als unerledigt markieren' : 'Als erledigt markieren',
         () => toggleTodoStatus(todoId),
-        'fa fa-check-square'
+        todo.status ? 'fa-solid fa-minus-square' : 'fa-solid fa-check-square'
     );
     const editButton = createContextMenuItem('Bearbeiten', () => editTodo(todoId), 'fa-solid fa-edit');
     const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(todoId), 'fa-solid fa-trash');
@@ -44,7 +49,6 @@ function showContextMenu(event, todoId) {
     contextMenu.appendChild(statusButton);
     contextMenu.appendChild(editButton);
     contextMenu.appendChild(deleteButton);
-
 
     document.body.appendChild(contextMenu);
     document.addEventListener('click', removeContextMenu);
