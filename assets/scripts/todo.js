@@ -31,17 +31,20 @@ function showContextMenu(event, todoId) {
     contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
     contextMenu.style.zIndex = '1000';
 
-    const editButton = createContextMenuItem('Bearbeiten', () => editTodo(todoId), 'fa-solid fa-edit');
-    const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(todoId), 'fa-solid fa-trash');
+    
     const statusButton = createContextMenuItem(
         'Status ändern',
         () => toggleTodoStatus(todoId),
         'fa-solid fa-check'
     );
+    const editButton = createContextMenuItem('Bearbeiten', () => editTodo(todoId), 'fa-solid fa-edit');
+    const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(todoId), 'fa-solid fa-trash');
 
+
+    contextMenu.appendChild(statusButton);
     contextMenu.appendChild(editButton);
     contextMenu.appendChild(deleteButton);
-    contextMenu.appendChild(statusButton);
+
 
     document.body.appendChild(contextMenu);
     document.addEventListener('click', removeContextMenu);
