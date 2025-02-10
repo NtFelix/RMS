@@ -7,6 +7,106 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
+
+// Neue Funktion zum Senden einer E-Mail
+function sendMail(mieter) {
+    if (!mieter.email) {
+        showNotification('Keine E-Mail-Adresse hinterlegt');
+        return;
+    }
+    window.location.href = `mailto:${mieter.email}`;
+}
+
+async function showContextMenu(event, mieter) {
+    event.preventDefault();
+
+    // Existierendes Menü entfernen
+    const existingMenu = document.getElementById('context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+
+    // Neues Kontextmenü erstellen
+    const contextMenu = document.createElement('div');
+    contextMenu.id = 'context-menu';
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = `${event.pageX}px`;
+    contextMenu.style.top = `${event.pageY}px`;
+    contextMenu.style.backgroundColor = '#f9f9f9';
+    contextMenu.style.border = '1px solid #ccc';
+    contextMenu.style.padding = '4px';
+    contextMenu.style.borderRadius = '10px';
+    contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    contextMenu.style.zIndex = '1000';
+
+    // Menüeinträge erstellen
+    const editButton = createContextMenuItem(
+        'Bearbeiten',
+        () => oeffneBearbeitenModal(mieter),
+        'fa-solid fa-edit'
+    );
+
+    const mailButton = createContextMenuItem(
+        mieter.email ? 'E-Mail senden' : 'Keine E-Mail hinterlegt',
+        () => sendMail(mieter),
+        'fa-solid fa-envelope'
+    );
+
+    if (!mieter.email) {
+        mailButton.style.color = '#999';
+        mailButton.style.cursor = 'not-allowed';
+    }
+
+    // Menüeinträge hinzufügen
+    contextMenu.appendChild(editButton);
+    contextMenu.appendChild(mailButton);
+
+    // Menü zur Seite hinzufügen
+    document.body.appendChild(contextMenu);
+    document.addEventListener('click', removeContextMenu);
+}
+
+// Helper function to create context menu items
+function createContextMenuItem(text, onClick, iconClass) {
+    const button = document.createElement('button');
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.width = '100%';
+    button.style.padding = '8px';
+    button.style.textAlign = 'left';
+    button.style.border = 'none';
+    button.style.borderRadius = '8px';
+    button.style.backgroundColor = 'transparent';
+    button.style.color = 'black';
+    button.style.cursor = 'pointer';
+    button.onmouseover = () => button.style.backgroundColor = '#e9e9e9';
+    button.onmouseout = () => button.style.backgroundColor = 'transparent';
+
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.style.marginRight = '8px';
+    icon.style.width = '20px';
+    icon.style.textAlign = 'center';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+
+    button.appendChild(icon);
+    button.appendChild(textSpan);
+    button.onclick = onClick;
+
+    return button;
+}
+
+// Function to remove the context menu
+function removeContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+        contextMenu.remove();
+    }
+    document.removeEventListener('click', removeContextMenu);
+}
+
 function filterMieterNachStatus(mieter) {
     const heute = new Date();
     switch (aktiverFilter) {
@@ -18,8 +118,6 @@ function filterMieterNachStatus(mieter) {
             return true;
     }
 }
-
-
 
 function initFilterButtons() {
     const filterButtons = document.querySelectorAll('.filter-button');
@@ -382,7 +480,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-
 async function ladeMieter() {
     try {
         const { data, error } = await supabase
@@ -443,21 +540,15 @@ async function ladeMieter() {
                     .join(', ');
             }
             zeile.insertCell(4).textContent = nebenkostenText;
-            
-            const aktionenZelle = zeile.insertCell(5);
-            const bearbeitenButton = document.createElement('button');
-            bearbeitenButton.textContent = 'Bearbeiten';
-            bearbeitenButton.className = 'bearbeiten-button';
-            bearbeitenButton.onclick = () => oeffneBearbeitenModal(mieter);
-            aktionenZelle.appendChild(bearbeitenButton);
+
+            // Rechtsklick-Event für die Zeile hinzufügen
+            zeile.addEventListener('contextmenu', (event) => showContextMenu(event, mieter));
         });
     } catch (error) {
         console.error('Fehler beim Laden der Mieter:', error.message);
         showNotification('Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut.');
     }
 }
-
-
 
 async function ladeWohnungen(aktuelleWohnungId = null) {
     try {
@@ -554,7 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
 
 function filterMieter() {
     const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
