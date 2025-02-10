@@ -7,6 +7,111 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
+async function showContextMenu(event, todoId) {
+    const existingMenu = document.getElementById('context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+
+    const contextMenu = document.createElement('div');
+    contextMenu.id = 'context-menu';
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = `${event.pageX}px`;
+    contextMenu.style.top = `${event.pageY}px`;
+    contextMenu.style.backgroundColor = '#f9f9f9';
+    contextMenu.style.border = '1px solid #ccc';
+    contextMenu.style.padding = '4px';
+    contextMenu.style.borderRadius = '10px';
+    contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    contextMenu.style.zIndex = '1000';
+
+    const { data: todo } = await supabase
+        .from('todos')
+        .select('status')
+        .eq('id', todoId)
+        .single();
+
+    const statusButton = createContextMenuItem(
+        todo.status ? 'Als unerledigt markieren' : 'Als erledigt markieren',
+        () => toggleTodoStatus(todoId),
+        todo.status ? 'fa-solid fa-minus-square' : 'fa-solid fa-check-square'
+    );
+    const editButton = createContextMenuItem('Bearbeiten', () => editTodo(todoId), 'fa-solid fa-edit');
+    const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(todoId), 'fa-solid fa-trash');
+
+
+    contextMenu.appendChild(statusButton);
+    contextMenu.appendChild(editButton);
+    contextMenu.appendChild(deleteButton);
+
+    document.body.appendChild(contextMenu);
+    document.addEventListener('click', removeContextMenu);
+}
+
+async function toggleTodoStatus(id) {
+    try {
+        const { data: todo } = await supabase
+            .from('todos')
+            .select('status')
+            .eq('id', id)
+            .single();
+
+        const { error } = await supabase
+            .from('todos')
+            .update({ status: !todo.status })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        showNotification('Status erfolgreich geändert');
+        loadTodos(currentFilter, document.getElementById('search-table-input').value);
+    } catch (error) {
+        console.error('Fehler beim Ändern des Status:', error.message);
+        showNotification('Fehler beim Ändern des Status');
+    }
+}
+
+// Helper function to create context menu items
+function createContextMenuItem(text, onClick, iconClass) {
+    const button = document.createElement('button');
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.width = '100%';
+    button.style.padding = '8px';
+    button.style.textAlign = 'left';
+    button.style.border = 'none';
+    button.style.borderRadius = '8px';
+    button.style.backgroundColor = 'transparent';
+    button.style.color = 'black';
+    button.style.cursor = 'pointer';
+    button.onmouseover = () => button.style.backgroundColor = '#e9e9e9';
+    button.onmouseout = () => button.style.backgroundColor = 'transparent';
+
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.style.marginRight = '8px';
+    icon.style.width = '20px';
+    icon.style.textAlign = 'center';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+
+    button.appendChild(icon);
+    button.appendChild(textSpan);
+    button.onclick = onClick;
+
+    return button;
+}
+
+// Function to remove the context menu
+function removeContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+        contextMenu.remove();
+    }
+    document.removeEventListener('click', removeContextMenu);
+}
+
 async function ladeTransaktionen() {
     try {
         const wohnungId = document.getElementById('wohnung-select').value;
@@ -448,9 +553,6 @@ function showConfirmDialog(transaktionId) {
     document.body.appendChild(overlay);
     document.body.appendChild(dialog);
 }
-
-
-
 
 function removeConfirmDialog() {
     const overlay = document.getElementById('overlay');
