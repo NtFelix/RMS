@@ -175,20 +175,11 @@ async function ladeTransaktionen() {
             zeile.insertCell(2).textContent = formattedDate;
             zeile.insertCell(3).textContent = `${transaktion.betrag.toFixed(2)} €`;
             zeile.insertCell(4).textContent = transaktion.ist_einnahmen ? 'Einnahme' : 'Ausgabe';
-
-            const aktionenZelle = zeile.insertCell(5);
-            const bearbeitenButton = document.createElement('button');
-            bearbeitenButton.textContent = 'Bearbeiten';
-            bearbeitenButton.className = 'bearbeiten-button';
-            bearbeitenButton.onclick = () => oeffneBearbeitenModal(transaktion);
-            aktionenZelle.appendChild(bearbeitenButton);
-
-            // Kontextmenü-Handler hinzufügen
-            zeile.addEventListener('contextmenu', (event) => {
-                event.preventDefault();
-                showContextMenu(event, transaktion.id);
-            });
+        
+            // Fügen Sie nur den Event-Listener für den Rechtsklick hinzu
+            zeile.addEventListener('contextmenu', (event) => showContextMenu(event, transaktion.id));
         });
+        
         await aktualisiereDashboardZusammenfassung();
     } catch (error) {
         console.error('Fehler beim Laden der Transaktionen:', error.message);
