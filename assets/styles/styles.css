@@ -564,3 +564,141 @@ table button:hover {
 
 
 
+
+#context-menu {
+    position: absolute;
+    background-color: #fff;
+    border-radius: var(--button-radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    padding: 8px;
+    z-index: 1000;
+}
+
+#context-menu button {
+    display: flex;
+    align-items: center;
+    background-color: #ff4d4d;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#context-menu button:hover {
+    background-color: #ff3333;
+}
+
+#context-menu button i {
+    margin-right: 8px;
+}
+
+#confirm-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 24px;
+    border-radius: var(--button-radius);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 1001;
+    text-align: center;
+    width: 300px;
+}
+
+#confirm-dialog h2 {
+    margin-top: 0;
+    color: #333;
+    font-size: 1.5em;
+    margin-bottom: 16px;
+}
+
+#confirm-dialog p {
+    margin-bottom: 24px;
+    color: #666;
+}
+
+#confirm-dialog .button-container {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+#confirm-dialog button {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.1s;
+    font-weight: bold;
+}
+
+#confirm-dialog button:active {
+    transform: scale(0.98);
+}
+
+#confirm-dialog button.cancel {
+    background-color: #f0f0f0;
+    color: #333;
+    margin-right: 12px;
+}
+
+#confirm-dialog button.cancel:hover {
+    background-color: #e0e0e0;
+}
+
+#confirm-dialog button.confirm {
+    background-color: #ff4d4d;
+    color: white;
+}
+
+#confirm-dialog button.confirm:hover {
+    background-color: #ff3333;
+}
+
+#notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: var(--button-radius);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 1002;
+    text-align: center;
+    width: 300px;
+}
+
+#notification.success {
+    top: 150px;
+    border-top: 4px solid #4CAF50;
+}
+
+#notification.error {
+    top: 150px;
+    border-top: 4px solid #ff4d4d;
+}
+
+#notification p {
+    margin: 0;
+    color: #333;
+    font-size: 1.1em;
+}
+
+#notification .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #999;
+}
+
+#notification .close-btn:hover {
+    color: #333;
+}

@@ -71,7 +71,7 @@ async function ladeWohnungen() {
         });
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
-        alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -124,12 +124,12 @@ async function speichereWohnungAenderungen(event) {
         const { data, error } = await query;
         if (error) throw error;
 
-        alert('Änderungen erfolgreich gespeichert.');
+        showNotification('Änderungen erfolgreich gespeichert.');
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeWohnungen();
     } catch (error) {
         console.error('Fehler beim Aktualisieren der Wohnung:', error.message);
-        alert('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Speichern der Änderungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -194,21 +194,21 @@ async function speichereWohnung(event) {
                 .eq('Wohnung', wohnung);
 
             if (error) throw error;
-            alert('Wohnungsdaten erfolgreich aktualisiert.');
+            showNotification('Wohnungsdaten erfolgreich aktualisiert.');
         } else {
             const { data, error } = await supabase
                 .from('Wohnungen')
                 .insert([wohnungData]);
 
             if (error) throw error;
-            alert('Neue Wohnung erfolgreich hinzugefügt.');
+            showNotification('Neue Wohnung erfolgreich hinzugefügt.');
         }
 
         document.getElementById('bearbeiten-modal').style.display = 'none';
         ladeWohnungen();
     } catch (error) {
         console.error('Fehler beim Hinzufügen/Aktualisieren der Wohnung:', error.message);
-        alert('Fehler beim Hinzufügen/Aktualisieren der Wohnung. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Hinzufügen/Aktualisieren der Wohnung. Bitte versuchen Sie es später erneut.');
     }
 }
 
