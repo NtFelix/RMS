@@ -32,13 +32,15 @@ async function showContextMenu(event, todoId) {
         .single();
 
     const statusButton = createContextMenuItem(
-        todo.status ? 'Als unerledigt markieren' : 'Als erledigt markieren',
+        todo.status ? 'Als Ausgaben markieren' : 'Als Einnahmen markieren',
         () => toggleTodoStatus(todoId),
         todo.status ? 'fa-solid fa-minus-square' : 'fa-solid fa-check-square'
     );
     const editButton = createContextMenuItem('Bearbeiten', () => editTodo(todoId), 'fa-solid fa-edit');
-    const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(todoId), 'fa-solid fa-trash');
+    const deleteButton = createContextMenuItem('Löschen', () => deleteTodo(transaktionId), 'fa-solid fa-trash');
 
+     
+    deleteButton.onclick = () => showConfirmDialog(transaktionId);
 
     contextMenu.appendChild(statusButton);
     contextMenu.appendChild(editButton);
@@ -497,36 +499,6 @@ function exportToCSV() {
 }
 
 
-function showContextMenu(event, transaktionId) {
-    event.preventDefault();
-    
-    const existingMenu = document.getElementById('context-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
-    
-    const contextMenu = document.createElement('div');
-    contextMenu.id = 'context-menu';
-    contextMenu.style.left = `${event.pageX}px`;
-    contextMenu.style.top = `${event.pageY}px`;
-    
-    const deleteButton = document.createElement('button');
-    deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i> Löschen';
-    deleteButton.onclick = () => showConfirmDialog(transaktionId);
-    contextMenu.appendChild(deleteButton);
-    
-    document.body.appendChild(contextMenu);
-    
-    document.addEventListener('click', removeContextMenu);
-}
-
-function removeContextMenu() {
-    const contextMenu = document.getElementById('context-menu');
-    if (contextMenu) {
-        contextMenu.remove();
-    }
-    document.removeEventListener('click', removeContextMenu);
-}
 
 function showConfirmDialog(transaktionId) {
     const overlay = document.createElement('div');
