@@ -10,6 +10,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script type="module" src="assets/scripts/script.js"></script>
+
+    <script src="assets/scripts/shared-scripts.js"></script>
 </head>
 
 <body>
@@ -67,6 +69,16 @@
             </div>
 
             <div class="content">
+                <div class="toolbar">
+                    <div class="mieter-filter">
+                        <button class="filter-button active" data-filter="alle">Alle</button>
+                        <button class="filter-button" data-filter="vermietet">Vermietet</button>
+                        <button class="filter-button" data-filter="frei">Frei</button>
+                    </div>
+                    <input type="text" id="search-table-input" placeholder="Daten suchen">
+                </div>
+
+
                 <p>Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen. [Notiz] Man soll eine Reihe
                     anklicken können und es öffnet sich ein Container mit allen Informationen.
                     Außerdem ist ein Mieter erst ausgezogen, wenn ein datum beim Auszug eingetragen ist.
@@ -80,12 +92,14 @@
                             <th>Größe (m²)</th>
                             <th>Miete (€)</th>
                             <th>Preis pro m²</th>
+                            <th>Miete bezahlt</th> <!-- Neue Spalte hinzugefügt -->
                         </tr>
                     </thead>
                     <tbody>
                         <!-- Hier werden die Daten dynamisch eingefügt -->
                     </tbody>
                 </table>
+                
             </div>
         </main>
     </div>

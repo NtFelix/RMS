@@ -22,10 +22,10 @@ async function handleLogout() {
     try {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
-        alert('Erfolgreich abgemeldet');
+        showNotification('Erfolgreich abgemeldet');
         window.location.href = 'index.html';
     } catch (error) {
-        alert('Fehler beim Abmelden: ' + error.message);
+        showNotification('Fehler beim Abmelden: ' + error.message);
     }
 }
 
@@ -205,30 +205,20 @@ async function ladeWohnungen() {
     try {
         const { data, error } = await supabase
             .from('Wohnungen')
-            .select(`
-                id,
-                Wohnung,
-                Größe,
-                Miete,
-                Mieter (
-                    name,
-                    auszug
-                )
-            `);
-
+            .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
         if (error) throw error;
-
+        
         const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = ''; // Leere die Tabelle zuerst
-
+        
         let gesamtMiete = 0;
         let anzahlWohnungen = data.length;
         const heutigesDatum = new Date();
-
+        
         data.forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
-
+            
             // Logik für den aktuellen Mieter
             let mieterName = 'Nicht vermietet';
             if (wohnung.Mieter && wohnung.Mieter.length > 0) {
@@ -237,30 +227,96 @@ async function ladeWohnungen() {
                     const auszugsDatum = new Date(mieter.auszug);
                     return auszugsDatum > heutigesDatum; // Auszugsdatum in der Zukunft
                 });
-
                 if (aktuellerMieter) {
                     mieterName = aktuellerMieter.name;
                 }
             }
             zeile.insertCell(1).textContent = mieterName;
-
             zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
             zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
             
             // Berechnung des Preises pro Quadratmeter
             const preisProQm = wohnung.Miete / wohnung.Größe;
             zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
-
+            
+            // Neue Zelle für "Miete bezahlt"
+            const mieteBezahltZelle = zeile.insertCell(5);
+            const mieteBezahltButton = document.createElement('button');
+            mieteBezahltButton.textContent = 'Miete bezahlt';
+            mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
+            mieteBezahltZelle.appendChild(mieteBezahltButton);
+            
             gesamtMiete += wohnung.Miete;
         });
-
+        
         // Aktualisiere die Zusammenfassung
         document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
         document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
-
     } catch (error) {
         console.error('Fehler beim Laden der Wohnungen:', error.message);
-        alert('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+async function mieteBezahlt(wohnungId, betrag) {
+    try {
+        // Hole Informationen zur Wohnung und zum aktuellen Mieter
+        const { data: wohnungData, error: wohnungError } = await supabase
+            .from('Wohnungen')
+            .select('Wohnung, Mieter (name)')
+            .eq('id', wohnungId)
+            .single();
+
+        if (wohnungError) throw wohnungError;
+
+        const wohnungNummer = wohnungData.Wohnung;
+        const mieterName = wohnungData.Mieter && wohnungData.Mieter.length > 0 ? wohnungData.Mieter[0].name : 'Unbekannt';
+
+        // Prüfe, ob für diesen Monat bereits eine Mietzahlung existiert
+        const currentDate = new Date();
+        const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+        const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+
+        const { data: existingPayment, error: paymentError } = await supabase
+            .from('transaktionen')
+            .select('id')
+            .eq('wohnung-id', wohnungId)
+            .eq('name', 'Miete')
+            .gte('transaction-date', firstDayOfMonth.toISOString())
+            .lte('transaction-date', lastDayOfMonth.toISOString())
+            .single();
+
+        if (paymentError && paymentError.code !== 'PGRST116') {
+            // PGRST116 bedeutet "Kein Ergebnis gefunden", was in diesem Fall okay ist
+            throw paymentError;
+        }
+
+        if (existingPayment) {
+            showNotification(`Die Miete für Wohnung ${wohnungNummer} wurde in diesem Monat bereits als bezahlt markiert.`);
+            return;
+        }
+
+        // Füge die Transaktion hinzu
+        const { data, error } = await supabase
+            .from('transaktionen')
+            .insert([
+                {
+                    'wohnung-id': wohnungId,
+                    name: 'Miete',
+                    'transaction-date': new Date().toISOString(),
+                    betrag: betrag,
+                    ist_einnahmen: true,
+                    notizen: `Miete bezahlt von ${mieterName}`
+                }
+            ]);
+
+        if (error) throw error;
+
+        showNotification(`Miete für Wohnung ${wohnungNummer} von ${mieterName} erfolgreich als bezahlt markiert.`);
+        ladeWohnungen();
+    } catch (error) {
+        console.error('Fehler beim Markieren der Miete als bezahlt:', error.message);
+        showNotification('Fehler beim Markieren der Miete als bezahlt. Bitte versuchen Sie es später erneut.');
     }
 }
 
@@ -340,7 +396,7 @@ async function ladeMieter() {
       durchschnittlicheMietdauer + " Monate";
   } catch (error) {
     console.error("Fehler beim Laden der Mieter:", error.message);
-    alert(
+    showNotification(
       "Fehler beim Laden der Mieter. Bitte versuchen Sie es später erneut."
     );
   }
