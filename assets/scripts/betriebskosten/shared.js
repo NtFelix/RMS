@@ -197,7 +197,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 } else {
                     tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
                     tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
-                    gesamtKostenanteil += tenantWasserkosten; // Addiere Wasserkosten zum Gesamtkostenanteil
+                    gesamtKostenanteil += tenantWasserkosten; // Einzige Addition der Wasserkosten
                 }
             }
 
@@ -216,8 +216,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            gesamtKostenanteil += tenantWasserkosten;
-
             // Total row
             const totalRow = table.insertRow();
             const cellTotalLabel = totalRow.insertCell();
@@ -233,7 +231,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            // Addiere die Gesamtkosten des Mieters zur Summe
+            // Addiere die Gesamtkosten des Mieters zur Summe (nur einmal)
             sumMieterkosten += gesamtKostenanteil;
 
             // Aktualisiere die Anzeige der Gesamtkosten
@@ -300,10 +298,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
             exportButton.style.fontSize = '14px';
             exportButton.style.cursor = 'pointer';
             abrechnungContent.appendChild(exportButton);
-
-            // Aktualisiere die Gesamtkosten der Mieter inklusive Wasserkosten
-            gesamtKostenanteil += tenantWasserkosten;
-            gesamtkostenMieter += gesamtKostenanteil;
         }
     } else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
