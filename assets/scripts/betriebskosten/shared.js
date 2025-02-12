@@ -91,19 +91,22 @@ async function erstelleDetailAbrechnung(selectedYear) {
     costSummaryDiv.style.display = 'flex';
     costSummaryDiv.style.justifyContent = 'space-between';
 
-    // Gesamtkosten aus showOverview
+    // Gesamtkosten aus showOverview (ohne Wasserkosten, diese werden pro Mieter addiert)
     let gesamtkostenNebenkosten = 0;
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
-        gesamtkostenNebenkosten = aktuelleKosten.betrag.reduce((sum, betrag) => sum + betrag, 0) + wasserzaehlerGesamtkosten;
+        gesamtkostenNebenkosten = aktuelleKosten.betrag.reduce((sum, betrag) => sum + betrag, 0);
     }
 
     // Füge die beiden Übersichtsfelder hinzu
     let gesamtkostenMieter = 0; // Wird während der Berechnung aktualisiert
+    if (Array.isArray(kostenanteil.nebenkostenarten)) {
+        gesamtkostenMieter = kostenanteil.betrag.reduce((sum, betrag) => sum + betrag, 0);
+    }
 
     const summaryHTML = `
         <div style="flex: 1; text-align: center; padding: 0 10px;">
             <h3 style="margin: 0 0 5px 0">Summe Betriebskosten (Mieter)</h3>
-            <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">0,00 €</div>
+            <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">${gesamtkostenMieter.toFixed(2)} €</div>
         </div>
         <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
             <h3 style="margin: 0 0 5px 0">Gesamtkosten (Nebenkosten)</h3>
@@ -192,6 +195,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 } else {
                     tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
                     tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
+                    gesamtKostenanteil += tenantWasserkosten; // Addiere Wasserkosten zum Gesamtkostenanteil
                 }
             }
 
