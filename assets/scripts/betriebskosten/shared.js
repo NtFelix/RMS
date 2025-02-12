@@ -91,38 +91,33 @@ async function erstelleDetailAbrechnung(selectedYear) {
     costSummaryDiv.style.display = 'flex';
     costSummaryDiv.style.justifyContent = 'space-between';
 
-    // Gesamtkosten aus showOverview (ohne Wasserkosten, diese werden pro Mieter addiert)
+    // First, initialize gesamtkostenNebenkosten correctly
     let gesamtkostenNebenkosten = 0;
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
         gesamtkostenNebenkosten = aktuelleKosten.betrag.reduce((sum, betrag) => sum + betrag, 0);
     }
 
-    // Füge die beiden Übersichtsfelder hinzu
-    let gesamtkostenMieter = 0; // Wird während der Berechnung aktualisiert
-    if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
-        gesamtkostenMieter = aktuelleKosten.betrag.reduce((sum, betrag) => sum + betrag, 0);
-    }
+    // Initialize gesamtkostenMieter to 0 - it will be updated as we process each tenant
+    let gesamtkostenMieter = 0;
 
-    //Übersicht als Kontrollfelder
-    const summaryHTML = `
-        <div style="flex: 1; text-align: center; padding: 0 10px;">
-            <h3 style="margin: 0 0 5px 0">Summe Betriebskosten (Mieter)</h3>
-            <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">${gesamtkostenMieter.toFixed(2)} €</div>
-        </div>
-        <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
-            <h3 style="margin: 0 0 5px 0">Gesamtkosten (Nebenkosten)</h3>
-            <div style="font-size: 1.2em; font-weight: bold;">${gesamtkostenNebenkosten.toFixed(2)} €</div>
-        </div>
-    `;
-    const updateGesamtkosten = (betrag) => {
-        const gesamtkostenElement = document.getElementById('gesamtkosten-mieter');
-        if (gesamtkostenElement) {
-            gesamtkostenElement.textContent = betrag.toFixed(2) + ' €';
-        }
+    // Initialisiere die Summe der Mieterkosten
+    let sumMieterkosten = 0;
+
+    const updateSummaryHTML = () => {
+        return `
+            <div style="flex: 1; text-align: center; padding: 0 10px;">
+                <h3 style="margin: 0 0 5px 0">Summe Betriebskosten (Mieter)</h3>
+                <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">${sumMieterkosten.toFixed(2)} €</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
+                <h3 style="margin: 0 0 5px 0">Gesamtkosten (Nebenkosten)</h3>
+                <div style="font-size: 1.2em; font-weight: bold;">${gesamtkostenNebenkosten.toFixed(2)} €</div>
+            </div>
+        `;
     };
-    
+
     // Stelle sicher, dass die Übersichtsleiste vor der Wohnungsschleife eingefügt wird
-    costSummaryDiv.innerHTML = summaryHTML;
+    costSummaryDiv.innerHTML = updateSummaryHTML();
     abrechnungContent.appendChild(costSummaryDiv);
     abrechnungContent.appendChild(closeBtn);
 
@@ -238,10 +233,11 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            // Aktualisiere die Gesamtkosten der Mieter
-            gesamtkostenMieter += gesamtKostenanteil;
-            updateGesamtkosten(gesamtkostenMieter);
+            // Addiere die Gesamtkosten des Mieters zur Summe
+            sumMieterkosten += gesamtKostenanteil;
 
+            // Aktualisiere die Anzeige der Gesamtkosten
+            costSummaryDiv.innerHTML = updateSummaryHTML();
 
             // Replace the previous payment calculation with the new one
             const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
@@ -308,7 +304,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
             // Aktualisiere die Gesamtkosten der Mieter inklusive Wasserkosten
             gesamtKostenanteil += tenantWasserkosten;
             gesamtkostenMieter += gesamtKostenanteil;
-            updateGesamtkosten(gesamtkostenMieter);
         }
     } else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
