@@ -291,12 +291,19 @@ async function erstelleDetailAbrechnung(selectedYear) {
             abrechnungContent.appendChild(detailsDiv);
 
             const exportButton = document.createElement('button');
-            exportButton.textContent = 'Zu PDF exportieren';
+            exportButton.innerHTML = '<i class="fa-solid fa-paperclip"></i> Zu PDF exportieren';
             exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
-            exportButton.style.marginTop = '10px';
-            exportButton.style.padding = '5px 10px';
+            exportButton.style.backgroundColor = '#2c3e50';
+            exportButton.style.color = 'white';
+            exportButton.style.border = 'none';
+            exportButton.style.borderRadius = '12px';
+            exportButton.style.padding = '10px 20px';
+            exportButton.style.marginTop = '15px';
             exportButton.style.fontSize = '14px';
             exportButton.style.cursor = 'pointer';
+            exportButton.style.maxWidth = '100%';
+            exportButton.style.alignItems = 'center';
+            exportButton.style.gap = '8px';
             abrechnungContent.appendChild(exportButton);
         }
     } else {
