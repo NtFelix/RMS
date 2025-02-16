@@ -1,3 +1,5 @@
+// Zuerst JSZip importieren (muss im HTML eingebunden sein)
+const JSZip = window.JSZip;
 import { supabase } from '../supabase.js';
 import { generatePDF } from './betriebskostenPDF.js';
 
@@ -161,12 +163,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const art = aktuelleKosten.nebenkostenarten[index];
                 const betrag = aktuelleKosten.betrag[index];
                 const berechnungsart = aktuelleKosten.berechnungsarten[index];
-                
+
                 // Angepasste Berechnung je nach Berechnungsart
                 let kostenanteil;
                 let verteilerEinheit;
                 let kostenProEinheit;
-        
+
                 if (berechnungsart === 'pro_flaeche') {
                     verteilerEinheit = gesamtFlaeche;
                     kostenProEinheit = betrag / verteilerEinheit;
@@ -176,7 +178,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     kostenProEinheit = betrag;
                     kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
                 }
-        
+
                 const row = table.insertRow();
                 [
                     art,
@@ -318,6 +320,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
             exportButton.style.alignItems = 'center';
             exportButton.style.gap = '8px';
             abrechnungContent.appendChild(exportButton);
+
         }
     } else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
@@ -326,6 +329,51 @@ async function erstelleDetailAbrechnung(selectedYear) {
         abrechnungContent.appendChild(errorMessage);
     }
 
+    // Am Ende der erstelleDetailAbrechnung Funktion, nach der Wohnungsschleife:
+    const exportButton = document.createElement('button');
+    exportButton.innerHTML = '<i class="fa-solid fa-file-zipper"></i> Alle PDFs als ZIP exportieren';
+    exportButton.onclick = async () => {
+        try {
+            const zip = new JSZip();
+
+            // Für jede Wohnung PDF generieren und zur ZIP hinzufügen
+            for (const wohnung of wohnungen) {
+                const pdfBlob = await generatePDF(wohnung, aktuelleKosten, true);
+                zip.file(`Jahresabrechnung_${wohnung.Wohnung}_${selectedYear}.pdf`, pdfBlob);
+            }
+
+            // ZIP-Datei erstellen und herunterladen
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(zipBlob);
+            downloadLink.download = `Jahresabrechnungen_${selectedYear}.zip`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            showNotification('ZIP-Datei wurde erfolgreich erstellt', 'success');
+        } catch (error) {
+            console.error('Fehler beim Erstellen der ZIP-Datei:', error);
+            showNotification('Fehler beim Erstellen der ZIP-Datei', 'error');
+        }
+    };
+
+    // Styling für den Button
+    exportButton.style.backgroundColor = '#2c3e50';
+    exportButton.style.color = 'white';
+    exportButton.style.border = 'none';
+    exportButton.style.borderRadius = '12px';
+    exportButton.style.padding = '10px 20px';
+    exportButton.style.marginTop = '15px';
+    exportButton.style.fontSize = '14px';
+    exportButton.style.cursor = 'pointer';
+    exportButton.style.maxWidth = '100%';
+    exportButton.style.alignItems = 'center';
+    exportButton.style.gap = '8px';
+    exportButton.style.display = 'block';
+    exportButton.style.marginBottom = '20px';
+
+    abrechnungContent.appendChild(exportButton);
     abrechnungsModal.appendChild(abrechnungContent);
     document.body.appendChild(abrechnungsModal);
 }
@@ -351,7 +399,7 @@ async function calculateMonthlyPayments(mieterData, year) {
     let totalPaid = 0;
 
     // Sicherheitsprüfungen für die Arrays
-    if (!mieter['nebenkosten-betrag'] || !mieter['nebenkosten-datum'] || 
+    if (!mieter['nebenkosten-betrag'] || !mieter['nebenkosten-datum'] ||
         !Array.isArray(mieter['nebenkosten-betrag']) || !Array.isArray(mieter['nebenkosten-datum'])) {
         return {
             monthlyBreakdown: [{
@@ -394,9 +442,9 @@ async function calculateMonthlyPayments(mieterData, year) {
     for (let month = 0; month < 12; month++) {
         const currentDate = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
-        
+
         // Prüfen, ob der Monat innerhalb der Mietzeit liegt
-        const isAfterEinzug = currentDate >= einzug || 
+        const isAfterEinzug = currentDate >= einzug ||
             (isEinzugFirstOfMonth && currentDate.getMonth() === einzug.getMonth() && currentDate.getFullYear() === einzug.getFullYear());
         const isBeforeAuszug = !auszug || currentDate <= auszug;
 
@@ -432,13 +480,13 @@ async function calculateMonthlyPayments(mieterData, year) {
         }
 
         let note = 'Monatliche Vorauszahlung';
-        if (applicablePeriod.datum.getMonth() === month && 
-            applicablePeriod.datum.getFullYear() === year && 
+        if (applicablePeriod.datum.getMonth() === month &&
+            applicablePeriod.datum.getFullYear() === year &&
             applicablePeriod.isMonthStart) {
             note = 'Neue Vorauszahlung ab diesem Monat';
-        } else if (month === einzug.getMonth() && 
-                   einzug.getFullYear() === year && 
-                   isEinzugFirstOfMonth) {
+        } else if (month === einzug.getMonth() &&
+            einzug.getFullYear() === year &&
+            isEinzugFirstOfMonth) {
             note = 'Vorauszahlung ab Einzug (Monatsbeginn)';
         }
 
