@@ -12,7 +12,7 @@ import { calculateMonthlyPayments } from './shared.js';
  * @param {object} wohnung - The Wohnung data.
  * @param {object} betriebskosten - The Betriebskosten data.
  */
-async function generatePDF(wohnung, betriebskosten) {
+async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     console.log('Wohnung data:', wohnung);
     console.log('Betriebskosten data:', betriebskosten);
 
@@ -206,7 +206,12 @@ async function generatePDF(wohnung, betriebskosten) {
     doc.text(zahlungsText, 20, finalY + 45);
     doc.text(`${Math.abs(nachzahlung).toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
 
-    doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
+    // Vor dem doc.save() folgende Änderung:
+    if (returnBlob) {
+        return doc.output('blob');
+    } else {
+        doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
+    }
 }
 
 export { generatePDF };
