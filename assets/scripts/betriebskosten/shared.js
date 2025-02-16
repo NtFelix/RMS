@@ -161,14 +161,27 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const art = aktuelleKosten.nebenkostenarten[index];
                 const betrag = aktuelleKosten.betrag[index];
                 const berechnungsart = aktuelleKosten.berechnungsarten[index];
-                const verteilerEinheit = berechnungsart === 'pro_flaeche' ? gesamtFlaeche : wohnungen.length;
-                const kostenProEinheit = betrag / verteilerEinheit;
-                const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
+                
+                // Angepasste Berechnung je nach Berechnungsart
+                let kostenanteil;
+                let verteilerEinheit;
+                let kostenProEinheit;
+        
+                if (berechnungsart === 'pro_flaeche') {
+                    verteilerEinheit = gesamtFlaeche;
+                    kostenProEinheit = betrag / verteilerEinheit;
+                    kostenanteil = kostenProEinheit * wohnung.Größe;
+                } else { // pro_mieter
+                    verteilerEinheit = 1; // Jeder Mieter zahlt den vollen Betrag
+                    kostenProEinheit = betrag;
+                    kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
+                }
+        
                 const row = table.insertRow();
                 [
                     art,
                     betrag.toFixed(2) + ' €',
-                    verteilerEinheit.toString(),
+                    berechnungsart === 'pro_flaeche' ? gesamtFlaeche.toString() : '1',
                     kostenProEinheit.toFixed(2) + ' €',
                     kostenanteil.toFixed(2) + ' €'
                 ].forEach(text => {
