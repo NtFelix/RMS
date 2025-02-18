@@ -166,12 +166,11 @@ async function erstelleDetailAbrechnung(selectedYear) {
             // Table header
             const headerRow = table.insertRow();
             [
-                'Leistungsart', 
-                'Gesamtkosten In €', 
-                'Verteiler Einheit/ qm', 
-                'Kosten Pro qm', 
-                'Kostenanteil In €',
-                'Anteil'  // Neue Spalte
+                'Leistungsart',
+                'Gesamtkosten In €',
+                'Verteiler Einheit/ qm',
+                'Kosten Pro qm',
+                'Kostenanteil In €'
             ].forEach(text => {
                 const th = document.createElement('th');
                 th.textContent = text;
@@ -237,8 +236,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         betrag.toFixed(2) + ' €',
                         berechnungsart === 'pro_flaeche' ? gesamtFlaeche.toString() : '1',
                         kostenProEinheit.toFixed(2) + ' €',
-                        kostenanteil.toFixed(2) + ' €',
-                        `(${(anteil * 100).toFixed(0)}%)`
+                        kostenanteil.toFixed(2) + ' €'
                     ].forEach(text => {
                         const cell = row.insertCell();
                         cell.textContent = text;
@@ -257,7 +255,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         .from('Wasserzähler')
                         .select('verbrauch')
                         .eq('year', selectedYear)
-                        .eq('mieter-name', tenantName) // Entferne das Encoding hier
+                        .eq('mieter-name', tenantName)
                         .single();
 
                     if (tenantWasserError || !tenantWasserData) {
@@ -310,7 +308,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 // Aktualisiere die Anzeige der Gesamtkosten
                 costSummaryDiv.innerHTML = updateSummaryHTML();
 
-                // Replace the previous payment calculation with the new one
                 const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
 
                 // Add monthly payment breakdown
@@ -371,7 +368,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 exportButton.style.border = 'none';
                 exportButton.style.borderRadius = '12px';
                 exportButton.style.padding = '10px 20px';
-                exportButton.style.marginTop = '10px'; // Erhöht von 15px auf 30px
+                exportButton.style.marginTop = '10px';
                 exportButton.style.marginBottom = '30px';
                 exportButton.style.fontSize = '14px';
                 exportButton.style.cursor = 'pointer';
