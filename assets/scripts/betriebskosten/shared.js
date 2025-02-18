@@ -22,6 +22,21 @@ export function setOpenWasserzaehlerModal(func) {
     }
 }
 
+// Füge diese Funktion nach den Import-Statements hinzu
+function calculateTenantMonths(einzug, auszug, year) {
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    
+    const startDate = einzug ? new Date(Math.max(yearStart, new Date(einzug))) : yearStart;
+    const endDate = auszug ? new Date(Math.min(yearEnd, new Date(auszug))) : yearEnd;
+    
+    const monthDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
+                     endDate.getMonth() - startDate.getMonth() + 
+                     (endDate.getDate() >= startDate.getDate() ? 0 : -1);
+    
+    return monthDiff + 1;
+}
+
 /**
  * Generates a detailed bill for the given year. The function fetches the necessary data from the database, calculates the costs and displays a modal with the detailed bill.
  * @param {number} selectedYear The year for which the detailed bill should be generated.
@@ -150,7 +165,14 @@ async function erstelleDetailAbrechnung(selectedYear) {
             table.style.marginBottom = "30px";
             // Table header
             const headerRow = table.insertRow();
-            ['Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'].forEach(text => {
+            [
+                'Leistungsart', 
+                'Gesamtkosten In €', 
+                'Verteiler Einheit/ qm', 
+                'Kosten Pro qm', 
+                'Kostenanteil In €',
+                'Anteil'  // Neue Spalte
+            ].forEach(text => {
                 const th = document.createElement('th');
                 th.textContent = text;
                 th.style.border = '1px solid black';
@@ -159,170 +181,208 @@ async function erstelleDetailAbrechnung(selectedYear) {
             });
             // Insert data
             let gesamtKostenanteil = 0;
-            for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
-                const art = aktuelleKosten.nebenkostenarten[index];
-                const betrag = aktuelleKosten.betrag[index];
-                const berechnungsart = aktuelleKosten.berechnungsarten[index];
+            if (mieterData && mieterData.length > 0) {
+                const mieter = mieterData[0];
+                const mietmonate = calculateTenantMonths(mieter.einzug, mieter.auszug, selectedYear);
+                const anteil = mietmonate / 12;
 
-                // Angepasste Berechnung je nach Berechnungsart
-                let kostenanteil;
-                let verteilerEinheit;
-                let kostenProEinheit;
+                // Füge Mietdauer-Info zum Titel hinzu
+                const mietdauerInfo = document.createElement('div');
+                mietdauerInfo.style.backgroundColor = '#f8f9fa';
+                mietdauerInfo.style.padding = '10px';
+                mietdauerInfo.style.marginBottom = '20px';
+                mietdauerInfo.style.borderRadius = '8px';
+                mietdauerInfo.innerHTML = `
+                    <h3 style="margin: 0 0 10px 0">Mietdauer ${selectedYear}</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <p style="margin: 0">Mietmonate: ${mietmonate} von 12</p>
+                            <p style="margin: 5px 0 0 0">Anteil: ${(anteil * 100).toFixed(2)}%</p>
+                        </div>
+                        <div style="width: 200px; height: 20px; background-color: #e9ecef; border-radius: 10px; overflow: hidden;">
+                            <div style="width: ${anteil * 100}%; height: 100%; background-color: #2c3e50;"></div>
+                        </div>
+                    </div>
+                `;
+                abrechnungContent.appendChild(mietdauerInfo);
 
-                if (berechnungsart === 'pro_flaeche') {
-                    verteilerEinheit = gesamtFlaeche;
-                    kostenProEinheit = betrag / verteilerEinheit;
-                    kostenanteil = kostenProEinheit * wohnung.Größe;
-                } else { // pro_mieter
-                    verteilerEinheit = 1; // Jeder Mieter zahlt den vollen Betrag
-                    kostenProEinheit = betrag;
-                    kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
+                // Modifiziere die Kostenberechnung
+                for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
+                    const art = aktuelleKosten.nebenkostenarten[index];
+                    const betrag = aktuelleKosten.betrag[index];
+                    const berechnungsart = aktuelleKosten.berechnungsarten[index];
+
+                    // Angepasste Berechnung je nach Berechnungsart
+                    let kostenanteil;
+                    let verteilerEinheit;
+                    let kostenProEinheit;
+
+                    if (berechnungsart === 'pro_flaeche') {
+                        verteilerEinheit = gesamtFlaeche;
+                        kostenProEinheit = betrag / verteilerEinheit;
+                        kostenanteil = kostenProEinheit * wohnung.Größe;
+                    } else { // pro_mieter
+                        verteilerEinheit = 1; // Jeder Mieter zahlt den vollen Betrag
+                        kostenProEinheit = betrag;
+                        kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
+                    }
+
+                    // Modifiziere kostenanteil mit dem Zeitanteil
+                    kostenanteil = kostenanteil * anteil;
+
+                    // Aktualisiere die Tabellenzeile
+                    const row = table.insertRow();
+                    [
+                        art,
+                        betrag.toFixed(2) + ' €',
+                        berechnungsart === 'pro_flaeche' ? gesamtFlaeche.toString() : '1',
+                        kostenProEinheit.toFixed(2) + ' €',
+                        kostenanteil.toFixed(2) + ' €',
+                        `(${(anteil * 100).toFixed(0)}%)`
+                    ].forEach(text => {
+                        const cell = row.insertCell();
+                        cell.textContent = text;
+                        cell.style.border = '1px solid black';
+                        cell.style.padding = '8px';
+                    });
+
+                    gesamtKostenanteil += kostenanteil;
                 }
 
-                const row = table.insertRow();
+                let tenantWasserverbrauch = 0;
+                let tenantWasserkosten = 0;
+                if (tenantName !== 'Keine Mieterdaten verfügbar') {
+                    const encodedTenantName = encodeURIComponent(tenantName);
+                    const { data: tenantWasserData, error: tenantWasserError } = await supabase
+                        .from('Wasserzähler')
+                        .select('verbrauch')
+                        .eq('year', selectedYear)
+                        .eq('mieter-name', tenantName) // Entferne das Encoding hier
+                        .single();
+
+                    if (tenantWasserError || !tenantWasserData) {
+                        console.warn(`Keine Wasserzählerdaten für Mieter gefunden: ${tenantName}`);
+                        tenantWasserverbrauch = 0;
+                        tenantWasserkosten = 0;
+                    } else {
+                        tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
+                        tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
+                        gesamtKostenanteil += tenantWasserkosten; // Einzige Addition der Wasserkosten
+                    }
+                }
+
+                // Modifiziere auch die Wasserkosten-Berechnung
+                tenantWasserkosten = tenantWasserkosten * anteil;
+
+                // Add water costs row
+                const waterRow = table.insertRow();
                 [
-                    art,
-                    betrag.toFixed(2) + ' €',
-                    berechnungsart === 'pro_flaeche' ? gesamtFlaeche.toString() : '1',
-                    kostenProEinheit.toFixed(2) + ' €',
-                    kostenanteil.toFixed(2) + ' €'
+                    'Wasserkosten',
+                    wasserzaehlerGesamtkosten.toFixed(2) + ' €',
+                    gesamtverbrauch.toFixed(2) + ' m³',
+                    wasserkostenProKubik.toFixed(2) + ' €/m³',
+                    tenantWasserkosten.toFixed(2) + ' €'
                 ].forEach(text => {
-                    const cell = row.insertCell();
+                    const cell = waterRow.insertCell();
                     cell.textContent = text;
                     cell.style.border = '1px solid black';
                     cell.style.padding = '8px';
                 });
-                gesamtKostenanteil += kostenanteil;
-            }
-            let tenantWasserverbrauch = 0;
-            let tenantWasserkosten = 0;
-            if (tenantName !== 'Keine Mieterdaten verfügbar') {
-                const encodedTenantName = encodeURIComponent(tenantName);
-                const { data: tenantWasserData, error: tenantWasserError } = await supabase
-                    .from('Wasserzähler')
-                    .select('verbrauch')
-                    .eq('year', selectedYear)
-                    .eq('mieter-name', tenantName) // Entferne das Encoding hier
-                    .single();
 
-                if (tenantWasserError || !tenantWasserData) {
-                    console.warn(`Keine Wasserzählerdaten für Mieter gefunden: ${tenantName}`);
-                    tenantWasserverbrauch = 0;
-                    tenantWasserkosten = 0;
-                } else {
-                    tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
-                    tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
-                    gesamtKostenanteil += tenantWasserkosten; // Einzige Addition der Wasserkosten
-                }
-            }
+                // Total row
+                const totalRow = table.insertRow();
+                const cellTotalLabel = totalRow.insertCell();
+                cellTotalLabel.colSpan = 4;
+                cellTotalLabel.textContent = 'Betriebskosten gesamt';
+                cellTotalLabel.style.fontWeight = 'bold';
+                const cellTotal = totalRow.insertCell();
+                cellTotal.textContent = gesamtKostenanteil.toFixed(2) + ' €';
+                cellTotal.style.fontWeight = 'bold';
 
-            // Add water costs row
-            const waterRow = table.insertRow();
-            [
-                'Wasserkosten',
-                wasserzaehlerGesamtkosten.toFixed(2) + ' €',
-                gesamtverbrauch.toFixed(2) + ' m³',
-                wasserkostenProKubik.toFixed(2) + ' €/m³',
-                tenantWasserkosten.toFixed(2) + ' €'
-            ].forEach(text => {
-                const cell = waterRow.insertCell();
-                cell.textContent = text;
-                cell.style.border = '1px solid black';
-                cell.style.padding = '8px';
-            });
+                [cellTotalLabel, cellTotal].forEach(cell => {
+                    cell.style.border = '1px solid black';
+                    cell.style.padding = '8px';
+                });
 
-            // Total row
-            const totalRow = table.insertRow();
-            const cellTotalLabel = totalRow.insertCell();
-            cellTotalLabel.colSpan = 4;
-            cellTotalLabel.textContent = 'Betriebskosten gesamt';
-            cellTotalLabel.style.fontWeight = 'bold';
-            const cellTotal = totalRow.insertCell();
-            cellTotal.textContent = gesamtKostenanteil.toFixed(2) + ' €';
-            cellTotal.style.fontWeight = 'bold';
+                // Addiere die Gesamtkosten des Mieters zur Summe (nur einmal)
+                sumMieterkosten += gesamtKostenanteil;
 
-            [cellTotalLabel, cellTotal].forEach(cell => {
-                cell.style.border = '1px solid black';
-                cell.style.padding = '8px';
-            });
+                // Aktualisiere die Anzeige der Gesamtkosten
+                costSummaryDiv.innerHTML = updateSummaryHTML();
 
-            // Addiere die Gesamtkosten des Mieters zur Summe (nur einmal)
-            sumMieterkosten += gesamtKostenanteil;
+                // Replace the previous payment calculation with the new one
+                const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
 
-            // Aktualisiere die Anzeige der Gesamtkosten
-            costSummaryDiv.innerHTML = updateSummaryHTML();
-
-            // Replace the previous payment calculation with the new one
-            const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
-
-            // Add monthly payment breakdown
-            const paymentDetailsDiv = document.createElement('div');
-            paymentDetailsDiv.innerHTML = `
-                <h3>Vorauszahlungen ${selectedYear}</h3>
-                <table style="width:100%; margin-bottom:20px;">
-                    <tr>
-                        <th>Monat</th>
-                        <th>Vorauszahlung</th>
-                        <th>Hinweis</th>
-                    </tr>
-                    ${monthlyBreakdown.map(payment => `
+                // Add monthly payment breakdown
+                const paymentDetailsDiv = document.createElement('div');
+                paymentDetailsDiv.innerHTML = `
+                    <h3>Vorauszahlungen ${selectedYear}</h3>
+                    <table style="width:100%; margin-bottom:20px;">
                         <tr>
-                            <td>${payment.month}</td>
-                            <td>${payment.betrag.toFixed(2)} €</td>
-                            <td>${payment.note}</td>
+                            <th>Monat</th>
+                            <th>Vorauszahlung</th>
+                            <th>Hinweis</th>
                         </tr>
-                    `).join('')}
-                    <tr style="font-weight:bold;">
-                        <td colspan="1">Gesamt:</td>
-                        <td>${totalPaid.toFixed(2)} €</td>
-                        <td></td>
-                    </tr>
-                </table>
-            `;
+                        ${monthlyBreakdown.map(payment => `
+                            <tr>
+                                <td>${payment.month}</td>
+                                <td>${payment.betrag.toFixed(2)} €</td>
+                                <td>${payment.note}</td>
+                            </tr>
+                        `).join('')}
+                        <tr style="font-weight:bold;">
+                            <td colspan="1">Gesamt:</td>
+                            <td>${totalPaid.toFixed(2)} €</td>
+                            <td></td>
+                        </tr>
+                    </table>
+                `;
 
-            // Update the balance calculation using totalPaid instead of the old calculation
-            const balanceRow = table.insertRow();
-            const cellBalanceLabel = balanceRow.insertCell();
-            cellBalanceLabel.colSpan = 4;
-            cellBalanceLabel.textContent = gesamtKostenanteil > totalPaid ? 'Nachzahlung' : 'Rückerstattung';
-            cellBalanceLabel.style.fontWeight = 'bold';
-            const cellBalance = balanceRow.insertCell();
-            cellBalance.textContent = Math.abs(gesamtKostenanteil - totalPaid).toFixed(2) + ' €';
-            cellBalance.style.fontWeight = 'bold';
+                // Update the balance calculation using totalPaid instead of the old calculation
+                const balanceRow = table.insertRow();
+                const cellBalanceLabel = balanceRow.insertCell();
+                cellBalanceLabel.colSpan = 4;
+                cellBalanceLabel.textContent = gesamtKostenanteil > totalPaid ? 'Nachzahlung' : 'Rückerstattung';
+                cellBalanceLabel.style.fontWeight = 'bold';
+                const cellBalance = balanceRow.insertCell();
+                cellBalance.textContent = Math.abs(gesamtKostenanteil - totalPaid).toFixed(2) + ' €';
+                cellBalance.style.fontWeight = 'bold';
 
-            // Add the payment details before the export button
-            abrechnungContent.appendChild(paymentDetailsDiv);
+                // Add the payment details before the export button
+                abrechnungContent.appendChild(paymentDetailsDiv);
 
-            abrechnungContent.appendChild(title);
-            abrechnungContent.appendChild(table);
+                abrechnungContent.appendChild(title);
+                abrechnungContent.appendChild(table);
 
-            // Water consumption details
-            const detailsDiv = document.createElement('div');
-            detailsDiv.innerHTML = `
-                <h3>Wasserverbrauch Details</h3>
-                <p>Gesamtverbrauch: ${tenantWasserverbrauch.toFixed(2)} m³</p>
-                <p>Wasserkosten: ${tenantWasserkosten.toFixed(2)} €</p>
-            `;
-            abrechnungContent.appendChild(detailsDiv);
+                // Water consumption details
+                const detailsDiv = document.createElement('div');
+                detailsDiv.innerHTML = `
+                    <h3>Wasserverbrauch Details</h3>
+                    <p>Gesamtverbrauch: ${tenantWasserverbrauch.toFixed(2)} m³</p>
+                    <p>Wasserkosten: ${tenantWasserkosten.toFixed(2)} €</p>
+                `;
+                abrechnungContent.appendChild(detailsDiv);
 
-            const exportButton = document.createElement('button');
-            exportButton.innerHTML = '<i class="fa-solid fa-paperclip"></i> Zu PDF exportieren';
-            exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
-            exportButton.style.backgroundColor = '#2c3e50';
-            exportButton.style.color = 'white';
-            exportButton.style.border = 'none';
-            exportButton.style.borderRadius = '12px';
-            exportButton.style.padding = '10px 20px';
-            exportButton.style.marginTop = '15px';
-            exportButton.style.fontSize = '14px';
-            exportButton.style.cursor = 'pointer';
-            exportButton.style.maxWidth = '100%';
-            exportButton.style.alignItems = 'center';
-            exportButton.style.gap = '8px';
-            abrechnungContent.appendChild(exportButton);
-
-        }
-    } else {
+                const exportButton = document.createElement('button');
+                exportButton.innerHTML = '<i class="fa-solid fa-paperclip"></i> Zu PDF exportieren';
+                exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
+                exportButton.style.backgroundColor = '#2c3e50';
+                exportButton.style.color = 'white';
+                exportButton.style.border = 'none';
+                exportButton.style.borderRadius = '12px';
+                exportButton.style.padding = '10px 20px';
+                exportButton.style.marginTop = '10px'; // Erhöht von 15px auf 30px
+                exportButton.style.marginBottom = '30px';
+                exportButton.style.fontSize = '14px';
+                exportButton.style.cursor = 'pointer';
+                exportButton.style.maxWidth = '100%';
+                exportButton.style.alignItems = 'center';
+                exportButton.style.gap = '8px';
+                abrechnungContent.appendChild(exportButton);
+            }
+        } // Ende der Wohnungsschleife
+    } // Ende des Array.isArray checks
+    else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
         const errorMessage = document.createElement('p');
         errorMessage.textContent = 'Fehler beim Laden der Betriebskostendaten.';
