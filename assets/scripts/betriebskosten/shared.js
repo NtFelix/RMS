@@ -24,18 +24,43 @@ export function setOpenWasserzaehlerModal(func) {
 
 // Füge diese Funktion nach den Import-Statements hinzu
 function calculateTenantMonths(einzug, auszug, year) {
+    // Erstelle Start- und Enddatum des gewählten Jahres
     const yearStart = new Date(year, 0, 1);
     const yearEnd = new Date(year, 11, 31);
     
-    const startDate = einzug ? new Date(Math.max(yearStart, new Date(einzug))) : yearStart;
-    const endDate = auszug ? new Date(Math.min(yearEnd, new Date(auszug))) : yearEnd;
+    // Konvertiere Einzugs- und Auszugsdatum zu Date-Objekten
+    const einzugDate = einzug ? new Date(einzug) : null;
+    const auszugDate = auszug ? new Date(auszug) : null;
     
-    const monthDiff = (endDate.getFullYear() - startDate.getFullYear()) * 12 + 
-                     endDate.getMonth() - startDate.getMonth() + 
-                     (endDate.getDate() >= startDate.getDate() ? 0 : -1);
+    // Bestimme effektives Startdatum
+    let effectiveStart = yearStart;
+    if (einzugDate && einzugDate > yearStart) {
+        effectiveStart = einzugDate;
+    }
     
-    return monthDiff + 1;
+    // Bestimme effektives Enddatum
+    let effectiveEnd = yearEnd;
+    if (auszugDate && auszugDate < yearEnd) {
+        effectiveEnd = auszugDate;
+    }
+    
+    // Überprüfe, ob der Mieter überhaupt im gewählten Jahr gewohnt hat
+    if (auszugDate && auszugDate < yearStart || einzugDate && einzugDate > yearEnd) {
+        return 0;
+    }
+    
+    // Berechne die Anzahl der Monate
+    let months = (effectiveEnd.getFullYear() - effectiveStart.getFullYear()) * 12;
+    months += effectiveEnd.getMonth() - effectiveStart.getMonth();
+    
+    // Berücksichtige den Tag im Monat
+    if (effectiveEnd.getDate() >= effectiveStart.getDate()) {
+        months += 1;
+    }
+    
+    return Math.max(0, Math.min(12, months));
 }
+
 
 /**
  * Generates a detailed bill for the given year. The function fetches the necessary data from the database, calculates the costs and displays a modal with the detailed bill.
