@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
-
 :root {
     --primary-color: #2c3e50; /* Dunkelblau aus der Seitenleiste */
     --secondary-color: #34495e; /* Etwas helleres Blau für Kontrast */
@@ -11,7 +9,7 @@
 }
 
 body {
-    font-family: 'Roboto', sans-serif;
+    font-family: Arial, Helvetica, sans-serif;
     margin: 0;
     padding: 0;
     background-color: var(--bg-color);
@@ -166,7 +164,7 @@ body {
     padding: 20px;
     border: 1px solid #888;
     width: 80%;
-    max-width: 600px;
+    max-width: 800px;
     border-radius: 20px;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
     max-height: 80%; /* Maximale Höhe */
@@ -426,6 +424,40 @@ table tr:last-child td:last-child {
     color: white;
 }
 
+#context-menu {
+    position: absolute;
+    z-index: 1000;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    padding: 8px;
+    min-width: 160px;
+}
+
+#context-menu button {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 10px 15px;
+    text-align: left;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    color: #333;
+    font-size: 14px;
+}
+
+#context-menu button:hover {
+    background-color: #f0f0f0;
+}
+
+#context-menu button i {
+    margin-right: 10px;
+    width: 20px;
+    text-align: center;
+}
 
 .modal-content form {
     display: flex;
@@ -743,3 +775,12 @@ table button:hover {
 .remove-nebenkostenart:hover {
     background-color: #d32f2f;
 }
+
+.input-style {
+    margin-bottom: 10px;
+    padding: 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    /* Add other styles as needed */
+}
+
