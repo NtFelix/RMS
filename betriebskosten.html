@@ -10,7 +10,9 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <script type="module" src="assets/scripts/betriebskosten.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.20/jspdf.plugin.autotable.min.js"></script>
+    
     <script src="assets/scripts/shared-scripts.js"></script>
 </head>
 
@@ -72,6 +74,7 @@
                     <thead>
                         <tr>
                             <th>Jahr</th>
+                            <th>Gesamtfläche</th>
                             <th>Aktionen</th>
                         </tr>
                     </thead>
@@ -104,7 +107,25 @@
                 
 
                 
-                
+                <div id="wasserzaehler-modal" class="modal">
+                    <div class="modal-content">
+                        <span class="close">&times;</span>
+                        <h2>Wasserzählerstände</h2>
+                        <form id="wasserzaehler-form">
+                            <div class="form-group">
+                                <label for="mieter-select">Mieter:</label>
+                                <select id="mieter-select">
+                                    <!-- Mieter werden dynamisch geladen -->
+                                </select>
+                            </div>
+                            <div id="wasserzaehler-data">
+                                <!-- Wasserzählerdaten werden dynamisch geladen -->
+                            </div>
+                            <button type="submit">Speichern</button>
+                        </form>
+                    </div>
+                </div>
+                    
                 
                 
 
