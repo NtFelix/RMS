@@ -29,14 +29,19 @@ function applyInputStyles(input) {
 async function openWasserzaehlerModal(year) {
     console.log('Opening Wasserzaehler modal for year:', year);
 
+    // Hole alle Mieter, die im angegebenen Jahr in der Immobilie gewohnt haben
     const { data: mieter, error: mieterError } = await supabase
         .from('Mieter')
         .select(`
+            id,
             "wohnung-id",
             name,
+            einzug,
+            auszug,
             Wohnungen (Wohnung)
         `)
-        .is('auszug', null);
+        .or(`einzug.lte.${year}-12-31,einzug.is.null`)
+        .or(`auszug.gte.${year}-01-01,auszug.is.null`);
 
     if (mieterError) {
         console.error('Error fetching tenants:', mieterError);
@@ -105,11 +110,17 @@ async function openWasserzaehlerModal(year) {
     select.style.padding = '10px';
     select.style.border = '1px solid #ddd';
     select.style.borderRadius = 'var(--button-radius)';
+    
     mieter.forEach(m => {
         if (m.Wohnungen && m.Wohnungen.Wohnung) {
             const option = document.createElement('option');
-            option.value = m['wohnung-id'];
-            option.textContent = `${m.name} - Wohnung ${m.Wohnungen.Wohnung}`;
+            option.value = m.id; // Verwende die ID des Mieters anstatt der Wohnungs-ID
+            
+            // Zeige Einzugs- und Auszugsdatum für bessere Identifikation an
+            const einzugDatum = m.einzug ? new Date(m.einzug).toLocaleDateString() : 'unbegrenzt';
+            const auszugDatum = m.auszug ? new Date(m.auszug).toLocaleDateString() : 'unbegrenzt';
+            
+            option.textContent = `${m.name} - Wohnung ${m.Wohnungen.Wohnung} (${einzugDatum} bis ${auszugDatum})`;
             select.appendChild(option);
         }
     });
@@ -152,9 +163,8 @@ async function openWasserzaehlerModal(year) {
     }
 
     select.onchange = async () => {
-        const selectedWohnungId = select.value;
-        const selectedMieterName = select.options[select.selectedIndex].text.split(' - ')[0];
-        console.log('Selected Wohnung ID:', selectedWohnungId);
+        const selectedOption = select.options[select.selectedIndex];
+        const selectedMieterName = selectedOption.text.split(' - ')[0].trim();
         console.log('Selected Mieter Name:', selectedMieterName);
 
         await loadWasserzaehlerData(selectedMieterName, year);
