@@ -165,51 +165,86 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
         for (const wohnung of wohnungen) {
-            // Fetch tenant data
+            // Fetch tenant data - now we keep all tenants in the result
             const { data: mieterData, error: mieterError } = await supabase
                 .from('Mieter')
                 .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
                 .eq('wohnung-id', wohnung.id);
-            let tenantName = 'Keine Mieterdaten verfügbar';
-            let monatlicheNebenkosten = 0;
+            
             if (mieterError) {
                 console.error('Fehler beim Laden der Mieterdaten:', mieterError);
-            } else if (mieterData && mieterData.length > 0) {
-                tenantName = mieterData[0].name;
-                monatlicheNebenkosten = mieterData[0].nebenkosten || 0;
-            } else {
-                console.warn('Keine Mieterdaten für Wohnung gefunden:', wohnung.Wohnung);
+                continue; // Skip to next apartment if error occurs
             }
-            const title = document.createElement('h2');
-            title.textContent = `Jahresabrechnung für Wohnung ${wohnung.Wohnung} - ${tenantName}`;
-            const table = document.createElement("table");
-            table.style.width = "100%";
-            table.style.borderCollapse = "collapse";
-            table.style.borderRadius = "12px";
-            table.style.border = "1px solid transparent";
-            table.style.marginBottom = "30px";
-            // Table header
-            const headerRow = table.insertRow();
-            [
-                'Leistungsart',
-                'Gesamtkosten In €',
-                'Verteiler Einheit/ qm',
-                'Kosten Pro qm',
-                'Kostenanteil In €'
-            ].forEach(text => {
-                const th = document.createElement('th');
-                th.textContent = text;
-                th.style.border = '1px solid black';
-                th.style.padding = '8px';
-                headerRow.appendChild(th);
+            
+            if (!mieterData || mieterData.length === 0) {
+                console.warn('Keine Mieterdaten für Wohnung gefunden:', wohnung.Wohnung);
+                continue; // Skip to next apartment if no tenants
+            }
+            
+            // Filter mieterData to only include tenants that were in the apartment during the selected year
+            const relevantMieter = mieterData.filter(mieter => {
+                const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
+                const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : null;
+                
+                // Check if tenant was in the apartment during the selected year
+                const startOfYear = new Date(selectedYear, 0, 1);
+                const endOfYear = new Date(selectedYear, 11, 31);
+                
+                // Tenant moved in before end of year and moved out after start of year (or hasn't moved out)
+                return (!einzugsDatum || einzugsDatum <= endOfYear) && 
+                       (!auszugsDatum || auszugsDatum >= startOfYear);
             });
-            // Insert data
-            let gesamtKostenanteil = 0;
-            if (mieterData && mieterData.length > 0) {
-                const mieter = mieterData[0];
+            
+            if (relevantMieter.length === 0) {
+                console.warn(`Keine Mieter für Wohnung ${wohnung.Wohnung} im Jahr ${selectedYear}`);
+                continue; // Skip to next apartment if no relevant tenants
+            }
+            
+            // Create a section title for the apartment
+            const apartmentTitle = document.createElement('h2');
+            apartmentTitle.textContent = `Wohnung ${wohnung.Wohnung} - Jahresabrechnung ${selectedYear}`;
+            apartmentTitle.style.marginTop = '30px';
+            apartmentTitle.style.borderBottom = '2px solid #2c3e50';
+            apartmentTitle.style.paddingBottom = '10px';
+            abrechnungContent.appendChild(apartmentTitle);
+            
+            // Process each relevant tenant
+            for (const mieter of relevantMieter) {
+                const tenantName = mieter.name || 'Unbekannter Mieter';
+                const monatlicheNebenkosten = mieter.nebenkosten || 0;
+                
+                const title = document.createElement('h3');
+                title.textContent = `Mieter: ${tenantName}`;
+                title.style.color = '#2c3e50';
+                title.style.marginTop = '20px';
+                
+                const table = document.createElement("table");
+                table.style.width = "100%";
+                table.style.borderCollapse = "collapse";
+                table.style.borderRadius = "12px";
+                table.style.border = "1px solid transparent";
+                table.style.marginBottom = "30px";
+                
+                // Table header
+                const headerRow = table.insertRow();
+                [
+                    'Leistungsart',
+                    'Gesamtkosten In €',
+                    'Verteiler Einheit/ qm',
+                    'Kosten Pro qm',
+                    'Kostenanteil In €'
+                ].forEach(text => {
+                    const th = document.createElement('th');
+                    th.textContent = text;
+                    th.style.border = '1px solid black';
+                    th.style.padding = '8px';
+                    headerRow.appendChild(th);
+                });
+                
+                // Calculate tenant months for this tenant
                 const mietmonate = calculateTenantMonths(mieter.einzug, mieter.auszug, selectedYear);
                 const anteil = mietmonate / 12;
-
+                
                 // Füge Mietdauer-Info zum Titel hinzu
                 const mietdauerInfo = document.createElement('div');
                 mietdauerInfo.style.backgroundColor = '#f8f9fa';
@@ -228,19 +263,21 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         </div>
                     </div>
                 `;
-                abrechnungContent.appendChild(mietdauerInfo);
-
-                // Modifiziere die Kostenberechnung
+                
+                // Insert data for operating costs
+                let gesamtKostenanteil = 0;
+                
+                // Process each cost type
                 for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
                     const art = aktuelleKosten.nebenkostenarten[index];
                     const betrag = aktuelleKosten.betrag[index];
                     const berechnungsart = aktuelleKosten.berechnungsarten[index];
-
+                    
                     // Angepasste Berechnung je nach Berechnungsart
                     let kostenanteil;
                     let verteilerEinheit;
                     let kostenProEinheit;
-
+                    
                     if (berechnungsart === 'pro_flaeche') {
                         verteilerEinheit = gesamtFlaeche;
                         kostenProEinheit = betrag / verteilerEinheit;
@@ -250,10 +287,10 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         kostenProEinheit = betrag;
                         kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
                     }
-
+                    
                     // Modifiziere kostenanteil mit dem Zeitanteil
                     kostenanteil = kostenanteil * anteil;
-
+                    
                     // Aktualisiere die Tabellenzeile
                     const row = table.insertRow();
                     [
@@ -268,35 +305,34 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         cell.style.border = '1px solid black';
                         cell.style.padding = '8px';
                     });
-
+                    
                     gesamtKostenanteil += kostenanteil;
                 }
-
+                
+                // Fetch and calculate water consumption for this tenant
                 let tenantWasserverbrauch = 0;
                 let tenantWasserkosten = 0;
-                if (tenantName !== 'Keine Mieterdaten verfügbar') {
-                    const encodedTenantName = encodeURIComponent(tenantName);
-                    const { data: tenantWasserData, error: tenantWasserError } = await supabase
-                        .from('Wasserzähler')
-                        .select('verbrauch')
-                        .eq('year', selectedYear)
-                        .eq('mieter-name', tenantName)
-                        .single();
-
-                    if (tenantWasserError || !tenantWasserData) {
-                        console.warn(`Keine Wasserzählerdaten für Mieter gefunden: ${tenantName}`);
-                        tenantWasserverbrauch = 0;
-                        tenantWasserkosten = 0;
-                    } else {
-                        tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
-                        tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
-                        gesamtKostenanteil += tenantWasserkosten; // Einzige Addition der Wasserkosten
-                    }
+                
+                const { data: tenantWasserData, error: tenantWasserError } = await supabase
+                    .from('Wasserzähler')
+                    .select('verbrauch')
+                    .eq('year', selectedYear)
+                    .eq('mieter-name', tenantName)
+                    .single();
+                
+                if (tenantWasserError || !tenantWasserData) {
+                    console.warn(`Keine Wasserzählerdaten für Mieter gefunden: ${tenantName}`);
+                    tenantWasserverbrauch = 0;
+                    tenantWasserkosten = 0;
+                } else {
+                    tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
+                    tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
                 }
-
-                // Modifiziere auch die Wasserkosten-Berechnung
+                
+                // Apply time ratio to water costs
                 tenantWasserkosten = tenantWasserkosten * anteil;
-
+                gesamtKostenanteil += tenantWasserkosten;
+                
                 // Add water costs row
                 const waterRow = table.insertRow();
                 [
@@ -311,7 +347,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     cell.style.border = '1px solid black';
                     cell.style.padding = '8px';
                 });
-
+                
                 // Total row
                 const totalRow = table.insertRow();
                 const cellTotalLabel = totalRow.insertCell();
@@ -321,21 +357,22 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const cellTotal = totalRow.insertCell();
                 cellTotal.textContent = gesamtKostenanteil.toFixed(2) + ' €';
                 cellTotal.style.fontWeight = 'bold';
-
+                
                 [cellTotalLabel, cellTotal].forEach(cell => {
                     cell.style.border = '1px solid black';
                     cell.style.padding = '8px';
                 });
-
-                // Addiere die Gesamtkosten des Mieters zur Summe (nur einmal)
+                
+                // Add to the total tenant costs
                 sumMieterkosten += gesamtKostenanteil;
-
-                // Aktualisiere die Anzeige der Gesamtkosten
+                
+                // Update the total cost display
                 costSummaryDiv.innerHTML = updateSummaryHTML();
-
-                const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
-
-                // Add monthly payment breakdown
+                
+                // Calculate tenant's monthly payments
+                const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments([mieter], selectedYear);
+                
+                // Payment breakdown section
                 const paymentDetailsDiv = document.createElement('div');
                 paymentDetailsDiv.innerHTML = `
                     <h3>Vorauszahlungen ${selectedYear}</h3>
@@ -359,8 +396,8 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         </tr>
                     </table>
                 `;
-
-                // Update the balance calculation using totalPaid instead of the old calculation
+                
+                // Balance calculation
                 const balanceRow = table.insertRow();
                 const cellBalanceLabel = balanceRow.insertCell();
                 cellBalanceLabel.colSpan = 4;
@@ -369,13 +406,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const cellBalance = balanceRow.insertCell();
                 cellBalance.textContent = Math.abs(gesamtKostenanteil - totalPaid).toFixed(2) + ' €';
                 cellBalance.style.fontWeight = 'bold';
-
-                // Add the payment details before the export button
-                abrechnungContent.appendChild(paymentDetailsDiv);
-
-                abrechnungContent.appendChild(title);
-                abrechnungContent.appendChild(table);
-
+                
+                [cellBalanceLabel, cellBalance].forEach(cell => {
+                    cell.style.border = '1px solid black';
+                    cell.style.padding = '8px';
+                });
+                
                 // Water consumption details
                 const detailsDiv = document.createElement('div');
                 detailsDiv.innerHTML = `
@@ -383,11 +419,18 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     <p>Gesamtverbrauch: ${tenantWasserverbrauch.toFixed(2)} m³</p>
                     <p>Wasserkosten: ${tenantWasserkosten.toFixed(2)} €</p>
                 `;
+                
+                // Add all elements to the content
+                abrechnungContent.appendChild(title);
+                abrechnungContent.appendChild(mietdauerInfo);
+                abrechnungContent.appendChild(table);
+                abrechnungContent.appendChild(paymentDetailsDiv);
                 abrechnungContent.appendChild(detailsDiv);
-
+                
+                // Individual export button for each tenant
                 const exportButton = document.createElement('button');
                 exportButton.innerHTML = '<i class="fa-solid fa-paperclip"></i> Zu PDF exportieren';
-                exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
+                exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten, false, mieter);
                 exportButton.style.backgroundColor = '#2c3e50';
                 exportButton.style.color = 'white';
                 exportButton.style.border = 'none';
@@ -401,10 +444,19 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 exportButton.style.alignItems = 'center';
                 exportButton.style.gap = '8px';
                 abrechnungContent.appendChild(exportButton);
+                
+                // Add a separator between tenants
+                if (mieter !== relevantMieter[relevantMieter.length - 1]) {
+                    const separator = document.createElement('hr');
+                    separator.style.margin = '30px 0';
+                    separator.style.border = '0';
+                    separator.style.height = '1px';
+                    separator.style.backgroundColor = '#e0e0e0';
+                    abrechnungContent.appendChild(separator);
+                }
             }
-        } // Ende der Wohnungsschleife
-    } // Ende des Array.isArray checks
-    else {
+        }
+    } else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
         const errorMessage = document.createElement('p');
         errorMessage.textContent = 'Fehler beim Laden der Betriebskostendaten.';
@@ -418,10 +470,36 @@ async function erstelleDetailAbrechnung(selectedYear) {
         try {
             const zip = new JSZip();
 
-            // Für jede Wohnung PDF generieren und zur ZIP hinzufügen
+            // Für jede Wohnung und jeden Mieter PDF generieren und zur ZIP hinzufügen
             for (const wohnung of wohnungen) {
-                const pdfBlob = await generatePDF(wohnung, aktuelleKosten, true);
-                zip.file(`Jahresabrechnung_${wohnung.Wohnung}_${selectedYear}.pdf`, pdfBlob);
+                // Get all tenants for this apartment
+                const { data: mieterData, error: mieterError } = await supabase
+                    .from('Mieter')
+                    .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
+                    .eq('wohnung-id', wohnung.id);
+                
+                if (mieterError || !mieterData || mieterData.length === 0) {
+                    continue; // Skip to next apartment if no tenants
+                }
+                
+                // Filter relevant tenants for the selected year
+                const relevantMieter = mieterData.filter(mieter => {
+                    const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
+                    const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : null;
+                    
+                    const startOfYear = new Date(selectedYear, 0, 1);
+                    const endOfYear = new Date(selectedYear, 11, 31);
+                    
+                    return (!einzugsDatum || einzugsDatum <= endOfYear) && 
+                           (!auszugsDatum || auszugsDatum >= startOfYear);
+                });
+                
+                // Generate PDF for each relevant tenant
+                for (const mieter of relevantMieter) {
+                    const tenantName = mieter.name || 'Unbekannter Mieter';
+                    const pdfBlob = await generatePDF(wohnung, aktuelleKosten, true, mieter);
+                    zip.file(`Jahresabrechnung_${wohnung.Wohnung}_${tenantName}_${selectedYear}.pdf`, pdfBlob);
+                }
             }
 
             // ZIP-Datei erstellen und herunterladen
