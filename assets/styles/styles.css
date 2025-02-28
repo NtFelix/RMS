@@ -310,6 +310,7 @@ h1 {
     border-radius: 20px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     margin-top: 20px; /* Zusätzlicher Abstand für den Inhalt */
+    max-width: 100%;
 }
 
 table {
@@ -701,4 +702,44 @@ table button:hover {
 
 #notification .close-btn:hover {
     color: #333;
+}
+
+
+
+.nebenkostenart-input {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 5px;
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: var(--button-radius);
+}
+
+.input-group {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.input-group input,
+.input-group select {
+    width: calc(33.33% - 8px);
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: var(--button-radius);
+}
+
+.remove-nebenkostenart {
+    width: 100%;
+    padding: 8px;
+    margin-top: 0px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: var(--button-radius);
+    cursor: pointer;
+}
+
+.remove-nebenkostenart:hover {
+    background-color: #d32f2f;
 }
