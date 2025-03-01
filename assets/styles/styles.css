@@ -322,9 +322,17 @@ table {
 }
 
 th, td {
-    border: 1px solid #ddd;
     padding: 10px;
     text-align: left;
+}
+
+th:first-child {
+    border: 1px solid var(--primary-color);
+}
+
+th + th,
+td + td {
+    border-left: 1px solid #ccc; /* Hier können Sie die Farbe und den Stil anpassen */
 }
 
 /* Rechtsausrichtung für numerische Werte */
@@ -784,3 +792,48 @@ table button:hover {
     /* Add other styles as needed */
 }
 
+
+
+
+
+
+
+
+
+
+.input-group label {
+    font-size: 0.9em;
+    margin-bottom: 5px;
+    color: var(--text-color);
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    margin-top: 7px;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.input-group input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 5px;
+}
+
+.btn-hinzufuegen {
+    padding: 10px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--button-radius);
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%;
+    font-weight: bold;
+    box-sizing: border-box;
+}
+
+.btn-hinzufuegen:hover {
+    background-color: var(--secondary-color);
+}
