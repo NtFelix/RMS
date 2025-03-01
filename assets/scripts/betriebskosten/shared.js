@@ -145,18 +145,151 @@ async function erstelleDetailAbrechnung(selectedYear) {
     // Initialisiere die Summe der Mieterkosten
     let sumMieterkosten = 0;
 
+    // Initialisiere neue Variablen für die Vermieterkosten
+    let gesamtLeerstandsMonate = 0;
+    let gesamtkostenVermieter = 0;
+
+    // Modifiziere die updateSummaryHTML Funktion, um die Vermieterkosten einzuschließen
     const updateSummaryHTML = () => {
         return `
-            <div style="flex: 1; text-align: center; padding: 0 10px;">
-                <h3 style="margin: 0 0 5px 0">Summe Betriebskosten (Mieter)</h3>
-                <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">${sumMieterkosten.toFixed(2)} €</div>
-            </div>
-            <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
-                <h3 style="margin: 0 0 5px 0">Gesamtkosten (Nebenkosten)</h3>
-                <div style="font-size: 1.2em; font-weight: bold;">${gesamtkostenNebenkosten.toFixed(2)} €</div>
-            </div>
-        `;
+        <div style="flex: 1; text-align: center; padding: 0 10px;">
+            <h3 style="margin: 0 0 5px 0">Summe Betriebskosten (Mieter)</h3>
+            <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">${sumMieterkosten.toFixed(2)} €</div>
+        </div>
+        <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
+            <h3 style="margin: 0 0 5px 0">Gesamtkosten (Nebenkosten)</h3>
+            <div style="font-size: 1.2em; font-weight: bold;">${gesamtkostenNebenkosten.toFixed(2)} €</div>
+        </div>
+        <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
+            <h3 style="margin: 0 0 5px 0">Kosten (Vermieter)</h3>
+            <div id="gesamtkosten-vermieter" style="font-size: 1.2em; font-weight: bold;">${gesamtkostenVermieter.toFixed(2)} €</div>
+            <div style="font-size: 0.8em; color: #666;">${gesamtLeerstandsMonate} Leerstandsmonate</div>
+        </div>
+    `;
     };
+
+    // Nach der Verarbeitung aller Wohnungen und Mieter, füge diese Funktion vor dem ZIP-Export-Button ein
+    async function berechneLeerstandskosten() {
+        // Für jede Wohnung berechnen, wie viele Monate sie leer stand
+        for (const wohnung of wohnungen) {
+            // Holen der Mieterdaten für diese Wohnung
+            const { data: mieterData, error: mieterError } = await supabase
+                .from('Mieter')
+                .select('name, einzug, auszug')
+                .eq('wohnung-id', wohnung.id);
+
+            if (mieterError) {
+                console.error('Fehler beim Laden der Mieterdaten für Leerstandsberechnung:', mieterError);
+                continue;
+            }
+
+            // Berechne vermietete Monate für diese Wohnung
+            const vermieteteMonatsTeile = Array(12).fill(0); // Ein Array für jeden Monat des Jahres
+
+            // Relevante Mieter für das ausgewählte Jahr filtern
+            const relevantMieter = mieterData.filter(mieter => {
+                const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
+                const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : null;
+
+                const startOfYear = new Date(selectedYear, 0, 1);
+                const endOfYear = new Date(selectedYear, 11, 31);
+
+                return (!einzugsDatum || einzugsDatum <= endOfYear) &&
+                    (!auszugsDatum || auszugsDatum >= startOfYear);
+            });
+
+            // Für jeden relevanten Mieter, markiere die Monate, in denen er in der Wohnung war
+            for (const mieter of relevantMieter) {
+                const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : new Date(0); // Wenn kein Einzugsdatum, dann seit immer
+                const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : new Date(2099, 11, 31); // Wenn kein Auszugsdatum, dann bis in die ferne Zukunft
+
+                // Für jeden Monat des Jahres prüfen
+                for (let monat = 0; monat < 12; monat++) {
+                    const monatsAnfang = new Date(selectedYear, monat, 1);
+                    const monatsEnde = new Date(selectedYear, monat + 1, 0); // Letzter Tag des Monats
+
+                    // Prüfen, ob der Mieter in diesem Monat in der Wohnung war
+                    if (einzugsDatum <= monatsEnde && auszugsDatum >= monatsAnfang) {
+                        // Berechnen, wie viel vom Monat der Mieter da war (in Tagen)
+                        const effektiverStart = einzugsDatum > monatsAnfang ? einzugsDatum : monatsAnfang;
+                        const effektivesEnde = auszugsDatum < monatsEnde ? auszugsDatum : monatsEnde;
+
+                        const tageImMonat = monatsEnde.getDate();
+                        const tageVermietet = Math.ceil((effektivesEnde - effektiverStart) / (1000 * 60 * 60 * 24)) + 1;
+                        const anteilVermietet = Math.min(tageVermietet / tageImMonat, 1); // Begrenzen auf maximal 1 (voller Monat)
+
+                        vermieteteMonatsTeile[monat] = Math.max(vermieteteMonatsTeile[monat], anteilVermietet);
+                    }
+                }
+            }
+
+            // Berechne die Gesamtzahl der Leerstandsmonate
+            const vermieteteMonateGesamt = vermieteteMonatsTeile.reduce((sum, anteil) => sum + anteil, 0);
+            const leerstandsMonateWohnung = 12 - vermieteteMonateGesamt;
+            gesamtLeerstandsMonate += leerstandsMonateWohnung;
+
+            // Berechne die Kosten für den Leerstand dieser Wohnung
+            let leerstandskostenWohnung = 0;
+
+            if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
+                // Für jede Nebenkostenart die anteiligen Kosten berechnen
+                for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
+                    const betrag = aktuelleKosten.betrag[index];
+                    const berechnungsart = aktuelleKosten.berechnungsarten[index];
+
+                    let kostenanteil;
+                    if (berechnungsart === 'pro_flaeche') {
+                        const kostenProQm = betrag / gesamtFlaeche;
+                        kostenanteil = kostenProQm * wohnung.Größe;
+                    } else { // pro_mieter
+                        kostenanteil = betrag;
+                    }
+
+                    // Anteil des Leerstands an den Kosten
+                    const leerstandsAnteil = leerstandsMonateWohnung / 12;
+                    leerstandskostenWohnung += kostenanteil * leerstandsAnteil;
+                }
+
+                // Wasserkosten für Leerstand - hier vereinfacht als 0 angenommen, da ohne Verbrauch
+                // Bei Bedarf kann hier eine Pauschale hinzugefügt werden
+            }
+
+            gesamtkostenVermieter += leerstandskostenWohnung;
+        }
+
+        // Aktualisiere die Kostenübersicht
+        costSummaryDiv.innerHTML = updateSummaryHTML();
+
+        // Erstelle eine detaillierte Leerstandsübersicht
+        const leerstandsDetailDiv = document.createElement('div');
+        leerstandsDetailDiv.style.backgroundColor = '#f0f0f0';
+        leerstandsDetailDiv.style.padding = '15px';
+        leerstandsDetailDiv.style.marginBottom = '20px';
+        leerstandsDetailDiv.style.marginTop = '20px';
+        leerstandsDetailDiv.style.borderRadius = '8px';
+
+        leerstandsDetailDiv.innerHTML = `
+        <h3 style="margin-top: 0">Übersicht Leerstandskosten ${selectedYear}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <div>
+                <p style="margin: 5px 0">Gesamte Leerstandsmonate: ${gesamtLeerstandsMonate.toFixed(1)} Monate</p>
+                <p style="margin: 5px 0">Anteil am Jahr: ${((gesamtLeerstandsMonate / (wohnungen.length * 12)) * 100).toFixed(1)}%</p>
+            </div>
+            <div style="width: 200px; height: 20px; background-color: #e9ecef; border-radius: 10px; overflow: hidden;">
+                <div style="width: ${(gesamtLeerstandsMonate / (wohnungen.length * 12)) * 100}%; height: 100%; background-color: #dc3545;"></div>
+            </div>
+        </div>
+        <p style="margin: 10px 0 5px 0">Gesamtkosten für Leerstände: <strong>${gesamtkostenVermieter.toFixed(2)} €</strong></p>
+        <p style="margin: 5px 0; font-size: 0.8em; color: #666;">Entspricht ${((gesamtkostenVermieter / gesamtkostenNebenkosten) * 100).toFixed(1)}% der Gesamtnebenkosten</p>
+    `;
+
+        // Füge die Leerstandsübersicht nach der Kostenübersicht ein
+        abrechnungContent.insertBefore(leerstandsDetailDiv, costSummaryDiv.nextSibling);
+    }
+
+    // Rufe die Funktion zur Berechnung der Leerstandskosten nach dem Durchlaufen aller Wohnungen auf
+    // Füge diesen Aufruf vor dem Erstellen des ZIP-Export-Buttons ein
+    await berechneLeerstandskosten();
 
     // Stelle sicher, dass die Übersichtsleiste vor der Wohnungsschleife eingefügt wird
     costSummaryDiv.innerHTML = updateSummaryHTML();
@@ -170,36 +303,36 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 .from('Mieter')
                 .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
                 .eq('wohnung-id', wohnung.id);
-            
+
             if (mieterError) {
                 console.error('Fehler beim Laden der Mieterdaten:', mieterError);
                 continue; // Skip to next apartment if error occurs
             }
-            
+
             if (!mieterData || mieterData.length === 0) {
                 console.warn('Keine Mieterdaten für Wohnung gefunden:', wohnung.Wohnung);
                 continue; // Skip to next apartment if no tenants
             }
-            
+
             // Filter mieterData to only include tenants that were in the apartment during the selected year
             const relevantMieter = mieterData.filter(mieter => {
                 const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
                 const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : null;
-                
+
                 // Check if tenant was in the apartment during the selected year
                 const startOfYear = new Date(selectedYear, 0, 1);
                 const endOfYear = new Date(selectedYear, 11, 31);
-                
+
                 // Tenant moved in before end of year and moved out after start of year (or hasn't moved out)
-                return (!einzugsDatum || einzugsDatum <= endOfYear) && 
-                       (!auszugsDatum || auszugsDatum >= startOfYear);
+                return (!einzugsDatum || einzugsDatum <= endOfYear) &&
+                    (!auszugsDatum || auszugsDatum >= startOfYear);
             });
-            
+
             if (relevantMieter.length === 0) {
                 console.warn(`Keine Mieter für Wohnung ${wohnung.Wohnung} im Jahr ${selectedYear}`);
                 continue; // Skip to next apartment if no relevant tenants
             }
-            
+
             // Create a section title for the apartment
             const apartmentTitle = document.createElement('h2');
             apartmentTitle.textContent = `Wohnung ${wohnung.Wohnung} - Jahresabrechnung ${selectedYear}`;
@@ -207,24 +340,24 @@ async function erstelleDetailAbrechnung(selectedYear) {
             apartmentTitle.style.borderBottom = '2px solid #2c3e50';
             apartmentTitle.style.paddingBottom = '10px';
             abrechnungContent.appendChild(apartmentTitle);
-            
+
             // Process each relevant tenant
             for (const mieter of relevantMieter) {
                 const tenantName = mieter.name || 'Unbekannter Mieter';
                 const monatlicheNebenkosten = mieter.nebenkosten || 0;
-                
+
                 const title = document.createElement('h3');
                 title.textContent = `Mieter: ${tenantName}`;
                 title.style.color = '#2c3e50';
                 title.style.marginTop = '20px';
-                
+
                 const table = document.createElement("table");
                 table.style.width = "100%";
                 table.style.borderCollapse = "collapse";
                 table.style.borderRadius = "12px";
                 table.style.border = "1px solid transparent";
                 table.style.marginBottom = "30px";
-                
+
                 // Table header
                 const headerRow = table.insertRow();
                 [
@@ -240,11 +373,11 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     th.style.padding = '8px';
                     headerRow.appendChild(th);
                 });
-                
+
                 // Calculate tenant months for this tenant
                 const mietmonate = calculateTenantMonths(mieter.einzug, mieter.auszug, selectedYear);
                 const anteil = mietmonate / 12;
-                
+
                 // Füge Mietdauer-Info zum Titel hinzu
                 const mietdauerInfo = document.createElement('div');
                 mietdauerInfo.style.backgroundColor = '#f8f9fa';
@@ -263,21 +396,21 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         </div>
                     </div>
                 `;
-                
+
                 // Insert data for operating costs
                 let gesamtKostenanteil = 0;
-                
+
                 // Process each cost type
                 for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
                     const art = aktuelleKosten.nebenkostenarten[index];
                     const betrag = aktuelleKosten.betrag[index];
                     const berechnungsart = aktuelleKosten.berechnungsarten[index];
-                    
+
                     // Angepasste Berechnung je nach Berechnungsart
                     let kostenanteil;
                     let verteilerEinheit;
                     let kostenProEinheit;
-                    
+
                     if (berechnungsart === 'pro_flaeche') {
                         verteilerEinheit = gesamtFlaeche;
                         kostenProEinheit = betrag / verteilerEinheit;
@@ -287,10 +420,10 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         kostenProEinheit = betrag;
                         kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
                     }
-                    
+
                     // Modifiziere kostenanteil mit dem Zeitanteil
                     kostenanteil = kostenanteil * anteil;
-                    
+
                     // Aktualisiere die Tabellenzeile
                     const row = table.insertRow();
                     [
@@ -305,21 +438,21 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         cell.style.border = '1px solid black';
                         cell.style.padding = '8px';
                     });
-                    
+
                     gesamtKostenanteil += kostenanteil;
                 }
-                
+
                 // Fetch and calculate water consumption for this tenant
                 let tenantWasserverbrauch = 0;
                 let tenantWasserkosten = 0;
-                
+
                 const { data: tenantWasserData, error: tenantWasserError } = await supabase
                     .from('Wasserzähler')
                     .select('verbrauch')
                     .eq('year', selectedYear)
                     .eq('mieter-name', tenantName)
                     .single();
-                
+
                 if (tenantWasserError || !tenantWasserData) {
                     console.warn(`Keine Wasserzählerdaten für Mieter gefunden: ${tenantName}`);
                     tenantWasserverbrauch = 0;
@@ -328,11 +461,11 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
                     tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
                 }
-                
+
                 // Apply time ratio to water costs
                 tenantWasserkosten = tenantWasserkosten * anteil;
                 gesamtKostenanteil += tenantWasserkosten;
-                
+
                 // Add water costs row
                 const waterRow = table.insertRow();
                 [
@@ -347,7 +480,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     cell.style.border = '1px solid black';
                     cell.style.padding = '8px';
                 });
-                
+
                 // Total row
                 const totalRow = table.insertRow();
                 const cellTotalLabel = totalRow.insertCell();
@@ -357,21 +490,21 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const cellTotal = totalRow.insertCell();
                 cellTotal.textContent = gesamtKostenanteil.toFixed(2) + ' €';
                 cellTotal.style.fontWeight = 'bold';
-                
+
                 [cellTotalLabel, cellTotal].forEach(cell => {
                     cell.style.border = '1px solid black';
                     cell.style.padding = '8px';
                 });
-                
+
                 // Add to the total tenant costs
                 sumMieterkosten += gesamtKostenanteil;
-                
+
                 // Update the total cost display
                 costSummaryDiv.innerHTML = updateSummaryHTML();
-                
+
                 // Calculate tenant's monthly payments
                 const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments([mieter], selectedYear);
-                
+
                 // Payment breakdown section
                 const paymentDetailsDiv = document.createElement('div');
                 paymentDetailsDiv.innerHTML = `
@@ -396,7 +529,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         </tr>
                     </table>
                 `;
-                
+
                 // Balance calculation
                 const balanceRow = table.insertRow();
                 const cellBalanceLabel = balanceRow.insertCell();
@@ -406,12 +539,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const cellBalance = balanceRow.insertCell();
                 cellBalance.textContent = Math.abs(gesamtKostenanteil - totalPaid).toFixed(2) + ' €';
                 cellBalance.style.fontWeight = 'bold';
-                
+
                 [cellBalanceLabel, cellBalance].forEach(cell => {
                     cell.style.border = '1px solid black';
                     cell.style.padding = '8px';
                 });
-                
+
                 // Water consumption details
                 const detailsDiv = document.createElement('div');
                 detailsDiv.innerHTML = `
@@ -419,14 +552,14 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     <p>Gesamtverbrauch: ${tenantWasserverbrauch.toFixed(2)} m³</p>
                     <p>Wasserkosten: ${tenantWasserkosten.toFixed(2)} €</p>
                 `;
-                
+
                 // Add all elements to the content
                 abrechnungContent.appendChild(title);
                 abrechnungContent.appendChild(mietdauerInfo);
                 abrechnungContent.appendChild(table);
                 abrechnungContent.appendChild(paymentDetailsDiv);
                 abrechnungContent.appendChild(detailsDiv);
-                
+
                 // Individual export button for each tenant
                 const exportButton = document.createElement('button');
                 exportButton.innerHTML = '<i class="fa-solid fa-paperclip"></i> Zu PDF exportieren';
@@ -444,7 +577,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 exportButton.style.alignItems = 'center';
                 exportButton.style.gap = '8px';
                 abrechnungContent.appendChild(exportButton);
-                
+
                 // Add a separator between tenants
                 if (mieter !== relevantMieter[relevantMieter.length - 1]) {
                     const separator = document.createElement('hr');
@@ -477,23 +610,23 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     .from('Mieter')
                     .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
                     .eq('wohnung-id', wohnung.id);
-                
+
                 if (mieterError || !mieterData || mieterData.length === 0) {
                     continue; // Skip to next apartment if no tenants
                 }
-                
+
                 // Filter relevant tenants for the selected year
                 const relevantMieter = mieterData.filter(mieter => {
                     const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
                     const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : null;
-                    
+
                     const startOfYear = new Date(selectedYear, 0, 1);
                     const endOfYear = new Date(selectedYear, 11, 31);
-                    
-                    return (!einzugsDatum || einzugsDatum <= endOfYear) && 
-                           (!auszugsDatum || auszugsDatum >= startOfYear);
+
+                    return (!einzugsDatum || einzugsDatum <= endOfYear) &&
+                        (!auszugsDatum || auszugsDatum >= startOfYear);
                 });
-                
+
                 // Generate PDF for each relevant tenant
                 for (const mieter of relevantMieter) {
                     const tenantName = mieter.name || 'Unbekannter Mieter';
