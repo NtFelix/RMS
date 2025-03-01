@@ -170,7 +170,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
         leerstandsDetails = []; // Array zurücksetzen
         gesamtLeerstandsMonate = 0;
         gesamtkostenVermieter = 0;
-
+    
         // Für jede Wohnung berechnen, wie viele Monate sie leer stand
         for (const wohnung of wohnungen) {
             // Holen der Mieterdaten für diese Wohnung
@@ -178,59 +178,73 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 .from('Mieter')
                 .select('name, einzug, auszug')
                 .eq('wohnung-id', wohnung.id);
-
+    
             if (mieterError) {
                 console.error('Fehler beim Laden der Mieterdaten für Leerstandsberechnung:', mieterError);
                 continue;
             }
-
+    
             // Berechne vermietete Monate für diese Wohnung
             const vermieteteMonatsTeile = Array(12).fill(0); // Ein Array für jeden Monat des Jahres (0 = leer, 1 = vollständig vermietet)
             const monatsnamen = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-
+    
             // Relevante Mieter für das ausgewählte Jahr filtern
             const relevantMieter = mieterData.filter(mieter => {
                 const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
                 const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : null;
-
+    
                 const startOfYear = new Date(selectedYear, 0, 1);
                 const endOfYear = new Date(selectedYear, 11, 31);
-
+    
                 return (!einzugsDatum || einzugsDatum <= endOfYear) &&
                     (!auszugsDatum || auszugsDatum >= startOfYear);
             });
-
+    
+            // DEBUG-LOGGING
+            console.log(`Wohnung: ${wohnung.Wohnung}, Anzahl relevanter Mieter: ${relevantMieter.length}`);
+            for (const mieter of relevantMieter) {
+                console.log(`  Mieter: ${mieter.name}, Einzug: ${mieter.einzug}, Auszug: ${mieter.auszug}`);
+            }
+    
             // Monatsweise Berechnung der Belegung
             for (let monat = 0; monat < 12; monat++) {
                 const monatsAnfang = new Date(selectedYear, monat, 1);
                 const monatsEnde = new Date(selectedYear, monat + 1, 0); // Letzter Tag des Monats
                 const tageImMonat = monatsEnde.getDate();
-
+    
                 // Für jeden relevanten Mieter prüfen, ob und wie lange er in diesem Monat in der Wohnung war
                 for (const mieter of relevantMieter) {
-                    const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : new Date(0); // Wenn kein Einzugsdatum, dann seit immer
-                    const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : new Date(2099, 11, 31); // Wenn kein Auszugsdatum, dann bis in die ferne Zukunft
-
+                    // FIX: Sorgfältige Datumskonvertierung
+                    const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : new Date(0);
+                    const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : new Date(2099, 11, 31);
+    
                     // Prüfen, ob der Mieter in diesem Monat in der Wohnung war
                     if (einzugsDatum <= monatsEnde && auszugsDatum >= monatsAnfang) {
                         // Berechnen, wie viel vom Monat der Mieter da war (in Tagen)
                         const effektiverStart = einzugsDatum > monatsAnfang ? einzugsDatum : monatsAnfang;
                         const effektivesEnde = auszugsDatum < monatsEnde ? auszugsDatum : monatsEnde;
-
-                        // Anzahl der Tage, die der Mieter im Monat anwesend war
-                        const tageVermietet = Math.ceil((effektivesEnde - effektiverStart) / (1000 * 60 * 60 * 24)) + 1;
+    
+                        // FIX: Verbesserte Tageberechnung mit korrekter Rundung
+                        const msPerDay = (1000 * 60 * 60 * 24);
+                        const tageVermietet = Math.round((effektivesEnde.getTime() - effektiverStart.getTime()) / msPerDay) + 1;
                         const anteilVermietet = Math.min(tageVermietet / tageImMonat, 1); // Begrenzen auf maximal 1 (voller Monat)
-
+    
                         // Wir aktualisieren den vermieteten Anteil des Monats
                         // Da mehrere Mieter im selben Monat sein können, nehmen wir den höchsten Anteil
                         vermieteteMonatsTeile[monat] = Math.max(vermieteteMonatsTeile[monat], anteilVermietet);
                     }
                 }
             }
-
+    
             // Berechne die Gesamtzahl der Leerstandsmonate für diese Wohnung
             const leerstandsMonateWohnung = vermieteteMonatsTeile.reduce((sum, anteil) => sum + (1 - anteil), 0);
-
+    
+            // DEBUG-LOGGING
+            console.log(`Wohnung ${wohnung.Wohnung} - Leerstandsmonate: ${leerstandsMonateWohnung.toFixed(2)}`);
+            for (let i = 0; i < 12; i++) {
+                console.log(`  ${monatsnamen[i]}: ${(vermieteteMonatsTeile[i] * 100).toFixed(0)}% vermietet`);
+            }
+    
             // Erstelle ein Objekt mit detaillierten Informationen zu dieser Wohnung
             const wohnungDetail = {
                 name: wohnung.Wohnung || `Wohnung ${wohnung.id}`, // Hier Wohnung statt Bezeichnung verwenden
@@ -242,19 +256,19 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     leerstandAnteil: 1 - anteil
                 }))
             };
-
+    
             leerstandsDetails.push(wohnungDetail);
             gesamtLeerstandsMonate += leerstandsMonateWohnung;
-
+    
             // Berechne die Kosten für den Leerstand dieser Wohnung
             let leerstandskostenWohnung = 0;
-
+    
             if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
                 // Für jede Nebenkostenart die anteiligen Kosten berechnen
                 for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
                     const betrag = aktuelleKosten.betrag[index];
                     const berechnungsart = aktuelleKosten.berechnungsarten[index];
-
+    
                     let kostenanteil;
                     if (berechnungsart === 'pro_flaeche') {
                         const kostenProQm = betrag / gesamtFlaeche;
@@ -262,26 +276,26 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     } else { // pro_mieter
                         kostenanteil = betrag;
                     }
-
+    
                     // Berechne die monatsweisen Leerstandskosten
                     for (let monat = 0; monat < 12; monat++) {
                         const leerstandAnteil = 1 - vermieteteMonatsTeile[monat];
                         if (leerstandAnteil > 0) {
-                            // Monatlicher Anteil der Kosten multipiziert mit dem Leerstandsanteil
+                            // Monatlicher Anteil der Kosten multipliziert mit dem Leerstandsanteil
                             leerstandskostenWohnung += (kostenanteil / 12) * leerstandAnteil;
                         }
                     }
                 }
             }
-
+    
             // Speichere die Leerstandskosten im Wohnungsdetail
             wohnungDetail.leerstandskosten = leerstandskostenWohnung;
             gesamtkostenVermieter += leerstandskostenWohnung;
         }
-
+    
         // Aktualisiere die Kostenübersicht
         costSummaryDiv.innerHTML = updateSummaryHTML();
-
+    
         // Erstelle eine detaillierte Leerstandsübersicht
         const leerstandsDetailDiv = document.createElement('div');
         leerstandsDetailDiv.style.backgroundColor = '#f0f0f0';
@@ -289,7 +303,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
         leerstandsDetailDiv.style.marginBottom = '20px';
         leerstandsDetailDiv.style.marginTop = '20px';
         leerstandsDetailDiv.style.borderRadius = '8px';
-
+    
         let leerstandsDetailHTML = `
     <h3 style="margin-top: 0">Übersicht Leerstandskosten ${selectedYear}</h3>
     <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
@@ -304,7 +318,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
     <p style="margin: 10px 0 5px 0">Gesamtkosten für Leerstände: <strong>${gesamtkostenVermieter.toFixed(2)} €</strong></p>
     <p style="margin: 5px 0; font-size: 0.8em; color: #666;">Entspricht ${((gesamtkostenVermieter / gesamtkostenNebenkosten) * 100).toFixed(1)}% der Gesamtnebenkosten</p>
     `;
-
+    
         // Füge eine vereinfachte Tabelle ohne Detailansicht hinzu
         leerstandsDetailHTML += `
     <h4 style="margin: 20px 0 10px 0;">Leerstandsauswertung pro Wohnung</h4>
@@ -320,7 +334,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
             </thead>
             <tbody>
     `;
-
+    
         // Füge Zeilen für jede Wohnung hinzu (ohne Detail-Button und versteckte Zeilen)
         leerstandsDetails.forEach(detail => {
             leerstandsDetailHTML += `
@@ -332,15 +346,15 @@ async function erstelleDetailAbrechnung(selectedYear) {
         </tr>
     `;
         });
-
+    
         leerstandsDetailHTML += `
             </tbody>
         </table>
     </div>
     `;
-
+    
         leerstandsDetailDiv.innerHTML = leerstandsDetailHTML;
-
+    
         // Füge die Leerstandsübersicht nach der Kostenübersicht ein
         abrechnungContent.insertBefore(leerstandsDetailDiv, costSummaryDiv.nextSibling);
     }
