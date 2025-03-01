@@ -184,10 +184,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 continue;
             }
     
-            // Berechne vermietete Monate für diese Wohnung
-            const vermieteteMonatsTeile = Array(12).fill(0); // Ein Array für jeden Monat des Jahres (0 = leer, 1 = vollständig vermietet)
-            const monatsnamen = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
-    
             // Relevante Mieter für das ausgewählte Jahr filtern
             const relevantMieter = mieterData.filter(mieter => {
                 const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : null;
@@ -206,34 +202,71 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 console.log(`  Mieter: ${mieter.name}, Einzug: ${mieter.einzug}, Auszug: ${mieter.auszug}`);
             }
     
-            // Monatsweise Berechnung der Belegung
-            for (let monat = 0; monat < 12; monat++) {
-                const monatsAnfang = new Date(selectedYear, monat, 1);
-                const monatsEnde = new Date(selectedYear, monat + 1, 0); // Letzter Tag des Monats
-                const tageImMonat = monatsEnde.getDate();
+            // ===== NEUE METHODE: TAG-FÜR-TAG BERECHNUNG =====
+            // Berechne die genaue Belegung Tag für Tag
+            const isLeapYear = new Date(selectedYear, 1, 29).getMonth() === 1;
+            const tageImJahr = isLeapYear ? 366 : 365;
+            const tageVermietet = Array(tageImJahr).fill(false);
+            
+            // Für jeden Mieter alle Tage als vermietet markieren
+            for (const mieter of relevantMieter) {
+                // Konvertiere Datumsangaben
+                const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : new Date(0);
+                const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : new Date(2099, 11, 31);
+                
+                // Startdatum und Enddatum im aktuellen Jahr
+                const jahresStart = new Date(selectedYear, 0, 1);
+                const jahresEnde = new Date(selectedYear, 11, 31, 23, 59, 59);
+                
+                // Effektives Start- und Enddatum im aktuellen Jahr
+                const effektiverStart = einzugsDatum > jahresStart ? einzugsDatum : jahresStart;
     
-                // Für jeden relevanten Mieter prüfen, ob und wie lange er in diesem Monat in der Wohnung war
-                for (const mieter of relevantMieter) {
-                    // FIX: Sorgfältige Datumskonvertierung
-                    const einzugsDatum = mieter.einzug ? new Date(mieter.einzug) : new Date(0);
-                    const auszugsDatum = mieter.auszug ? new Date(mieter.auszug) : new Date(2099, 11, 31);
-    
-                    // Prüfen, ob der Mieter in diesem Monat in der Wohnung war
-                    if (einzugsDatum <= monatsEnde && auszugsDatum >= monatsAnfang) {
-                        // Berechnen, wie viel vom Monat der Mieter da war (in Tagen)
-                        const effektiverStart = einzugsDatum > monatsAnfang ? einzugsDatum : monatsAnfang;
-                        const effektivesEnde = auszugsDatum < monatsEnde ? auszugsDatum : monatsEnde;
-    
-                        // FIX: Verbesserte Tageberechnung mit korrekter Rundung
-                        const msPerDay = (1000 * 60 * 60 * 24);
-                        const tageVermietet = Math.round((effektivesEnde.getTime() - effektiverStart.getTime()) / msPerDay) + 1;
-                        const anteilVermietet = Math.min(tageVermietet / tageImMonat, 1); // Begrenzen auf maximal 1 (voller Monat)
-    
-                        // Wir aktualisieren den vermieteten Anteil des Monats
-                        // Da mehrere Mieter im selben Monat sein können, nehmen wir den höchsten Anteil
-                        vermieteteMonatsTeile[monat] = Math.max(vermieteteMonatsTeile[monat], anteilVermietet);
+                // WICHTIGE ÄNDERUNG: Auszugsdatum wird um einen Tag reduziert, da an diesem Tag die Wohnung bereits leer ist
+                // Erstelle ein neues Datum für den Tag vor dem Auszug
+                const tagVorAuszug = new Date(auszugsDatum);
+                tagVorAuszug.setDate(tagVorAuszug.getDate() - 1);
+                const effektivesEnde = tagVorAuszug < jahresEnde ? tagVorAuszug : jahresEnde;
+                
+                // Tage markieren (nur wenn Mieter im ausgewählten Jahr wohnte)
+                if (effektiverStart <= jahresEnde && effektivesEnde >= jahresStart) {
+                    // Berechne den Tag des Jahres (0-basiert) für Start und Ende
+                    const startTag = Math.floor((effektiverStart - jahresStart) / (1000 * 60 * 60 * 24));
+                    const endTag = Math.floor((effektivesEnde - jahresStart) / (1000 * 60 * 60 * 24));
+                    
+                    // Markiere alle Tage als vermietet
+                    for (let tag = Math.max(0, startTag); tag <= Math.min(tageImJahr - 1, endTag); tag++) {
+                        tageVermietet[tag] = true;
                     }
                 }
+            }
+            
+            // Berechne monatsweise Statistik
+            const monatsnamen = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+            const monatsstatistik = [];
+            const vermieteteMonatsTeile = Array(12).fill(0);
+            let laufenderTag = 0;
+            
+            for (let monat = 0; monat < 12; monat++) {
+                const monatsEnde = new Date(selectedYear, monat + 1, 0);
+                const tageImMonat = monatsEnde.getDate();
+                
+                let vermieteteTageDiesenMonat = 0;
+                for (let tag = 0; tag < tageImMonat; tag++) {
+                    if (tageVermietet[laufenderTag + tag]) {
+                        vermieteteTageDiesenMonat++;
+                    }
+                }
+                
+                const anteilVermietet = vermieteteTageDiesenMonat / tageImMonat;
+                vermieteteMonatsTeile[monat] = anteilVermietet;
+                
+                monatsstatistik.push({
+                    monat: monatsnamen[monat],
+                    vermietetAnteil: anteilVermietet,
+                    leerstandAnteil: 1 - anteilVermietet
+                });
+                
+                laufenderTag += tageImMonat;
             }
     
             // Berechne die Gesamtzahl der Leerstandsmonate für diese Wohnung
@@ -247,14 +280,10 @@ async function erstelleDetailAbrechnung(selectedYear) {
     
             // Erstelle ein Objekt mit detaillierten Informationen zu dieser Wohnung
             const wohnungDetail = {
-                name: wohnung.Wohnung || `Wohnung ${wohnung.id}`, // Hier Wohnung statt Bezeichnung verwenden
+                name: wohnung.Wohnung || `Wohnung ${wohnung.id}`,
                 groesse: wohnung.Größe,
                 leerstandsMonate: leerstandsMonateWohnung,
-                monatlicheDetails: vermieteteMonatsTeile.map((anteil, index) => ({
-                    monat: monatsnamen[index],
-                    vermietetAnteil: anteil,
-                    leerstandAnteil: 1 - anteil
-                }))
+                monatlicheDetails: monatsstatistik
             };
     
             leerstandsDetails.push(wohnungDetail);
