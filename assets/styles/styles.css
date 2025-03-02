@@ -837,3 +837,12 @@ table button:hover {
 .btn-hinzufuegen:hover {
     background-color: var(--secondary-color);
 }
+
+.email-submenu {
+    display: none;
+    min-width: 150px;
+}
+
+.context-menu-item:hover .email-submenu {
+    display: block;
+}

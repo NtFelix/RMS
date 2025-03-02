@@ -1,5 +1,11 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.4/+esm'
 
+const supabaseUrl = 'https://dmrglslyrrqjlomjsbas.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtcmdsc2x5cnJxamxvbWpzYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4MTA0MzUsImV4cCI6MjAzNjM4NjQzNX0.pzm4EYAzxkCU-ZKAgybeNK9ERgdqBVdHlZbp1aEMndk';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+let currentFilter = 'alle';
+
 async function checkAuthStatus() {
     try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -64,7 +70,10 @@ async function toggleTodoStatus(id) {
 
         const { error } = await supabase
             .from('todos')
-            .update({ status: !todo.status })
+            .update({ 
+                status: !todo.status,
+                edited_at: new Date().toISOString()
+            })
             .eq('id', id);
 
         if (error) throw error;
@@ -129,12 +138,19 @@ async function handleLogout() {
     }
 }
 
-const supabaseUrl = 'https://dmrglslyrrqjlomjsbas.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRtcmdsc2x5cnJxamxvbWpzYmFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjA4MTA0MzUsImV4cCI6MjAzNjM4NjQzNX0.pzm4EYAzxkCU-ZKAgybeNK9ERgdqBVdHlZbp1aEMndk';
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-let currentFilter = 'alle';
-
+/**
+ * Loads and filters todos from the database and renders them in the UI.
+ *
+ * This function fetches todos from the 'todos' table in the database, applying
+ * the specified filter and search query. It supports filtering by status ('alle',
+ * 'offen', 'erledigt') and searching by name or description. The results are
+ * ordered by creation date in descending order and rendered in the UI.
+ *
+ * @param {string} filter - The filter to apply to the todos ('alle', 'offen', 'erledigt').
+ * @param {string} searchQuery - The search query to filter todos by name or description.
+ *
+ * @throws Will throw an error if the todos cannot be loaded from the database.
+ */
 async function loadTodos(filter = 'alle', searchQuery = '') {
     try {
         let query = supabase.from('todos').select('*');
@@ -165,14 +181,37 @@ function renderTodos(todos) {
     
     todos.forEach(todo => {
         const row = todoTable.insertRow();
+        
+        const formatDateTime = (dateString) => {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('de-DE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(',', '') + ' Uhr';
+        };
+
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleString('de-DE', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        };
+
         row.innerHTML = `
             <td>${todo.name}</td>
             <td>${todo.description || ''}</td>
             <td>${todo.status ? 'Erledigt' : 'Offen'}</td>
-            <td>${new Date(todo.created_at).toLocaleDateString()}</td>
+            <td>${formatDate(todo.created_at)}</td>
+            <td>${formatDateTime(todo.edited_at)}</td>
         `;
         
-        // Add right-click event listener
         row.addEventListener('contextmenu', (event) => {
             event.preventDefault();
             showContextMenu(event, todo.id);
@@ -180,6 +219,16 @@ function renderTodos(todos) {
     });
 }
 
+/**
+ * Handles the submission of the todo form, either creating a new todo or updating an existing one.
+ * Prevents the default form submission behavior and extracts form data to construct a todo object.
+ * If a todo ID is present, updates the existing todo with new data and sets the edited_at timestamp.
+ * If no ID is present, inserts a new todo entry into the database.
+ * Displays a notification upon successful save and reloads the todo list.
+ * In case of an error during database operations, logs the error and displays a notification.
+ *
+ * @param {Event} event - The form submission event.
+ */
 async function saveTodo(event) {
     event.preventDefault();
     try {
@@ -194,6 +243,7 @@ async function saveTodo(event) {
         let error;
 
         if (todoId) {
+            todoData.edited_at = new Date().toISOString();
             const { error: updateError } = await supabase
                 .from('todos')
                 .update(todoData)

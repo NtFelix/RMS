@@ -75,11 +75,52 @@ async function erstelleDetailAbrechnung(selectedYear) {
     abrechnungContent.className = 'modal-content';
     abrechnungContent.style.maxHeight = '80vh';
     abrechnungContent.style.overflowY = 'auto';
+
+    // Create closeBtn before using it
     const closeBtn = document.createElement('span');
     closeBtn.className = 'close';
     closeBtn.innerHTML = '×';
     closeBtn.onclick = () => abrechnungsModal.style.display = 'none';
+
+    // Neue Übersichtsleiste für Gesamtkosten
+    const costSummaryDiv = document.createElement('div');
+    costSummaryDiv.style.backgroundColor = '#f0f0f0';
+    costSummaryDiv.style.padding = '15px';
+    costSummaryDiv.style.marginBottom = '20px';
+    costSummaryDiv.style.borderRadius = '8px';
+    costSummaryDiv.style.display = 'flex';
+    costSummaryDiv.style.justifyContent = 'space-between';
+
+    // First, initialize gesamtkostenNebenkosten correctly
+    let gesamtkostenNebenkosten = 0;
+    if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
+        gesamtkostenNebenkosten = aktuelleKosten.betrag.reduce((sum, betrag) => sum + betrag, 0);
+    }
+
+    // Initialize gesamtkostenMieter to 0 - it will be updated as we process each tenant
+    let gesamtkostenMieter = 0;
+
+    // Initialisiere die Summe der Mieterkosten
+    let sumMieterkosten = 0;
+
+    const updateSummaryHTML = () => {
+        return `
+            <div style="flex: 1; text-align: center; padding: 0 10px;">
+                <h3 style="margin: 0 0 5px 0">Summe Betriebskosten (Mieter)</h3>
+                <div id="gesamtkosten-mieter" style="font-size: 1.2em; font-weight: bold;">${sumMieterkosten.toFixed(2)} €</div>
+            </div>
+            <div style="flex: 1; text-align: center; padding: 0 10px; border-left: 1px solid #ccc;">
+                <h3 style="margin: 0 0 5px 0">Gesamtkosten (Nebenkosten)</h3>
+                <div style="font-size: 1.2em; font-weight: bold;">${gesamtkostenNebenkosten.toFixed(2)} €</div>
+            </div>
+        `;
+    };
+
+    // Stelle sicher, dass die Übersichtsleiste vor der Wohnungsschleife eingefügt wird
+    costSummaryDiv.innerHTML = updateSummaryHTML();
+    abrechnungContent.appendChild(costSummaryDiv);
     abrechnungContent.appendChild(closeBtn);
+
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
         for (const wohnung of wohnungen) {
             // Fetch tenant data
@@ -141,11 +182,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
             let tenantWasserverbrauch = 0;
             let tenantWasserkosten = 0;
             if (tenantName !== 'Keine Mieterdaten verfügbar') {
+                const encodedTenantName = encodeURIComponent(tenantName);
                 const { data: tenantWasserData, error: tenantWasserError } = await supabase
                     .from('Wasserzähler')
                     .select('verbrauch')
                     .eq('year', selectedYear)
-                    .eq('mieter-name', tenantName) // Remove encodeURIComponent
+                    .eq('mieter-name', tenantName) // Entferne das Encoding hier
                     .single();
 
                 if (tenantWasserError || !tenantWasserData) {
@@ -155,6 +197,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 } else {
                     tenantWasserverbrauch = tenantWasserData.verbrauch || 0;
                     tenantWasserkosten = tenantWasserverbrauch * wasserkostenProKubik;
+                    gesamtKostenanteil += tenantWasserkosten; // Einzige Addition der Wasserkosten
                 }
             }
 
@@ -173,8 +216,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.padding = '8px';
             });
 
-            gesamtKostenanteil += tenantWasserkosten;
-
             // Total row
             const totalRow = table.insertRow();
             const cellTotalLabel = totalRow.insertCell();
@@ -189,6 +230,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 cell.style.border = '1px solid black';
                 cell.style.padding = '8px';
             });
+
+            // Addiere die Gesamtkosten des Mieters zur Summe (nur einmal)
+            sumMieterkosten += gesamtKostenanteil;
+
+            // Aktualisiere die Anzeige der Gesamtkosten
+            costSummaryDiv.innerHTML = updateSummaryHTML();
 
             // Replace the previous payment calculation with the new one
             const { monthlyBreakdown, totalPaid } = await calculateMonthlyPayments(mieterData, selectedYear);
@@ -244,12 +291,19 @@ async function erstelleDetailAbrechnung(selectedYear) {
             abrechnungContent.appendChild(detailsDiv);
 
             const exportButton = document.createElement('button');
-            exportButton.textContent = 'Zu PDF exportieren';
+            exportButton.innerHTML = '<i class="fa-solid fa-paperclip"></i> Zu PDF exportieren';
             exportButton.onclick = () => generatePDF(wohnung, aktuelleKosten);
-            exportButton.style.marginTop = '10px';
-            exportButton.style.padding = '5px 10px';
+            exportButton.style.backgroundColor = '#2c3e50';
+            exportButton.style.color = 'white';
+            exportButton.style.border = 'none';
+            exportButton.style.borderRadius = '12px';
+            exportButton.style.padding = '10px 20px';
+            exportButton.style.marginTop = '15px';
             exportButton.style.fontSize = '14px';
             exportButton.style.cursor = 'pointer';
+            exportButton.style.maxWidth = '100%';
+            exportButton.style.alignItems = 'center';
+            exportButton.style.gap = '8px';
             abrechnungContent.appendChild(exportButton);
         }
     } else {
