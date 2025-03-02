@@ -7,6 +7,130 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
+async function showContextMenu(event, transaktionId) {
+    event.preventDefault();
+
+    // Existierendes Menü entfernen
+    const existingMenu = document.getElementById('context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+
+    // Neues Kontextmenü erstellen
+    const contextMenu = document.createElement('div');
+    contextMenu.id = 'context-menu';
+    contextMenu.style.position = 'absolute';
+    contextMenu.style.left = `${event.pageX}px`;
+    contextMenu.style.top = `${event.pageY}px`;
+    contextMenu.style.backgroundColor = '#f9f9f9';
+    contextMenu.style.border = '1px solid #ccc';
+    contextMenu.style.padding = '4px';
+    contextMenu.style.borderRadius = '10px';
+    contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    contextMenu.style.zIndex = '1000';
+
+    // Transaktion aus der Datenbank abrufen
+    const { data: transaktion } = await supabase
+        .from('transaktionen')
+        .select('*')
+        .eq('id', transaktionId)
+        .single();
+
+    // Menüeinträge erstellen
+    const statusButton = createContextMenuItem(
+        transaktion.ist_einnahmen ? 'Als Ausgabe markieren' : 'Als Einnahme markieren',
+        () => toggleTransaktionStatus(transaktionId),
+        transaktion.ist_einnahmen ? 'fa-solid fa-minus-square' : 'fa-solid fa-plus-square'
+    );
+
+    const editButton = createContextMenuItem(
+        'Bearbeiten',
+        () => oeffneBearbeitenModal(transaktion),
+        'fa-solid fa-edit'
+    );
+
+    const deleteButton = createContextMenuItem(
+        'Löschen',
+        () => showConfirmDialog(transaktionId),
+        'fa-solid fa-trash'
+    );
+
+    // Menüeinträge hinzufügen
+    contextMenu.appendChild(statusButton);
+    contextMenu.appendChild(editButton);
+    contextMenu.appendChild(deleteButton);
+
+    // Menü zur Seite hinzufügen
+    document.body.appendChild(contextMenu);
+    document.addEventListener('click', removeContextMenu);
+}
+
+
+async function toggleTransaktionStatus(transaktionId) {
+    try {
+        const { data: transaktion } = await supabase
+            .from('transaktionen')
+            .select('ist_einnahmen')
+            .eq('id', transaktionId)
+            .single();
+
+        const { error } = await supabase
+            .from('transaktionen')
+            .update({ ist_einnahmen: !transaktion.ist_einnahmen })
+            .eq('id', transaktionId);
+
+        if (error) throw error;
+
+        showNotification('Status erfolgreich geändert');
+        ladeTransaktionen();
+        aktualisiereDashboardZusammenfassung();
+    } catch (error) {
+        console.error('Fehler beim Ändern des Status:', error.message);
+        showNotification('Fehler beim Ändern des Status', 'error');
+    }
+}
+
+// Helper function to create context menu items
+function createContextMenuItem(text, onClick, iconClass) {
+    const button = document.createElement('button');
+    button.style.display = 'flex';
+    button.style.alignItems = 'center';
+    button.style.width = '100%';
+    button.style.padding = '8px';
+    button.style.textAlign = 'left';
+    button.style.border = 'none';
+    button.style.borderRadius = '8px';
+    button.style.backgroundColor = 'transparent';
+    button.style.color = 'black';
+    button.style.cursor = 'pointer';
+    button.onmouseover = () => button.style.backgroundColor = '#e9e9e9';
+    button.onmouseout = () => button.style.backgroundColor = 'transparent';
+
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    icon.style.marginRight = '8px';
+    icon.style.width = '20px';
+    icon.style.textAlign = 'center';
+
+    const textSpan = document.createElement('span');
+    textSpan.textContent = text;
+
+    button.appendChild(icon);
+    button.appendChild(textSpan);
+    button.onclick = onClick;
+
+    return button;
+}
+
+// Function to remove the context menu
+function removeContextMenu() {
+    const contextMenu = document.getElementById('context-menu');
+    if (contextMenu) {
+        contextMenu.remove();
+    }
+    document.removeEventListener('click', removeContextMenu);
+}
+
 async function ladeTransaktionen() {
     try {
         const wohnungId = document.getElementById('wohnung-select').value;
@@ -51,17 +175,11 @@ async function ladeTransaktionen() {
             zeile.insertCell(2).textContent = formattedDate;
             zeile.insertCell(3).textContent = `${transaktion.betrag.toFixed(2)} €`;
             zeile.insertCell(4).textContent = transaktion.ist_einnahmen ? 'Einnahme' : 'Ausgabe';
-
-            const aktionenZelle = zeile.insertCell(5);
-            const bearbeitenButton = document.createElement('button');
-            bearbeitenButton.textContent = 'Bearbeiten';
-            bearbeitenButton.className = 'bearbeiten-button';
-            bearbeitenButton.onclick = () => oeffneBearbeitenModal(transaktion);
-            aktionenZelle.appendChild(bearbeitenButton);
-
-            // Fügen Sie den Event-Listener für den Rechtsklick hinzu
+        
+            // Fügen Sie nur den Event-Listener für den Rechtsklick hinzu
             zeile.addEventListener('contextmenu', (event) => showContextMenu(event, transaktion.id));
         });
+        
         await aktualisiereDashboardZusammenfassung();
     } catch (error) {
         console.error('Fehler beim Laden der Transaktionen:', error.message);
@@ -106,9 +224,9 @@ async function ladeWohnungen() {
 
 async function oeffneBearbeitenModal(transaktion) {
     const modal = document.getElementById('bearbeiten-modal');
-    
+
     await ladeWohnungen();
-    
+
     if (typeof transaktion === 'object') {
         // Editing an existing transaction
         document.getElementById('original-transaktion-id').value = transaktion.id;
@@ -118,17 +236,17 @@ async function oeffneBearbeitenModal(transaktion) {
         document.getElementById('betrag').value = transaktion.betrag;
         document.getElementById('ist-einnahmen').value = transaktion.ist_einnahmen.toString();
         document.getElementById('notizen').value = transaktion.notizen || '';
-        
+
         modal.querySelector('h2').textContent = 'Transaktion bearbeiten';
     } else {
         // Adding a new transaction
         document.getElementById('transaktion-bearbeiten-form').reset();
         document.getElementById('original-transaktion-id').value = '';
         document.getElementById('datum').value = new Date().toISOString().split('T')[0]; // Set current date
-        
+
         modal.querySelector('h2').textContent = 'Neue Transaktion hinzufügen';
     }
-    
+
     modal.style.display = 'block';
 }
 
@@ -209,10 +327,10 @@ async function oeffneHinzufuegenModal() {
     const modal = document.getElementById('bearbeiten-modal');
     const form = document.getElementById('transaktion-bearbeiten-form');
     form.reset();
-    
+
     // Laden Sie die Wohnungen
     await ladeWohnungen();
-    
+
     document.getElementById('original-transaktion-id').value = '';
     modal.querySelector('h2').textContent = 'Neue Transaktion hinzufügen';
     modal.style.display = 'block';
@@ -356,14 +474,14 @@ async function aktualisiereDashboardZusammenfassung() {
 function exportToCSV() {
     const table = document.getElementById('transaktionen-tabelle');
     let csv = [];
-    
+
     // Header
     let header = [];
     for (let i = 0; i < table.rows[0].cells.length - 1; i++) { // -1 to exclude the "Aktionen" column
         header.push(table.rows[0].cells[i].innerText);
     }
     csv.push(header.join(','));
-    
+
     // Rows
     for (let i = 1; i < table.rows.length; i++) {
         let row = [];
@@ -375,7 +493,7 @@ function exportToCSV() {
         }
         csv.push(row.join(','));
     }
-    
+
     // Erstellen Sie einen Blob und einen Download-Link
     const csvContent = csv.join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -392,41 +510,11 @@ function exportToCSV() {
 }
 
 
-function showContextMenu(event, transaktionId) {
-    event.preventDefault();
-    
-    const existingMenu = document.getElementById('context-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
-    
-    const contextMenu = document.createElement('div');
-    contextMenu.id = 'context-menu';
-    contextMenu.style.left = `${event.pageX}px`;
-    contextMenu.style.top = `${event.pageY}px`;
-    
-    const deleteButton = document.createElement('button');
-    deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i> Löschen';
-    deleteButton.onclick = () => showConfirmDialog(transaktionId);
-    contextMenu.appendChild(deleteButton);
-    
-    document.body.appendChild(contextMenu);
-    
-    document.addEventListener('click', removeContextMenu);
-}
-
-function removeContextMenu() {
-    const contextMenu = document.getElementById('context-menu');
-    if (contextMenu) {
-        contextMenu.remove();
-    }
-    document.removeEventListener('click', removeContextMenu);
-}
 
 function showConfirmDialog(transaktionId) {
     const overlay = document.createElement('div');
     overlay.id = 'overlay';
-    
+
     const dialog = document.createElement('div');
     dialog.id = 'confirm-dialog';
     dialog.innerHTML = `
@@ -437,20 +525,17 @@ function showConfirmDialog(transaktionId) {
             <button class="confirm">Löschen</button>
         </div>
     `;
-    
+
     dialog.querySelector('.confirm').onclick = () => {
         deleteTransaction(transaktionId);
         removeConfirmDialog();
     };
-    
+
     dialog.querySelector('.cancel').onclick = removeConfirmDialog;
-    
+
     document.body.appendChild(overlay);
     document.body.appendChild(dialog);
 }
-
-
-
 
 function removeConfirmDialog() {
     const overlay = document.getElementById('overlay');
@@ -471,7 +556,7 @@ async function deleteTransaction(transaktionId) {
 
         ladeTransaktionen();
         aktualisiereDashboardZusammenfassung();
-        
+
         showNotification('Transaktion erfolgreich gelöscht.');
     } catch (error) {
         console.error('Fehler beim Löschen der Transaktion:', error.message);
