@@ -7,26 +7,76 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
+// Neue Funktion für E-Mail-Vorlagen
+function getEmailTemplates(mieterName) {
+    return {
+        standard: {
+            subject: "Information",
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
 
-// Neue Funktion zum Senden einer E-Mail
-function sendMail(mieter) {
+Ich hoffe, diese E-Mail erreicht Sie gut.
+
+Mit freundlichen Grüßen`
+        },
+        verwarnung: {
+            subject: "Wichtige Verwarnung",
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
+
+hiermit erhalten Sie eine offizielle Verwarnung aufgrund wiederholter Verstöße gegen die Hausordnung.
+
+Wir bitten Sie, dies ernst zu nehmen und Ihr Verhalten entsprechend anzupassen.
+
+Mit freundlichen Grüßen`
+        },
+        mieterhoehung: {
+            subject: "Ankündigung einer Mieterhöhung",
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
+
+hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
+
+Die Details zur Mieterhöhung entnehmen Sie bitte dem beigefügten Schreiben.
+
+Mit freundlichen Grüßen`
+        }
+    };
+}
+
+// Modifizierte sendMail Funktion
+function sendMail(mieter, emailType = 'standard') {
     if (!mieter.email) {
         showNotification('Keine E-Mail-Adresse hinterlegt');
         return;
     }
-    window.location.href = `mailto:${mieter.email}`;
+
+    const templates = getEmailTemplates(mieter.name);
+    const template = templates[emailType];
+    
+    const mailtoLink = `mailto:${mieter.email}?subject=${encodeURIComponent(template.subject)}&body=${encodeURIComponent(template.body)}`;
+    window.location.href = mailtoLink;
 }
 
+// Modifizierte Funktion für das E-Mail-Untermenü
+function createEmailSubmenu() {
+    const submenu = document.createElement('div');
+    submenu.className = 'email-submenu';
+    submenu.style.position = 'absolute';
+    submenu.style.left = '100%';
+    submenu.style.top = '0';
+    submenu.style.backgroundColor = '#f9f9f9';
+    submenu.style.border = '1px solid #ccc';
+    submenu.style.borderRadius = '8px';
+    submenu.style.padding = '4px';
+    submenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    return submenu;
+}
+
+// Modifizierte showContextMenu Funktion
 async function showContextMenu(event, mieter) {
     event.preventDefault();
 
-    // Existierendes Menü entfernen
     const existingMenu = document.getElementById('context-menu');
-    if (existingMenu) {
-        existingMenu.remove();
-    }
+    if (existingMenu) existingMenu.remove();
 
-    // Neues Kontextmenü erstellen
     const contextMenu = document.createElement('div');
     contextMenu.id = 'context-menu';
     contextMenu.style.position = 'absolute';
@@ -39,7 +89,6 @@ async function showContextMenu(event, mieter) {
     contextMenu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
     contextMenu.style.zIndex = '1000';
 
-    // Menüeinträge erstellen
     const editButton = createContextMenuItem(
         'Bearbeiten',
         () => oeffneBearbeitenModal(mieter),
@@ -47,21 +96,35 @@ async function showContextMenu(event, mieter) {
     );
 
     const mailButton = createContextMenuItem(
-        mieter.email ? 'E-Mail senden' : 'Keine E-Mail hinterlegt',
-        () => sendMail(mieter),
-        'fa-solid fa-envelope'
+        'E-Mail Optionen',
+        null,
+        'fa-solid fa-paper-plane'
     );
 
-    if (!mieter.email) {
-        mailButton.style.color = '#999';
-        mailButton.style.cursor = 'not-allowed';
-    }
+    const emailSubmenu = createEmailSubmenu();
+    const emailOptions = [
+        { text: 'E-Mail senden', type: 'standard' },
+        { text: 'Verwarnung', type: 'verwarnung' },
+        { text: 'Mieterhöhung', type: 'mieterhoehung' }
+    ];
 
-    // Menüeinträge hinzufügen
+    emailOptions.forEach(option => {
+        const submenuItem = createContextMenuItem(
+            option.text,
+            () => sendMail(mieter, option.type),
+            'fa-solid fa-envelope'
+        );
+        emailSubmenu.appendChild(submenuItem);
+    });
+
+    mailButton.addEventListener('mouseover', () => {
+        emailSubmenu.style.display = 'block';
+    });
+    mailButton.appendChild(emailSubmenu);
+
     contextMenu.appendChild(editButton);
     contextMenu.appendChild(mailButton);
 
-    // Menü zur Seite hinzufügen
     document.body.appendChild(contextMenu);
     document.addEventListener('click', removeContextMenu);
 }
