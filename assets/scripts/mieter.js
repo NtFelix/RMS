@@ -7,54 +7,96 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
-function getEmailTemplates(mieterName) {
+function getEmailTemplates(mieterName, templateVars = {}) {
+    const currentMonth = templateVars.currentMonth || '{aktueller Monat}';
+    const rentAmount = templateVars.rentAmount || '{Miethöhe (in Tabelle "Wohnungen" unter "Miete" als numeric)}';
+    const todayDate = templateVars.todayDate || '{heute in dd:MM:yyyy}';
+    const deadlineDate = templateVars.deadlineDate || '{Deadline in dd.MM.yyyy (heute + 7 Tage)}'; // Neue Variable für Deadline
+
     return {
       standard: {
         subject: "Information",
         body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-  
+
   Ich hoffe, diese E-Mail erreicht Sie gut.
-  
+
   Mit freundlichen Grüßen`,
       },
       mahnung: {
         subject: "1. Mietmahnung",
         body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-  
-              trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen
-              Zahlungseingang der Monatsmiete {aktueller Monat}(Beispiel: Oktober 2024) verzeichnen. Bitte überweisen Sie
-              daher die Monatsmiete Oktober inkl. Nebenkosten und 5,- € Mahngebühren in Höhe
-              von {Miethöhe (in Tabelle "Wohnungen" unter "Miete" als numeric)}(Beispiel: 580,- €) spätestens bis zum 18.12.2024 auf das Ihnen bekannte Konto.
-              Es sind alle Zahlungseingänge bis einschließlich {heute in dd:MM:yyyy} berücksichtigt. Sollte
-              sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses
-              Schreiben als gegenstandlos.
+
+              trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen Zahlungseingang der Monatsmiete ${currentMonth} verzeichnen. Bitte überweisen Sie daher die Monatsmiete ${currentMonth} inkl. Nebenkosten und 5,- € Mahngebühren in Höhe von ${rentAmount} spätestens bis zum ${deadlineDate} auf das Ihnen bekannte Konto. Es sind alle Zahlungseingänge bis einschließlich ${todayDate} berücksichtigt. Sollte sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses Schreiben als gegenstandslos.
               Mit freundlichen Grüßen
               Christina Plant
-              
               `,
       },
       mieterhoehung: {
         subject: "Ankündigung einer Mieterhöhung",
         body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-  
+
   hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
-  
+
   Die Details zur Mieterhöhung entnehmen Sie bitte dem beigefügten Schreiben.
-  
+
   Mit freundlichen Grüßen`,
       },
     };
   }
-  
-  function sendMail(mieter, emailType = "standard") {
+
+  async function sendMail(mieter, emailType = "standard") {
     if (!mieter.email) {
       showNotification("Keine E-Mail-Adresse hinterlegt");
       return;
     }
-  
-    const templates = getEmailTemplates(mieter.name);
+
+    let templateVars = {};
+
+    if (emailType === 'mahnung') {
+        const wohnungId = mieter['wohnung-id'];
+        console.log("Wohnung ID des Mieters:", wohnungId); // Debugging 1: Wohnung ID überprüfen
+        let miete = 'Daten nicht gefunden'; // Fallback Wert
+        if (wohnungId) {
+            const { data: wohnungsData, error: wohnungsError } = await supabase
+                .from('Wohnungen')
+                .select('Miete')
+                .eq('id', wohnungId)
+                .single();
+
+            console.log("Supabase Fehler beim Laden der Miete:", wohnungsError); // Debugging 2: Supabase Fehler überprüfen
+            console.log("Supabase Daten der Wohnung:", wohnungsData); // Debugging 3: Supabase Daten überprüfen
+
+            if (!wohnungsError && wohnungsData) {
+                miete = wohnungsData.Miete + ',- €';
+            } else {
+                console.error("Fehler beim Laden der Miete:", wohnungsError);
+            }
+        }
+        console.log("Mietbetrag vor Template-Variable:", miete); // Debugging 4: Mietbetrag vor Template Variable überprüfen
+
+        const currentDate = new Date();
+        const currentMonthName = new Intl.DateTimeFormat('de-DE', { month: 'long' }).format(currentDate);
+        const formattedTodayDate = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(currentDate);
+
+        // Deadline berechnen (heute + 7 Tage)
+        const deadline = new Date();
+        deadline.setDate(currentDate.getDate() + 7);
+        const formattedDeadlineDate = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(deadline);
+
+
+        templateVars = {
+            currentMonth: currentMonthName,
+            rentAmount: miete,
+            todayDate: formattedTodayDate,
+            deadlineDate: formattedDeadlineDate // Deadline Variable hinzufügen
+        };
+        console.log("Template Variablen:", templateVars); // Debugging 5: Template Variablen überprüfen
+    }
+
+
+    const templates = getEmailTemplates(mieter.name, templateVars);
     const template = templates[emailType];
-  
+
     const mailtoLink = `mailto:${mieter.email}?subject=${encodeURIComponent(
       template.subject
     )}&body=${encodeURIComponent(template.body)}`;
@@ -213,7 +255,7 @@ function oeffneBearbeitenModal(mieter) {
         console.error('Modal element nicht gefunden');
         return;
     }
-    
+
     // Grundlegende Mieterdaten
     document.getElementById('original-name').value = mieter.name;
     document.getElementById('name').value = mieter.name;
@@ -222,7 +264,7 @@ function oeffneBearbeitenModal(mieter) {
     document.getElementById('einzug').value = mieter.einzug || '';
     document.getElementById('auszug').value = mieter.auszug || '';
     document.getElementById('notiz').value = mieter.notiz || '';
-    
+
     // Nebenkosten Tabelle
     const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
     if (!nebenkostenTabelle) {
@@ -255,7 +297,7 @@ function oeffneBearbeitenModal(mieter) {
     // Eingabefelder für neue Nebenkosten
     const neuerBetragInput = document.getElementById('neuer-nebenkosten-betrag');
     const neuesDatumInput = document.getElementById('neuer-nebenkosten-datum');
-    
+
     if (neuerBetragInput) neuerBetragInput.value = '';
     if (neuesDatumInput) neuesDatumInput.value = new Date().toISOString().split('T')[0]; // Heutiges Datum
 
@@ -266,7 +308,7 @@ function oeffneBearbeitenModal(mieter) {
             wohnungSelect.value = mieter['wohnung-id'] || '';
         }
     });
-    
+
     modal.style.display = 'block';
 }
 
@@ -350,7 +392,7 @@ async function pruefeWohnungVerfuegbarkeit(wohnungId, ausgenommenerMieter = null
     if (!wohnungId) return true; // Wenn keine Wohnung ausgewählt wurde
 
     const heute = new Date().toISOString().split('T')[0];
-    
+
     let query = supabase
         .from('Mieter')
         .select('name')
@@ -374,7 +416,7 @@ async function pruefeWohnungVerfuegbarkeit(wohnungId, ausgenommenerMieter = null
 // Modifiziere die speichereMieter Funktion
 async function speichereMieter(event) {
     event.preventDefault();
-    
+
     const name = document.getElementById('name').value;
     if (!name) {
         showNotification('Bitte geben Sie einen Namen ein.');
@@ -455,7 +497,7 @@ async function speichereMieter(event) {
 // Modifiziere die speichereMieterAenderungen Funktion
 async function speichereMieterAenderungen(event) {
     event.preventDefault();
-    
+
     const originalName = document.getElementById('original-name').value;
     const name = document.getElementById('name').value;
     const email = document.getElementById('email').value;
@@ -464,7 +506,7 @@ async function speichereMieterAenderungen(event) {
     const einzug = document.getElementById('einzug').value;
     const auszug = document.getElementById('auszug').value;
     const notiz = document.getElementById('notiz').value;
-    
+
     // Nebenkosten aus der Tabelle auslesen
     const nebenkostenTabelle = document.getElementById('nebenkosten-tabelle');
     if (nebenkostenTabelle) {
@@ -507,7 +549,7 @@ async function speichereMieterAenderungen(event) {
         let query = supabase
             .from('Mieter')
             .update(updatedData);
-        
+
         if (originalName !== name) {
             query = query.eq('name', originalName);
         } else {
@@ -563,7 +605,7 @@ async function ladeMieter() {
                 notiz,
                 nebenkosten-betrag,
                 nebenkosten-datum,
-                Wohnungen (id, Wohnung)
+                Wohnungen (id, Wohnung, Miete)
             `);
 
         if (error) throw error;
@@ -574,7 +616,7 @@ async function ladeMieter() {
         data.filter(filterMieterNachStatus).forEach(mieter => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = mieter.name;
-            
+
             // E-Mail-Zelle mit klickbarem Link
             const emailZelle = zeile.insertCell(1);
             if (mieter.email) {
@@ -585,10 +627,10 @@ async function ladeMieter() {
             } else {
                 emailZelle.textContent = '-';
             }
-            
+
             zeile.insertCell(2).textContent = mieter.telefonnummer || '-';
             zeile.insertCell(3).textContent = mieter.Wohnungen ? mieter.Wohnungen.Wohnung : 'Keine Wohnung';
-            
+
             // Nebenkosten verarbeiten
             let nebenkostenText = '-';
             if (mieter['nebenkosten-betrag'] && mieter['nebenkosten-datum']) {
@@ -596,12 +638,12 @@ async function ladeMieter() {
                     betrag,
                     datum: mieter['nebenkosten-datum'][index]
                 }));
-                
+
                 // Sortieren nach Datum (neueste zuerst) und die letzten 3 auswählen
                 const letzteNebenkosten = nebenkosten
                     .sort((a, b) => new Date(b.datum) - new Date(a.datum))
                     .slice(0, 3);
-                
+
                 // Umkehren der Reihenfolge, sodass die älteste zuerst kommt
                 nebenkostenText = letzteNebenkosten
                     .reverse()
@@ -624,7 +666,7 @@ async function ladeWohnungen(aktuelleWohnungId = null) {
         // Alle Wohnungen laden
         const { data: alleWohnungen, error: wohnungenError } = await supabase
             .from('Wohnungen')
-            .select('id, Wohnung');
+            .select('id, Wohnung, Miete'); // Miete hier hinzufügen
 
         if (wohnungenError) throw wohnungenError;
 
@@ -641,7 +683,7 @@ async function ladeWohnungen(aktuelleWohnungId = null) {
         const belegteWohnungsIds = new Set(belegteWohnungen.map(m => m['wohnung-id']));
 
         // Verfügbare Wohnungen filtern
-        const verfuegbareWohnungen = alleWohnungen.filter(w => 
+        const verfuegbareWohnungen = alleWohnungen.filter(w =>
             !belegteWohnungsIds.has(w.id) || w.id === aktuelleWohnungId
         );
 
@@ -652,6 +694,7 @@ async function ladeWohnungen(aktuelleWohnungId = null) {
             const option = document.createElement('option');
             option.value = wohnung.id;
             option.textContent = wohnung.Wohnung;
+            option.setAttribute('data-miete', wohnung.Miete); // Miete als data-Attribut speichern
             wohnungSelect.appendChild(option);
         });
     } catch (error) {
@@ -783,7 +826,7 @@ function oeffneHinzufuegenModal() {
     // Eingabefelder für neue Nebenkosten zurücksetzen
     const neuerBetragInput = document.getElementById('neuer-nebenkosten-betrag');
     const neuesDatumInput = document.getElementById('neuer-nebenkosten-datum');
-    
+
     if (neuerBetragInput) neuerBetragInput.value = '';
     if (neuesDatumInput) neuesDatumInput.value = new Date().toISOString().split('T')[0];
 
@@ -804,7 +847,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const originalName = document.getElementById('original-name').value;
-        
+
         // Wenn kein Original-Name vorhanden ist, handelt es sich um einen neuen Mieter
         if (!originalName) {
             await speichereMieter(event);
