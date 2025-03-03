@@ -7,53 +7,59 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 let aktiverFilter = 'alle';
 
-// Neue Funktion für E-Mail-Vorlagen
 function getEmailTemplates(mieterName) {
     return {
-        standard: {
-            subject: "Information",
-            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-
-Ich hoffe, diese E-Mail erreicht Sie gut.
-
-Mit freundlichen Grüßen`
-        },
-        verwarnung: {
-            subject: "Wichtige Verwarnung",
-            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-
-hiermit erhalten Sie eine offizielle Verwarnung aufgrund wiederholter Verstöße gegen die Hausordnung.
-
-Wir bitten Sie, dies ernst zu nehmen und Ihr Verhalten entsprechend anzupassen.
-
-Mit freundlichen Grüßen`
-        },
-        mieterhoehung: {
-            subject: "Ankündigung einer Mieterhöhung",
-            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-
-hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
-
-Die Details zur Mieterhöhung entnehmen Sie bitte dem beigefügten Schreiben.
-
-Mit freundlichen Grüßen`
-        }
+      standard: {
+        subject: "Information",
+        body: `Sehr geehrte(r) Herr/Frau ${mieterName},
+  
+  Ich hoffe, diese E-Mail erreicht Sie gut.
+  
+  Mit freundlichen Grüßen`,
+      },
+      mahnung: {
+        subject: "1. Mietmahnung",
+        body: `Sehr geehrte(r) Herr/Frau ${mieterName},
+  
+              trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen
+              Zahlungseingang der Monatsmiete {aktueller Monat}(Beispiel: Oktober 2024) verzeichnen. Bitte überweisen Sie
+              daher die Monatsmiete Oktober inkl. Nebenkosten und 5,- € Mahngebühren in Höhe
+              von {Miethöhe (in Tabelle "Wohnungen" unter "Miete" als numeric)}(Beispiel: 580,- €) spätestens bis zum 18.12.2024 auf das Ihnen bekannte Konto.
+              Es sind alle Zahlungseingänge bis einschließlich {heute in dd:MM:yyyy} berücksichtigt. Sollte
+              sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses
+              Schreiben als gegenstandlos.
+              Mit freundlichen Grüßen
+              Christina Plant
+              
+              `,
+      },
+      mieterhoehung: {
+        subject: "Ankündigung einer Mieterhöhung",
+        body: `Sehr geehrte(r) Herr/Frau ${mieterName},
+  
+  hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
+  
+  Die Details zur Mieterhöhung entnehmen Sie bitte dem beigefügten Schreiben.
+  
+  Mit freundlichen Grüßen`,
+      },
     };
-}
-
-// Modifizierte sendMail Funktion
-function sendMail(mieter, emailType = 'standard') {
+  }
+  
+  function sendMail(mieter, emailType = "standard") {
     if (!mieter.email) {
-        showNotification('Keine E-Mail-Adresse hinterlegt');
-        return;
+      showNotification("Keine E-Mail-Adresse hinterlegt");
+      return;
     }
-
+  
     const templates = getEmailTemplates(mieter.name);
     const template = templates[emailType];
-    
-    const mailtoLink = `mailto:${mieter.email}?subject=${encodeURIComponent(template.subject)}&body=${encodeURIComponent(template.body)}`;
+  
+    const mailtoLink = `mailto:${mieter.email}?subject=${encodeURIComponent(
+      template.subject
+    )}&body=${encodeURIComponent(template.body)}`;
     window.location.href = mailtoLink;
-}
+  }
 
 // Modifizierte Funktion für das E-Mail-Untermenü
 function createEmailSubmenu() {
@@ -104,7 +110,7 @@ async function showContextMenu(event, mieter) {
     const emailSubmenu = createEmailSubmenu();
     const emailOptions = [
         { text: 'E-Mail senden', type: 'standard' },
-        { text: 'Verwarnung', type: 'verwarnung' },
+        { text: 'Mietmahnung', type: 'mahnung' },
         { text: 'Mieterhöhung', type: 'mieterhoehung' }
     ];
 
