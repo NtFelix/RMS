@@ -18,12 +18,6 @@ function getEmailTemplates(mieterName, templateVars = {}) {
     const erhoehungProzent = templateVars.erhoehungProzent || '{Erhöhung in Prozent}';
 
     return {
-              Mit freundlichen Grüßen
-              `,
-      },
-      mieterhoehung: {
-
-  Mit freundlichen Grüßen`,
         standard: {
             subject: "Information",
             body: `Sehr geehrte(r) Herr/Frau ${mieterName},
