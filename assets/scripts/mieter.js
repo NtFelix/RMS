@@ -11,51 +11,65 @@ function getEmailTemplates(mieterName, templateVars = {}) {
     const currentMonth = templateVars.currentMonth || '{aktueller Monat}';
     const rentAmount = templateVars.rentAmount || '{Miethöhe (in Tabelle "Wohnungen" unter "Miete" als numeric)}';
     const todayDate = templateVars.todayDate || '{heute in dd:MM:yyyy}';
-    const deadlineDate = templateVars.deadlineDate || '{Deadline in dd.MM.yyyy (heute + 7 Tage)}'; // Neue Variable für Deadline
+    const deadlineDate = templateVars.deadlineDate || '{Deadline in dd.MM.yyyy (heute + 7 Tage)}';
+    const wohnungName = templateVars.wohnungName || '{Wohnung Name}';
+    const wohnungGroesse = templateVars.wohnungGroesse || '{Wohnung Größe}';
+    const neueMiete = templateVars.neueMiete || '{Neue Miethöhe}';
+    const erhoehungProzent = templateVars.erhoehungProzent || '{Erhöhung in Prozent}';
 
     return {
-      standard: {
-        subject: "Information",
-        body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-
-  Ich hoffe, diese E-Mail erreicht Sie gut.
-
-  Mit freundlichen Grüßen`,
-      },
-      mahnung: {
-        subject: "1. Mietmahnung",
-        body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-
-              trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen Zahlungseingang der Monatsmiete ${currentMonth} verzeichnen. Bitte überweisen Sie daher die Monatsmiete ${currentMonth} inkl. Nebenkosten und 5,- € Mahngebühren in Höhe von ${rentAmount} spätestens bis zum ${deadlineDate} auf das Ihnen bekannte Konto. Es sind alle Zahlungseingänge bis einschließlich ${todayDate} berücksichtigt. Sollte sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses Schreiben als gegenstandslos.
               Mit freundlichen Grüßen
-              Christina Plant
               `,
       },
       mieterhoehung: {
-        subject: "Ankündigung einer Mieterhöhung",
-        body: `Sehr geehrte(r) Herr/Frau ${mieterName},
-
-  hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
-
-  Die Details zur Mieterhöhung entnehmen Sie bitte dem beigefügten Schreiben.
 
   Mit freundlichen Grüßen`,
-      },
-    };
-  }
+        standard: {
+            subject: "Information",
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
 
-  async function sendMail(mieter, emailType = "standard") {
+            Ich hoffe, diese E-Mail erreicht Sie gut.
+
+            Mit freundlichen Grüßen`,
+        },
+        mahnung: {
+            subject: "1. Mietmahnung",
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName}, 
+
+            trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen Zahlungseingang der Monatsmiete ${currentMonth} verzeichnen. Bitte überweisen Sie daher die Monatsmiete ${currentMonth} inkl. Nebenkosten und 5,- € Mahngebühren in Höhe von ${rentAmount} spätestens bis zum ${deadlineDate} auf das Ihnen bekannte Konto. Es sind alle Zahlungseingänge bis einschließlich ${todayDate} berücksichtigt. Sollte sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses Schreiben als gegenstandslos.
+
+            Mit freundlichen Grüßen
+            Christina Plant
+            `,
+        },
+        mieterhoehung: {
+            subject: "Ankündigung einer Mieterhöhung",
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
+
+            hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
+
+            Betreffende Wohnung: ${wohnungName}
+            Größe der Wohnung: ${wohnungGroesse} qm
+            Ihre aktuelle Nettokaltmiete beträgt derzeit: ${rentAmount}
+            Wir erhöhen die Nettokaltmiete auf: ${neueMiete} (entspricht einer Erhöhung von ${erhoehungProzent} %).
+
+            Mit freundlichen Grüßen
+            Christina Plant`,
+        },
+    };
+}
+
+async function sendMail(mieter, emailType = "standard") {
     if (!mieter.email) {
-      showNotification("Keine E-Mail-Adresse hinterlegt");
-      return;
+        showNotification("Keine E-Mail-Adresse hinterlegt");
+        return;
     }
 
     let templateVars = {};
 
     if (emailType === 'mahnung') {
         const wohnungId = mieter['wohnung-id'];
-        console.log("Wohnung ID des Mieters:", wohnungId); // Debugging 1: Wohnung ID überprüfen
-        let miete = 'Daten nicht gefunden'; // Fallback Wert
+        let miete = 'Daten nicht gefunden';
         if (wohnungId) {
             const { data: wohnungsData, error: wohnungsError } = await supabase
                 .from('Wohnungen')
@@ -63,45 +77,76 @@ function getEmailTemplates(mieterName, templateVars = {}) {
                 .eq('id', wohnungId)
                 .single();
 
-            console.log("Supabase Fehler beim Laden der Miete:", wohnungsError); // Debugging 2: Supabase Fehler überprüfen
-            console.log("Supabase Daten der Wohnung:", wohnungsData); // Debugging 3: Supabase Daten überprüfen
-
             if (!wohnungsError && wohnungsData) {
                 miete = wohnungsData.Miete + ',- €';
             } else {
                 console.error("Fehler beim Laden der Miete:", wohnungsError);
             }
         }
-        console.log("Mietbetrag vor Template-Variable:", miete); // Debugging 4: Mietbetrag vor Template Variable überprüfen
 
         const currentDate = new Date();
         const currentMonthName = new Intl.DateTimeFormat('de-DE', { month: 'long' }).format(currentDate);
         const formattedTodayDate = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(currentDate);
-
-        // Deadline berechnen (heute + 7 Tage)
         const deadline = new Date();
         deadline.setDate(currentDate.getDate() + 7);
         const formattedDeadlineDate = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(deadline);
-
 
         templateVars = {
             currentMonth: currentMonthName,
             rentAmount: miete,
             todayDate: formattedTodayDate,
-            deadlineDate: formattedDeadlineDate // Deadline Variable hinzufügen
+            deadlineDate: formattedDeadlineDate
         };
-        console.log("Template Variablen:", templateVars); // Debugging 5: Template Variablen überprüfen
-    }
+    } else if (emailType === 'mieterhoehung') {
+        const wohnungId = mieter['wohnung-id'];
+        if (wohnungId) {
+            const { data: wohnungsData, error: wohnungsError } = await supabase
+                .from('Wohnungen')
+                .select('Wohnung, Größe, Miete')
+                .eq('id', wohnungId)
+                .single();
 
+            if (!wohnungsError && wohnungsData) {
+                const aktuelleMiete = wohnungsData.Miete;
+                const neueMieteValue = (aktuelleMiete * 1.12).toFixed(2);
+                const erhoehungProzentValue = '12%';
+
+                templateVars = {
+                    wohnungName: wohnungsData.Wohnung,
+                    wohnungGroesse: wohnungsData.Größe,
+                    rentAmount: aktuelleMiete + ',- €',
+                    neueMiete: neueMieteValue + ',- €',
+                    erhoehungProzent: erhoehungProzentValue
+                };
+            } else {
+                console.error("Fehler beim Laden der Wohnungsdaten für Mieterhöhung:", wohnungsError);
+                templateVars = {
+                    wohnungName: 'Daten nicht gefunden',
+                    wohnungGroesse: 'Daten nicht gefunden',
+                    rentAmount: 'Daten nicht gefunden',
+                    neueMiete: 'Daten nicht gefunden',
+                    erhoehungProzent: 'Daten nicht gefunden'
+                };
+            }
+        } else {
+            templateVars = {
+                wohnungName: 'Keine Wohnung zugewiesen',
+                wohnungGroesse: 'Keine Wohnung zugewiesen',
+                rentAmount: 'Keine Wohnung zugewiesen',
+                neueMiete: 'Keine Wohnung zugewiesen',
+                erhoehungProzent: 'Keine Wohnung zugewiesen'
+            };
+        }
+    }
 
     const templates = getEmailTemplates(mieter.name, templateVars);
     const template = templates[emailType];
 
     const mailtoLink = `mailto:${mieter.email}?subject=${encodeURIComponent(
-      template.subject
+        template.subject
     )}&body=${encodeURIComponent(template.body)}`;
     window.location.href = mailtoLink;
-  }
+}
 
 // Modifizierte Funktion für das E-Mail-Untermenü
 function createEmailSubmenu() {
