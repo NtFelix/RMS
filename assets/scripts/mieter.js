@@ -22,36 +22,40 @@ function getEmailTemplates(mieterName, templateVars = {}) {
             subject: "Information",
             body: `Sehr geehrte(r) Herr/Frau ${mieterName},
 
-            Ich hoffe, diese E-Mail erreicht Sie gut.
+Ich hoffe, diese E-Mail erreicht Sie gut.
 
-            Mit freundlichen Grüßen`,
+Mit freundlichen Grüßen`,
         },
         mahnung: {
             subject: "1. Mietmahnung",
-            body: `Sehr geehrte(r) Herr/Frau ${mieterName}, 
+            body: `Sehr geehrte(r) Herr/Frau ${mieterName},
 
-            trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen Zahlungseingang der Monatsmiete ${currentMonth} verzeichnen. Bitte überweisen Sie daher die Monatsmiete ${currentMonth} inkl. Nebenkosten und 5,- € Mahngebühren in Höhe von ${rentAmount} spätestens bis zum ${deadlineDate} auf das Ihnen bekannte Konto. Es sind alle Zahlungseingänge bis einschließlich ${todayDate} berücksichtigt. Sollte sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses Schreiben als gegenstandslos.
+trotz Zahlungserinnerung konnte ich leider bis heute auf meinem Konto noch keinen Zahlungseingang der Monatsmiete ${currentMonth} verzeichnen.
 
-            Mit freundlichen Grüßen
-            Christina Plant
-            `,
+Bitte überweisen Sie daher die Monatsmiete ${currentMonth} inkl. Nebenkosten und 5,- € Mahngebühren in Höhe von ${rentAmount} spätestens bis zum ${deadlineDate} auf das Ihnen bekannte Konto.
+
+Es sind alle Zahlungseingänge bis einschließlich ${todayDate} berücksichtigt. Sollte sich das mit Ihrer Überweisung überschnitten haben, betrachten Sie dieses Schreiben als gegenstandslos.
+
+Mit freundlichen Grüßen
+Christina Plant`,
         },
         mieterhoehung: {
             subject: "Ankündigung einer Mieterhöhung",
             body: `Sehr geehrte(r) Herr/Frau ${mieterName},
 
-            hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
+hiermit kündigen wir Ihnen eine Mieterhöhung gemäß § 558 BGB an.
 
-            Betreffende Wohnung: ${wohnungName}
-            Größe der Wohnung: ${wohnungGroesse} qm
-            Ihre aktuelle Nettokaltmiete beträgt derzeit: ${rentAmount}
-            Wir erhöhen die Nettokaltmiete auf: ${neueMiete} (entspricht einer Erhöhung von ${erhoehungProzent} %).
+Betreffende Wohnung: ${wohnungName}
+Größe der Wohnung: ${wohnungGroesse} qm
+Ihre aktuelle Nettokaltmiete beträgt derzeit: ${rentAmount}
+Wir erhöhen die Nettokaltmiete auf: ${neueMiete} (entspricht einer Erhöhung von ${erhoehungProzent}).
 
-            Mit freundlichen Grüßen
-            Christina Plant`,
+Mit freundlichen Grüßen
+Christina Plant`,
         },
     };
 }
+
 
 async function sendMail(mieter, emailType = "standard") {
     if (!mieter.email) {
