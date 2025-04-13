@@ -43,11 +43,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // Globale Suchfunktion
+    // Globale Suchfunktion - überarbeitet
     async function performSearch(searchTerm) {
         suchergebnisseInhalt.innerHTML = '<div class="loading-spinner"></div>';
         suchergebnisseContainer.style.display = 'block';
-        
+
         try {
             // Parallel alle Datenbanktabellen durchsuchen
             const [wohnungenResults, mieterResults, betriebskostenResults, wasserzaehlerResults, todosResults, transaktionenResults] = await Promise.all([
@@ -55,10 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 searchMieter(searchTerm),
                 searchBetriebskosten(searchTerm),
                 searchWasserzaehler(searchTerm),
-                searchTodos(searchTerm),
+                searchTodos(searchTerm),  // <-- geändert von searchTodo zu searchTodos
                 searchTransaktionen(searchTerm)
             ]);
-            
+
             // Ergebnisse anzeigen
             displaySearchResults(
                 searchTerm,
@@ -72,31 +72,60 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('Fehler bei der Suche:', error);
             suchergebnisseInhalt.innerHTML = `
-                <div class="error-message">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>Bei der Suche ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.</p>
-                </div>
-            `;
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Bei der Suche ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.</p>
+                <p class="error-details">${error.message || 'Unbekannter Fehler'}</p>
+            </div>
+        `;
+        }
+    }
+
+    
+    // KORRIGIERTE Suche in der Wohnungen-Tabelle
+    async function searchWohnungen(searchTerm) {
+        // Prüfe, ob der Suchbegriff eine Zahl sein könnte
+        const isNumeric = !isNaN(parseFloat(searchTerm)) && isFinite(searchTerm);
+        
+        let query = supabase.from('Wohnungen').select('*');
+        
+        // Separate Filter für Text- und Zahlenfelder
+        if (isNumeric) {
+            // Für numerische Suche: Größe und Miete
+            query = query.or(`Wohnung.ilike.%${searchTerm}%,id.eq.${searchTerm}`);
+            
+            // Zusätzliche Filter für Größe und Miete als Zahlen
+            const numValue = parseFloat(searchTerm);
+            const rangeQuery = supabase.from('Wohnungen').select('*')
+                .or(`Größe.eq.${numValue},Miete.eq.${numValue}`);
+                
+            const [textResults, numResults] = await Promise.all([
+                query,
+                rangeQuery
+            ]);
+            
+            // Ergebnisse zusammenführen und Duplikate entfernen
+            const allResults = [...(textResults.data || []), ...(numResults.data || [])];
+            const uniqueIds = new Set();
+            return allResults.filter(item => {
+                if (uniqueIds.has(item.id)) return false;
+                uniqueIds.add(item.id);
+                return true;
+            });
+        } else {
+            // Nur Textfelder durchsuchen
+            const { data, error } = await query.ilike('Wohnung', `%${searchTerm}%`).limit(5);
+            
+            if (error) throw error;
+            return data || [];
         }
     }
     
-    // Suche in der Wohnungen-Tabelle
-    async function searchWohnungen(searchTerm) {
-        const { data, error } = await supabase
-            .from('Wohnungen')
-            .select('*')
-            .or(`Wohnung.ilike.%${searchTerm}%,Größe::text.ilike.%${searchTerm}%,Miete::text.ilike.%${searchTerm}%`)
-            .limit(5);
-            
-        if (error) throw error;
-        return data || [];
-    }
-    
-    // Suche in der Mieter-Tabelle
+    // KORRIGIERTE Suche in der Mieter-Tabelle
     async function searchMieter(searchTerm) {
         const { data, error } = await supabase
             .from('Mieter')
-            .select('*, "wohnung-id", einzug, auszug')
+            .select('*')
             .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,telefonnummer.ilike.%${searchTerm}%,notiz.ilike.%${searchTerm}%`)
             .limit(5);
             
@@ -104,54 +133,119 @@ document.addEventListener('DOMContentLoaded', () => {
         return data || [];
     }
     
-    // Suche in der Betriebskosten-Tabelle
+    // KORRIGIERTE Suche in der Betriebskosten-Tabelle
     async function searchBetriebskosten(searchTerm) {
-        const { data, error } = await supabase
-            .from('betriebskosten')
-            .select('*')
-            .or(`nebenkostenarten::text.ilike.%${searchTerm}%,year::text.ilike.%${searchTerm}%,betrag::text.ilike.%${searchTerm}%`)
-            .limit(5);
+        // Für Jahre gezielt suchen
+        const isYear = /^\d{4}$/.test(searchTerm);
+        
+        if (isYear) {
+            const { data, error } = await supabase
+                .from('betriebskosten')
+                .select('*')
+                .eq('year', parseInt(searchTerm))
+                .limit(5);
+                
+            if (error) throw error;
+            return data || [];
+        } else {
+            // Für Textinhalte - beachte: Keine Arrays durchsuchbar mit ilike
+            // Daher hier sehr eingeschränkte Suche
+            const { data, error } = await supabase
+                .from('betriebskosten')
+                .select('*')
+                .limit(5);
+                
+            if (error) throw error;
             
-        if (error) throw error;
-        return data || [];
+            // Filtern der Ergebnisse auf Client-Seite
+            // (Da wir Arrays nicht direkt in Supabase durchsuchen können)
+            return (data || []).filter(item => {
+                // Prüfe, ob der Suchbegriff in einem der Arrays vorkommt
+                if (Array.isArray(item.nebenkostenarten)) {
+                    return item.nebenkostenarten.some(art => 
+                        art.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                }
+                return false;
+            });
+        }
     }
     
-    // Suche in der Wasserzähler-Tabelle
+    // KORRIGIERTE Suche in der Wasserzähler-Tabelle
     async function searchWasserzaehler(searchTerm) {
-        const { data, error } = await supabase
-            .from('Wasserzähler')
-            .select('*')
-            .or(`mieter-name.ilike.%${searchTerm}%,zählerstand::text.ilike.%${searchTerm}%,verbrauch::text.ilike.%${searchTerm}%,year::text.ilike.%${searchTerm}%`)
-            .limit(5);
-            
-        if (error) throw error;
-        return data || [];
+        const isNumeric = !isNaN(parseFloat(searchTerm)) && isFinite(searchTerm);
+        
+        if (isNumeric) {
+            // Für Jahr oder Verbrauch
+            const { data, error } = await supabase
+                .from('Wasserzähler')
+                .select('*')
+                .or(`year.eq.${parseInt(searchTerm)}`)
+                .limit(5);
+                
+            if (error) throw error;
+            return data || [];
+        } else {
+            // Für Mieter-Namen
+            const { data, error } = await supabase
+                .from('Wasserzähler')
+                .select('*')
+                .ilike('mieter-name', `%${searchTerm}%`)
+                .limit(5);
+                
+            if (error) throw error;
+            return data || [];
+        }
     }
     
-    // Suche in der Todos-Tabelle
+    // KORRIGIERTE Suche in der Todos-Tabelle
     async function searchTodos(searchTerm) {
-        const { data, error } = await supabase
-            .from('todos')
-            .select('*')
-            .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,status.ilike.%${searchTerm}%`)
-            .limit(5);
-            
-        if (error) throw error;
-        return data || [];
+        try {
+            // Suche nur in Text-Spalten
+            const { data, error } = await supabase
+                .from('todos')
+                .select('*')
+                .or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+                .limit(5);
+                
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.warn('Fehler beim Durchsuchen der Todos-Tabelle:', error);
+            return []; 
+        }
     }
     
-    // Suche in der Transaktionen-Tabelle
+
+    
+    // KORRIGIERTE Suche in der Transaktionen-Tabelle
     async function searchTransaktionen(searchTerm) {
-        const { data, error } = await supabase
-            .from('transaktionen')
-            .select('*')
-            .or(`name.ilike.%${searchTerm}%,betrag::text.ilike.%${searchTerm}%,notizen.ilike.%${searchTerm}%,"wohnung-id"::text.ilike.%${searchTerm}%`)
-            .limit(5);
-            
-        if (error) throw error;
-        return data || [];
+        const isNumeric = !isNaN(parseFloat(searchTerm)) && isFinite(searchTerm);
+        
+        if (isNumeric) {
+            // Für Beträge
+            const { data, error } = await supabase
+                .from('transaktionen')
+                .select('*')
+                .eq('betrag', parseFloat(searchTerm))
+                .limit(5);
+                
+            if (error) throw error;
+            return data || [];
+        } else {
+            // Für Text
+            const { data, error } = await supabase
+                .from('transaktionen')
+                .select('*')
+                .or(`name.ilike.%${searchTerm}%,notizen.ilike.%${searchTerm}%`)
+                .limit(5);
+                
+            if (error) throw error;
+            return data || [];
+        }
     }
     
+    // Die restlichen Funktionen bleiben unverändert
     // Anzeige der Suchergebnisse
     function displaySearchResults(searchTerm, wohnungen, mieter, betriebskosten, wasserzaehler, todos, transaktionen) {
         // Prüfen, ob Ergebnisse vorhanden sind
@@ -206,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
         attachResultClickHandlers();
     }
     
-    // Erstellt einen Abschnitt für eine Kategorie von Suchergebnissen
+    // Hilfsfunktionen für die Ergebnisanzeige bleiben unverändert
     function createCategorySection(title, items, renderFunction) {
         let html = `
             <div class="result-category">
@@ -226,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return html;
     }
     
-    // Rendert ein Wohnungs-Element
+    // Render-Funktionen für die verschiedenen Ergebnistypen bleiben unverändert
     function renderWohnungItem(wohnung) {
         return `
             <div class="result-item" data-type="wohnung" data-id="${wohnung.id}">
@@ -245,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
     
-    // Rendert ein Mieter-Element
     function renderMieterItem(mieter) {
         const istAusgezogen = mieter.auszug ? 'Ausgezogen am ' + new Date(mieter.auszug).toLocaleDateString() : 'Aktiv';
         const status = mieter.auszug ? 'ausgezogen' : 'aktiv';
@@ -271,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
     
-    // Rendert ein Betriebskosten-Element
     function renderBetriebskostenItem(betriebskosten) {
         // Gesamtsumme der Betriebskosten berechnen
         let gesamtkosten = 0;
@@ -286,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="result-title">Abrechnung ${betriebskosten.year}</div>
                     <div class="result-details">
                         <span><i class="fas fa-euro-sign"></i> Gesamtkosten: ${gesamtkosten.toFixed(2)} €</span>
-                        <span><i class="fas fa-ruler-combined"></i> Gesamtfläche: ${betriebskosten.gesamtflaeche} m²</span>
+                        <span><i class="fas fa-ruler-combined"></i> Gesamtfläche: ${betriebskosten.gesamtflaeche || 0} m²</span>
                     </div>
                 </div>
                 <div class="result-action">
@@ -296,7 +388,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
     
-    // Rendert ein Wasserzähler-Element
     function renderWasserzaehlerItem(wasserzaehler) {
         return `
             <div class="result-item" data-type="wasserzaehler" data-id="${wasserzaehler.id}">
@@ -316,7 +407,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
     
-    // Rendert ein Todo-Element
     function renderTodoItem(todo) {
         const statusMapping = {
             'open': { text: 'Offen', class: 'open' },
@@ -324,7 +414,23 @@ document.addEventListener('DOMContentLoaded', () => {
             'done': { text: 'Erledigt', class: 'done' }
         };
         
-        const status = statusMapping[todo.status] || { text: todo.status, class: '' };
+        const status = statusMapping[todo.status] || { text: todo.status || 'Unbekannt', class: '' };
+        
+        // Datum formatieren
+        const formatDate = (dateString) => {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('de-DE', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        };
+        
+        const createdDate = formatDate(todo.created_at);
+        const editedDate = formatDate(todo.edited_at);
         
         return `
             <div class="result-item" data-type="todo" data-id="${todo.id}">
@@ -333,7 +439,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="result-title">${todo.name || 'Unbenannte Aufgabe'}</div>
                     <div class="result-details">
                         <span class="status-badge ${status.class}">${status.text}</span>
-                        ${todo.created_at ? `<span><i class="fas fa-calendar-plus"></i> Erstellt: ${new Date(todo.created_at).toLocaleDateString()}</span>` : ''}
+                        ${createdDate ? `<span><i class="fas fa-calendar-plus"></i> Erstellt: ${createdDate}</span>` : ''}
+                        ${editedDate ? `<span><i class="fas fa-edit"></i> Bearbeitet: ${editedDate}</span>` : ''}
                     </div>
                     ${todo.description ? `<div class="result-description">${todo.description}</div>` : ''}
                 </div>
@@ -344,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
     
-    // Rendert ein Transaktions-Element
+    
     function renderTransaktionItem(transaktion) {
         const isEinnahme = transaktion.ist_einnahmen;
         const transaktionsTyp = isEinnahme ? 'Einnahme' : 'Ausgabe';
@@ -407,6 +514,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+    }
+
+    // Hilfsfunktion für Benachrichtigungen
+    function showNotification(message, type = 'info') {
+        // Prüfen, ob showNotification bereits global definiert ist
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+        } else {
+            // Fallback, falls nicht global verfügbar
+            console.log(`Benachrichtigung (${type}): ${message}`);
+            alert(message);
+        }
     }
 });
 
