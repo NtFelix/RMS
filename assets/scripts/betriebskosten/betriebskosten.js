@@ -2,7 +2,7 @@ import { supabase } from '../supabase.js';
 import { showContextMenu, openEditModal, addNebenkostenart } from './betriebskostenUI.js';
 import { openWasserzaehlerModal } from './betriebskostenWasser.js';
 import { generatePDF } from './betriebskostenPDF.js';
-import { showOverview, erstelleDetailAbrechnung, setLoadBetriebskosten } from './shared.js';
+import { showOverview, erstelleDetailAbrechnung, setLoadBetriebskosten } from '../shared/shared.js';
 
 // Modify the loadBetriebskosten function to add context menu functionality
 async function loadBetriebskosten() {

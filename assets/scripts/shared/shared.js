@@ -1,7 +1,7 @@
 // Zuerst JSZip importieren (muss im HTML eingebunden sein)
 const JSZip = window.JSZip;
 import { supabase } from '../supabase.js';
-import { generatePDF } from './betriebskostenPDF.js';
+import { generatePDF } from '../betriebskosten/betriebskostenPDF.js';
 
 let loadBetriebskosten = () => console.warn('loadBetriebskosten not yet initialized');
 let openWasserzaehlerModal;
