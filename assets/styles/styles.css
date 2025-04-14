@@ -750,6 +750,7 @@ table tr:last-child td:last-child {
     background-color: #f0f0f0;
     border: none;
     padding: 10px 20px;
+    margin-right: 10px;
     cursor: pointer;
     border-radius: var(--button-radius);
     transition: background-color 0.3s;
