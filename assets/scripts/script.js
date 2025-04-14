@@ -297,6 +297,154 @@ async function ladeMieter() {
   }
 }
 
+let aktiverFilter = 'alle'; // Standardfilter festlegen
+
+// Funktion zum Filtern der Wohnungen basierend auf dem aktiven Filter
+async function filterWohnungen() {
+    try {
+        // Lade zuerst alle Wohnungen
+        const { data, error } = await supabase
+            .from('Wohnungen')
+            .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
+        
+        if (error) throw error;
+        
+        // Tabelle leeren
+        const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
+        tabelle.innerHTML = '';
+        
+        let gesamtMiete = 0;
+        let anzahlWohnungen = 0;
+        const heutigesDatum = new Date();
+        
+        // Filtere und zeige Wohnungen basierend auf dem aktiven Filter
+        data.forEach(wohnung => {
+            let istVermietet = false;
+            let mieterName = 'Nicht vermietet';
+            
+            // Prüfe, ob die Wohnung aktuell vermietet ist
+            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+                const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                    if (!mieter.auszug) return true; // Kein Auszugsdatum gesetzt
+                    const auszugsDatum = new Date(mieter.auszug);
+                    return auszugsDatum > heutigesDatum; // Auszugsdatum in der Zukunft
+                });
+                
+                if (aktuellerMieter) {
+                    mieterName = aktuellerMieter.name;
+                    istVermietet = true;
+                }
+            }
+            
+            // Wende den Filter an
+            let zeigeWohnung = false;
+            if (aktiverFilter === 'alle') {
+                zeigeWohnung = true;
+            } else if (aktiverFilter === 'vermietet' && istVermietet) {
+                zeigeWohnung = true;
+            } else if (aktiverFilter === 'frei' && !istVermietet) {
+                zeigeWohnung = true;
+            }
+            
+            // Wenn Wohnung angezeigt werden soll, füge sie zur Tabelle hinzu
+            if (zeigeWohnung) {
+                anzahlWohnungen++;
+                const zeile = tabelle.insertRow();
+                zeile.insertCell(0).textContent = wohnung.Wohnung;
+                zeile.insertCell(1).textContent = mieterName;
+                zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
+                zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
+                
+                // Berechnung des Preises pro Quadratmeter
+                const preisProQm = wohnung.Miete / wohnung.Größe;
+                zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
+                
+                // "Miete bezahlt" Button
+                const mieteBezahltZelle = zeile.insertCell(5);
+                const mieteBezahltButton = document.createElement('button');
+                mieteBezahltButton.textContent = 'Miete bezahlt';
+                mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
+                mieteBezahltZelle.appendChild(mieteBezahltButton);
+                
+                if (istVermietet) {
+                    gesamtMiete += wohnung.Miete;
+                }
+            }
+        });
+        
+        // Aktualisiere die Zusammenfassung
+        document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
+        document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
+    } catch (error) {
+        console.error('Fehler beim Filtern der Wohnungen:', error.message);
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Funktion zum Initialisieren der Filter-Buttons
+function initFilterButtons() {
+    const filterButtons = document.querySelectorAll('.filter-button');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Aktive Klasse umschalten
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Neuen Filter setzen und Wohnungen aktualisieren
+            aktiverFilter = button.dataset.filter;
+            filterWohnungen();
+        });
+    });
+}
+
+// Funktion zur Filterung der Tabelle nach Suchbegriff
+function sucheTabelleninhalt() {
+    const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
+    const tabelle = document.getElementById('wohnungen-tabelle');
+    const zeilen = tabelle.getElementsByTagName('tr');
+
+    for (let i = 1; i < zeilen.length; i++) {
+        const zeile = zeilen[i];
+        const zellen = zeile.getElementsByTagName('td');
+        let treffer = false;
+
+        for (let j = 0; j < zellen.length; j++) {
+            const zellText = zellen[j].textContent || zellen[j].innerText;
+            if (zellText.toLowerCase().indexOf(suchbegriff) > -1) {
+                treffer = true;
+                break;
+            }
+        }
+
+        zeile.style.display = treffer ? "" : "none";
+    }
+}
+
+// Event-Listener-Registrierung bei Seitenladung
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuthStatus();
+    document.getElementById('logout-button').addEventListener('click', handleLogout);
+    
+    // Initialisiere Filter-Buttons
+    initFilterButtons();
+    
+    // Lade Wohnungen mit aktivem Filter
+    filterWohnungen();
+    
+    // Event-Listener für Suchfeld
+    const suchfeld = document.getElementById('search-table-input');
+    suchfeld.addEventListener('input', sucheTabelleninhalt);
+    
+    // Neue Event-Listener für die globale Suche
+    document.getElementById('search-button').addEventListener('click', handleSuche);
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSuche();
+        }
+    });
+});
+
+
 // Passen Sie den DOMContentLoaded Event-Listener an
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthStatus();
