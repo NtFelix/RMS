@@ -94,65 +94,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
-
-
-async function ladeWohnungen() {
-    try {
-        const { data, error } = await supabase
-            .from('Wohnungen')
-            .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
-        if (error) throw error;
-        
-        const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
-        tabelle.innerHTML = ''; // Leere die Tabelle zuerst
-        
-        let gesamtMiete = 0;
-        let anzahlWohnungen = data.length;
-        const heutigesDatum = new Date();
-        
-        data.forEach(wohnung => {
-            const zeile = tabelle.insertRow();
-            zeile.insertCell(0).textContent = wohnung.Wohnung;
-            
-            // Logik für den aktuellen Mieter
-            let mieterName = 'Nicht vermietet';
-            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
-                const aktuellerMieter = wohnung.Mieter.find(mieter => {
-                    if (!mieter.auszug) return true; // Kein Auszugsdatum gesetzt
-                    const auszugsDatum = new Date(mieter.auszug);
-                    return auszugsDatum > heutigesDatum; // Auszugsdatum in der Zukunft
-                });
-                if (aktuellerMieter) {
-                    mieterName = aktuellerMieter.name;
-                }
-            }
-            zeile.insertCell(1).textContent = mieterName;
-            zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
-            zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
-            
-            // Berechnung des Preises pro Quadratmeter
-            const preisProQm = wohnung.Miete / wohnung.Größe;
-            zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
-            
-            // Neue Zelle für "Miete bezahlt"
-            const mieteBezahltZelle = zeile.insertCell(5);
-            const mieteBezahltButton = document.createElement('button');
-            mieteBezahltButton.textContent = 'Miete bezahlt';
-            mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
-            mieteBezahltZelle.appendChild(mieteBezahltButton);
-            
-            gesamtMiete += wohnung.Miete;
-        });
-        
-        // Aktualisiere die Zusammenfassung
-        document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
-        document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
-    } catch (error) {
-        console.error('Fehler beim Laden der Wohnungen:', error.message);
-        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
-    }
-}
-
 async function mieteBezahlt(wohnungId, betrag) {
     try {
         // Hole Informationen zur Wohnung und zum aktuellen Mieter
@@ -297,152 +238,102 @@ async function ladeMieter() {
   }
 }
 
-let aktiverFilter = 'alle'; // Standardfilter festlegen
+let aktiverFilter = 'alle';
 
-// Funktion zum Filtern der Wohnungen basierend auf dem aktiven Filter
-async function filterWohnungen() {
+document.addEventListener('DOMContentLoaded', () => {
+    // Filter-Buttons initialisieren
+    const filterButtons = document.querySelectorAll('.filter-button');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            aktiverFilter = button.dataset.filter;
+            filterUndSucheWohnungen();
+        });
+    });
+
+    // Suchfeld initialisieren
+    const suchfeld = document.getElementById('search-table-input');
+    suchfeld.addEventListener('input', filterUndSucheWohnungen);
+
+    // Initiales Laden
+    ladeWohnungen();
+});
+
+async function ladeWohnungen() {
     try {
-        // Lade zuerst alle Wohnungen
         const { data, error } = await supabase
             .from('Wohnungen')
             .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
-        
         if (error) throw error;
-        
-        // Tabelle leeren
-        const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
-        tabelle.innerHTML = '';
-        
-        let gesamtMiete = 0;
-        let anzahlWohnungen = 0;
-        const heutigesDatum = new Date();
-        
-        // Filtere und zeige Wohnungen basierend auf dem aktiven Filter
-        data.forEach(wohnung => {
-            let istVermietet = false;
-            let mieterName = 'Nicht vermietet';
-            
-            // Prüfe, ob die Wohnung aktuell vermietet ist
-            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
-                const aktuellerMieter = wohnung.Mieter.find(mieter => {
-                    if (!mieter.auszug) return true; // Kein Auszugsdatum gesetzt
-                    const auszugsDatum = new Date(mieter.auszug);
-                    return auszugsDatum > heutigesDatum; // Auszugsdatum in der Zukunft
-                });
-                
-                if (aktuellerMieter) {
-                    mieterName = aktuellerMieter.name;
-                    istVermietet = true;
-                }
-            }
-            
-            // Wende den Filter an
-            let zeigeWohnung = false;
-            if (aktiverFilter === 'alle') {
-                zeigeWohnung = true;
-            } else if (aktiverFilter === 'vermietet' && istVermietet) {
-                zeigeWohnung = true;
-            } else if (aktiverFilter === 'frei' && !istVermietet) {
-                zeigeWohnung = true;
-            }
-            
-            // Wenn Wohnung angezeigt werden soll, füge sie zur Tabelle hinzu
-            if (zeigeWohnung) {
-                anzahlWohnungen++;
-                const zeile = tabelle.insertRow();
-                zeile.insertCell(0).textContent = wohnung.Wohnung;
-                zeile.insertCell(1).textContent = mieterName;
-                zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
-                zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
-                
-                // Berechnung des Preises pro Quadratmeter
-                const preisProQm = wohnung.Miete / wohnung.Größe;
-                zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
-                
-                // "Miete bezahlt" Button
-                const mieteBezahltZelle = zeile.insertCell(5);
-                const mieteBezahltButton = document.createElement('button');
-                mieteBezahltButton.textContent = 'Miete bezahlt';
-                mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
-                mieteBezahltZelle.appendChild(mieteBezahltButton);
-                
-                if (istVermietet) {
-                    gesamtMiete += wohnung.Miete;
-                }
-            }
-        });
-        
-        // Aktualisiere die Zusammenfassung
-        document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
-        document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
+        window.alleWohnungen = data; // Speichere alle Daten global
+        filterUndSucheWohnungen();
     } catch (error) {
-        console.error('Fehler beim Filtern der Wohnungen:', error.message);
+        console.error('Fehler beim Laden der Wohnungen:', error.message);
         showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
 
-// Funktion zum Initialisieren der Filter-Buttons
-function initFilterButtons() {
-    const filterButtons = document.querySelectorAll('.filter-button');
-    filterButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            // Aktive Klasse umschalten
-            filterButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            
-            // Neuen Filter setzen und Wohnungen aktualisieren
-            aktiverFilter = button.dataset.filter;
-            filterWohnungen();
-        });
-    });
-}
-
-// Funktion zur Filterung der Tabelle nach Suchbegriff
-function sucheTabelleninhalt() {
+function filterUndSucheWohnungen() {
     const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
-    const tabelle = document.getElementById('wohnungen-tabelle');
-    const zeilen = tabelle.getElementsByTagName('tr');
+    const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
+    tabelle.innerHTML = '';
+    const heutigesDatum = new Date();
 
-    for (let i = 1; i < zeilen.length; i++) {
-        const zeile = zeilen[i];
-        const zellen = zeile.getElementsByTagName('td');
-        let treffer = false;
-
-        for (let j = 0; j < zellen.length; j++) {
-            const zellText = zellen[j].textContent || zellen[j].innerText;
-            if (zellText.toLowerCase().indexOf(suchbegriff) > -1) {
-                treffer = true;
-                break;
-            }
+    let gefilterteWohnungen = (window.alleWohnungen || []).filter(wohnung => {
+        // Filter-Logik
+        let istVermietet = false;
+        if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+            const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                if (!mieter.auszug) return true;
+                return new Date(mieter.auszug) > heutigesDatum;
+            });
+            if (aktuellerMieter) istVermietet = true;
         }
 
-        zeile.style.display = treffer ? "" : "none";
-    }
+        if (aktiverFilter === 'vermietet' && !istVermietet) return false;
+        if (aktiverFilter === 'frei' && istVermietet) return false;
+
+        // Such-Logik
+        const felder = [
+            wohnung.Wohnung,
+            wohnung.Größe?.toString(),
+            wohnung.Miete?.toString(),
+            istVermietet ? wohnung.Mieter[0]?.name : 'Nicht vermietet'
+        ];
+        return felder.some(feld => feld && feld.toLowerCase().includes(suchbegriff));
+    });
+
+    // Tabelle befüllen
+    gefilterteWohnungen.forEach(wohnung => {
+        const zeile = tabelle.insertRow();
+        zeile.insertCell(0).textContent = wohnung.Wohnung;
+        let mieterName = 'Nicht vermietet';
+        if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+            const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                if (!mieter.auszug) return true;
+                return new Date(mieter.auszug) > heutigesDatum;
+            });
+            if (aktuellerMieter) mieterName = aktuellerMieter.name;
+        }
+        zeile.insertCell(1).textContent = mieterName;
+        zeile.insertCell(2).textContent = wohnung.Größe ? wohnung.Größe.toFixed(2) + ' m²' : '';
+        zeile.insertCell(3).textContent = wohnung.Miete ? wohnung.Miete.toFixed(2) + ' €' : '';
+        const preisProQm = wohnung.Miete && wohnung.Größe ? wohnung.Miete / wohnung.Größe : 0;
+        zeile.insertCell(4).textContent = preisProQm ? preisProQm.toFixed(2) + ' €/m²' : '';
+        const mieteBezahltZelle = zeile.insertCell(5);
+        const mieteBezahltButton = document.createElement('button');
+        mieteBezahltButton.textContent = 'Miete bezahlt';
+        mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
+        mieteBezahltZelle.appendChild(mieteBezahltButton);
+    });
+
+    // Zusammenfassung aktualisieren
+    document.getElementById('total-wohnungen').textContent = gefilterteWohnungen.length;
+    const gesamtMiete = gefilterteWohnungen.reduce((sum, w) => sum + (w.Miete || 0), 0);
+    document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
 }
 
-// Event-Listener-Registrierung bei Seitenladung
-document.addEventListener('DOMContentLoaded', () => {
-    checkAuthStatus();
-    document.getElementById('logout-button').addEventListener('click', handleLogout);
-    
-    // Initialisiere Filter-Buttons
-    initFilterButtons();
-    
-    // Lade Wohnungen mit aktivem Filter
-    filterWohnungen();
-    
-    // Event-Listener für Suchfeld
-    const suchfeld = document.getElementById('search-table-input');
-    suchfeld.addEventListener('input', sucheTabelleninhalt);
-    
-    // Neue Event-Listener für die globale Suche
-    document.getElementById('search-button').addEventListener('click', handleSuche);
-    document.getElementById('search-input').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleSuche();
-        }
-    });
-});
 
 
 // Passen Sie den DOMContentLoaded Event-Listener an
