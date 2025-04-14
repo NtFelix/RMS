@@ -9,8 +9,10 @@
     <link rel="stylesheet" href="assets/styles/styles.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script type="module" src="assets/scripts/script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+
+    <script type="module" src="assets/scripts/script.js"></script>
     <script src="assets/scripts/shared-scripts.js"></script>
     <script type="module" src="assets/scripts/shared/search.js"></script>
 </head>
@@ -76,6 +78,10 @@
                         <button class="filter-button" data-filter="frei">Frei</button>
                     </div>
                     <input type="text" id="search-table-input" placeholder="Daten suchen">
+                </div>
+
+                <div class="chart-container" style="position: relative; height:300px; width:100%; margin-bottom: 20px;">
+                    <canvas id="wohnungsChart"></canvas>
                 </div>
 
 

@@ -447,6 +447,109 @@ function initFilterButtons() {
     });
 }
 
+// Chart-Daten und Konfiguration
+async function initializeCharts() {
+    try {
+        // Hole Daten von Supabase
+        const { data: wohnungen, error } = await supabase
+            .from('Wohnungen')
+            .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
+        
+        if (error) throw error;
+        
+        // Daten für den Chart aufbereiten
+        const heutigesDatum = new Date();
+        let vermietet = 0;
+        let frei = 0;
+        let gesamtMiete = 0;
+        let gesamtFläche = 0;
+        
+        wohnungen.forEach(wohnung => {
+            gesamtFläche += wohnung.Größe;
+            
+            // Prüfen, ob die Wohnung aktuell vermietet ist
+            let istVermietet = false;
+            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+                const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                    if (!mieter.auszug) return true;
+                    const auszugsDatum = new Date(mieter.auszug);
+                    return auszugsDatum > heutigesDatum;
+                });
+                
+                if (aktuellerMieter) {
+                    istVermietet = true;
+                    gesamtMiete += wohnung.Miete;
+                    vermietet++;
+                } else {
+                    frei++;
+                }
+            } else {
+                frei++;
+            }
+        });
+        
+        // Belegungsstatus-Chart
+        const belegungsChart = document.getElementById('wohnungsChart');
+        new Chart(belegungsChart, {
+            type: 'doughnut',
+            data: {
+                labels: ['Vermietet', 'Frei'],
+                datasets: [{
+                    data: [vermietet, frei],
+                    backgroundColor: [
+                        'rgba(75, 192, 192, 0.7)',
+                        'rgba(255, 99, 132, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(75, 192, 192, 1)',
+                        'rgba(255, 99, 132, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Wohnungsbelegung'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Hier können weitere Charts hinzugefügt werden, z.B. für Mieteinnahmen pro Monat, etc.
+        
+    } catch (error) {
+        console.error('Fehler beim Laden der Chart-Daten:', error.message);
+        showNotification('Fehler beim Laden der Chart-Daten. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Event-Listener hinzufügen
+document.addEventListener('DOMContentLoaded', () => {
+    // Überprüfen, ob wir auf der richtigen Seite sind
+    if (document.getElementById('wohnungsChart')) {
+        initializeCharts();
+    }
+});
+
+
 // Event-Listener beim Laden der Seite
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthStatus();
