@@ -80,16 +80,21 @@
                     <input type="text" id="search-table-input" placeholder="Daten suchen">
                 </div>
 
+                <div class="chart-options">
+                    <label for="chart-selector">Datenansicht wählen:</label>
+                    <select id="chart-selector" class="form-control">
+                        <option value="belegung">Wohnungsbelegung</option>
+                        <option value="miete">Monatliche Mieteinnahmen</option>
+                        <option value="preis-qm">Preis pro m² Vergleich</option>
+                        <option value="zahlungen">Zahlungsstatus</option>
+                    </select>
+                </div>
+                
                 <div class="chart-container" style="position: relative; height:300px; width:100%; margin-bottom: 20px;">
                     <canvas id="wohnungsChart"></canvas>
                 </div>
+                
 
-
-                <p> [Hier den Chart einfügen] <br>
-                    Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen. [Notiz] Man soll eine Reihe
-                    anklicken können und es öffnet sich ein Container mit allen Informationen.
-                    Außerdem ist ein Mieter erst ausgezogen, wenn ein datum beim Auszug eingetragen ist.
-                </p>
                 <h2>Wohnungsübersicht</h2>
                 <table id="wohnungen-tabelle">
                     <thead>
