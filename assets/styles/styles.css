@@ -741,7 +741,7 @@ table tr:last-child td:last-child {
     transition: background-color 0.3s ease;
 }
 
-.mieter-filter, .wohnung-filter {
+.mieter-filter, .wohnung-filter, .todo-filter {
     display: flex;
     justify-content: center;
 }
@@ -751,6 +751,7 @@ table tr:last-child td:last-child {
     border: none;
     padding: 10px 20px;
     margin-right: 10px;
+    margin-bottom: 0px;
     cursor: pointer;
     border-radius: var(--button-radius);
     transition: background-color 0.3s;
