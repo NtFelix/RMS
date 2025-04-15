@@ -454,6 +454,15 @@ async function updateRentPaymentStatus() {
         const currentMonth = currentDate.getMonth();
         const currentYear = currentDate.getFullYear();
         
+        // Deutsche Monatsnamen
+        const monthNames = [
+            'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+            'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+        ];
+        
+        // Aktuellen Monatsnamen setzen
+        document.getElementById('current-month').textContent = `${monthNames[currentMonth]}`;
+        
         // Alle Wohnungen mit Mieterinformationen abrufen
         const { data: wohnungen, error } = await supabase
             .from('Wohnungen')
