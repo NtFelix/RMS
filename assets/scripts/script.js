@@ -447,6 +447,69 @@ function initFilterButtons() {
     });
 }
 
+async function updateRentPaymentStatus() {
+    try {
+        // Aktuelles Datum abrufen
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        
+        // Alle Wohnungen mit Mieterinformationen abrufen
+        const { data: wohnungen, error } = await supabase
+            .from('Wohnungen')
+            .select(`id, Mieter (name, auszug)`);
+        
+        if (error) throw error;
+        
+        // Alle Mietzahlungen für den aktuellen Monat abrufen
+        const { data: transaktionen, error: transaktionenError } = await supabase
+            .from('transaktionen')
+            .select(`id, wohnung-id, name, transaction-date, betrag`)
+            .eq('name', 'Miete');
+            
+        if (transaktionenError) throw transaktionenError;
+        
+        // Vermietete Wohnungen und bezahlte Mieten zählen
+        let vermietetAnzahl = 0;
+        let bezahltAnzahl = 0;
+        
+        // Jede Wohnung überprüfen
+        wohnungen.forEach(wohnung => {
+            // Prüfen, ob die Wohnung aktuell vermietet ist
+            const istVermietet = wohnung.Mieter && wohnung.Mieter.length > 0 && 
+                             wohnung.Mieter.some(mieter => {
+                                 if (!mieter.auszug) return true;
+                                 const auszugsDatum = new Date(mieter.auszug);
+                                 return auszugsDatum > currentDate;
+                             });
+            
+            if (istVermietet) {
+                vermietetAnzahl++;
+                
+                // Prüfen, ob die Miete für diesen Monat bezahlt wurde
+                const istBezahlt = transaktionen.some(transaktion => {
+                    const transaktionsDatum = new Date(transaktion['transaction-date']);
+                    return transaktion['wohnung-id'] === wohnung.id &&
+                           transaktionsDatum.getMonth() === currentMonth &&
+                           transaktionsDatum.getFullYear() === currentYear;
+                });
+                
+                if (istBezahlt) {
+                    bezahltAnzahl++;
+                }
+            }
+        });
+        
+        // Anzeige aktualisieren
+        document.getElementById('total-paid-rents').textContent = `${bezahltAnzahl}/${vermietetAnzahl}`;
+        
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren des Mietstatus:', error.message);
+        showNotification('Fehler beim Abrufen der Mietstatistik.');
+    }
+}
+
+
 // Chart-Objekt global deklarieren, damit es von anderen Funktionen aktualisiert werden kann
 let wohnungsChart;
 
@@ -859,6 +922,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Lade Wohnungen mit dem Standard-Filter
     filterWohnungen();
+    
+    // Mietstatistik aktualisieren
+    updateRentPaymentStatus();
     
     // Event-Listener für das Suchfeld
     const suchfeld = document.getElementById('search-table-input');
