@@ -350,3 +350,142 @@ function createChartConfig(chartType, chartData) {
                     },
                     plugins: {
                         legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Einnahmen vs. Ausgaben'
+                        }
+                    }
+                }
+            };
+            
+        case 'expense-categories':
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)',
+                            'rgba(199, 199, 199, 0.7)',
+                            'rgba(83, 102, 255, 0.7)',
+                            'rgba(40, 159, 64, 0.7)',
+                            'rgba(210, 199, 199, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)',
+                            'rgba(255, 159, 64, 1)',
+                            'rgba(199, 199, 199, 1)',
+                            'rgba(83, 102, 255, 1)',
+                            'rgba(40, 159, 64, 1)',
+                            'rgba(210, 199, 199, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Ausgabenkategorien'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value.toFixed(2)} € (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+        default:
+            return {
+                type: 'pie',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)',
+                            'rgba(255, 159, 64, 0.7)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Datenvisualisierung'
+                        }
+                    }
+                }
+            };
+    }
+}
+
+// Chart aktualisieren oder erstellen
+function updateChart(config) {
+    const ctx = document.getElementById('finance-chart').getContext('2d');
+    
+    // Falls bereits ein Chart existiert, diesen zerstören
+    if (finanzChart) {
+        finanzChart.destroy();
+    }
+    
+    // Neuen Chart erstellen
+    finanzChart = new Chart(ctx, config);
+}
+
+// Funktion zum Anzeigen von Benachrichtigungen
+function showNotification(message, type = 'success') {
+    // Falls im Hauptskript implementiert, nutzen Sie diese Funktion
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+    } else {
+        // Fallback: Alert anzeigen
+        if (type === 'error') {
+            console.error(message);
+            alert(message);
+        } else {
+            console.log(message);
+        }
+    }
+}
+
+// Event-Listener für die Seite
+document.addEventListener('DOMContentLoaded', initializeFinanceCharts);
+
+// Export der Funktionen für Verwendung in anderen Skripten
+export { updateChartByType };
