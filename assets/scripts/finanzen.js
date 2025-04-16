@@ -185,6 +185,12 @@ async function ladeTransaktionen() {
         console.error('Fehler beim Laden der Transaktionen:', error.message);
         alert('Fehler beim Laden der Transaktionen. Bitte versuchen Sie es später erneut.');
     }
+    // Nach dem erfolgreichen Laden der Transaktionen die Charts aktualisieren
+    if (typeof updateChartByType === 'function') {
+        const chartSelector = document.getElementById('chart-selector');
+        const currentChartType = chartSelector ? chartSelector.value : 'income-distribution';
+        await updateChartByType(currentChartType);
+    }
 }
 
 function initFilterButtons() {
@@ -298,6 +304,11 @@ async function speichereTransaktionAenderungen(event) {
     } catch (error) {
         console.error('Fehler beim Speichern der Transaktion:', error.message);
         showNotification('Fehler beim Speichern der Transaktion. Bitte versuchen Sie es später erneut.', 'error');
+    }
+    if (typeof updateChartByType === 'function') {
+        const chartSelector = document.getElementById('chart-selector');
+        const currentChartType = chartSelector ? chartSelector.value : 'income-distribution';
+        await updateChartByType(currentChartType);
     }
 }
 

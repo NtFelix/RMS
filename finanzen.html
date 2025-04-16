@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finanzen</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="assets/styles/styles.css">
 
@@ -11,6 +12,7 @@
     <script type="module" src="assets/scripts/finanzen.js"></script>
 
     <script src="assets/scripts/shared-scripts.js"></script>
+    <script type="module" src="assets/scripts/finanzen-charts.js"></script>
     <script type="module" src="assets/scripts/shared/search.js"></script>
 </head>
 <body>
@@ -56,6 +58,22 @@
                 <div class="summary-card">
                     <h3>Saldo</h3>
                     <p id="saldo">0 €</p>
+                </div>
+            </div>
+
+            <div class="visualization-section">
+                <div class="chart-options">
+                    <label for="chart-selector">Visualisierung wählen:</label>
+                    <select id="chart-selector" class="form-control">
+                        <option value="income-distribution">Einnahmen nach Wohnung</option>
+                        <option value="monthly-income">Monatliche Einnahmen</option>
+                        <option value="income-expense-ratio">Einnahmen-Ausgaben-Verhältnis</option>
+                        <option value="expense-categories">Ausgabenkategorien</option>
+                    </select>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="finance-chart"></canvas>
                 </div>
             </div>
 

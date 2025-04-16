@@ -1054,3 +1054,39 @@ table button:hover {
 .context-menu-item:hover .email-submenu {
     display: block;
 }
+
+
+
+.visualization-section {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.chart-options {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.chart-options label {
+    font-weight: bold;
+    margin: 0;
+}
+
+.chart-options select {
+    padding: 8px 15px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    min-width: 250px;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+}
