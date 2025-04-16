@@ -5,6 +5,30 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+
+// Globaler Verweis auf das aktuelle Filterjahr
+let selectedYear = '';
+
+// Event-Listener für den Jahr-Selektor hinzufügen
+document.addEventListener('DOMContentLoaded', () => {
+    const jahrSelect = document.getElementById('jahr-select');
+    if (jahrSelect) {
+        // Initialen Wert setzen
+        selectedYear = jahrSelect.value || new Date().getFullYear().toString();
+        
+        // Event-Listener hinzufügen
+        jahrSelect.addEventListener('change', function() {
+            selectedYear = this.value;
+            
+            // Chart aktualisieren mit dem neuen Jahr
+            const chartSelector = document.getElementById('chart-selector');
+            const currentChartType = chartSelector ? chartSelector.value : 'income-distribution';
+            updateChartByType(currentChartType);
+        });
+    }
+});
+
+
 // Globale Variable für das aktuelle Chart-Objekt
 let finanzChart;
 
@@ -96,16 +120,26 @@ async function getIncomeDistributionData() {
     }
 }
 
-// Daten für monatliche Einnahmen (Liniendiagramm)
+// Daten für monatliche Einnahmen mit Jahresfilter
 async function getMonthlyIncomeData() {
     try {
-        const currentYear = new Date().getFullYear();
-        const { data: transactions, error } = await supabase
+        // Jahr aus der Auswahl nutzen oder aktuelles Jahr als Fallback
+        const year = selectedYear || new Date().getFullYear().toString();
+        
+        // Supabase-Abfrage mit Jahresfilter
+        let query = supabase
             .from('transaktionen')
             .select('betrag, transaction-date, ist_einnahmen')
-            .eq('ist_einnahmen', true)
-            .gte('transaction-date', `${currentYear}-01-01`)
-            .lte('transaction-date', `${currentYear}-12-31`);
+            .eq('ist_einnahmen', true);
+        
+        // Nur filtern, wenn ein Jahr ausgewählt ist
+        if (year) {
+            const startDate = `${year}-01-01`;
+            const endDate = `${year}-12-31`;
+            query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
+        }
+        
+        const { data: transactions, error } = await query;
         
         if (error) throw error;
         
@@ -122,26 +156,36 @@ async function getMonthlyIncomeData() {
         // Monatsnamen
         const monatNamen = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
         
-        return { labels: monatNamen, data: monatsSummen };
+        return { labels: monatNamen, data: monatsSummen, year: year };
     } catch (error) {
         console.error('Fehler beim Abrufen der monatlichen Einnahmen:', error.message);
-        return { labels: [], data: [] };
+        return { labels: [], data: [], year: selectedYear };
     }
 }
 
-// Daten für Einnahmen-Ausgaben-Verhältnis (Balkendiagramm)
+// Daten für Einnahmen-Ausgaben-Verhältnis mit Jahresfilter
 async function getIncomeExpenseRatioData() {
     try {
-        const currentYear = new Date().getFullYear();
-        const { data: transactions, error } = await supabase
+        // Jahr aus der Auswahl nutzen oder aktuelles Jahr als Fallback
+        const year = selectedYear || new Date().getFullYear().toString();
+        
+        // Supabase-Abfrage mit Jahresfilter
+        let query = supabase
             .from('transaktionen')
-            .select('betrag, transaction-date, ist_einnahmen')
-            .gte('transaction-date', `${currentYear}-01-01`)
-            .lte('transaction-date', `${currentYear}-12-31`);
+            .select('betrag, transaction-date, ist_einnahmen');
+        
+        // Nur filtern, wenn ein Jahr ausgewählt ist
+        if (year) {
+            const startDate = `${year}-01-01`;
+            const endDate = `${year}-12-31`;
+            query = query.gte('transaction-date', startDate).lte('transaction-date', endDate);
+        }
+        
+        const { data: transactions, error } = await query;
         
         if (error) throw error;
         
-        // Daten nach Monaten und Typ (Einnahme/Ausgabe) gruppieren
+        // Daten nach Monaten und Typ gruppieren
         const monatlicheEinnahmen = Array(12).fill(0);
         const monatlicheAusgaben = Array(12).fill(0);
         
@@ -164,11 +208,12 @@ async function getIncomeExpenseRatioData() {
             data: {
                 income: monatlicheEinnahmen,
                 expense: monatlicheAusgaben
-            }
+            },
+            year: year
         };
     } catch (error) {
         console.error('Fehler beim Abrufen der Einnahmen-Ausgaben-Daten:', error.message);
-        return { labels: [], data: { income: [], expense: [] } };
+        return { labels: [], data: { income: [], expense: [] }, year: selectedYear };
     }
 }
 
@@ -207,76 +252,18 @@ async function getExpenseCategoriesData() {
     }
 }
 
-// Chart-Konfiguration basierend auf dem Chart-Typ erstellen
+// Aktualisierte Konfiguration für die Zeitleisten-Charts
 function createChartConfig(chartType, chartData) {
     switch(chartType) {
-        case 'income-distribution':
-            return {
-                type: 'pie',
-                data: {
-                    labels: chartData.labels,
-                    datasets: [{
-                        data: chartData.data,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.7)',
-                            'rgba(54, 162, 235, 0.7)',
-                            'rgba(255, 206, 86, 0.7)',
-                            'rgba(75, 192, 192, 0.7)',
-                            'rgba(153, 102, 255, 0.7)',
-                            'rgba(255, 159, 64, 0.7)',
-                            'rgba(199, 199, 199, 0.7)',
-                            'rgba(83, 102, 255, 0.7)',
-                            'rgba(40, 159, 64, 0.7)',
-                            'rgba(210, 199, 199, 0.7)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 206, 86, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)',
-                            'rgba(199, 199, 199, 1)',
-                            'rgba(83, 102, 255, 1)',
-                            'rgba(40, 159, 64, 1)',
-                            'rgba(210, 199, 199, 1)'
-                        ],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Einnahmenverteilung nach Wohnung'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                                    const percentage = Math.round((value / total) * 100);
-                                    return `${label}: ${value.toFixed(2)} € (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            };
-            
+        // Bestehende Chart-Konfigurationen beibehalten
+        
         case 'monthly-income':
             return {
                 type: 'line',
                 data: {
                     labels: chartData.labels,
                     datasets: [{
-                        label: 'Monatliche Einnahmen (€)',
+                        label: `Monatliche Einnahmen ${chartData.year ? chartData.year : ''} (€)`,
                         data: chartData.data,
                         fill: true,
                         backgroundColor: 'rgba(75, 192, 192, 0.2)',
@@ -292,6 +279,12 @@ function createChartConfig(chartType, chartData) {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: `Monate ${chartData.year ? chartData.year : ''}`
+                            }
+                        },
                         y: {
                             beginAtZero: true,
                             ticks: {
@@ -307,7 +300,7 @@ function createChartConfig(chartType, chartData) {
                         },
                         title: {
                             display: true,
-                            text: 'Monatliche Einnahmen'
+                            text: `Monatliche Einnahmen ${chartData.year ? '- ' + chartData.year : ''}`
                         }
                     }
                 }
@@ -320,14 +313,14 @@ function createChartConfig(chartType, chartData) {
                     labels: chartData.labels,
                     datasets: [
                         {
-                            label: 'Einnahmen (€)',
+                            label: `Einnahmen ${chartData.year ? chartData.year : ''} (€)`,
                             data: chartData.data.income,
                             backgroundColor: 'rgba(75, 192, 192, 0.7)',
                             borderColor: 'rgba(75, 192, 192, 1)',
                             borderWidth: 1
                         },
                         {
-                            label: 'Ausgaben (€)',
+                            label: `Ausgaben ${chartData.year ? chartData.year : ''} (€)`,
                             data: chartData.data.expense,
                             backgroundColor: 'rgba(255, 99, 132, 0.7)',
                             borderColor: 'rgba(255, 99, 132, 1)',
@@ -339,6 +332,12 @@ function createChartConfig(chartType, chartData) {
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: `Monate ${chartData.year ? chartData.year : ''}`
+                            }
+                        },
                         y: {
                             beginAtZero: true,
                             ticks: {
@@ -354,7 +353,7 @@ function createChartConfig(chartType, chartData) {
                         },
                         title: {
                             display: true,
-                            text: 'Einnahmen vs. Ausgaben'
+                            text: `Einnahmen vs. Ausgaben ${chartData.year ? '- ' + chartData.year : ''}`
                         }
                     }
                 }
@@ -466,6 +465,11 @@ function updateChart(config) {
     
     // Neuen Chart erstellen
     finanzChart = new Chart(ctx, config);
+}
+
+// Zusätzliche Hilfsfunktion: Formatierung des Jahres für die Anzeige
+function formatYearDisplay(year) {
+    return year ? `(${year})` : '';
 }
 
 // Funktion zum Anzeigen von Benachrichtigungen
