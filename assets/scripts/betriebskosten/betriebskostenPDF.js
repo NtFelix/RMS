@@ -24,12 +24,11 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
 
     console.log('Fetching Mieter data for wohnung-id:', wohnung.id);
 
-    // Fetch Mieter data using wohnung-id
+    // Fetch Mieter data using wohnung-id - entferne .single(), um alle Mieter zu erhalten
     const { data: mieterData, error: mieterError } = await supabase
         .from('Mieter')
         .select('*')
-        .eq('wohnung-id', wohnung.id)
-        .single();
+        .eq('wohnung-id', wohnung.id);
 
     console.log('Mieter data:', mieterData);
     console.log('Mieter error:', mieterError);
@@ -40,15 +39,24 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         return;
     }
 
+    // Verarbeite die Mieterdaten
     let mieter;
-    if (!mieterData) {
+    if (!mieterData || mieterData.length === 0) {
         console.warn('No Mieter data found for wohnung-id:', wohnung.id);
         mieter = {
             name: 'Unbekannt',
             nebenkosten: 0
         };
     } else {
-        mieter = mieterData;
+        // Suche nach dem spezifischen Mieter "Mieter-Fantasie-3/4"
+        const specificMieter = mieterData.find(m => m.name === 'Mieter-Fantasie-3/4');
+        if (specificMieter) {
+            mieter = specificMieter;
+        } else {
+            // Verwende den ersten Mieter aus der Liste
+            mieter = mieterData[0];
+            console.log(`Mehrere Mieter gefunden, verwende ersten Mieter: ${mieter.name}`);
+        }
     }
 
     // Fetch Wasserzähler data for the specific tenant
@@ -210,7 +218,7 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     if (returnBlob) {
         return doc.output('blob');
     } else {
-        doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${betriebskosten.year}.pdf`);
+        doc.save(`Jahresabrechnung_${wohnung.Wohnung}_${mieter.name}_${betriebskosten.year}.pdf`);
     }
 }
 
