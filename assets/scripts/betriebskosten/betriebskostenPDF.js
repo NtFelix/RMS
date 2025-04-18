@@ -62,11 +62,14 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     // Fetch Wasserzähler data for the specific tenant
     const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
         .from('Wasserzähler')
-        .select('verbrauch')
+        .select('verbrauch, old-zaehlerstand, new-zaehlerstand')
         .eq('mieter-name', mieter.name)
         .eq('year', betriebskosten.year);
 
     let tenantWasserverbrauch = 0;
+    let altZaehlerstand = 0;
+    let neuZaehlerstand = 0;
+
     if (wasserzaehlerError) {
         console.error('Error fetching Wasserzähler data:', wasserzaehlerError);
         // Continue with 0 consumption instead of returning
@@ -74,6 +77,14 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     } else if (wasserzaehlerData && wasserzaehlerData.length > 0) {
         // Sum up all consumption values in case there are multiple entries
         tenantWasserverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
+        
+        // Get the old and new meter readings if available
+        if (wasserzaehlerData[0]['old-zaehlerstand']) {
+            altZaehlerstand = wasserzaehlerData[0]['old-zaehlerstand'];
+        }
+        if (wasserzaehlerData[0]['new-zaehlerstand']) {
+            neuZaehlerstand = wasserzaehlerData[0]['new-zaehlerstand'];
+        }
     } else {
         console.warn(`No water consumption data found for tenant ${mieter.name}`);
     }
@@ -107,26 +118,32 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     doc.setFontSize(10);
     doc.text("Christina Plant, Kirchbrändelring 21a, 76669 Bad Schönborn", 20, 20);
 
-    // Title
+    // Title - zentriert
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
-    doc.text("Jahresabrechnung", 20, 30);
+    const title = "Jahresabrechnung";
+    const titleWidth = doc.getStringUnitWidth(title) * 18 / doc.internal.scaleFactor;
+    const titleX = (doc.internal.pageSize.width - titleWidth) / 2;
+    doc.text(title, titleX, 30);
 
-    // Period
+    // Period - zentriert
     doc.setFontSize(12);
     doc.setFont("helvetica", "normal");
-    doc.text(`Zeitraum: 01.01.${betriebskosten.year} - 31.12.${betriebskosten.year}`, 20, 40);
+    const period = `Zeitraum\n01.01.${betriebskosten.year} – 31.12.${betriebskosten.year}`;
+    const periodWidth = doc.getStringUnitWidth(period.split('\n')[0]) * 12 / doc.internal.scaleFactor;
+    const periodX = (doc.internal.pageSize.width - periodWidth) / 2;
+    doc.text(period, periodX, 40, { align: 'center' });
 
     // Property details
-    doc.text(`Objekt: Wichertstraße 67, 10439 Berlin, ${wohnung.Wohnung}, ${wohnung.Größe} qm`, 20, 50);
+    doc.text(`Objekt: Wichertstraße 67, 10439 Berlin, ${wohnung.Wohnung}, ${wohnung.Größe} qm`, 20, 55);
 
-    // Define headers
-    const headers = ['Pos.', 'Leistungsart', 'Gesamtkosten In €', 'Verteiler Einheit/ qm', 'Kosten Pro qm', 'Kostenanteil In €'];
+    // Define headers - angepasst an die Vorlage
+    const headers = ['Leistungsart', 'Gesamtkosten\nIn €', 'Verteiler\nEinheit/ qm', 'Kosten\nPro qm', 'Kostenanteil\nIn €'];
 
     // Use gesamtflaeche from betriebskosten table
     const totalArea = betriebskosten.gesamtflaeche;
 
-    // Prepare data
+    // Prepare data - ohne Positionsspalte, wie in der Vorlage
     const data = betriebskosten.nebenkostenarten.map((art, index) => {
         const gesamtkosten = betriebskosten.betrag[index];
         const berechnungsart = betriebskosten.berechnungsarten[index];
@@ -134,61 +151,88 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         const kostenProEinheit = gesamtkosten / verteilerEinheit;
         const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
         return [
-            index + 1,
             art,
-            gesamtkosten.toFixed(2),
+            gesamtkosten.toFixed(2) + ' €',
             verteilerEinheit.toString(),
             kostenProEinheit.toFixed(2),
-            kostenanteil.toFixed(2)
+            kostenanteil.toFixed(2) + ' €'
         ];
     });
 
     // Add water costs row
     data.push([
-        data.length + 1,
         'Wasserkosten',
-        wasserzaehlerGesamtkosten.toFixed(2),
+        wasserzaehlerGesamtkosten.toFixed(2) + ' €',
         gesamtverbrauch.toFixed(2),
         wasserkostenProKubik.toFixed(2),
-        tenantWasserkosten.toFixed(2)
+        tenantWasserkosten.toFixed(2) + ' €'
     ]);
 
-    // Create table with adjusted column widths
+    // Create table with adjusted column widths and styling
     doc.autoTable({
         head: [headers],
         body: data,
         startY: 60,
-        styles: { fontSize: 8, cellPadding: 1.5 },
+        styles: { 
+            fontSize: 9, 
+            cellPadding: 2,
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1
+        },
+        headStyles: {
+            fillColor: [240, 240, 240],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            halign: 'center'
+        },
         columnStyles: {
-            0: { cellWidth: 15 },         // Pos. (schmaler)
-            1: { cellWidth: 40 },         // Leistungsart (etwas schmaler)
-            2: { cellWidth: 25, halign: 'right' },  // Gesamtkosten
-            3: { cellWidth: 25, halign: 'center' }, // Verteiler
-            4: { cellWidth: 25, halign: 'right' },  // Kosten Pro qm
-            5: { cellWidth: 25, halign: 'right' }   // Kostenanteil
+            0: { cellWidth: 50 },                    // Leistungsart
+            1: { cellWidth: 30, halign: 'right' },   // Gesamtkosten
+            2: { cellWidth: 30, halign: 'center' },  // Verteiler
+            3: { cellWidth: 30, halign: 'right' },   // Kosten Pro qm
+            4: { cellWidth: 30, halign: 'right' }    // Kostenanteil
         },
         margin: { left: 20, right: 20 },  // Seitenränder anpassen
+        alternateRowStyles: {
+            fillColor: [245, 245, 245]
+        },
         didParseCell: function (data) {
             if (data.section === 'head') {
-                data.cell.styles.fillColor = [200, 200, 200];
+                data.cell.styles.fillColor = [240, 240, 240];
+                data.cell.styles.textColor = [0, 0, 0];
+                data.cell.styles.fontStyle = 'bold';
+            }
+            // Zebrastreifenmuster für Zeilen
+            if (data.section === 'body' && data.row.index % 2 === 0) {
+                data.cell.styles.fillColor = [245, 245, 245];
             }
         }
     });
 
-    const gesamtsumme = data.reduce((sum, row) => sum + parseFloat(row[5]), 0);
+    const gesamtsumme = data.reduce((sum, row) => {
+        // Entferne das Euro-Zeichen und konvertiere zu Zahl
+        const value = parseFloat(row[4].replace(' €', ''));
+        return sum + value;
+    }, 0);
+    
     const finalY = doc.lastAutoTable.finalY || 150;
 
-    // Betriebskosten gesamt
+    // Betriebskosten gesamt - mit entsprechendem Abstand und Styling
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("Betriebskosten gesamt", 20, finalY + 10);
     doc.text(`${gesamtsumme.toFixed(2)} €`, 170, finalY + 10, { align: 'right' });
 
-    // Water consumption
+    // Wasserverbrauch-Details - angepasst mit altem und neuem Zählerstand, wie in der Vorlage
+    doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.text(`Wasserverbrauch m³: ${tenantWasserverbrauch.toFixed(2)}`, 20, finalY + 20);
-    doc.text(`Wasserkosten: ${tenantWasserkosten.toFixed(2)} €`, 20, finalY + 25);
-    doc.text(`(${wasserkostenProKubik.toFixed(2)} €/Cbm)`, 120, finalY + 25);
+    if (altZaehlerstand && neuZaehlerstand) {
+        doc.text(`Verbrauch alter WZ m³: ${altZaehlerstand.toFixed(2)}`, 20, finalY + 25);
+        doc.text(`Verbrauch neuer WZ m³: ${neuZaehlerstand.toFixed(2)}`, 20, finalY + 30);
+    }
+    doc.text(`Wasserkosten: ${tenantWasserkosten.toFixed(2)} €`, 20, finalY + 35);
+    doc.text(`(${wasserkostenProKubik.toFixed(2)} €/Cbm)`, 120, finalY + 35);
 
     // Berechnungen mit den korrekten Zahlungen
     const gesamtBetrag = gesamtsumme;
@@ -200,19 +244,34 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         });
     const nachzahlung = gesamtBetrag - totalPaid;
 
-    // Display results
+    // Abschlusssummen mit deutlicherem Abstand und Hervorhebung
+    const summaryY = finalY + 45;
+    
+    // Trennlinie vor Gesamtbeträgen
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.5);
+    doc.line(20, summaryY - 5, 170, summaryY - 5);
+
+    // Display results - mit angepasstem Styling
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text("Gesamt", 20, finalY + 35);
-    doc.text(`${gesamtBetrag.toFixed(2)} €`, 170, finalY + 35, { align: 'right' });
+    doc.text("Gesamt", 20, summaryY);
+    doc.text(`${gesamtBetrag.toFixed(2)} €`, 170, summaryY, { align: 'right' });
 
     doc.setFont("helvetica", "normal");
-    doc.text("bereits geleistete Zahlungen", 20, finalY + 40);
-    doc.text(`${totalPaid.toFixed(2)} €`, 170, finalY + 40, { align: 'right' });
+    doc.text("bereits geleistete Zahlungen", 20, summaryY + 5);
+    doc.text(`${totalPaid.toFixed(2)} €`, 170, summaryY + 5, { align: 'right' });
 
+    // Nachzahlung/Rückerstattung mit Unterstreichung für Hervorhebung
     doc.setFont("helvetica", "bold");
     const zahlungsText = nachzahlung >= 0 ? "Nachzahlung" : "Rückerstattung";
-    doc.text(zahlungsText, 20, finalY + 45);
-    doc.text(`${Math.abs(nachzahlung).toFixed(2)} €`, 170, finalY + 45, { align: 'right' });
+    doc.text(zahlungsText, 20, summaryY + 10);
+    doc.text(`${Math.abs(nachzahlung).toFixed(2)} €`, 170, summaryY + 10, { align: 'right' });
+    
+    // Unterstreichung für den Nachzahlungsbetrag
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(150, summaryY + 12, 170, summaryY + 12);
 
     // Vor dem doc.save() folgende Änderung:
     if (returnBlob) {
