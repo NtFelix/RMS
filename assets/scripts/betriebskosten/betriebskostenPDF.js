@@ -18,7 +18,7 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
 
     console.log('Fetching Mieter data for wohnung-id:', wohnung.id);
 
-    // Fetch Mieter data using wohnung-id - ohne .single()
+    // Fetch Mieter data using wohnung-id - entferne .single(), um alle Mieter zu erhalten
     const { data: mieterData, error: mieterError } = await supabase
         .from('Mieter')
         .select('*')
@@ -53,10 +53,10 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         }
     }
 
-    // Fetch Wasserzähler data for the specific tenant - Spalten angepasst
+    // Fetch Wasserzähler data for the specific tenant
     const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
         .from('Wasserzähler')
-        .select('verbrauch') // Entferne problematische Spalten
+        .select('verbrauch')
         .eq('mieter-name', mieter.name)
         .eq('year', betriebskosten.year);
 
@@ -71,9 +71,6 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     } else if (wasserzaehlerData && wasserzaehlerData.length > 0) {
         // Sum up all consumption values in case there are multiple entries
         tenantWasserverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
-        
-        // Da die Spalten old-zaehlerstand und new-zaehlerstand nicht existieren,
-        // werden wir sie aus dem Code entfernen
     } else {
         console.warn(`No water consumption data found for tenant ${mieter.name}`);
     }
@@ -100,9 +97,9 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     // PDF generation code
     const doc = new jspdf.jsPDF();
     
-    // Konstante Randwerte für das gesamte Dokument definieren
-    const leftMargin = 20;
-    const rightMargin = 20;
+    // Konstante Randwerte für das gesamte Dokument definieren - reduziert
+    const leftMargin = 15;
+    const rightMargin = 15;
     const pageWidth = doc.internal.pageSize.width;
     const contentWidth = pageWidth - leftMargin - rightMargin;
 
@@ -169,12 +166,12 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         tenantWasserkosten.toFixed(2) + ' €'
     ]);
 
-    // Berechnung der Spaltenbreiten basierend auf der Gesamtbreite
-    const colWidth1 = Math.floor(contentWidth * 0.40); // Leistungsart (breiteste Spalte)
-    const colWidth2 = Math.floor(contentWidth * 0.15); // Gesamtkosten
-    const colWidth3 = Math.floor(contentWidth * 0.15); // Verteiler
-    const colWidth4 = Math.floor(contentWidth * 0.15); // Kosten Pro qm
-    const colWidth5 = Math.floor(contentWidth * 0.15); // Kostenanteil
+    // Berechnung der Spaltenbreiten basierend auf der Gesamtbreite - Leistungsart etwas schmaler
+    const colWidth1 = Math.floor(contentWidth * 0.36); // Leistungsart (weniger Platz als vorher)
+    const colWidth2 = Math.floor(contentWidth * 0.16); // Gesamtkosten (leicht erhöht)
+    const colWidth3 = Math.floor(contentWidth * 0.16); // Verteiler (leicht erhöht)
+    const colWidth4 = Math.floor(contentWidth * 0.16); // Kosten Pro qm (leicht erhöht)
+    const colWidth5 = Math.floor(contentWidth * 0.16); // Kostenanteil (leicht erhöht)
 
     // Create table with adjusted column widths and styling
     doc.autoTable({
@@ -201,7 +198,7 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
             3: { cellWidth: colWidth4, halign: 'right' },  // Kosten Pro qm
             4: { cellWidth: colWidth5, halign: 'right' }   // Kostenanteil
         },
-        margin: { left: leftMargin, right: rightMargin },  // Gleiche Abstände wie der restliche Text
+        margin: { left: leftMargin, right: rightMargin },  // Verringerte Abstände
         alternateRowStyles: {
             fillColor: [245, 245, 245]
         },
