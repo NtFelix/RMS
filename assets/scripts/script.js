@@ -76,9 +76,6 @@ async function handleSuche() {
         await ladeWohnungen(); // Lade normale Ansicht, wenn Suchfeld leer ist
         return;
     }
-
-    const ergebnisse = await durchsucheTabellen(suchbegriff);
-    await zeigeErgebnisse(ergebnisse, suchbegriff);
 }
 
 
