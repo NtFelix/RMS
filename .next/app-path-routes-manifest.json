@@ -1,0 +1,15 @@
+{
+  "/_not-found/page": "/_not-found",
+  "/auth/callback/route": "/auth/callback",
+  "/(dashboard)/betriebskosten/page": "/betriebskosten",
+  "/(dashboard)/mieter/page": "/mieter",
+  "/(dashboard)/page": "/",
+  "/(dashboard)/haeuser/page": "/haeuser",
+  "/(dashboard)/todos/page": "/todos",
+  "/(dashboard)/wohnungen/page": "/wohnungen",
+  "/auth/update-password/page": "/auth/update-password",
+  "/(dashboard)/finanzen/page": "/finanzen",
+  "/auth/reset-password/page": "/auth/reset-password",
+  "/auth/register/page": "/auth/register",
+  "/auth/login/page": "/auth/login"
+}

@@ -1,4 +1,4 @@
-// File: /Users/felixplant/Downloads/v0/RMS/app/(dashboard)/betriebskosten/page.tsx
+// File: /Users/felixplant/Library/CloudStorage/OneDrive-Personal/1ForFelix/[02] Felix-Code/[07] GitHub Repos/RMS/app/(dashboard)/betriebskosten/page.tsx
 import * as entry from '../../../../../app/(dashboard)/betriebskosten/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
