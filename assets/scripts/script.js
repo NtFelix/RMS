@@ -93,58 +93,98 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-
-
-
 async function ladeWohnungen() {
     try {
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+
         const { data, error } = await supabase
             .from('Wohnungen')
             .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
+
         if (error) throw error;
-        
+
+        // Lade Mietzahlungen für den aktuellen Monat
+        const { data: mietZahlungen, error: zahlungenError } = await supabase
+            .from('transaktionen')
+            .select(`id, wohnung-id, transaction-date`)
+            .eq('name', 'Miete');
+
+        if (zahlungenError) throw zahlungenError;
+
         const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
-        tabelle.innerHTML = ''; // Leere die Tabelle zuerst
-        
+        tabelle.innerHTML = '';
+
         let gesamtMiete = 0;
         let anzahlWohnungen = data.length;
         const heutigesDatum = new Date();
-        
+
         data.forEach(wohnung => {
             const zeile = tabelle.insertRow();
             zeile.insertCell(0).textContent = wohnung.Wohnung;
-            
-            // Logik für den aktuellen Mieter
+
+            // Mieter-Logik
             let mieterName = 'Nicht vermietet';
+            let istVermietet = false;
             if (wohnung.Mieter && wohnung.Mieter.length > 0) {
                 const aktuellerMieter = wohnung.Mieter.find(mieter => {
-                    if (!mieter.auszug) return true; // Kein Auszugsdatum gesetzt
+                    if (!mieter.auszug) return true;
                     const auszugsDatum = new Date(mieter.auszug);
-                    return auszugsDatum > heutigesDatum; // Auszugsdatum in der Zukunft
+                    return auszugsDatum > heutigesDatum;
                 });
+
                 if (aktuellerMieter) {
                     mieterName = aktuellerMieter.name;
+                    istVermietet = true;
                 }
             }
+
             zeile.insertCell(1).textContent = mieterName;
             zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
             zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
-            
-            // Berechnung des Preises pro Quadratmeter
+
             const preisProQm = wohnung.Miete / wohnung.Größe;
             zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
-            
-            // Neue Zelle für "Miete bezahlt"
+
+            // Miete bezahlt Button mit Toggle-Funktion
             const mieteBezahltZelle = zeile.insertCell(5);
-            const mieteBezahltButton = document.createElement('button');
-            mieteBezahltButton.textContent = 'Miete bezahlt';
-            mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
-            mieteBezahltZelle.appendChild(mieteBezahltButton);
-            
-            gesamtMiete += wohnung.Miete;
+
+            if (istVermietet) {
+                // Prüfe, ob Miete bezahlt wurde
+                const hatBezahlt = mietZahlungen.some(zahlung => {
+                    const zahlungsDatum = new Date(zahlung['transaction-date']);
+                    return zahlung['wohnung-id'] === wohnung.id &&
+                        zahlungsDatum.getMonth() === currentMonth &&
+                        zahlungsDatum.getFullYear() === currentYear;
+                });
+
+                const mieteBezahltButton = document.createElement('button');
+                mieteBezahltButton.classList.add('rent-button');
+
+                if (hatBezahlt) {
+                    mieteBezahltButton.classList.add('rent-paid');
+                    mieteBezahltButton.textContent = 'Bezahlt';
+                } else {
+                    mieteBezahltButton.classList.add('rent-unpaid');
+                    mieteBezahltButton.textContent = 'Nicht bezahlt';
+                }
+
+                mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete, mieteBezahltButton);
+                mieteBezahltZelle.appendChild(mieteBezahltButton);
+
+                gesamtMiete += wohnung.Miete;
+            } else {
+                // Deaktivierter Button für unvermietete Wohnungen
+                const mieteBezahltButton = document.createElement('button');
+                mieteBezahltButton.classList.add('rent-button');
+                mieteBezahltButton.textContent = 'Keine Miete';
+                mieteBezahltButton.disabled = true;
+                mieteBezahltZelle.appendChild(mieteBezahltButton);
+            }
         });
-        
-        // Aktualisiere die Zusammenfassung
+
+        // Statistik aktualisieren
         document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
         document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
     } catch (error) {
@@ -153,7 +193,7 @@ async function ladeWohnungen() {
     }
 }
 
-async function mieteBezahlt(wohnungId, betrag) {
+async function mieteBezahlt(wohnungId, betrag, buttonElement) {
     try {
         // Hole Informationen zur Wohnung und zum aktuellen Mieter
         const { data: wohnungData, error: wohnungError } = await supabase
@@ -178,58 +218,67 @@ async function mieteBezahlt(wohnungId, betrag) {
             .eq('wohnung-id', wohnungId)
             .eq('name', 'Miete')
             .gte('transaction-date', firstDayOfMonth.toISOString())
-            .lte('transaction-date', lastDayOfMonth.toISOString())
-            .single();
+            .lte('transaction-date', lastDayOfMonth.toISOString());
 
         if (paymentError && paymentError.code !== 'PGRST116') {
-            // PGRST116 bedeutet "Kein Ergebnis gefunden", was in diesem Fall okay ist
             throw paymentError;
         }
 
-        if (existingPayment) {
-            showNotification(`Die Miete für Wohnung ${wohnungNummer} wurde in diesem Monat bereits als bezahlt markiert.`);
-            return;
+        const istBereitsGezahlt = existingPayment && existingPayment.length > 0;
+
+        if (istBereitsGezahlt) {
+            // Miete wurde bereits bezahlt, also entferne die Transaktion
+            const { error: deleteError } = await supabase
+                .from('transaktionen')
+                .delete()
+                .eq('id', existingPayment[0].id);
+
+            if (deleteError) throw deleteError;
+
+            // Aktualisiere den Button-Zustand
+            buttonElement.classList.remove('rent-paid');
+            buttonElement.classList.add('rent-unpaid');
+            buttonElement.textContent = 'Nicht bezahlt';
+
+            showNotification(`Mietstatus für Wohnung ${wohnungNummer} auf "Nicht bezahlt" geändert.`);
+        } else {
+            // Füge eine neue Mietzahlung hinzu
+            const { error } = await supabase
+                .from('transaktionen')
+                .insert([
+                    {
+                        'wohnung-id': wohnungId,
+                        name: 'Miete',
+                        'transaction-date': new Date().toISOString(),
+                        betrag: betrag,
+                        ist_einnahmen: true,
+                        notizen: `Miete bezahlt von ${mieterName}`
+                    }
+                ]);
+
+            if (error) throw error;
+
+            // Aktualisiere den Button-Zustand
+            buttonElement.classList.remove('rent-unpaid');
+            buttonElement.classList.add('rent-paid');
+            buttonElement.textContent = 'Bezahlt';
+
+            showNotification(`Miete für Wohnung ${wohnungNummer} als bezahlt markiert.`);
         }
 
-        // Füge die Transaktion hinzu
-        const { data, error } = await supabase
-            .from('transaktionen')
-            .insert([
-                {
-                    'wohnung-id': wohnungId,
-                    name: 'Miete',
-                    'transaction-date': new Date().toISOString(),
-                    betrag: betrag,
-                    ist_einnahmen: true,
-                    notizen: `Miete bezahlt von ${mieterName}`
-                }
-            ]);
-
-        if (error) throw error;
-
-        showNotification(`Miete für Wohnung ${wohnungNummer} von ${mieterName} erfolgreich als bezahlt markiert.`);
-        ladeWohnungen();
+        // Aktualisiere die Mietstatistik
+        updateRentPaymentStatus();
     } catch (error) {
-        console.error('Fehler beim Markieren der Miete als bezahlt:', error.message);
-        showNotification('Fehler beim Markieren der Miete als bezahlt. Bitte versuchen Sie es später erneut.');
+        console.error('Fehler beim Aktualisieren des Mietstatus:', error.message);
+        showNotification('Fehler beim Aktualisieren des Mietstatus. Bitte versuchen Sie es später erneut.');
     }
 }
-
-
-
-
-
-
 
 document.addEventListener('DOMContentLoaded', () => {
     checkAuthStatus();
     document.getElementById('logout-button').addEventListener('click', handleLogout);
     ladeWohnungen();
 });
-
-
-
-
 
 //mieter.html
 async function ladeMieter() {
@@ -303,41 +352,49 @@ let aktiverFilter = 'alle';
 // Funktion zum Filtern der Wohnungen nach Status und Suchbegriff
 async function filterWohnungen() {
     try {
-        // Lade alle Wohnungsdaten
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+
         const { data, error } = await supabase
             .from('Wohnungen')
             .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
-        
+
         if (error) throw error;
-        
-        // Tabelle leeren
+
+        // Mietzahlungen laden
+        const { data: mietZahlungen, error: zahlungenError } = await supabase
+            .from('transaktionen')
+            .select(`id, wohnung-id, transaction-date`)
+            .eq('name', 'Miete');
+
+        if (zahlungenError) throw zahlungenError;
+
         const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
         tabelle.innerHTML = '';
-        
+
         let gesamtMiete = 0;
         let anzahlWohnungen = 0;
         const heutigesDatum = new Date();
-        
-        // Filtere die Wohnungen nach dem aktiven Filter (alle/vermietet/frei)
+
         data.forEach(wohnung => {
             let istVermietet = false;
             let mieterName = 'Nicht vermietet';
-            
-            // Prüfe, ob die Wohnung aktuell vermietet ist
+
             if (wohnung.Mieter && wohnung.Mieter.length > 0) {
                 const aktuellerMieter = wohnung.Mieter.find(mieter => {
                     if (!mieter.auszug) return true;
                     const auszugsDatum = new Date(mieter.auszug);
                     return auszugsDatum > heutigesDatum;
                 });
-                
+
                 if (aktuellerMieter) {
                     mieterName = aktuellerMieter.name;
                     istVermietet = true;
                 }
             }
-            
-            // Wende den Button-Filter an
+
+            // Filter anwenden
             let zeigeWohnung = false;
             if (aktiverFilter === 'alle') {
                 zeigeWohnung = true;
@@ -346,8 +403,7 @@ async function filterWohnungen() {
             } else if (aktiverFilter === 'frei' && !istVermietet) {
                 zeigeWohnung = true;
             }
-            
-            // Wenn die Wohnung den Button-Filter passiert, füge sie zur Tabelle hinzu
+
             if (zeigeWohnung) {
                 anzahlWohnungen++;
                 const zeile = tabelle.insertRow();
@@ -355,29 +411,53 @@ async function filterWohnungen() {
                 zeile.insertCell(1).textContent = mieterName;
                 zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
                 zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
-                
-                // Berechnung des Preises pro Quadratmeter
+
                 const preisProQm = wohnung.Miete / wohnung.Größe;
                 zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
-                
-                // "Miete bezahlt" Button
+
+                // Miete bezahlt Toggle-Button
                 const mieteBezahltZelle = zeile.insertCell(5);
-                const mieteBezahltButton = document.createElement('button');
-                mieteBezahltButton.textContent = 'Miete bezahlt';
-                mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
-                mieteBezahltZelle.appendChild(mieteBezahltButton);
-                
+
                 if (istVermietet) {
+                    // Zahlungsstatus prüfen
+                    const hatBezahlt = mietZahlungen.some(zahlung => {
+                        const zahlungsDatum = new Date(zahlung['transaction-date']);
+                        return zahlung['wohnung-id'] === wohnung.id &&
+                            zahlungsDatum.getMonth() === currentMonth &&
+                            zahlungsDatum.getFullYear() === currentYear;
+                    });
+
+                    const mieteBezahltButton = document.createElement('button');
+                    mieteBezahltButton.classList.add('rent-button');
+
+                    if (hatBezahlt) {
+                        mieteBezahltButton.classList.add('rent-paid');
+                        mieteBezahltButton.textContent = 'Bezahlt';
+                    } else {
+                        mieteBezahltButton.classList.add('rent-unpaid');
+                        mieteBezahltButton.textContent = 'Nicht bezahlt';
+                    }
+
+                    mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete, mieteBezahltButton);
+                    mieteBezahltZelle.appendChild(mieteBezahltButton);
+
                     gesamtMiete += wohnung.Miete;
+                } else {
+                    // Deaktivierter Button
+                    const mieteBezahltButton = document.createElement('button');
+                    mieteBezahltButton.classList.add('rent-button');
+                    mieteBezahltButton.textContent = 'Keine Miete';
+                    mieteBezahltButton.disabled = true;
+                    mieteBezahltZelle.appendChild(mieteBezahltButton);
                 }
             }
         });
-        
-        // Aktualisiere die Zusammenfassung
+
+        // Zusammenfassung aktualisieren
         document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
         document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
-        
-        // Wende zusätzlich die Textsuche an, falls ein Suchbegriff vorhanden ist
+
+        // Textsuche anwenden
         const suchfeld = document.getElementById('search-table-input');
         if (suchfeld.value.trim() !== '') {
             sucheTabelleninhalt();
@@ -387,6 +467,7 @@ async function filterWohnungen() {
         showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
     }
 }
+
 
 // Textbasierte Suche innerhalb der bereits gefilterten Tabelle
 function sucheTabelleninhalt() {
