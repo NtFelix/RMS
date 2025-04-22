@@ -1,5 +1,5 @@
 import { supabase } from '../supabase.js';
-import { calculateMonthlyPayments } from './shared.js';
+import { calculateMonthlyPayments } from '../shared/shared.js';
 
 /**
  * Generates a PDF document for the given wohnung and betriebskosten data.

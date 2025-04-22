@@ -1,4 +1,4 @@
-import { supabase, showOverview, saveBetriebskostenabrechnung } from './shared.js';
+import { supabase, showOverview, saveBetriebskostenabrechnung } from '../shared/shared.js';
 import { openWasserzaehlerModal } from './betriebskostenWasser.js';
 
 // Add this function to create and show the context menu
