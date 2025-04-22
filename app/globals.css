@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Neue Farbpalette */
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --text-color: #333;
+    --bg-color: #ecf0f1;
+
+    /* Tailwind CSS Variablen mit den neuen Farben */
+    --background: 195 9% 95%; /* #ecf0f1 */
+    --foreground: 0 0% 20%; /* #333 */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 20%;
+    --primary: 210 29% 24%; /* #2c3e50 */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 29% 29%; /* #34495e */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 29% 29%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 210 29% 24%;
+    --radius: 1rem;
+
+    /* Chart Farben */
+    --chart-1: 210 29% 24%;
+    --chart-2: 0 84.2% 60.2%;
+    --chart-3: 142.1 76.2% 36.3%;
+    --chart-4: 43.3 96.4% 56.3%;
+    --chart-5: 262.1 83.3% 57.8%;
+  }
+
+  .dark {
+    --background: 210 29% 24%;
+    --foreground: 210 40% 98%;
+    --card: 210 29% 24%;
+    --card-foreground: 210 40% 98%;
+    --popover: 210 29% 24%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 29% 29%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+
+    /* Chart Farben */
+    --chart-1: 210 29% 29%;
+    --chart-2: 0 62.8% 30.6%;
+    --chart-3: 142.1 70.6% 45.3%;
+    --chart-4: 43.3 89.4% 66.3%;
+    --chart-5: 262.1 83.3% 67.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
