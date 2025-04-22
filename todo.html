@@ -12,15 +12,25 @@
     <script type="module" src="assets/scripts/todo.js"></script>
 
     <script src="assets/scripts/shared-scripts.js"></script>
+    <script type="module" src="assets/scripts/shared/search.js"></script>
 </head>
 
 <body>
     <div class="search-container">
         <div class="search-wrapper">
-            <input type="text" id="search-input" placeholder="Suchen Sie nach Wohnungen...">
+            <input type="text" id="search-input" placeholder="Durchsuchen Sie die Datenbank...">
             <button id="search-button">Suchen</button>
         </div>
     </div>
+    
+    <div id="suchergebnisse-container" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Suchergebnisse</h2>
+            <div id="suchergebnisse-inhalt"></div>
+        </div>
+    </div>
+    
 
     <div class="layout">
         <nav class="sidebar" id="sidebar">
@@ -38,7 +48,7 @@
         </nav>
         <main class="main-content">
             <header>
-                <h1>Wohnungen verwalten</h1>
+                <h1>Aufgaben verwalten</h1>
                 <div class="user-info">
                     <span id="user-email"></span>
                     <button id="logout-button">Abmelden</button>

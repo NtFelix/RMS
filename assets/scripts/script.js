@@ -66,100 +66,6 @@ async function durchsucheTabellen(suchbegriff) {
 
 
 
-
-
-async function zeigeErgebnisse(ergebnisse, suchbegriff) {
-    const modal = document.getElementById('suchergebnisse-container');
-    const inhalt = document.getElementById('suchergebnisse-inhalt');
-    inhalt.innerHTML = ''; // Leere den Inhalt
-
-    if (ergebnisse.length === 0) {
-        inhalt.innerHTML = '<p>Keine Ergebnisse gefunden.</p>';
-    } else {
-        for (const ergebnis of ergebnisse) {
-            const item = document.createElement('div');
-            item.className = 'suchergebnis-item';
-
-            if (ergebnis.tabelle === 'Wohnungen') {
-                const mieteProQm = (ergebnis.Miete / ergebnis.Größe).toFixed(2);
-                
-                // Suche nach dem aktuellen Mieter
-                const { data: mieterData, error: mieterError } = await supabase
-                    .from('Mieter')
-                    .select('name, email, telefonnummer')
-                    .eq('wohnung-id', ergebnis.id)
-                    .is('auszug', null)
-                    .single();
-
-                let mieterInfo = 'Kein aktueller Mieter';
-                if (!mieterError && mieterData) {
-                    mieterInfo = `
-                        <p>Aktueller Mieter: ${mieterData.name}</p>
-                        <p>E-Mail: ${mieterData.email || '-'}</p>
-                        <p>Telefon: ${mieterData.telefonnummer || '-'}</p>
-                    `;
-                }
-
-                item.innerHTML = `
-                    <h3>Wohnung: ${highlightText(ergebnis.Wohnung, suchbegriff)}</h3>
-                    <p>Größe: ${highlightText(ergebnis.Größe.toString(), suchbegriff)} m²</p>
-                    <p>Miete: ${highlightText(ergebnis.Miete.toFixed(2), suchbegriff)} €</p>
-                    <p>Miete pro m²: ${mieteProQm} €/m²</p>
-                    <h4>Mieterdaten:</h4>
-                    ${mieterInfo}
-                `;
-            } else if (ergebnis.tabelle === 'Mieter') {
-                // Der bestehende Code für Mieter bleibt unverändert
-                let wohnungInfo = 'Keine aktuelle Wohnung';
-                if (ergebnis['wohnung-id']) {
-                    const { data, error } = await supabase
-                        .from('Wohnungen')
-                        .select('*')
-                        .eq('id', ergebnis['wohnung-id'])
-                        .single();
-                    
-                    if (!error && data) {
-                        const mieteProQm = (data.Miete / data.Größe).toFixed(2);
-                        wohnungInfo = `
-                            <p>Aktuelle Wohnung: ${data.Wohnung}</p>
-                            <p>Größe: ${data.Größe} m²</p>
-                            <p>Miete: ${data.Miete.toFixed(2)} €</p>
-                            <p>Miete pro m²: ${mieteProQm} €/m²</p>
-                        `;
-                    }
-                }
-
-                item.innerHTML = `
-                    <h3>Mieter: ${highlightText(ergebnis.name, suchbegriff)}</h3>
-                    <p>E-Mail: ${highlightText(ergebnis.email || '-', suchbegriff)}</p>
-                    <p>Telefon: ${highlightText(ergebnis.telefonnummer || '-', suchbegriff)}</p>
-                    ${wohnungInfo}
-                `;
-            }
-
-            inhalt.appendChild(item);
-        }
-    }
-
-    modal.style.display = 'block';
-
-    // Schließen-Funktionalität bleibt unverändert
-    const span = modal.querySelector('.close');
-    span.onclick = function() {
-        modal.style.display = 'none';
-    }
-
-    window.onclick = function(event) {
-        if (event.target == modal) {
-            modal.style.display = 'none';
-        }
-    }
-}
-
-
-
-
-
 async function handleSuche() {
     const suchbegriff = document.getElementById('search-input').value;
     if (suchbegriff.trim() === '') {
@@ -171,17 +77,6 @@ async function handleSuche() {
     const ergebnisse = await durchsucheTabellen(suchbegriff);
     await zeigeErgebnisse(ergebnisse, suchbegriff);
 }
-
-
-
-function highlightText(text, suchbegriff) {
-    if (!text) return '';
-    const regex = new RegExp(suchbegriff, 'gi');
-    return text.replace(regex, match => `<span class="highlight">${match}</span>`);
-}
-
-
-  
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -401,6 +296,659 @@ async function ladeMieter() {
     );
   }
 }
+
+// Globale Variable für den aktiven Filter
+let aktiverFilter = 'alle';
+
+// Funktion zum Filtern der Wohnungen nach Status und Suchbegriff
+async function filterWohnungen() {
+    try {
+        // Lade alle Wohnungsdaten
+        const { data, error } = await supabase
+            .from('Wohnungen')
+            .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
+        
+        if (error) throw error;
+        
+        // Tabelle leeren
+        const tabelle = document.getElementById('wohnungen-tabelle').getElementsByTagName('tbody')[0];
+        tabelle.innerHTML = '';
+        
+        let gesamtMiete = 0;
+        let anzahlWohnungen = 0;
+        const heutigesDatum = new Date();
+        
+        // Filtere die Wohnungen nach dem aktiven Filter (alle/vermietet/frei)
+        data.forEach(wohnung => {
+            let istVermietet = false;
+            let mieterName = 'Nicht vermietet';
+            
+            // Prüfe, ob die Wohnung aktuell vermietet ist
+            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+                const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                    if (!mieter.auszug) return true;
+                    const auszugsDatum = new Date(mieter.auszug);
+                    return auszugsDatum > heutigesDatum;
+                });
+                
+                if (aktuellerMieter) {
+                    mieterName = aktuellerMieter.name;
+                    istVermietet = true;
+                }
+            }
+            
+            // Wende den Button-Filter an
+            let zeigeWohnung = false;
+            if (aktiverFilter === 'alle') {
+                zeigeWohnung = true;
+            } else if (aktiverFilter === 'vermietet' && istVermietet) {
+                zeigeWohnung = true;
+            } else if (aktiverFilter === 'frei' && !istVermietet) {
+                zeigeWohnung = true;
+            }
+            
+            // Wenn die Wohnung den Button-Filter passiert, füge sie zur Tabelle hinzu
+            if (zeigeWohnung) {
+                anzahlWohnungen++;
+                const zeile = tabelle.insertRow();
+                zeile.insertCell(0).textContent = wohnung.Wohnung;
+                zeile.insertCell(1).textContent = mieterName;
+                zeile.insertCell(2).textContent = wohnung.Größe.toFixed(2) + ' m²';
+                zeile.insertCell(3).textContent = wohnung.Miete.toFixed(2) + ' €';
+                
+                // Berechnung des Preises pro Quadratmeter
+                const preisProQm = wohnung.Miete / wohnung.Größe;
+                zeile.insertCell(4).textContent = preisProQm.toFixed(2) + ' €/m²';
+                
+                // "Miete bezahlt" Button
+                const mieteBezahltZelle = zeile.insertCell(5);
+                const mieteBezahltButton = document.createElement('button');
+                mieteBezahltButton.textContent = 'Miete bezahlt';
+                mieteBezahltButton.onclick = () => mieteBezahlt(wohnung.id, wohnung.Miete);
+                mieteBezahltZelle.appendChild(mieteBezahltButton);
+                
+                if (istVermietet) {
+                    gesamtMiete += wohnung.Miete;
+                }
+            }
+        });
+        
+        // Aktualisiere die Zusammenfassung
+        document.getElementById('total-wohnungen').textContent = anzahlWohnungen;
+        document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
+        
+        // Wende zusätzlich die Textsuche an, falls ein Suchbegriff vorhanden ist
+        const suchfeld = document.getElementById('search-table-input');
+        if (suchfeld.value.trim() !== '') {
+            sucheTabelleninhalt();
+        }
+    } catch (error) {
+        console.error('Fehler beim Filtern der Wohnungen:', error.message);
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Textbasierte Suche innerhalb der bereits gefilterten Tabelle
+function sucheTabelleninhalt() {
+    const suchbegriff = document.getElementById('search-table-input').value.toLowerCase();
+    const tabelle = document.getElementById('wohnungen-tabelle');
+    const zeilen = tabelle.getElementsByTagName('tr');
+    
+    let sichtbareWohnungen = 0;
+    let gesamtMiete = 0;
+
+    // Durchsuche alle Zeilen (außer der Kopfzeile)
+    for (let i = 1; i < zeilen.length; i++) {
+        const zeile = zeilen[i];
+        const zellen = zeile.getElementsByTagName('td');
+        let treffer = false;
+
+        // Durchsuche alle Spalten
+        for (let j = 0; j < zellen.length; j++) {
+            const zellText = zellen[j].textContent || zellen[j].innerText;
+            if (zellText.toLowerCase().indexOf(suchbegriff) > -1) {
+                treffer = true;
+                break;
+            }
+        }
+
+        // Zeige oder verstecke die Zeile je nach Suchergebnis
+        zeile.style.display = treffer ? "" : "none";
+        
+        // Zähle sichtbare Wohnungen und berechne Gesamtmiete neu
+        if (treffer) {
+            sichtbareWohnungen++;
+            const mieteText = zellen[3].textContent;
+            const miete = parseFloat(mieteText.replace(' €', '').replace(',', '.'));
+            if (!isNaN(miete)) {
+                gesamtMiete += miete;
+            }
+        }
+    }
+    
+    // Aktualisiere die Zusammenfassung mit den gefilterten Ergebnissen
+    document.getElementById('total-wohnungen').textContent = sichtbareWohnungen;
+    document.getElementById('total-miete').textContent = gesamtMiete.toFixed(2) + ' €';
+}
+
+// Initialisierung der Filter-Buttons
+function initFilterButtons() {
+    const filterButtons = document.querySelectorAll('.filter-button');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Aktive Klasse umschalten
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Neuen Filter setzen und Wohnungen aktualisieren
+            aktiverFilter = button.dataset.filter;
+            filterWohnungen(); // Wendet erst den Button-Filter an, dann die Textsuche
+        });
+    });
+}
+
+async function updateRentPaymentStatus() {
+    try {
+        // Aktuelles Datum abrufen
+        const currentDate = new Date();
+        const currentMonth = currentDate.getMonth();
+        const currentYear = currentDate.getFullYear();
+        
+        // Deutsche Monatsnamen
+        const monthNames = [
+            'Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+            'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
+        ];
+        
+        // Aktuellen Monatsnamen setzen
+        document.getElementById('current-month').textContent = `${monthNames[currentMonth]}`;
+        
+        // Alle Wohnungen mit Mieterinformationen abrufen
+        const { data: wohnungen, error } = await supabase
+            .from('Wohnungen')
+            .select(`id, Mieter (name, auszug)`);
+        
+        if (error) throw error;
+        
+        // Alle Mietzahlungen für den aktuellen Monat abrufen
+        const { data: transaktionen, error: transaktionenError } = await supabase
+            .from('transaktionen')
+            .select(`id, wohnung-id, name, transaction-date, betrag`)
+            .eq('name', 'Miete');
+            
+        if (transaktionenError) throw transaktionenError;
+        
+        // Vermietete Wohnungen und bezahlte Mieten zählen
+        let vermietetAnzahl = 0;
+        let bezahltAnzahl = 0;
+        
+        // Jede Wohnung überprüfen
+        wohnungen.forEach(wohnung => {
+            // Prüfen, ob die Wohnung aktuell vermietet ist
+            const istVermietet = wohnung.Mieter && wohnung.Mieter.length > 0 && 
+                             wohnung.Mieter.some(mieter => {
+                                 if (!mieter.auszug) return true;
+                                 const auszugsDatum = new Date(mieter.auszug);
+                                 return auszugsDatum > currentDate;
+                             });
+            
+            if (istVermietet) {
+                vermietetAnzahl++;
+                
+                // Prüfen, ob die Miete für diesen Monat bezahlt wurde
+                const istBezahlt = transaktionen.some(transaktion => {
+                    const transaktionsDatum = new Date(transaktion['transaction-date']);
+                    return transaktion['wohnung-id'] === wohnung.id &&
+                           transaktionsDatum.getMonth() === currentMonth &&
+                           transaktionsDatum.getFullYear() === currentYear;
+                });
+                
+                if (istBezahlt) {
+                    bezahltAnzahl++;
+                }
+            }
+        });
+        
+        // Anzeige aktualisieren
+        document.getElementById('total-paid-rents').textContent = `${bezahltAnzahl}/${vermietetAnzahl}`;
+        
+    } catch (error) {
+        console.error('Fehler beim Aktualisieren des Mietstatus:', error.message);
+        showNotification('Fehler beim Abrufen der Mietstatistik.');
+    }
+}
+
+
+// Chart-Objekt global deklarieren, damit es von anderen Funktionen aktualisiert werden kann
+let wohnungsChart;
+
+// Chart-Daten und Konfiguration
+async function initializeCharts() {
+    try {
+        // Hole Daten von Supabase
+        const { data: wohnungen, error } = await supabase
+            .from('Wohnungen')
+            .select(`id, Wohnung, Größe, Miete, Mieter (name, auszug)`);
+        
+        if (error) throw error;
+        
+        // Transaktion Daten holen für Zahlungsstatus und monatliche Einnahmen
+        const { data: transaktionen, error: transaktionenError } = await supabase
+            .from('transaktionen')
+            .select(`id, wohnung-id, name, transaction-date, betrag, ist_einnahmen`)
+            .order('transaction-date', { ascending: false });
+            
+        if (transaktionenError) throw transaktionenError;
+        
+        // Daten für den Chart aufbereiten
+        const heutigesDatum = new Date();
+        
+        // Daten für Wohnungsbelegung
+        let vermietet = 0;
+        let frei = 0;
+        let gesamtMiete = 0;
+        let gesamtFläche = 0;
+        
+        // Arrays für verschiedene Visualisierungen vorbereiten
+        const wohnungNamen = [];
+        const mietenProQm = [];
+        const monatlicheMieten = [];
+        const mieteGezahlt = [];
+        const mieteAusstehend = [];
+        
+        // Monatsnamen für Zeitachsen
+        const monate = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+        const aktuellerMonat = heutigesDatum.getMonth();
+        
+        wohnungen.forEach(wohnung => {
+            wohnungNamen.push(wohnung.Wohnung);
+            gesamtFläche += wohnung.Größe;
+            mietenProQm.push((wohnung.Miete / wohnung.Größe).toFixed(2));
+            
+            // Prüfen, ob die Wohnung aktuell vermietet ist
+            let istVermietet = false;
+            if (wohnung.Mieter && wohnung.Mieter.length > 0) {
+                const aktuellerMieter = wohnung.Mieter.find(mieter => {
+                    if (!mieter.auszug) return true;
+                    const auszugsDatum = new Date(mieter.auszug);
+                    return auszugsDatum > heutigesDatum;
+                });
+                
+                if (aktuellerMieter) {
+                    istVermietet = true;
+                    gesamtMiete += wohnung.Miete;
+                    monatlicheMieten.push(wohnung.Miete);
+                    vermietet++;
+                    
+                    // Prüfen, ob die Miete im aktuellen Monat bereits bezahlt wurde
+                    const hatBezahlt = hatMieteBezahlt(transaktionen, wohnung.id, aktuellerMonat, heutigesDatum.getFullYear());
+                    if (hatBezahlt) {
+                        mieteGezahlt.push(wohnung.Miete);
+                        mieteAusstehend.push(0);
+                    } else {
+                        mieteGezahlt.push(0);
+                        mieteAusstehend.push(wohnung.Miete);
+                    }
+                } else {
+                    frei++;
+                    monatlicheMieten.push(0);
+                    mieteGezahlt.push(0);
+                    mieteAusstehend.push(0);
+                }
+            } else {
+                frei++;
+                monatlicheMieten.push(0);
+                mieteGezahlt.push(0);
+                mieteAusstehend.push(0);
+            }
+        });
+        
+        // Berechnen der monatlichen Einnahmen der letzten 6 Monate
+        const letzteMonateEinnahmen = berechneLetzteMonateEinnahmen(transaktionen, 6);
+        
+        // Chart erstellen mit Standardvisualisierung (Belegung)
+        const ctx = document.getElementById('wohnungsChart').getContext('2d');
+        
+        // Chart mit der ersten Visualisierung initialisieren
+        wohnungsChart = new Chart(ctx, createChartConfig('belegung', {
+            vermietet,
+            frei,
+            wohnungNamen,
+            mietenProQm,
+            monatlicheMieten,
+            mieteGezahlt,
+            mieteAusstehend,
+            letzteMonateEinnahmen
+        }));
+        
+        // Event-Listener für das Dropdown-Menü hinzufügen
+        document.getElementById('chart-selector').addEventListener('change', function() {
+            updateChart(this.value, {
+                vermietet,
+                frei,
+                wohnungNamen,
+                mietenProQm,
+                monatlicheMieten,
+                mieteGezahlt,
+                mieteAusstehend,
+                letzteMonateEinnahmen
+            });
+        });
+        
+    } catch (error) {
+        console.error('Fehler beim Laden der Chart-Daten:', error.message);
+        showNotification('Fehler beim Laden der Chart-Daten. Bitte versuchen Sie es später erneut.');
+    }
+}
+
+// Hilfsfunktion zum Prüfen, ob die Miete in einem bestimmten Monat bezahlt wurde
+function hatMieteBezahlt(transaktionen, wohnungId, monat, jahr) {
+    return transaktionen.some(transaktion => {
+        const transaktionsDatum = new Date(transaktion['transaction-date']);
+        return transaktion['wohnung-id'] === wohnungId && 
+               transaktion.name === 'Miete' &&
+               transaktionsDatum.getMonth() === monat &&
+               transaktionsDatum.getFullYear() === jahr;
+    });
+}
+
+// Hilfsfunktion zur Berechnung der monatlichen Einnahmen der letzten x Monate
+function berechneLetzteMonateEinnahmen(transaktionen, anzahlMonate) {
+    const einnahmen = new Array(anzahlMonate).fill(0);
+    const heutigesDatum = new Date();
+    const aktuellerMonat = heutigesDatum.getMonth();
+    const aktuellesJahr = heutigesDatum.getFullYear();
+    
+    transaktionen.forEach(transaktion => {
+        if (transaktion.ist_einnahmen) {
+            const transaktionsDatum = new Date(transaktion['transaction-date']);
+            const transaktionsMonat = transaktionsDatum.getMonth();
+            const transaktionsJahr = transaktionsDatum.getFullYear();
+            
+            // Berechne, wie viele Monate zurück diese Transaktion liegt
+            let monateDifferenz = (aktuellesJahr - transaktionsJahr) * 12 + (aktuellerMonat - transaktionsMonat);
+            
+            if (monateDifferenz >= 0 && monateDifferenz < anzahlMonate) {
+                einnahmen[monateDifferenz] += transaktion.betrag;
+            }
+        }
+    });
+    
+    // Wir kehren das Array um, damit die ältesten Monate zuerst kommen
+    return einnahmen.reverse();
+}
+
+// Funktion zum Erstellen der Chart-Konfiguration basierend auf dem ausgewählten Typ
+function createChartConfig(chartType, data) {
+    switch(chartType) {
+        case 'belegung':
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: ['Vermietet', 'Frei'],
+                    datasets: [{
+                        data: [data.vermietet, data.frei],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(255, 99, 132, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Wohnungsbelegung'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+        case 'miete':
+            // Ermittle die letzten 6 Monate als Labels
+            const heutigesDatum = new Date();
+            const aktuellerMonat = heutigesDatum.getMonth();
+            const monate = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+            const monatLabels = [];
+            
+            for (let i = 5; i >= 0; i--) {
+                const monatIndex = (aktuellerMonat - i + 12) % 12;
+                monatLabels.push(monate[monatIndex]);
+            }
+            
+            return {
+                type: 'bar',
+                data: {
+                    labels: monatLabels,
+                    datasets: [{
+                        label: 'Monatliche Mieteinnahmen (€)',
+                        data: data.letzteMonateEinnahmen,
+                        backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' €';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Monatliche Mieteinnahmen'
+                        }
+                    }
+                }
+            };
+            
+        case 'preis-qm':
+            return {
+                type: 'bar',
+                data: {
+                    labels: data.wohnungNamen,
+                    datasets: [{
+                        label: 'Preis pro m² (€)',
+                        data: data.mietenProQm,
+                        backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' €/m²';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Vergleich: Preis pro m²'
+                        }
+                    }
+                }
+            };
+            
+        case 'zahlungen':
+            return {
+                type: 'bar',
+                data: {
+                    labels: data.wohnungNamen,
+                    datasets: [
+                        {
+                            label: 'Gezahlte Miete (€)',
+                            data: data.mieteGezahlt,
+                            backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Ausstehende Miete (€)',
+                            data: data.mieteAusstehend,
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stacked: false,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' €';
+                                }
+                            }
+                        },
+                        x: {
+                            stacked: false
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Zahlungsstatus aktuelle Miete'
+                        }
+                    }
+                }
+            };
+            
+        default:
+            return {
+                type: 'doughnut',
+                data: {
+                    labels: ['Vermietet', 'Frei'],
+                    datasets: [{
+                        data: [data.vermietet, data.frei],
+                        backgroundColor: [
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(255, 99, 132, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Wohnungsbelegung'
+                        }
+                    }
+                }
+            };
+    }
+}
+
+// Funktion zum Aktualisieren des Charts basierend auf dem ausgewählten Typ
+function updateChart(chartType, data) {
+    const newConfig = createChartConfig(chartType, data);
+    
+    // Aktualisiere Typ, Daten und Optionen
+    wohnungsChart.config.type = newConfig.type;
+    wohnungsChart.data = newConfig.data;
+    wohnungsChart.options = newConfig.options;
+    
+    // Chart neu zeichnen
+    wohnungsChart.update();
+}
+
+// Event-Listener hinzufügen
+document.addEventListener('DOMContentLoaded', () => {
+    // Überprüfen, ob wir auf der richtigen Seite sind
+    if (document.getElementById('wohnungsChart')) {
+        initializeCharts();
+    }
+});
+
+
+
+// Event-Listener beim Laden der Seite
+document.addEventListener('DOMContentLoaded', () => {
+    checkAuthStatus();
+    document.getElementById('logout-button').addEventListener('click', handleLogout);
+    
+    // Initialisiere Filter-Buttons
+    initFilterButtons();
+    
+    // Lade Wohnungen mit dem Standard-Filter
+    filterWohnungen();
+    
+    // Mietstatistik aktualisieren
+    updateRentPaymentStatus();
+    
+    // Event-Listener für das Suchfeld
+    const suchfeld = document.getElementById('search-table-input');
+    suchfeld.addEventListener('input', sucheTabelleninhalt);
+    
+    // Event-Listener für die globale Suche
+    document.getElementById('search-button').addEventListener('click', handleSuche);
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            handleSuche();
+        }
+    });
+});
+
+
 
 // Passen Sie den DOMContentLoaded Event-Listener an
 document.addEventListener('DOMContentLoaded', () => {

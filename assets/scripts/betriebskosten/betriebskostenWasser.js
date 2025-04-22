@@ -1,5 +1,5 @@
 import { supabase } from "../supabase.js";
-import { setOpenWasserzaehlerModal } from "./shared.js";
+import { setOpenWasserzaehlerModal } from "../shared/shared.js";
 
 let currentWasserzaehlerData = null;
 

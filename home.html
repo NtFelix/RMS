@@ -9,9 +9,12 @@
     <link rel="stylesheet" href="assets/styles/styles.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-    <script type="module" src="assets/scripts/script.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+
+    <script type="module" src="assets/scripts/script.js"></script>
     <script src="assets/scripts/shared-scripts.js"></script>
+    <script type="module" src="assets/scripts/shared/search.js"></script>
 </head>
 
 <body>
@@ -22,6 +25,13 @@
         </div>
     </div>
     
+    <div id="suchergebnisse-container" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Suchergebnisse</h2>
+            <div id="suchergebnisse-inhalt"></div>
+        </div>
+    </div>
     
 
     
@@ -47,15 +57,7 @@
                     <button id="logout-button">Abmelden</button>
                 </div>
             </header>
-            <div id="suchergebnisse-container" class="modal">
-                <div class="modal-content">
-                    <span class="close">&times;</span>
-                    <h2>Suchergebnisse</h2>
-                    <div id="suchergebnisse-inhalt"></div>
-                </div>
-            </div>
-            
-            
+              
 
             <div class="dashboard-summary">
                 <div class="summary-card">
@@ -66,6 +68,10 @@
                     <h3>Monatlicher Mieteingang</h3>
                     <p id="total-miete">0 €</p>
                 </div>
+                <div class="summary-card">
+                    <h3>Bezahlte Mieten <span id="current-month">Aktueller Monat</span></h3>
+                    <p id="total-paid-rents">0/0</p>
+                </div>                              
             </div>
 
             <div class="content">
@@ -78,11 +84,21 @@
                     <input type="text" id="search-table-input" placeholder="Daten suchen">
                 </div>
 
+                <div class="chart-options">
+                    <label for="chart-selector">Datenansicht wählen:</label>
+                    <select id="chart-selector" class="form-control">
+                        <option value="belegung">Wohnungsbelegung</option>
+                        <option value="miete">Monatliche Mieteinnahmen</option>
+                        <option value="preis-qm">Preis pro m² Vergleich</option>
+                        <option value="zahlungen">Zahlungsstatus</option>
+                    </select>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="wohnungsChart"></canvas>
+                </div>
+                
 
-                <p>Hier können Sie Ihre Ressourcen verwalten und Ihr Projekt planen. [Notiz] Man soll eine Reihe
-                    anklicken können und es öffnet sich ein Container mit allen Informationen.
-                    Außerdem ist ein Mieter erst ausgezogen, wenn ein datum beim Auszug eingetragen ist.
-                </p>
                 <h2>Wohnungsübersicht</h2>
                 <table id="wohnungen-tabelle">
                     <thead>
