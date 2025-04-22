@@ -50,7 +50,7 @@ export function HouseTable({ filter, searchQuery }: HouseTableProps) {
           house.name.toLowerCase().includes(query) ||
           house.size.toLowerCase().includes(query) ||
           house.rent.toLowerCase().includes(query) ||
-          house.pricePerSqm.toLowerCase().includes(query),
+          (house.pricePerSqm && typeof house.pricePerSqm === "string" ? house.pricePerSqm.toLowerCase().includes(query) : false),
       )
     }
 
