@@ -1,7 +1,5 @@
 {
-  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/_not-found/page": "app/_not-found/page.js",
   "/auth/login/page": "app/auth/login/page.js",
-  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
-  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
-  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js"
+  "/(dashboard)/page": "app/(dashboard)/page.js"
 }

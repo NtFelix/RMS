@@ -31,20 +31,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/page.js"
     ],
-    "/(dashboard)/haeuser/page": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/haeuser/page.js"
-    ],
-    "/(dashboard)/mieter/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/mieter/page.js"
-    ],
-    "/(dashboard)/wohnungen/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/wohnungen/page.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }

@@ -1,4 +1,4 @@
-// File: /Users/felixplant/Library/CloudStorage/OneDrive-Personal/1ForFelix/[02] Felix-Code/[07] GitHub Repos/RMS/RMS/app/(dashboard)/layout.tsx
+// File: /Users/felixplant/Downloads/Felix/GitHub-Repo/RMS/app/(dashboard)/layout.tsx
 import * as entry from '../../../../app/(dashboard)/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
