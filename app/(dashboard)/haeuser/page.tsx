@@ -138,8 +138,8 @@ export default function HaeuserPage() {
 
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
-          <CardTitle>Wohnungsliste</CardTitle>
-          <CardDescription>Hier können Sie Ihre Wohnungen verwalten und filtern</CardDescription>
+          <CardTitle>Hausliste</CardTitle>
+          <CardDescription>Hier können Sie Ihre Häuser verwalten und filtern</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <HouseFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
