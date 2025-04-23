@@ -21,6 +21,23 @@ const nextConfig = {
     optimizeImages: true,
     scrollRestoration: true,
   },
+  webpack: (config, { webpack }) => {
+    // Stub and ignore 'ws' module in all builds
+    config.resolve = {
+      ...(config.resolve || {}),
+      alias: {
+        ...(config.resolve.alias || {}),
+        ws: false,
+      },
+      fallback: {
+        ...(config.resolve.fallback || {}),
+        ws: false,
+      },
+    };
+    config.plugins = config.plugins || [];
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
+    return config;
+  },
 }
 
 export default nextConfig
