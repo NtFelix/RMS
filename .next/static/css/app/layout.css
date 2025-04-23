@@ -2132,6 +2132,10 @@ video {
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
 
+.focus\:border-ring:focus {
+  border-color: hsl(var(--ring));
+}
+
 .focus\:bg-accent:focus {
   background-color: hsl(var(--accent));
 }

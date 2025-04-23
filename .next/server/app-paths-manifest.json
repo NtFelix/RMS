@@ -1,4 +1,6 @@
 {
-  "/auth/login/page": "app/auth/login/page.js",
-  "/(dashboard)/page": "app/(dashboard)/page.js"
+  "/api/haeuser/route": "app/api/haeuser/route.js",
+  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/auth/login/page": "app/auth/login/page.js"
 }
