@@ -1,1 +1,1 @@
-self.__NEXT_FONT_MANIFEST='{"pages":{},"app":{"/Users/felixplant/Library/CloudStorage/OneDrive-Personal/1ForFelix/[02] Felix-Code/[07] GitHub Repos/RMS/app/layout":["static/media/a34f9d1faa5f3315-s.p.woff2"]},"appUsingSizeAdjust":true,"pagesUsingSizeAdjust":false}';
+self.__NEXT_FONT_MANIFEST="{\"pages\":{},\"app\":{\"/Users/felixplant/Library/CloudStorage/OneDrive-Personal/1ForFelix/[02] Felix-Code/[07] GitHub Repos/RMS/RMS/app/layout\":[\"static/media/a34f9d1faa5f3315-s.p.woff2\"]},\"appUsingSizeAdjust\":true,\"pagesUsingSizeAdjust\":false}"
