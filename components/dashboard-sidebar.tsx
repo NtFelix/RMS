@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X } from "lucide-react"
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
+import { createClient } from "@/utils/supabase/client"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -52,6 +53,16 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const supabase = createClient()
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then((res) => {
+      if (res.data.user?.email) {
+        setUserEmail(res.data.user.email)
+      }
+    })
+  }, [supabase])
 
   return (
     <>
@@ -105,8 +116,8 @@ export function DashboardSidebar() {
           <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
             <UserSettings />
             <div className="grid gap-0.5">
-              <p className="text-xs font-medium">Property Manager</p>
-              <p className="text-xs text-muted-foreground">v1.0.0</p>
+              <p className="text-xs font-medium">{userEmail ?? "Property Manager"}</p>
+              <p className="text-xs text-muted-foreground">v2.0.0</p>
             </div>
           </div>
         </div>
