@@ -1,41 +1,54 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 
-// Beispieldaten für die Häuser
-const houseData = [
-  {
-    id: 1,
-    name: "Wichertstraße XY",
-    size: "2225 m²",
-    rent: "13400 €",
-    pricePerSqmAvg: "11.69 €/m²",
-    status: "Voll",
-  },
-  {
-    id: 2,
-    name: "Friedrichstraße",
-    size: "125 m²",
-    rent: "1175 €",
-    pricePerSqm: "9.40 €/m²",
-    status: "12/14",
-  },
-]
+interface House {
+  id: string
+  name: string
+  strasse?: string
+  ort: string
+  size?: string
+  rent?: string
+  pricePerSqm?: string
+  status?: string
+}
+
+
+// Duplicate import removed
 
 interface HouseTableProps {
   filter: string
   searchQuery: string
+  reloadRef?: MutableRefObject<(() => void) | null>
 }
 
-export function HouseTable({ filter, searchQuery }: HouseTableProps) {
-  const [filteredData, setFilteredData] = useState(houseData)
+export function HouseTable({ filter, searchQuery, reloadRef }: HouseTableProps) {
+  const [houses, setHouses] = useState<House[]>([])
+  const [filteredData, setFilteredData] = useState<House[]>([])
+
+  // fetchHouses will be called on mount and can be triggered via reloadRef
+  const fetchHouses = async () => {
+    const res = await fetch("/api/haeuser")
+    if (res.ok) {
+      const data = await res.json()
+      setHouses(data)
+    }
+  }
 
   useEffect(() => {
-    let result = houseData
+    fetchHouses()
+    if (reloadRef) {
+      reloadRef.current = fetchHouses
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    // Filter by status
+  useEffect(() => {
+    let result = houses
+
+    // Filter by status if status exists
     if (filter === "full") {
       result = result.filter((house) => house.status === "vermietet")
     } else if (filter === "vacant") {
@@ -48,14 +61,14 @@ export function HouseTable({ filter, searchQuery }: HouseTableProps) {
       result = result.filter(
         (house) =>
           house.name.toLowerCase().includes(query) ||
-          house.size.toLowerCase().includes(query) ||
-          house.rent.toLowerCase().includes(query) ||
-          (house.pricePerSqm && typeof house.pricePerSqm === "string" ? house.pricePerSqm.toLowerCase().includes(query) : false),
+          (house.size && house.size.toLowerCase().includes(query)) ||
+          (house.rent && house.rent.toLowerCase().includes(query)) ||
+          (house.pricePerSqm && house.pricePerSqm.toLowerCase().includes(query)),
       )
     }
 
     setFilteredData(result)
-  }, [filter, searchQuery])
+  }, [houses, filter, searchQuery])
 
   return (
     <div className="rounded-md border">
@@ -63,6 +76,7 @@ export function HouseTable({ filter, searchQuery }: HouseTableProps) {
         <TableHeader>
           <TableRow>
             <TableHead className="w-[250px]">Häuser</TableHead>
+            <TableHead>Ort</TableHead>
             <TableHead>Größe</TableHead>
             <TableHead>Miete</TableHead>
             <TableHead>Miete pro m²</TableHead>
@@ -80,6 +94,7 @@ export function HouseTable({ filter, searchQuery }: HouseTableProps) {
             filteredData.map((house) => (
               <TableRow key={house.id}>
                 <TableCell className="font-medium">{house.name}</TableCell>
+                <TableCell>{house.ort}</TableCell>
                 <TableCell>{house.size}</TableCell>
                 <TableCell>{house.rent}</TableCell>
                 <TableCell>{house.pricePerSqm}</TableCell>
