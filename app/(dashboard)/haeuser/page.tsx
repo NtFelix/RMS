@@ -1,46 +1,70 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useCallback } from "react" // Add useCallback
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
 import { HouseFilters } from "@/components/house-filters"
-import { HouseTable } from "@/components/house-table"
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { HouseTable, House } from "@/components/house-table" // Import House type
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog" // Removed DialogClose (unused)
+import { Input } from "@/components/ui/input" // Import Input
+import { Label } from "@/components/ui/label" // Import Label
 import { toast } from "@/components/ui/use-toast"
+
 
 export default function HaeuserPage() {
   const [filter, setFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingHouseId, setEditingHouseId] = useState<string | null>(null) // State for editing
   const [formData, setFormData] = useState({ name: "", strasse: "", ort: "" })
   const [loading, setLoading] = useState(false)
   const tableReloadRef = useRef<() => void>(null)
+
+  // Reset form and editing state when dialog closes
+  const handleOpenChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (!open) {
+      setEditingHouseId(null)
+      setFormData({ name: "", strasse: "", ort: "" })
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+  // Function to open dialog for editing
+  const handleEdit = useCallback((house: House) => {
+    setEditingHouseId(house.id)
+    setFormData({ name: house.name, strasse: house.strasse || "", ort: house.ort })
+    setDialogOpen(true)
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    const url = editingHouseId ? `/api/haeuser?id=${editingHouseId}` : "/api/haeuser"
+    const method = editingHouseId ? "PUT" : "POST"
+    const successMessage = editingHouseId ? "Das Haus wurde erfolgreich aktualisiert." : "Das Haus wurde erfolgreich hinzugefügt."
+    const toastTitle = editingHouseId ? "Haus aktualisiert" : "Haus gespeichert"
+
     try {
-      const res = await fetch("/api/haeuser", {
-        method: "POST",
+      const res = await fetch(url, {
+        method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       })
       if (res.ok) {
-        toast({ title: "Haus gespeichert", description: "Das Haus wurde erfolgreich hinzugefügt." })
-        setDialogOpen(false)
-        setFormData({ name: "", strasse: "", ort: "" })
-        tableReloadRef.current?.()
+        toast({ title: toastTitle, description: successMessage })
+        handleOpenChange(false) // Close dialog and reset state
+        tableReloadRef.current?.() // Reload table data
       } else {
         const errorData = await res.json()
-        toast({ title: "Fehler", description: errorData.error || "Das Haus konnte nicht gespeichert werden.", variant: "destructive" })
+        toast({ title: "Fehler", description: errorData.error || `Das Haus konnte nicht ${editingHouseId ? 'aktualisiert' : 'gespeichert'} werden.`, variant: "destructive" })
       }
     } catch (err) {
-      toast({ title: "Fehler", description: "Netzwerkfehler beim Speichern.", variant: "destructive" })
+      toast({ title: "Fehler", description: `Netzwerkfehler beim ${editingHouseId ? 'Aktualisieren' : 'Speichern'}.`, variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -53,58 +77,58 @@ export default function HaeuserPage() {
           <h1 className="text-3xl font-bold tracking-tight">Häuser</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Häuser und Immobilien</p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <Dialog open={dialogOpen} onOpenChange={handleOpenChange}> {/* Use handleOpenChange */}
           <DialogTrigger asChild>
             <Button className="sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Haus hinzufügen
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[425px]"> {/* Added class for consistent width */}
             <DialogHeader>
-              <DialogTitle>Haus hinzufügen</DialogTitle>
-              <DialogDescription>Gib die Hausinformationen ein.</DialogDescription>
+              <DialogTitle>{editingHouseId ? "Haus bearbeiten" : "Haus hinzufügen"}</DialogTitle> {/* Dynamic Title */}
+              <DialogDescription>
+                {editingHouseId ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."} {/* Dynamic Description */}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
               <div className="space-y-1">
-                <label htmlFor="name" className="text-sm font-medium leading-none">Name</label>
-                <input
+                <Label htmlFor="name">Name</Label> {/* Use Label */}
+                <Input // Use Input
                   type="text"
                   id="name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full rounded-md border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                   required
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="strasse" className="text-sm font-medium leading-none">Straße</label>
-                <input
+                <Label htmlFor="strasse">Straße</Label> {/* Use Label */}
+                <Input // Use Input
                   type="text"
                   id="strasse"
                   name="strasse"
                   value={formData.strasse}
                   onChange={handleChange}
-                  className="w-full rounded-md border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                   required
                 />
               </div>
               <div className="space-y-1">
-                <label htmlFor="ort" className="text-sm font-medium leading-none">Ort</label>
-                <input
+                <Label htmlFor="ort">Ort</Label> {/* Use Label */}
+                <Input // Use Input
                   type="text"
                   id="ort"
                   name="ort"
                   value={formData.ort}
                   onChange={handleChange}
-                  className="w-full rounded-md border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring"
                   required
                 />
               </div>
               <DialogFooter>
                 <Button type="submit" disabled={loading}>
-                  {loading ? "Speichern..." : "Speichern"}
+                  {/* Dynamic Button Text */}
+                  {loading ? (editingHouseId ? "Aktualisieren..." : "Speichern...") : (editingHouseId ? "Aktualisieren" : "Speichern")}
                 </Button>
               </DialogFooter>
             </form>
@@ -119,7 +143,13 @@ export default function HaeuserPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <HouseFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <HouseTable filter={filter} searchQuery={searchQuery} reloadRef={tableReloadRef} />
+          {/* Pass handleEdit down as onEdit prop */}
+          <HouseTable
+            filter={filter}
+            searchQuery={searchQuery}
+            reloadRef={tableReloadRef}
+            onEdit={handleEdit}
+          />
         </CardContent>
       </Card>
     </div>
