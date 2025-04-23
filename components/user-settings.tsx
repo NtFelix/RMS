@@ -18,14 +18,14 @@ export function UserSettings() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     setIsLoading(true)
 
     const supabase = createClient()
-    await supabase.auth.signOut()
-
     router.push("/auth/login")
-    router.refresh()
+    supabase.auth.signOut().catch((error) => {
+      console.error("Error signing out:", error)
+    })
   }
 
   return (
