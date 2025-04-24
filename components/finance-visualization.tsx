@@ -221,7 +221,8 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
     finances
       .filter(f => !f.ist_einnahmen) // Only expenses
       .forEach(f => {
-        const category = f.name || 'Sonstiges';
+        // Extract base category from expense name (first word)
+        const category = f.name ? f.name.split(' ')[0] : 'Sonstiges';
         const currentValue = categories.get(category) || 0;
         categories.set(category, currentValue + Number(f.betrag));
       });
@@ -230,7 +231,6 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
       .map(([name, value]) => ({ name, value }))
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value)
-      .slice(0, 6); // Limit to top 6 categories
   }, [finances]);
   
   // Use real data if available, otherwise fallback to static data

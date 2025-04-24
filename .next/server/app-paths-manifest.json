@@ -1,4 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js"
+  "/api/finanzen/route": "app/api/finanzen/route.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
+  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js",
+  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
+  "/auth/login/page": "app/auth/login/page.js"
 }
