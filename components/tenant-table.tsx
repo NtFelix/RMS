@@ -1,181 +1,74 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, MutableRefObject, useMemo } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
+import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 
-// Beispieldaten für die Mieter
-const tenantData = [
-  {
-    id: 1,
-    name: "Person ABC",
-    email: "dafr.jhz@hzu",
-    phone: "4624797664",
-    apartment: "Keine Wohnung",
-    additionalCosts: "25 €",
-    status: "current",
-  },
-  {
-    id: 2,
-    name: "Engelsmann & Schröder",
-    email: "paula.engelsmann@gmail.com",
-    phone: "-",
-    apartment: "VH 3.0G rechts",
-    additionalCosts: "35 €",
-    status: "current",
-  },
-  {
-    id: 3,
-    name: "Luisa Burkhardt",
-    email: "-",
-    phone: "-",
-    apartment: "VH DG 2.5.0",
-    additionalCosts: "15 €",
-    status: "current",
-  },
-  {
-    id: 4,
-    name: "Person ABCD",
-    email: "abcd@gmail.com",
-    phone: "-",
-    apartment: "erfunden",
-    additionalCosts: "25 €",
-    status: "current",
-  },
-  {
-    id: 5,
-    name: "Person ausgezogen",
-    email: "ausgezogen@web.de",
-    phone: "-",
-    apartment: "fantasie",
-    additionalCosts: "10 €, 15 €, 20 €",
-    status: "previous",
-  },
-  {
-    id: 6,
-    name: "Peter Müller",
-    email: "peterl@mueller.de",
-    phone: "-",
-    apartment: "Keine Wohnung",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 7,
-    name: "Peter Müller neu",
-    email: "peterl@mueller.de",
-    phone: "-",
-    apartment: "VH - frei und erfunden",
-    additionalCosts: "10 €, 15€",
-    status: "current",
-  },
-  {
-    id: 8,
-    name: "Cox casanova",
-    email: "victoriacoxcasanova@gmail.com",
-    phone: "-",
-    apartment: "LSF 2. OG",
-    additionalCosts: "15 €",
-    status: "current",
-  },
-  {
-    id: 9,
-    name: "obdachlos",
-    email: "-",
-    phone: "-",
-    apartment: "Keine Wohnung",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 10,
-    name: "Andere Person in Fantasie bis 2. Hälfte 24",
-    email: "fantasie.2haelfte@web.de",
-    phone: "-",
-    apartment: "fantasie",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 11,
-    name: "Mieter-Fantasie-3/4",
-    email: "123232895794",
-    phone: "-",
-    apartment: "fantasie",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 12,
-    name: "FANTASIE",
-    email: "Spaß",
-    phone: "-",
-    apartment: "fantasie",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 13,
-    name: "Anteilige Nebenkosten Test Mensch",
-    email: "248279",
-    phone: "-",
-    apartment: "Teil-Nebenkosten-Test",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 14,
-    name: "Fantasie-Wohnung-Mieter",
-    email: "-",
-    phone: "-",
-    apartment: "fantasie",
-    additionalCosts: "-",
-    status: "current",
-  },
-  {
-    id: 15,
-    name: "halbes Jahr ab 01.07",
-    email: "-",
-    phone: "-",
-    apartment: "RSF 5.0 löschen",
-    additionalCosts: "-",
-    status: "current",
-  },
-]
+interface Tenant {
+  id: string
+  wohnung_id?: string
+  name: string
+  einzug?: string
+  auszug?: string
+  email?: string
+  telefonnummer?: string
+  notiz?: string
+  nebenkosten?: number[]
+}
 
 interface TenantTableProps {
   filter: string
   searchQuery: string
+  reloadRef?: MutableRefObject<(() => void) | null>
+  onEdit?: (t: Tenant) => void
+  wohnungen?: { id: string; name: string }[]
 }
 
-export function TenantTable({ filter, searchQuery }: TenantTableProps) {
-  const [filteredData, setFilteredData] = useState(tenantData)
+export function TenantTable({ filter, searchQuery, reloadRef, onEdit, wohnungen }: TenantTableProps) {
+  const [tenants, setTenants] = useState<Tenant[]>([])
+  const [filteredData, setFilteredData] = useState<Tenant[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const fetchTenants = async () => {
+    const res = await fetch("/api/mieter")
+    if (res.ok) {
+      const data: Tenant[] = await res.json()
+      setTenants(data)
+    }
+  }
 
   useEffect(() => {
-    let result = tenantData
+    fetchTenants()
+    if (reloadRef) reloadRef.current = fetchTenants
+  }, [])
 
-    // Filter by status
-    if (filter === "current") {
-      result = result.filter((tenant) => tenant.status === "current")
-    } else if (filter === "previous") {
-      result = result.filter((tenant) => tenant.status === "previous")
-    }
-
-    // Filter by search query
+  useEffect(() => {
+    let result = tenants
+    if (filter === "current") result = result.filter(t => !t.auszug)
+    else if (filter === "previous") result = result.filter(t => !!t.auszug)
     if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(
-        (tenant) =>
-          tenant.name.toLowerCase().includes(query) ||
-          tenant.email.toLowerCase().includes(query) ||
-          tenant.phone.toLowerCase().includes(query) ||
-          tenant.apartment.toLowerCase().includes(query) ||
-          tenant.additionalCosts.toLowerCase().includes(query),
+      const q = searchQuery.toLowerCase()
+      result = result.filter(t =>
+        t.name.toLowerCase().includes(q) ||
+        (t.email && t.email.toLowerCase().includes(q)) ||
+        (t.telefonnummer && t.telefonnummer.toLowerCase().includes(q)) ||
+        (t.wohnung_id && t.wohnung_id.toLowerCase().includes(q))
       )
     }
-
     setFilteredData(result)
-  }, [filter, searchQuery])
+  }, [tenants, filter, searchQuery])
+
+  // Map wohnung_id to wohnung name
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    wohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [wohnungen])
 
   return (
     <div className="rounded-md border">
@@ -198,25 +91,45 @@ export function TenantTable({ filter, searchQuery }: TenantTableProps) {
             </TableRow>
           ) : (
             filteredData.map((tenant) => (
-              <TableRow key={tenant.id}>
-                <TableCell className="font-medium">{tenant.name}</TableCell>
-                <TableCell>{tenant.email}</TableCell>
-                <TableCell>{tenant.phone}</TableCell>
-                <TableCell>
-                  {tenant.apartment === "Keine Wohnung" ? (
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">
-                      {tenant.apartment}
-                    </Badge>
-                  ) : (
-                    tenant.apartment
-                  )}
-                </TableCell>
-                <TableCell>{tenant.additionalCosts}</TableCell>
-              </TableRow>
+              <ContextMenu key={tenant.id}>
+                <ContextMenuTrigger asChild>
+                  <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
+                    <TableCell className="font-medium">{tenant.name}</TableCell>
+                    <TableCell>{tenant.email}</TableCell>
+                    <TableCell>{tenant.telefonnummer}</TableCell>
+                    <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                    <TableCell>{tenant.nebenkosten?.map(n => `${n} €`).join(', ') || '-'}</TableCell>
+                  </TableRow>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onSelect={() => onEdit?.(tenant)}>Bearbeiten</ContextMenuItem>
+                  <ContextMenuItem className="text-red-600" onSelect={() => { setTenantToDelete(tenant); setShowDeleteConfirm(true); }}>Löschen</ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))
           )}
         </TableBody>
       </Table>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
+            <AlertDialogDescription>Der Mieter "{tenantToDelete?.name}" wird gelöscht.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              if (!tenantToDelete) return
+              setIsDeleting(true)
+              const res = await fetch(`/api/mieter?id=${tenantToDelete.id}`, { method: "DELETE" })
+              setIsDeleting(false)
+              setShowDeleteConfirm(false)
+              if (res.ok) { toast({ title: "Gelöscht", description: "Mieter entfernt." }); fetchTenants() }
+              else { toast({ title: "Fehler", description: "Löschen fehlgeschlagen.", variant: "destructive" }) }
+            }} className="bg-red-600 hover:bg-red-700">{isDeleting ? "Lösche..." : "Löschen"}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
