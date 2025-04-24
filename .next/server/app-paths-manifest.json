@@ -1,6 +1,8 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
+  "/api/wohnungen/route": "app/api/wohnungen/route.js",
   "/api/haeuser/route": "app/api/haeuser/route.js",
   "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
-  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js"
+  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js",
+  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js"
 }
