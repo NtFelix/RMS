@@ -1,16 +1,169 @@
 "use client"
 
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react"
 import { FinanceVisualization } from "@/components/finance-visualization"
 import { FinanceTransactions } from "@/components/finance-transactions"
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { toast } from "@/components/ui/use-toast"
+import { createClient } from "@/utils/supabase/client"
+
+interface Finanz {
+  id: string
+  wohnung_id?: string
+  name: string
+  datum?: string
+  betrag: number
+  ist_einnahmen: boolean
+  notiz?: string
+  Wohnungen?: { name: string }
+}
 
 export default function FinanzenPage() {
-  const totalIncome = 53450.0
-  const totalExpenses = 18650.0
+  const [finances, setFinances] = useState<Finanz[]>([])
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formData, setFormData] = useState({ 
+    wohnung_id: "", 
+    name: "", 
+    datum: "", 
+    betrag: "", 
+    ist_einnahmen: false, 
+    notiz: "" 
+  })
+  const [wohnungen, setWohnungen] = useState<{ id: string; name: string }[]>([])
+  const reloadRef = useRef<(() => void) | null>(null)
+
+  // Calculate total values
+  const totalIncome = finances
+    .filter(f => f.ist_einnahmen)
+    .reduce((sum, item) => sum + Number(item.betrag), 0)
+  
+  const totalExpenses = finances
+    .filter(f => !f.ist_einnahmen)
+    .reduce((sum, item) => sum + Number(item.betrag), 0)
+    
   const monthlyCashflow = totalIncome - totalExpenses
   const yearlyProjection = monthlyCashflow * 12
+
+  useEffect(() => {
+    // Load apartments for dropdown
+    createClient().from('Wohnungen').select('id,name').then(({ data }) => {
+      if (data) setWohnungen(data)
+    })
+    
+    // Load finances data
+    loadFinances()
+  }, [])
+
+  const loadFinances = async () => {
+    const { data } = await createClient().from('Finanzen').select('*, Wohnungen(name)')
+    if (data) setFinances(data)
+  }
+
+  // Reset form when dialog closes
+  const handleOpenChange = (open: boolean) => {
+    setDialogOpen(open)
+    if (!open) {
+      setEditingId(null)
+      setFormData({ 
+        wohnung_id: "", 
+        name: "", 
+        datum: "", 
+        betrag: "", 
+        ist_einnahmen: false, 
+        notiz: "" 
+      })
+    }
+  }
+
+  // Listen for command palette event
+  useEffect(() => {
+    const handler = () => handleOpenChange(true)
+    window.addEventListener("open-add-finance-modal", handler)
+    return () => window.removeEventListener("open-add-finance-modal", handler)
+  }, [])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleEdit = useCallback((finance: Finanz) => {
+    setEditingId(finance.id)
+    setFormData({
+      wohnung_id: finance.wohnung_id || "",
+      name: finance.name,
+      datum: finance.datum || "",
+      betrag: finance.betrag?.toString() || "",
+      ist_einnahmen: finance.ist_einnahmen,
+      notiz: finance.notiz || ""
+    })
+    setDialogOpen(true)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    // Validate and prepare payload
+    if (!formData.name || !formData.betrag) {
+      toast({ 
+        title: "Fehler", 
+        description: "Name und Betrag sind erforderlich", 
+        variant: "destructive" 
+      })
+      return
+    }
+    
+    const payload: any = { 
+      name: formData.name,
+      betrag: parseFloat(formData.betrag),
+      ist_einnahmen: formData.ist_einnahmen
+    }
+    
+    // Add optional fields if present
+    if (formData.wohnung_id) payload.wohnung_id = formData.wohnung_id
+    if (formData.datum) payload.datum = formData.datum
+    if (formData.notiz) payload.notiz = formData.notiz
+    
+    try {
+      const url = editingId ? `/api/finanzen?id=${editingId}` : '/api/finanzen'
+      const method = editingId ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      
+      if (res.ok) {
+        toast({ 
+          title: editingId ? "Aktualisiert" : "Gespeichert", 
+          description: editingId ? "Transaktion aktualisiert." : "Transaktion hinzugefügt." 
+        })
+        handleOpenChange(false)
+        loadFinances()
+        if (reloadRef.current) reloadRef.current()
+      } else {
+        const err = await res.json()
+        toast({ 
+          title: "Fehler", 
+          description: err.details || err.error || "Unbekannter Fehler", 
+          variant: "destructive" 
+        })
+      }
+    } catch (error) {
+      toast({ 
+        title: "Fehler", 
+        description: "Netzwerkfehler", 
+        variant: "destructive" 
+      })
+    }
+  }
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -19,10 +172,80 @@ export default function FinanzenPage() {
           <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
         </div>
-        <Button className="sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Transaktion hinzufügen
-        </Button>
+        <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
+          <DialogTrigger asChild>
+            <Button className="sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Transaktion hinzufügen
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>{editingId ? 'Transaktion bearbeiten' : 'Transaktion hinzufügen'}</DialogTitle>
+              <DialogDescription>Füllen Sie die erforderlichen Felder aus.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label htmlFor="name">Bezeichnung</Label>
+                  <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+                </div>
+                <div>
+                  <Label htmlFor="betrag">Betrag (€)</Label>
+                  <Input 
+                    id="betrag" 
+                    name="betrag" 
+                    type="number" 
+                    step="0.01" 
+                    min="0.01" 
+                    value={formData.betrag} 
+                    onChange={handleChange} 
+                    required 
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="datum">Datum</Label>
+                  <Input id="datum" name="datum" type="date" value={formData.datum} onChange={handleChange} />
+                </div>
+                <div>
+                  <Label htmlFor="wohnung_id">Wohnung</Label>
+                  <Select value={formData.wohnung_id} onValueChange={(v) => setFormData({...formData, wohnung_id: v})}>
+                    <SelectTrigger id="wohnung_id">
+                      <SelectValue placeholder="--" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {wohnungen.map(w => (
+                        <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="ist_einnahmen">Typ</Label>
+                  <Select
+                    value={formData.ist_einnahmen ? 'Einnahmen' : 'Ausgaben'}
+                    onValueChange={(v) => setFormData({...formData, ist_einnahmen: v === 'Einnahmen'})}
+                  >
+                    <SelectTrigger id="ist_einnahmen">
+                      <SelectValue placeholder="Typ" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Einnahmen">Einnahmen</SelectItem>
+                      <SelectItem value="Ausgaben">Ausgaben</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="notiz">Notiz</Label>
+                  <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">{editingId ? 'Aktualisieren' : 'Speichern'}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -73,7 +296,7 @@ export default function FinanzenPage() {
 
       <FinanceVisualization />
 
-      <FinanceTransactions />
+      <FinanceTransactions finances={finances} reloadRef={reloadRef} onEdit={handleEdit} loadFinances={loadFinances} />
     </div>
   )
 }

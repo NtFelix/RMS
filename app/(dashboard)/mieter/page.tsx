@@ -46,6 +46,14 @@ export default function MieterPage() {
       setFormData({ wohnung_id: "", name: "", einzug: "", auszug: "", email: "", telefonnummer: "", notiz: "", nebenkosten: "", nebenkosten_datum: "" })
     }
   }
+
+  // Open add/edit modal via command palette
+  useEffect(() => {
+    const handler = () => handleOpenChange(true)
+    window.addEventListener("open-add-mieter-modal", handler)
+    return () => window.removeEventListener("open-add-mieter-modal", handler)
+  }, [handleOpenChange])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
   const handleEdit = useCallback((m: Mieter) => {

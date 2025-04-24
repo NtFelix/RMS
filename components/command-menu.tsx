@@ -91,8 +91,8 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // This would open a modal in a real application
-              alert("Neuen Mieter hinzufügen")
+              // Dispatch event to open the Mieter hinzufügen modal
+              window.dispatchEvent(new CustomEvent("open-add-mieter-modal"))
             }}
           >
             <Users className="mr-2 h-4 w-4" />
@@ -111,8 +111,8 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // This would open a modal in a real application
-              alert("Neue Rechnung erstellen")
+              // Dispatch event to open the finance modal
+              window.dispatchEvent(new CustomEvent("open-add-finance-modal"))
             }}
           >
             <Wallet className="mr-2 h-4 w-4" />
