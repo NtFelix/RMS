@@ -1,7 +1,4 @@
 {
-  "/(dashboard)/betriebskosten/page": "app/(dashboard)/betriebskosten/page.js",
-  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
-  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js",
-  "/(dashboard)/page": "app/(dashboard)/page.js",
-  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js"
 }
