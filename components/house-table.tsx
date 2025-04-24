@@ -138,41 +138,40 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit }: HouseTabl
             filteredData.map((house) => (
               <ContextMenu key={house.id}>
                 <ContextMenuTrigger asChild>
-                  <TableRow>
+                  <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(house)}>
                     <TableCell className="font-medium">{house.name}</TableCell>
                     <TableCell>{house.ort}</TableCell>
-                <TableCell>{house.size}</TableCell>
-                <TableCell>{house.rent}</TableCell>
-                <TableCell>{house.pricePerSqm}</TableCell>
-                <TableCell>
-                  {house.status === "vermietet" ? (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
-                      vermietet
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-                      frei
-                        frei
-                      </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              </ContextMenuTrigger>
-              <ContextMenuContent className="w-48">
-                <ContextMenuItem onSelect={() => onEdit(house)}>
-                  Bearbeiten
-                </ContextMenuItem>
-                <ContextMenuItem
-                  onSelect={() => {
-                    setHouseToDelete(house)
-                    setShowDeleteConfirm(true)
-                  }}
-                  className="text-red-600 focus:text-red-600" // Style delete item
-                >
-                  Löschen
-                </ContextMenuItem>
-              </ContextMenuContent>
-            </ContextMenu>
+                    <TableCell>{house.size}</TableCell>
+                    <TableCell>{house.rent}</TableCell>
+                    <TableCell>{house.pricePerSqm}</TableCell>
+                    <TableCell>
+                      {house.status === "vermietet" ? (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
+                          vermietet
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                          frei
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-48">
+                  <ContextMenuItem onSelect={() => onEdit(house)}>
+                    Bearbeiten
+                  </ContextMenuItem>
+                  <ContextMenuItem
+                    onSelect={() => {
+                      setHouseToDelete(house)
+                      setShowDeleteConfirm(true)
+                    }}
+                    className="text-red-600 focus:text-red-600"
+                  >
+                    Löschen
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))
           )}
         </TableBody>

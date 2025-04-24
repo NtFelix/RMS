@@ -71,13 +71,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
             <TableHead className="w-[250px]">Wohnung</TableHead>
             <TableHead>Größe (m²)</TableHead>
             <TableHead>Miete (€)</TableHead>
+            <TableHead>Miete pro m²</TableHead>
             <TableHead>Haus</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {filteredData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="h-24 text-center">
+              <TableCell colSpan={5} className="h-24 text-center">
                 Keine Wohnungen gefunden.
               </TableCell>
             </TableRow>
@@ -85,10 +86,11 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
             filteredData.map((apt) => (
               <ContextMenu key={apt.id}>
                 <ContextMenuTrigger asChild>
-                  <TableRow className="hover:bg-gray-50 cursor-pointer">
+                  <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(apt)}>
                     <TableCell className="font-medium">{apt.name}</TableCell>
                     <TableCell>{apt.groesse} m²</TableCell>
                     <TableCell>{apt.miete} €</TableCell>
+                    <TableCell>{(apt.miete / apt.groesse).toFixed(2)} €/m²</TableCell>
                     <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
                   </TableRow>
                 </ContextMenuTrigger>
