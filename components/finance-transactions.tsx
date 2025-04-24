@@ -81,7 +81,29 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
     const amount = Number(transaction.betrag)
     return transaction.ist_einnahmen ? total + amount : total - amount
   }, 0)
-  
+
+  // Add CSV export function
+  const handleExportCsv = () => {
+    const header = ['Bezeichnung','Wohnung','Datum','Betrag','Typ','Notiz'];
+    const rows = filteredData.map(f => [
+      f.name,
+      f.Wohnungen?.name||'',
+      f.datum||'',
+      f.betrag.toString(),
+      f.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
+      f.notiz||''
+    ]);
+    const csv = [header, ...rows].map(r => r.join(';')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'finanzen.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -142,7 +164,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
             </div>
 
             <div className="flex items-center gap-2 mt-4 md:mt-0">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={handleExportCsv}>
                 <Download className="mr-2 h-4 w-4" />
                 Als CSV exportieren
               </Button>
@@ -174,7 +196,11 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
                   </TableRow>
                 ) : (
                   filteredData.map((finance) => (
-                    <TableRow key={finance.id} className="hover:bg-muted/50">
+                    <TableRow
+                      key={finance.id}
+                      className="hover:bg-muted/50 cursor-pointer"
+                      onClick={() => onEdit?.(finance)}
+                    >
                       <TableCell>{finance.name}</TableCell>
                       <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
                       <TableCell>{finance.datum || '-'}</TableCell>
