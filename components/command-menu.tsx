@@ -101,12 +101,12 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // This would open a modal in a real application
-              alert("Neue Immobilie hinzufügen")
+              // Dispatch a custom event to open the Haus hinzufügen modal
+              window.dispatchEvent(new CustomEvent("open-add-house-modal"))
             }}
           >
             <Building2 className="mr-2 h-4 w-4" />
-            Neue Immobilie hinzufügen
+            Haus hinzufügen
           </CommandItem>
           <CommandItem
             onSelect={() => {
