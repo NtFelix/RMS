@@ -3,6 +3,23 @@
 import { useState, useEffect, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import {
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem
+} from "@/components/ui/context-menu"
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel
+} from "@/components/ui/alert-dialog"
+import { toast } from "@/components/ui/use-toast"
 
 interface Apartment {
   id: string
@@ -23,6 +40,9 @@ interface ApartmentTableProps {
 export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: ApartmentTableProps) {
   const [apartments, setApartments] = useState<Apartment[]>([])
   const [filteredData, setFilteredData] = useState<Apartment[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [aptToDelete, setAptToDelete] = useState<Apartment | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const fetchApartments = async () => {
     const res = await fetch("/api/wohnungen")
@@ -49,8 +69,8 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
         <TableHeader>
           <TableRow>
             <TableHead className="w-[250px]">Wohnung</TableHead>
-            <TableHead>Größe</TableHead>
-            <TableHead>Miete</TableHead>
+            <TableHead>Größe (m²)</TableHead>
+            <TableHead>Miete (€)</TableHead>
             <TableHead>Haus</TableHead>
           </TableRow>
         </TableHeader>
@@ -63,16 +83,43 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
             </TableRow>
           ) : (
             filteredData.map((apt) => (
-              <TableRow key={apt.id} onClick={() => onEdit?.(apt)} className="hover:bg-gray-50 cursor-pointer">
-                <TableCell className="font-medium">{apt.name}</TableCell>
-                <TableCell>{apt.groesse}</TableCell>
-                <TableCell>{apt.miete}</TableCell>
-                <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
-              </TableRow>
+              <ContextMenu key={apt.id}>
+                <ContextMenuTrigger asChild>
+                  <TableRow className="hover:bg-gray-50 cursor-pointer">
+                    <TableCell className="font-medium">{apt.name}</TableCell>
+                    <TableCell>{apt.groesse} m²</TableCell>
+                    <TableCell>{apt.miete} €</TableCell>
+                    <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
+                  </TableRow>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ContextMenuItem onSelect={() => onEdit?.(apt)}>Bearbeiten</ContextMenuItem>
+                  <ContextMenuItem className="text-red-600" onSelect={() => { setAptToDelete(apt); setShowDeleteConfirm(true); }}>Löschen</ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))
           )}
         </TableBody>
       </Table>
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
+            <AlertDialogDescription>Die Wohnung "{aptToDelete?.name}" wird gelöscht.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => {
+              if (!aptToDelete) return;
+              setIsDeleting(true);
+              const res = await fetch(`/api/wohnungen?id=${aptToDelete.id}`, { method: 'DELETE' });
+              setIsDeleting(false);
+              setShowDeleteConfirm(false);
+              if (res.ok) { toast({ title: 'Gelöscht', description: 'Wohnung entfernt.' }); fetchApartments(); } else { toast({ title: 'Fehler', description: 'Löschen fehlgeschlagen.', variant: 'destructive' }); }
+            }} className="bg-red-600 hover:bg-red-700">{isDeleting ? 'Lösche...' : 'Löschen'}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
