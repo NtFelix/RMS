@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react" // Add useCallback
+import { useState, useRef, useCallback, useEffect } from "react" // Add useCallback and useEffect
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/use-toast"
 
 
 export default function HaeuserPage() {
+
   const [filter, setFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -20,6 +21,17 @@ export default function HaeuserPage() {
   const [formData, setFormData] = useState({ name: "", strasse: "", ort: "" })
   const [loading, setLoading] = useState(false)
   const tableReloadRef = useRef<() => void>(null)
+
+  // Listen for the custom event to open the modal
+  useEffect(() => {
+    const handler = () => {
+      setEditingHouseId(null)
+      setFormData({ name: "", strasse: "", ort: "" })
+      setDialogOpen(true)
+    }
+    window.addEventListener("open-add-house-modal", handler)
+    return () => window.removeEventListener("open-add-house-modal", handler)
+  }, [])
 
   // Reset form and editing state when dialog closes
   const handleOpenChange = (open: boolean) => {
