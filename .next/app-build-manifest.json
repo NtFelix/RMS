@@ -65,6 +65,21 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/mieter/route.js"
+    ],
+    "/(dashboard)/betriebskosten/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/betriebskosten/page.js"
+    ],
+    "/(dashboard)/todos/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/todos/page.js"
+    ],
+    "/api/finanzen/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/finanzen/route.js"
     ]
   }
 }

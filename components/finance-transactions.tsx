@@ -4,115 +4,84 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download } from "lucide-react"
+import { Search, Download, Edit, Trash } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-// Beispieldaten für Finanztransaktionen
-const transactionData = [
-  { id: 1, apartment: "RSF 5.0 löschen", name: "Miete", date: "15.04.2025", amount: "40000.00 €", type: "Einnahme" },
-  { id: 2, apartment: "LSF 2. OG", name: "Miete", date: "05.12.2024", amount: "510.00 €", type: "Einnahme" },
-  { id: 3, apartment: "VH 3.0G rechts", name: "Miete", date: "05.09.2024", amount: "1175.00 €", type: "Einnahme" },
-  { id: 4, apartment: "erfunden", name: "Miete", date: "01.09.2024", amount: "775.00 €", type: "Einnahme" },
-  { id: 5, apartment: "fantasie-groß", name: "Miete", date: "01.09.2024", amount: "1750.00 €", type: "Einnahme" },
-  { id: 6, apartment: "LSF 2. OG", name: "Miete", date: "01.09.2024", amount: "485.00 €", type: "Einnahme" },
-  { id: 7, apartment: "fantasie", name: "Miete", date: "01.09.2024", amount: "480.00 €", type: "Einnahme" },
-  {
-    id: 8,
-    apartment: "VH - frei und erfunden",
-    name: "Miete",
-    date: "01.09.2024",
-    amount: "1450.00 €",
-    type: "Einnahme",
-  },
-  { id: 9, apartment: "VH DG 2.5.0", name: "Miete", date: "01.09.2024", amount: "500.00 €", type: "Einnahme" },
-  { id: 10, apartment: "VH DG 2.5.0", name: "miete", date: "31.08.2024", amount: "200.00 €", type: "Einnahme" },
-  { id: 11, apartment: "fantasie", name: "Miete", date: "05.08.2024", amount: "475.00 €", type: "Einnahme" },
-  {
-    id: 12,
-    apartment: "VH - frei und erfunden",
-    name: "Miete",
-    date: "05.08.2024",
-    amount: "1450.00 €",
-    type: "Einnahme",
-  },
-  { id: 13, apartment: "VH DG 2.5.0", name: "Miete", date: "05.08.2024", amount: "500.00 €", type: "Einnahme" },
-  { id: 14, apartment: "fantasie-groß", name: "Miete", date: "05.08.2024", amount: "1750.00 €", type: "Einnahme" },
-  { id: 15, apartment: "LSF 2. OG", name: "Miete", date: "05.08.2024", amount: "485.00 €", type: "Einnahme" },
-  { id: 16, apartment: "erfunden", name: "Miete", date: "01.08.2024", amount: "450.00 €", type: "Einnahme" },
-  { id: 17, apartment: "fantasie", name: "Handwerker", date: "01.08.2024", amount: "255.00 €", type: "Ausgabe" },
-  { id: 18, apartment: "erfunden", name: "test", date: "31.07.2024", amount: "110.00 €", type: "Ausgabe" },
-  { id: 19, apartment: "erfunden", name: "Handwerker", date: "28.07.2024", amount: "145.00 €", type: "Ausgabe" },
-  { id: 20, apartment: "VH 3.0G rechts", name: "Handwerker", date: "06.07.2024", amount: "340.00 €", type: "Ausgabe" },
-  { id: 21, apartment: "fantasie-groß", name: "Miete", date: "30.06.2024", amount: "250.00 €", type: "Einnahme" },
-  { id: 22, apartment: "VH 3.0G rechts", name: "miete", date: "06.06.2024", amount: "305.00 €", type: "Einnahme" },
-  { id: 23, apartment: "fantasie-groß", name: "mehr geld", date: "31.01.2023", amount: "340.00 €", type: "Einnahme" },
-  { id: 24, apartment: "fantasie-groß", name: "Miete", date: "05.01.2022", amount: "120.00 €", type: "Einnahme" },
-]
+// Interface for finance transactions
+interface Finanz {
+  id: string
+  wohnung_id?: string
+  name: string
+  datum?: string
+  betrag: number
+  ist_einnahmen: boolean
+  notiz?: string
+  Wohnungen?: { name: string }
+}
 
-const apartments = [
-  "Alle Wohnungen",
-  "RSF 5.0 löschen",
-  "LSF 2. OG",
-  "VH 3.0G rechts",
-  "erfunden",
-  "fantasie-groß",
-  "fantasie",
-  "VH - frei und erfunden",
-  "VH DG 2.5.0",
-]
+interface FinanceTransactionsProps {
+  finances: Finanz[]
+  reloadRef?: any
+  onEdit?: (finance: Finanz) => void
+  loadFinances?: () => Promise<void>
+}
 
-export function FinanceTransactions() {
+export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances }: FinanceTransactionsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedApartment, setSelectedApartment] = useState("Alle Wohnungen")
   const [selectedYear, setSelectedYear] = useState("Alle Jahre")
   const [selectedType, setSelectedType] = useState("Alle Transaktionen")
-  const [filteredData, setFilteredData] = useState(transactionData)
+  const [filteredData, setFilteredData] = useState<Finanz[]>([])
+  
+  // Get unique apartment list from finances data
+  const apartments = ["Alle Wohnungen", ...new Set(finances
+    .filter(f => f.Wohnungen?.name)
+    .map(f => f.Wohnungen?.name || ""))]
 
   useEffect(() => {
-    let result = transactionData
+    let result = finances
 
-    // Filter by apartment
+    // Filter by wohnung
     if (selectedApartment !== "Alle Wohnungen") {
-      result = result.filter((transaction) => transaction.apartment === selectedApartment)
+      result = result.filter(f => f.Wohnungen?.name === selectedApartment)
     }
 
     // Filter by year
     if (selectedYear !== "Alle Jahre") {
-      result = result.filter((transaction) => {
-        const transactionYear = transaction.date.split(".")[2]
-        return transactionYear === selectedYear
+      result = result.filter(f => {
+        if (!f.datum) return false
+        return f.datum.includes(selectedYear)
       })
     }
 
     // Filter by transaction type
     if (selectedType !== "Alle Transaktionen") {
-      result = result.filter((transaction) => transaction.type === selectedType)
+      const isEinnahme = selectedType === "Einnahme"
+      result = result.filter(f => f.ist_einnahmen === isEinnahme)
     }
 
     // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      result = result.filter(
-        (transaction) =>
-          transaction.apartment.toLowerCase().includes(query) ||
-          transaction.name.toLowerCase().includes(query) ||
-          transaction.date.includes(query) ||
-          transaction.amount.toLowerCase().includes(query) ||
-          transaction.type.toLowerCase().includes(query),
+      result = result.filter(f => 
+        f.name.toLowerCase().includes(query) ||
+        (f.Wohnungen?.name || "").toLowerCase().includes(query) ||
+        (f.datum || "").includes(query) ||
+        (f.notiz || "").toLowerCase().includes(query)
       )
     }
 
     setFilteredData(result)
-  }, [searchQuery, selectedApartment, selectedYear, selectedType])
+  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType])
 
-  // Gesamtwert der gefilterten Transaktionen berechnen
+  // Calculate totals for filtered data
   const totalBalance = filteredData.reduce((total, transaction) => {
-    const amount = Number.parseFloat(transaction.amount.replace("€", "").replace(",", ".").trim())
-    return transaction.type === "Einnahme" ? total + amount : total - amount
+    const amount = Number(transaction.betrag)
+    return transaction.ist_einnahmen ? total + amount : total - amount
   }, 0)
-
+  
   return (
     <Card>
       <CardHeader>
@@ -189,11 +158,11 @@ export function FinanceTransactions() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Wohnung</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Datum</TableHead>
-                  <TableHead className="text-right">Betrag</TableHead>
-                  <TableHead>Transaktionstyp</TableHead>
+                  <TableHead style={{ width: '25%' }}>Bezeichnung</TableHead>
+                  <TableHead style={{ width: '20%' }}>Wohnung</TableHead>
+                  <TableHead style={{ width: '15%' }}>Datum</TableHead>
+                  <TableHead style={{ width: '15%' }} className="text-right">Betrag</TableHead>
+                  <TableHead style={{ width: '15%' }}>Typ</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,22 +173,26 @@ export function FinanceTransactions() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredData.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell className="font-medium">{transaction.apartment}</TableCell>
-                      <TableCell>{transaction.name}</TableCell>
-                      <TableCell>{transaction.date}</TableCell>
-                      <TableCell className="text-right">{transaction.amount}</TableCell>
+                  filteredData.map((finance) => (
+                    <TableRow key={finance.id} className="hover:bg-muted/50">
+                      <TableCell>{finance.name}</TableCell>
+                      <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
+                      <TableCell>{finance.datum || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>
+                          {finance.betrag.toFixed(2).replace(".", ",")} €
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
                           className={
-                            transaction.type === "Einnahme"
-                              ? "bg-green-50 text-green-700 hover:bg-green-50"
-                              : "bg-red-50 text-red-700 hover:bg-red-50"
+                            finance.ist_einnahmen
+                              ? "bg-green-50 text-green-700"
+                              : "bg-red-50 text-red-700"
                           }
                         >
-                          {transaction.type}
+                          {finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}
                         </Badge>
                       </TableCell>
                     </TableRow>
