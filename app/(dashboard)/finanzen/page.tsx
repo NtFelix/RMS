@@ -294,7 +294,7 @@ export default function FinanzenPage() {
         </Card>
       </div>
 
-      <FinanceVisualization />
+      <FinanceVisualization finances={finances} />
 
       <FinanceTransactions finances={finances} reloadRef={reloadRef} onEdit={handleEdit} loadFinances={loadFinances} />
     </div>
