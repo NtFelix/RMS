@@ -1,9 +1,9 @@
 import { createClient } from "@/utils/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 // GET spezifische Finanztransaktion by ID
 export async function GET(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -34,7 +34,7 @@ export async function GET(
 
 // PATCH um Finanztransaktion zu aktualisieren, z.B. ist_einnahmen umschalten
 export async function PATCH(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -88,7 +88,7 @@ export async function PATCH(
 
 // PUT um Finanztransaktion zu aktualisieren
 export async function PUT(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -120,7 +120,7 @@ export async function PUT(
 
 // DELETE um Finanztransaktion zu löschen
 export async function DELETE(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
