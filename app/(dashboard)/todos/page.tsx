@@ -6,10 +6,14 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
 import { TaskFilters } from "@/components/task-filters"
 import { TaskBoard } from "@/components/task-board"
+import { TaskModal } from "@/components/task-modal"
+import { Toaster } from "@/components/ui/toaster"
 
 export default function TodosPage() {
   const [filter, setFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -18,7 +22,7 @@ export default function TodosPage() {
           <h1 className="text-3xl font-bold tracking-tight">Aufgaben</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Aufgaben und Erinnerungen</p>
         </div>
-        <Button className="sm:w-auto">
+        <Button className="sm:w-auto" onClick={() => setIsModalOpen(true)}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Aufgabe hinzufügen
         </Button>
@@ -31,9 +35,20 @@ export default function TodosPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <TaskFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <TaskBoard filter={filter} searchQuery={searchQuery} />
+          <TaskBoard filter={filter} searchQuery={searchQuery} refreshTrigger={refreshTrigger} />
         </CardContent>
       </Card>
+
+      {/* Task Modal */}
+      <TaskModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onTaskAdded={() => {
+          setRefreshTrigger(prev => prev + 1)
+        }} 
+      />
+      
+      <Toaster />
     </div>
   )
 }
