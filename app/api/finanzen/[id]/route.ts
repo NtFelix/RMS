@@ -1,10 +1,16 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
 // GET spezifische Finanztransaktion by ID
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteContext
 ) {
   try {
     const { id } = params;
@@ -35,7 +41,7 @@ export async function GET(
 // PATCH um Finanztransaktion zu aktualisieren, z.B. ist_einnahmen umschalten
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteContext
 ) {
   try {
     const { id } = params;
@@ -89,7 +95,7 @@ export async function PATCH(
 // PUT um Finanztransaktion zu aktualisieren
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteContext
 ) {
   try {
     const { id } = params;
@@ -121,7 +127,7 @@ export async function PUT(
 // DELETE um Finanztransaktion zu löschen
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: RouteContext
 ) {
   try {
     const { id } = params;
