@@ -1,56 +1,170 @@
 "use client"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { createClient } from "@/utils/supabase/client"
 
-// Beispieldaten für die Charts
-const revenueData = [
-  { month: "Jan", einnahmen: 48500, ausgaben: 18200 },
-  { month: "Feb", einnahmen: 49200, ausgaben: 17800 },
-  { month: "Mär", einnahmen: 50100, ausgaben: 18400 },
-  { month: "Apr", einnahmen: 51200, ausgaben: 18600 },
-  { month: "Mai", einnahmen: 52400, ausgaben: 18650 },
-  { month: "Jun", einnahmen: 52400, ausgaben: 19100 },
-  { month: "Jul", einnahmen: 53100, ausgaben: 19300 },
-  { month: "Aug", einnahmen: 53800, ausgaben: 19500 },
-  { month: "Sep", einnahmen: 54200, ausgaben: 19800 },
-  { month: "Okt", einnahmen: 54800, ausgaben: 20100 },
-  { month: "Nov", einnahmen: 55200, ausgaben: 20400 },
-  { month: "Dez", einnahmen: 55800, ausgaben: 20800 },
-]
+// Platzhalter-Daten für initiale Anzeige (werden durch echte Daten ersetzt)
+const initialRevenueData = Array.from({ length: 12 }, (_, i) => ({
+  month: ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"][i],
+  einnahmen: 0,
+  ausgaben: 0,
+}))
 
-const occupancyData = [
-  { month: "Jan", vermietet: 42, frei: 6 },
-  { month: "Feb", vermietet: 43, frei: 5 },
-  { month: "Mär", vermietet: 44, frei: 4 },
-  { month: "Apr", vermietet: 45, frei: 3 },
-  { month: "Mai", vermietet: 45, frei: 3 },
-  { month: "Jun", vermietet: 46, frei: 2 },
-  { month: "Jul", vermietet: 47, frei: 1 },
-  { month: "Aug", vermietet: 48, frei: 0 },
-  { month: "Sep", vermietet: 48, frei: 0 },
-  { month: "Okt", vermietet: 47, frei: 1 },
-  { month: "Nov", vermietet: 46, frei: 2 },
-  { month: "Dez", vermietet: 45, frei: 3 },
-]
-
-const maintenanceData = [
-  { month: "Jan", reparaturen: 3, renovierungen: 1 },
-  { month: "Feb", reparaturen: 2, renovierungen: 0 },
-  { month: "Mär", reparaturen: 4, renovierungen: 1 },
-  { month: "Apr", reparaturen: 2, renovierungen: 2 },
-  { month: "Mai", reparaturen: 3, renovierungen: 0 },
-  { month: "Jun", reparaturen: 5, renovierungen: 1 },
-  { month: "Jul", reparaturen: 2, renovierungen: 0 },
-  { month: "Aug", reparaturen: 1, renovierungen: 3 },
-  { month: "Sep", reparaturen: 3, renovierungen: 0 },
-  { month: "Okt", reparaturen: 4, renovierungen: 1 },
-  { month: "Nov", reparaturen: 2, renovierungen: 0 },
-  { month: "Dez", reparaturen: 3, renovierungen: 2 },
-]
+const initialOccupancyData = Array.from({ length: 12 }, (_, i) => ({
+  month: ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"][i],
+  vermietet: 0,
+  frei: 0,
+}))
 
 export function DashboardCharts() {
+  const [revenueData, setRevenueData] = useState(initialRevenueData)
+  const [occupancyData, setOccupancyData] = useState(initialOccupancyData)
+  const [chartHeight, setChartHeight] = useState(250)
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabase = createClient()
+      
+      // Finanzdaten abrufen
+      const { data: finanzenData, error: finanzenError } = await supabase
+        .from("Finanzen")
+        .select('*')
+        .order('datum', { ascending: true })
+      
+      if (finanzenError) {
+        console.error("Fehler beim Abrufen der Finanzdaten:", finanzenError)
+        return
+      }
+      
+      // Wohnungen und Mieter abrufen für Belegungsstatistik
+      const { data: wohnungen, error: wohnungenError } = await supabase
+        .from("Wohnungen")
+        .select('*')
+      
+      const { data: mieter, error: mieterError } = await supabase
+        .from("Mieter")
+        .select('*')
+      
+      if (wohnungenError || mieterError) {
+        console.error("Fehler beim Abrufen der Wohnungen oder Mieter:", wohnungenError || mieterError)
+        return
+      }
+      
+      // Finanzdaten nach Monaten gruppieren
+      type MonthlyData = {
+        month: string;
+        einnahmen: number;
+        ausgaben: number;
+      }
+      
+      const monthlyFinances = finanzenData.reduce<Record<string, MonthlyData>>((acc, item) => {
+        if (!item.datum) return acc
+        
+        const date = new Date(item.datum)
+        const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date)
+        const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`
+        
+        if (!acc[monthKey]) {
+          acc[monthKey] = {
+            month,
+            einnahmen: 0,
+            ausgaben: 0,
+          }
+        }
+        
+        if (item.ist_einnahmen) {
+          acc[monthKey].einnahmen += Number(item.betrag)
+        } else {
+          acc[monthKey].ausgaben += Number(item.betrag)
+        }
+        
+        return acc
+      }, {})
+      
+      // Belegungsstatistik nach Monaten berechnen
+      const now = new Date()
+      type OccupancyData = {
+        month: string;
+        vermietet: number;
+        frei: number;
+      }
+      
+      const occupancy: Record<string, OccupancyData> = {}
+      
+      // Letzten 12 Monate durchgehen
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now)
+        date.setMonth(date.getMonth() - i)
+        const month = new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(date)
+        const monthKey = `${date.getFullYear()}-${date.getMonth() + 1}`
+        
+        const vermietetCount = mieter.filter(m => {
+          const einzug = m.einzug ? new Date(m.einzug) : null
+          const auszug = m.auszug ? new Date(m.auszug) : null
+          
+          return einzug && einzug <= date && (!auszug || auszug >= date)
+        }).length
+        
+        occupancy[monthKey] = {
+          month,
+          vermietet: vermietetCount,
+          frei: wohnungen.length - vermietetCount,
+        }
+      }
+      
+      // Daten für die letzten 12 Monate sortieren
+      const lastMonths = Array.from({ length: 12 }, (_, i) => {
+        const date = new Date()
+        date.setMonth(date.getMonth() - (11 - i))
+        return `${date.getFullYear()}-${date.getMonth() + 1}`
+      })
+      
+      const formattedRevenueData = lastMonths.map(monthKey => {
+        return monthlyFinances[monthKey] || {
+          month: new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(parseInt(monthKey.split('-')[0]), parseInt(monthKey.split('-')[1]) - 1, 1)),
+          einnahmen: 0,
+          ausgaben: 0,
+        }
+      })
+      
+      const formattedOccupancyData = lastMonths.map(monthKey => {
+        return occupancy[monthKey] || {
+          month: new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(new Date(parseInt(monthKey.split('-')[0]), parseInt(monthKey.split('-')[1]) - 1, 1)),
+          vermietet: 0,
+          frei: 0,
+        }
+      })
+      
+      setRevenueData(formattedRevenueData)
+      setOccupancyData(formattedOccupancyData)
+    }
+    
+    fetchData()
+    
+    // Event Listener für Anpassung der Chart-Höhe an Container
+    const updateDimensions = () => {
+      const chartContainer = document.querySelector('.chart-container')
+      if (chartContainer) {
+        const containerHeight = chartContainer.getBoundingClientRect().height
+        setChartHeight(containerHeight || 250) // Fallback auf 250px
+      }
+    }
+    
+    // Initial ausführen
+    updateDimensions()
+    
+    // Event Listener für Größenänderungen
+    window.addEventListener('resize', updateDimensions)
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('resize', updateDimensions)
+    }
+  }, [])
+  
   return (
     <Tabs defaultValue="einnahmen" className="w-full">
       <TabsList className="grid w-full grid-cols-3">
@@ -64,8 +178,8 @@ export function DashboardCharts() {
             <CardTitle>Einnahmen & Ausgaben</CardTitle>
             <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
+          <CardContent className="chart-container">
+            <div className="h-full min-h-[400px] w-full">
               <ChartContainer
                 config={{
                   einnahmen: {
@@ -100,8 +214,8 @@ export function DashboardCharts() {
             <CardTitle>Belegung</CardTitle>
             <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
+          <CardContent className="chart-container">
+            <div className="h-full min-h-[400px] w-full">
               <ChartContainer
                 config={{
                   vermietet: {
@@ -136,29 +250,29 @@ export function DashboardCharts() {
             <CardTitle>Instandhaltung</CardTitle>
             <CardDescription>Monatliche Übersicht über Reparaturen und Renovierungen</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="h-[250px]">
+          <CardContent className="chart-container">
+            <div className="h-full min-h-[400px] w-full">
               <ChartContainer
                 config={{
-                  reparaturen: {
-                    label: "Reparaturen",
-                    color: "hsl(var(--chart-4))",
+                  einnahmen: {
+                    label: "Einnahmen",
+                    color: "hsl(var(--chart-1))",
                   },
-                  renovierungen: {
-                    label: "Renovierungen",
-                    color: "hsl(var(--chart-5))",
+                  ausgaben: {
+                    label: "Ausgaben",
+                    color: "hsl(var(--chart-2))",
                   },
                 }}
               >
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={maintenanceData}>
+                  <BarChart data={revenueData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="month" />
                     <YAxis />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Legend />
-                    <Bar dataKey="reparaturen" fill="var(--color-reparaturen)" radius={4} />
-                    <Bar dataKey="renovierungen" fill="var(--color-renovierungen)" radius={4} />
+                    <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+                    <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>

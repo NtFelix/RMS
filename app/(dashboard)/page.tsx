@@ -3,8 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { DashboardCharts } from "@/components/dashboard-charts"
 import { TenantDataTable } from "@/components/tenant-data-table"
+import { getDashboardSummary } from "@/lib/data-fetching"
 
-export default function Dashboard() {
+export default async function Dashboard() {
+  // Fetch real data from database
+  const summary = await getDashboardSummary();
+  
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -19,7 +23,7 @@ export default function Dashboard() {
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{summary.haeuserCount}</div>
               <p className="text-xs text-muted-foreground">Verwaltete Immobilien</p>
             </CardContent>
           </Card>
@@ -31,7 +35,7 @@ export default function Dashboard() {
               <Home className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">48</div>
+              <div className="text-2xl font-bold">{summary.wohnungenCount}</div>
               <p className="text-xs text-muted-foreground">Verwaltete Einheiten</p>
             </CardContent>
           </Card>
@@ -43,7 +47,7 @@ export default function Dashboard() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">42</div>
+              <div className="text-2xl font-bold">{summary.mieterCount}</div>
               <p className="text-xs text-muted-foreground">Aktive Mietverhältnisse</p>
             </CardContent>
           </Card>
@@ -55,7 +59,7 @@ export default function Dashboard() {
               <Wallet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">52.400 €</div>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
               <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
             </CardContent>
           </Card>
@@ -67,7 +71,7 @@ export default function Dashboard() {
               <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">18.650 €</div>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheAusgaben)}</div>
               <p className="text-xs text-muted-foreground">Monatliche Ausgaben</p>
             </CardContent>
           </Card>
@@ -79,7 +83,7 @@ export default function Dashboard() {
               <CheckSquare className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">8</div>
+              <div className="text-2xl font-bold">{summary.offeneAufgabenCount}</div>
               <p className="text-xs text-muted-foreground">Offene Aufgaben</p>
             </CardContent>
           </Card>
