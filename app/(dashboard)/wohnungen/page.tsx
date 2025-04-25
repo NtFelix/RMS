@@ -31,10 +31,56 @@ export default function WohnungenPage() {
   const [houses, setHouses] = useState<{ id: string; name: string }[]>([])
   const reloadRef = useRef<(() => void) | null>(null)
 
+  // Apartment-Edit-Logik definieren
+  const handleEdit = useCallback((row: Wohnung) => {
+    setEditingId(row.id)
+    setFormData({
+      name: row.name,
+      groesse: row.groesse?.toString() || "",
+      miete: row.miete?.toString() || "",
+      haus_id: row.haus_id || ""
+    })
+    setDialogOpen(true)
+  }, [])
+  
   useEffect(() => {
     // load haus options
     createClient().from('Haeuser').select('id,name').then(({ data }) => data && setHouses(data))
-  }, [])
+    
+    // Event-Listener für edit-apartment Event vom Dashboard
+    const handleEditApartment = async (event: Event) => {
+      const customEvent = event as CustomEvent<{id: string}>
+      const apartmentId = customEvent.detail?.id
+      if (!apartmentId) return
+      
+      try {
+        // Wohnungsdaten laden
+        const { data: apartment } = await createClient()
+          .from('Wohnungen')
+          .select('*')
+          .eq('id', apartmentId)
+          .single()
+        
+        if (!apartment) {
+          console.error('Wohnung nicht gefunden:', apartmentId)
+          return
+        }
+        
+        // Edit-Modal mit den Daten öffnen
+        handleEdit(apartment as Wohnung)
+      } catch (error) {
+        console.error('Fehler beim Laden der Wohnung:', error)
+      }
+    }
+    
+    // Event-Listener registrieren
+    window.addEventListener('edit-apartment', handleEditApartment)
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('edit-apartment', handleEditApartment)
+    }
+  }, [handleEdit])
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open)
@@ -46,16 +92,7 @@ export default function WohnungenPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
-  const handleEdit = useCallback((row: Wohnung) => {
-    setEditingId(row.id)
-    setFormData({
-      name: row.name,
-      groesse: row.groesse?.toString() || "",
-      miete: row.miete?.toString() || "",
-      haus_id: row.haus_id || ""
-    })
-    setDialogOpen(true)
-  }, [])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

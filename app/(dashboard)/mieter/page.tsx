@@ -34,10 +34,61 @@ export default function MieterPage() {
   const [formData, setFormData] = useState({ wohnung_id: "", name: "", einzug: "", auszug: "", email: "", telefonnummer: "", notiz: "", nebenkosten: "", nebenkosten_datum: "" })
   const reloadRef = useRef<(() => void) | null>(null)
   const [wohnungen, setWohnungen] = useState<{ id:string; name:string }[]>([])
+  
+  // Mieter-Edit-Logik definieren
+  const handleEdit = useCallback((m: Mieter) => {
+    setEditingId(m.id)
+    setFormData({
+      wohnung_id: m.wohnung_id||"",
+      name: m.name,
+      einzug: m.einzug||"",
+      auszug: m.auszug||"",
+      email: m.email||"",
+      telefonnummer: m.telefonnummer||"",
+      notiz: m.notiz||"",
+      nebenkosten: m.nebenkosten?.join(",")||"",
+      nebenkosten_datum: m.nebenkosten_datum?.join(",")||""
+    })
+    setDialogOpen(true)
+  }, [])
 
   useEffect(() => {
     createClient().from('Wohnungen').select('id,name').then(({ data }) => data && setWohnungen(data))
-  }, [])
+    
+    // Event-Listener für edit-tenant Event vom Dashboard
+    const handleEditTenant = async (event: Event) => {
+      const customEvent = event as CustomEvent<{id: string}>
+      const tenantId = customEvent.detail?.id
+      if (!tenantId) return
+      
+      try {
+        // Mieterdaten laden
+        const { data: mieter } = await createClient()
+          .from('Mieter')
+          .select('*')
+          .eq('id', tenantId)
+          .single()
+        
+        if (!mieter) {
+          console.error('Mieter nicht gefunden:', tenantId)
+          return
+        }
+        
+        // Edit-Modal mit den Daten öffnen
+        handleEdit(mieter as Mieter)
+      } catch (error) {
+        console.error('Fehler beim Laden des Mieters:', error)
+      }
+    }
+    
+    // Event-Listener registrieren
+    window.addEventListener('edit-tenant', handleEditTenant)
+    
+    // Cleanup
+    return () => {
+      window.removeEventListener('edit-tenant', handleEditTenant)
+    }
+  }, [handleEdit])
 
   const handleOpenChange = (open: boolean) => {
     setDialogOpen(open)
@@ -56,21 +107,7 @@ export default function MieterPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
-  const handleEdit = useCallback((m: Mieter) => {
-    setEditingId(m.id)
-    setFormData({
-      wohnung_id: m.wohnung_id||"",
-      name: m.name,
-      einzug: m.einzug||"",
-      auszug: m.auszug||"",
-      email: m.email||"",
-      telefonnummer: m.telefonnummer||"",
-      notiz: m.notiz||"",
-      nebenkosten: m.nebenkosten?.join(",")||"",
-      nebenkosten_datum: m.nebenkosten_datum?.join(",")||""
-    })
-    setDialogOpen(true)
-  }, [])
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

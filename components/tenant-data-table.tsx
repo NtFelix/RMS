@@ -1,15 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
-import { Check, X, Home, User } from "lucide-react"
+import { Check, X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard-tenant-context-menu"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { ApartmentEditModal } from "@/components/apartment-edit-modal"
+import { TenantEditModal } from "@/components/tenant-edit-modal"
 
 type TenantDataItem = {
   id: string
@@ -267,30 +267,20 @@ export function TenantDataTable() {
         )}
       </CardContent>
       
-      {/* Platzhalter für Modals - Diese sollten aus entsprechenden Modal-Komponenten eingebunden werden */}
-      {editTenantId && (
-        <Dialog open={!!editTenantId} onOpenChange={() => setEditTenantId(null)}>
-          <DialogContent>
-            <DialogTitle>Mieter bearbeiten</DialogTitle>
-            <div className="py-4">
-              <p className="text-muted-foreground">Hier würde das Mieter-Bearbeitungsformular erscheinen.</p>
-              <p className="text-muted-foreground">Mieter ID: {editTenantId}</p>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Wiederverwendbare Bearbeitungsmodals */}
+      <TenantEditModal
+        open={!!editTenantId}
+        onOpenChange={(open) => !open && setEditTenantId(null)}
+        tenantId={editTenantId}
+        onSuccess={fetchData}
+      />
       
-      {editApartmentId && (
-        <Dialog open={!!editApartmentId} onOpenChange={() => setEditApartmentId(null)}>
-          <DialogContent>
-            <DialogTitle>Wohnung bearbeiten</DialogTitle>
-            <div className="py-4">
-              <p className="text-muted-foreground">Hier würde das Wohnungs-Bearbeitungsformular erscheinen.</p>
-              <p className="text-muted-foreground">Wohnung ID: {editApartmentId}</p>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      <ApartmentEditModal
+        open={!!editApartmentId}
+        onOpenChange={(open) => !open && setEditApartmentId(null)}
+        apartmentId={editApartmentId}
+        onSuccess={fetchData}
+      />
     </Card>
   )
 }
