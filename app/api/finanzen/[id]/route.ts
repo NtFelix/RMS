@@ -1,19 +1,15 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
+// Next.js 15 Route Handler Parameter Type
 
 // GET spezifische Finanztransaktion by ID
 export async function GET(
   _request: NextRequest,
-  { params }: RouteContext
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -41,10 +37,10 @@ export async function GET(
 // PATCH um Finanztransaktion zu aktualisieren, z.B. ist_einnahmen umschalten
 export async function PATCH(
   request: NextRequest,
-  { params }: RouteContext
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const body = await request.json();
     
     const supabase = await createClient();
@@ -95,10 +91,10 @@ export async function PATCH(
 // PUT um Finanztransaktion zu aktualisieren
 export async function PUT(
   request: NextRequest,
-  { params }: RouteContext
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     const body = await request.json();
     
     const supabase = await createClient();
@@ -127,10 +123,10 @@ export async function PUT(
 // DELETE um Finanztransaktion zu löschen
 export async function DELETE(
   _request: NextRequest,
-  { params }: RouteContext
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = params;
+    const { id } = context.params;
     
     const supabase = await createClient();
     const { error } = await supabase
