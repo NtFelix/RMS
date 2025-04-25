@@ -25,15 +25,55 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const supabase = await createClient();
-  // join Haeuser to get haus name
-  const { data, error } = await supabase
+  
+  // Join Haeuser to get house name
+  const { data: apartments, error } = await supabase
     .from('Wohnungen')
     .select('id, name, groesse, miete, haus_id, Haeuser(name)');
+  
   if (error) {
     console.error("Supabase Select Error (Wohnungen):", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json(data, { status: 200 });
+  
+  // Get tenants to determine occupation status
+  const { data: tenants, error: tenantsError } = await supabase
+    .from('Mieter')
+    .select('id, wohnung_id, auszug, einzug, name');
+  
+  if (tenantsError) {
+    console.error("Supabase Select Error (Mieter):", tenantsError);
+    return NextResponse.json({ error: tenantsError.message }, { status: 500 });
+  }
+  
+  // Add status and tenant information
+  const today = new Date();
+  const enrichedApartments = apartments.map(apt => {
+    // Find tenant for this apartment
+    const tenant = tenants.find(t => t.wohnung_id === apt.id);
+    
+    // Determine if apartment is free or rented
+    let status = 'frei';
+    if (tenant) {
+      // If tenant exists with no move-out date or move-out date is in the future
+      if (!tenant.auszug || new Date(tenant.auszug) > today) {
+        status = 'vermietet';
+      }
+    }
+    
+    return {
+      ...apt,
+      status: status,
+      tenant: tenant ? { 
+        id: tenant.id, 
+        name: tenant.name, 
+        einzug: tenant.einzug, 
+        auszug: tenant.auszug 
+      } : null
+    };
+  });
+  
+  return NextResponse.json(enrichedApartments, { status: 200 });
 }
 
 export async function DELETE(request: Request) {
