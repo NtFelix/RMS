@@ -1,130 +1,136 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { createClient } from "@/utils/supabase/client"
 
-// Beispieldaten für die Mieter
-const tenantData = [
-  {
-    id: 1,
-    apartment: "LSF 2.0G",
-    tenant: "Cox casanova",
-    size: "41.50 m²",
-    rent: "485.00 €",
-    pricePerSqm: "11.69 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 2,
-    apartment: "VH 3.0G rechts",
-    tenant: "Engelsmann & Schröder",
-    size: "125.00 m²",
-    rent: "1175.00 €",
-    pricePerSqm: "9.40 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 3,
-    apartment: "VH - frei und erfunden",
-    tenant: "Peter Müller neu",
-    size: "120.00 m²",
-    rent: "1450.00 €",
-    pricePerSqm: "12.08 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 4,
-    apartment: "VH DG 2.5.0",
-    tenant: "Luisa Burkhardt",
-    size: "55.00 m²",
-    rent: "500.00 €",
-    pricePerSqm: "9.09 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 5,
-    apartment: "erfunden",
-    tenant: "Person ABCD",
-    size: "65.00 m²",
-    rent: "775.00 €",
-    pricePerSqm: "11.92 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 6,
-    apartment: "fantasie-groß",
-    tenant: "Nicht vermietet",
-    size: "150.00 m²",
-    rent: "1750.00 €",
-    pricePerSqm: "11.67 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 7,
-    apartment: "fantasie",
-    tenant: "Nicht vermietet",
-    size: "45.00 m²",
-    rent: "480.00 €",
-    pricePerSqm: "10.67 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 8,
-    apartment: "Teil-Nebenkosten-Test",
-    tenant: "Anteilige Nebenkosten Test Mensch",
-    size: "100.00 m²",
-    rent: "1250.00 €",
-    pricePerSqm: "12.50 €/m²",
-    status: "Miete bezahlt",
-  },
-  {
-    id: 9,
-    apartment: "RSF 5.0 löschen",
-    tenant: "halbes Jahr ab 01.07",
-    size: "100.00 m²",
-    rent: "4000.00 €",
-    pricePerSqm: "40.00 €/m²",
-    status: "Miete bezahlt",
-  },
-]
+type TenantDataItem = {
+  id: string
+  apartment: string
+  tenant: string
+  size: string
+  rent: string
+  pricePerSqm: string
+  status: string
+}
 
 export function TenantDataTable() {
+  const [tenantData, setTenantData] = useState<TenantDataItem[]>([])
+  const [loading, setLoading] = useState(true)
+  
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      const supabase = createClient()
+      
+      // Mieter und verknüpfte Wohnungen abrufen
+      const { data: mieterData, error: mieterError } = await supabase
+        .from("Mieter")
+        .select(`
+          id,
+          name,
+          einzug,
+          auszug,
+          Wohnungen:wohnung_id (
+            id,
+            name,
+            groesse,
+            miete
+          )
+        `)
+        .is('auszug', null) // Nur aktive Mietverhältnisse
+      
+      if (mieterError) {
+        console.error("Fehler beim Abrufen der Mieter:", mieterError)
+        setLoading(false)
+        return
+      }
+      
+      // Daten für die Tabelle aufbereiten
+      const formattedData: TenantDataItem[] = mieterData
+        .filter(mieter => mieter.Wohnungen) // Nur Mieter mit Wohnungen
+        .map(mieter => {
+          // Wohnungen ist ein Objekt, nicht ein Array bei Foreign Key Joins
+          const wohnung = mieter.Wohnungen as unknown as {
+            id: string;
+            name: string;
+            groesse: number;
+            miete: number;
+          };
+          
+          const groesse = Number(wohnung.groesse) || 0
+          const miete = Number(wohnung.miete) || 0
+          const pricePerSqm = groesse > 0 ? miete / groesse : 0
+          
+          return {
+            id: mieter.id,
+            apartment: wohnung.name || "Keine Wohnung",
+            tenant: mieter.name,
+            size: groesse > 0 ? `${groesse.toFixed(2)} m²` : "-",
+            rent: miete > 0 ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(miete) : "-",
+            pricePerSqm: pricePerSqm > 0 ? `${pricePerSqm.toFixed(2)} €/m²` : "-",
+            status: "Miete bezahlt", // Standard-Status (könnte später durch tatsächliche Zahlungsdaten ersetzt werden)
+          }
+        })
+      
+      setTenantData(formattedData)
+      setLoading(false)
+    }
+    
+    fetchData()
+  }, [])
+  
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader>
         <CardTitle>Mieterübersicht</CardTitle>
         <CardDescription>Aktuelle Mietverhältnisse und Wohnungsdaten</CardDescription>
       </CardHeader>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Wohnung</TableHead>
-              <TableHead>Mieter</TableHead>
-              <TableHead>Größe</TableHead>
-              <TableHead>Miete</TableHead>
-              <TableHead>Preis pro m²</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {tenantData.map((tenant) => (
-              <TableRow key={tenant.id}>
-                <TableCell className="font-medium">{tenant.apartment}</TableCell>
-                <TableCell>{tenant.tenant}</TableCell>
-                <TableCell>{tenant.size}</TableCell>
-                <TableCell>{tenant.rent}</TableCell>
-                <TableCell>{tenant.pricePerSqm}</TableCell>
-                <TableCell>
-                  <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
-                    {tenant.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        {loading ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Wohnung</TableHead>
+                  <TableHead>Mieter</TableHead>
+                  <TableHead>Größe</TableHead>
+                  <TableHead>Miete</TableHead>
+                  <TableHead>Preis pro m²</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tenantData.length > 0 ? (
+                  tenantData.map((tenant) => (
+                    <TableRow key={tenant.id}>
+                      <TableCell className="font-medium">{tenant.apartment}</TableCell>
+                      <TableCell>{tenant.tenant}</TableCell>
+                      <TableCell>{tenant.size}</TableCell>
+                      <TableCell>{tenant.rent}</TableCell>
+                      <TableCell>{tenant.pricePerSqm}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
+                          {tenant.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">Keine Mietdaten verfügbar</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
