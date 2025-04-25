@@ -4,12 +4,12 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 // GET specific todo by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const supabase = createSupabaseServerClient()
   
   try {
-    const { id } = params
+    const { id } = context.params
     
     const { data, error } = await supabase
       .from("Aufgaben")
@@ -32,12 +32,12 @@ export async function GET(
 // PUT to update a todo
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const supabase = createSupabaseServerClient()
   
   try {
-    const { id } = params
+    const { id } = context.params
     const body = await request.json()
     const { name, beschreibung, ist_erledigt } = body
     
@@ -74,12 +74,12 @@ export async function PUT(
 // DELETE a todo
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   const supabase = createSupabaseServerClient()
   
   try {
-    const { id } = params
+    const { id } = context.params
     
     const { error } = await supabase
       .from("Aufgaben")
