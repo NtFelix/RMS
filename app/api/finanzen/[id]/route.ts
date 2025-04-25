@@ -4,10 +4,10 @@ import { NextRequest, NextResponse } from "next/server";
 // GET spezifische Finanztransaktion by ID
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } // Korrigierte Typisierung
 ) {
   try {
-    const { id } = await params;
+    const { id } = await params; // Parameter mit await auflösen
     
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -35,10 +35,10 @@ export async function GET(
 // PATCH um Finanztransaktion zu aktualisieren, z.B. ist_einnahmen umschalten
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } // Korrigierte Typisierung
 ) {
   try {
-    const { id } = await params;
+    const { id } = await params; // Parameter mit await auflösen
     const body = await request.json();
     
     const supabase = await createClient();
@@ -89,10 +89,10 @@ export async function PATCH(
 // PUT um Finanztransaktion zu aktualisieren
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } // Korrigierte Typisierung
 ) {
   try {
-    const { id } = await params;
+    const { id } = await params; // Parameter mit await auflösen
     const body = await request.json();
     
     const supabase = await createClient();
@@ -121,10 +121,10 @@ export async function PUT(
 // DELETE um Finanztransaktion zu löschen
 export async function DELETE(
   _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> } // Korrigierte Typisierung
 ) {
   try {
-    const { id } = await params;
+    const { id } = await params; // Parameter mit await auflösen
     
     const supabase = await createClient();
     const { error } = await supabase
