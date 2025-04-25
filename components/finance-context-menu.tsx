@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { ArrowDownCircle, ArrowUpCircle, Edit, Trash2 } from "lucide-react"
+import { Edit, ArrowUpDown, Trash2, TrendingUp, TrendingDown } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 
-interface Finanz {
+interface Finance {
   id: string
   wohnung_id?: string
   name: string
@@ -34,8 +34,9 @@ interface Finanz {
 
 interface FinanceContextMenuProps {
   children: React.ReactNode
-  finance: Finanz
-  onEdit: (finance: Finanz) => void
+  finance: Finance
+  onEdit: () => void
+  onStatusToggle: () => void
   onRefresh: () => void
 }
 
@@ -43,6 +44,7 @@ export function FinanceContextMenu({
   children,
   finance,
   onEdit,
+  onStatusToggle,
   onRefresh,
 }: FinanceContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
@@ -78,60 +80,22 @@ export function FinanceContextMenu({
     }
   }
 
-  const handleTypeToggle = async () => {
-    try {
-      const response = await fetch(`/api/finanzen?id=${finance.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...finance,
-          ist_einnahmen: !finance.ist_einnahmen
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Fehler beim Ändern des Transaktionstyps")
-      }
-
-      toast({
-        title: "Erfolg",
-        description: `Die Transaktion wurde als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
-      })
-      
-      onRefresh()
-    } catch (error) {
-      console.error("Fehler beim Ändern des Transaktionstyps:", error)
-      toast({
-        title: "Fehler",
-        description: "Der Transaktionstyp konnte nicht geändert werden. Bitte versuchen Sie es später erneut.",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={() => onEdit(finance)} className="flex items-center gap-2 cursor-pointer">
+          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
-          <ContextMenuItem onClick={handleTypeToggle} className="flex items-center gap-2 cursor-pointer">
-            {finance.ist_einnahmen ? (
-              <>
-                <ArrowDownCircle className="h-4 w-4 text-red-500" />
-                <span>Als Ausgabe markieren</span>
-              </>
-            ) : (
-              <>
-                <ArrowUpCircle className="h-4 w-4 text-green-500" />
-                <span>Als Einnahme markieren</span>
-              </>
-            )}
+          <ContextMenuItem onClick={onStatusToggle} className="flex items-center gap-2 cursor-pointer">
+            <ArrowUpDown className="h-4 w-4" />
+            <span>
+              {finance.ist_einnahmen 
+                ? "Als Ausgabe umschalten" 
+                : "Als Einnahme umschalten"}
+            </span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
@@ -149,17 +113,13 @@ export function FinanceContextMenu({
           <AlertDialogHeader>
             <AlertDialogTitle>Transaktion löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Die Transaktion wird permanent gelöscht.
+              Möchten Sie diese Transaktion wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete} 
-              className="bg-red-600 hover:bg-red-700" 
-              disabled={isDeleting}
-            >
-              {isDeleting ? "Wird gelöscht..." : "Löschen"}
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+              {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

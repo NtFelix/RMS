@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Check, Edit, Trash2 } from "lucide-react"
+import { Edit, User, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,51 +21,61 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 
-interface TaskContextMenuProps {
+interface Tenant {
+  id: string
+  wohnung_id?: string
+  name: string
+  einzug?: string
+  auszug?: string
+  email?: string
+  telefonnummer?: string
+  notiz?: string
+  nebenkosten?: number[]
+}
+
+interface TenantContextMenuProps {
   children: React.ReactNode
-  task: {
-    id: string
-    name: string
-    beschreibung: string
-    ist_erledigt: boolean
-  }
+  tenant: Tenant
   onEdit: () => void
-  onStatusToggle: () => void
   onRefresh: () => void
 }
 
-export function TaskContextMenu({
+export function TenantContextMenu({
   children,
-  task,
+  tenant,
   onEdit,
-  onStatusToggle,
   onRefresh,
-}: TaskContextMenuProps) {
+}: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false)
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/todos/${task.id}`, {
+      setIsDeleting(true)
+      const response = await fetch(`/api/mieter?id=${tenant.id}`, {
         method: "DELETE",
       })
 
       if (!response.ok) {
-        throw new Error("Fehler beim Löschen der Aufgabe")
+        throw new Error("Fehler beim Löschen des Mieters")
       }
 
       toast({
         title: "Erfolg",
-        description: "Die Aufgabe wurde erfolgreich gelöscht.",
+        description: `Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`,
       })
       
       onRefresh()
     } catch (error) {
-      console.error("Fehler beim Löschen der Aufgabe:", error)
+      console.error("Fehler beim Löschen des Mieters:", error)
       toast({
         title: "Fehler",
-        description: "Die Aufgabe konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+        description: "Der Mieter konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
       })
+    } finally {
+      setIsDeleting(false)
+      setDeleteDialogOpen(false)
     }
   }
 
@@ -77,12 +87,6 @@ export function TaskContextMenu({
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={onStatusToggle} className="flex items-center gap-2 cursor-pointer">
-            <Check className="h-4 w-4" />
-            <span>
-              {task.ist_erledigt ? "Als unerledigt markieren" : "Als erledigt markieren"}
-            </span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
@@ -98,15 +102,15 @@ export function TaskContextMenu({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Aufgabe löschen?</AlertDialogTitle>
+            <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Diese Aktion kann nicht rückgängig gemacht werden. Die Aufgabe wird permanent gelöscht.
+              Möchten Sie den Mieter "{tenant.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
-              Löschen
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+              {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

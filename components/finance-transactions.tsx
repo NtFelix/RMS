@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download } from "lucide-react"
+import { Search, Download, Edit, Trash } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 
 // Interface for finance transactions
@@ -36,6 +37,9 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
   const [selectedYear, setSelectedYear] = useState("Alle Jahre")
   const [selectedType, setSelectedType] = useState("Alle Transaktionen")
   const [filteredData, setFilteredData] = useState<Finanz[]>([])
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Get unique apartment list from finances data
   const apartments = ["Alle Wohnungen", ...new Set(finances
@@ -106,11 +110,28 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
     document.body.removeChild(a);
   };
 
-  // Trigger reload function
-  const handleRefresh = () => {
-    loadFinances && loadFinances()
-    reloadRef?.current && reloadRef.current()
-  }
+  // Delete finance
+  const handleDeleteConfirm = async () => {
+    if (!financeToDelete) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch(`/api/finanzen?id=${financeToDelete.id}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast({ title: 'Gelöscht', description: 'Transaktion wurde entfernt.' })
+        loadFinances && loadFinances()
+        reloadRef?.current && reloadRef.current()
+      } else {
+        const err = await res.json()
+        toast({ title: 'Fehler', description: err.error || 'Löschen fehlgeschlagen', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Fehler', description: 'Netzwerkfehler', variant: 'destructive' })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+      setFinanceToDelete(null)
+    }
+  };
 
   return (
     <>
@@ -205,13 +226,49 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
                     </TableRow>
                   ) : (
                     filteredData.map((finance) => (
-                      <FinanceContextMenu 
+                      <FinanceContextMenu
                         key={finance.id}
                         finance={finance}
-                        onEdit={onEdit || (() => {})}
-                        onRefresh={handleRefresh}
+                        onEdit={() => onEdit && onEdit(finance)}
+                        onStatusToggle={async () => {
+                          try {
+                            const response = await fetch(`/api/finanzen/${finance.id}`, {
+                              method: "PATCH",
+                              headers: {
+                                "Content-Type": "application/json",
+                              },
+                              body: JSON.stringify({ 
+                                ist_einnahmen: !finance.ist_einnahmen 
+                              }),
+                            })
+                            
+                            if (!response.ok) {
+                              throw new Error("Fehler beim Umschalten des Status")
+                            }
+                            
+                            toast({
+                              title: "Status geändert",
+                              description: `Die Transaktion wurde als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
+                            })
+                            
+                            // Aktualisieren der Daten
+                            loadFinances && loadFinances()
+                            reloadRef?.current && reloadRef.current()
+                          } catch (error) {
+                            console.error("Fehler beim Umschalten des Status:", error)
+                            toast({
+                              title: "Fehler",
+                              description: "Der Status konnte nicht geändert werden.",
+                              variant: "destructive",
+                            })
+                          }
+                        }}
+                        onRefresh={() => {
+                          loadFinances && loadFinances()
+                          reloadRef?.current && reloadRef.current()
+                        }}
                       >
-                        <TableRow className="hover:bg-muted/50 cursor-pointer">
+                        <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit && onEdit(finance)}>
                           <TableCell>{finance.name}</TableCell>
                           <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
                           <TableCell>{finance.datum || '-'}</TableCell>
@@ -225,8 +282,8 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
                               variant="outline"
                               className={
                                 finance.ist_einnahmen
-                                  ? "bg-green-50 text-green-700 hover:bg-green-100"
-                                  : "bg-red-50 text-red-700 hover:bg-red-100"
+                                  ? "bg-green-50 text-green-700"
+                                  : "bg-red-50 text-red-700"
                               }
                             >
                               {finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}
@@ -243,7 +300,19 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
         </CardContent>
       </Card>
 
-
+      {/* Delete Confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
+            <AlertDialogDescription>Möchten Sie diese Transaktion wirklich löschen? Dies kann nicht rückgängig gemacht werden.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600" disabled={isDeleting}>{isDeleting ? 'Löschen...' : 'Löschen'}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }

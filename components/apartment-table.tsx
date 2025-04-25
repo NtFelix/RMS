@@ -3,12 +3,7 @@
 import { useState, useEffect, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-  ContextMenuContent,
-  ContextMenuItem
-} from "@/components/ui/context-menu"
+import { ApartmentContextMenu } from "@/components/apartment-context-menu"
 import {
   AlertDialog,
   AlertDialogContent,
@@ -84,21 +79,20 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
             </TableRow>
           ) : (
             filteredData.map((apt) => (
-              <ContextMenu key={apt.id}>
-                <ContextMenuTrigger asChild>
-                  <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(apt)}>
-                    <TableCell className="font-medium">{apt.name}</TableCell>
-                    <TableCell>{apt.groesse} m²</TableCell>
-                    <TableCell>{apt.miete} €</TableCell>
-                    <TableCell>{(apt.miete / apt.groesse).toFixed(2)} €/m²</TableCell>
-                    <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
-                  </TableRow>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem onSelect={() => onEdit?.(apt)}>Bearbeiten</ContextMenuItem>
-                  <ContextMenuItem className="text-red-600" onSelect={() => { setAptToDelete(apt); setShowDeleteConfirm(true); }}>Löschen</ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+              <ApartmentContextMenu
+                key={apt.id}
+                apartment={apt}
+                onEdit={() => onEdit?.(apt)}
+                onRefresh={fetchApartments}
+              >
+                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(apt)}>
+                  <TableCell className="font-medium">{apt.name}</TableCell>
+                  <TableCell>{apt.groesse} m²</TableCell>
+                  <TableCell>{apt.miete} €</TableCell>
+                  <TableCell>{(apt.miete / apt.groesse).toFixed(2)} €/m²</TableCell>
+                  <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
+                </TableRow>
+              </ApartmentContextMenu>
             ))
           )}
         </TableBody>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, MutableRefObject, useMemo } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { TenantContextMenu } from "@/components/tenant-context-menu"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
@@ -91,21 +91,20 @@ export function TenantTable({ filter, searchQuery, reloadRef, onEdit, wohnungen 
             </TableRow>
           ) : (
             filteredData.map((tenant) => (
-              <ContextMenu key={tenant.id}>
-                <ContextMenuTrigger asChild>
-                  <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
-                    <TableCell className="font-medium">{tenant.name}</TableCell>
-                    <TableCell>{tenant.email}</TableCell>
-                    <TableCell>{tenant.telefonnummer}</TableCell>
-                    <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                    <TableCell>{tenant.nebenkosten?.map(n => `${n} €`).join(', ') || '-'}</TableCell>
-                  </TableRow>
-                </ContextMenuTrigger>
-                <ContextMenuContent>
-                  <ContextMenuItem onSelect={() => onEdit?.(tenant)}>Bearbeiten</ContextMenuItem>
-                  <ContextMenuItem className="text-red-600" onSelect={() => { setTenantToDelete(tenant); setShowDeleteConfirm(true); }}>Löschen</ContextMenuItem>
-                </ContextMenuContent>
-              </ContextMenu>
+              <TenantContextMenu
+                key={tenant.id}
+                tenant={tenant}
+                onEdit={() => onEdit?.(tenant)}
+                onRefresh={fetchTenants}
+              >
+                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
+                  <TableCell className="font-medium">{tenant.name}</TableCell>
+                  <TableCell>{tenant.email}</TableCell>
+                  <TableCell>{tenant.telefonnummer}</TableCell>
+                  <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
+                  <TableCell>{tenant.nebenkosten?.map(n => `${n} €`).join(', ') || '-'}</TableCell>
+                </TableRow>
+              </TenantContextMenu>
             ))
           )}
         </TableBody>
