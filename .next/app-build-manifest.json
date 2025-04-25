@@ -11,21 +11,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/layout.js"
     ],
-    "/(dashboard)/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/page.js"
-    ],
-    "/(dashboard)/betriebskosten/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/betriebskosten/page.js"
-    ],
-    "/(dashboard)/finanzen/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/finanzen/page.js"
-    ],
     "/(dashboard)/mieter/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
