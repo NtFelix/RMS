@@ -1,7 +1,1 @@
-{
-  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
-  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js",
-  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
-  "/(dashboard)/betriebskosten/page": "app/(dashboard)/betriebskosten/page.js",
-  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js"
-}
+{}
