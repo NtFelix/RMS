@@ -1,13 +1,8 @@
 {
-  "/api/wohnungen/route": "app/api/wohnungen/route.js",
-  "/api/mieter/route": "app/api/mieter/route.js",
-  "/_not-found/page": "app/_not-found/page.js",
-  "/api/haeuser/route": "app/api/haeuser/route.js",
+  "/api/finanzen/[id]/route": "app/api/finanzen/[id]/route.js",
   "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
-  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js",
-  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
   "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js",
   "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
-  "/(dashboard)/betriebskosten/page": "app/(dashboard)/betriebskosten/page.js",
-  "/(dashboard)/page": "app/(dashboard)/page.js"
+  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
+  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js"
 }
