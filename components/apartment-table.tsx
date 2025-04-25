@@ -23,6 +23,13 @@ interface Apartment {
   miete: number
   haus_id?: string
   Haeuser?: { name: string }
+  status: 'frei' | 'vermietet'
+  tenant?: {
+    id: string
+    name: string
+    einzug?: string
+    auszug?: string
+  } | null
 }
 
 interface ApartmentTableProps {
@@ -54,7 +61,26 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
 
   useEffect(() => {
     let result = apartments
-    // optional: filter by status/search (not implemented)
+    
+    // Filter by status
+    if (filter === 'free') {
+      result = result.filter(apt => apt.status === 'frei')
+    } else if (filter === 'rented') {
+      result = result.filter(apt => apt.status === 'vermietet')
+    }
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(
+        (apt) =>
+          apt.name.toLowerCase().includes(query) ||
+          apt.groesse.toString().includes(query) ||
+          apt.miete.toString().includes(query) ||
+          (apt.Haeuser?.name && apt.Haeuser.name.toLowerCase().includes(query))
+      )
+    }
+    
     setFilteredData(result)
   }, [apartments, filter, searchQuery])
 
@@ -68,6 +94,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
             <TableHead>Miete (€)</TableHead>
             <TableHead>Miete pro m²</TableHead>
             <TableHead>Haus</TableHead>
+            <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -91,6 +118,17 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
                   <TableCell>{apt.miete} €</TableCell>
                   <TableCell>{(apt.miete / apt.groesse).toFixed(2)} €/m²</TableCell>
                   <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
+                  <TableCell>
+                    {apt.status === 'vermietet' ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
+                        vermietet
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
+                        frei
+                      </Badge>
+                    )}
+                  </TableCell>
                 </TableRow>
               </ApartmentContextMenu>
             ))

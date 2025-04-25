@@ -1,233 +1,65 @@
 {
   "pages": {
-    "/_not-found/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/_not-found/page-9095a82f334f4544.js"
-    ],
     "/layout": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/css/592ec7f55ef5704b.css",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/826-412ec01d4a3a5af1.js",
-      "static/chunks/app/layout-125610e2e6205d07.js"
-    ],
-    "/api/finanzen/[id]/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/finanzen/[id]/route-4f2a48f0babb3691.js"
-    ],
-    "/api/todos/[id]/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/todos/[id]/route-1cbb3874b95ca57a.js"
-    ],
-    "/api/haeuser/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/haeuser/route-02edd9cce47bf932.js"
-    ],
-    "/api/todos/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/todos/route-d9452db667820b87.js"
-    ],
-    "/api/finanzen/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/finanzen/route-0c8ecbbb11910d2d.js"
-    ],
-    "/api/mieter/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/mieter/route-df6e4e081488092e.js"
-    ],
-    "/auth/callback/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/auth/callback/route-b98354a57651f268.js"
-    ],
-    "/api/wohnungen/route": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/api/wohnungen/route-b55b29d9e62b5617.js"
-    ],
-    "/(dashboard)/layout": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/422-3ec4a405f4ddeaba.js",
-      "static/chunks/874-87bc2d37a483fb82.js",
-      "static/chunks/564-019a75ccfc7ede90.js",
-      "static/chunks/app/(dashboard)/layout-d707739d748f810f.js"
-    ],
-    "/(dashboard)/betriebskosten/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/app/(dashboard)/betriebskosten/page-863e1fad53d3fbfe.js"
-    ],
-    "/(dashboard)/haeuser/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/422-3ec4a405f4ddeaba.js",
-      "static/chunks/798-f21b707dfb24c63d.js",
-      "static/chunks/841-58a7e27ab54d046b.js",
-      "static/chunks/app/(dashboard)/haeuser/page-717719bd0a5aae34.js"
-    ],
-    "/(dashboard)/finanzen/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/422-3ec4a405f4ddeaba.js",
-      "static/chunks/798-f21b707dfb24c63d.js",
-      "static/chunks/30-406ee0741cf744ef.js",
-      "static/chunks/256-8cfa569ee54cc071.js",
-      "static/chunks/484-8da88d419ea51404.js",
-      "static/chunks/841-58a7e27ab54d046b.js",
-      "static/chunks/app/(dashboard)/finanzen/page-88466b21b7e056af.js"
-    ],
-    "/(dashboard)/mieter/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/422-3ec4a405f4ddeaba.js",
-      "static/chunks/798-f21b707dfb24c63d.js",
-      "static/chunks/30-406ee0741cf744ef.js",
-      "static/chunks/841-58a7e27ab54d046b.js",
-      "static/chunks/app/(dashboard)/mieter/page-e66c2fce23575ede.js"
-    ],
-    "/(dashboard)/wohnungen/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/422-3ec4a405f4ddeaba.js",
-      "static/chunks/798-f21b707dfb24c63d.js",
-      "static/chunks/30-406ee0741cf744ef.js",
-      "static/chunks/841-58a7e27ab54d046b.js",
-      "static/chunks/app/(dashboard)/wohnungen/page-eb4530ab5b290b57.js"
-    ],
-    "/(dashboard)/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/874-87bc2d37a483fb82.js",
-      "static/chunks/256-8cfa569ee54cc071.js",
-      "static/chunks/704-8c5403990ef0b62b.js",
-      "static/chunks/app/(dashboard)/page-23a7702b0d6f7298.js"
-    ],
-    "/(dashboard)/todos/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/361-3a609c36b71c3e79.js",
-      "static/chunks/422-3ec4a405f4ddeaba.js",
-      "static/chunks/798-f21b707dfb24c63d.js",
-      "static/chunks/826-412ec01d4a3a5af1.js",
-      "static/chunks/215-0a6579f65679ec9f.js",
-      "static/chunks/841-58a7e27ab54d046b.js",
-      "static/chunks/app/(dashboard)/todos/page-aee7c55c640e3baa.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
     ],
     "/auth/layout": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/auth/layout-f4a5ff3024374a76.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/auth/layout.js"
     ],
     "/auth/login/loading": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/app/auth/login/loading-12b00f16830137a9.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/auth/login/loading.js"
     ],
     "/auth/login/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/874-87bc2d37a483fb82.js",
-      "static/chunks/app/auth/login/page-ea35c79d069c76b8.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/auth/login/page.js"
     ],
-    "/auth/register/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/874-87bc2d37a483fb82.js",
-      "static/chunks/app/auth/register/page-c1db24b86cc00c44.js"
+    "/(dashboard)/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/layout.js"
     ],
-    "/auth/reset-password/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/874-87bc2d37a483fb82.js",
-      "static/chunks/app/auth/reset-password/page-0b90afd62e5f9871.js"
+    "/(dashboard)/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/page.js"
     ],
-    "/auth/update-password/page": [
-      "static/chunks/webpack-4cf00f1597956267.js",
-      "static/chunks/4bd1b696-f7932e4958f9d60a.js",
-      "static/chunks/684-68b3c9b638ab6e67.js",
-      "static/chunks/main-app-e017aedcf942d121.js",
-      "static/chunks/352-bd123f8bb16a0977.js",
-      "static/chunks/258-779054c521be5f76.js",
-      "static/chunks/app/auth/update-password/page-615c55bde332315e.js"
+    "/(dashboard)/haeuser/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/haeuser/page.js"
+    ],
+    "/api/haeuser/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/haeuser/route.js"
+    ],
+    "/(dashboard)/mieter/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/mieter/page.js"
+    ],
+    "/api/mieter/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/mieter/route.js"
+    ],
+    "/(dashboard)/wohnungen/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/wohnungen/page.js"
+    ],
+    "/api/wohnungen/route": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/api/wohnungen/route.js"
     ]
   }
 }

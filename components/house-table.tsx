@@ -25,6 +25,8 @@ export interface House {
   rent?: string
   pricePerSqm?: string
   status?: string
+  totalApartments?: number
+  freeApartments?: number
 }
 
 
@@ -140,17 +142,17 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit }: HouseTabl
                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(house)}>
                   <TableCell className="font-medium">{house.name}</TableCell>
                   <TableCell>{house.ort}</TableCell>
-                  <TableCell>{house.size}</TableCell>
-                  <TableCell>{house.rent}</TableCell>
-                  <TableCell>{house.pricePerSqm}</TableCell>
+                  <TableCell>{house.size ? `${house.size} m²` : "-"}</TableCell>
+                  <TableCell>{house.rent ? `${house.rent} €` : "-"}</TableCell>
+                  <TableCell>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
                   <TableCell>
-                    {house.status === "vermietet" ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
-                        vermietet
+                    {house.totalApartments !== undefined && house.freeApartments !== undefined ? (
+                      <Badge variant="outline" className={house.freeApartments > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-50" : "bg-green-50 text-green-700 hover:bg-green-50"}>
+                        {house.freeApartments}/{house.totalApartments} frei
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 hover:bg-blue-50">
-                        frei
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">
+                        keine Wohnungen
                       </Badge>
                     )}
                   </TableCell>
