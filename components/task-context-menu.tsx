@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Check, Edit, Trash2 } from "lucide-react"
+import { CheckCircle, Edit, Trash2, XCircle } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,10 +79,17 @@ export function TaskContextMenu({
             <span>Bearbeiten</span>
           </ContextMenuItem>
           <ContextMenuItem onClick={onStatusToggle} className="flex items-center gap-2 cursor-pointer">
-            <Check className="h-4 w-4" />
-            <span>
-              {task.ist_erledigt ? "Als unerledigt markieren" : "Als erledigt markieren"}
-            </span>
+            {task.ist_erledigt ? (
+              <>
+                <XCircle className="h-4 w-4 text-yellow-500" />
+                <span>Als unerledigt markieren</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span>Als erledigt markieren</span>
+              </>
+            )}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
