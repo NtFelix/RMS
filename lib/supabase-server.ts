@@ -8,8 +8,8 @@ export function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name) {
-          const cookieStore = cookies()
+        async get(name: string) {
+          const cookieStore = await cookies()
           const cookie = cookieStore.get(name)
           return cookie?.value
         },
