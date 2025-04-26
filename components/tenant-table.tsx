@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, MutableRefObject, useMemo } from "react"
+import { useState, useMemo } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantContextMenu } from "@/components/tenant-context-menu"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
+import { useRouter } from "next/navigation"
 
 interface Tenant {
   id: string
@@ -20,34 +21,22 @@ interface Tenant {
 }
 
 interface TenantTableProps {
+  tenants: Tenant[]
+  wohnungen: { id: string; name: string }[]
   filter: string
   searchQuery: string
-  reloadRef?: MutableRefObject<(() => void) | null>
   onEdit?: (t: Tenant) => void
-  wohnungen?: { id: string; name: string }[]
+  onDelete?: (id: string) => void
 }
 
-export function TenantTable({ filter, searchQuery, reloadRef, onEdit, wohnungen }: TenantTableProps) {
-  const [tenants, setTenants] = useState<Tenant[]>([])
-  const [filteredData, setFilteredData] = useState<Tenant[]>([])
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
+  const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const fetchTenants = async () => {
-    const res = await fetch("/api/mieter")
-    if (res.ok) {
-      const data: Tenant[] = await res.json()
-      setTenants(data)
-    }
-  }
-
-  useEffect(() => {
-    fetchTenants()
-    if (reloadRef) reloadRef.current = fetchTenants
-  }, [])
-
-  useEffect(() => {
+  // Filterung und Suche clientseitig
+  const filteredData = useMemo(() => {
     let result = tenants
     if (filter === "current") result = result.filter(t => !t.auszug)
     else if (filter === "previous") result = result.filter(t => !!t.auszug)
@@ -60,7 +49,7 @@ export function TenantTable({ filter, searchQuery, reloadRef, onEdit, wohnungen 
         (t.wohnung_id && t.wohnung_id.toLowerCase().includes(q))
       )
     }
-    setFilteredData(result)
+    return result
   }, [tenants, filter, searchQuery])
 
   // Map wohnung_id to wohnung name
@@ -95,7 +84,7 @@ export function TenantTable({ filter, searchQuery, reloadRef, onEdit, wohnungen 
                 key={tenant.id}
                 tenant={tenant}
                 onEdit={() => onEdit?.(tenant)}
-                onRefresh={fetchTenants}
+                onRefresh={() => router.refresh()}
               >
                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
                   <TableCell className="font-medium">{tenant.name}</TableCell>
@@ -120,11 +109,9 @@ export function TenantTable({ filter, searchQuery, reloadRef, onEdit, wohnungen 
             <AlertDialogAction onClick={async () => {
               if (!tenantToDelete) return
               setIsDeleting(true)
-              const res = await fetch(`/api/mieter?id=${tenantToDelete.id}`, { method: "DELETE" })
+              if (onDelete) await onDelete(tenantToDelete.id)
               setIsDeleting(false)
               setShowDeleteConfirm(false)
-              if (res.ok) { toast({ title: "Gelöscht", description: "Mieter entfernt." }); fetchTenants() }
-              else { toast({ title: "Fehler", description: "Löschen fehlgeschlagen.", variant: "destructive" }) }
             }} className="bg-red-600 hover:bg-red-700">{isDeleting ? "Lösche..." : "Löschen"}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
