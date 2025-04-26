@@ -16,6 +16,11 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/page.js"
     ],
+    "/(dashboard)/mieter/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/mieter/page.js"
+    ],
     "/(dashboard)/haeuser/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -26,25 +31,10 @@
       "static/chunks/main-app.js",
       "static/chunks/app/api/haeuser/route.js"
     ],
-    "/(dashboard)/mieter/page": [
+    "/_not-found/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/mieter/page.js"
-    ],
-    "/(dashboard)/wohnungen/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/wohnungen/page.js"
-    ],
-    "/api/wohnungen/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/wohnungen/route.js"
-    ],
-    "/(dashboard)/finanzen/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/finanzen/page.js"
+      "static/chunks/app/_not-found/page.js"
     ]
   }
 }
