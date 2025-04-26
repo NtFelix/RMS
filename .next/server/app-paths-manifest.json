@@ -1,3 +1,8 @@
 {
-  "/(dashboard)/page": "app/(dashboard)/page.js"
+  "/api/haeuser/route": "app/api/haeuser/route.js",
+  "/api/mieter/route": "app/api/mieter/route.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
+  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
+  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js"
 }
