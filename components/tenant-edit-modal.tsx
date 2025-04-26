@@ -39,7 +39,7 @@ interface TenantEditModalProps {
   loading?: boolean
 }
 
-export function TenantEditModal({ open, onOpenChange, wohnungen, initialData, serverAction, loading }: TenantEditModalProps) {
+export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialData, serverAction, loading }: TenantEditModalProps) {
   const [formData, setFormData] = useState({
     wohnung_id: initialData?.wohnung_id || "",
     name: initialData?.name || "",
