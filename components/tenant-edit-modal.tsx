@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
-import { createClient } from "@/utils/supabase/client"
 
 interface Mieter {
   id: string
@@ -25,164 +23,65 @@ interface Mieter {
 interface TenantEditModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  tenantId: string | null
-  onSuccess?: () => void
+  wohnungen: { id: string; name: string }[]
+  initialData?: {
+    wohnung_id?: string
+    name: string
+    einzug?: string
+    auszug?: string
+    email?: string
+    telefonnummer?: string
+    notiz?: string
+    nebenkosten?: string
+    nebenkosten_datum?: string
+  }
+  serverAction: (formData: FormData) => Promise<void>
+  loading?: boolean
 }
 
-export function TenantEditModal({ open, onOpenChange, tenantId, onSuccess }: TenantEditModalProps) {
-  const [formData, setFormData] = useState({ 
-    wohnung_id: "", 
-    name: "", 
-    einzug: "", 
-    auszug: "", 
-    email: "", 
-    telefonnummer: "", 
-    notiz: "", 
-    nebenkosten: "", 
-    nebenkosten_datum: "" 
-  })
-  const [wohnungen, setWohnungen] = useState<{ id: string; name: string }[]>([])
-  const [loading, setLoading] = useState(false)
+export function TenantEditModal({ open, onOpenChange, wohnungen, initialData, serverAction, loading }: TenantEditModalProps) {
+  const [formData, setFormData] = useState({
+    wohnung_id: initialData?.wohnung_id || "",
+    name: initialData?.name || "",
+    einzug: initialData?.einzug || "",
+    auszug: initialData?.auszug || "",
+    email: initialData?.email || "",
+    telefonnummer: initialData?.telefonnummer || "",
+    notiz: initialData?.notiz || "",
+    nebenkosten: initialData?.nebenkosten || "",
+    nebenkosten_datum: initialData?.nebenkosten_datum || ""
+  });
 
-  // Lade Wohnungen für das Dropdown
   useEffect(() => {
-    createClient().from('Wohnungen').select('id,name').then(({ data }) => data && setWohnungen(data))
-  }, [])
-
-  // Lade Mieterdaten, wenn tenantId vorhanden
-  useEffect(() => {
-    const loadTenant = async () => {
-      if (!tenantId || !open) return
-      
-      try {
-        const { data } = await createClient()
-          .from('Mieter')
-          .select('*')
-          .eq('id', tenantId)
-          .single()
-        
-        if (data) {
-          setFormData({
-            wohnung_id: data.wohnung_id || "",
-            name: data.name,
-            einzug: data.einzug || "",
-            auszug: data.auszug || "",
-            email: data.email || "",
-            telefonnummer: data.telefonnummer || "",
-            notiz: data.notiz || "",
-            nebenkosten: data.nebenkosten?.join(",") || "",
-            nebenkosten_datum: data.nebenkosten_datum?.join(",") || ""
-          })
-        }
-      } catch (error) {
-        console.error('Fehler beim Laden des Mieters:', error)
-        toast({
-          title: "Fehler",
-          description: "Der Mieter konnte nicht geladen werden.",
-          variant: "destructive"
-        })
-      }
-    }
-    
-    loadTenant()
-    
-    // Formular zurücksetzen beim Schließen
-    if (!open) {
-      setFormData({ 
-        wohnung_id: "", 
-        name: "", 
-        einzug: "", 
-        auszug: "", 
-        email: "", 
-        telefonnummer: "", 
-        notiz: "", 
-        nebenkosten: "", 
-        nebenkosten_datum: "" 
-      })
-    }
-  }, [tenantId, open])
+    setFormData({
+      wohnung_id: initialData?.wohnung_id || "",
+      name: initialData?.name || "",
+      einzug: initialData?.einzug || "",
+      auszug: initialData?.auszug || "",
+      email: initialData?.email || "",
+      telefonnummer: initialData?.telefonnummer || "",
+      notiz: initialData?.notiz || "",
+      nebenkosten: initialData?.nebenkosten || "",
+      nebenkosten_datum: initialData?.nebenkosten_datum || ""
+    });
+  }, [initialData, open]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    
-    const { wohnung_id, name, einzug, auszug, email, telefonnummer, notiz, nebenkosten, nebenkosten_datum } = formData
-    const payload: any = { name }
-    
-    // Füge optionale Felder hinzu
-    if (wohnung_id) payload.wohnung_id = wohnung_id
-    if (einzug) payload.einzug = einzug
-    if (auszug) payload.auszug = auszug
-    if (email) payload.email = email
-    if (telefonnummer) payload.telefonnummer = telefonnummer
-    if (notiz) payload.notiz = notiz
-    
-    if (nebenkosten.trim()) {
-      payload.nebenkosten = nebenkosten
-        .split(',')
-        .map(s => parseFloat(s.trim()))
-        .filter(n => !isNaN(n))
-    }
-    
-    if (nebenkosten_datum.trim()) {
-      payload.nebenkosten_datum = nebenkosten_datum
-        .split(',')
-        .map(s => s.trim())
-        .filter(s => s)
-    }
-    
-    const url = tenantId ? `/api/mieter?id=${tenantId}` : "/api/mieter"
-    const method = tenantId ? "PUT" : "POST"
-    
-    try {
-      const res = await fetch(url, { 
-        method, 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
-      })
-      
-      if (res.ok) {
-        toast({ 
-          title: tenantId ? "Aktualisiert" : "Gespeichert", 
-          description: tenantId ? "Mieter aktualisiert." : "Mieter hinzugefügt." 
-        })
-        onOpenChange(false)
-        onSuccess?.()
-      } else {
-        const err = await res.json()
-        toast({ 
-          title: "Fehler", 
-          description: err.details || err.error || 'Unbekannter Fehler', 
-          variant: "destructive" 
-        })
-      }
-    } catch (error) {
-      toast({ 
-        title: "Fehler", 
-        description: "Netzwerkfehler.", 
-        variant: "destructive" 
-      })
-    } finally {
-      setLoading(false)
-    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{tenantId ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
+          <DialogTitle>{initialData ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
           <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+        <form action={serverAction} className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>
-              <Select value={formData.wohnung_id} onValueChange={v => setFormData({...formData, wohnung_id:v})}>
+              <Select name="wohnung_id" value={formData.wohnung_id} onValueChange={v => setFormData({...formData, wohnung_id:v})}>
                 <SelectTrigger id="wohnung_id">
                   <SelectValue placeholder="--"/>
                 </SelectTrigger>
@@ -240,7 +139,7 @@ export function TenantEditModal({ open, onOpenChange, tenantId, onSuccess }: Ten
           </div>
           <DialogFooter>
             <Button type="submit" disabled={loading}>
-              {loading ? "Wird gespeichert..." : (tenantId ? "Aktualisieren" : "Speichern")}
+              {loading ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>
         </form>
