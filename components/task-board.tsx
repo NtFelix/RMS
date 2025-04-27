@@ -40,8 +40,8 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }:
   const combinedRefreshTrigger = refreshTrigger !== undefined ? refreshTrigger + localRefreshTrigger : localRefreshTrigger
 
   useEffect(() => {
-    // Wenn initialTasks per SSR geladen, überspringe den Fetch
-    if (initialTasks) {
+    // Wenn initialTasks per SSR geladen und kein Refresh-Trigger aktiv, überspringe den Fetch
+    if (initialTasks && combinedRefreshTrigger === 0) {
       setIsLoading(false)
       return
     }

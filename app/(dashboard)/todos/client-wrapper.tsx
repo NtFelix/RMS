@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
@@ -26,6 +26,17 @@ export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [tasksState, setTasksState] = useState<Task[]>(tasks);
+
+  // Nachladen der Aufgaben, wenn eine neue hinzugefügt wurde
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+      fetch('/api/todos')
+        .then(res => res.ok ? res.json() : [])
+        .then(data => setTasksState(data))
+        .catch(console.error);
+    }
+  }, [refreshTrigger]);
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -48,7 +59,7 @@ export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
         <CardContent className="flex flex-col gap-6">
           <TaskFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
           {/* TaskBoard bekommt tasks als Prop, filtert aber weiterhin clientseitig */}
-          <TaskBoard filter={filter} searchQuery={searchQuery} refreshTrigger={refreshTrigger} initialTasks={tasks} />
+          <TaskBoard filter={filter} searchQuery={searchQuery} refreshTrigger={refreshTrigger} initialTasks={tasksState} />
         </CardContent>
       </Card>
 

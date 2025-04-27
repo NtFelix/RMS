@@ -65,6 +65,11 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/api/todos/route.js"
+    ],
+    "/(dashboard)/betriebskosten/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(dashboard)/betriebskosten/page.js"
     ]
   }
 }
