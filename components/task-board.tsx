@@ -7,7 +7,7 @@ import { TaskCard } from "@/components/task-card"
 import { TaskEditModal } from "@/components/task-edit-modal"
 import { toast } from "@/components/ui/use-toast"
 
-interface Task {
+export interface Task {
   id: string
   name: string
   beschreibung: string
@@ -20,10 +20,11 @@ interface TaskBoardProps {
   filter: string
   searchQuery: string
   refreshTrigger?: number
+  initialTasks?: Task[]
 }
 
-export function TaskBoard({ filter, searchQuery, refreshTrigger }: TaskBoardProps) {
-  const [tasks, setTasks] = useState<Task[]>([])
+export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }: TaskBoardProps) {
+  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? [])
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [editModalOpen, setEditModalOpen] = useState(false)
@@ -39,6 +40,11 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger }: TaskBoardProp
   const combinedRefreshTrigger = refreshTrigger !== undefined ? refreshTrigger + localRefreshTrigger : localRefreshTrigger
 
   useEffect(() => {
+    // Wenn initialTasks per SSR geladen, überspringe den Fetch
+    if (initialTasks) {
+      setIsLoading(false)
+      return
+    }
     const fetchTasks = async () => {
       setIsLoading(true)
       try {
@@ -61,7 +67,7 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger }: TaskBoardProp
     }
 
     fetchTasks()
-  }, [combinedRefreshTrigger])
+  }, [combinedRefreshTrigger, initialTasks])
 
   useEffect(() => {
     let result = [...tasks]
