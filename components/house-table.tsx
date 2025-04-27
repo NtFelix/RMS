@@ -29,18 +29,16 @@ export interface House {
   freeApartments?: number
 }
 
-
-// Duplicate import removed
-
 interface HouseTableProps {
   filter: string
   searchQuery: string
   reloadRef?: MutableRefObject<(() => void) | null>
-  onEdit: (house: House) => void // Add onEdit prop
+  onEdit: (house: House) => void
+  initialHouses?: House[]
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit }: HouseTableProps) { // Destructure onEdit
-  const [houses, setHouses] = useState<House[]>([])
+export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) {
+  const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
   const [filteredData, setFilteredData] = useState<House[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // State for delete dialog
   const [houseToDelete, setHouseToDelete] = useState<House | null>(null) // State for house to delete
@@ -56,10 +54,12 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit }: HouseTabl
   }
 
   useEffect(() => {
-    fetchHouses()
-    if (reloadRef) {
-      reloadRef.current = fetchHouses
+    if (initialHouses) {
+      if (reloadRef) reloadRef.current = fetchHouses
+      return
     }
+    fetchHouses()
+    if (reloadRef) reloadRef.current = fetchHouses
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
