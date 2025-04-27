@@ -35,6 +35,7 @@ export function TenantDialogWrapper({ wohnungen, mieter, serverAction, onEditExt
         const m = mieter.find(m => m.id === editingId)
         return m
           ? {
+              id: m.id,
               wohnung_id: m.wohnung_id || "",
               name: m.name,
               einzug: m.einzug || "",
