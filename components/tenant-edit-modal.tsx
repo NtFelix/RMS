@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,6 +41,7 @@ interface TenantEditModalProps {
 }
 
 export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialData, serverAction, loading }: TenantEditModalProps) {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     wohnung_id: initialData?.wohnung_id || "",
     name: initialData?.name || "",
@@ -77,7 +79,12 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
           <DialogTitle>{initialData ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
           <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
         </DialogHeader>
-        <form action={serverAction} className="grid gap-4 py-4">
+        <form onSubmit={async e => {
+          e.preventDefault();
+          await serverAction(new FormData(e.currentTarget));
+          onOpenChange(false);
+          router.refresh();
+        }} className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>

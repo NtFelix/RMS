@@ -68,9 +68,13 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit }: HouseTabl
 
     // Filter by status if status exists
     if (filter === "full") {
-      result = result.filter((house) => house.status === "vermietet")
+      result = result.filter((house) =>
+        house.freeApartments !== undefined && house.freeApartments === 0
+      )
     } else if (filter === "vacant") {
-      result = result.filter((house) => house.status === "frei")
+      result = result.filter((house) =>
+        house.freeApartments !== undefined && house.freeApartments > 0
+      )
     }
 
     // Filter by search query
@@ -148,7 +152,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit }: HouseTabl
                   <TableCell>
                     {house.totalApartments !== undefined && house.freeApartments !== undefined ? (
                       <Badge variant="outline" className={house.freeApartments > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-50" : "bg-green-50 text-green-700 hover:bg-green-50"}>
-                        {house.freeApartments}/{house.totalApartments} frei
+                        {house.totalApartments - house.freeApartments}/{house.totalApartments} belegt
                       </Badge>
                     ) : (
                       <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">
