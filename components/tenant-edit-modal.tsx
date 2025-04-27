@@ -26,6 +26,7 @@ interface TenantEditModalProps {
   onOpenChange: (open: boolean) => void
   wohnungen: { id: string; name: string }[]
   initialData?: {
+    id?: string
     wohnung_id?: string
     name: string
     einzug?: string
@@ -85,6 +86,7 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
           onOpenChange(false);
           router.refresh();
         }} className="grid gap-4 py-4">
+          {initialData?.id && <input type="hidden" name="id" value={initialData.id} />}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>

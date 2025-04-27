@@ -11,17 +11,6 @@
         "app/(dashboard)/mieter/page": "rsc"
       }
     },
-    "405a07c19730d5b5e66a8d6c46b5e0d5cf704f91f2": {
-      "workers": {
-        "app/(dashboard)/haeuser/page": {
-          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Ffelixplant%2FDownloads%2FFelix%2FGitHub-Repo%2FRMS%2Fapp%2F(dashboard)%2Fhaeuser%2Fpage.tsx%22%2C%5B%7B%22id%22%3A%22008a2167d1b57fb3cf9876972ef994d849401624fc%22%2C%22exportedName%22%3A%22default%22%7D%2C%7B%22id%22%3A%2240924d3d31278ed7661ad6b6aaf771495ee08fa1ad%22%2C%22exportedName%22%3A%22handleSubmit%22%7D%5D%5D%5D&__client_imported__=!",
-          "async": false
-        }
-      },
-      "layer": {
-        "app/(dashboard)/haeuser/page": "rsc"
-      }
-    },
     "008a2167d1b57fb3cf9876972ef994d849401624fc": {
       "workers": {
         "app/(dashboard)/haeuser/page": {

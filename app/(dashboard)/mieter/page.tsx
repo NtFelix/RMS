@@ -40,7 +40,12 @@ export async function handleSubmit(formData: FormData) {
     nebenkosten: formData.get('nebenkosten') ? String(formData.get('nebenkosten')).split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : null,
     nebenkosten_datum: formData.get('nebenkosten_datum') ? String(formData.get('nebenkosten_datum')).split(',').map(s => s.trim()).filter(Boolean) : null
   };
-  await supabase.from('Mieter').insert(payload);
+  const id = formData.get('id');
+  if (id) {
+    await supabase.from('Mieter').update(payload).eq('id', id as string);
+  } else {
+    await supabase.from('Mieter').insert(payload);
+  }
   revalidatePath('/mieter');
 }
 
