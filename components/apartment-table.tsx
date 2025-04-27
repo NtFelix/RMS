@@ -37,10 +37,11 @@ interface ApartmentTableProps {
   searchQuery: string
   reloadRef?: MutableRefObject<(() => void) | null>
   onEdit?: (apt: Apartment) => void
+  initialApartments?: Apartment[]
 }
 
-export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: ApartmentTableProps) {
-  const [apartments, setApartments] = useState<Apartment[]>([])
+export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initialApartments }: ApartmentTableProps) {
+  const [apartments, setApartments] = useState<Apartment[]>(initialApartments ?? [])
   const [filteredData, setFilteredData] = useState<Apartment[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [aptToDelete, setAptToDelete] = useState<Apartment | null>(null)
@@ -55,6 +56,10 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit }: Apart
   }
 
   useEffect(() => {
+    if (initialApartments) {
+      if (reloadRef) reloadRef.current = fetchApartments
+      return
+    }
     fetchApartments()
     if (reloadRef) reloadRef.current = fetchApartments
   }, [])

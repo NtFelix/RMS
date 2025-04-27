@@ -136,7 +136,7 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <HouseFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <HouseTable filter={filter} searchQuery={searchQuery} reloadRef={tableReloadRef} onEdit={handleEdit} />
+          <HouseTable filter={filter} searchQuery={searchQuery} reloadRef={tableReloadRef} onEdit={handleEdit} initialHouses={haeuser} />
         </CardContent>
       </Card>
     </div>

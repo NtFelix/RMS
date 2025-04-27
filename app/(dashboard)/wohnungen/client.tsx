@@ -170,10 +170,11 @@ export function WohnungenClient({
 
       <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
       <ApartmentTable 
-        filter={filter} 
-        searchQuery={searchQuery} 
-        reloadRef={reloadRef} 
-        onEdit={handleEdit} 
+        filter={filter}
+        searchQuery={searchQuery}
+        reloadRef={reloadRef}
+        onEdit={handleEdit}
+        initialApartments={wohnungen}
       />
     </>
   );
