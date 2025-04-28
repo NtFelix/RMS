@@ -11,65 +11,25 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/layout.js"
     ],
-    "/(dashboard)/finanzen/page": [
+    "/(dashboard)/haeuser/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/finanzen/page.js"
-    ],
-    "/api/finanzen/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/finanzen/route.js"
-    ],
-    "/(dashboard)/wohnungen/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/wohnungen/page.js"
-    ],
-    "/api/wohnungen/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/wohnungen/route.js"
+      "static/chunks/app/(dashboard)/haeuser/page.js"
     ],
     "/(dashboard)/mieter/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(dashboard)/mieter/page.js"
     ],
-    "/(dashboard)/haeuser/page": [
+    "/(dashboard)/wohnungen/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/haeuser/page.js"
+      "static/chunks/app/(dashboard)/wohnungen/page.js"
     ],
-    "/api/haeuser/route": [
+    "/(dashboard)/finanzen/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/api/haeuser/route.js"
-    ],
-    "/api/finanzen/[id]/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/finanzen/[id]/route.js"
-    ],
-    "/(dashboard)/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/page.js"
-    ],
-    "/(dashboard)/todos/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/todos/page.js"
-    ],
-    "/api/todos/route": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/api/todos/route.js"
-    ],
-    "/(dashboard)/betriebskosten/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/(dashboard)/betriebskosten/page.js"
+      "static/chunks/app/(dashboard)/finanzen/page.js"
     ]
   }
 }

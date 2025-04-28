@@ -33,11 +33,13 @@ interface HouseTableProps {
   filter: string
   searchQuery: string
   reloadRef?: MutableRefObject<(() => void) | null>
-  onEdit: (house: House) => void
+  onEdit: (house: House) => void // Add onEdit prop
+  // optional initial houses loaded server-side
   initialHouses?: House[]
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) {
+export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) { // Destructure onEdit
+  // initialize with server-provided data if available
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
   const [filteredData, setFilteredData] = useState<House[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // State for delete dialog
@@ -54,14 +56,16 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }
 
   useEffect(() => {
+    // skip initial fetch when server data provided, but set reloadRef
     if (initialHouses) {
       if (reloadRef) reloadRef.current = fetchHouses
       return
     }
+    // no initial data: fetch on mount
     fetchHouses()
     if (reloadRef) reloadRef.current = fetchHouses
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [initialHouses])
 
   useEffect(() => {
     let result = houses
@@ -150,13 +154,20 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
                   <TableCell>{house.rent ? `${house.rent} €` : "-"}</TableCell>
                   <TableCell>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
                   <TableCell>
-                    {house.totalApartments !== undefined && house.freeApartments !== undefined ? (
-                      <Badge variant="outline" className={house.freeApartments > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-50" : "bg-green-50 text-green-700 hover:bg-green-50"}>
-                        {house.totalApartments - house.freeApartments}/{house.totalApartments} belegt
+                    {(house.totalApartments ?? 0) === 0 ? (
+                      <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">
+                        Keine Wohnungen
                       </Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">
-                        keine Wohnungen
+                      <Badge
+                        variant="outline"
+                        className={
+                          (house.freeApartments ?? 0) > 0
+                            ? "bg-blue-50 text-blue-700 hover:bg-blue-50"
+                            : "bg-green-50 text-green-700 hover:bg-green-50"
+                        }
+                      >
+                        {(house.totalApartments ?? 0) - (house.freeApartments ?? 0)}/{house.totalApartments ?? 0} belegt
                       </Badge>
                     )}
                   </TableCell>

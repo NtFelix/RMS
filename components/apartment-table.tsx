@@ -37,10 +37,12 @@ interface ApartmentTableProps {
   searchQuery: string
   reloadRef?: MutableRefObject<(() => void) | null>
   onEdit?: (apt: Apartment) => void
+  // optional initial apartments loaded server-side
   initialApartments?: Apartment[]
 }
 
 export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initialApartments }: ApartmentTableProps) {
+  // initialize with server-provided data if available
   const [apartments, setApartments] = useState<Apartment[]>(initialApartments ?? [])
   const [filteredData, setFilteredData] = useState<Apartment[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -56,13 +58,16 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initial
   }
 
   useEffect(() => {
+    // skip initial fetch if server data provided, but set reloadRef
     if (initialApartments) {
       if (reloadRef) reloadRef.current = fetchApartments
       return
     }
+
+    // no initial data: fetch on mount
     fetchApartments()
     if (reloadRef) reloadRef.current = fetchApartments
-  }, [])
+  }, [initialApartments])
 
   useEffect(() => {
     let result = apartments
