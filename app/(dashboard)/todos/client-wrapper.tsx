@@ -5,20 +5,12 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { TaskFilters } from "@/components/task-filters";
 import { TaskBoard } from "@/components/task-board";
+import type { Task as TaskBoardTask } from "@/components/task-board";
 import { TaskModal } from "@/components/task-modal";
 import { Toaster } from "@/components/ui/toaster";
 
-interface Task {
-  id: string;
-  title: string;
-  description?: string;
-  status: string;
-  due_date?: string;
-  priority?: string;
-}
-
 interface TodosClientWrapperProps {
-  tasks: Task[];
+  tasks: TaskBoardTask[];
 }
 
 export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
@@ -26,7 +18,7 @@ export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [tasksState, setTasksState] = useState<Task[]>(tasks);
+  const [tasksState, setTasksState] = useState<TaskBoardTask[]>(tasks);
 
   // Nachladen der Aufgaben, wenn eine neue hinzugefügt wurde
   useEffect(() => {

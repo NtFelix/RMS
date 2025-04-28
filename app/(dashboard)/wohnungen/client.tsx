@@ -11,15 +11,15 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
 import { createClient } from "@/utils/supabase/client";
-import { Wohnung } from "./page";
+import type { Apartment } from "@/components/apartment-table";
 
 // Client-side component for interactive UI elements
 export function WohnungenClient({ 
   initialWohnungen, 
   houses 
 }: { 
-  initialWohnungen: Wohnung[], 
-  houses: { id: string; name: string }[] 
+  initialWohnungen: Apartment[]; 
+  houses: { id: string; name: string }[]; 
 }) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,13 +30,13 @@ export function WohnungenClient({
   const [wohnungen, setWohnungen] = useState(initialWohnungen);
 
   // Apartment-Edit-Logik definieren
-  const handleEdit = useCallback((row: Wohnung) => {
-    setEditingId(row.id);
+  const handleEdit = useCallback((apt: Apartment) => {
+    setEditingId(apt.id);
     setFormData({
-      name: row.name,
-      groesse: row.groesse?.toString() || "",
-      miete: row.miete?.toString() || "",
-      haus_id: row.haus_id || ""
+      name: apt.name,
+      groesse: apt.groesse.toString(),
+      miete: apt.miete.toString(),
+      haus_id: apt.haus_id || ""
     });
     setDialogOpen(true);
   }, []);
@@ -57,7 +57,7 @@ export function WohnungenClient({
       }
       
       // Edit-Modal mit den Daten öffnen
-      handleEdit(apartment as Wohnung);
+      handleEdit(apartment as Apartment);
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung:', error);
     }
