@@ -174,7 +174,7 @@ export function WohnungenClient({
         searchQuery={searchQuery}
         reloadRef={reloadRef}
         onEdit={handleEdit}
-        initialApartments={wohnungen}
+        initialApartments={initialWohnungen}
       />
     </>
   );

@@ -11,38 +11,56 @@ export interface Wohnung {
   groesse: number | string
   miete: number | string
   haus_id?: string
-}
-
-// Serverseitige Datenabruffunktion
-async function fetchWohnungen() {
-  const supabase = await createClient()
-  const { data, error } = await supabase.from('Wohnungen').select('*')
-  
-  if (error) {
-    console.error('Fehler beim Laden der Wohnungen:', error)
-    return []
+  status?: 'frei' | 'vermietet'
+  tenant?: {
+    id: string
+    name: string
+    einzug: string
+    auszug: string
   }
-  
-  return data || []
-}
-
-// Serverseitige Funktion zum Abrufen der Häuser
-async function fetchHouses() {
-  const supabase = await createClient()
-  const { data, error } = await supabase.from('Haeuser').select('id,name')
-  
-  if (error) {
-    console.error('Fehler beim Laden der Häuser:', error)
-    return []
-  }
-  
-  return data || []
 }
 
 export default async function WohnungenPage() {
-  // Serverseitiges Datenfetching mit async/await
-  const wohnungen = await fetchWohnungen()
-  const houses = await fetchHouses()
+  const supabase = await createClient()
+  // Wohnungen mit Haeuser-Daten laden
+  const { data: apartments, error: apartmentsError } = await supabase
+    .from('Wohnungen')
+    .select('id,name,groesse,miete,haus_id,Haeuser(name)')
+  if (apartmentsError) {
+    console.error('Fehler beim Laden der Wohnungen:', apartmentsError)
+    return <div>Fehler beim Laden der Wohnungen</div>
+  }
+  // Mieter für Status laden
+  const { data: tenants, error: tenantsError } = await supabase
+    .from('Mieter')
+    .select('id,wohnung_id,einzug,auszug,name')
+  if (tenantsError) {
+    console.error('Fehler beim Laden der Mieter:', tenantsError)
+  }
+  // Wohnungen anreichern mit Status und Tenant
+  const today = new Date()
+  const enrichedWohnungen = apartments.map((apt) => {
+    const tenant = tenants?.find((t) => t.wohnung_id === apt.id)
+    let status: 'frei' | 'vermietet' = 'frei'
+    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+      status = 'vermietet'
+    }
+    return {
+      ...apt,
+      status,
+      tenant: tenant
+        ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug, auszug: tenant.auszug }
+        : null,
+    }
+  })
+  // Häuser für Dropdown laden
+  const { data: housesData, error: housesError } = await supabase
+    .from('Haeuser')
+    .select('id,name')
+  if (housesError) {
+    console.error('Fehler beim Laden der Häuser:', housesError)
+  }
+  const houses = housesData || []
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -60,7 +78,7 @@ export default async function WohnungenPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           {/* Client Component für interaktive UI-Elemente */}
-          <WohnungenClient initialWohnungen={wohnungen} houses={houses} />
+          <WohnungenClient initialWohnungen={enrichedWohnungen} houses={houses} />
         </CardContent>
       </Card>
     </div>
