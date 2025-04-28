@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Check, X } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard-tenant-context-menu"
-import { ApartmentEditModal } from "@/components/apartment-edit-modal"
-import { TenantEditModal } from "@/components/tenant-edit-modal"
 
 type TenantDataItem = {
   id: string
@@ -267,20 +265,7 @@ export function TenantDataTable() {
         )}
       </CardContent>
       
-      {/* Wiederverwendbare Bearbeitungsmodals */}
-      <TenantEditModal
-        open={!!editTenantId}
-        onOpenChange={(open) => !open && setEditTenantId(null)}
-        tenantId={editTenantId}
-        onSuccess={fetchData}
-      />
-      
-      <ApartmentEditModal
-        open={!!editApartmentId}
-        onOpenChange={(open) => !open && setEditApartmentId(null)}
-        apartmentId={editApartmentId}
-        onSuccess={fetchData}
-      />
+      {/* Removed unused edit modals due to updated server-side handling */}
     </Card>
   )
 }

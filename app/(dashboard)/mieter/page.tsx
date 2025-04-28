@@ -26,7 +26,7 @@ interface Wohnung {
   name: string
 }
 
-export async function handleSubmit(formData: FormData) {
+async function handleSubmit(formData: FormData) {
   "use server";
   const supabase = await createClient();
   const payload: any = {

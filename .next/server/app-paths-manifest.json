@@ -1,5 +1,10 @@
 {
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/todos/route": "app/api/todos/route.js",
+  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js",
   "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
   "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
-  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js"
+  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
+  "/(dashboard)/betriebskosten/page": "app/(dashboard)/betriebskosten/page.js",
+  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js"
 }

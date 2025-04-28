@@ -18,6 +18,9 @@ export interface Wohnung {
     einzug: string
     auszug: string
   }
+  Haeuser: {
+    name: string
+  }
 }
 
 export default async function WohnungenPage() {
@@ -47,9 +50,10 @@ export default async function WohnungenPage() {
     }
     return {
       ...apt,
+      Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
       status,
       tenant: tenant
-        ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug, auszug: tenant.auszug }
+        ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string }
         : null,
     }
   })

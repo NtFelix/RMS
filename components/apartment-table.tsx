@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
 
-interface Apartment {
+export interface Apartment {
   id: string
   name: string
   groesse: number

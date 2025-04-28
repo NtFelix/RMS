@@ -78,16 +78,7 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
                 {editingHouse ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
               </DialogDescription>
             </DialogHeader>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                await serverAction(new FormData(e.currentTarget));
-                // Tabelle neu laden
-                tableReloadRef.current?.();
-                setDialogOpen(false);
-              }}
-              className="grid gap-4 py-4"
-            >
+            <form action={serverAction} className="grid gap-4 py-4">
               {editingHouse && <input type="hidden" name="id" value={editingHouse.id} />}
               <div className="space-y-1">
                 <Label htmlFor="name">Name</Label>
