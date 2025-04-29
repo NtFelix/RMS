@@ -155,6 +155,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogOverlay />
       <DialogContent className="w-[520px] h-[60vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
+          <DialogTitle className="sr-only">Einstellungen</DialogTitle>
         <div className="flex h-full overflow-hidden">
           <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
             {tabs.map(tab => (
