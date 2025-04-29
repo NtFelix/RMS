@@ -41,7 +41,7 @@ export function UserSettings() {
             <span className="text-xs font-medium">PM</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setOpenModal(true)}>
