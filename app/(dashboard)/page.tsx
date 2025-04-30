@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
@@ -6,7 +8,8 @@ import { TenantDataTable } from "@/components/tenant-data-table"
 import { getDashboardSummary } from "@/lib/data-fetching"
 
 export default async function Dashboard() {
-  const summary = await getDashboardSummary()
+  // Fetch real data from database
+  const summary = await getDashboardSummary();
   
   return (
     <div className="flex flex-col gap-8">
