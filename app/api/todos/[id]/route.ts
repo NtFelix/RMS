@@ -6,10 +6,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createSupabaseServerClient()
-  
   try {
     const { id } = await params
+    const supabase = await createSupabaseServerClient()
     
     const { data, error } = await supabase
       .from("Aufgaben")
@@ -34,8 +33,6 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createSupabaseServerClient()
-  
   try {
     const { id } = await params
     const body = await request.json()
@@ -48,6 +45,7 @@ export async function PUT(
       )
     }
     
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
@@ -76,10 +74,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const supabase = createSupabaseServerClient()
-  
   try {
     const { id } = await params
+    const supabase = await createSupabaseServerClient()
     
     const { error } = await supabase
       .from("Aufgaben")
@@ -88,7 +85,7 @@ export async function DELETE(
     
     if (error) throw error
     
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ message: "Aufgabe erfolgreich gelöscht" })
   } catch (error) {
     console.error("Error deleting todo:", error)
     return NextResponse.json(
