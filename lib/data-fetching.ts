@@ -64,7 +64,7 @@ export type DashboardSummary = {
 
 export async function fetchHaeuser(): Promise<Haus[]> {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Haeuser")
       .select('*')
@@ -80,7 +80,7 @@ export async function fetchHaeuser(): Promise<Haus[]> {
 
 export async function fetchWohnungen(): Promise<Wohnung[]> {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Wohnungen")
       .select('*')
@@ -96,7 +96,7 @@ export async function fetchWohnungen(): Promise<Wohnung[]> {
 
 export async function fetchMieter(): Promise<Mieter[]> {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Mieter")
       .select('*, Wohnungen(name, groesse, miete)')
@@ -112,7 +112,7 @@ export async function fetchMieter(): Promise<Mieter[]> {
 
 export async function fetchAufgaben(): Promise<Aufgabe[]> {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Aufgaben")
       .select('*')
@@ -129,7 +129,7 @@ export async function fetchAufgaben(): Promise<Aufgabe[]> {
 
 export async function fetchFinanzen(): Promise<Finanzen[]> {
   try {
-    const supabase = createSupabaseServerClient()
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Finanzen")
       .select('*')
@@ -150,7 +150,7 @@ export async function fetchFinanzenByMonth(): Promise<{
   ausgaben: number;
 }[]> {
   try {
-    const supabase = createSupabaseServerClient();
+    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Finanzen")
       .select('*')

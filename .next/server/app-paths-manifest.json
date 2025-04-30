@@ -1,10 +1,22 @@
 {
   "/_not-found/page": "app/_not-found/page.js",
-  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
-  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js",
-  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js",
-  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/api/finanzen/[id]/route": "app/api/finanzen/[id]/route.js",
+  "/api/todos/[id]/route": "app/api/todos/[id]/route.js",
+  "/api/todos/route": "app/api/todos/route.js",
+  "/api/haeuser/route": "app/api/haeuser/route.js",
+  "/api/finanzen/route": "app/api/finanzen/route.js",
+  "/auth/callback/route": "app/auth/callback/route.js",
+  "/api/mieter/route": "app/api/mieter/route.js",
+  "/api/wohnungen/route": "app/api/wohnungen/route.js",
   "/(dashboard)/betriebskosten/page": "app/(dashboard)/betriebskosten/page.js",
-  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
-  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js"
+  "/auth/login/page": "app/auth/login/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/auth/reset-password/page": "app/auth/reset-password/page.js",
+  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
+  "/auth/register/page": "app/auth/register/page.js",
+  "/auth/update-password/page": "app/auth/update-password/page.js",
+  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js",
+  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
+  "/(dashboard)/todos/page": "app/(dashboard)/todos/page.js",
+  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js"
 }
