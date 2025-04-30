@@ -3,8 +3,9 @@ import { createSupabaseServerClient } from "@/lib/supabase-server"
 
 // GET todos
 export async function GET(request: NextRequest) {
+  const supabase = createSupabaseServerClient()
+  
   try {
-    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Aufgaben")
       .select("*")
@@ -24,6 +25,8 @@ export async function GET(request: NextRequest) {
 
 // POST new todo
 export async function POST(request: NextRequest) {
+  const supabase = createSupabaseServerClient()
+  
   try {
     const body = await request.json()
     const { name, beschreibung, ist_erledigt } = body
@@ -35,7 +38,6 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Aufgaben")
       .insert([
@@ -61,6 +63,8 @@ export async function POST(request: NextRequest) {
 
 // PATCH to update todo status
 export async function PATCH(request: NextRequest) {
+  const supabase = createSupabaseServerClient()
+  
   try {
     const body = await request.json()
     const { id, ist_erledigt } = body
@@ -72,7 +76,6 @@ export async function PATCH(request: NextRequest) {
       )
     }
     
-    const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase
       .from("Aufgaben")
       .update({
