@@ -31,6 +31,17 @@ interface FinanceTransactionsProps {
   loadFinances?: () => Promise<void>
 }
 
+// Helper function to format date in DD.MM.YYYY format
+const formatDate = (dateString: string | undefined): string => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  return date.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
+}
+
 export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances }: FinanceTransactionsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedApartment, setSelectedApartment] = useState("Alle Wohnungen")
@@ -45,6 +56,12 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
   const apartments = ["Alle Wohnungen", ...new Set(finances
     .filter(f => f.Wohnungen?.name)
     .map(f => f.Wohnungen?.name || ""))]
+
+  // Get unique years from finances data
+  const years = ["Alle Jahre", ...new Set(finances
+    .filter(f => f.datum)
+    .map(f => f.datum.split("-")[0])
+    .sort((a, b) => parseInt(b) - parseInt(a)))]
 
   useEffect(() => {
     let result = finances
@@ -78,6 +95,12 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
         (f.notiz || "").toLowerCase().includes(query)
       )
     }
+
+    // Sort by date in descending order (newest first)
+    result = result.sort((a, b) => {
+      if (!a.datum || !b.datum) return 0
+      return new Date(b.datum).getTime() - new Date(a.datum).getTime()
+    })
 
     setFilteredData(result)
   }, [finances, searchQuery, selectedApartment, selectedYear, selectedType])
@@ -162,11 +185,11 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
                     <SelectValue placeholder="Jahr auswählen" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Alle Jahre">Alle Jahre</SelectItem>
-                    <SelectItem value="2025">2025</SelectItem>
-                    <SelectItem value="2024">2024</SelectItem>
-                    <SelectItem value="2023">2023</SelectItem>
-                    <SelectItem value="2022">2022</SelectItem>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year}>
+                        {year}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -271,7 +294,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
                         <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit && onEdit(finance)}>
                           <TableCell>{finance.name}</TableCell>
                           <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
-                          <TableCell>{finance.datum || '-'}</TableCell>
+                          <TableCell>{formatDate(finance.datum)}</TableCell>
                           <TableCell className="text-right">
                             <span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>
                               {finance.betrag.toFixed(2).replace(".", ",")} €
