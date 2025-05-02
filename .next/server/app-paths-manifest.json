@@ -1,3 +1,9 @@
 {
-  "/(dashboard)/page": "app/(dashboard)/page.js"
+  "/api/finanzen/route": "app/api/finanzen/route.js",
+  "/(dashboard)/finanzen/page": "app/(dashboard)/finanzen/page.js",
+  "/(dashboard)/wohnungen/page": "app/(dashboard)/wohnungen/page.js",
+  "/(dashboard)/betriebskosten/page": "app/(dashboard)/betriebskosten/page.js",
+  "/(dashboard)/page": "app/(dashboard)/page.js",
+  "/(dashboard)/haeuser/page": "app/(dashboard)/haeuser/page.js",
+  "/(dashboard)/mieter/page": "app/(dashboard)/mieter/page.js"
 }

@@ -1,5 +1,39 @@
 {
-  "node": {},
+  "node": {
+    "408eb0d20517e1fad8b060f04f1725855a40690765": {
+      "workers": {
+        "app/(dashboard)/mieter/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Ffelixplant%2FDownloads%2FFelix%2FGitHub-Repo%2FRMS%2Fapp%2F(dashboard)%2Fmieter%2Fpage.tsx%22%2C%5B%7B%22id%22%3A%22408eb0d20517e1fad8b060f04f1725855a40690765%22%2C%22exportedName%22%3A%22%24%24RSC_SERVER_ACTION_0%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/(dashboard)/mieter/page": "rsc"
+      }
+    },
+    "008a2167d1b57fb3cf9876972ef994d849401624fc": {
+      "workers": {
+        "app/(dashboard)/haeuser/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Ffelixplant%2FDownloads%2FFelix%2FGitHub-Repo%2FRMS%2Fapp%2F(dashboard)%2Fhaeuser%2Fpage.tsx%22%2C%5B%7B%22id%22%3A%22008a2167d1b57fb3cf9876972ef994d849401624fc%22%2C%22exportedName%22%3A%22default%22%7D%5D%5D%2C%5B%22%2FUsers%2Ffelixplant%2FDownloads%2FFelix%2FGitHub-Repo%2FRMS%2Fapp%2F(dashboard)%2Fhaeuser%2Factions.ts%22%2C%5B%7B%22id%22%3A%2240bdec12412a9f7cdf79855b17891d42f37a2ac00e%22%2C%22exportedName%22%3A%22handleSubmit%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/(dashboard)/haeuser/page": "rsc"
+      }
+    },
+    "40bdec12412a9f7cdf79855b17891d42f37a2ac00e": {
+      "workers": {
+        "app/(dashboard)/haeuser/page": {
+          "moduleId": "(rsc)/./node_modules/next/dist/build/webpack/loaders/next-flight-action-entry-loader.js?actions=%5B%5B%22%2FUsers%2Ffelixplant%2FDownloads%2FFelix%2FGitHub-Repo%2FRMS%2Fapp%2F(dashboard)%2Fhaeuser%2Fpage.tsx%22%2C%5B%7B%22id%22%3A%22008a2167d1b57fb3cf9876972ef994d849401624fc%22%2C%22exportedName%22%3A%22default%22%7D%5D%5D%2C%5B%22%2FUsers%2Ffelixplant%2FDownloads%2FFelix%2FGitHub-Repo%2FRMS%2Fapp%2F(dashboard)%2Fhaeuser%2Factions.ts%22%2C%5B%7B%22id%22%3A%2240bdec12412a9f7cdf79855b17891d42f37a2ac00e%22%2C%22exportedName%22%3A%22handleSubmit%22%7D%5D%5D%5D&__client_imported__=!",
+          "async": false
+        }
+      },
+      "layer": {
+        "app/(dashboard)/haeuser/page": "rsc"
+      }
+    }
+  },
   "edge": {},
   "encryptionKey": "tVUcuW0wwcVsk9/Ukr/rwgBl/sb7r1RwZwV6FlmUdnQ="
 }
