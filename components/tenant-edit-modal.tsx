@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { format } from "date-fns" // Added for date formatting
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
 
 interface Mieter {
   id: string
@@ -73,6 +75,13 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+  // Specific handler for DatePicker changes
+  const handleDateChange = (name: 'einzug' | 'auszug', date: Date | undefined) => {
+    // Format date to YYYY-MM-DD string for the form data, or empty string if undefined
+    const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
+    setFormData({ ...formData, [name]: formattedDate });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
@@ -107,11 +116,25 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
             </div>
             <div>
               <Label htmlFor="einzug">Einzug</Label>
-              <Input id="einzug" name="einzug" type="date" value={formData.einzug} onChange={handleChange}/>
+              {/* Replaced Input with DatePicker */}
+              <DatePicker
+                value={formData.einzug}
+                onChange={(date) => handleDateChange('einzug', date)}
+                placeholder="TT.MM.JJJJ"
+              />
+              {/* Hidden input to still pass the value with the form name */}
+              <input type="hidden" name="einzug" value={formData.einzug} />
             </div>
             <div>
               <Label htmlFor="auszug">Auszug</Label>
-              <Input id="auszug" name="auszug" type="date" value={formData.auszug} onChange={handleChange}/>
+              {/* Replaced Input with DatePicker */}
+              <DatePicker
+                value={formData.auszug}
+                onChange={(date) => handleDateChange('auszug', date)}
+                placeholder="TT.MM.JJJJ"
+              />
+              {/* Hidden input to still pass the value with the form name */}
+              <input type="hidden" name="auszug" value={formData.auszug} />
             </div>
             <div>
               <Label htmlFor="email">E-Mail</Label>
