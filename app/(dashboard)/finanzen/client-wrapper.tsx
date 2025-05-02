@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "@/components/ui/use-toast";
+import { DatePicker } from "@/components/ui/date-picker"; // Added DatePicker import
+import { format } from "date-fns"; // Added for date formatting
 
 interface Finanz {
   id: string;
@@ -61,6 +63,13 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // Specific handler for DatePicker changes
+  const handleDateChange = (date: Date | undefined) => {
+    // Format date to YYYY-MM-DD string for the form data, or empty string if undefined
+    const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
+    setFormData({ ...formData, datum: formattedDate });
   };
 
   const handleEdit = useCallback((finance: Finanz) => {
@@ -145,7 +154,14 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
                 </div>
                 <div>
                   <Label htmlFor="datum">Datum</Label>
-                  <Input id="datum" name="datum" type="date" value={formData.datum} onChange={handleChange} />
+                  {/* Replaced Input with DatePicker */}
+                  <DatePicker
+                    value={formData.datum}
+                    onChange={handleDateChange}
+                    placeholder="TT.MM.JJJJ"
+                  />
+                  {/* Hidden input to still pass the value with the form name */}
+                  <input type="hidden" name="datum" value={formData.datum} />
                 </div>
                 <div>
                   <Label htmlFor="wohnung_id">Wohnung</Label>
