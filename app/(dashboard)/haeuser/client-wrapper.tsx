@@ -89,6 +89,8 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
               const formData = new FormData(event.currentTarget);
               await serverAction(editingHouse?.id || null, formData);
               setDialogOpen(false); // Close the dialog after successful submission
+              // Reload the table data
+              tableReloadRef.current?.();
             }} className="grid gap-4 py-4">
               {/* Removed hidden id input */}
               {/* {editingHouse && <input type="hidden" name="id" value={editingHouse.id} />} */}
