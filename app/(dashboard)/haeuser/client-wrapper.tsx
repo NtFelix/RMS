@@ -21,7 +21,8 @@ import { useRouter } from "next/navigation";
 
 interface HaeuserClientWrapperProps {
   haeuser: House[];
-  serverAction: (formData: FormData) => Promise<void>;
+  // Updated serverAction prop type to accept id as the first argument
+  serverAction: (id: string | null, formData: FormData) => Promise<void>;
 }
 
 export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserClientWrapperProps) {
@@ -29,14 +30,16 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
   const [searchQuery, setSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHouse, setEditingHouse] = useState<House | null>(null);
-  const [formData, setFormData] = useState({ name: "", strasse: "", ort: "" });
+  // Removed formData state as inputs will use defaultValue
+  // const [formData, setFormData] = useState({ name: "", strasse: "", ort: "" });
   const tableReloadRef = useRef<() => void>(null);
   const router = useRouter();
 
   useEffect(() => {
     const handler = () => {
       setEditingHouse(null);
-      setFormData({ name: "", strasse: "", ort: "" });
+      // Removed setFormData
+      // setFormData({ name: "", strasse: "", ort: "" });
       setDialogOpen(true);
     };
     window.addEventListener("open-add-house-modal", handler);
@@ -47,13 +50,15 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
     setDialogOpen(open);
     if (!open) {
       setEditingHouse(null);
-      setFormData({ name: "", strasse: "", ort: "" });
+      // Removed setFormData
+      // setFormData({ name: "", strasse: "", ort: "" });
     }
   };
 
   const handleEdit = useCallback((house: House) => {
     setEditingHouse(house);
-    setFormData({ name: house.name, strasse: house.strasse ?? "", ort: house.ort });
+    // Removed setFormData
+    // setFormData({ name: house.name, strasse: house.strasse ?? "", ort: house.ort });
     setDialogOpen(true);
   }, []);
 
@@ -78,16 +83,22 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
                 {editingHouse ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
               </DialogDescription>
             </DialogHeader>
-            <form action={serverAction} className="grid gap-4 py-4">
-              {editingHouse && <input type="hidden" name="id" value={editingHouse.id} />}
+            {/* Modified form to use onSubmit handler */}
+            <form onSubmit={async (event) => {
+              event.preventDefault();
+              const formData = new FormData(event.currentTarget);
+              await serverAction(editingHouse?.id || null, formData);
+              setDialogOpen(false); // Close the dialog after successful submission
+            }} className="grid gap-4 py-4">
+              {/* Removed hidden id input */}
+              {/* {editingHouse && <input type="hidden" name="id" value={editingHouse.id} />} */}
               <div className="space-y-1">
                 <Label htmlFor="name">Name</Label>
                 <Input
                   type="text"
                   id="name"
                   name="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
+                  defaultValue={editingHouse?.name}
                   required
                 />
               </div>
@@ -97,8 +108,7 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
                   type="text"
                   id="strasse"
                   name="strasse"
-                  value={formData.strasse}
-                  onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
+                  defaultValue={editingHouse?.strasse ?? ""}
                   required
                 />
               </div>
@@ -108,8 +118,7 @@ export default function HaeuserClientWrapper({ haeuser, serverAction }: HaeuserC
                   type="text"
                   id="ort"
                   name="ort"
-                  value={formData.ort}
-                  onChange={(e) => setFormData({ ...formData, [e.target.name]: e.target.value })}
+                  defaultValue={editingHouse?.ort}
                   required
                 />
               </div>
