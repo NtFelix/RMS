@@ -60,7 +60,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
   // Get unique years from finances data
   const years = ["Alle Jahre", ...new Set(finances
     .filter(f => f.datum)
-    .map(f => f.datum.split("-")[0])
+    .map(f => f.datum!.split("-")[0])
     .sort((a, b) => parseInt(b) - parseInt(a)))]
 
   useEffect(() => {
