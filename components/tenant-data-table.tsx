@@ -127,13 +127,21 @@ export function TenantDataTable() {
       const supabase = createClient()
       
       if (tenant.status === 'Miete bezahlt') {
-        // Lösche Mietzahlung aus Finanzen
+        // Lösche Mietzahlung aus Finanzen für den aktuellen Monat
+        const currentDate = new Date()
+        const currentMonth = currentDate.getMonth() + 1
+        const currentYear = currentDate.getFullYear()
+        const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
+        const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+
         const { error } = await supabase
           .from('Finanzen')
           .delete()
           .eq('wohnung_id', tenant.apartmentId)
           .eq('ist_einnahmen', true)
           .ilike('name', '%Mietzahlung%')
+          .gte('datum', startOfMonth)
+          .lte('datum', endOfMonth)
         
         if (error) throw error
         
