@@ -100,40 +100,102 @@ document.querySelectorAll('.modal .close').forEach(closeButton => {
 });
 
 // Funktion zum Speichern der Betriebskostenabrechnung
-async function saveBetriebskostenabrechnung() {
+async function saveBetriebskostenabrechnung(event) {
+    if (event) {
+        event.preventDefault();
+    }
+    
     const year = document.getElementById('year').value;
     const gesamtflaeche = document.getElementById('gesamtflaeche').value;
     const nebenkostenarten = [];
     const betrag = [];
     const berechnungsarten = [];
+    const rechnungen = [];
 
-    document.querySelectorAll('.nebenkostenart-input').forEach(div => {
+    document.querySelectorAll('.nebenkostenart-input').forEach((div, index) => {
         const inputs = div.querySelectorAll('input');
         const select = div.querySelector('select');
+        const name = inputs[0].value;
+        const gesamtbetrag = parseFloat(inputs[1].value);
+        const berechnungsart = select.value;
 
-        nebenkostenarten.push(inputs[0].value);
-        betrag.push(parseFloat(inputs[1].value));
-        berechnungsarten.push(select.value);
+        nebenkostenarten.push(name);
+        betrag.push(gesamtbetrag);
+        berechnungsarten.push(berechnungsart);
+
+        // Sammle individuelle Rechnungen wenn Berechnungsart "nach_rechnung"
+        if (berechnungsart === 'nach_rechnung') {
+            const rechnungenContainer = div.querySelector('.rechnungen-container');
+            const rechnungEingaben = rechnungenContainer.querySelectorAll('.rechnung-eingabe');
+            
+            rechnungEingaben.forEach(rechnungDiv => {
+                const mieterId = rechnungDiv.querySelector('.mieter-id').value;
+                const betragInput = rechnungDiv.querySelector('.betrag-input');
+                
+                if (mieterId && betragInput.value) {
+                    rechnungen.push({
+                        mieter: mieterId,
+                        name: name,
+                        betrag: parseFloat(betragInput.value),
+                        year: parseInt(year)
+                    });
+                }
+            });
+        }
     });
 
-    const { data, error } = await supabase
-        .from('betriebskosten')
-        .upsert({
-            year,
-            gesamtflaeche: parseFloat(gesamtflaeche),
-            nebenkostenarten,
-            betrag,
-            berechnungsarten
-        }, { onConflict: 'year' });
+    try {
+        // Speichere erst die Betriebskosten
+        const { error: betriebskostenError } = await supabase
+            .from('betriebskosten')
+            .upsert({
+                year,
+                gesamtflaeche: parseFloat(gesamtflaeche),
+                nebenkostenarten,
+                betrag,
+                berechnungsarten
+            }, { onConflict: 'year' });
 
-    if (error) {
-        console.error('Fehler beim Speichern:', error);
-        showNotification('Fehler beim Speichern der Betriebskostenabrechnung', 'error');
-    } else {
-        console.log('Erfolgreich gespeichert:', data);
+        if (betriebskostenError) {
+            console.error('Fehler beim Speichern der Betriebskosten:', betriebskostenError);
+            showNotification('Fehler beim Speichern der Betriebskostenabrechnung', 'error');
+            return;
+        }
+
+        // Lösche alle existierenden Rechnungen für dieses Jahr
+        const { error: deleteError } = await supabase
+            .from('Rechnungen')
+            .delete()
+            .eq('year', year);
+
+        if (deleteError) {
+            console.error('Fehler beim Löschen alter Rechnungen:', deleteError);
+            showNotification('Fehler beim Aktualisieren der Rechnungen', 'error');
+            return;
+        }
+
+        console.log('Zu speichernde Rechnungen:', rechnungen); // Debug-Ausgabe
+
+        // Speichere die neuen Rechnungen, falls vorhanden
+        if (rechnungen.length > 0) {
+            const { error: rechnungenError } = await supabase
+                .from('Rechnungen')
+                .insert(rechnungen);
+
+            if (rechnungenError) {
+                console.error('Fehler beim Speichern der Rechnungen:', rechnungenError);
+                showNotification('Fehler beim Speichern der Rechnungen', 'error');
+                return;
+            }
+        }
+
         showNotification('Betriebskostenabrechnung erfolgreich gespeichert', 'success');
         document.querySelector('#bearbeiten-modal').style.display = 'none';
-        loadBetriebskosten(); // Aktualisiere die Tabelle
+        loadBetriebskosten();
+
+    } catch (error) {
+        console.error('Fehler beim Speichern:', error);
+        showNotification('Ein unerwarteter Fehler ist aufgetreten', 'error');
     }
 }
 
