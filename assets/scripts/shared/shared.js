@@ -67,24 +67,12 @@ function calculateTenantMonths(einzug, auszug, year) {
  * @param {number} selectedYear The year for which the detailed bill should be generated.
  */
 async function erstelleDetailAbrechnung(selectedYear) {
-    if (!selectedYear || isNaN(selectedYear)) {
-        console.error('Ungültiges Jahr:', selectedYear);
-        showNotification('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
-        return;
-    }
-    const { data: wohnungen, error: wohnungenError } = await supabase
-        .from('Wohnungen')
-        .select('*');
-    if (wohnungenError) {
-        console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
-        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es erneut.');
-        return;
-    }
     const { data: betriebskosten, error: betriebskostenError } = await supabase
         .from('betriebskosten')
         .select('*')
         .eq('year', selectedYear)
         .single();
+
     if (betriebskostenError) {
         console.error('Fehler beim Laden der Betriebskosten:', betriebskostenError);
         showNotification('Fehler beim Laden der Betriebskosten. Bitte versuchen Sie es erneut.');
@@ -95,10 +83,27 @@ async function erstelleDetailAbrechnung(selectedYear) {
         showNotification('Keine Betriebskosten für das ausgewählte Jahr gefunden.');
         return;
     }
-    const aktuelleKosten = betriebskosten;
-    const gesamtFlaeche = betriebskosten.gesamtflaeche;
-    const wasserzaehlerGesamtkosten = betriebskosten['wasserzaehler-gesamtkosten'] || 0;
-    // Fetch total water consumption for the year
+
+    // Lade alle Rechnungen für dieses Jahr
+    const { data: rechnungen, error: rechnungenError } = await supabase
+        .from('Rechnungen')
+        .select('*')
+        .eq('year', selectedYear);
+
+    if (rechnungenError) {
+        console.error('Fehler beim Laden der Rechnungen:', rechnungenError);
+        showNotification('Fehler beim Laden der Rechnungen');
+        return;
+    }
+
+    const { data: wohnungen, error: wohnungenError } = await supabase
+        .from('Wohnungen')
+        .select('*');
+    if (wohnungenError) {
+        console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+        showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es erneut.');
+        return;
+    }
     const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
         .from('Wasserzähler')
         .select('verbrauch')
@@ -109,7 +114,16 @@ async function erstelleDetailAbrechnung(selectedYear) {
         return;
     }
     const gesamtverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
-    const wasserkostenProKubik = gesamtverbrauch > 0 ? wasserzaehlerGesamtkosten / gesamtverbrauch : 0;
+    const wasserkostenProKubik = gesamtverbrauch > 0 ? betriebskosten['wasserzaehler-gesamtkosten'] / gesamtverbrauch : 0;
+    const aktuelleKosten = betriebskosten;
+    const gesamtFlaeche = aktuelleKosten.gesamtflaeche;
+
+    // Initialisiere die Summe der Mieterkosten
+    let sumMieterkosten = 0;
+    let gesamtLeerstandsMonate = 0;
+    let gesamtkostenVermieter = 0;
+    let leerstandsDetails = [];
+
     const abrechnungsModal = document.createElement('div');
     abrechnungsModal.className = 'modal';
     abrechnungsModal.style.display = 'block';
@@ -141,15 +155,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
     // Initialize gesamtkostenMieter to 0 - it will be updated as we process each tenant
     let gesamtkostenMieter = 0;
-
-    // Initialisiere die Summe der Mieterkosten
-    let sumMieterkosten = 0;
-
-    // Initialisiere neue Variablen für die Vermieterkosten
-    let gesamtLeerstandsMonate = 0;
-    let gesamtkostenVermieter = 0;
-    // Array für detaillierte Leerstandsdaten pro Wohnung
-    let leerstandsDetails = [];
 
     // Modifiziere die updateSummaryHTML Funktion, um die Vermieterkosten einzuschließen
     const updateSummaryHTML = () => {
@@ -512,18 +517,33 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     let verteilerEinheit;
                     let kostenProEinheit;
 
-                    if (berechnungsart === 'pro_flaeche') {
+                    if (berechnungsart === 'nach_rechnung') {
+                        // Suche nach individuellen Rechnungen für diesen Mieter und diese Kostenart
+                        const mieterRechnung = rechnungen.find(r => 
+                            r.mieter === mieter.id && 
+                            r.name === art
+                        );
+
+                        if (mieterRechnung) {
+                            kostenanteil = mieterRechnung.betrag * anteil;
+                            verteilerEinheit = 1;
+                            kostenProEinheit = mieterRechnung.betrag;
+                        } else {
+                            kostenanteil = 0;
+                            verteilerEinheit = 1;
+                            kostenProEinheit = 0;
+                        }
+                    } else if (berechnungsart === 'pro_flaeche') {
                         verteilerEinheit = gesamtFlaeche;
                         kostenProEinheit = betrag / verteilerEinheit;
-                        kostenanteil = kostenProEinheit * wohnung.Größe;
+                        kostenanteil = kostenProEinheit * wohnung.Größe * anteil;
                     } else { // pro_mieter
-                        verteilerEinheit = 1; // Jeder Mieter zahlt den vollen Betrag
+                        verteilerEinheit = 1;
                         kostenProEinheit = betrag;
-                        kostenanteil = betrag; // Der volle Betrag wird dem Mieter berechnet
+                        kostenanteil = betrag * anteil;
                     }
 
-                    // Modifiziere kostenanteil mit dem Zeitanteil
-                    kostenanteil = kostenanteil * anteil;
+                    gesamtKostenanteil += kostenanteil;
 
                     // Aktualisiere die Tabellenzeile
                     const row = table.insertRow();
@@ -539,8 +559,6 @@ async function erstelleDetailAbrechnung(selectedYear) {
                         cell.style.border = '1px solid black';
                         cell.style.padding = '8px';
                     });
-
-                    gesamtKostenanteil += kostenanteil;
                 }
 
                 // Fetch and calculate water consumption for this tenant
@@ -571,7 +589,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 const waterRow = table.insertRow();
                 [
                     'Wasserkosten',
-                    wasserzaehlerGesamtkosten.toFixed(2) + ' €',
+                    betriebskosten['wasserzaehler-gesamtkosten'].toFixed(2) + ' €',
                     gesamtverbrauch.toFixed(2) + ' m³',
                     wasserkostenProKubik.toFixed(2) + ' €/m³',
                     tenantWasserkosten.toFixed(2) + ' €'
@@ -1107,48 +1125,126 @@ async function showOverview(year) {
 }
 
 // Funktion zum Speichern der Betriebskostenabrechnung
-async function saveBetriebskostenabrechnung() {
-    const year = document.getElementById("year").value;
-    const gesamtflaeche = document.getElementById("gesamtflaeche").value;
+async function saveBetriebskostenabrechnung(event) {
+    if (event) {
+        event.preventDefault();
+    }
+    
+    const year = document.getElementById('year').value;
+    const gesamtflaeche = document.getElementById('gesamtflaeche').value;
     const nebenkostenarten = [];
     const betrag = [];
     const berechnungsarten = [];
+    const rechnungen = [];
 
-    document.querySelectorAll(".nebenkostenart-input").forEach((div) => {
-        const inputs = div.querySelectorAll("input");
-        const select = div.querySelector("select");
-        nebenkostenarten.push(inputs[0].value);
-        betrag.push(parseFloat(inputs[1].value));
-        berechnungsarten.push(select.value);
+    document.querySelectorAll('.nebenkostenart-input').forEach((div, index) => {
+        const inputs = div.querySelectorAll('input');
+        const select = div.querySelector('select');
+        const name = inputs[0].value;
+        const gesamtbetrag = parseFloat(inputs[1].value);
+        const berechnungsart = select.value;
+
+        nebenkostenarten.push(name);
+        betrag.push(gesamtbetrag);
+        berechnungsarten.push(berechnungsart);
+
+        // Verbesserte Sammlung von Rechnungen bei Berechnungsart "nach_rechnung"
+        if (berechnungsart === 'nach_rechnung') {
+            console.log(`Verarbeite Nebenkostenart "${name}" mit Berechnungsart "nach_rechnung"`);
+            
+            const rechnungenContainer = div.querySelector('.rechnungen-container');
+            if (!rechnungenContainer) {
+                console.warn(`Rechnungen-Container für "${name}" nicht gefunden!`);
+                return;
+            }
+            
+            const rechnungEingaben = rechnungenContainer.querySelectorAll('.rechnung-eingabe');
+            console.log(`Gefundene Rechnungseingaben für "${name}": ${rechnungEingaben.length}`);
+            
+            rechnungEingaben.forEach((rechnungDiv, idx) => {
+                // Verbesserte Selektoren für mehr Kompatibilität
+                const mieterIdField = rechnungDiv.querySelector('.mieter-id');
+                const betragInputField = rechnungDiv.querySelector('.betrag-input');
+                
+                if (!mieterIdField || !betragInputField) {
+                    console.warn(`Mieter-ID oder Betrag-Feld für Rechnung ${idx+1} nicht gefunden!`);
+                    return;
+                }
+                
+                const mieterId = mieterIdField.value;
+                const betragWert = betragInputField.value;
+                
+                if (mieterId && betragWert) {
+                    const rechnungObjekt = {
+                        mieter: mieterId,
+                        name: name,
+                        betrag: parseFloat(betragWert),
+                        year: parseInt(year)
+                    };
+                    
+                    console.log(`Rechnung für "${name}" hinzugefügt:`, rechnungObjekt);
+                    rechnungen.push(rechnungObjekt);
+                }
+            });
+        }
     });
 
-    const { data, error } = await supabase.from("betriebskosten").upsert(
-        {
-            year,
-            gesamtflaeche: parseFloat(gesamtflaeche),
-            nebenkostenarten,
-            betrag,
-            berechnungsarten,
-        },
-        { onConflict: "year" }
-    );
+    try {
+        // Speichere erst die Betriebskosten
+        const { error: betriebskostenError } = await supabase
+            .from('betriebskosten')
+            .upsert({
+                year,
+                gesamtflaeche: parseFloat(gesamtflaeche),
+                nebenkostenarten,
+                betrag,
+                berechnungsarten
+            }, { onConflict: 'year' });
 
-    if (error) {
-        console.error("Fehler beim Speichern:", error);
-        showNotification(
-            "Fehler beim Speichern der Betriebskostenabrechnung",
-            "error"
-        );
-    } else {
-        console.log("Erfolgreich gespeichert:", data);
-        showNotification(
-            "Betriebskostenabrechnung erfolgreich gespeichert",
-            "success"
-        );
-        document.querySelector("#bearbeiten-modal").style.display = "none";
-        loadBetriebskosten(); // Aktualisiere die Tabelle
+        if (betriebskostenError) {
+            console.error('Fehler beim Speichern der Betriebskosten:', betriebskostenError);
+            showNotification('Fehler beim Speichern der Betriebskostenabrechnung', 'error');
+            return;
+        }
+
+        // Lösche alle existierenden Rechnungen für dieses Jahr
+        const { error: deleteError } = await supabase
+            .from('Rechnungen')
+            .delete()
+            .eq('year', year);
+
+        if (deleteError) {
+            console.error('Fehler beim Löschen alter Rechnungen:', deleteError);
+            showNotification('Fehler beim Aktualisieren der Rechnungen', 'error');
+            return;
+        }
+
+        // Speichere die neuen Rechnungen, falls vorhanden
+        if (rechnungen.length > 0) {
+            console.log('Zu speichernde Rechnungen:', rechnungen);
+            const { error: rechnungenError } = await supabase
+                .from('Rechnungen')
+                .insert(rechnungen);
+
+            if (rechnungenError) {
+                console.error('Fehler beim Speichern der Rechnungen:', rechnungenError);
+                showNotification('Fehler beim Speichern der Rechnungen', 'error');
+                return;
+            } else {
+                console.log('Rechnungen erfolgreich gespeichert!');
+            }
+        }
+
+        showNotification('Betriebskostenabrechnung erfolgreich gespeichert', 'success');
+        document.querySelector('#bearbeiten-modal').style.display = 'none';
+        loadBetriebskosten();
+
+    } catch (error) {
+        console.error('Fehler beim Speichern:', error);
+        showNotification('Ein unerwarteter Fehler ist aufgetreten', 'error');
     }
 }
+
 
 // Event Listener für das Speichern
 document
