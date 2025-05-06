@@ -1030,20 +1030,24 @@ async function showOverview(year) {
         const cellArt = row.insertCell(1);
         const cellGesamt = row.insertCell(2);
         const cellProQm = row.insertCell(3);
-
+    
         cellPos.textContent = index + 1;
         cellArt.textContent = art;
-        cellGesamt.textContent = betriebskosten.betrag[index].toFixed(2) + " €";
-        const costPerSqm = betriebskosten.betrag[index] / totalArea;
+        
+        // Sicherer Zugriff mit Nullish Coalescing
+        const betrag = betriebskosten.betrag[index] ?? 0;
+        cellGesamt.textContent = betrag.toFixed(2) + " €";
+        
+        const costPerSqm = betrag / totalArea;
         cellProQm.textContent = costPerSqm.toFixed(2) + " €";
-
-        totalCost += betriebskosten.betrag[index];
-
+    
+        totalCost += betrag;
+    
         [cellPos, cellArt, cellGesamt, cellProQm].forEach((cell) => {
             cell.style.border = "1px solid black";
             cell.style.padding = "8px";
         });
-    });
+    });    
 
     const totalRow = table.insertRow();
     const cellTotalLabel = totalRow.insertCell(0);
