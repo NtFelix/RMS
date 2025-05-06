@@ -549,16 +549,20 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     const row = table.insertRow();
                     [
                         art,
-                        betrag.toFixed(2) + ' €',
+                        (typeof betrag === 'number' ? betrag : 0).toFixed(2) + ' €',
                         berechnungsart === 'pro_flaeche' ? gesamtFlaeche.toString() : '1',
-                        kostenProEinheit.toFixed(2) + ' €',
-                        kostenanteil.toFixed(2) + ' €'
+                        (typeof kostenProEinheit === 'number' ? kostenProEinheit : 0).toFixed(2) + ' €',
+                        (typeof kostenanteil === 'number' ? kostenanteil : 0).toFixed(2) + ' €'
                     ].forEach(text => {
                         const cell = row.insertCell();
                         cell.textContent = text;
                         cell.style.border = '1px solid black';
                         cell.style.padding = '8px';
                     });
+
+                    // --- NEU: Weitere Rechnungen einfügen ---
+                    // Nach der Kostenarten-Schleife (außerhalb der for-Schleife!) wird das ergänzt, daher hier nur Marker.
+
                 }
 
                 // Fetch and calculate water consumption for this tenant
@@ -584,6 +588,29 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 // Apply time ratio to water costs
                 tenantWasserkosten = tenantWasserkosten * anteil;
                 gesamtKostenanteil += tenantWasserkosten;
+
+                // --- Nach der Kostenarten-Schleife: Zusätzliche Rechnungen anzeigen ---
+                // Finde alle Rechnungen für diesen Mieter, die nicht als Kostenart bereits angezeigt wurden
+                const angezeigteKostenarten = aktuelleKosten.nebenkostenarten;
+                const mieterRechnungen = rechnungen.filter(r => r.mieter === mieter.id);
+                const nichtZugeordneteRechnungen = mieterRechnungen.filter(r => !angezeigteKostenarten.includes(r.name));
+                nichtZugeordneteRechnungen.forEach(rechnung => {
+                    const rechnungRow = table.insertRow();
+                    [
+                        rechnung.name || 'Rechnung',
+                        (typeof rechnung.betrag === 'number' ? rechnung.betrag : 0).toFixed(2) + ' €',
+                        '-',
+                        (typeof rechnung.betrag === 'number' ? rechnung.betrag : 0).toFixed(2) + ' €',
+                        (typeof rechnung.betrag === 'number' ? rechnung.betrag : 0).toFixed(2) + ' €'
+                    ].forEach(text => {
+                        const cell = rechnungRow.insertCell();
+                        cell.textContent = text;
+                        cell.style.border = '1px solid black';
+                        cell.style.padding = '8px';
+                    });
+                    // Add to gesamtKostenanteil
+                    gesamtKostenanteil += (typeof rechnung.betrag === 'number' ? rechnung.betrag : 0);
+                });
 
                 // Add water costs row
                 const waterRow = table.insertRow();
