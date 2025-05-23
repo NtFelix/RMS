@@ -90,6 +90,24 @@ async function erstelleDetailAbrechnung(selectedYear) {
         .select('*')
         .eq('year', selectedYear);
 
+    // DEBUG: Lade alle Rechnungen für dieses Jahr
+    console.log('=== RECHNUNGEN GELADEN ===');
+    console.log('Geladene Rechnungen für Jahr', selectedYear, ':', rechnungen);
+    console.log('Anzahl Rechnungen:', rechnungen ? rechnungen.length : 0);
+
+    if (rechnungen && rechnungen.length > 0) {
+        console.log('Struktur der ersten Rechnung:', rechnungen[0]);
+        rechnungen.forEach((rechnung, index) => {
+            console.log(`Rechnung ${index + 1}:`, {
+                mieter: rechnung.mieter,
+                name: rechnung.name,
+                betrag: rechnung.betrag,
+                year: rechnung.year,
+                typ: typeof rechnung.mieter
+            });
+        });
+    }
+
     if (rechnungenError) {
         console.error('Fehler beim Laden der Rechnungen:', rechnungenError);
         showNotification('Fehler beim Laden der Rechnungen');
@@ -181,7 +199,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
             // Holen der Mieterdaten für diese Wohnung
             const { data: mieterData, error: mieterError } = await supabase
                 .from('Mieter')
-                .select('name, einzug, auszug')
+                .select('id, name, einzug, auszug')
                 .eq('wohnung-id', wohnung.id);
     
             if (mieterError) {
@@ -407,7 +425,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
             // Fetch tenant data - now we keep all tenants in the result
             const { data: mieterData, error: mieterError } = await supabase
                 .from('Mieter')
-                .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
+                .select('id, name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
                 .eq('wohnung-id', wohnung.id);
 
             if (mieterError) {
@@ -508,32 +526,94 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
                 // Process each cost type
                 for (let index = 0; index < aktuelleKosten.nebenkostenarten.length; index++) {
-                    const art = aktuelleKosten.nebenkostenarten[index];
-                    const betrag = aktuelleKosten.betrag[index];
-                    const berechnungsart = aktuelleKosten.berechnungsarten[index];
+    const art = aktuelleKosten.nebenkostenarten[index];
+    const betrag = aktuelleKosten.betrag[index];
+    const berechnungsart = aktuelleKosten.berechnungsarten[index];
 
-                    // Angepasste Berechnung je nach Berechnungsart
-                    let kostenanteil;
-                    let verteilerEinheit;
-                    let kostenProEinheit;
+    // Angepasste Berechnung je nach Berechnungsart
+    let kostenanteil;
+    let verteilerEinheit;
+    let kostenProEinheit;
+    let rechnungsSumme = 0; // <- NEU: immer deklarieren
 
                     if (berechnungsart === 'nach_rechnung') {
-                        // Suche nach individuellen Rechnungen für diesen Mieter und diese Kostenart
-                        const mieterRechnung = rechnungen.find(r => 
-                            r.mieter === mieter.id && 
-                            r.name === art
-                        );
-
-                        if (mieterRechnung) {
-                            kostenanteil = mieterRechnung.betrag * anteil;
-                            verteilerEinheit = 1;
-                            kostenProEinheit = mieterRechnung.betrag;
-                        } else {
+                        // Erweiterte Debug-Ausgaben
+                        console.log('=== DEBUG: nach_rechnung Verarbeitung ===');
+                        console.log('Mieter-Objekt:', mieter);
+                        console.log('Kostenart:', art);
+                        console.log('Jahr:', selectedYear);
+                        console.log('Alle verfügbaren Rechnungen:', rechnungen);
+                        
+                        // Robuste Mieter-ID-Ermittlung
+                        const mieterId = mieter.id;
+                        console.log('Verwendete Mieter-ID:', mieterId);
+                        
+                        if (!mieterId) {
+                            console.error('Keine gültige Mieter-ID gefunden für Mieter:', mieter);
                             kostenanteil = 0;
-                            verteilerEinheit = 1;
+                            verteilerEinheit = 'Rechnung';
                             kostenProEinheit = 0;
+                        } else {
+                            // Filtere Rechnungen mit detailliertem Logging
+                            const mieterRechnungen = rechnungen.filter(r => {
+                                console.log('Prüfe Rechnung:', {
+                                    rechnungMieter: r.mieter,
+                                    rechnungName: r.name,
+                                    rechnungBetrag: r.betrag,
+                                    rechnungJahr: r.year
+                                });
+                                
+                                // Exakte String-Vergleiche mit Normalisierung
+                                const mieterMatch = String(r.mieter || '').trim() === String(mieterId || '').trim();
+                                const nameMatch = String(r.name || '').trim().toLowerCase() === String(art || '').trim().toLowerCase();
+                                const yearMatch = parseInt(r.year) === parseInt(selectedYear);
+                                
+                                console.log('Vergleichsresultate:', {
+                                    mieterMatch: mieterMatch,
+                                    nameMatch: nameMatch,
+                                    yearMatch: yearMatch,
+                                    vergleichMieterId: `"${String(r.mieter || '').trim()}" === "${String(mieterId || '').trim()}"`,
+                                    vergleichName: `"${String(r.name || '').trim().toLowerCase()}" === "${String(art || '').trim().toLowerCase()}"`,
+                                    vergleichJahr: `${parseInt(r.year)} === ${parseInt(selectedYear)}`
+                                });
+                                
+                                const match = mieterMatch && nameMatch && yearMatch;
+                                if (match) {
+                                    console.log('✅ Passende Rechnung gefunden:', r);
+                                }
+                                
+                                return match;
+                            });
+                            
+                            console.log('Gefilterte Rechnungen für Mieter', mieter.name, 'Kostenart', art, ':', mieterRechnungen);
+                            
+                            // Summiere die gefundenen Rechnungen
+                            const rechnungsSumme = mieterRechnungen.reduce((sum, r, idx) => {
+                                const betrag = parseFloat(r.betrag) || 0;
+                                console.log(`Rechnung ${idx + 1}: Betrag ${betrag} für ${r.name}`);
+                                return sum + betrag;
+                            }, 0);
+                            
+                            console.log('Gesamtsumme Rechnungen:', rechnungsSumme);
+                            
+                            if (rechnungsSumme > 0) {
+                                kostenanteil = rechnungsSumme;
+                                verteilerEinheit = 'Rechnung';
+                                kostenProEinheit = wohnung.Größe > 0 ? rechnungsSumme / wohnung.Größe : rechnungsSumme;
+                                console.log('✅ Kostenanteil gesetzt:', kostenanteil);
+                            } else {
+                                kostenanteil = 0;
+                                verteilerEinheit = 'Rechnung';
+                                kostenProEinheit = 0;
+                                console.warn('⚠️ Keine passenden Rechnungen gefunden für:', {
+                                    mieter: mieter.name,
+                                    mieterId: mieterId,
+                                    kostenart: art,
+                                    jahr: selectedYear
+                                });
+                            }
                         }
-                    } else if (berechnungsart === 'pro_flaeche') {
+} else if (berechnungsart === 'pro_flaeche') {
                         verteilerEinheit = gesamtFlaeche;
                         kostenProEinheit = betrag / verteilerEinheit;
                         kostenanteil = kostenProEinheit * wohnung.Größe * anteil;
@@ -547,18 +627,92 @@ async function erstelleDetailAbrechnung(selectedYear) {
 
                     // Aktualisiere die Tabellenzeile
                     const row = table.insertRow();
-                    [
-                        art,
-                        (typeof betrag === 'number' ? betrag : 0).toFixed(2) + ' €',
-                        berechnungsart === 'pro_flaeche' ? gesamtFlaeche.toString() : '1',
-                        (typeof kostenProEinheit === 'number' ? kostenProEinheit : 0).toFixed(2) + ' €',
-                        (typeof kostenanteil === 'number' ? kostenanteil : 0).toFixed(2) + ' €'
-                    ].forEach(text => {
+                    let rowData;
+                    
+                    if (berechnungsart === 'nach_rechnung') {
+                        console.log('Erstelle Tabellenzeile für nach_rechnung:', {
+                            art: art,
+                            kostenanteil: kostenanteil,
+                            verteilerEinheit: verteilerEinheit,
+                            kostenProEinheit: kostenProEinheit,
+                            wohnungGroesse: wohnung.Größe
+                        });
+                        
+                        // Format the values with proper number formatting
+                        const formattedKostenanteil = (typeof kostenanteil === 'number' ? kostenanteil : 0).toLocaleString('de-DE', { 
+                            minimumFractionDigits: 2, 
+                            maximumFractionDigits: 2 
+                        });
+                        
+                        const formattedKostenProEinheit = (wohnung.Größe > 0 ? 
+                            (kostenanteil / wohnung.Größe).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) : 
+                            '0,00'
+                        );
+                        
+                        rowData = [
+                            art,
+                            `${formattedKostenanteil} €`,
+                            'Rechnung',
+                            `${formattedKostenProEinheit} €/m²`,
+                            `${formattedKostenanteil} €`
+                        ];
+                    } else if (berechnungsart === 'pro_flaeche') {
+                        rowData = [
+                            art,
+                            (typeof betrag === 'number' ? betrag : 0).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) + ' €',
+                            gesamtFlaeche.toString() + ' m²',
+                            (typeof kostenProEinheit === 'number' ? kostenProEinheit : 0).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) + ' €/m²',
+                            (typeof kostenanteil === 'number' ? kostenanteil : 0).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) + ' €'
+                        ];
+                    } else { // pro_mieter
+                        rowData = [
+                            art,
+                            (typeof betrag === 'number' ? betrag : 0).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) + ' €',
+                            '1 Mieter',
+                            (typeof kostenProEinheit === 'number' ? kostenProEinheit : 0).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) + ' €',
+                            (typeof kostenanteil === 'number' ? kostenanteil : 0).toLocaleString('de-DE', { 
+                                minimumFractionDigits: 2, 
+                                maximumFractionDigits: 2 
+                            }) + ' €'
+                        ];
+                    }
+                    
+                    // Create table cells with proper styling
+                    rowData.forEach((text, index) => {
                         const cell = row.insertCell();
                         cell.textContent = text;
                         cell.style.border = '1px solid black';
                         cell.style.padding = '8px';
-                    });
+                        
+                        // Make the cost amount bold
+                        if (index === 4) { // Kostenanteil-Spalte
+                            cell.style.fontWeight = 'bold';
+                        }
+                        
+                        // Right-align numeric columns
+                        if (index >= 1) { // All columns except the first one
+                            cell.style.textAlign = 'right';
+                        }
+    cell.style.padding = '8px';
+});
 
                     // --- NEU: Weitere Rechnungen einfügen ---
                     // Nach der Kostenarten-Schleife (außerhalb der for-Schleife!) wird das ergänzt, daher hier nur Marker.
@@ -754,7 +908,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
                 // Get all tenants for this apartment
                 const { data: mieterData, error: mieterError } = await supabase
                     .from('Mieter')
-                    .select('name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
+                    .select('id, name, nebenkosten, einzug, auszug, nebenkosten-betrag, nebenkosten-datum')
                     .eq('wohnung-id', wohnung.id);
 
                 if (mieterError || !mieterData || mieterData.length === 0) {
