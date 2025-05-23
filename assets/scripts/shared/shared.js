@@ -65,8 +65,18 @@ function calculateTenantMonths(einzug, auszug, year) {
 /**
  * Generates a detailed bill for the given year. The function fetches the necessary data from the database, calculates the costs and displays a modal with the detailed bill.
  * @param {number} selectedYear The year for which the detailed bill should be generated.
+ * @param {function} hideLoadingAnimation Callback function to hide the loading animation.
+ * @param {HTMLElement} percentageDisplay Element to display the loading percentage.
  */
-async function erstelleDetailAbrechnung(selectedYear) {
+async function erstelleDetailAbrechnung(selectedYear, hideLoadingAnimation, percentageDisplay) {
+    const updateProgress = (percentage) => {
+      if (percentageDisplay) {
+        percentageDisplay.textContent = `${Math.round(percentage)}%`;
+      }
+    };
+
+    updateProgress(10);
+
     const { data: betriebskosten, error: betriebskostenError } = await supabase
         .from('betriebskosten')
         .select('*')
@@ -76,13 +86,17 @@ async function erstelleDetailAbrechnung(selectedYear) {
     if (betriebskostenError) {
         console.error('Fehler beim Laden der Betriebskosten:', betriebskostenError);
         showNotification('Fehler beim Laden der Betriebskosten. Bitte versuchen Sie es erneut.');
+        if (hideLoadingAnimation) hideLoadingAnimation();
         return;
     }
     if (!betriebskosten) {
         console.error('Keine Betriebskosten für das ausgewählte Jahr gefunden');
         showNotification('Keine Betriebskosten für das ausgewählte Jahr gefunden.');
+        if (hideLoadingAnimation) hideLoadingAnimation();
         return;
     }
+
+    updateProgress(25);
 
     // Lade alle Rechnungen für dieses Jahr
     const { data: rechnungen, error: rechnungenError } = await supabase
@@ -111,8 +125,11 @@ async function erstelleDetailAbrechnung(selectedYear) {
     if (rechnungenError) {
         console.error('Fehler beim Laden der Rechnungen:', rechnungenError);
         showNotification('Fehler beim Laden der Rechnungen');
+        if (hideLoadingAnimation) hideLoadingAnimation();
         return;
     }
+
+    updateProgress(40);
 
     const { data: wohnungen, error: wohnungenError } = await supabase
         .from('Wohnungen')
@@ -120,8 +137,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
     if (wohnungenError) {
         console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
         showNotification('Fehler beim Laden der Wohnungen. Bitte versuchen Sie es erneut.');
+        if (hideLoadingAnimation) hideLoadingAnimation();
         return;
     }
+
+    updateProgress(55);
+
     const { data: wasserzaehlerData, error: wasserzaehlerError } = await supabase
         .from('Wasserzähler')
         .select('verbrauch')
@@ -129,8 +150,12 @@ async function erstelleDetailAbrechnung(selectedYear) {
     if (wasserzaehlerError) {
         console.error('Fehler beim Laden der Wasserzählerdaten:', wasserzaehlerError);
         showNotification('Fehler beim Laden der Wasserzählerdaten. Bitte versuchen Sie es erneut.');
+        if (hideLoadingAnimation) hideLoadingAnimation();
         return;
     }
+
+    updateProgress(70);
+
     const gesamtverbrauch = wasserzaehlerData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
     const wasserkostenProKubik = gesamtverbrauch > 0 ? betriebskosten['wasserzaehler-gesamtkosten'] / gesamtverbrauch : 0;
     const aktuelleKosten = betriebskosten;
@@ -414,6 +439,8 @@ async function erstelleDetailAbrechnung(selectedYear) {
     // Rufe die Funktion zur Berechnung der Leerstandskosten nach dem Durchlaufen aller Wohnungen auf
     await berechneLeerstandskosten();
 
+    updateProgress(85);
+
 
     // Stelle sicher, dass die Übersichtsleiste vor der Wohnungsschleife eingefügt wird
     costSummaryDiv.innerHTML = updateSummaryHTML();
@@ -421,6 +448,8 @@ async function erstelleDetailAbrechnung(selectedYear) {
     abrechnungContent.appendChild(closeBtn);
 
     if (Array.isArray(aktuelleKosten.nebenkostenarten)) {
+        let currentProgress = 85;
+        const progressIncrement = wohnungen.length > 0 ? (15 / wohnungen.length) : 0;
         for (const wohnung of wohnungen) {
             // Fetch tenant data - now we keep all tenants in the result
             const { data: mieterData, error: mieterError } = await supabase
@@ -888,12 +917,15 @@ async function erstelleDetailAbrechnung(selectedYear) {
                     abrechnungContent.appendChild(separator);
                 }
             }
+            currentProgress += progressIncrement;
+            updateProgress(currentProgress);
         }
     } else {
         console.error('Ungültige Datenstruktur für aktuelleKosten:', aktuelleKosten);
         const errorMessage = document.createElement('p');
         errorMessage.textContent = 'Fehler beim Laden der Betriebskostendaten.';
         abrechnungContent.appendChild(errorMessage);
+        if (hideLoadingAnimation) hideLoadingAnimation();
     }
 
     // Am Ende der erstelleDetailAbrechnung Funktion, nach der Wohnungsschleife:
@@ -948,6 +980,7 @@ async function erstelleDetailAbrechnung(selectedYear) {
         } catch (error) {
             console.error('Fehler beim Erstellen der ZIP-Datei:', error);
             showNotification('Fehler beim Erstellen der ZIP-Datei', 'error');
+            if (hideLoadingAnimation) hideLoadingAnimation();
         }
     };
 
@@ -969,6 +1002,9 @@ async function erstelleDetailAbrechnung(selectedYear) {
     abrechnungContent.appendChild(exportButton);
     abrechnungsModal.appendChild(abrechnungContent);
     document.body.appendChild(abrechnungsModal);
+
+    updateProgress(100);
+    if (hideLoadingAnimation) hideLoadingAnimation();
 }
 
 /**
@@ -1100,6 +1136,9 @@ async function calculateMonthlyPayments(mieterData, year) {
  * @param {number} year - Das Jahr, für das die Übersicht angezeigt werden soll.
  */
 async function showOverview(year) {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const percentageDisplay = document.querySelector('#loading-overlay .percentage-display');
+
     if (!year || isNaN(year)) {
         console.error("Ungültiges Jahr:", year);
         showNotification(
@@ -1297,7 +1336,18 @@ async function showOverview(year) {
     continueButton.onclick = (event) => {
         event.preventDefault();
         overviewModal.style.display = "none";
-        erstelleDetailAbrechnung(year);
+        if (loadingOverlay) {
+          loadingOverlay.style.display = 'flex';
+        }
+        if (percentageDisplay) {
+          percentageDisplay.textContent = '0%';
+        }
+        const hideLoadingAnimation = () => {
+          if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+          }
+        };
+        erstelleDetailAbrechnung(year, hideLoadingAnimation, percentageDisplay);
     };
 
     buttonContainer.appendChild(wasserzaehlerButton);
