@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
@@ -45,6 +45,20 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   });
   const [finData, setFinData] = useState<Finanz[]>(finances);
   const reloadRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    const handleOpenAddFinanceModal = () => {
+      setEditingId(null);
+      setFormData({ wohnung_id: "", name: "", datum: "", betrag: "", ist_einnahmen: false, notiz: "" });
+      setDialogOpen(true);
+    };
+
+    window.addEventListener("open-add-finance-modal", handleOpenAddFinanceModal);
+
+    return () => {
+      window.removeEventListener("open-add-finance-modal", handleOpenAddFinanceModal);
+    };
+  }, [setEditingId, setFormData, setDialogOpen]);
 
   // Werte berechnen
   const totalIncome = finData.filter(f => f.ist_einnahmen).reduce((sum, item) => sum + Number(item.betrag), 0);
