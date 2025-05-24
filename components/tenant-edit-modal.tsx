@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { format } from "date-fns" // Added for date formatting
+import { format } from "date-fns"
+import { createClient } from "@/utils/supabase/client" // Added
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,10 +24,15 @@ interface Mieter {
   nebenkosten_datum?: string[]
 }
 
+interface Wohnung { // Added interface for type safety
+  id: string;
+  name: string;
+}
+
 interface TenantEditModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  wohnungen: { id: string; name: string }[]
+  wohnungen?: Wohnung[] // Made optional
   initialData?: {
     id?: string
     wohnung_id?: string
@@ -43,7 +49,7 @@ interface TenantEditModalProps {
   loading?: boolean
 }
 
-export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialData, serverAction, loading }: TenantEditModalProps) {
+export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnungen = [], initialData, serverAction, loading }: TenantEditModalProps) {
   const router = useRouter();
   const [formData, setFormData] = useState({
     wohnung_id: initialData?.wohnung_id || "",
@@ -70,6 +76,30 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
       nebenkosten_datum: initialData?.nebenkosten_datum || ""
     });
   }, [initialData, open]);
+
+  const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
+  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
+
+  useEffect(() => {
+    if (open && (!initialWohnungen || initialWohnungen.length === 0)) {
+      const fetchWohnungen = async () => {
+        setIsLoadingWohnungen(true);
+        const supabase = createClient();
+        const { data, error } = await supabase.from("Wohnungen").select("id, name");
+        if (error) {
+          console.error("Error fetching wohnungen:", error);
+          // Optionally: show toast or error message
+        } else {
+          setInternalWohnungen(data || []);
+        }
+        setIsLoadingWohnungen(false);
+      };
+      fetchWohnungen();
+    } else if (initialWohnungen && initialWohnungen.length > 0) {
+      // If initialWohnungen are provided, use them
+      setInternalWohnungen(initialWohnungen);
+    }
+  }, [open, initialWohnungen]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -99,12 +129,17 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>
-              <Select name="wohnung_id" value={formData.wohnung_id} onValueChange={v => setFormData({...formData, wohnung_id:v})}>
+              <Select 
+                name="wohnung_id" 
+                value={formData.wohnung_id} 
+                onValueChange={v => setFormData({...formData, wohnung_id:v})}
+                disabled={isLoadingWohnungen}
+              >
                 <SelectTrigger id="wohnung_id">
-                  <SelectValue placeholder="--"/>
+                  <SelectValue placeholder={isLoadingWohnungen ? "Lädt Wohnungen..." : "--"}/>
                 </SelectTrigger>
                 <SelectContent>
-                  {wohnungen.map(w => (
+                  {internalWohnungen.map(w => (
                     <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -170,7 +205,7 @@ export function TenantEditModal({ open, onOpenChange, wohnungen = [], initialDat
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" disabled={loading || isLoadingWohnungen}>
               {loading ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>
