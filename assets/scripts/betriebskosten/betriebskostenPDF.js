@@ -141,30 +141,86 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     // Use gesamtflaeche from betriebskosten table
     const totalArea = betriebskosten.gesamtflaeche;
 
-    // Prepare data - ohne Positionsspalte, wie in der Vorlage
+    // Debug-Ausgaben für Fehlerdiagnose
+    console.log('=== PDF GENERATION DEBUG ===');
+    console.log('Betriebskosten:', betriebskosten);
+    console.log('Nebenkostenarten:', betriebskosten.nebenkostenarten);
+    console.log('Beträge:', betriebskosten.betrag);
+    console.log('Berechnungsarten:', betriebskosten.berechnungsarten);
+    console.log('Wohnung:', wohnung);
+    console.log('Mieter:', mieter);
+
+    // Lade Rechnungen für diesen Mieter
+    const { data: rechnungen, error: rechnungenError } = await supabase
+        .from('Rechnungen')
+        .select('*')
+        .eq('year', betriebskosten.year);
+
+    if (rechnungenError) {
+        console.error('Fehler beim Laden der Rechnungen für PDF:', rechnungenError);
+    }
+    console.log('Geladene Rechnungen für PDF:', rechnungen);
+
+    // Prepare data - mit Berücksichtigung der nach_rechnung Berechnungsart
     const data = betriebskosten.nebenkostenarten.map((art, index) => {
-        const gesamtkosten = betriebskosten.betrag[index];
-        const berechnungsart = betriebskosten.berechnungsarten[index];
-        const verteilerEinheit = berechnungsart === 'pro_flaeche' ? totalArea : 1;
-        const kostenProEinheit = gesamtkosten / verteilerEinheit;
-        const kostenanteil = berechnungsart === 'pro_flaeche' ? kostenProEinheit * wohnung.Größe : kostenProEinheit;
+        const berechnungsart = betriebskosten.berechnungsarten && betriebskosten.berechnungsarten[index] ? betriebskosten.berechnungsarten[index] : 'pro_flaeche';
+        let gesamtkosten = (betriebskosten.betrag && betriebskosten.betrag[index]) ? betriebskosten.betrag[index] : 0;
+        let verteilerEinheit, kostenProEinheit, kostenanteil;
+
+        if (berechnungsart === 'nach_rechnung') {
+            // Finde Rechnungen für diesen Mieter und diese Kostenart
+            const mieterRechnungen = (rechnungen || []).filter(r => {
+                const mieterMatch = String(r.mieter || '').trim() === String(mieter.id || '').trim();
+                const nameMatch = String(r.name || '').trim().toLowerCase() === String(art || '').trim().toLowerCase();
+                return mieterMatch && nameMatch;
+            });
+
+            const rechnungsSumme = mieterRechnungen.reduce((sum, r) => {
+                return sum + (typeof r.betrag === 'number' ? r.betrag : parseFloat(r.betrag) || 0);
+            }, 0);
+
+            if (rechnungsSumme > 0) {
+                gesamtkosten = rechnungsSumme;
+                verteilerEinheit = 'Rechnung';
+                kostenProEinheit = wohnung.Größe > 0 ? rechnungsSumme / wohnung.Größe : rechnungsSumme;
+                kostenanteil = rechnungsSumme;
+            } else {
+                gesamtkosten = 0;
+                verteilerEinheit = 'Rechnung';
+                kostenProEinheit = 0;
+                kostenanteil = 0;
+            }
+        } else if (berechnungsart === 'pro_flaeche') {
+            verteilerEinheit = totalArea || 1;
+            kostenProEinheit = gesamtkosten / (verteilerEinheit || 1);
+            kostenanteil = kostenProEinheit * (wohnung.Größe || 0);
+        } else { // pro_mieter
+            verteilerEinheit = 1;
+            kostenProEinheit = gesamtkosten;
+            kostenanteil = gesamtkosten;
+        }
+
+        // Sichere Konvertierung zu String mit Null-Checks
         return [
-            art,
-            gesamtkosten.toFixed(2) + ' €',
-            verteilerEinheit.toString(),
-            kostenProEinheit.toFixed(2),
-            kostenanteil.toFixed(2) + ' €'
+            art || '',
+            (gesamtkosten || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €',
+            berechnungsart === 'pro_flaeche' ? 
+                (verteilerEinheit || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' m²' :
+                (verteilerEinheit || '').toString(),
+            (kostenProEinheit || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            (kostenanteil || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
         ];
     });
 
-    // Add water costs row
-    data.push([
+    // Add water costs row - mit Null-Checks
+    const wasserkostenRow = [
         'Wasserkosten',
-        wasserzaehlerGesamtkosten.toFixed(2) + ' €',
-        gesamtverbrauch.toFixed(2),
-        wasserkostenProKubik.toFixed(2),
-        tenantWasserkosten.toFixed(2) + ' €'
-    ]);
+        (wasserzaehlerGesamtkosten || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €',
+        (gesamtverbrauch || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (wasserkostenProKubik || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        (tenantWasserkosten || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+    ];
+    data.push(wasserkostenRow);
 
     // Berechnung der Spaltenbreiten basierend auf der Gesamtbreite - Leistungsart etwas schmaler
     const colWidth1 = Math.floor(contentWidth * 0.36); // Leistungsart (weniger Platz als vorher)
@@ -222,11 +278,30 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         }
     });
 
+    // Calculate total sum with proper error handling and number parsing
     const gesamtsumme = data.reduce((sum, row) => {
-        // Entferne das Euro-Zeichen und konvertiere zu Zahl
-        const value = parseFloat(row[4].replace(' €', ''));
-        return sum + value;
+        try {
+            // Safely extract the cost value (last column)
+            const kostenanteilString = row[4] || '0 €';
+            // Remove all non-numeric characters except decimal point and minus
+            const numericString = kostenanteilString
+                .replace(/[^\d,-]/g, '')  // Remove all non-numeric except , and -
+                .replace(',', '.');         // Convert German decimal to JS decimal
+            const value = parseFloat(numericString) || 0;
+            console.log('Adding to sum:', { 
+                original: row[4], 
+                cleaned: numericString, 
+                parsed: value,
+                currentSum: sum + value 
+            });
+            return sum + value;
+        } catch (error) {
+            console.error('Error calculating sum for row:', row, 'Error:', error);
+            return sum; // Continue with current sum if there's an error
+        }
     }, 0);
+    
+    console.log('Gesamtsumme berechnet:', gesamtsumme);
     
     const finalY = doc.lastAutoTable.finalY || 150;
     
@@ -263,15 +338,20 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
         doc.text(`(${wasserkostenProKubik.toFixed(2)} €/Cbm)`, leftMargin + 80, finalY + 25);
     }
 
-    // Berechnungen mit den korrekten Zahlungen
+    // Calculate total paid amount with error handling
+    let totalPaid = 0;
+    try {
+        const paymentResult = await calculateMonthlyPayments([mieter], betriebskosten.year);
+        totalPaid = (paymentResult && paymentResult.totalPaid) ? paymentResult.totalPaid : 0;
+        console.log('Berechnete Zahlungen:', { totalPaid });
+    } catch (error) {
+        console.error('Fehler bei der Berechnung der Zahlungen:', error);
+        totalPaid = 0;
+    }
+    
     const gesamtBetrag = gesamtsumme;
-    const totalPaid = await calculateMonthlyPayments([mieter], betriebskosten.year)
-        .then(result => result.totalPaid)
-        .catch(error => {
-            console.error('Fehler bei der Berechnung der Zahlungen:', error);
-            return 0;
-        });
-    const nachzahlung = gesamtBetrag - totalPaid;
+    const nachzahlung = (gesamtBetrag || 0) - (totalPaid || 0);
+    console.log('Zahlungsübersicht:', { gesamtBetrag, totalPaid, nachzahlung });
 
     // Abschlusssummen mit deutlicherem Abstand
     // Berechne die Y-Position basierend auf vorherigen Elementen
@@ -287,11 +367,25 @@ async function generatePDF(wohnung, betriebskosten, returnBlob = false) {
     doc.setLineWidth(0.5);
     doc.line(leftMargin, summaryY - 5, Math.min(tableRight, pageWidth - rightMargin - 2), summaryY - 5);
 
-    // Display results - mit angepasstem Styling und sicherer Positionierung
+    // Display results - with proper number formatting and error handling
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.text("Gesamt", leftMargin, summaryY);
-    const gesamtBetragText = `${gesamtBetrag.toFixed(2)} €`;
+    
+    // Format numbers with German locale (1.234,56 format)
+    const formatNumber = (num) => {
+        try {
+            return (num || 0).toLocaleString('de-DE', { 
+                minimumFractionDigits: 2, 
+                maximumFractionDigits: 2 
+            });
+        } catch (e) {
+            console.error('Error formatting number:', num, 'Error:', e);
+            return '0,00';
+        }
+    };
+    
+    const gesamtBetragText = `${formatNumber(gesamtBetrag)} €`;
     doc.text(gesamtBetragText, Math.min(tableRight, pageWidth - rightMargin - 2), summaryY, { align: 'right' });
 
     doc.setFont("helvetica", "normal");

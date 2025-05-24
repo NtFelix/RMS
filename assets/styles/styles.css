@@ -1116,3 +1116,110 @@ table button:hover {
     /* Minimale Breite für die Zelle */
     white-space: nowrap;
 }
+
+/* Styles für individuelle Rechnungen */
+.rechnungen-container {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    display: none;
+}
+
+.rechnung-eingabe {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.rechnung-eingabe select,
+.rechnung-eingabe input {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.rechnung-eingabe button {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+}
+
+.rechnung-eingabe button:hover {
+    background-color: #c82333;
+}
+
+/* Anpassungen für den "Rechnung hinzufügen" Button */
+.rechnungen-container > button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--button-radius);
+    padding: 8px 16px;
+    cursor: pointer;
+    margin-top: 10px;
+    width: 100%;
+}
+
+.rechnungen-container > button:hover {
+    background-color: var(--secondary-color);
+}
+
+/* Anpassung der Nebenkostenart-Auswahl */
+.nebenkostenart-input select {
+    margin: 10px 0;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#loading-overlay {
+  position: fixed; /* Or absolute if it's contained within a specific element */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent dark gray */
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px); /* For Safari */
+  display: none; /* Initially hidden */
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  border: 8px solid #f3f3f3; /* Light grey */
+  border-top: 8px solid #2c3e50; /* Site's primary blue */
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  animation: spin 1s linear infinite;
+}
+
+.percentage-display {
+  margin-top: 15px;
+  font-size: 1.2em;
+  color: #333;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
