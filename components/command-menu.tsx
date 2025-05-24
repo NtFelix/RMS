@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/command"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { useCommandMenu } from "@/hooks/use-command-menu"
+import { useModalStore } from "@/hooks/use-modal-store" // Added
 
 // Stelle sicher, dass der Mieter-Link im Command-Menü korrekt ist
 const navigationItems = [
@@ -91,8 +92,8 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // Dispatch event to open the Mieter hinzufügen modal
-              window.dispatchEvent(new CustomEvent("open-add-mieter-modal"))
+              // Use modal store to open tenant modal for adding
+              useModalStore.getState().openTenantModal()
             }}
           >
             <Users className="mr-2 h-4 w-4" />
@@ -101,8 +102,8 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // Dispatch a custom event to open the Haus hinzufügen modal
-              window.dispatchEvent(new CustomEvent("open-add-house-modal"))
+              // Use modal store to open house modal for adding
+              useModalStore.getState().openHouseModal()
             }}
           >
             <Building2 className="mr-2 h-4 w-4" />
@@ -111,8 +112,8 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // Dispatch event to open the finance modal
-              window.dispatchEvent(new CustomEvent("open-add-finance-modal"))
+              // Use modal store to open finance modal for adding
+              useModalStore.getState().openFinanceModal()
             }}
           >
             <Wallet className="mr-2 h-4 w-4" />

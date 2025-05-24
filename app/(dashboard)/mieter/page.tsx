@@ -7,8 +7,8 @@ import { TenantFilters } from "@/components/tenant-filters"
 import { TenantTable } from "@/components/tenant-table"
 import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper"
 import TenantClientWrapper from "./client-wrapper"
-import { createClient } from "@/utils/supabase/server"
-import { revalidatePath } from "next/cache"
+// createClient and revalidatePath are no longer needed here as handleSubmit is imported
+import { handleSubmit } from "../../../app/mieter-actions" // Adjusted import path
 
 interface Mieter {
   id: string
@@ -28,32 +28,13 @@ interface Wohnung {
   name: string
 }
 
-async function handleSubmit(formData: FormData) {
-  "use server";
-  const supabase = await createClient();
-  const payload: any = {
-    wohnung_id: formData.get('wohnung_id') || null,
-    name: formData.get('name'),
-    einzug: formData.get('einzug') || null,
-    auszug: formData.get('auszug') || null,
-    email: formData.get('email') || null,
-    telefonnummer: formData.get('telefonnummer') || null,
-    notiz: formData.get('notiz') || null,
-    nebenkosten: formData.get('nebenkosten') ? String(formData.get('nebenkosten')).split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : null,
-    nebenkosten_datum: formData.get('nebenkosten_datum') ? String(formData.get('nebenkosten_datum')).split(',').map(s => s.trim()).filter(Boolean) : null
-  };
-  const id = formData.get('id');
-  if (id) {
-    await supabase.from('Mieter').update(payload).eq('id', id as string);
-  } else {
-    await supabase.from('Mieter').insert(payload);
-  }
-  revalidatePath('/mieter');
-}
+// Original handleSubmit function is now removed from here and imported from mieter-actions.ts
 
 export default async function MieterPage() {
   // Lade Daten serverseitig
-  const supabase = await createClient();
+  // createClient is still needed for fetching initial page data
+  const { createClient } = await import("@/utils/supabase/server");
+  const supabase = createClient();
   const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
   const wohnungen: Wohnung[] = wohnungenData ?? [];
   const { data: mieterData } = await supabase.from('Mieter').select('*');
