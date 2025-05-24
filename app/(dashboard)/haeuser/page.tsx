@@ -44,5 +44,5 @@ export default async function HaeuserPage() {
       pricePerSqm: avgRentPerSqm.toFixed(2),
     };
   });
-  return <HaeuserClientWrapper haeuser={enrichedHaeuser} serverAction={handleSubmit} />;
+  return <HaeuserClientWrapper haeuser={enrichedHaeuser} />;
 }
