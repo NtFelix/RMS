@@ -126,7 +126,8 @@ async function openEditModal(entry = null) {
                 const div = createNebenkostenartInput(
                     kostenart,
                     data.betrag[index],
-                    data.berechnungsarten[index]
+                    data.berechnungsarten[index],
+                    entry.year
                 );
                 container.appendChild(div);
             });
@@ -151,7 +152,8 @@ async function openEditModal(entry = null) {
                 const div = createNebenkostenartInput(
                     kostenart,
                     data.betrag[index],
-                    data.berechnungsarten[index]
+                    data.berechnungsarten[index],
+                    year
                 );
                 container.appendChild(div);
             });
@@ -179,7 +181,9 @@ async function openEditModal(entry = null) {
     const saveButton = document.createElement('button');
     saveButton.textContent = 'Speichern';
     saveButton.type = 'button';
-    saveButton.onclick = saveBetriebskostenabrechnung;
+    saveButton.onclick = () => {
+        saveBetriebskostenabrechnung();
+    };
 
     const continueButton = document.createElement('button');
     continueButton.textContent = 'Fortfahren';
@@ -208,13 +212,13 @@ async function openEditModal(entry = null) {
  * 
  * @param {string} [title=''] - Titel der Nebenkostenart
  * @param {number|string} [amount=''] - Betrag der Nebenkosten
- * @param {string} [berechnungsart='pro_flaeche'] - Berechnungsart der Nebenkosten ('pro_flaeche' oder 'pro_mieter')
+ * @param {string} [berechnungsart='pro_flaeche'] - Berechnungsart der Nebenkosten ('pro_flaeche', 'pro_mieter' oder 'nach_rechnung')
+ * @param {number} [year=null] - Jahr der Nebenkostenabrechnung
  * @returns {HTMLDivElement} - Das erstellte Eingabefeld
  */
-function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pro_flaeche') {
+function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pro_flaeche', year = null) {
     const div = document.createElement('div');
     div.className = 'nebenkostenart-input';
-
 
     const titleInput = document.createElement('input');
     titleInput.type = 'text';
@@ -236,9 +240,34 @@ function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pr
     const option2 = document.createElement('option');
     option2.value = 'pro_mieter';
     option2.textContent = 'pro Mieter';
+    const option3 = document.createElement('option');
+    option3.value = 'nach_rechnung';
+    option3.textContent = 'nach Rechnung';
+
     selectInput.appendChild(option1);
     selectInput.appendChild(option2);
+    selectInput.appendChild(option3);
     selectInput.value = berechnungsart;
+
+    // Erstelle Container für individuelle Rechnungen
+    const rechnungenContainer = document.createElement('div');
+    rechnungenContainer.className = 'rechnungen-container';
+    rechnungenContainer.style.display = berechnungsart === 'nach_rechnung' ? 'block' : 'none';
+
+    // Event Listener für die Berechnungsart
+    selectInput.addEventListener('change', async (e) => {
+        rechnungenContainer.style.display = e.target.value === 'nach_rechnung' ? 'block' : 'none';
+        if (e.target.value === 'nach_rechnung') {
+            await loadRechnungenEingabe(rechnungenContainer, title, year);
+        }
+    });
+
+    // Wenn initial "nach_rechnung" ausgewählt ist, lade die Rechnungen
+    if (berechnungsart === 'nach_rechnung') {
+        rechnungenContainer.style.display = 'block';
+        // Verzögere das Laden leicht, um sicherzustellen, dass das DOM bereit ist
+        setTimeout(() => loadRechnungenEingabe(rechnungenContainer, title, year), 0);
+    }
 
     const removeButton = document.createElement('button');
     removeButton.type = 'button';
@@ -250,15 +279,153 @@ function createNebenkostenartInput(title = '', amount = '', berechnungsart = 'pr
     div.appendChild(titleInput);
     div.appendChild(amountInput);
     div.appendChild(selectInput);
+    div.appendChild(rechnungenContainer);
     div.appendChild(removeButton);
 
     return div;
+}
+
+async function loadRechnungenEingabe(container, kostenart, year) {
+    // Hole alle aktiven Mieter
+    const { data: mieter, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('id, name, Wohnungen(Wohnung)')
+        .or('auszug.is.null,auszug.gt.now()');
+
+    if (mieterError) {
+        console.error('Fehler beim Laden der Mieter:', mieterError);
+        return;
+    }
+
+    // Hole existierende Rechnungen für diese Kostenart und Jahr
+    let existingRechnungen = [];
+    if (year) {
+        const { data: rechnungen, error: rechnungenError } = await supabase
+            .from('Rechnungen')
+            .select('*')
+            .eq('year', year)
+            .eq('name', kostenart);
+
+        if (!rechnungenError && rechnungen) {
+            existingRechnungen = rechnungen;
+        }
+    }
+
+    // Lösche vorhandene Rechnungseingaben
+    container.innerHTML = '';
+
+    // Erstelle für jeden Mieter ein Eingabefeld
+    mieter.forEach(mieter => {
+        const rechnungDiv = document.createElement('div');
+        rechnungDiv.className = 'rechnung-eingabe';
+        rechnungDiv.style.display = 'flex';
+        rechnungDiv.style.alignItems = 'center';
+        rechnungDiv.style.marginBottom = '10px';
+        rechnungDiv.style.padding = '10px';
+        rechnungDiv.style.backgroundColor = 'white';
+        rechnungDiv.style.borderRadius = '4px';
+
+        // Mieter-Name (nicht editierbar)
+        const mieterLabel = document.createElement('span');
+        mieterLabel.style.flex = '2';
+        mieterLabel.textContent = `${mieter.name} (${mieter.Wohnungen?.Wohnung || 'Keine Wohnung'})`;
+        
+        // Hidden Input für Mieter-ID
+        const mieterIdInput = document.createElement('input');
+        mieterIdInput.type = 'hidden';
+        mieterIdInput.className = 'mieter-id';
+        mieterIdInput.value = mieter.id;
+
+        // Betrag-Eingabe
+        const betragInput = document.createElement('input');
+        betragInput.type = 'number';
+        betragInput.step = '0.01';
+        betragInput.className = 'betrag-input';
+        betragInput.placeholder = 'Betrag';
+        betragInput.style.width = '150px';
+        betragInput.style.marginLeft = '10px';
+        betragInput.required = true;
+
+        // Wenn es eine existierende Rechnung für diesen Mieter gibt, setze den Betrag
+        const existingRechnung = existingRechnungen.find(r => r.mieter === mieter.id);
+        if (existingRechnung) {
+            betragInput.value = existingRechnung.betrag;
+        }
+
+        rechnungDiv.appendChild(mieterLabel);
+        rechnungDiv.appendChild(mieterIdInput);
+        rechnungDiv.appendChild(betragInput);
+        container.appendChild(rechnungDiv);
+    });
 }
 
 function addNebenkostenart() {
     const container = document.getElementById('nebenkostenarten-container');
     const div = createNebenkostenartInput();
     container.appendChild(div);
+}
+
+function createRechnungEingabe(mieter = {}, betrag = '') {
+    const div = document.createElement('div');
+    div.className = 'rechnung-eingabe';
+    div.style.marginTop = '10px';
+    div.style.padding = '10px';
+    div.style.backgroundColor = '#f5f5f5';
+    div.style.borderRadius = '4px';
+
+    // Mieter-Auswahl
+    const mieterSelect = document.createElement('select');
+    mieterSelect.className = 'mieter-select';
+    mieterSelect.style.marginRight = '10px';
+    mieterSelect.style.width = 'calc(60% - 10px)';
+
+    // Betrag-Eingabe
+    const betragInput = document.createElement('input');
+    betragInput.type = 'number';
+    betragInput.step = '0.01';
+    betragInput.value = betrag;
+    betragInput.placeholder = 'Betrag';
+    betragInput.style.width = '30%';
+
+    // Entfernen-Button
+    const removeButton = document.createElement('button');
+    removeButton.type = 'button';
+    removeButton.textContent = '×';
+    removeButton.style.marginLeft = '10px';
+    removeButton.style.width = '10%';
+    removeButton.onclick = () => div.remove();
+
+    div.appendChild(mieterSelect);
+    div.appendChild(betragInput);
+    div.appendChild(removeButton);
+
+    // Lade Mieter in das Select
+    loadMieterIntoSelect(mieterSelect, mieter.id);
+
+    return div;
+}
+
+async function loadMieterIntoSelect(select, selectedMieterId = null) {
+    const { data: mieter, error } = await supabase
+        .from('Mieter')
+        .select('id, name, Wohnungen(Wohnung)');
+
+    if (error) {
+        console.error('Fehler beim Laden der Mieter:', error);
+        return;
+    }
+
+    select.innerHTML = '<option value="">Mieter auswählen</option>';
+    mieter.forEach(m => {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = `${m.name} (${m.Wohnungen?.Wohnung || 'Keine Wohnung'})`;
+        select.appendChild(option);
+    });
+
+    if (selectedMieterId) {
+        select.value = selectedMieterId;
+    }
 }
 
 // EventListener für UI-Interaktionen
