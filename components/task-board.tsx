@@ -6,7 +6,8 @@ import { de } from "date-fns/locale"
 import { TaskCard } from "@/components/task-card"
 // import { TaskEditModal } from "@/components/task-edit-modal"; // Removed
 import { useModalStore } from "@/hooks/use-modal-store"; // Added
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/components/ui/use-toast";
+import { toggleTaskStatusAction } from "@/app/todos-actions"; // Added
 
 export interface Task {
   id: string
@@ -107,36 +108,37 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }:
   // Handle task status toggle
   const handleToggleStatus = async (id: string, currentStatus: boolean) => {
     try {
-      const response = await fetch("/api/todos", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id, ist_erledigt: !currentStatus }),
-      })
+      const result = await toggleTaskStatusAction(id, !currentStatus);
 
-      if (!response.ok) {
-        throw new Error("Fehler beim Aktualisieren des Status")
+      if (result.success) {
+        setTasks(prevTasks => 
+          prevTasks.map(task => 
+            task.id === id 
+              ? { ...task, ist_erledigt: !currentStatus, aenderungsdatum: new Date().toISOString() } 
+              : task
+          )
+        );
+        toast({
+          title: "Status aktualisiert",
+          description: `Aufgabe als ${!currentStatus ? "erledigt" : "offen"} markiert.`,
+        });
+      } else {
+        console.error("Error updating task status:", result.error?.message);
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
+          variant: "destructive",
+        });
       }
-
-      // Update local state
-      setTasks(tasks.map(task => 
-        task.id === id ? { ...task, ist_erledigt: !currentStatus, aenderungsdatum: new Date().toISOString() } : task
-      ))
-
+    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+      console.error("Unexpected error in handleToggleStatus:", error);
       toast({
-        title: "Status aktualisiert",
-        description: `Aufgabe als ${!currentStatus ? "erledigt" : "offen"} markiert.`,
-      })
-    } catch (error) {
-      console.error("Error updating task status:", error)
-      toast({
-        title: "Fehler",
-        description: "Der Status konnte nicht aktualisiert werden.",
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   return (
     <div className="w-full">

@@ -134,6 +134,22 @@ export function AufgabeEditModal({
                 disabled={isSubmitting}
               />
             </div>
+            {initialData && (
+              <div className="grid gap-2">
+                <div className="flex items-center space-x-2 pt-1">
+                  <Checkbox
+                    id="ist_erledigt"
+                    checked={istErledigt}
+                    onCheckedChange={(checked) => setIstErledigt(!!checked)}
+                    disabled={isSubmitting}
+                    className="h-5 w-5"
+                  />
+                  <Label htmlFor="ist_erledigt" className="text-sm">
+                    Erledigt
+                  </Label>
+                </div>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
               <Textarea
@@ -145,17 +161,6 @@ export function AufgabeEditModal({
                 disabled={isSubmitting}
               />
             </div>
-            {initialData && ( // Only show "erledigt" checkbox when editing
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="ist_erledigt" 
-                  checked={istErledigt} 
-                  onCheckedChange={(checked) => setIstErledigt(!!checked)}
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="ist_erledigt">Erledigt</Label>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
