@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation"; // Added for router.refresh()
+import { toast } from "@/hooks/use-toast"; // Added for toast notifications
 
 // Basic House interface - replace with actual type if available elsewhere
 interface House {
@@ -27,9 +28,7 @@ interface HouseEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: House;
-  serverAction: (id: string | null, formData: FormData) => Promise<void>;
-  // Consider adding a loading state prop if server actions take time
-  // loading?: boolean; 
+  serverAction: (id: string | null, formData: FormData) => Promise<void>; // Assuming this might throw an error on failure
 }
 
 export function HouseEditModal({
@@ -39,7 +38,7 @@ export function HouseEditModal({
   serverAction,
 }: HouseEditModalProps) {
   const router = useRouter();
-  // Local form state to manage uncontrolled inputs or provide defaults
+  const [isSubmitting, setIsSubmitting] = useState(false); // Added submitting state
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     strasse: initialData?.strasse || "",
@@ -76,19 +75,35 @@ export function HouseEditModal({
         <form
           onSubmit={async (event) => {
             event.preventDefault();
+            setIsSubmitting(true);
             const currentFormData = new FormData(event.currentTarget);
-            // If using local state for inputs, ensure FormData is correctly populated
-            // For controlled inputs, you might need to append manually if not using names directly
-            await serverAction(initialData?.id || null, currentFormData);
-            onOpenChange(false); // Close the dialog
-            router.refresh(); // Refresh data on the page
+            // Use formData.name for the toast message as it's reliably updated by handleInputChange
+            const houseNameForToast = formData.name; 
+
+            try {
+              await serverAction(initialData?.id || null, currentFormData);
+              toast({
+                title: initialData ? "Haus aktualisiert" : "Haus erstellt",
+                description: `Die Daten des Hauses "${houseNameForToast}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+                variant: "success",
+              });
+              setTimeout(() => {
+                onOpenChange(false); // Close the dialog
+                router.refresh(); // Refresh data on the page
+              }, 500);
+            } catch (error) {
+              toast({
+                title: "Fehler",
+                description: (error as Error).message || "Ein unbekannter Fehler ist aufgetreten.",
+                variant: "destructive",
+              });
+              onOpenChange(false); // Close dialog on error too, after showing toast
+            } finally {
+              setIsSubmitting(false);
+            }
           }}
           className="grid gap-4 pt-4 pb-2"
         >
-          {/* Hidden input for ID if editing */}
-          {/* The server action expects ID as a separate param, not in FormData */}
-          {/* So, no hidden input for 'id' here unless serverAction is changed */}
-
           <div className="space-y-1">
             <Label htmlFor="name">Name</Label>
             <Input
@@ -98,6 +113,7 @@ export function HouseEditModal({
               value={formData.name}
               onChange={handleInputChange}
               required
+              disabled={isSubmitting}
             />
           </div>
           <div className="space-y-1">
@@ -108,7 +124,8 @@ export function HouseEditModal({
               name="strasse"
               value={formData.strasse}
               onChange={handleInputChange}
-              required 
+              required
+              disabled={isSubmitting}
             />
           </div>
           <div className="space-y-1">
@@ -120,10 +137,16 @@ export function HouseEditModal({
               value={formData.ort}
               onChange={handleInputChange}
               required
+              disabled={isSubmitting}
             />
           </div>
           <DialogFooter>
-            <Button type="submit">{initialData ? "Aktualisieren" : "Speichern"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              Abbrechen
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

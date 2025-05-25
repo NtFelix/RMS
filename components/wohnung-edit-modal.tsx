@@ -173,6 +173,7 @@ export function WohnungEditModal({
         description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
+      onOpenChange(false); // Close modal on error
     }
     setIsSubmitting(false);
   };
