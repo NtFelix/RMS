@@ -6,8 +6,10 @@ import { PlusCircle } from "lucide-react";
 import { TaskFilters } from "@/components/task-filters";
 import { TaskBoard } from "@/components/task-board";
 import type { Task as TaskBoardTask } from "@/components/task-board";
-import { TaskModal } from "@/components/task-modal";
-import { Toaster } from "@/components/ui/toaster";
+// TaskModal import is removed
+// import { TaskModal } from "@/components/task-modal";
+import { Toaster } from "@/components/ui/toaster"; // Keep Toaster if used for other notifications
+import { useModalStore } from "@/hooks/use-modal-store"; // Added
 
 interface TodosClientWrapperProps {
   tasks: TaskBoardTask[];
@@ -16,8 +18,9 @@ interface TodosClientWrapperProps {
 export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // isModalOpen and setIsModalOpen are removed
+  // const [isModalOpen, setIsModalOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // Keep for now, assess later
   const [tasksState, setTasksState] = useState<TaskBoardTask[]>(tasks);
 
   // Nachladen der Aufgaben, wenn eine neue hinzugefügt wurde
@@ -37,7 +40,8 @@ export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
           <h1 className="text-3xl font-bold tracking-tight">Aufgaben</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Aufgaben und Erinnerungen</p>
         </div>
-        <Button className="sm:w-auto" onClick={() => setIsModalOpen(true)}>
+        {/* Button now uses global modal store */}
+        <Button className="sm:w-auto" onClick={() => useModalStore.getState().openAufgabeModal()}>
           <PlusCircle className="mr-2 h-4 w-4" />
           Aufgabe hinzufügen
         </Button>
@@ -55,14 +59,16 @@ export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
         </CardContent>
       </Card>
 
-      {/* Task Modal */}
+      {/* TaskModal component instance is removed */}
+      {/* 
       <TaskModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onTaskAdded={() => {
           setRefreshTrigger(prev => prev + 1)
         }} 
-      />
+      /> 
+      */}
       <Toaster />
     </div>
   );
