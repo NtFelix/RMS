@@ -21,7 +21,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/ui/date-picker";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast"; // Changed import path
 import { format, parseISO } from "date-fns";
 import { createClient } from "@/utils/supabase/client"; // For fetching Wohnungen
 
@@ -134,11 +134,23 @@ export function FinanceEditModal({
     const result = await serverAction(initialData?.id || null, payload);
 
     if (result.success) {
-      toast({ title: initialData ? "Aktualisiert" : "Gespeichert", description: initialData ? "Transaktion aktualisiert." : "Transaktion hinzugefügt." });
-      onOpenChange(false);
-      router.refresh(); // Refresh data on the page
+      toast({
+        title: initialData ? "Finanzeintrag aktualisiert" : "Finanzeintrag erstellt",
+        description: `Der Finanzeintrag "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+        variant: "success",
+      });
+      setTimeout(() => {
+        onOpenChange(false);
+        router.refresh(); // Refresh data on the page
+      }, 500);
     } else {
-      toast({ title: "Fehler", description: result.error?.message || "Ein Fehler ist aufgetreten.", variant: "destructive" });
+      toast({
+        title: "Fehler",
+        description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+      // Close modal on error, consistent with other modals
+      onOpenChange(false); 
     }
     setIsSubmitting(false);
   };
@@ -212,6 +224,9 @@ export function FinanceEditModal({
             </div>
           </div>
           <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              Abbrechen
+            </Button>
             <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>
               {isSubmitting ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
             </Button>
