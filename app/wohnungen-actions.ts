@@ -45,7 +45,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   //   return { success: false, error: { message: "Haus-ID ist erforderlich." } };
   // }
 
-
   try {
     let dbResponse;
     if (id) {
@@ -66,7 +65,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
 
     return { success: true, data: dbResponse.data as WohnungDbRecord };
   } catch (error: any) {
-    console.error("Error in wohnungServerAction:", error);
+    console.error("Error in wohnungServerAction:", error); // Existing log, kept it
     return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
   }
 }
