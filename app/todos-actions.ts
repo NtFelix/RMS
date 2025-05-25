@@ -105,3 +105,30 @@ export async function toggleTaskStatusAction(
     return { success: false, error: { message: "An unknown server error occurred" } };
   }
 }
+
+export async function deleteTaskAction(taskId: string): Promise<{ success: boolean; error?: { message: string } }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("Aufgaben")
+      .delete()
+      .eq("id", taskId);
+
+    if (error) {
+      // Log the error for server-side visibility
+      console.error("Error deleting task from Supabase:", error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/todos'); // Revalidate the main tasks page
+
+    return { success: true };
+
+  } catch (e: unknown) { // Using unknown for better type safety with instanceof
+    console.error("Unexpected error in deleteTaskAction:", e);
+    if (e instanceof Error) {
+      return { success: false, error: { message: e.message } };
+    }
+    return { success: false, error: { message: "An unknown server error occurred" } };
+  }
+}
