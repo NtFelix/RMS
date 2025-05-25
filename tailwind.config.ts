@@ -34,8 +34,8 @@ const config = {
           foreground: "hsl(var(--secondary-foreground))",
         },
         destructive: {
-          DEFAULT: "#ef4444", // red-500
-          foreground: "#ffffff", // white
+DEFAULT: "hsl(var(--destructive))",
+foreground: "hsl(var(--destructive-foreground))",
         },
         success: { // Added success
           DEFAULT: "#22c55e", // green-500
