@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 
-export async function handleSubmit(formData: FormData) {
+export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
   const payload: any = {
     wohnung_id: formData.get('wohnung_id') || null,
@@ -18,10 +18,21 @@ export async function handleSubmit(formData: FormData) {
   };
   const id = formData.get('id');
 
-  if (id) {
-    await supabase.from('Mieter').update(payload).eq('id', id as string);
-  } else {
-    await supabase.from('Mieter').insert(payload);
+  try {
+    if (id) {
+      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+    } else {
+      const { error } = await supabase.from('Mieter').insert(payload);
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+    }
+    revalidatePath('/mieter');
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: { message: (e as Error).message } };
   }
-  revalidatePath('/mieter');
 }

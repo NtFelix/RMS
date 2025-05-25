@@ -28,7 +28,7 @@ interface HouseEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: House;
-  serverAction: (id: string | null, formData: FormData) => Promise<void>; // Assuming this might throw an error on failure
+  serverAction: (id: string | null, formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
 }
 
 export function HouseEditModal({
@@ -78,26 +78,36 @@ export function HouseEditModal({
             setIsSubmitting(true);
             const currentFormData = new FormData(event.currentTarget);
             // Use formData.name for the toast message as it's reliably updated by handleInputChange
-            const houseNameForToast = formData.name; 
-
+            const houseNameForToast = formData.name;
+            
             try {
-              await serverAction(initialData?.id || null, currentFormData);
+              const result = await serverAction(initialData?.id || null, currentFormData);
+              if (result.success) {
+                toast({
+                  title: initialData ? "Haus aktualisiert" : "Haus erstellt",
+                  description: `Die Daten des Hauses "${houseNameForToast}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+                  variant: "success",
+                });
+                setTimeout(() => {
+                  onOpenChange(false); // Close the dialog
+                  router.refresh(); // Refresh data on the page
+                }, 500);
+              } else {
+                toast({
+                  title: "Fehler",
+                  description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
+                  variant: "destructive",
+                });
+                onOpenChange(false); // Close dialog on error
+              }
+            } catch (e) {
+              // Catch any unexpected errors from serverAction or subsequent logic
               toast({
-                title: initialData ? "Haus aktualisiert" : "Haus erstellt",
-                description: `Die Daten des Hauses "${houseNameForToast}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
-                variant: "success",
-              });
-              setTimeout(() => {
-                onOpenChange(false); // Close the dialog
-                router.refresh(); // Refresh data on the page
-              }, 500);
-            } catch (error) {
-              toast({
-                title: "Fehler",
-                description: (error as Error).message || "Ein unbekannter Fehler ist aufgetreten.",
+                title: "Unerwarteter Fehler",
+                description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
                 variant: "destructive",
               });
-              onOpenChange(false); // Close dialog on error too, after showing toast
+              onOpenChange(false); // Close dialog on unexpected error
             } finally {
               setIsSubmitting(false);
             }
