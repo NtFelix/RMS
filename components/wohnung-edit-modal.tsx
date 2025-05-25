@@ -166,8 +166,11 @@ export function WohnungEditModal({
         title: initialData ? "Wohnung aktualisiert" : "Wohnung erstellt",
         description: `Die Wohnung "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
       });
-      onOpenChange(false);
-      router.refresh(); // Refresh data on the current page
+      setTimeout(() => {
+        console.log("handleSubmit: modal closed and router refreshed after delay");
+        onOpenChange(false);
+        router.refresh(); // Refresh data on the current page
+      }, 100);
     } else {
       console.log("handleSubmit: result.error, calling error toast", result.error);
       toast({
