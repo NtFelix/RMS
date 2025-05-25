@@ -10,7 +10,7 @@ import { ApartmentTable } from "@/components/apartment-table";
 // import { Input } from "@/components/ui/input";
 // import { Label } from "@/components/ui/label";
 // import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast"; // Import for test button
+// import { toast } from "@/components/ui/use-toast"; // toast is used by global modal
 import { createClient } from "@/utils/supabase/client"; // Keep if handleEditFromEvent is kept, otherwise remove
 import type { Apartment } from "@/components/apartment-table";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added
@@ -92,9 +92,6 @@ export function WohnungenClient({
         <Button onClick={handleAddWohnung} className="sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
           Wohnung hinzufügen
-        </Button>
-        <Button onClick={() => { console.log('Test Toast button clicked'); toast({ title: 'Test Toast', description: 'This is a test notification.' }); }} className="sm:w-auto">
-          Test Toast
         </Button>
         {/* Local Dialog component for adding/editing is removed */}
       </div>
