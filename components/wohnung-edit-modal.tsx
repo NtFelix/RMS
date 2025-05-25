@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast"; // Changed import
 import { createClient } from "@/utils/supabase/client";
 
 // Define interfaces based on expected data structure
@@ -166,11 +166,11 @@ export function WohnungEditModal({
         title: initialData ? "Wohnung aktualisiert" : "Wohnung erstellt",
         description: `Die Wohnung "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
       });
-      setTimeout(() => {
-        console.log("handleSubmit: modal closed and router refreshed after delay");
-        onOpenChange(false);
-        router.refresh(); // Refresh data on the current page
-      }, 100);
+      // setTimeout(() => {
+      //   console.log("handleSubmit: modal closed and router refreshed after delay");
+      //   onOpenChange(false);
+      //   router.refresh(); // Refresh data on the current page
+      // }, 100);
     } else {
       console.log("handleSubmit: result.error, calling error toast", result.error);
       toast({
