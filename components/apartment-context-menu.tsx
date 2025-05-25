@@ -48,7 +48,10 @@ export function ApartmentContextMenu({
   const [isDeleting, setIsDeleting] = React.useState(false)
 
   const handleDelete = async () => {
+    console.log('[ApartmentContextMenu] handleDelete entered. Apartment ID:', apartment.id);
+    console.log('[ApartmentContextMenu] Attempting to call TEST TOAST...');
     toast({ title: "TEST TOAST", description: "Can you see this?", variant: "default" });
+    console.log('[ApartmentContextMenu] TEST TOAST call completed.');
     try {
       setIsDeleting(true);
       const result = await loescheWohnung(apartment.id);
