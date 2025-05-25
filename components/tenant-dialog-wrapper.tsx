@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TenantEditModal } from "@/components/tenant-edit-modal"
 
 interface Mieter {
@@ -29,6 +29,19 @@ interface TenantDialogWrapperProps {
 }
 
 export function TenantDialogWrapper({ wohnungen, mieter, serverAction, onEditExternal, onAddExternal, open, editingId, setOpen, setEditingId }: TenantDialogWrapperProps) {
+  useEffect(() => {
+    const handleOpenAddMieterModal = () => {
+      setEditingId(null)
+      setOpen(true)
+    }
+
+    window.addEventListener("open-add-mieter-modal", handleOpenAddMieterModal)
+
+    return () => {
+      window.removeEventListener("open-add-mieter-modal", handleOpenAddMieterModal)
+    }
+  }, [setEditingId, setOpen])
+
   // Findet initiale Daten für Edit, falls editId gesetzt ist
   const initialData = editingId
     ? (() => {
