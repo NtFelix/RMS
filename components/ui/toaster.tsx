@@ -13,6 +13,11 @@ import {
 export function Toaster() {
   const { toasts } = useToast()
 
+  console.log('[Toaster] Rendering. Toasts array:', toasts);
+  if (toasts.length === 0) {
+    console.log('[Toaster] Rendering with no toasts to display.');
+  }
+
   return (
     <ToastProvider>
       {toasts.map(function ({ id, title, description, action, ...props }) {
