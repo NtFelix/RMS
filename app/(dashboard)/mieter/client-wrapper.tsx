@@ -29,7 +29,7 @@ interface Wohnung {
 interface TenantClientWrapperProps {
   tenants: Tenant[];
   wohnungen: Wohnung[];
-  serverAction: (formData: FormData) => Promise<void>;
+  serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
 }
 
 export default function TenantClientWrapper({ tenants, wohnungen, serverAction }: TenantClientWrapperProps) {
