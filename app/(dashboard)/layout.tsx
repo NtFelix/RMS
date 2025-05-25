@@ -12,6 +12,10 @@ import { HouseEditModal } from "@/components/house-edit-modal" // Added
 import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/actions" // Added
 import { FinanceEditModal } from "@/components/finance-edit-modal" // Added
 import { financeServerAction } from "@/app/finanzen-actions" // Added - Adjusted path due to tool limitation
+import { WohnungEditModal } from "@/components/wohnung-edit-modal" // Added
+import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
+import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
+import { aufgabeServerAction } from "@/app/todos-actions" // Added
 // createClient is not used in this step as per instructions, but imported if needed later
 // import { createClient } from "@/utils/supabase/client";
 
@@ -34,6 +38,15 @@ export default function DashboardRootLayout({
     closeFinanceModal,
     financeInitialData,
     financeModalWohnungen,
+    // Wohnung modal state and actions
+    isWohnungModalOpen,
+    closeWohnungModal,
+    wohnungInitialData,
+    wohnungModalHaeuser,
+    // Aufgabe modal state and actions
+    isAufgabeModalOpen,
+    closeAufgabeModal,
+    aufgabeInitialData,
   } = useModalStore()
 
   return (
@@ -73,6 +86,29 @@ export default function DashboardRootLayout({
           initialData={financeInitialData}
           initialWohnungen={financeModalWohnungen}
           serverAction={financeServerAction}
+        />
+      )}
+      {/* Wohnung Modal */}
+      {isWohnungModalOpen && (
+        <WohnungEditModal
+          open={isWohnungModalOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) closeWohnungModal();
+          }}
+          initialData={wohnungInitialData}
+          initialHaeuser={wohnungModalHaeuser}
+          serverAction={wohnungServerAction}
+        />
+      )}
+      {/* Aufgabe Modal */}
+      {isAufgabeModalOpen && (
+        <AufgabeEditModal
+          open={isAufgabeModalOpen}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) closeAufgabeModal();
+          }}
+          initialData={aufgabeInitialData}
+          serverAction={aufgabeServerAction}
         />
       )}
     </AuthProvider>

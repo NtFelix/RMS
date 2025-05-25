@@ -19,6 +19,19 @@ interface ModalState {
   financeModalWohnungen: any[];
   openFinanceModal: (initialData?: any, wohnungen?: any[]) => void;
   closeFinanceModal: () => void;
+
+  // Wohnung Modal State
+  isWohnungModalOpen: boolean;
+  wohnungInitialData?: any; // Replace 'any' with actual Wohnung type
+  wohnungModalHaeuser: any[]; // Replace 'any' with actual Haus type
+  openWohnungModal: (initialData?: any, haeuser?: any[]) => void;
+  closeWohnungModal: () => void;
+
+  // Aufgabe Modal State
+  isAufgabeModalOpen: boolean;
+  aufgabeInitialData?: any; // Replace 'any' with actual Aufgabe/Task type
+  openAufgabeModal: (initialData?: any) => void;
+  closeAufgabeModal: () => void;
 }
 
 export const useModalStore = create<ModalState>((set) => ({
@@ -62,5 +75,32 @@ export const useModalStore = create<ModalState>((set) => ({
     isFinanceModalOpen: false,
     financeInitialData: undefined,
     financeModalWohnungen: [],
+  }),
+
+  // Wohnung Modal
+  isWohnungModalOpen: false,
+  wohnungInitialData: undefined,
+  wohnungModalHaeuser: [],
+  openWohnungModal: (initialData, haeuser) => set({
+    isWohnungModalOpen: true,
+    wohnungInitialData: initialData,
+    wohnungModalHaeuser: haeuser || [],
+  }),
+  closeWohnungModal: () => set({
+    isWohnungModalOpen: false,
+    wohnungInitialData: undefined,
+    wohnungModalHaeuser: [],
+  }),
+
+  // Aufgabe Modal
+  isAufgabeModalOpen: false,
+  aufgabeInitialData: undefined,
+  openAufgabeModal: (initialData) => set({
+    isAufgabeModalOpen: true,
+    aufgabeInitialData: initialData,
+  }),
+  closeAufgabeModal: () => set({
+    isAufgabeModalOpen: false,
+    aufgabeInitialData: undefined,
   }),
 }));

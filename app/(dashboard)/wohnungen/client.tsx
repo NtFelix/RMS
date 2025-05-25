@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentTable } from "@/components/apartment-table";
-import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { toast } from "@/components/ui/use-toast";
-import { createClient } from "@/utils/supabase/client";
+// Dialog related imports are removed as they are no longer needed
+// import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+// import { Input } from "@/components/ui/input";
+// import { Label } from "@/components/ui/label";
+// import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+// import { toast } from "@/components/ui/use-toast"; // toast is used by global modal
+import { createClient } from "@/utils/supabase/client"; // Keep if handleEditFromEvent is kept, otherwise remove
 import type { Apartment } from "@/components/apartment-table";
+import { useModalStore } from "@/hooks/use-modal-store"; // Added
 
 // Client-side component for interactive UI elements
 export function WohnungenClient({ 
@@ -23,28 +25,23 @@ export function WohnungenClient({
 }) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" });
-  const reloadRef = useRef<(() => void) | null>(null);
-  const [wohnungen, setWohnungen] = useState(initialWohnungen);
+  // Local dialog state (dialogOpen, editingId, formData) is removed
+  // const [dialogOpen, setDialogOpen] = useState(false);
+  // const [editingId, setEditingId] = useState<string | null>(null);
+  // const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" });
+  const reloadRef = useRef<(() => void) | null>(null); // Keep for table reload if needed
+  const [wohnungen, setWohnungen] = useState(initialWohnungen); // Keep for table display
 
-  // Apartment-Edit-Logik definieren
+  // Updated handleEdit to use global modal
   const handleEdit = useCallback((apt: Apartment) => {
-    setEditingId(apt.id);
-    setFormData({
-      name: apt.name,
-      groesse: apt.groesse.toString(),
-      miete: apt.miete.toString(),
-      haus_id: apt.haus_id || ""
-    });
-    setDialogOpen(true);
-  }, []);
+    useModalStore.getState().openWohnungModal(apt, houses);
+  }, [houses]); // houses is a dependency
 
-  // Event listener für edit-apartment Event
+  // Event listener for edit-apartment Event
+  // This logic might need re-evaluation if it's still required.
+  // If kept, it should also use the global modal.
   const handleEditFromEvent = useCallback(async (apartmentId: string) => {
     try {
-      // Wohnungsdaten laden
       const { data: apartment } = await createClient()
         .from('Wohnungen')
         .select('*')
@@ -55,17 +52,16 @@ export function WohnungenClient({
         console.error('Wohnung nicht gefunden:', apartmentId);
         return;
       }
-      
-      // Edit-Modal mit den Daten öffnen
-      handleEdit(apartment as Apartment);
+      // Use global modal for editing from event
+      useModalStore.getState().openWohnungModal(apartment as Apartment, houses);
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung:', error);
     }
-  }, [handleEdit]);
+  }, [houses]); // houses is a dependency
 
-  // Client-side event listeners
+  // Client-side event listeners (keep if handleEditFromEvent is kept)
   useEffect(() => {
-    const handleEditApartment = (event: Event) => {
+    const handleEditApartmentListener = (event: Event) => { // Renamed for clarity
       const customEvent = event as CustomEvent<{id: string}>;
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
@@ -73,99 +69,31 @@ export function WohnungenClient({
       handleEditFromEvent(apartmentId);
     };
     
-    // Event-Listener registrieren
-    window.addEventListener('edit-apartment', handleEditApartment);
+    window.addEventListener('edit-apartment', handleEditApartmentListener);
     
-    // Cleanup
     return () => {
-      window.removeEventListener('edit-apartment', handleEditApartment);
+      window.removeEventListener('edit-apartment', handleEditApartmentListener);
     };
-  });
+  }, [handleEditFromEvent]); // handleEditFromEvent is a dependency
 
-  const handleOpenChange = (open: boolean) => {
-    setDialogOpen(open);
-    if (!open) {
-      setEditingId(null);
-      setFormData({ name: "", groesse: "", miete: "", haus_id: "" });
-    }
-  };
+  // handleOpenChange is removed (was for local dialog)
+  // handleChange is removed (was for local dialog form)
+  // handleSubmit is removed (was for local dialog form)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => 
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-
-  // Handle form submission using Server Actions pattern
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const url = editingId ? `/api/wohnungen?id=${editingId}` : "/api/wohnungen";
-    const method = editingId ? "PUT" : "POST";
-    try {
-      const res = await fetch(url, { 
-        method, 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(formData) 
-      });
-      
-      if (res.ok) {
-        toast({ 
-          title: editingId ? "Aktualisiert" : "Gespeichert", 
-          description: editingId ? "Wohnung aktualisiert." : "Wohnung hinzugefügt." 
-        });
-        handleOpenChange(false);
-        reloadRef.current?.();
-      } else {
-        const err = await res.json();
-        toast({ title: "Fehler", description: err.error, variant: "destructive" });
-      }
-    } catch {
-      toast({ title: "Fehler", description: "Netzwerkfehler.", variant: "destructive" });
-    }
+  // Function to trigger adding a new apartment using the global modal
+  const handleAddWohnung = () => {
+    useModalStore.getState().openWohnungModal(undefined, houses);
   };
 
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-        <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
-          <DialogTrigger asChild>
-            <Button className="sm:w-auto">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Wohnung hinzufügen
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>{editingId ? "Wohnung bearbeiten" : "Wohnung hinzufügen"}</DialogTitle>
-              <DialogDescription>Geben Sie die Wohnungsdaten ein.</DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-              <div className="space-y-1">
-                <Label htmlFor="name">Name</Label>
-                <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="groesse">Größe</Label>
-                <Input id="groesse" name="groesse" value={formData.groesse} onChange={handleChange} required />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="miete">Miete</Label>
-                <Input id="miete" name="miete" value={formData.miete} onChange={handleChange} required />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="haus_id">Haus</Label>
-                <Select value={formData.haus_id} onValueChange={v => setFormData({ ...formData, haus_id: v })}>
-                  <SelectTrigger id="haus_id">
-                    <SelectValue placeholder="Wählen Sie ein Haus" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {houses.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter>
-                <Button type="submit">{editingId ? "Aktualisieren" : "Speichern"}</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* Button now directly calls handleAddWohnung to open global modal */}
+        <Button onClick={handleAddWohnung} className="sm:w-auto">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Wohnung hinzufügen
+        </Button>
+        {/* Local Dialog component for adding/editing is removed */}
       </div>
 
       <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
