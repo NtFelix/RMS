@@ -117,7 +117,7 @@ export function CommandMenu() {
             }}
           >
             <Wallet className="mr-2 h-4 w-4" />
-            Neue Rechnung erstellen
+            Rechnung erstellen
           </CommandItem>
           <CommandItem
             onSelect={() => {
