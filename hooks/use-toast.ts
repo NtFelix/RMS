@@ -135,11 +135,11 @@ const listeners: Array<(state: State) => void> = []
 let memoryState: State = { toasts: [] }
 
 function dispatch(action: Action) {
-  console.log(`[useToast] dispatch() called. Action Type: ${action.type}`);
-  if (action.type === "ADD_TOAST") {
-    console.log(`[useToast] ADD_TOAST details:`, action.toast);
-  }
+  console.log(`[DebugToast] dispatch: Action dispatched`, action);
+  console.log(`[DebugToast] dispatch: memoryState.toasts before reducer`, JSON.stringify(memoryState.toasts, null, 2));
   memoryState = reducer(memoryState, action)
+  console.log(`[DebugToast] dispatch: memoryState.toasts after reducer`, JSON.stringify(memoryState.toasts, null, 2));
+  console.log(`[DebugToast] dispatch: Listeners count: ${listeners.length}. Listeners:`, listeners);
   listeners.forEach((listener) => {
     listener(memoryState)
   })
@@ -182,10 +182,12 @@ function useToast() {
 
   React.useEffect(() => {
     listeners.push(setState)
+    console.log(`[DebugToastListener] Listener added. Current listener count: ${listeners.length}`);
     return () => {
       const index = listeners.indexOf(setState)
       if (index > -1) {
         listeners.splice(index, 1)
+        console.log(`[DebugToastListener] Listener removed. Current listener count: ${listeners.length}`);
       }
     }
   }, [state])
