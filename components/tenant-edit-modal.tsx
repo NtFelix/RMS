@@ -124,7 +124,7 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
           await serverAction(new FormData(e.currentTarget));
           onOpenChange(false);
           router.refresh();
-        }} className="grid gap-4 py-4">
+        }} className="grid gap-4 pt-4 pb-2">
           {initialData?.id && <input type="hidden" name="id" value={initialData.id} />}
           <div className="grid grid-cols-2 gap-4">
             <div>
