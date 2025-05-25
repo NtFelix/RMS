@@ -4,7 +4,8 @@ import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { TaskCard } from "@/components/task-card"
-import { TaskEditModal } from "@/components/task-edit-modal"
+// import { TaskEditModal } from "@/components/task-edit-modal"; // Removed
+import { useModalStore } from "@/hooks/use-modal-store"; // Added
 import { toast } from "@/components/ui/use-toast"
 
 export interface Task {
@@ -27,21 +28,18 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }:
   const [tasks, setTasks] = useState<Task[]>(initialTasks ?? [])
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [editModalOpen, setEditModalOpen] = useState(false)
-  const [currentTask, setCurrentTask] = useState<{
-    id: string
-    name: string
-    beschreibung: string
-    ist_erledigt: boolean
-  } | null>(null)
-  const [localRefreshTrigger, setLocalRefreshTrigger] = useState(0)
+  // const [editModalOpen, setEditModalOpen] = useState(false); // Removed
+  // const [currentTask, setCurrentTask] = useState</* ... */ null>(null); // Removed
+  const [localRefreshTrigger, setLocalRefreshTrigger] = useState(0) // Keep for onRefresh from TaskCard if still needed for other ops
 
-  // Kombiniere externe und lokale Refresh-Trigger
+  // External refreshTrigger is still used, localRefreshTrigger might be used by other actions
   const combinedRefreshTrigger = refreshTrigger !== undefined ? refreshTrigger + localRefreshTrigger : localRefreshTrigger
 
   useEffect(() => {
     // Wenn initialTasks per SSR geladen und kein Refresh-Trigger aktiv, überspringe den Fetch
-    if (initialTasks && combinedRefreshTrigger === 0) {
+    // This condition might need re-evaluation if localRefreshTrigger's sole purpose was the edit modal.
+    // For now, assuming combinedRefreshTrigger might still be relevant for other local updates.
+    if (initialTasks && combinedRefreshTrigger === 0 && !localRefreshTrigger) { // Adjusted condition slightly
       setIsLoading(false)
       return
     }
@@ -170,22 +168,20 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }:
               }}
               onToggleStatus={() => handleToggleStatus(task.id, task.ist_erledigt)}
               onEdit={(taskData) => {
-                setCurrentTask(taskData)
-                setEditModalOpen(true)
+                // Ensure taskData has the right shape for openAufgabeModal
+                // TaskCard passes { id, name, beschreibung, ist_erledigt }
+                // The modal store expects `aufgabeInitialData` which is `AufgabePayload & { id?: string }`
+                // `AufgabePayload` is { name, beschreibung?, ist_erledigt? }
+                // So, the structure { id, name, beschreibung, ist_erledigt } is compatible.
+                useModalStore.getState().openAufgabeModal(taskData);
               }}
-              onRefresh={() => setLocalRefreshTrigger(prev => prev + 1)}
+              onRefresh={() => setLocalRefreshTrigger(prev => prev + 1)} // This can remain if other actions trigger it
             />
           ))}
         </div>
       )}
 
-      {/* Edit Modal */}
-      <TaskEditModal
-        isOpen={editModalOpen}
-        onClose={() => setEditModalOpen(false)}
-        onTaskUpdated={() => setLocalRefreshTrigger(prev => prev + 1)}
-        task={currentTask}
-      />
+      {/* TaskEditModal removed, global modal is used via useModalStore */}
     </div>
   )
 }
