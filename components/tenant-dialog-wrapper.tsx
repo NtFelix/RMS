@@ -19,7 +19,7 @@ interface Mieter {
 interface TenantDialogWrapperProps {
   wohnungen: { id: string; name: string }[]
   mieter: Mieter[]
-  serverAction: (formData: FormData) => Promise<void>
+  serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>
   onEditExternal?: (id: string) => void
   onAddExternal?: () => void
   open: boolean
