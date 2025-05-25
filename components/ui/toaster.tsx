@@ -11,10 +11,7 @@ import {
 } from "@/components/ui/toast"
 
 export function Toaster() {
-  console.log("[DebugToaster] Rendering or re-rendering.");
   const { toasts } = useToast()
-
-  console.log("[DebugToaster] Toasts received from useToast():", JSON.stringify(toasts, null, 2));
 
   return (
     <ToastProvider>

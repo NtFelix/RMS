@@ -77,7 +77,6 @@ const addToRemoveQueue = (toastId: string) => {
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
-      console.log('[useToast] Reducer ADD_TOAST. Current state.toasts:', state.toasts, 'Toast to add:', action.toast);
       return {
         ...state,
         toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
@@ -135,11 +134,7 @@ const listeners: Array<(state: State) => void> = []
 let memoryState: State = { toasts: [] }
 
 function dispatch(action: Action) {
-  console.log(`[DebugToast] dispatch: Action dispatched`, action);
-  console.log(`[DebugToast] dispatch: memoryState.toasts before reducer`, JSON.stringify(memoryState.toasts, null, 2));
   memoryState = reducer(memoryState, action)
-  console.log(`[DebugToast] dispatch: memoryState.toasts after reducer`, JSON.stringify(memoryState.toasts, null, 2));
-  console.log(`[DebugToast] dispatch: Listeners count: ${listeners.length}. Listeners:`, listeners);
   listeners.forEach((listener) => {
     listener(memoryState)
   })
@@ -149,7 +144,6 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
-  console.log(`[useToast] toast() invoked. ID: ${id}, Props:`, props);
 
   const update = (props: ToasterToast) =>
     dispatch({
@@ -182,12 +176,10 @@ function useToast() {
 
   React.useEffect(() => {
     listeners.push(setState)
-    console.log(`[DebugToastListener] Listener added. Current listener count: ${listeners.length}`);
     return () => {
       const index = listeners.indexOf(setState)
       if (index > -1) {
         listeners.splice(index, 1)
-        console.log(`[DebugToastListener] Listener removed. Current listener count: ${listeners.length}`);
       }
     }
   }, [state])
