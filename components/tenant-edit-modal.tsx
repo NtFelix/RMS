@@ -48,7 +48,7 @@ interface TenantEditModalProps {
     nebenkosten?: string
     nebenkosten_datum?: string
   }
-  serverAction: (formData: FormData) => Promise<any> // Adjusted to expect a potential error response
+  serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
   loading?: boolean // This might be replaced by local isSubmitting state
 }
 
@@ -128,36 +128,35 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
           e.preventDefault();
           setIsSubmitting(true);
           try {
-            const result = await serverAction(new FormData(e.currentTarget));
-            // Assuming serverAction now returns an object like { success: boolean, error?: any }
-            // or throws an error on failure, which will be caught.
-            // If serverAction returns void and throws on error:
-            if (result && result.error) { // Check if serverAction returns an error object
-              toast({
-                title: "Fehler",
-                description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
-                variant: "destructive",
-              });
-            } else {
+            const currentFormData = new FormData(e.currentTarget);
+            const tenantNameForToast = formData.name; // Use state for toast consistency
+            const result = await serverAction(currentFormData);
+
+            if (result.success) {
               toast({
                 title: initialData ? "Mieter aktualisiert" : "Mieter erstellt",
-                description: `Die Daten des Mieters "${formData.name}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+                description: `Die Daten des Mieters "${tenantNameForToast}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
                 variant: "success",
               });
               setTimeout(() => {
                 onOpenChange(false);
                 router.refresh();
               }, 500);
+            } else {
+              toast({
+                title: "Fehler",
+                description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
+                variant: "destructive",
+              });
+              onOpenChange(false); // Close modal on handled error
             }
-          } catch (error: any) {
+          } catch (error: any) { // Catch unexpected errors
             toast({
-              title: "Fehler",
-              description: error.message || "Ein unbekannter Fehler ist aufgetreten.",
+              title: "Unerwarteter Fehler",
+              description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
               variant: "destructive",
             });
-            // Ensure modal closes on error after showing toast
-            // No timeout needed here generally, close it once the error is acknowledged.
-            onOpenChange(false); 
+            onOpenChange(false); // Close modal on unexpected error
           } finally {
             setIsSubmitting(false);
           }
