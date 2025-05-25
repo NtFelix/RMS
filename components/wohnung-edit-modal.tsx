@@ -119,6 +119,7 @@ export function WohnungEditModal({
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    console.log("handleSubmit: start");
     event.preventDefault();
     setIsSubmitting(true);
 
@@ -155,9 +156,12 @@ export function WohnungEditModal({
       haus_id: haus_id || null,
     };
 
+    console.log("handleSubmit: before serverAction", payload);
     const result = await serverAction(initialData?.id || null, payload);
+    console.log("handleSubmit: after serverAction", result);
 
     if (result.success) {
+      console.log("handleSubmit: result.success, calling success toast");
       toast({
         title: initialData ? "Wohnung aktualisiert" : "Wohnung erstellt",
         description: `Die Wohnung "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
@@ -165,6 +169,7 @@ export function WohnungEditModal({
       onOpenChange(false);
       router.refresh(); // Refresh data on the current page
     } else {
+      console.log("handleSubmit: result.error, calling error toast", result.error);
       toast({
         title: "Fehler",
         description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
@@ -172,6 +177,7 @@ export function WohnungEditModal({
       });
     }
     setIsSubmitting(false);
+    console.log("handleSubmit: end");
   };
 
   return (
