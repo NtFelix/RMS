@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
+import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
 
 export interface House {
   id: string
@@ -50,33 +51,34 @@ export function HouseContextMenu({
 
   const handleDelete = async () => {
     try {
-      setIsDeleting(true)
-      const response = await fetch(`/api/haeuser?id=${house.id}`, {
-        method: "DELETE",
-      })
+      setIsDeleting(true);
+      const result = await deleteHouseAction(house.id);
 
-      if (!response.ok) {
-        throw new Error("Fehler beim Löschen des Hauses")
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: `Das Haus "${house.name}" wurde erfolgreich gelöscht.`,
+        });
+        onRefresh(); // Call the existing onRefresh callback
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Das Haus konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
       }
-
+    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+      console.error("Unerwarteter Fehler beim Löschen des Hauses:", error);
       toast({
-        title: "Erfolg",
-        description: `Das Haus "${house.name}" wurde erfolgreich gelöscht.`,
-      })
-      
-      onRefresh()
-    } catch (error) {
-      console.error("Fehler beim Löschen des Hauses:", error)
-      toast({
-        title: "Fehler",
-        description: "Das Haus konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
-  }
+  };
 
   return (
     <>

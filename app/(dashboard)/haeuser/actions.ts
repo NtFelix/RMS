@@ -39,3 +39,30 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
     return { success: false, error: { message: (e as Error).message } };
   }
 }
+
+export async function deleteHouseAction(houseId: string): Promise<{ success: boolean; error?: { message: string } }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("Haeuser")
+      .delete()
+      .eq("id", houseId);
+
+    if (error) {
+      // Log the error for server-side visibility
+      console.error("Error deleting house from Supabase:", error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/haeuser'); // Revalidate the main houses page
+
+    return { success: true };
+
+  } catch (e: unknown) { // Using unknown for better type safety with instanceof
+    console.error("Unexpected error in deleteHouseAction:", e);
+    if (e instanceof Error) {
+      return { success: false, error: { message: e.message } };
+    }
+    return { success: false, error: { message: "An unknown server error occurred" } };
+  }
+}

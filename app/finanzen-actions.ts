@@ -55,3 +55,30 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
   }
 }
+
+export async function deleteFinanceAction(financeId: string): Promise<{ success: boolean; error?: { message: string } }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("Finanzen")
+      .delete()
+      .eq("id", financeId);
+
+    if (error) {
+      // Log the error for server-side visibility
+      console.error("Error deleting finance entry from Supabase:", error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/finanzen'); // Revalidate the main finance page
+
+    return { success: true };
+
+  } catch (e: unknown) { // Using unknown for better type safety with instanceof
+    console.error("Unexpected error in deleteFinanceAction:", e);
+    if (e instanceof Error) {
+      return { success: false, error: { message: e.message } };
+    }
+    return { success: false, error: { message: "An unknown server error occurred" } };
+  }
+}

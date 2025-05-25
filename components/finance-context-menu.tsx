@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/components/ui/use-toast"
+import { deleteFinanceAction } from "@/app/finanzen-actions"; // Added import
 
 interface Finance {
   id: string
@@ -52,33 +53,34 @@ export function FinanceContextMenu({
 
   const handleDelete = async () => {
     try {
-      setIsDeleting(true)
-      const response = await fetch(`/api/finanzen?id=${finance.id}`, {
-        method: "DELETE",
-      })
+      setIsDeleting(true);
+      const result = await deleteFinanceAction(finance.id);
 
-      if (!response.ok) {
-        throw new Error("Fehler beim Löschen der Transaktion")
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: "Die Transaktion wurde erfolgreich gelöscht.",
+        });
+        onRefresh(); // Call the existing onRefresh callback
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Die Transaktion konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
       }
-
+    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+      console.error("Unerwarteter Fehler beim Löschen der Transaktion:", error);
       toast({
-        title: "Erfolg",
-        description: "Die Transaktion wurde erfolgreich gelöscht.",
-      })
-      
-      onRefresh()
-    } catch (error) {
-      console.error("Fehler beim Löschen der Transaktion:", error)
-      toast({
-        title: "Fehler",
-        description: "Die Transaktion konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
-  }
+  };
 
   return (
     <>
