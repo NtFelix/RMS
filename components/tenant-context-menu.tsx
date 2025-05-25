@@ -60,7 +60,9 @@ export function TenantContextMenu({
           title: "Erfolg",
           description: `Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`,
         });
-        onRefresh(); // Call the existing onRefresh callback
+        setTimeout(() => {
+          onRefresh();
+        }, 100); // Delay of 100 milliseconds
       } else {
         toast({
           title: "Fehler",
