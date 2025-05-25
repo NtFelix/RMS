@@ -20,7 +20,6 @@ interface WohnungDbRecord {
 }
 
 export async function wohnungServerAction(id: string | null, data: WohnungPayload): Promise<{ success: boolean; error?: any; data?: WohnungDbRecord }> {
-  console.log("wohnungServerAction: start", { id, data });
   const supabase = await createClient();
 
   const payload = {
@@ -46,11 +45,8 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   //   return { success: false, error: { message: "Haus-ID ist erforderlich." } };
   // }
 
-  console.log("wohnungServerAction: payload validated", payload);
-
   try {
     let dbResponse;
-    console.log("wohnungServerAction: before Supabase call", { id, payload });
     if (id) {
       // Update existing record
       dbResponse = await supabase.from("Wohnungen").update(payload).eq("id", id).select().single();
@@ -59,7 +55,6 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       dbResponse = await supabase.from("Wohnungen").insert(payload).select().single();
     }
     
-    console.log("wohnungServerAction: Supabase call successful", dbResponse);
     if (dbResponse.error) throw dbResponse.error;
 
     revalidatePath('/wohnungen');
@@ -68,12 +63,9 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         revalidatePath(`/haeuser/${payload.haus_id}`);
     }
 
-    console.log("wohnungServerAction: end", { success: true });
     return { success: true, data: dbResponse.data as WohnungDbRecord };
   } catch (error: any) {
-    console.error("wohnungServerAction: error caught", error);
     console.error("Error in wohnungServerAction:", error); // Existing log, kept it
-    console.log("wohnungServerAction: end", { success: false });
     return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
   }
 }
