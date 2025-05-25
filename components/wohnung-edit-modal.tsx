@@ -183,7 +183,7 @@ export function WohnungEditModal({
             {initialData ? "Aktualisieren Sie die Details dieser Wohnung." : "Füllen Sie die Details der neuen Wohnung aus."}
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div>
             <Label htmlFor="name">Name der Wohnung</Label>
             <Input

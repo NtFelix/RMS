@@ -83,7 +83,7 @@ export function HouseEditModal({
             onOpenChange(false); // Close the dialog
             router.refresh(); // Refresh data on the page
           }}
-          className="grid gap-4 py-4"
+          className="grid gap-4 pt-4 pb-2"
         >
           {/* Hidden input for ID if editing */}
           {/* The server action expects ID as a separate param, not in FormData */}
