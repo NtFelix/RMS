@@ -54,7 +54,9 @@ export function TaskContextMenu({
           title: "Erfolg",
           description: "Die Aufgabe wurde erfolgreich gelöscht.",
         });
-        onRefresh();
+        setTimeout(() => {
+          onRefresh();
+        }, 100); // Delay of 100 milliseconds
       } else {
         toast({
           title: "Fehler",
