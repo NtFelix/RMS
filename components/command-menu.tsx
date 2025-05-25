@@ -97,7 +97,7 @@ export function CommandMenu() {
             }}
           >
             <Users className="mr-2 h-4 w-4" />
-            Neuen Mieter hinzufügen
+            Mieter hinzufügen
           </CommandItem>
           <CommandItem
             onSelect={() => {
@@ -118,6 +118,26 @@ export function CommandMenu() {
           >
             <Wallet className="mr-2 h-4 w-4" />
             Neue Rechnung erstellen
+          </CommandItem>
+          <CommandItem
+            onSelect={() => {
+              setOpen(false);
+              // Use modal store to open wohnung modal for adding
+              useModalStore.getState().openWohnungModal();
+            }}
+          >
+            <Home className="mr-2 h-4 w-4" />
+            Wohnung hinzufügen
+          </CommandItem>
+          <CommandItem
+            onSelect={() => {
+              setOpen(false);
+              // Use modal store to open aufgabe modal for adding
+              useModalStore.getState().openAufgabeModal();
+            }}
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            Aufgabe hinzufügen
           </CommandItem>
         </CommandGroup>
       </CommandList>

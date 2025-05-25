@@ -1,0 +1,68 @@
+"use server";
+
+import { createClient } from "@/utils/supabase/server";
+import { revalidatePath } from "next/cache";
+
+interface AufgabePayload {
+  name: string;
+  beschreibung?: string | null; //beschreibung is optional
+  ist_erledigt?: boolean;
+  // Future fields like status, prioritaet, faelligkeitsdatum can be added here
+}
+
+// Interface for the data returned from the database, including all fields
+interface AufgabeDbRecord {
+  id: string;
+  name: string;
+  beschreibung?: string | null;
+  ist_erledigt: boolean;
+  created_at: string; 
+  // Add other DB fields if they exist
+}
+
+export async function aufgabeServerAction(id: string | null, data: AufgabePayload): Promise<{ success: boolean; error?: any; data?: AufgabeDbRecord }> {
+  const supabase = await createClient();
+
+  const payload = {
+    name: data.name,
+    beschreibung: data.beschreibung || null, // Ensure null if empty string or undefined
+    // If creating a new task (id is null) and ist_erledigt is not provided, default to false.
+    // If editing, and ist_erledigt is provided, use that value. Otherwise, it won't be updated.
+    ist_erledigt: (id === null && typeof data.ist_erledigt === 'undefined') ? false : data.ist_erledigt,
+  };
+
+  // If editing and ist_erledigt is not provided in data, remove it from payload to avoid unintended updates
+  if (id !== null && typeof data.ist_erledigt === 'undefined') {
+    delete (payload as Partial<AufgabePayload>).ist_erledigt;
+  }
+
+
+  // Basic validation
+  if (!payload.name || payload.name.trim() === "") {
+    return { success: false, error: { message: "Name ist erforderlich." } };
+  }
+
+  try {
+    let dbResponse;
+    if (id) {
+      // Update existing record
+      dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).select().single();
+    } else {
+      // Create new record
+      // Ensure ist_erledigt is explicitly set for new records if not in payload (already handled above)
+      const insertPayload = { ...payload, ist_erledigt: payload.ist_erledigt ?? false };
+      dbResponse = await supabase.from("Aufgaben").insert(insertPayload).select().single();
+    }
+    
+    if (dbResponse.error) throw dbResponse.error;
+
+    revalidatePath('/todos'); // Revalidate the main tasks page
+    // Potentially revalidate other paths if tasks are displayed elsewhere (e.g., dashboard summary)
+    // revalidatePath('/'); 
+
+    return { success: true, data: dbResponse.data as AufgabeDbRecord };
+  } catch (error: any) {
+    console.error("Error in aufgabeServerAction:", error);
+    return { success: false, error: { message: error.message || "Ein unbekannter Fehler ist aufgetreten." } };
+  }
+}
