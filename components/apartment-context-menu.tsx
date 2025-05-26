@@ -19,7 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
+import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 
 interface Apartment {
   id: string
@@ -48,33 +49,37 @@ export function ApartmentContextMenu({
 
   const handleDelete = async () => {
     try {
-      setIsDeleting(true)
-      const response = await fetch(`/api/wohnungen?id=${apartment.id}`, {
-        method: "DELETE",
-      })
+      setIsDeleting(true);
+      const result = await loescheWohnung(apartment.id);
 
-      if (!response.ok) {
-        throw new Error("Fehler beim Löschen der Wohnung")
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: `Die Wohnung "${apartment.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        setTimeout(() => {
+          onRefresh();
+        }, 100); // Delay of 100 milliseconds
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error || "Die Wohnung konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
       }
-
+    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+      console.error("Unerwarteter Fehler beim Löschen der Wohnung:", error);
       toast({
-        title: "Erfolg",
-        description: `Die Wohnung "${apartment.name}" wurde erfolgreich gelöscht.`,
-      })
-      
-      onRefresh()
-    } catch (error) {
-      console.error("Fehler beim Löschen der Wohnung:", error)
-      toast({
-        title: "Fehler",
-        description: "Die Wohnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsDeleting(false)
-      setDeleteDialogOpen(false)
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
     }
-  }
+  };
 
   return (
     <>
