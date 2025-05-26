@@ -73,6 +73,7 @@ export function TaskEditModal({ isOpen, onClose, onTaskUpdated, task }: TaskEdit
       toast({
         title: "Erfolg",
         description: "Die Aufgabe wurde erfolgreich aktualisiert.",
+        variant: "success",
       })
       
       onTaskUpdated()

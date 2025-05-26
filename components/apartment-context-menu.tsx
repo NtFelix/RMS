@@ -56,6 +56,7 @@ export function ApartmentContextMenu({
         toast({
           title: "Erfolg",
           description: `Die Wohnung "${apartment.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();
