@@ -32,6 +32,7 @@ interface AufgabeEditModalProps {
     id: string | null,
     data: AufgabePayload
   ) => Promise<{ success: boolean; error?: any; data?: any }>;
+  onSuccess?: (data: any) => void;
 }
 
 export function AufgabeEditModal({
@@ -39,6 +40,7 @@ export function AufgabeEditModal({
   onOpenChange,
   initialData,
   serverAction,
+  onSuccess,
 }: AufgabeEditModalProps) {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -86,10 +88,15 @@ export function AufgabeEditModal({
         description: `Die Aufgabe "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
         variant: "success",
       });
-      setTimeout(() => {
-        onOpenChange(false); // Close modal
-        router.refresh(); // Refresh page to show changes
-      }, 500);
+      
+      // Call the onSuccess callback with the result data
+      if (onSuccess) {
+        onSuccess(result.data || { ...payload, id: initialData?.id });
+      }
+      
+      onOpenChange(false); // Close modal
+      
+      // Don't use router.refresh() as we're handling updates via onSuccess
     } else {
       toast({
         title: "Fehler",

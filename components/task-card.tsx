@@ -5,27 +5,27 @@ import { Badge } from "@/components/ui/badge"
 import { CheckCircle, Clock } from "lucide-react"
 import { TaskContextMenu } from "@/components/task-context-menu"
 
-interface TaskCardProps {
-  task: {
-    id: string
-    name: string
-    description: string
-    status: string
-    createdAt: string
-    updatedAt: string
-    ist_erledigt: boolean
-  }
-  onToggleStatus: () => void
-  onEdit: (task: {
-    id: string
-    name: string
-    beschreibung: string
-    ist_erledigt: boolean
-  }) => void
-  onRefresh: () => void
+export interface TaskCardTask {
+  id: string
+  name: string
+  description: string
+  status: string
+  createdAt: string
+  updatedAt: string
+  ist_erledigt: boolean
+  beschreibung?: string
+  erstellungsdatum?: string
+  aenderungsdatum?: string
 }
 
-export function TaskCard({ task, onToggleStatus, onEdit, onRefresh }: TaskCardProps) {
+interface TaskCardProps {
+  task: TaskCardTask
+  onToggleStatus: () => void
+  onEdit: (task: TaskCardTask) => void
+  onTaskDeleted: (taskId: string) => void
+}
+
+export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCardProps) {
   const statusColor =
     task.status === "Erledigt"
       ? "bg-green-50 text-green-700 hover:bg-green-50"
@@ -40,10 +40,10 @@ export function TaskCard({ task, onToggleStatus, onEdit, onRefresh }: TaskCardPr
 
   const handleEditClick = () => {
     onEdit({
-      id: task.id,
-      name: task.name,
-      beschreibung: task.description,
-      ist_erledigt: task.ist_erledigt
+      ...task,
+      beschreibung: task.beschreibung || task.description,
+      erstellungsdatum: task.erstellungsdatum || task.createdAt,
+      aenderungsdatum: task.aenderungsdatum || task.updatedAt
     })
   }
 
@@ -52,12 +52,12 @@ export function TaskCard({ task, onToggleStatus, onEdit, onRefresh }: TaskCardPr
       task={{
         id: task.id,
         name: task.name,
-        beschreibung: task.description,
+        beschreibung: task.beschreibung || task.description || '',
         ist_erledigt: task.ist_erledigt
       }}
       onEdit={handleEditClick}
       onStatusToggle={onToggleStatus}
-      onRefresh={onRefresh}
+      onTaskDeleted={onTaskDeleted}
     >
       <Card 
         className="overflow-hidden rounded-xl border-none shadow-md hover:shadow-lg transition-all cursor-pointer" 

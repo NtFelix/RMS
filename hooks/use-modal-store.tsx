@@ -33,7 +33,8 @@ interface ModalState {
   // Aufgabe Modal State
   isAufgabeModalOpen: boolean;
   aufgabeInitialData?: any; // Replace 'any' with actual Aufgabe/Task type
-  openAufgabeModal: (initialData?: any) => void;
+  aufgabeModalOnSuccess?: (data: any) => void;
+  openAufgabeModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
   closeAufgabeModal: () => void;
 }
 
@@ -107,12 +108,15 @@ export const useModalStore = create<ModalState>((set) => ({
   // Aufgabe Modal
   isAufgabeModalOpen: false,
   aufgabeInitialData: undefined,
-  openAufgabeModal: (initialData) => set({
+  aufgabeModalOnSuccess: undefined,
+  openAufgabeModal: (initialData, onSuccess) => set({
     isAufgabeModalOpen: true,
     aufgabeInitialData: initialData,
+    aufgabeModalOnSuccess: onSuccess,
   }),
   closeAufgabeModal: () => set({
     isAufgabeModalOpen: false,
     aufgabeInitialData: undefined,
+    aufgabeModalOnSuccess: undefined,
   }),
 }));
