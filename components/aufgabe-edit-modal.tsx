@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast"; // Changed import path
 import { Checkbox } from "@/components/ui/checkbox"; // Added for ist_erledigt
 
 // Define interfaces based on expected data structure
@@ -73,34 +73,33 @@ export function AufgabeEditModal({
 
     setIsSubmitting(true);
     const payload: AufgabePayload = {
-      name,
+      name: name.trim(), // Ensure name is trimmed before sending
       beschreibung: beschreibung.trim() || null,
       ist_erledigt: istErledigt,
     };
 
-    try {
-      const result = await serverAction(initialData?.id || null, payload);
+    const result = await serverAction(initialData?.id || null, payload);
 
-      if (result.success) {
-        toast({
-          title: "Erfolg",
-          description: `Die Aufgabe "${name}" wurde erfolgreich ${initialData ? "aktualisiert" : "hinzugefügt"}.`,
-        });
+    if (result.success) {
+      toast({
+        title: initialData ? "Aufgabe aktualisiert" : "Aufgabe erstellt",
+        description: `Die Aufgabe "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+        variant: "success",
+      });
+      setTimeout(() => {
         onOpenChange(false); // Close modal
         router.refresh(); // Refresh page to show changes
-      } else {
-        throw new Error(result.error?.message || "Fehler beim Speichern der Aufgabe");
-      }
-    } catch (error: any) {
-      console.error("Fehler beim Speichern der Aufgabe:", error);
+      }, 500);
+    } else {
       toast({
         title: "Fehler",
-        description: error.message || "Die Aufgabe konnte nicht gespeichert werden.",
+        description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
+      // Close modal on error, consistent with other modals like wohnung-edit-modal
+      onOpenChange(false); 
     }
+    setIsSubmitting(false);
   };
 
   // Handler for the Dialog's onOpenChange, ensuring clean state if modal is dismissed
@@ -135,6 +134,22 @@ export function AufgabeEditModal({
                 disabled={isSubmitting}
               />
             </div>
+            {initialData && (
+              <div className="grid gap-2">
+                <div className="flex items-center space-x-2 pt-1">
+                  <Checkbox
+                    id="ist_erledigt"
+                    checked={istErledigt}
+                    onCheckedChange={(checked) => setIstErledigt(!!checked)}
+                    disabled={isSubmitting}
+                    className="h-5 w-5"
+                  />
+                  <Label htmlFor="ist_erledigt" className="text-sm">
+                    Erledigt
+                  </Label>
+                </div>
+              </div>
+            )}
             <div className="grid gap-2">
               <Label htmlFor="beschreibung">Beschreibung (optional)</Label>
               <Textarea
@@ -146,17 +161,6 @@ export function AufgabeEditModal({
                 disabled={isSubmitting}
               />
             </div>
-            {initialData && ( // Only show "erledigt" checkbox when editing
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="ist_erledigt" 
-                  checked={istErledigt} 
-                  onCheckedChange={(checked) => setIstErledigt(!!checked)}
-                  disabled={isSubmitting}
-                />
-                <Label htmlFor="ist_erledigt">Erledigt</Label>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" type="button" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

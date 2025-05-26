@@ -3,20 +3,66 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // Update function signature to accept id as the first parameter
-export async function handleSubmit(id: string | null, formData: FormData) {
+export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
 
-  if (id) {
-    // Use the id parameter directly
-    const updatePayload: { [key: string]: any } = {};
-    formData.forEach((value, key) => {
-      // No need to check for 'id' in formData anymore
-      updatePayload[key] = value;
-    });
-    await supabase.from("Haeuser").update(updatePayload).eq("id", id);
-  } else {
-    // For insert, use formData directly
-    await supabase.from("Haeuser").insert(formData);
+  try {
+    if (id) {
+      // Use the id parameter directly
+      const updatePayload: { [key: string]: any } = {};
+      formData.forEach((value, key) => {
+        // No need to check for 'id' in formData anymore
+        updatePayload[key] = value;
+      });
+      const { error } = await supabase.from("Haeuser").update(updatePayload).eq("id", id);
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+    } else {
+      // For insert, use formData directly
+      // Note: Supabase client insert typically takes an object or array of objects, not FormData directly.
+      // Assuming there's a utility or the client handles FormData, or this needs adjustment.
+      // For now, proceeding with the assumption that direct FormData insert is intended/handled.
+      // If it expects an object, conversion from FormData will be needed.
+      const insertData: { [key: string]: any } = {};
+      formData.forEach((value, key) => {
+        insertData[key] = value;
+      });
+      const { error } = await supabase.from("Haeuser").insert(insertData); // Adjusted to pass an object
+      if (error) {
+        return { success: false, error: { message: error.message } };
+      }
+    }
+    revalidatePath("/haeuser");
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: { message: (e as Error).message } };
   }
-  revalidatePath("/haeuser");
+}
+
+export async function deleteHouseAction(houseId: string): Promise<{ success: boolean; error?: { message: string } }> {
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("Haeuser")
+      .delete()
+      .eq("id", houseId);
+
+    if (error) {
+      // Log the error for server-side visibility
+      console.error("Error deleting house from Supabase:", error);
+      return { success: false, error: { message: error.message } };
+    }
+
+    revalidatePath('/haeuser'); // Revalidate the main houses page
+
+    return { success: true };
+
+  } catch (e: unknown) { // Using unknown for better type safety with instanceof
+    console.error("Unexpected error in deleteHouseAction:", e);
+    if (e instanceof Error) {
+      return { success: false, error: { message: e.message } };
+    }
+    return { success: false, error: { message: "An unknown server error occurred" } };
+  }
 }
