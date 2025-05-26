@@ -10,14 +10,16 @@ interface ModalState {
   // House Modal State
   isHouseModalOpen: boolean;
   houseInitialData?: any; // Replace 'any' with a proper 'House' type if available
-  openHouseModal: (initialData?: any) => void;
+  houseModalOnSuccess?: (data: any) => void;
+  openHouseModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
   closeHouseModal: () => void;
 
   // Finance Modal State
   isFinanceModalOpen: boolean;
   financeInitialData?: any; // Replace 'any' with 'Finanz' type if available
   financeModalWohnungen: any[];
-  openFinanceModal: (initialData?: any, wohnungen?: any[]) => void;
+  financeModalOnSuccess?: (data: any) => void;
+  openFinanceModal: (initialData?: any, wohnungen?: any[], onSuccess?: (data: any) => void) => void;
   closeFinanceModal: () => void;
 
   // Wohnung Modal State
@@ -53,28 +55,34 @@ export const useModalStore = create<ModalState>((set) => ({
   // House Modal
   isHouseModalOpen: false,
   houseInitialData: undefined,
-  openHouseModal: (initialData) => set({
+  houseModalOnSuccess: undefined,
+  openHouseModal: (initialData, onSuccess) => set({
     isHouseModalOpen: true,
     houseInitialData: initialData,
+    houseModalOnSuccess: onSuccess,
   }),
   closeHouseModal: () => set({
     isHouseModalOpen: false,
     houseInitialData: undefined,
+    houseModalOnSuccess: undefined,
   }),
 
   // Finance Modal
   isFinanceModalOpen: false,
   financeInitialData: undefined,
   financeModalWohnungen: [],
-  openFinanceModal: (initialData, wohnungen) => set({
+  financeModalOnSuccess: undefined,
+  openFinanceModal: (initialData, wohnungen, onSuccess) => set({
     isFinanceModalOpen: true,
     financeInitialData: initialData,
     financeModalWohnungen: wohnungen || [],
+    financeModalOnSuccess: onSuccess,
   }),
   closeFinanceModal: () => set({
     isFinanceModalOpen: false,
     financeInitialData: undefined,
     financeModalWohnungen: [],
+    financeModalOnSuccess: undefined,
   }),
 
   // Wohnung Modal
