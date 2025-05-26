@@ -60,6 +60,7 @@ export function FinanceContextMenu({
         toast({
           title: "Erfolg",
           description: "Die Transaktion wurde erfolgreich gelöscht.",
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();

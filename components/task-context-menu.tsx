@@ -53,6 +53,7 @@ export function TaskContextMenu({
         toast({
           title: "Erfolg",
           description: "Die Aufgabe wurde erfolgreich gelöscht.",
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();

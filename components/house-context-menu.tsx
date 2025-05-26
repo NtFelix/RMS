@@ -58,6 +58,7 @@ export function HouseContextMenu({
         toast({
           title: "Erfolg",
           description: `Das Haus "${house.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();

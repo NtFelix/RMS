@@ -93,7 +93,8 @@ export function ApartmentEditModal({ open, onOpenChange, apartmentId, onSuccess 
       if (res.ok) {
         toast({ 
           title: apartmentId ? "Aktualisiert" : "Gespeichert", 
-          description: apartmentId ? "Wohnung aktualisiert." : "Wohnung hinzugefügt." 
+          description: apartmentId ? "Wohnung aktualisiert." : "Wohnung hinzugefügt.",
+          variant: "success",
         })
         onOpenChange(false)
         onSuccess?.()
