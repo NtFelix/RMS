@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 import { deleteTaskAction } from "@/app/todos-actions"; // Added import
 
 interface TaskContextMenuProps {
@@ -53,6 +53,7 @@ export function TaskContextMenu({
         toast({
           title: "Erfolg",
           description: "Die Aufgabe wurde erfolgreich gelöscht.",
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();

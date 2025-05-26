@@ -77,7 +77,6 @@ const addToRemoveQueue = (toastId: string) => {
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
-      console.log('[useToast] Reducer ADD_TOAST. Current state.toasts:', state.toasts, 'Toast to add:', action.toast);
       return {
         ...state,
         toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
@@ -135,10 +134,6 @@ const listeners: Array<(state: State) => void> = []
 let memoryState: State = { toasts: [] }
 
 function dispatch(action: Action) {
-  console.log(`[useToast] dispatch() called. Action Type: ${action.type}`);
-  if (action.type === "ADD_TOAST") {
-    console.log(`[useToast] ADD_TOAST details:`, action.toast);
-  }
   memoryState = reducer(memoryState, action)
   listeners.forEach((listener) => {
     listener(memoryState)
@@ -149,7 +144,6 @@ type Toast = Omit<ToasterToast, "id">
 
 function toast({ ...props }: Toast) {
   const id = genId()
-  console.log(`[useToast] toast() invoked. ID: ${id}, Props:`, props);
 
   const update = (props: ToasterToast) =>
     dispatch({

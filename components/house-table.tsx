@@ -14,7 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast" // Import toast
+import { toast } from "@/hooks/use-toast" // Import toast
 
 export interface House {
   id: string

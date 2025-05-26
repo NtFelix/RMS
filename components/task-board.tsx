@@ -6,7 +6,7 @@ import { de } from "date-fns/locale"
 import { TaskCard } from "@/components/task-card"
 // import { TaskEditModal } from "@/components/task-edit-modal"; // Removed
 import { useModalStore } from "@/hooks/use-modal-store"; // Added
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "@/hooks/use-toast";
 import { toggleTaskStatusAction } from "@/app/todos-actions"; // Added
 
 export interface Task {
