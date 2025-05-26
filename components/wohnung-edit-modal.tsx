@@ -55,15 +55,18 @@ interface WohnungEditModalProps {
     id: string | null,
     payload: WohnungServerActionPayload
   ) => Promise<{ success: boolean; error?: any; data?: any }>;
+  onSuccess?: (data: any) => void;
 }
 
-export function WohnungEditModal({
-  open,
-  onOpenChange,
-  initialData,
-  initialHaeuser = [], // Default to empty array
-  serverAction,
-}: WohnungEditModalProps) {
+export function WohnungEditModal(props: WohnungEditModalProps) {
+  const {
+    open,
+    onOpenChange,
+    initialData,
+    initialHaeuser = [],
+    serverAction,
+    onSuccess,
+  } = props;
   const router = useRouter();
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
@@ -118,64 +121,84 @@ export function WohnungEditModal({
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
 
-    const { name, groesse, miete, haus_id } = formData;
-
-    if (!name || !groesse || !miete || !haus_id) {
+    if (!formData.name || !formData.groesse || !formData.miete) {
       toast({
-        title: "Fehlende Eingaben",
-        description: "Bitte füllen Sie alle erforderlichen Felder aus.",
+        title: "Fehlende Angaben",
+        description: "Bitte füllen Sie alle Pflichtfelder aus.",
         variant: "destructive",
       });
       setIsSubmitting(false);
       return;
     }
-    
-    const groesseNum = parseFloat(groesse);
-    const mieteNum = parseFloat(miete);
+
+    // Convert string inputs to numbers
+    const groesseNum = parseFloat(formData.groesse);
+    const mieteNum = parseFloat(formData.miete);
 
     if (isNaN(groesseNum) || groesseNum <= 0) {
-      toast({ title: "Ungültige Eingabe", description: "Größe muss eine positive Zahl sein.", variant: "destructive" });
+      toast({
+        title: "Ungültige Größe",
+        description: "Die Größe muss eine positive Zahl sein.",
+        variant: "destructive",
+      });
       setIsSubmitting(false);
       return;
     }
-    if (isNaN(mieteNum) || mieteNum < 0) { // Miete can be 0
-      toast({ title: "Ungültige Eingabe", description: "Miete muss eine Zahl sein.", variant: "destructive" });
+
+    if (isNaN(mieteNum) || mieteNum < 0) {
+      toast({
+        title: "Ungültige Miete",
+        description: "Die Miete darf nicht negativ sein.",
+        variant: "destructive",
+      });
       setIsSubmitting(false);
       return;
     }
 
     const payload: WohnungServerActionPayload = {
-      name,
+      name: formData.name,
       groesse: groesseNum,
       miete: mieteNum,
-      haus_id: haus_id || null,
+      haus_id: formData.haus_id || null,
     };
 
-    const result = await serverAction(initialData?.id || null, payload);
+    try {
+      const result = await serverAction(initialData?.id || null, payload);
 
-    if (result.success) {
-      toast({
-        title: initialData ? "Wohnung aktualisiert" : "Wohnung erstellt",
-        description: `Die Wohnung "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
-        variant: "success",
-      });
-      setTimeout(() => {
+      if (result.success) {
+        toast({
+          title: initialData ? "Wohnung aktualisiert" : "Wohnung erstellt",
+          description: `Die Wohnung "${formData.name}" wurde erfolgreich ${initialData ? 'aktualisiert' : 'erstellt'}.`,
+          variant: "success",
+        });
+
+        // Call the onSuccess callback with the result data
+        if (onSuccess) {
+          const successData = result.data || {
+            ...payload,
+            id: initialData?.id || '',
+            haus_name: initialHaeuser.find(h => h.id === formData.haus_id)?.name || ''
+          };
+          onSuccess(successData);
+        }
+
         onOpenChange(false);
-        router.refresh();
-      }, 500);
-    } else {
+      } else {
+        throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
+      }
+    } catch (error) {
       toast({
         title: "Fehler",
-        description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
+        description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
-      onOpenChange(false); // Close modal on error
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (
