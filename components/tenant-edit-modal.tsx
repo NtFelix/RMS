@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { createClient } from "@/utils/supabase/client" // Added
+import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,6 +36,8 @@ interface TenantEditModalProps {
   wohnungen?: Wohnung[] // Made optional
   initialData?: {
     id?: string
+    // wohnung_id is part of formData if needed, but initialData structure might vary
+    // Ensure all fields used by the form are part of initialData or handled
     wohnung_id?: string
     name: string
     einzug?: string
@@ -45,13 +48,15 @@ interface TenantEditModalProps {
     nebenkosten?: string
     nebenkosten_datum?: string
   }
-  serverAction: (formData: FormData) => Promise<void>
-  loading?: boolean
+  serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
+  loading?: boolean // This might be replaced by local isSubmitting state
 }
 
-export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnungen = [], initialData, serverAction, loading }: TenantEditModalProps) {
+export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnungen = [], initialData, serverAction }: TenantEditModalProps) {
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false); // Added submitting state
   const [formData, setFormData] = useState({
+    // Ensure all form fields are initialized, possibly from initialData
     wohnung_id: initialData?.wohnung_id || "",
     name: initialData?.name || "",
     einzug: initialData?.einzug || "",
@@ -121,9 +126,40 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
         </DialogHeader>
         <form onSubmit={async e => {
           e.preventDefault();
-          await serverAction(new FormData(e.currentTarget));
-          onOpenChange(false);
-          router.refresh();
+          setIsSubmitting(true);
+          try {
+            const currentFormData = new FormData(e.currentTarget);
+            const tenantNameForToast = formData.name; // Use state for toast consistency
+            const result = await serverAction(currentFormData);
+
+            if (result.success) {
+              toast({
+                title: initialData ? "Mieter aktualisiert" : "Mieter erstellt",
+                description: `Die Daten des Mieters "${tenantNameForToast}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+                variant: "success",
+              });
+              setTimeout(() => {
+                onOpenChange(false);
+                router.refresh();
+              }, 500);
+            } else {
+              toast({
+                title: "Fehler",
+                description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
+                variant: "destructive",
+              });
+              onOpenChange(false); // Close modal on handled error
+            }
+          } catch (error: any) { // Catch unexpected errors
+            toast({
+              title: "Unerwarteter Fehler",
+              description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
+              variant: "destructive",
+            });
+            onOpenChange(false); // Close modal on unexpected error
+          } finally {
+            setIsSubmitting(false);
+          }
         }} className="grid gap-4 pt-4 pb-2">
           {initialData?.id && <input type="hidden" name="id" value={initialData.id} />}
           <div className="grid grid-cols-2 gap-4">
@@ -205,8 +241,11 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={loading || isLoadingWohnungen}>
-              {loading ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              Abbrechen
+            </Button>
+            <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>
+              {isSubmitting ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>
         </form>

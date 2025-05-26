@@ -69,7 +69,7 @@ export default function TodosClientWrapper({ tasks }: TodosClientWrapperProps) {
         }} 
       /> 
       */}
-      <Toaster />
+      {/* <Toaster /> Removed as a global Toaster is in app/layout.tsx */}
     </div>
   );
 }

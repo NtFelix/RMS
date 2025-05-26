@@ -19,7 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
+import { deleteTaskAction } from "@/app/todos-actions"; // Added import
 
 interface TaskContextMenuProps {
   children: React.ReactNode
@@ -42,32 +43,39 @@ export function TaskContextMenu({
   onRefresh,
 }: TaskContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  // No isDeleting state here as per revised instructions, assuming button state not directly affected in this component.
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/todos/${task.id}`, {
-        method: "DELETE",
-      })
-
-      if (!response.ok) {
-        throw new Error("Fehler beim Löschen der Aufgabe")
+      // If a visual loading state is needed for the button, isDeleting state management should be re-added.
+      const result = await deleteTaskAction(task.id);
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: "Die Aufgabe wurde erfolgreich gelöscht.",
+          variant: "success",
+        });
+        setTimeout(() => {
+          onRefresh();
+        }, 100); // Delay of 100 milliseconds
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Die Aufgabe konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
       }
-
+    } catch (error) { // Catch unexpected errors
+      console.error("Unexpected error in handleDelete (TaskContextMenu):", error);
       toast({
-        title: "Erfolg",
-        description: "Die Aufgabe wurde erfolgreich gelöscht.",
-      })
-      
-      onRefresh()
-    } catch (error) {
-      console.error("Fehler beim Löschen der Aufgabe:", error)
-      toast({
-        title: "Fehler",
-        description: "Die Aufgabe konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten.",
         variant: "destructive",
-      })
+      });
+    } finally {
+      setDeleteDialogOpen(false); // Ensure dialog always closes
     }
-  }
+  };
 
   return (
     <>
