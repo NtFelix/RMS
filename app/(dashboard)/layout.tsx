@@ -54,6 +54,7 @@ export default function DashboardRootLayout({
     // Aufgabe modal state and actions
     isAufgabeModalOpen,
     aufgabeInitialData,
+    aufgabeModalOnSuccess,
     openAufgabeModal,
     closeAufgabeModal,
   } = useModalStore()
@@ -142,6 +143,12 @@ export default function DashboardRootLayout({
           }}
           initialData={aufgabeInitialData}
           serverAction={aufgabeServerAction}
+          onSuccess={(data) => {
+            if (aufgabeModalOnSuccess) {
+              aufgabeModalOnSuccess(data);
+            }
+            closeAufgabeModal();
+          }}
         />
       )}
     </AuthProvider>
