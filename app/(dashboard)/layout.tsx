@@ -48,6 +48,7 @@ export default function DashboardRootLayout({
     isWohnungModalOpen,
     wohnungInitialData,
     wohnungModalHaeuser,
+    wohnungModalOnSuccess,
     openWohnungModal,
     closeWohnungModal,
     // Aufgabe modal state and actions
@@ -117,11 +118,19 @@ export default function DashboardRootLayout({
         <WohnungEditModal
           open={isWohnungModalOpen}
           onOpenChange={(isOpen) => {
-            if (!isOpen) closeWohnungModal();
+            if (!isOpen) closeWohnungModal()
           }}
           initialData={wohnungInitialData}
           initialHaeuser={wohnungModalHaeuser}
           serverAction={wohnungServerAction}
+          onSuccess={(data) => {
+            // Call the success callback if it exists
+            if (wohnungModalOnSuccess) {
+              wohnungModalOnSuccess(data);
+            }
+            // Close the modal
+            closeWohnungModal();
+          }}
         />
       )}
       {/* Aufgabe Modal */}

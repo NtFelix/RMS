@@ -26,7 +26,8 @@ interface ModalState {
   isWohnungModalOpen: boolean;
   wohnungInitialData?: any; // Replace 'any' with actual Wohnung type
   wohnungModalHaeuser: any[]; // Replace 'any' with actual Haus type
-  openWohnungModal: (initialData?: any, haeuser?: any[]) => void;
+  wohnungModalOnSuccess?: (data: any) => void;
+  openWohnungModal: (initialData?: any, haeuser?: any[], onSuccess?: (data: any) => void) => void;
   closeWohnungModal: () => void;
 
   // Aufgabe Modal State
@@ -89,15 +90,18 @@ export const useModalStore = create<ModalState>((set) => ({
   isWohnungModalOpen: false,
   wohnungInitialData: undefined,
   wohnungModalHaeuser: [],
-  openWohnungModal: (initialData, haeuser) => set({
+  wohnungModalOnSuccess: undefined,
+  openWohnungModal: (initialData, haeuser, onSuccess) => set({
     isWohnungModalOpen: true,
     wohnungInitialData: initialData,
     wohnungModalHaeuser: haeuser || [],
+    wohnungModalOnSuccess: onSuccess,
   }),
   closeWohnungModal: () => set({
     isWohnungModalOpen: false,
     wohnungInitialData: undefined,
     wohnungModalHaeuser: [],
+    wohnungModalOnSuccess: undefined,
   }),
 
   // Aufgabe Modal
