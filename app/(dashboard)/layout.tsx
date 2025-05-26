@@ -25,28 +25,36 @@ export default function DashboardRootLayout({
   children: React.ReactNode
 }>) {
   const {
+    // Tenant modal state and actions
     isTenantModalOpen,
     closeTenantModal,
     tenantInitialData,
     tenantModalWohnungen,
+    openTenantModal,
     // House modal state and actions
     isHouseModalOpen,
-    closeHouseModal,
     houseInitialData,
+    houseModalOnSuccess,
+    openHouseModal,
+    closeHouseModal,
     // Finance modal state and actions
     isFinanceModalOpen,
-    closeFinanceModal,
     financeInitialData,
     financeModalWohnungen,
+    financeModalOnSuccess,
+    openFinanceModal,
+    closeFinanceModal,
     // Wohnung modal state and actions
     isWohnungModalOpen,
-    closeWohnungModal,
     wohnungInitialData,
     wohnungModalHaeuser,
+    openWohnungModal,
+    closeWohnungModal,
     // Aufgabe modal state and actions
     isAufgabeModalOpen,
-    closeAufgabeModal,
     aufgabeInitialData,
+    openAufgabeModal,
+    closeAufgabeModal,
   } = useModalStore()
 
   return (
@@ -74,6 +82,14 @@ export default function DashboardRootLayout({
           }}
           initialData={houseInitialData}
           serverAction={houseServerAction}
+          onSuccess={(data) => {
+            // Call the success callback if it exists
+            if (houseModalOnSuccess) {
+              houseModalOnSuccess(data);
+            }
+            // Close the modal
+            closeHouseModal();
+          }}
         />
       )}
       {/* Finance Modal */}
@@ -86,6 +102,14 @@ export default function DashboardRootLayout({
           initialData={financeInitialData}
           initialWohnungen={financeModalWohnungen}
           serverAction={financeServerAction}
+          onSuccess={(data) => {
+            // Call the success callback if it exists
+            if (financeModalOnSuccess) {
+              financeModalOnSuccess(data);
+            }
+            // Close the modal
+            closeFinanceModal();
+          }}
         />
       )}
       {/* Wohnung Modal */}

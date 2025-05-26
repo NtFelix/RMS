@@ -35,16 +35,22 @@ export default function HaeuserClientWrapper({ haeuser }: HaeuserClientWrapperPr
 
   // handleOpenChange is removed (was for local dialog)
 
-  // handleEdit will be updated in a subsequent task to use useModalStore
-  // Updated handleEdit to use the global modal store
-  const handleEdit = useCallback((house: House) => {
-    useModalStore.getState().openHouseModal(house);
+  // Function to refresh the table data
+  const refreshTable = useCallback(() => {
+    if (tableReloadRef.current) {
+      tableReloadRef.current();
+    }
   }, []);
 
-  // Updated handleAdd to use the global modal store
-  const handleAdd = () => {
-    useModalStore.getState().openHouseModal();
-  };
+  // Handle house edit with success callback
+  const handleEdit = useCallback((house: House) => {
+    useModalStore.getState().openHouseModal(house, refreshTable);
+  }, [refreshTable]);
+
+  // Handle add new house with success callback
+  const handleAdd = useCallback(() => {
+    useModalStore.getState().openHouseModal(undefined, refreshTable);
+  }, [refreshTable]);
 
   return (
     <div className="flex flex-col gap-8 p-8">

@@ -51,6 +51,30 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
   const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
 
+  // Add handler for new entries
+  const handleAddFinance = useCallback((newFinance: Finanz) => {
+    setFinData(prev => {
+      // Check if the entry already exists to prevent duplicates
+      const exists = prev.some(item => item.id === newFinance.id);
+      if (exists) {
+        // If it exists, update the existing entry
+        return prev.map(item => 
+          item.id === newFinance.id ? { ...item, ...newFinance } : item
+        );
+      }
+      // If it's a new entry, add it to the beginning of the list
+      return [newFinance, ...prev];
+    });
+  }, []);
+  
+  // Handle successful form submission
+  const handleSuccess = useCallback((data: any) => {
+    // The server returns the created/updated finance entry
+    if (data) {
+      handleAddFinance(data);
+    }
+  }, [handleAddFinance]);
+
   // useEffect for 'open-add-finance-modal' event is removed.
   // This will be handled by CommandMenu triggering useModalStore.
 
@@ -63,11 +87,11 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
   // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
   const handleEdit = useCallback((finance: Finanz) => {
-    useModalStore.getState().openFinanceModal(finance, wohnungen);
-  }, [wohnungen]); // Added wohnungen to dependency array
+    useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
+  }, [wohnungen, handleSuccess]);
 
-  const handleAddTransaction = () => { // Renamed from handleAdd for clarity
-    useModalStore.getState().openFinanceModal(undefined, wohnungen);
+  const handleAddTransaction = () => {
+    useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
   };
   
   // Function to refresh finance data, can be called by FinanceTransactions or after modal operations
@@ -146,9 +170,10 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
       <FinanceVisualization finances={finData} />
       <FinanceTransactions 
         finances={finData} 
-        reloadRef={reloadRef} 
         onEdit={handleEdit} 
-        loadFinances={refreshFinances} // Use the new refreshFinances function
+        onAdd={handleAddFinance}
+        loadFinances={refreshFinances} 
+        reloadRef={reloadRef}
       />
     </div>
   );

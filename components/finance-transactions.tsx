@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -28,6 +28,7 @@ interface FinanceTransactionsProps {
   finances: Finanz[]
   reloadRef?: any
   onEdit?: (finance: Finanz) => void
+  onAdd?: (finance: Finanz) => void
   loadFinances?: () => Promise<void>
 }
 
@@ -42,7 +43,7 @@ const formatDate = (dateString: string | undefined): string => {
   })
 }
 
-export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances }: FinanceTransactionsProps) {
+export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFinances }: FinanceTransactionsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedApartment, setSelectedApartment] = useState("Alle Wohnungen")
   const [selectedYear, setSelectedYear] = useState("Alle Jahre")
@@ -103,7 +104,43 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, loadFinances 
     })
 
     setFilteredData(result)
-  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType])
+  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType]);
+
+  // Track the last known finances to detect new entries
+  const prevFinancesRef = useRef<Finanz[]>(finances);
+  
+  useEffect(() => {
+    // Only update if the finances array has actually changed
+    if (JSON.stringify(prevFinancesRef.current) !== JSON.stringify(finances)) {
+      // Find new entries by comparing with previous state
+      const newEntries = finances.filter(
+        newItem => !prevFinancesRef.current.some(prevItem => prevItem.id === newItem.id)
+      );
+      
+      if (newEntries.length > 0) {
+        setFilteredData(prev => {
+          // Create a map of existing entries by ID for quick lookup
+          const existingEntries = new Map(prev.map(item => [item.id, item]));
+          
+          // Add new entries that don't exist in the current filtered data
+          newEntries.forEach(entry => {
+            if (!existingEntries.has(entry.id)) {
+              existingEntries.set(entry.id, entry);
+            }
+          });
+          
+          // Convert back to array and sort by date (newest first)
+          return Array.from(existingEntries.values()).sort((a, b) => {
+            if (!a.datum || !b.datum) return 0;
+            return new Date(b.datum).getTime() - new Date(a.datum).getTime();
+          });
+        });
+      }
+      
+      // Update the ref for the next comparison
+      prevFinancesRef.current = finances;
+    }
+  }, [finances]);
 
   // Calculate totals for filtered data
   const totalBalance = filteredData.reduce((total, transaction) => {

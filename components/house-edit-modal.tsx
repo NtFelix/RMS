@@ -28,15 +28,22 @@ interface HouseEditModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: House;
-  serverAction: (id: string | null, formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
+  serverAction: (id: string | null, formData: FormData) => Promise<{ 
+    success: boolean; 
+    error?: { message: string };
+    data?: any;
+  }>;
+  onSuccess?: (data: any) => void;
 }
 
-export function HouseEditModal({
-  open,
-  onOpenChange,
-  initialData,
-  serverAction,
-}: HouseEditModalProps) {
+export function HouseEditModal(props: HouseEditModalProps) {
+  const {
+    open,
+    onOpenChange,
+    initialData,
+    serverAction,
+    onSuccess
+  } = props;
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false); // Added submitting state
   const [formData, setFormData] = useState({
@@ -63,6 +70,50 @@ export function HouseEditModal({
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    const form = new FormData();
+    form.append("name", formData.name);
+    form.append("strasse", formData.strasse);
+    form.append("ort", formData.ort);
+
+    try {
+      const result = await serverAction(initialData?.id || null, form);
+      
+      if (result.success) {
+        toast({
+          title: initialData ? "Haus aktualisiert" : "Haus erstellt",
+          description: `Das Haus "${formData.name}" wurde erfolgreich ${initialData ? 'aktualisiert' : 'erstellt'}.`,
+          variant: "success",
+        });
+        
+        // Call the onSuccess callback with the result data
+        if (onSuccess) {
+          const successData = result.data || { 
+            ...formData, 
+            id: initialData?.id || '' 
+          };
+          onSuccess(successData);
+        }
+        
+        // Close the modal
+        onOpenChange(false);
+      } else {
+        throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
+      }
+    } catch (error) {
+      toast({
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
@@ -72,48 +123,7 @@ export function HouseEditModal({
             {initialData ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
           </DialogDescription>
         </DialogHeader>
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault();
-            setIsSubmitting(true);
-            const currentFormData = new FormData(event.currentTarget);
-            // Use formData.name for the toast message as it's reliably updated by handleInputChange
-            const houseNameForToast = formData.name;
-            
-            try {
-              const result = await serverAction(initialData?.id || null, currentFormData);
-              if (result.success) {
-                toast({
-                  title: initialData ? "Haus aktualisiert" : "Haus erstellt",
-                  description: `Die Daten des Hauses "${houseNameForToast}" wurden erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
-                  variant: "success",
-                });
-                setTimeout(() => {
-                  onOpenChange(false); // Close the dialog
-                  router.refresh(); // Refresh data on the page
-                }, 500);
-              } else {
-                toast({
-                  title: "Fehler",
-                  description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
-                  variant: "destructive",
-                });
-                onOpenChange(false); // Close dialog on error
-              }
-            } catch (e) {
-              // Catch any unexpected errors from serverAction or subsequent logic
-              toast({
-                title: "Unerwarteter Fehler",
-                description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
-                variant: "destructive",
-              });
-              onOpenChange(false); // Close dialog on unexpected error
-            } finally {
-              setIsSubmitting(false);
-            }
-          }}
-          className="grid gap-4 pt-4 pb-2"
-        >
+        <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="space-y-1">
             <Label htmlFor="name">Name</Label>
             <Input
