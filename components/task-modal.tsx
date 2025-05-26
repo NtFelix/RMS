@@ -59,6 +59,7 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
       toast({
         title: "Erfolg",
         description: "Die Aufgabe wurde erfolgreich hinzugefügt.",
+        variant: "success",
       })
       
       // Reset form and close modal

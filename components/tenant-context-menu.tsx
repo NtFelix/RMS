@@ -59,6 +59,7 @@ export function TenantContextMenu({
         toast({
           title: "Erfolg",
           description: `Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();
