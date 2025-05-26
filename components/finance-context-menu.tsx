@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 import { deleteFinanceAction } from "@/app/finanzen-actions"; // Added import
 
 interface Finance {
@@ -60,6 +60,7 @@ export function FinanceContextMenu({
         toast({
           title: "Erfolg",
           description: "Die Transaktion wurde erfolgreich gelöscht.",
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();

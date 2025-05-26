@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 interface TaskEditModalProps {
   isOpen: boolean
@@ -73,6 +73,7 @@ export function TaskEditModal({ isOpen, onClose, onTaskUpdated, task }: TaskEdit
       toast({
         title: "Erfolg",
         description: "Die Aufgabe wurde erfolgreich aktualisiert.",
+        variant: "success",
       })
       
       onTaskUpdated()
