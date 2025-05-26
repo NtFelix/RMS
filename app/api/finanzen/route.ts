@@ -24,18 +24,23 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     const data = await request.json();
-    console.log('POST /api/finanzen payload:', data);
     
     const { error, data: result } = await supabase
       .from('Finanzen')
       .insert(data)
-      .select();
+      .select('*, Wohnungen(name)')
+      .single();
       
     if (error) {
       console.error('POST /api/finanzen error:', error);
       return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
     }
-    return NextResponse.json(result[0], { status: 201 });
+    
+    if (!result) {
+      return NextResponse.json({ error: 'Transaktion konnte nicht erstellt werden' }, { status: 500 });
+    }
+    
+    return NextResponse.json(result, { status: 201 });
   } catch (e) {
     console.error('Server error POST /api/finanzen:', e);
     return NextResponse.json({ error: 'Serverfehler beim Erstellen der Transaktion.' }, { status: 500 });
