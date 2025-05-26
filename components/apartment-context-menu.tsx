@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 
 interface Apartment {
@@ -48,10 +48,6 @@ export function ApartmentContextMenu({
   const [isDeleting, setIsDeleting] = React.useState(false)
 
   const handleDelete = async () => {
-    console.log('[ApartmentContextMenu] handleDelete entered. Apartment ID:', apartment.id);
-    console.log('[ApartmentContextMenu] Attempting to call TEST TOAST...');
-    toast({ title: "TEST TOAST", description: "Can you see this?", variant: "default" });
-    console.log('[ApartmentContextMenu] TEST TOAST call completed.');
     try {
       setIsDeleting(true);
       const result = await loescheWohnung(apartment.id);
@@ -60,6 +56,7 @@ export function ApartmentContextMenu({
         toast({
           title: "Erfolg",
           description: `Die Wohnung "${apartment.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();

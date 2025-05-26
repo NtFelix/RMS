@@ -13,7 +13,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 interface TaskModalProps {
   isOpen: boolean
@@ -59,6 +59,7 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
       toast({
         title: "Erfolg",
         description: "Die Aufgabe wurde erfolgreich hinzugefügt.",
+        variant: "success",
       })
       
       // Reset form and close modal

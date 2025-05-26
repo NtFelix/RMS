@@ -19,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
 
 export interface House {
@@ -58,6 +58,7 @@ export function HouseContextMenu({
         toast({
           title: "Erfolg",
           description: `Das Haus "${house.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
         });
         setTimeout(() => {
           onRefresh();
