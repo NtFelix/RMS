@@ -3,7 +3,7 @@ name: Build & Performance Check
 # Trigger auf Push in main und Pull-Requests
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "v2.0"]
   pull_request:
 
 jobs:
