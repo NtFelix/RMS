@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, MutableRefObject } from "react"
+import { useState, useEffect, useCallback, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { HouseContextMenu } from "@/components/house-context-menu"
@@ -47,24 +47,45 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   const [isDeleting, setIsDeleting] = useState(false) // State for delete loading
 
   // fetchHouses will be called on mount and can be triggered via reloadRef
-  const fetchHouses = async () => {
-    const res = await fetch("/api/haeuser")
-    if (res.ok) {
-      const data = await res.json()
-      setHouses(data)
+  const fetchHouses = useCallback(async () => {
+    try {
+      const res = await fetch("/api/haeuser")
+      if (res.ok) {
+        const data = await res.json()
+        setHouses(data)
+        return data
+      }
+      return []
+    } catch (error) {
+      console.error('Error fetching houses:', error)
+      return []
     }
-  }
+  }, [])
 
   useEffect(() => {
-    // skip initial fetch when server data provided, but set reloadRef
-    if (initialHouses) {
-      if (reloadRef) reloadRef.current = fetchHouses
-      return
+    // Set up the reloadRef
+    if (reloadRef) {
+      reloadRef.current = fetchHouses
     }
-    // no initial data: fetch on mount
-    fetchHouses()
-    if (reloadRef) reloadRef.current = fetchHouses
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
+    // Only fetch if no initial data was provided
+    if (!initialHouses || initialHouses.length === 0) {
+      fetchHouses()
+    }
+    
+    // Clean up the ref on unmount
+    return () => {
+      if (reloadRef) {
+        reloadRef.current = null
+      }
+    }
+  }, [fetchHouses, initialHouses, reloadRef])
+  
+  // Update local state when initialHouses changes (server-side rendering)
+  useEffect(() => {
+    if (initialHouses && initialHouses.length > 0) {
+      setHouses(initialHouses)
+    }
   }, [initialHouses])
 
   useEffect(() => {
@@ -99,6 +120,35 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   const handleDeleteConfirm = async () => {
     if (!houseToDelete) return
     setIsDeleting(true)
+    
+    try {
+      const response = await fetch(`/api/haeuser/${houseToDelete.id}`, {
+        method: 'DELETE',
+      })
+      
+      if (response.ok) {
+        toast({
+          title: 'Haus gelöscht',
+          description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.`,
+          variant: 'success',
+        })
+        // Refresh the list after successful deletion
+        await fetchHouses()
+      } else {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Löschen fehlgeschlagen')
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: error instanceof Error ? error.message : 'Ein Fehler ist beim Löschen aufgetreten',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsDeleting(false)
+      setShowDeleteConfirm(false)
+      setHouseToDelete(null)
+    }
     try {
       const res = await fetch(`/api/haeuser?id=${houseToDelete.id}`, {
         method: "DELETE",

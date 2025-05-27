@@ -70,7 +70,7 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
 export async function toggleTaskStatusAction(
   taskId: string,
   newStatus: boolean
-): Promise<{ success: boolean; error?: { message: string } }> {
+): Promise<{ success: boolean; task?: any; error?: { message: string } }> {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -95,7 +95,7 @@ export async function toggleTaskStatusAction(
     // Optionally revalidate other paths where tasks might be displayed
     // revalidatePath("/"); 
 
-    return { success: true };
+    return { success: true, task: data };
 
   } catch (e: unknown) { // Changed type to unknown for better type safety with instanceof
     console.error("Unexpected error in toggleTaskStatusAction:", e);
@@ -106,7 +106,7 @@ export async function toggleTaskStatusAction(
   }
 }
 
-export async function deleteTaskAction(taskId: string): Promise<{ success: boolean; error?: { message: string } }> {
+export async function deleteTaskAction(taskId: string): Promise<{ success: boolean; taskId?: string; error?: { message: string } }> {
   try {
     const supabase = await createClient();
     const { error } = await supabase
@@ -122,7 +122,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
 
     revalidatePath('/todos'); // Revalidate the main tasks page
 
-    return { success: true };
+    return { success: true, taskId };
 
   } catch (e: unknown) { // Using unknown for better type safety with instanceof
     console.error("Unexpected error in deleteTaskAction:", e);

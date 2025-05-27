@@ -32,7 +32,7 @@ interface TaskContextMenuProps {
   }
   onEdit: () => void
   onStatusToggle: () => void
-  onRefresh: () => void
+  onTaskDeleted: (taskId: string) => void
 }
 
 export function TaskContextMenu({
@@ -40,7 +40,7 @@ export function TaskContextMenu({
   task,
   onEdit,
   onStatusToggle,
-  onRefresh,
+  onTaskDeleted,
 }: TaskContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   // No isDeleting state here as per revised instructions, assuming button state not directly affected in this component.
@@ -49,15 +49,13 @@ export function TaskContextMenu({
     try {
       // If a visual loading state is needed for the button, isDeleting state management should be re-added.
       const result = await deleteTaskAction(task.id);
-      if (result.success) {
+      if (result.success && result.taskId) {
+        onTaskDeleted(result.taskId);
         toast({
           title: "Erfolg",
           description: "Die Aufgabe wurde erfolgreich gelöscht.",
           variant: "success",
         });
-        setTimeout(() => {
-          onRefresh();
-        }, 100); // Delay of 100 milliseconds
       } else {
         toast({
           title: "Fehler",
