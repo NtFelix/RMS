@@ -1,0 +1,65 @@
+name: Build & Performance Check
+
+# Trigger auf Push in main und Pull-Requests
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  build-and-lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      # 1) Code auschecken
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2) Node.js installieren
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # 3) Abhängigkeiten installieren
+      - name: Install Dependencies
+        run: |
+          if [ -f yarn.lock ]; then
+            yarn install --frozen-lockfile
+          else
+            npm ci
+          fi
+
+      # 4) Next.js Test-Build
+      - name: Build Next.js
+        run: npm run build
+        # oder: yarn build
+
+      # 5) Next.js statisch exportieren
+      - name: Export Static Site
+        run: npm run export
+        # Standardmäßig schreibt `next export` in `out/`
+
+      # 6) Statischen Server starten
+      - name: Serve static files
+        run: |
+          # 'serve' im Hintergrund starten auf Port 5000
+          npx serve out -l 5000 &
+          # Kurze Pause, damit der Server hochfährt
+          sleep 5
+
+      # 7) Lighthouse Performance Audit
+      - name: Run Lighthouse Performance Audit
+        uses: jakejarvis/lighthouse-action@v0.3.2
+        with:
+          url: http://localhost:5000
+          # Optional: Grenzen definieren, z.B. "performance": 90
+          thresholds: '{"performance": 90, "accessibility": 80}'
+          output: html,json
+          # Die Berichte landen automatisch unter ./lighthouse/
+
+      # 8) Artefakte hochladen (Reports)
+      - name: Upload Lighthouse Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: lighthouse-report
+          path: ./lighthouse
