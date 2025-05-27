@@ -1,19 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
-import { TaskCard } from "@/components/task-card"
-// import { TaskEditModal } from "@/components/task-edit-modal"; // Removed
-import { useModalStore } from "@/hooks/use-modal-store"; // Added
-import { toast } from "@/hooks/use-toast";
-import { toggleTaskStatusAction } from "@/app/todos-actions"; // Added
+import { TaskCard, type TaskCardTask } from "@/components/task-card"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { toast } from "@/hooks/use-toast"
+import { toggleTaskStatusAction } from "@/app/todos-actions"
 
-export interface Task {
-  id: string
-  name: string
-  beschreibung: string
-  ist_erledigt: boolean
+export interface Task extends Omit<TaskCardTask, 'status' | 'createdAt' | 'updatedAt'> {
   erstellungsdatum: string
   aenderungsdatum: string
 }
@@ -21,73 +16,136 @@ export interface Task {
 interface TaskBoardProps {
   filter: string
   searchQuery: string
-  refreshTrigger?: number
-  initialTasks?: Task[]
+  tasks: Task[]
+  onTaskUpdated: (task: Task) => void
+  onTaskDeleted: (taskId: string) => void
 }
 
-export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }: TaskBoardProps) {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks ?? [])
-  const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  // const [editModalOpen, setEditModalOpen] = useState(false); // Removed
-  // const [currentTask, setCurrentTask] = useState</* ... */ null>(null); // Removed
-  const [localRefreshTrigger, setLocalRefreshTrigger] = useState(0) // Keep for onRefresh from TaskCard if still needed for other ops
-
-  // External refreshTrigger is still used, localRefreshTrigger might be used by other actions
-  const combinedRefreshTrigger = refreshTrigger !== undefined ? refreshTrigger + localRefreshTrigger : localRefreshTrigger
-
-  useEffect(() => {
-    // Wenn initialTasks per SSR geladen und kein Refresh-Trigger aktiv, überspringe den Fetch
-    // This condition might need re-evaluation if localRefreshTrigger's sole purpose was the edit modal.
-    // For now, assuming combinedRefreshTrigger might still be relevant for other local updates.
-    if (initialTasks && combinedRefreshTrigger === 0 && !localRefreshTrigger) { // Adjusted condition slightly
-      setIsLoading(false)
-      return
+export function TaskBoard({ 
+  filter, 
+  searchQuery, 
+  tasks, 
+  onTaskUpdated, 
+  onTaskDeleted 
+}: TaskBoardProps) {
+  const [isLoading, setIsLoading] = useState(false)
+  const { openAufgabeModal } = useModalStore()
+  
+  // Filter and sort tasks based on current filter and search query
+  const filteredTasks = tasks.filter(task => {
+    const matchesFilter = 
+      filter === 'all' || 
+      (filter === 'done' && task.ist_erledigt) || 
+      (filter === 'pending' && !task.ist_erledigt)
+      
+    const taskDescription = task.beschreibung || ''
+    const searchQueryLower = searchQuery.toLowerCase()
+    const matchesSearch = 
+      task.name.toLowerCase().includes(searchQueryLower) ||
+      taskDescription.toLowerCase().includes(searchQueryLower)
+    
+    return matchesFilter && matchesSearch
+  }).sort((a, b) => {
+    // Sort by completion status (pending first) and then by date (newest first)
+    if (a.ist_erledigt !== b.ist_erledigt) {
+      return a.ist_erledigt ? 1 : -1
     }
-    const fetchTasks = async () => {
-      setIsLoading(true)
-      try {
-        const response = await fetch("/api/todos")
-        if (!response.ok) {
-          throw new Error("Fehler beim Laden der Aufgaben")
-        }
-        const data = await response.json()
-        setTasks(data)
-      } catch (error) {
-        console.error("Error fetching tasks:", error)
-        toast({
-          title: "Fehler",
-          description: "Die Aufgaben konnten nicht geladen werden.",
-          variant: "destructive",
-        })
-      } finally {
-        setIsLoading(false)
+    return new Date(b.aenderungsdatum).getTime() - new Date(a.aenderungsdatum).getTime()
+  })
+
+  // Function to refresh tasks from the server
+  const fetchTasks = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const response = await fetch("/api/todos")
+      if (!response.ok) {
+        throw new Error("Fehler beim Laden der Aufgaben")
       }
+      return await response.json()
+    } catch (error) {
+      console.error("Error fetching tasks:", error)
+      toast({
+        title: "Fehler",
+        description: "Die Aufgaben konnten nicht geladen werden.",
+        variant: "destructive",
+      })
+      return []
+    } finally {
+      setIsLoading(false)
     }
+  }, [])
 
-    fetchTasks()
-  }, [combinedRefreshTrigger, initialTasks])
+  // Handle task deletion
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/todos/${taskId}`, {
+        method: 'DELETE',
+      })
+      
+      if (!response.ok) {
+        throw new Error('Fehler beim Löschen der Aufgabe')
+      }
+      
+      // Notify parent component about the deletion
+      onTaskDeleted(taskId)
+      
+      toast({
+        title: "Erfolg",
+        description: "Aufgabe wurde erfolgreich gelöscht.",
+      })
+    } catch (error) {
+      console.error('Fehler beim Löschen der Aufgabe:', error)
+      toast({
+        title: "Fehler",
+        description: "Aufgabe konnte nicht gelöscht werden.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Toggle task status
+  const toggleTaskStatus = async (taskId: string) => {
+    try {
+      const task = tasks.find(t => t.id === taskId)
+      if (!task) return
+      
+      const result = await toggleTaskStatusAction(taskId, !task.ist_erledigt)
+      if (result.success && result.task) {
+        // Use the updated task data from the server
+        onTaskUpdated(result.task)
+        toast({
+          title: "Status aktualisiert",
+          description: `Aufgabe wurde als ${result.task.ist_erledigt ? 'erledigt' : 'ausstehend'} markiert.`
+        })
+      } else if (result.error) {
+        throw new Error(result.error.message)
+      }
+    } catch (error) {
+      console.error("Fehler beim Aktualisieren des Status:", error)
+      toast({
+        title: "Fehler",
+        description: "Status konnte nicht aktualisiert werden.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleEdit = useCallback((task: TaskCardTask) => {
+    // Convert TaskCardTask to Task by ensuring required fields are present
+    const taskWithDefaults: Task = {
+      ...task,
+      beschreibung: task.beschreibung || task.description || '',
+      erstellungsdatum: task.erstellungsdatum || task.createdAt || new Date().toISOString(),
+      aenderungsdatum: task.aenderungsdatum || task.updatedAt || new Date().toISOString()
+    }
+    openAufgabeModal(taskWithDefaults, (updatedTask: Task) => {
+      onTaskUpdated(updatedTask)
+    })
+  }, [openAufgabeModal, onTaskUpdated])
 
   useEffect(() => {
-    let result = [...tasks]
-
-    // Filter by status
-    if (filter === "open") {
-      result = result.filter((task) => !task.ist_erledigt)
-    } else if (filter === "done") {
-      result = result.filter((task) => task.ist_erledigt)
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(
-        (task) => task.name.toLowerCase().includes(query) || task.beschreibung.toLowerCase().includes(query),
-      )
-    }
-
-    setFilteredTasks(result)
-  }, [filter, searchQuery, tasks])
+    fetchTasks()
+  }, [fetchTasks])
 
   const formatDate = (dateString: string) => {
     try {
@@ -105,52 +163,17 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }:
     }
   }
 
-  // Handle task status toggle
-  const handleToggleStatus = async (id: string, currentStatus: boolean) => {
-    try {
-      const result = await toggleTaskStatusAction(id, !currentStatus);
-
-      if (result.success) {
-        setTasks(prevTasks => 
-          prevTasks.map(task => 
-            task.id === id 
-              ? { ...task, ist_erledigt: !currentStatus, aenderungsdatum: new Date().toISOString() } 
-              : task
-          )
-        );
-        toast({
-          title: "Status aktualisiert",
-          description: `Aufgabe als ${!currentStatus ? "erledigt" : "offen"} markiert.`,
-        });
-      } else {
-        console.error("Error updating task status:", result.error?.message);
-        toast({
-          title: "Fehler",
-          description: result.error?.message || "Der Status konnte nicht aktualisiert werden.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
-      console.error("Unexpected error in handleToggleStatus:", error);
-      toast({
-        title: "Systemfehler",
-        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="w-full">
-      {isLoading ? (
-        <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
-          <p className="text-center text-muted-foreground">Lädt Aufgaben...</p>
+      {isLoading && tasks.length === 0 ? (
+        <div className="flex items-center justify-center p-8">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
       ) : filteredTasks.length === 0 ? (
-        <div className="flex h-40 items-center justify-center rounded-md border border-dashed">
-          <p className="text-center text-muted-foreground">
-            {filter !== "all" || searchQuery
-              ? "Keine passenden Aufgaben gefunden."
+        <div className="flex flex-col items-center justify-center p-8 text-center">
+          <p className="text-muted-foreground">
+            {searchQuery || filter !== "all"
+              ? "Keine Aufgaben gefunden, die den Suchkriterien entsprechen."
               : "Keine Aufgaben vorhanden. Fügen Sie eine neue Aufgabe hinzu."}
           </p>
         </div>
@@ -162,28 +185,22 @@ export function TaskBoard({ filter, searchQuery, refreshTrigger, initialTasks }:
               task={{
                 id: task.id,
                 name: task.name,
-                description: task.beschreibung,
+                description: task.beschreibung || '',
                 status: task.ist_erledigt ? "Erledigt" : "Offen",
                 createdAt: formatDate(task.erstellungsdatum),
                 updatedAt: formatDateTime(task.aenderungsdatum),
-                ist_erledigt: task.ist_erledigt
+                ist_erledigt: task.ist_erledigt,
+                beschreibung: task.beschreibung,
+                erstellungsdatum: task.erstellungsdatum,
+                aenderungsdatum: task.aenderungsdatum
               }}
-              onToggleStatus={() => handleToggleStatus(task.id, task.ist_erledigt)}
-              onEdit={(taskData) => {
-                // Ensure taskData has the right shape for openAufgabeModal
-                // TaskCard passes { id, name, beschreibung, ist_erledigt }
-                // The modal store expects `aufgabeInitialData` which is `AufgabePayload & { id?: string }`
-                // `AufgabePayload` is { name, beschreibung?, ist_erledigt? }
-                // So, the structure { id, name, beschreibung, ist_erledigt } is compatible.
-                useModalStore.getState().openAufgabeModal(taskData);
-              }}
-              onRefresh={() => setLocalRefreshTrigger(prev => prev + 1)} // This can remain if other actions trigger it
+              onToggleStatus={() => toggleTaskStatus(task.id)}
+              onEdit={handleEdit}
+              onTaskDeleted={onTaskDeleted}
             />
           ))}
         </div>
       )}
-
-      {/* TaskEditModal removed, global modal is used via useModalStore */}
     </div>
   )
 }

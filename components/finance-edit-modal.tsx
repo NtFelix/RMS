@@ -47,16 +47,19 @@ interface FinanceEditModalProps {
   initialData?: Finanz;
   initialWohnungen?: Wohnung[];
   serverAction: (id: string | null, payload: Omit<Finanz, "id" | "Wohnungen">) => Promise<{ success: boolean; error?: any; data?: any }>;
+  onSuccess?: (data: any) => void;
   // loading prop can be added if server action is slow
 }
 
-export function FinanceEditModal({
-  open,
-  onOpenChange,
-  initialData,
-  initialWohnungen = [], // Default to empty array
-  serverAction,
-}: FinanceEditModalProps) {
+export function FinanceEditModal(props: FinanceEditModalProps) {
+  const {
+    open,
+    onOpenChange,
+    initialData,
+    initialWohnungen = [],
+    serverAction,
+    onSuccess
+  } = props;
   const router = useRouter();
   const [formData, setFormData] = useState({
     wohnung_id: initialData?.wohnung_id || "",
@@ -131,28 +134,36 @@ export function FinanceEditModal({
       notiz: formData.notiz || null,
     };
 
-    const result = await serverAction(initialData?.id || null, payload);
+    try {
+      const result = await serverAction(initialData?.id || null, payload);
 
-    if (result.success) {
-      toast({
-        title: initialData ? "Finanzeintrag aktualisiert" : "Finanzeintrag erstellt",
-        description: `Der Finanzeintrag "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
-        variant: "success",
-      });
-      setTimeout(() => {
+      if (result.success) {
+        toast({
+          title: initialData ? "Finanzeintrag aktualisiert" : "Finanzeintrag erstellt",
+          description: `Der Finanzeintrag "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+          variant: "success",
+        });
+        
+        // Call the onSuccess callback with the result data
+        if (onSuccess) {
+          const successData = result.data || { ...payload, id: initialData?.id || '' };
+          onSuccess(successData);
+        }
+        
+        // Close the modal
         onOpenChange(false);
-        router.refresh(); // Refresh data on the page
-      }, 500);
-    } else {
+      } else {
+        throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
+      }
+    } catch (error) {
       toast({
         title: "Fehler",
-        description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",
+        description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
-      // Close modal on error, consistent with other modals
-      onOpenChange(false); 
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   return (

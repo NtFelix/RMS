@@ -29,17 +29,58 @@ export function WohnungenClient({
   // const [dialogOpen, setDialogOpen] = useState(false);
   // const [editingId, setEditingId] = useState<string | null>(null);
   // const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" });
-  const reloadRef = useRef<(() => void) | null>(null); // Keep for table reload if needed
-  const [wohnungen, setWohnungen] = useState(initialWohnungen); // Keep for table display
+  const reloadRef = useRef<(() => void) | null>(null);
+  const [apartments, setApartments] = useState(initialWohnungen);
+  
+  // Function to update the apartments list with a new or updated apartment
+  const updateApartmentInList = useCallback((updatedApartment: Apartment) => {
+    setApartments(prevApartments => {
+      // If no previous apartments, just return the new one in an array
+      if (!prevApartments || prevApartments.length === 0) {
+        return [updatedApartment];
+      }
+      
+      // Check if the apartment already exists in the list
+      const exists = prevApartments.some(apt => apt.id === updatedApartment.id);
+      
+      if (exists) {
+        // Update existing apartment
+        return prevApartments.map(apt => 
+          apt.id === updatedApartment.id ? updatedApartment : apt
+        );
+      } else {
+        // Add new apartment to the beginning of the list
+        return [updatedApartment, ...prevApartments];
+      }
+    });
+  }, []);
 
-  // Updated handleEdit to use global modal
-  const handleEdit = useCallback((apt: Apartment) => {
-    useModalStore.getState().openWohnungModal(apt, houses);
-  }, [houses]); // houses is a dependency
+  // Function to refresh the table data
+  const refreshTable = useCallback(async () => {
+    try {
+      const res = await fetch('/api/wohnungen');
+      if (res.ok) {
+        const data = await res.json();
+        setApartments(data);
+        return data;
+      }
+      return [];
+    } catch (error) {
+      console.error('Error fetching wohnungen:', error);
+      return [];
+    }
+  }, []);
+
+  // Function to handle successful form submission
+  const handleSuccess = useCallback((data: Apartment) => {
+    // Update the apartments list with the new/updated apartment
+    updateApartmentInList(data);
+    
+    // Also trigger a full refresh to ensure all data is in sync
+    refreshTable();
+  }, [refreshTable, updateApartmentInList]);
 
   // Event listener for edit-apartment Event
-  // This logic might need re-evaluation if it's still required.
-  // If kept, it should also use the global modal.
   const handleEditFromEvent = useCallback(async (apartmentId: string) => {
     try {
       const { data: apartment } = await createClient()
@@ -52,20 +93,21 @@ export function WohnungenClient({
         console.error('Wohnung nicht gefunden:', apartmentId);
         return;
       }
-      // Use global modal for editing from event
-      useModalStore.getState().openWohnungModal(apartment as Apartment, houses);
+      // Use global modal with success callback
+      useModalStore.getState().openWohnungModal(apartment as Apartment, houses, handleSuccess);
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung:', error);
     }
-  }, [houses]); // houses is a dependency
+  }, [houses, handleSuccess]);
 
-  // Client-side event listeners (keep if handleEditFromEvent is kept)
+  // Client-side event listeners for edit events
   useEffect(() => {
-    const handleEditApartmentListener = (event: Event) => { // Renamed for clarity
+    const handleEditApartmentListener = (event: Event) => {
       const customEvent = event as CustomEvent<{id: string}>;
       const apartmentId = customEvent.detail?.id;
       if (!apartmentId) return;
       
+      // Use the global modal with success callback
       handleEditFromEvent(apartmentId);
     };
     
@@ -74,16 +116,17 @@ export function WohnungenClient({
     return () => {
       window.removeEventListener('edit-apartment', handleEditApartmentListener);
     };
-  }, [handleEditFromEvent]); // handleEditFromEvent is a dependency
-
-  // handleOpenChange is removed (was for local dialog)
-  // handleChange is removed (was for local dialog form)
-  // handleSubmit is removed (was for local dialog form)
+  }, [handleEditFromEvent]);
 
   // Function to trigger adding a new apartment using the global modal
-  const handleAddWohnung = () => {
-    useModalStore.getState().openWohnungModal(undefined, houses);
-  };
+  const handleAddWohnung = useCallback(() => {
+    useModalStore.getState().openWohnungModal(undefined, houses, handleSuccess);
+  }, [houses, handleSuccess]);
+
+  // Function to handle editing an apartment
+  const handleEdit = useCallback((apt: Apartment) => {
+    useModalStore.getState().openWohnungModal(apt, houses, handleSuccess);
+  }, [houses, handleSuccess]);
 
   return (
     <>
@@ -100,9 +143,8 @@ export function WohnungenClient({
       <ApartmentTable 
         filter={filter}
         searchQuery={searchQuery}
-        reloadRef={reloadRef}
+        initialApartments={apartments}
         onEdit={handleEdit}
-        initialApartments={initialWohnungen}
       />
     </>
   );
