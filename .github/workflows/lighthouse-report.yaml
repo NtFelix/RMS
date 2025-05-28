@@ -52,14 +52,12 @@ jobs:
         uses: jakejarvis/lighthouse-action@v0.3.2
         with:
           url: http://localhost:5000
-          # Optional: Grenzen definieren, z.B. "performance": 90
           thresholds: '{"performance": 90, "accessibility": 80}'
           output: html,json
-          # Die Berichte landen automatisch unter ./lighthouse/
 
       # 8) Artefakte hochladen (Reports)
       - name: Upload Lighthouse Reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report
           path: ./lighthouse
