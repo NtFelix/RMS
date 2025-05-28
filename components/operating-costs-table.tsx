@@ -1,49 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Edit } from "lucide-react"
-
-// Beispieldaten für Betriebskosten
-const operatingCostsData = [
-  { id: 1, year: "2025", totalArea: "1375 m²" },
-  { id: 2, year: "2024", totalArea: "2225 m²" },
-  { id: 3, year: "2023", totalArea: "Nicht angegeben" },
-]
+// Button and Edit icon are no longer used directly in this component
+// import { Button } from "@/components/ui/button"
+// import { Edit } from "lucide-react"
+import { 
+  ContextMenu, 
+  ContextMenuTrigger, 
+  ContextMenuContent, 
+  ContextMenuItem 
+} from "@/components/ui/context-menu"
+import { Nebenkosten } from "../lib/data-fetching"; // Corrected path
+import { Edit2, Trash2 } from "lucide-react"; // Import icons
 
 interface OperatingCostsTableProps {
-  filter: string
-  searchQuery: string
+  nebenkosten: Nebenkosten[]; 
+  onEdit?: (item: Nebenkosten) => void; 
+  onDeleteItem: (id: string) => void;
 }
 
-export function OperatingCostsTable({ filter, searchQuery }: OperatingCostsTableProps) {
-  const [filteredData, setFilteredData] = useState(() => {
-    if (filter === "pending") {
-      return operatingCostsData.filter((item) => item.year === "2025")
-    }
-    return operatingCostsData
-  })
-
-  // Filter based on search query and status
-  useEffect(() => {
-    let result = operatingCostsData
-
-    if (filter === "pending") {
-      result = result.filter((item) => item.year === "2025")
-    } else if (filter === "previous") {
-      result = result.filter((item) => item.year !== "2025")
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(
-        (item) => item.year.toLowerCase().includes(query) || item.totalArea.toLowerCase().includes(query),
-      )
-    }
-
-    setFilteredData(result)
-  }, [filter, searchQuery])
+export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: OperatingCostsTableProps) {
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value == null) return "-";
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+  };
 
   return (
     <div className="rounded-md border">
@@ -51,29 +31,64 @@ export function OperatingCostsTable({ filter, searchQuery }: OperatingCostsTable
         <TableHeader>
           <TableRow>
             <TableHead>Jahr</TableHead>
-            <TableHead>Gesamtfläche</TableHead>
-            <TableHead className="text-right">Aktionen</TableHead>
+            <TableHead>Haus</TableHead>
+            <TableHead>Kostenarten</TableHead>
+            <TableHead>Beträge</TableHead>
+            <TableHead>Berechnungsarten</TableHead>
+            <TableHead>Wasserkosten</TableHead>
+            {/* Removed Aktionen TableHead */}
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredData.length === 0 ? (
+          {nebenkosten.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={3} className="h-24 text-center">
+              <TableCell colSpan={6} className="h-24 text-center"> {/* Adjusted colSpan */}
                 Keine Betriebskostenabrechnungen gefunden.
               </TableCell>
             </TableRow>
           ) : (
-            filteredData.map((item) => (
-              <TableRow key={item.id}>
-                <TableCell className="font-medium">{item.year}</TableCell>
-                <TableCell>{item.totalArea}</TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm">
-                    <Edit className="mr-2 h-4 w-4" />
+            nebenkosten.map((item) => (
+              <ContextMenu key={item.id}>
+                <ContextMenuTrigger asChild>
+                  <TableRow 
+                    onClick={() => onEdit?.(item)}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
+                    <TableCell className="font-medium">{item.jahr || '-'}</TableCell>
+                    <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      {item.nebenkostenart && item.nebenkostenart.length > 0
+                        ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.betrag && item.betrag.length > 0
+                        ? item.betrag.map((b: number | null, idx: number) => <div key={idx}>{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.berechnungsart && item.berechnungsart.length > 0
+                        ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx}>{ba || '-'}</div>)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>{formatCurrency(item.wasserkosten)}</TableCell>
+                    {/* Removed Aktionen TableCell */}
+                  </TableRow>
+                </ContextMenuTrigger>
+                <ContextMenuContent className="w-48">
+                  <ContextMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}>
+                    <Edit2 className="mr-2 h-4 w-4" />
                     Bearbeiten
-                  </Button>
-                </TableCell>
-              </TableRow>
+                  </ContextMenuItem>
+                  <ContextMenuItem 
+                    onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Löschen
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))
           )}
         </TableBody>
