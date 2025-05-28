@@ -1,61 +1,87 @@
-// components/operating-costs-table.test.tsx
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { OperatingCostsTable } from './operating-costs-table';
-import { Edit } from 'lucide-react'; // Ensure lucide-react is mockable or handled
-
-// Mock lucide-react if it causes issues in test environment
-jest.mock('lucide-react', () => ({
-    Edit: () => <span>EditIcon</span>,
-}));
-
+// Edit icon is no longer used, ContextMenu components are internal to Shadcn
+// So no need to mock lucide-react for Edit specifically for this component anymore.
 
 describe('OperatingCostsTable', () => {
   const onEditMock = jest.fn();
+  const onDeleteItemMock = jest.fn();
 
   beforeEach(() => {
     onEditMock.mockClear();
+    onDeleteItemMock.mockClear();
   });
 
   const mockNebenkostenSingleItem = [
-    { id: '1', jahr: '2023', Haeuser: { name: 'Haus A' }, nebenkostenart: ['Strom'], betrag: [100], berechnungsart: ['Verbrauch'], wasserrkosten: 50 },
+    { id: 'item1', jahr: '2023', Haeuser: { name: 'Haus A' }, nebenkostenart: ['Strom'], betrag: [100], berechnungsart: ['Verbrauch'], wasserrkosten: 50, haeuser_id: 'h1', user_id: 'u1' },
   ];
 
   const mockNebenkostenMultiItems = [
     { 
-      id: '2', 
+      id: 'item2', 
       jahr: '2024', 
       Haeuser: { name: 'Haus B' }, 
       nebenkostenart: ['Heizung', 'Wasser', 'Müll'], 
       betrag: [150.75, 60.50, 25.00], 
       berechnungsart: ['pro Flaeche', 'pro Mieter', 'pauschal'], 
-      wasserrkosten: 100 
+      wasserrkosten: 100,
+      haeuser_id: 'h2', user_id: 'u1'
     },
      { 
-      id: '3', 
+      id: 'item3', 
       jahr: '2024', 
       Haeuser: { name: 'Haus C' }, 
       nebenkostenart: ['Versicherung'], 
       betrag: [200], 
       berechnungsart: ['pauschal'], 
-      wasserrkosten: null // Test null wasserrkosten
+      wasserrkosten: null, // Test null wasserrkosten
+      haeuser_id: 'h3', user_id: 'u1'
     },
   ];
 
-  it('renders table with single cost item data and edit button', () => {
-    render(<OperatingCostsTable nebenkosten={mockNebenkostenSingleItem} onEdit={onEditMock} />);
+  it('renders table with single cost item data and correct headers', () => {
+    render(<OperatingCostsTable nebenkosten={mockNebenkostenSingleItem} onEdit={onEditMock} onDeleteItem={onDeleteItemMock} />);
     expect(screen.getByText('2023')).toBeInTheDocument();
     expect(screen.getByText('Haus A')).toBeInTheDocument();
     expect(screen.getByText('Strom')).toBeInTheDocument();
-    expect(screen.getByText('100,00 €')).toBeInTheDocument(); // Check formatted currency
+    expect(screen.getByText('100,00 €')).toBeInTheDocument(); 
     expect(screen.getByText('Verbrauch')).toBeInTheDocument();
-    
-    // Test for edit button click
-    fireEvent.click(screen.getByText('Bearbeiten'));
-    expect(onEditMock).toHaveBeenCalledWith(mockNebenkostenSingleItem[0]);
+    expect(screen.queryByText('Aktionen')).not.toBeInTheDocument(); // "Aktionen" column removed
   });
 
+  it('calls onEdit when a row is clicked', () => {
+    render(<OperatingCostsTable nebenkosten={mockNebenkostenSingleItem} onEdit={onEditMock} onDeleteItem={onDeleteItemMock} />);
+    const row = screen.getByText('Haus A').closest('tr');
+    expect(row).not.toBeNull();
+    if (row) {
+      fireEvent.click(row);
+      expect(onEditMock).toHaveBeenCalledWith(mockNebenkostenSingleItem[0]);
+    }
+  });
+  
+  it('handles context menu actions for edit and delete', () => {
+    render(<OperatingCostsTable nebenkosten={mockNebenkostenSingleItem} onEdit={onEditMock} onDeleteItem={onDeleteItemMock} />);
+    const row = screen.getByText('Haus A').closest('tr');
+    expect(row).not.toBeNull();
+
+    if (row) {
+      fireEvent.contextMenu(row);
+      
+      const editMenuItem = screen.getByRole('menuitem', { name: /Bearbeiten/i });
+      fireEvent.click(editMenuItem);
+      expect(onEditMock).toHaveBeenCalledWith(mockNebenkostenSingleItem[0]);
+      
+      // Re-trigger context menu for delete, as it closes after click
+      fireEvent.contextMenu(row); 
+      const deleteMenuItem = screen.getByRole('menuitem', { name: /Löschen/i });
+      fireEvent.click(deleteMenuItem);
+      expect(onDeleteItemMock).toHaveBeenCalledWith('item1');
+    }
+  });
+
+
   it('renders table with multiple cost items displayed on separate lines', () => {
-    render(<OperatingCostsTable nebenkosten={mockNebenkostenMultiItems} onEdit={onEditMock} />);
+    render(<OperatingCostsTable nebenkosten={mockNebenkostenMultiItems} onEdit={onEditMock} onDeleteItem={onDeleteItemMock} />);
     
     // Check data for the first entry with multiple items
     expect(screen.getByText('Haus B')).toBeInTheDocument();
@@ -85,7 +111,9 @@ describe('OperatingCostsTable', () => {
   });
 
   it('renders empty state message when no data is provided', () => {
-    render(<OperatingCostsTable nebenkosten={[]} />);
-    expect(screen.getByText('Keine Betriebskostenabrechnungen gefunden.')).toBeInTheDocument();
+    render(<OperatingCostsTable nebenkosten={[]} onEdit={onEditMock} onDeleteItem={onDeleteItemMock}/>);
+    const cellWithColspan = screen.getByText('Keine Betriebskostenabrechnungen gefunden.');
+    expect(cellWithColspan).toBeInTheDocument();
+    expect(cellWithColspan.getAttribute('colSpan')).toBe('6'); // Verify colSpan is 6
   });
 });
