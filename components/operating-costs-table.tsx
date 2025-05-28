@@ -8,10 +8,11 @@ import {
   ContextMenu, 
   ContextMenuTrigger, 
   ContextMenuContent, 
-  ContextMenuItem 
+  ContextMenuItem,
+  ContextMenuSeparator
 } from "@/components/ui/context-menu"
 import { Nebenkosten } from "../lib/data-fetching"; // Corrected path
-import { Edit2, Trash2 } from "lucide-react"; // Import icons
+import { Edit, Trash2 } from "lucide-react"; // Import icons
 
 interface OperatingCostsTableProps {
   nebenkosten: Nebenkosten[]; 
@@ -75,17 +76,21 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
                     {/* Removed Aktionen TableCell */}
                   </TableRow>
                 </ContextMenuTrigger>
-                <ContextMenuContent className="w-48">
-                  <ContextMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}>
-                    <Edit2 className="mr-2 h-4 w-4" />
-                    Bearbeiten
+                <ContextMenuContent className="w-56">
+                  <ContextMenuItem 
+                    onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span>Bearbeiten</span>
                   </ContextMenuItem>
+                  <ContextMenuSeparator />
                   <ContextMenuItem 
                     onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
-                    className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
+                    className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:text-red-500 dark:focus:text-red-500 dark:focus:bg-red-900/50"
                   >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Löschen
+                    <Trash2 className="h-4 w-4" />
+                    <span>Löschen</span>
                   </ContextMenuItem>
                 </ContextMenuContent>
               </ContextMenu>
