@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { Mieter } from "../lib/data-fetching"; // Added import for Mieter type
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
@@ -66,5 +67,53 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
       return { success: false, error: { message: e.message } };
     }
     return { success: false, error: { message: "An unknown server error occurred" } };
+  }
+}
+
+export async function getMieterByHausIdAction(hausId: string): Promise<{ success: boolean; data?: Mieter[] | null; error?: string | null; }> {
+  if (!hausId) {
+    return { success: false, error: "Haus ID is required.", data: null };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    // Step 1: Fetch Wohnungen associated with the hausId
+    const { data: wohnungenInHaus, error: wohnungenError } = await supabase
+      .from("Wohnungen")
+      .select("id")
+      .eq("haus_id", hausId);
+
+    if (wohnungenError) {
+      console.error(`Error fetching Wohnungen for Haus ${hausId}:`, wohnungenError.message);
+      return { success: false, error: wohnungenError.message, data: null };
+    }
+
+    if (!wohnungenInHaus || wohnungenInHaus.length === 0) {
+      // No Wohnungen in this Haus, so no Mieter. This is a successful query with no results.
+      return { success: true, data: [] };
+    }
+
+    const wohnungIds = wohnungenInHaus.map(w => w.id);
+
+    // Step 2: Fetch Mieter who are in these Wohnungen
+    // Including Wohnungen details as per the original fetchMieter and potential needs
+    const { data: mieterData, error: mieterError } = await supabase
+      .from("Mieter")
+      .select("*, Wohnungen(name, groesse, miete)") 
+      .in("wohnung_id", wohnungIds);
+
+    if (mieterError) {
+      console.error(`Error fetching Mieter for Haus ${hausId} (Wohnung IDs: ${wohnungIds.join(', ')}):`, mieterError.message);
+      return { success: false, error: mieterError.message, data: null };
+    }
+    
+    // If mieterData is null (though no error), it means no tenants found for those wohnung_ids.
+    // This is also a successful query with no results.
+    return { success: true, data: mieterData || [] };
+
+  } catch (e: any) {
+    console.error("Unexpected error in getMieterByHausIdAction:", e.message);
+    return { success: false, error: e.message || "An unexpected error occurred.", data: null };
   }
 }
