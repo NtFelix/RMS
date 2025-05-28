@@ -166,7 +166,7 @@ export function BetriebskostenEditModal({
       berechnungsart: berechnungsartArray,
       wasserkosten: parsedWasserkosten,
       haeuser_id: haeuserId,
-      user_id: userId,
+      // user_id: userId, // This line is removed
     };
 
     let response;
