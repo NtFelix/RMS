@@ -41,6 +41,18 @@ export type Aufgabe = {
   aenderungsdatum: string;
 };
 
+export type Nebenkosten = {
+  id: string;
+  jahr: string;
+  nebenkostenart: string[] | null;
+  betrag: number[] | null;
+  berechnungsart: string[] | null;
+  wasserkosten: number | null;
+  haeuser_id: string;
+  Haeuser?: { name: string } | null;
+  user_id?: string; 
+};
+
 export type Finanzen = {
   id: string;
   wohnung_id: string | null;
@@ -121,6 +133,20 @@ export async function fetchFinanzen() {
   }
   
   return data as Finanzen[];
+}
+
+export async function fetchNebenkosten() {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("Nebenkosten")
+    .select('*, Haeuser(name)');
+    
+  if (error) {
+    console.error("Error fetching Nebenkosten:", error);
+    return [];
+  }
+  
+  return data as Nebenkosten[];
 }
 
 export async function fetchFinanzenByMonth() {
