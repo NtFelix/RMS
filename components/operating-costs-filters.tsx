@@ -3,14 +3,23 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search } from "lucide-react"
+import { Search, Home } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Haus } from "@/lib/data-fetching"
 
 interface OperatingCostsFiltersProps {
   onFilterChange: (filter: string) => void
   onSearchChange: (search: string) => void
+  onHouseChange?: (houseId: string) => void
+  haeuser?: Haus[]
 }
 
-export function OperatingCostsFilters({ onFilterChange, onSearchChange }: OperatingCostsFiltersProps) {
+export function OperatingCostsFilters({ 
+  onFilterChange, 
+  onSearchChange, 
+  onHouseChange,
+  haeuser = [] 
+}: OperatingCostsFiltersProps) {
   const [activeFilter, setActiveFilter] = useState("all")
 
   const handleFilterClick = (filter: string) => {
@@ -44,14 +53,32 @@ export function OperatingCostsFilters({ onFilterChange, onSearchChange }: Operat
             Vorherige Abrechnungen
           </Button>
         </div>
-        <div className="relative w-full sm:w-auto sm:min-w-[300px]">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            type="search"
-            placeholder="Betriebskostenabrechnungen suchen..."
-            className="pl-8"
-            onChange={(e) => onSearchChange(e.target.value)}
-          />
+        <div className="flex flex-col gap-3 sm:flex-row w-full sm:w-auto">
+          <div className="relative w-full sm:w-[200px]">
+            <Select onValueChange={onHouseChange}>
+              <SelectTrigger className="w-full">
+                <Home className="h-4 w-4 mr-2 text-muted-foreground" />
+                <SelectValue placeholder="Haus auswählen" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Alle Häuser</SelectItem>
+                {haeuser.map((haus) => (
+                  <SelectItem key={haus.id} value={haus.id}>
+                    {haus.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="relative w-full sm:w-[300px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Betriebskostenabrechnungen suchen..."
+              className="pl-8"
+              onChange={(e) => onSearchChange(e.target.value)}
+            />
+          </div>
         </div>
       </div>
     </div>

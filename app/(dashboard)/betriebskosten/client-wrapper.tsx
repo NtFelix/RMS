@@ -25,6 +25,7 @@ export default function BetriebskostenClientWrapper({
 }: BetriebskostenClientWrapperProps) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   const [filteredNebenkosten, setFilteredNebenkosten] = useState<Nebenkosten[]>(initialNebenkosten);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingNebenkosten, setEditingNebenkosten] = useState<Nebenkosten | null>(null);
@@ -34,6 +35,13 @@ export default function BetriebskostenClientWrapper({
 
   useEffect(() => {
     let result = initialNebenkosten;
+    
+    // Apply house filter
+    if (selectedHouseId && selectedHouseId !== "all") {
+      result = result.filter(item => item.haeuser_id === selectedHouseId);
+    }
+    
+    // Apply search query
     if (searchQuery) {
       result = result.filter(item =>
         item.jahr?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -41,13 +49,22 @@ export default function BetriebskostenClientWrapper({
         item.nebenkostenart?.join(" ").toLowerCase().includes(searchQuery.toLowerCase()) // Search by cost types
       );
     }
-    // Example filter logic (can be expanded)
+    
+    // Apply other filters
     if (filter === "current_year") {
       const currentYear = new Date().getFullYear().toString();
       result = result.filter(item => item.jahr === currentYear);
+    } else if (filter === "pending") {
+      // Currently no pending filter as abgerechnet is not part of the type
+      // You can add custom filtering logic here if needed
+    } else if (filter === "previous") {
+      // Filter for previous years
+      const currentYear = new Date().getFullYear().toString();
+      result = result.filter(item => item.jahr !== currentYear);
     }
+    
     setFilteredNebenkosten(result);
-  }, [searchQuery, filter, initialNebenkosten]);
+  }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
 
   const handleOpenCreateModal = () => {
     setEditingNebenkosten(null);
@@ -110,7 +127,9 @@ export default function BetriebskostenClientWrapper({
         <CardContent className="flex flex-col gap-6">
           <OperatingCostsFilters 
             onFilterChange={setFilter} 
-            onSearchChange={setSearchQuery} 
+            onSearchChange={setSearchQuery}
+            onHouseChange={setSelectedHouseId}
+            haeuser={initialHaeuser}
           />
           <OperatingCostsTable 
             nebenkosten={filteredNebenkosten} 
