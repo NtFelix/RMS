@@ -14,6 +14,14 @@ export type NebenkostenFormData = {
   haeuser_id: string;
 };
 
+export interface RechnungData {
+  nebenkosten_id: string;
+  mieter_id: string;
+  betrag: number;
+  name: string;
+  // user_id will be added by the action itself
+}
+
 // Implement createNebenkosten function
 export async function createNebenkosten(formData: NebenkostenFormData) {
   const supabase = await createClient();
@@ -93,4 +101,39 @@ export async function deleteNebenkosten(id: string) {
 
   revalidatePath("/dashboard/betriebskosten");
   return { success: true };
+}
+
+export async function createRechnungenBatch(rechnungen: RechnungData[]) {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error("User not authenticated for createRechnungenBatch");
+    return { success: false, message: "User not authenticated", data: null };
+  }
+
+  const dataWithUserId = rechnungen.map(rechnung => ({
+    ...rechnung,
+    user_id: user.id,
+  }));
+
+  const { data, error } = await supabase
+    .from("Rechnungen")
+    .insert(dataWithUserId)
+    .select(); // .select() returns the inserted rows
+
+  if (error) {
+    console.error("Error creating Rechnungen batch:", error);
+    return { success: false, message: error.message, data: null };
+  }
+
+  // Consider revalidating paths where Rechnungen might be displayed directly
+  // e.g., revalidatePath("/dashboard/some-path-displaying-rechnungen");
+  // For now, revalidating the main betriebskosten path as a general measure,
+  // though direct display of individual Rechnungen might be on a different page.
+  revalidatePath("/dashboard/betriebskosten"); 
+  // Or more specific if a detailed view exists: revalidatePath(`/dashboard/betriebskosten/${rechnungen[0]?.nebenkosten_id}`);
+
+
+  return { success: true, data };
 }
