@@ -24,6 +24,7 @@ import { Nebenkosten, Haus } from "../lib/data-fetching";
 import { createNebenkosten, updateNebenkosten } from "../app/betriebskosten-actions";
 import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
+import { PlusCircle, Trash2 } from "lucide-react";
 
 interface CostItem {
   id: string; // For React key, temporary client-side ID
@@ -194,7 +195,7 @@ export function BetriebskostenEditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="max-w-3xl">
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <DialogHeader>
             <DialogTitle>
@@ -205,87 +206,104 @@ export function BetriebskostenEditModal({
             </DialogDescription>
           </DialogHeader>
           
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="jahr" className="text-right">Jahr</Label>
-              <Input id="jahr" value={jahr} onChange={(e) => setJahr(e.target.value)} className="col-span-3" placeholder="z.B. 2023" />
+          <div className="space-y-4"> {/* Removed py-4, relying on DialogContent padding and space-y for inter-element spacing */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="formJahr">Jahr *</Label>
+                <Input 
+                  id="formJahr" 
+                  value={jahr} 
+                  onChange={(e) => setJahr(e.target.value)} 
+                  placeholder="z.B. 2023" 
+                  required 
+                />
+              </div>
+              <div>
+                <Label htmlFor="formHausId">Haus *</Label>
+                <Select value={haeuserId} onValueChange={setHaeuserId} required>
+                  <SelectTrigger id="formHausId">
+                    <SelectValue placeholder="Haus auswählen..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {haeuser.map((haus) => (
+                      <SelectItem key={haus.id} value={haus.id}>
+                        {haus.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="haus" className="text-right">Haus</Label>
-              <Select value={haeuserId} onValueChange={setHaeuserId}>
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Wählen Sie ein Haus" />
-                </SelectTrigger>
-                <SelectContent>
-                  {haeuser.map((haus) => (
-                    <SelectItem key={haus.id} value={haus.id}>
-                      {haus.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div> {/* Removed mb-4 as parent has space-y-4 */}
+              <Label htmlFor="formWasserkosten">Wasserkosten (€)</Label>
+              <Input
+                id="formWasserkosten"
+                type="number"
+                value={wasserkosten}
+                onChange={(e) => setWasserkosten(e.target.value)}
+                placeholder="z.B. 500.00"
+                step="0.01"
+              />
             </div>
 
-            <div className="col-span-4 space-y-4">
-              <Label>Kostenpositionen</Label>
-              {costItems.map((item, index) => (
-                <div key={item.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-2 p-3 border rounded-md">
-                  <div className="flex-1 w-full sm:w-auto">
-                    <Label htmlFor={`costArt-${item.id}`} className="sr-only">Art der Kosten</Label>
-                    <Input
-                      id={`costArt-${item.id}`}
-                      placeholder="Art der Kosten"
-                      value={item.art}
-                      onChange={(e) => handleCostItemChange(index, 'art', e.target.value)}
-                    />
+            {/* Kostenpositionen Section - Visually Grouped */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
+              <div className="rounded-md border p-4 space-y-0 shadow-sm"> {/* Changed space-y-4 to space-y-0 as items have their own padding now */}
+                {costItems.map((item, index) => (
+                  <div key={item.id} className="flex flex-col sm:flex-row items-start gap-3 py-2 border-b last:border-b-0">
+                    <div className="w-full sm:flex-[4_1_0%]">
+                      <Input 
+                        id={`art-${item.id}`} // Simplified ID
+                        placeholder="Kostenart" 
+                        value={item.art} 
+                        onChange={(e) => handleCostItemChange(index, 'art', e.target.value)} 
+                      />
+                    </div>
+                    <div className="w-full sm:flex-[3_1_0%]">
+                      <Input 
+                        id={`betrag-${item.id}`} // Simplified ID
+                        type="number" 
+                        placeholder="Betrag (€)" 
+                        value={item.betrag} 
+                        onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
+                        step="0.01" 
+                      />
+                    </div>
+                    <div className="w-full sm:flex-[4_1_0%]">
+                      <Select 
+                        value={item.berechnungsart} 
+                        onValueChange={(value) => handleCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
+                      >
+                        <SelectTrigger id={`berechnungsart-${item.id}`}> {/* Simplified ID */}
+                          <SelectValue placeholder="Berechnungsart..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {BERECHNUNGSART_OPTIONS.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeCostItem(index)} 
+                        disabled={costItems.length <= 1}
+                        aria-label="Kostenposition entfernen"
+                      >
+                        <Trash2 className="h-5 w-5 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex-1 w-full sm:w-auto">
-                    <Label htmlFor={`costBetrag-${item.id}`} className="sr-only">Betrag</Label>
-                    <Input
-                      id={`costBetrag-${item.id}`}
-                      type="number"
-                      placeholder="Betrag (€)"
-                      value={item.betrag}
-                      onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
-                    />
-                  </div>
-                  <div className="flex-1 w-full sm:w-auto">
-                     <Label htmlFor={`costBerechnung-${item.id}`} className="sr-only">Berechnungsart</Label>
-                    <Select
-                      value={item.berechnungsart}
-                      onValueChange={(value) => handleCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
-                    >
-                      <SelectTrigger id={`costBerechnung-${item.id}`}>
-                        <SelectValue placeholder="Berechnungsart" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {BERECHNUNGSART_OPTIONS.map(opt => (
-                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeCostItem(index)}
-                    disabled={costItems.length <= 1}
-                    className="mt-2 sm:mt-0"
-                  >
-                    Entfernen
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" onClick={addCostItem} variant="outline" className="mt-2 w-full sm:w-auto">
-                Kostenposition hinzufügen
-              </Button>
-            </div>
-            
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="wasserkosten" className="text-right">Wasserkosten</Label>
-              <Input id="wasserkosten" type="number" value={wasserkosten} onChange={(e) => setWasserkosten(e.target.value)} className="col-span-3" placeholder="z.B. 300.75"/>
+                ))}
+                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Kostenposition hinzufügen
+                </Button>
+              </div>
             </div>
           </div>
 
