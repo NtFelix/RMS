@@ -141,13 +141,15 @@ export function BetriebskostenEditModal({
     
     setCostItems(prevCostItems => [...prevCostItems, newCostItem]);
 
-    // Part 3.7: Initialize rechnungen if new item is 'nach Rechnung' by default
-    if (newBerechnungsart === 'nach Rechnung') {
-      setRechnungen(prevRechnungen => ({
-        ...prevRechnungen,
-        [newId]: selectedHausMieter.map(m => ({ mieterId: m.id, betrag: '' })),
-      }));
-    }
+    // The following block was removed as per instruction,
+    // as the main useEffect hook [haeuserId, isOpen, toast, costItems]
+    // is responsible for synchronizing the rechnungen state when costItems change.
+    // if (newBerechnungsart === 'nach Rechnung') {
+    //   setRechnungen(prevRechnungen => ({
+    //     ...prevRechnungen,
+    //     [newId]: selectedHausMieter.map(m => ({ mieterId: m.id, betrag: '' })),
+    //   }));
+    // }
   };
 
   const removeCostItem = (index: number) => {
