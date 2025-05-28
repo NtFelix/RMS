@@ -55,17 +55,17 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
                   <TableCell className="font-medium">{item.jahr || '-'}</TableCell>
                   <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
                   <TableCell>
-                    {item.nebenkostenart?.length > 0
+                    {item.nebenkostenart && item.nebenkostenart.length > 0
                       ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)
                       : '-'}
                   </TableCell>
                   <TableCell>
-                    {item.betrag?.length > 0
+                    {item.betrag && item.betrag.length > 0
                       ? item.betrag.map((b: number | null, idx: number) => <div key={idx}>{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
                       : '-'}
                   </TableCell>
                   <TableCell>
-                    {item.berechnungsart?.length > 0
+                    {item.berechnungsart && item.berechnungsart.length > 0
                       ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx}>{ba || '-'}</div>)
                       : '-'}
                   </TableCell>
