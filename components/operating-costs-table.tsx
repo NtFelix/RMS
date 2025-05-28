@@ -10,7 +10,7 @@ import {
   ContextMenuContent, 
   ContextMenuItem 
 } from "@/components/ui/context-menu"
-import { Nebenkosten } from "../../lib/data-fetching"; // Corrected path
+import { Nebenkosten } from "../lib/data-fetching"; // Corrected path
 
 interface OperatingCostsTableProps {
   nebenkosten: Nebenkosten[]; 
