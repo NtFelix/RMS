@@ -44,9 +44,21 @@ export function OperatingCostsTable({ nebenkosten, onEdit }: OperatingCostsTable
               <TableRow key={item.id}>
                 <TableCell className="font-medium">{item.jahr || '-'}</TableCell>
                 <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
-                <TableCell>{item.nebenkostenart?.join(', ') || '-'}</TableCell>
-                <TableCell>{item.betrag?.map((b: number) => b.toFixed(2)).join(', €') || '-'}</TableCell>
-                <TableCell>{item.berechnungsart?.join(', ') || '-'}</TableCell>
+                <TableCell>
+                  {item.nebenkostenart?.length > 0
+                    ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)
+                    : '-'}
+                </TableCell>
+                <TableCell>
+                  {item.betrag?.length > 0
+                    ? item.betrag.map((b: number | null, idx: number) => <div key={idx}>{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
+                    : '-'}
+                </TableCell>
+                <TableCell>
+                  {item.berechnungsart?.length > 0
+                    ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx}>{ba || '-'}</div>)
+                    : '-'}
+                </TableCell>
                 <TableCell>{formatCurrency(item.wasserkosten)}</TableCell>
                 <TableCell className="text-right">
                   {onEdit && (
