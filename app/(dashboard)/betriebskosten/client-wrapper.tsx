@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
-import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Path adjusted
-import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Nebenkosten type imported
+import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal";
+import { Nebenkosten, Haus } from "../../../lib/data-fetching";
+import { deleteNebenkosten } from "../../../app/betriebskosten-actions"; // Adjusted path
+import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog"; // Adjusted path
+import { useToast } from "@/hooks/use-toast"; // Adjusted path
 
 interface BetriebskostenClientWrapperProps {
   initialNebenkosten: Nebenkosten[]; // Using Nebenkosten type
@@ -25,6 +28,9 @@ export default function BetriebskostenClientWrapper({
   const [filteredNebenkosten, setFilteredNebenkosten] = useState<Nebenkosten[]>(initialNebenkosten);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingNebenkosten, setEditingNebenkosten] = useState<Nebenkosten | null>(null);
+  const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
+  const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     let result = initialNebenkosten;
@@ -58,6 +64,36 @@ export default function BetriebskostenClientWrapper({
     setEditingNebenkosten(null);
   };
 
+  const openDeleteAlert = (itemId: string) => {
+    setSelectedItemIdForDelete(itemId);
+    setIsDeleteAlertOpen(true);
+  };
+
+  const handleDialogOnOpenChange = (open: boolean) => {
+      setIsDeleteAlertOpen(open);
+      if (!open) {
+          setSelectedItemIdForDelete(null); // Clear selection when dialog closes
+      }
+  };
+
+  const executeDelete = async () => {
+    if (!selectedItemIdForDelete) return;
+
+    const result = await deleteNebenkosten(selectedItemIdForDelete);
+    if (result.success) {
+      toast({ title: "Erfolg", description: "Nebenkosten-Eintrag erfolgreich gelöscht." });
+      // Data revalidation happens via revalidatePath in server action
+    } else {
+      toast({
+        title: "Fehler",
+        description: result.message || "Eintrag konnte nicht gelöscht werden.",
+        variant: "destructive",
+      });
+    }
+    // setIsDeleteAlertOpen(false); // Dialog will close itself via its onConfirm -> onOpenChange(false)
+    // setSelectedItemIdForDelete(null); // Already handled by handleDialogOnOpenChange
+  };
+
   return (
     <>
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
@@ -79,6 +115,7 @@ export default function BetriebskostenClientWrapper({
           <OperatingCostsTable 
             nebenkosten={filteredNebenkosten} 
             onEdit={handleOpenEditModal} 
+            onDeleteItem={openDeleteAlert}
           />
         </CardContent>
       </Card>
@@ -92,6 +129,17 @@ export default function BetriebskostenClientWrapper({
           userId={userId}
         />
       )}
+
+      <ConfirmationAlertDialog
+        isOpen={isDeleteAlertOpen}
+        onOpenChange={handleDialogOnOpenChange}
+        onConfirm={executeDelete}
+        title="Löschen Bestätigen"
+        description="Sind Sie sicher, dass Sie diesen Nebenkosten-Eintrag löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmButtonText="Löschen"
+        cancelButtonText="Abbrechen"
+        confirmButtonVariant="destructive"
+      />
     </>
   );
 }
