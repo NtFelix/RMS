@@ -12,7 +12,6 @@ export type NebenkostenFormData = {
   berechnungsart: string[];
   wasserkosten?: number | null;
   haeuser_id: string;
-  user_id?: string; // Assuming user_id is set by the client/form
 };
 
 // Implement createNebenkosten function
@@ -21,9 +20,16 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 
   // Ensure array fields are correctly formatted if Supabase expects them as such
   // Supabase client typically handles JS arrays correctly for postgres array types (text[], numeric[])
+  // user_id will now be fetched from the session within this server action
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error("User not authenticated for createNebenkosten");
+    return { success: false, message: "User not authenticated", data: null };
+  }
+
   const preparedData = {
     ...formData,
-    // user_id will be taken from formData; ensure it's populated correctly by the caller
+    user_id: user.id, 
   };
 
   const { data, error } = await supabase
@@ -45,9 +51,19 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
 export async function updateNebenkosten(id: string, formData: Partial<NebenkostenFormData>) {
   const supabase = await createClient();
 
+  // For updates, we might not change user_id, but if we were to allow it or set it based on who's updating:
+  // const { data: { user } } = await supabase.auth.getUser();
+  // if (!user) {
+  //   console.error("User not authenticated for updateNebenkosten");
+  //   return { success: false, message: "User not authenticated", data: null };
+  // }
+  // // Add user_id to formData if it's part of the update logic, e.g., formData.user_id = user.id;
+  // // However, typically, one wouldn't change the user_id of an existing record.
+  // // The provided formData will not have user_id, so this is more of a note.
+
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .update(formData)
+    .update(formData) // formData here is Partial<NebenkostenFormData>, so no user_id from client
     .eq("id", id)
     .select()
     .single(); // Assuming we want the single updated record back

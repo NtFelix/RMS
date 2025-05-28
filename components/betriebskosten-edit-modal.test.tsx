@@ -167,7 +167,7 @@ describe('BetriebskostenEditModal', () => {
         berechnungsart: ['pro Flaeche'],
         wasserkosten: null,
         haeuser_id: 'h1', 
-        user_id: mockUserId,
+        // user_id: mockUserId, // Removed
       });
       expect(mockOnClose).toHaveBeenCalled();
     });
@@ -206,7 +206,7 @@ describe('BetriebskostenEditModal', () => {
         berechnungsart: ['pro Mieter'],
         wasserkosten: 20,
         haeuser_id: 'h1',
-        user_id: mockUserId,
+        // user_id: mockUserId, // Removed
       });
       expect(mockOnClose).toHaveBeenCalled();
     });
