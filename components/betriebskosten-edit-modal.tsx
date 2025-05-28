@@ -508,7 +508,6 @@ export function BetriebskostenEditModal({
                             value={item.betrag} 
                             onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
                             step="0.01"
-                            disabled={item.berechnungsart === 'nach Rechnung'}
                           />
                         )}
                       </div>
