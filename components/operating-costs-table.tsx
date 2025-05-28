@@ -47,31 +47,33 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
             </TableRow>
           ) : (
             nebenkosten.map((item) => (
-              <ContextMenuTrigger key={item.id}>
-                <TableRow 
-                  onClick={() => onEdit?.(item)}
-                  className="cursor-pointer hover:bg-muted/50"
-                >
-                  <TableCell className="font-medium">{item.jahr || '-'}</TableCell>
-                  <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
-                  <TableCell>
-                    {item.nebenkostenart && item.nebenkostenart.length > 0
-                      ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {item.betrag && item.betrag.length > 0
-                      ? item.betrag.map((b: number | null, idx: number) => <div key={idx}>{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
-                      : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {item.berechnungsart && item.berechnungsart.length > 0
-                      ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx}>{ba || '-'}</div>)
-                      : '-'}
-                  </TableCell>
-                  <TableCell>{formatCurrency(item.wasserkosten)}</TableCell>
-                  {/* Removed Aktionen TableCell */}
-                </TableRow>
+              <ContextMenu key={item.id}>
+                <ContextMenuTrigger asChild>
+                  <TableRow 
+                    onClick={() => onEdit?.(item)}
+                    className="cursor-pointer hover:bg-muted/50"
+                  >
+                    <TableCell className="font-medium">{item.jahr || '-'}</TableCell>
+                    <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
+                    <TableCell>
+                      {item.nebenkostenart && item.nebenkostenart.length > 0
+                        ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.betrag && item.betrag.length > 0
+                        ? item.betrag.map((b: number | null, idx: number) => <div key={idx}>{typeof b === 'number' ? formatCurrency(b) : '-'}</div>)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>
+                      {item.berechnungsart && item.berechnungsart.length > 0
+                        ? item.berechnungsart.map((ba: string, idx: number) => <div key={idx}>{ba || '-'}</div>)
+                        : '-'}
+                    </TableCell>
+                    <TableCell>{formatCurrency(item.wasserkosten)}</TableCell>
+                    {/* Removed Aktionen TableCell */}
+                  </TableRow>
+                </ContextMenuTrigger>
                 <ContextMenuContent className="w-48">
                   <ContextMenuItem onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}>
                     Bearbeiten
@@ -83,7 +85,7 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
                     Löschen
                   </ContextMenuItem>
                 </ContextMenuContent>
-              </ContextMenuTrigger>
+              </ContextMenu>
             ))
           )}
         </TableBody>
