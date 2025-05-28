@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
-import BetriebskostenEditModal from "@/components/betriebskosten-edit-modal"; // Path adjusted
+import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Path adjusted
 import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Nebenkosten type imported
 
 interface BetriebskostenClientWrapperProps {
