@@ -20,8 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Nebenkosten, Haus, Mieter, fetchMieterByHausId } from "../lib/data-fetching";
-import { createNebenkosten, updateNebenkosten, createRechnungenBatch, RechnungData } from "../app/betriebskosten-actions";
+import { Nebenkosten, Haus, Mieter } from "../lib/data-fetching"; // Removed fetchMieterByHausId
+import { 
+  createNebenkosten, 
+  updateNebenkosten, 
+  createRechnungenBatch, 
+  RechnungData 
+} from "../app/betriebskosten-actions";
+import { getMieterByHausIdAction } from "../app/mieter-actions"; // Added import for server action
 import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
@@ -233,18 +239,30 @@ export function BetriebskostenEditModal({
       const fetchTenantsAndUpdateRechnungen = async () => {
         setIsFetchingTenants(true);
         try {
-          const tenants = await fetchMieterByHausId(haeuserId);
-          setSelectedHausMieter(tenants);
-          syncRechnungenState(tenants, costItems);
-        } catch (error) {
-          console.error("Error fetching tenants:", error);
+          const actionResponse = await getMieterByHausIdAction(haeuserId);
+          if (actionResponse.success && actionResponse.data) {
+            setSelectedHausMieter(actionResponse.data);
+            syncRechnungenState(actionResponse.data, costItems);
+          } else {
+            // Handle cases where actionResponse.data might be null even on success, or !actionResponse.success
+            const errorMessage = actionResponse.error || "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.";
+            toast({
+              title: "Fehler beim Laden der Mieter",
+              description: errorMessage,
+              variant: "destructive",
+            });
+            setSelectedHausMieter([]);
+            syncRechnungenState([], costItems); // Pass empty tenants array
+          }
+        } catch (error: any) { // Catching unexpected errors during the action call itself
+          console.error("Error calling getMieterByHausIdAction:", error);
           toast({
-            title: "Fehler beim Laden der Mieter",
-            description: "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.",
+            title: "Systemfehler",
+            description: "Ein unerwarteter Fehler ist beim Laden der Mieter aufgetreten.",
             variant: "destructive",
           });
           setSelectedHausMieter([]);
-          syncRechnungenState([], costItems); // Pass empty tenants array
+          syncRechnungenState([], costItems);
         } finally {
           setIsFetchingTenants(false);
         }

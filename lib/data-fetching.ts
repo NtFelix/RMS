@@ -149,40 +149,6 @@ export async function fetchNebenkosten() {
   return data as Nebenkosten[];
 }
 
-export async function fetchMieterByHausId(hausId: string) {
-  const supabase = createSupabaseServerClient();
-
-  // First, get all wohnung_ids for the given hausId
-  const { data: wohnungenInHaus, error: wohnungenError } = await supabase
-    .from("Wohnungen")
-    .select("id")
-    .eq("haus_id", hausId);
-
-  if (wohnungenError) {
-    console.error(`Error fetching Wohnungen for Haus ${hausId}:`, wohnungenError);
-    return [];
-  }
-
-  if (!wohnungenInHaus || wohnungenInHaus.length === 0) {
-    return []; // No Wohnungen in this Haus, so no Mieter
-  }
-
-  const wohnungIds = wohnungenInHaus.map(w => w.id);
-
-  // Then, fetch Mieter who are in these Wohnungen
-  const { data, error } = await supabase
-    .from("Mieter")
-    .select('*, Wohnungen(name, groesse, miete)') // Keep the existing select for consistency
-    .in("wohnung_id", wohnungIds);
-
-  if (error) {
-    console.error(`Error fetching Mieter for Haus ${hausId}:`, error);
-    return [];
-  }
-
-  return data as Mieter[];
-}
-
 export async function fetchFinanzenByMonth() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
