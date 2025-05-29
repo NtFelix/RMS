@@ -217,43 +217,17 @@ export function BetriebskostenEditModal({
 
 
   // Part 1.2 & 3.7 (combined): Effect to fetch tenants AND initialize/clear/update rechnungen based on tenants and costItems
+  // This is now split into two effects as per optimization task.
+
+  // New useEffect for Tenant Fetching
   useEffect(() => {
-    const syncRechnungenState = (
-      currentTenants: Mieter[], 
-      currentCostItems: CostItem[],
-      dbRechnungen?: Nebenkosten['Rechnungen'] | null // Added dbRechnungen parameter
-    ) => {
-      setRechnungen(prevRechnungen => {
-        const newRechnungenState: Record<string, RechnungEinzel[]> = {};
-        currentCostItems.forEach(costItem => {
-          if (costItem.berechnungsart === 'nach Rechnung') {
-            newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-              // Try to find a pre-existing betrag from dbRechnungen if available (editing mode)
-              const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id);
-              
-              // If not found in dbRechnungen, try to preserve from previous state (e.g. user input before tenants reloaded)
-              const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
-
-              return {
-                mieterId: tenant.id,
-                betrag: dbRechnungForTenant ? dbRechnungForTenant.betrag.toString() : (existingEntryInState?.betrag || ''),
-              };
-            });
-          }
-        });
-        return newRechnungenState;
-      });
-    };
-
     if (isOpen && haeuserId) {
-      const fetchTenantsAndUpdateRechnungen = async () => {
+      const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
           const actionResponse = await getMieterByHausIdAction(haeuserId);
           if (actionResponse.success && actionResponse.data) {
             setSelectedHausMieter(actionResponse.data);
-            // Pass nebenkostenToEdit?.Rechnungen to pre-populate from DB when editing
-            syncRechnungenState(actionResponse.data, costItems, nebenkostenToEdit?.Rechnungen);
           } else {
             const errorMessage = actionResponse.error || "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.";
             toast({
@@ -262,7 +236,6 @@ export function BetriebskostenEditModal({
               variant: "destructive",
             });
             setSelectedHausMieter([]);
-            syncRechnungenState([], costItems, nebenkostenToEdit?.Rechnungen); 
           }
         } catch (error: any) { 
           console.error("Error calling getMieterByHausIdAction:", error);
@@ -272,22 +245,52 @@ export function BetriebskostenEditModal({
             variant: "destructive",
           });
           setSelectedHausMieter([]);
-          syncRechnungenState([], costItems, nebenkostenToEdit?.Rechnungen);
         } finally {
           setIsFetchingTenants(false);
         }
       };
-      fetchTenantsAndUpdateRechnungen();
+      fetchTenants();
     } else if (!isOpen || !haeuserId) {
       setSelectedHausMieter([]);
-      // When modal closes or no house is selected, clear rechnungen based on current (likely empty) tenants
-      // and ensure no dbRechnungen are accidentally used.
-      syncRechnungenState([], costItems, null); 
       setIsFetchingTenants(false); 
     }
-  // IMPORTANT: This effect now depends on costItems and nebenkostenToEdit to correctly
-  // pre-populate and synchronize rechnungen state.
-  }, [haeuserId, isOpen, toast, costItems, nebenkostenToEdit]);
+  }, [haeuserId, isOpen, toast]);
+
+
+  // Modified useEffect for Rechnungen Synchronization
+  const syncRechnungenState = (
+    currentTenants: Mieter[], 
+    currentCostItems: CostItem[],
+    dbRechnungen?: Nebenkosten['Rechnungen'] | null
+  ) => {
+    setRechnungen(prevRechnungen => {
+      const newRechnungenState: Record<string, RechnungEinzel[]> = {};
+      currentCostItems.forEach(costItem => {
+        if (costItem.berechnungsart === 'nach Rechnung') {
+          newRechnungenState[costItem.id] = currentTenants.map(tenant => {
+            const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id);
+            const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
+            return {
+              mieterId: tenant.id,
+              betrag: dbRechnungForTenant ? dbRechnungForTenant.betrag.toString() : (existingEntryInState?.betrag || ''),
+            };
+          });
+        }
+      });
+      return newRechnungenState;
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      // This effect now reacts to changes in selectedHausMieter (from tenant fetching effect),
+      // costItems (from user interaction or initial load), and nebenkostenToEdit (for dbRechnungen).
+      syncRechnungenState(selectedHausMieter, costItems, nebenkostenToEdit?.Rechnungen);
+    } else {
+      // Clear rechnungen when modal is not open
+      setRechnungen({}); 
+    }
+  }, [selectedHausMieter, costItems, nebenkostenToEdit, isOpen]); // Removed toast as syncRechnungenState does not use it.
 
   const handleSubmit = async () => {
     setIsSaving(true);
