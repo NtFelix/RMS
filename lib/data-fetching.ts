@@ -51,6 +51,17 @@ export type Nebenkosten = {
   haeuser_id: string;
   Haeuser?: { name: string } | null;
   user_id?: string; 
+  Rechnungen?: RechnungSql[] | null; // Added for related Rechnungen
+};
+
+export type RechnungSql = {
+  id: string;
+  nebenkosten_id: string;
+  mieter_id: string;
+  betrag: number;
+  name: string;
+  user_id: string;
+  // Add other fields from your Rechnungen table schema if needed
 };
 
 export type Finanzen = {
@@ -139,10 +150,10 @@ export async function fetchNebenkosten() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .select('*, Haeuser(name)');
+    .select('*, Haeuser(name), Rechnungen(*)'); // Updated select
     
   if (error) {
-    console.error("Error fetching Nebenkosten:", error);
+    console.error("Error fetching Nebenkosten (with Rechnungen):", error);
     return [];
   }
   
