@@ -474,7 +474,8 @@ export function BetriebskostenEditModal({
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4"> {/* Removed py-4, relying on DialogContent padding and space-y for inter-element spacing */}
+          {/* Added overflow-y-auto, max-h, and some padding (pr-2) for scrollability */}
+          <div className="space-y-4 overflow-y-auto max-h-[70vh] pr-2 py-1"> 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="formJahr">Jahr *</Label>
