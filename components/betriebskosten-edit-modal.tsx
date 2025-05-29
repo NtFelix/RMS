@@ -25,9 +25,10 @@ import {
   createNebenkosten, 
   updateNebenkosten, 
   createRechnungenBatch, 
-  RechnungData 
+  RechnungData,
+  deleteRechnungenByNebenkostenId
 } from "../app/betriebskosten-actions";
-import { getMieterByHausIdAction } from "../app/mieter-actions"; // Added import for server action
+import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
@@ -217,18 +218,25 @@ export function BetriebskostenEditModal({
 
   // Part 1.2 & 3.7 (combined): Effect to fetch tenants AND initialize/clear/update rechnungen based on tenants and costItems
   useEffect(() => {
-    const syncRechnungenState = (currentTenants: Mieter[], currentCostItems: CostItem[]) => {
+    const syncRechnungenState = (
+      currentTenants: Mieter[], 
+      currentCostItems: CostItem[],
+      dbRechnungen?: Nebenkosten['Rechnungen'] | null // Added dbRechnungen parameter
+    ) => {
       setRechnungen(prevRechnungen => {
         const newRechnungenState: Record<string, RechnungEinzel[]> = {};
         currentCostItems.forEach(costItem => {
           if (costItem.berechnungsart === 'nach Rechnung') {
-            // Try to preserve existing betrag if mieter still exists for this cost item
-            const existingEntriesForCostItem = prevRechnungen[costItem.id] || [];
             newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-              const existingEntry = existingEntriesForCostItem.find(r => r.mieterId === tenant.id);
+              // Try to find a pre-existing betrag from dbRechnungen if available (editing mode)
+              const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id);
+              
+              // If not found in dbRechnungen, try to preserve from previous state (e.g. user input before tenants reloaded)
+              const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
+
               return {
                 mieterId: tenant.id,
-                betrag: existingEntry?.betrag || '',
+                betrag: dbRechnungForTenant ? dbRechnungForTenant.betrag.toString() : (existingEntryInState?.betrag || ''),
               };
             });
           }
@@ -244,9 +252,9 @@ export function BetriebskostenEditModal({
           const actionResponse = await getMieterByHausIdAction(haeuserId);
           if (actionResponse.success && actionResponse.data) {
             setSelectedHausMieter(actionResponse.data);
-            syncRechnungenState(actionResponse.data, costItems);
+            // Pass nebenkostenToEdit?.Rechnungen to pre-populate from DB when editing
+            syncRechnungenState(actionResponse.data, costItems, nebenkostenToEdit?.Rechnungen);
           } else {
-            // Handle cases where actionResponse.data might be null even on success, or !actionResponse.success
             const errorMessage = actionResponse.error || "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.";
             toast({
               title: "Fehler beim Laden der Mieter",
@@ -254,9 +262,9 @@ export function BetriebskostenEditModal({
               variant: "destructive",
             });
             setSelectedHausMieter([]);
-            syncRechnungenState([], costItems); // Pass empty tenants array
+            syncRechnungenState([], costItems, nebenkostenToEdit?.Rechnungen); 
           }
-        } catch (error: any) { // Catching unexpected errors during the action call itself
+        } catch (error: any) { 
           console.error("Error calling getMieterByHausIdAction:", error);
           toast({
             title: "Systemfehler",
@@ -264,7 +272,7 @@ export function BetriebskostenEditModal({
             variant: "destructive",
           });
           setSelectedHausMieter([]);
-          syncRechnungenState([], costItems);
+          syncRechnungenState([], costItems, nebenkostenToEdit?.Rechnungen);
         } finally {
           setIsFetchingTenants(false);
         }
@@ -272,13 +280,14 @@ export function BetriebskostenEditModal({
       fetchTenantsAndUpdateRechnungen();
     } else if (!isOpen || !haeuserId) {
       setSelectedHausMieter([]);
-      syncRechnungenState([], costItems); // Pass empty tenants and current cost items
+      // When modal closes or no house is selected, clear rechnungen based on current (likely empty) tenants
+      // and ensure no dbRechnungen are accidentally used.
+      syncRechnungenState([], costItems, null); 
       setIsFetchingTenants(false); 
     }
-  // IMPORTANT: This effect now depends on costItems as well, to correctly
-  // manage rechnungen entries when costItems themselves change (e.g. berechnungsart)
-  // It also depends on `toast` for error handling, which is stable.
-  }, [haeuserId, isOpen, toast, costItems]);
+  // IMPORTANT: This effect now depends on costItems and nebenkostenToEdit to correctly
+  // pre-populate and synchronize rechnungen state.
+  }, [haeuserId, isOpen, toast, costItems, nebenkostenToEdit]);
 
   const handleSubmit = async () => {
     setIsSaving(true);
@@ -366,13 +375,31 @@ export function BetriebskostenEditModal({
       const nebenkosten_id = nebenkostenToEdit?.id || response.data?.id;
 
       if (nebenkosten_id) {
+        console.log('Nebenkosten ID:', nebenkosten_id); 
+        
+        // If editing, first delete existing Rechnungen for this Nebenkosten entry
+        if (nebenkostenToEdit) {
+          console.log('[Edit Mode] Deleting existing Rechnungen for Nebenkosten ID:', nebenkosten_id);
+          const deleteResponse = await deleteRechnungenByNebenkostenId(nebenkosten_id);
+          if (!deleteResponse.success) {
+            toast({
+              title: "Fehler beim Aktualisieren der Einzelrechnungen",
+              description: `Die alten Einzelrechnungen konnten nicht gelöscht werden. Neue Rechnungen wurden nicht erstellt. Fehler: ${deleteResponse.message || "Unbekannter Fehler."}`,
+              variant: "destructive",
+            });
+            setIsSaving(false);
+            return; // Stop processing to prevent inconsistent data
+          }
+          console.log('[Edit Mode] Successfully deleted old Rechnungen.');
+        }
+
         const rechnungenToSave: RechnungData[] = [];
         costItems.forEach(item => {
           if (item.berechnungsart === 'nach Rechnung') {
             const individualRechnungen = rechnungen[item.id] || [];
             individualRechnungen.forEach(rechnungEinzel => {
               const parsedAmount = parseFloat(rechnungEinzel.betrag);
-              if (!isNaN(parsedAmount) && parsedAmount !== 0) { // Consider if 0 is a valid amount to save
+              if (!isNaN(parsedAmount)) { // Changed condition to include 0 amounts
                 // Find mieter name (optional, can be done in server action too if preferred)
                 const mieterName = selectedHausMieter.find(m => m.id === rechnungEinzel.mieterId)?.name || rechnungEinzel.mieterId;
                 
@@ -387,7 +414,10 @@ export function BetriebskostenEditModal({
           }
         });
 
+        console.log('Rechnungen to Save:', JSON.stringify(rechnungenToSave, null, 2)); // Added console.log
+
         if (rechnungenToSave.length > 0) {
+          console.log('Calling createRechnungenBatch with rechnungenToSave'); // Added console.log
           const rechnungenSaveResponse = await createRechnungenBatch(rechnungenToSave);
           if (!rechnungenSaveResponse.success) {
             toast({ 
@@ -406,6 +436,8 @@ export function BetriebskostenEditModal({
             onClose();
             return; // Exit early as we've shown the comprehensive success toast
           }
+        } else {
+          console.log('No Rechnungen to save.'); // Added console.log for else case
         }
       }
 

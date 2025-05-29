@@ -104,6 +104,7 @@ export async function deleteNebenkosten(id: string) {
 }
 
 export async function createRechnungenBatch(rechnungen: RechnungData[]) {
+  console.log('[Server Action] createRechnungenBatch received:', JSON.stringify(rechnungen, null, 2));
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -117,13 +118,18 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
     user_id: user.id,
   }));
 
+  console.log('[Server Action] Data to insert into Rechnungen table:', JSON.stringify(dataWithUserId, null, 2));
+
   const { data, error } = await supabase
     .from("Rechnungen")
     .insert(dataWithUserId)
     .select(); // .select() returns the inserted rows
+  
+  console.log('[Server Action] Supabase insert response - data:', JSON.stringify(data, null, 2));
+  console.log('[Server Action] Supabase insert response - error:', JSON.stringify(error, null, 2));
 
   if (error) {
-    console.error("Error creating Rechnungen batch:", error);
+    console.error("Error creating Rechnungen batch:", error); // This log is already good
     return { success: false, message: error.message, data: null };
   }
 
@@ -136,4 +142,31 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
 
 
   return { success: true, data };
+}
+
+export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Promise<{ success: boolean; message?: string }> {
+  console.log('[Server Action] deleteRechnungenByNebenkostenId called for nebenkostenId:', nebenkostenId);
+  const supabase = await createClient();
+
+  // Authentication check (basic - RLS should handle actual data access control)
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error("User not authenticated for deleteRechnungenByNebenkostenId");
+    return { success: false, message: "User not authenticated" };
+  }
+
+  const { error } = await supabase
+    .from("Rechnungen")
+    .delete()
+    .eq("nebenkosten_id", nebenkostenId);
+
+  if (error) {
+    console.error(`Error deleting Rechnungen for nebenkosten_id ${nebenkostenId}:`, error);
+    return { success: false, message: error.message };
+  }
+
+  console.log(`[Server Action] Successfully deleted Rechnungen for nebenkosten_id ${nebenkostenId}`);
+  // No revalidatePath here as this is a subordinate action.
+  // Revalidation should happen after the primary operation (e.g., updateNebenkosten) is complete.
+  return { success: true };
 }
