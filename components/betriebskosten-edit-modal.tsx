@@ -463,7 +463,7 @@ export function BetriebskostenEditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl"> {/* Changed max-w-3xl to max-w-4xl */}
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <DialogHeader>
             <DialogTitle>
@@ -474,8 +474,8 @@ export function BetriebskostenEditModal({
             </DialogDescription>
           </DialogHeader>
           
-          {/* Added overflow-y-auto, max-h, and some padding (pr-2) for scrollability */}
-          <div className="space-y-4 overflow-y-auto max-h-[70vh] pr-2 py-1"> 
+          {/* Adjusted padding from pr-2 py-1 to p-4 for better spacing around focus rings */}
+          <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4"> 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="formJahr">Jahr *</Label>
