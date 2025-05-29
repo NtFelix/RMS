@@ -20,8 +20,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Nebenkosten, Haus } from "../lib/data-fetching";
-import { createNebenkosten, updateNebenkosten } from "../app/betriebskosten-actions";
+import { Nebenkosten, Haus, Mieter } from "../lib/data-fetching"; // Removed fetchMieterByHausId
+import { 
+  createNebenkosten, 
+  updateNebenkosten, 
+  createRechnungenBatch, 
+  RechnungData,
+  deleteRechnungenByNebenkostenId
+} from "../app/betriebskosten-actions";
+import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
@@ -31,6 +38,11 @@ interface CostItem {
   art: string;
   betrag: string; // Keep as string for input binding
   berechnungsart: BerechnungsartValue | ''; // Use '' for unselected state
+}
+
+interface RechnungEinzel {
+  mieterId: string;
+  betrag: string;
 }
 
 interface BetriebskostenEditModalProps {
@@ -54,43 +66,133 @@ export function BetriebskostenEditModal({
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+  const [selectedHausMieter, setSelectedHausMieter] = useState<Mieter[]>([]);
+  // Part 1.1: Redefine rechnungen state
+  const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
+  const [isFetchingTenants, setIsFetchingTenants] = useState(false);
 
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
-  const handleCostItemChange = (index: number, field: keyof Omit<CostItem, 'id'>, value: string | BerechnungsartValue) => {
-    const newCostItems = [...costItems];
-    // Type assertion for field to avoid TS errors with complex union types on 'value'
-    (newCostItems[index] as any)[field] = value;
-    setCostItems(newCostItems);
+  // Part 1.3: Create handleRechnungChange function
+  const handleRechnungChange = (costItemId: string, mieterId: string, newBetrag: string) => {
+    setRechnungen(prevRechnungen => {
+      const costItemRechnungen = prevRechnungen[costItemId] || selectedHausMieter.map(m => ({ mieterId: m.id, betrag: '' }));
+      
+      let mieterEntryExists = false;
+      const updatedRechnungenForCostItem = costItemRechnungen.map(r => {
+        if (r.mieterId === mieterId) {
+          mieterEntryExists = true;
+          return { ...r, betrag: newBetrag };
+        }
+        return r;
+      });
+
+      if (!mieterEntryExists) { // Should ideally not happen if initialized correctly
+        updatedRechnungenForCostItem.push({ mieterId, betrag: newBetrag });
+      }
+      
+      return {
+        ...prevRechnungen,
+        [costItemId]: updatedRechnungenForCostItem,
+      };
+    });
   };
 
+  const handleCostItemChange = (
+    index: number, 
+    field: keyof Omit<CostItem, 'id'>, 
+    value: string | BerechnungsartValue
+  ) => {
+    const newCostItems = [...costItems];
+    const currentCostItem = newCostItems[index];
+    const oldBerechnungsart = currentCostItem.berechnungsart;
+    const costItemId = currentCostItem.id;
+
+    (newCostItems[index] as any)[field] = value;
+
+    // Part 3.7: Adjust rechnungen state when berechnungsart changes
+    if (field === 'berechnungsart') {
+      if (value === 'nach Rechnung') {
+        newCostItems[index].betrag = ''; // Clear main betrag
+        // Initialize rechnungen for this costItem if tenants are loaded
+        setRechnungen(prevRechnungen => ({
+          ...prevRechnungen,
+          [costItemId]: selectedHausMieter.map(m => ({
+            mieterId: m.id,
+            betrag: prevRechnungen[costItemId]?.find(r => r.mieterId === m.id)?.betrag || '', // Preserve if already existed
+          })),
+        }));
+      } else if (oldBerechnungsart === 'nach Rechnung' && value !== 'nach Rechnung') {
+        // Clear rechnungen for this costItem if switching away from 'nach Rechnung'
+        setRechnungen(prevRechnungen => {
+          const updatedRechnungen = { ...prevRechnungen };
+          delete updatedRechnungen[costItemId];
+          return updatedRechnungen;
+        });
+      }
+    }
+    setCostItems(newCostItems);
+  };
+  
   const addCostItem = () => {
-    setCostItems([
-      ...costItems,
-      { id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' },
-    ]);
+    const newId = generateId();
+    // Default to the first option, or '' if no options
+    const newBerechnungsart = BERECHNUNGSART_OPTIONS[0]?.value || ''; 
+    const newCostItem: CostItem = { id: newId, art: '', betrag: '', berechnungsart: newBerechnungsart };
+    
+    setCostItems(prevCostItems => [...prevCostItems, newCostItem]);
+
+    // The following block was removed as per instruction,
+    // as the main useEffect hook [haeuserId, isOpen, toast, costItems]
+    // is responsible for synchronizing the rechnungen state when costItems change.
+    // if (newBerechnungsart === 'nach Rechnung') {
+    //   setRechnungen(prevRechnungen => ({
+    //     ...prevRechnungen,
+    //     [newId]: selectedHausMieter.map(m => ({ mieterId: m.id, betrag: '' })),
+    //   }));
+    // }
   };
 
   const removeCostItem = (index: number) => {
-    if (costItems.length <= 1) return; // Prevent removing the last item
-    const newCostItems = costItems.filter((_, i) => i !== index);
-    setCostItems(newCostItems);
+    if (costItems.length <= 1) return;
+    const itemToRemove = costItems[index];
+    
+    setCostItems(prevCostItems => prevCostItems.filter((_, i) => i !== index));
+
+    // Part 3.8: Remove rechnungen entry if the removed item was 'nach Rechnung'
+    if (itemToRemove.berechnungsart === 'nach Rechnung') {
+      setRechnungen(prevRechnungen => {
+        const updatedRechnungen = { ...prevRechnungen };
+        delete updatedRechnungen[itemToRemove.id];
+        return updatedRechnungen;
+      });
+    }
   };
 
+  // Effect for initializing modal state when it opens or data changes
   useEffect(() => {
     if (isOpen) {
       if (nebenkostenToEdit) {
         setJahr(nebenkostenToEdit.jahr || "");
-        setHaeuserId(nebenkostenToEdit.haeuser_id || "");
+        const initialHausId = nebenkostenToEdit.haeuser_id || (haeuser.length > 0 ? haeuser[0].id : "");
+        setHaeuserId(initialHausId);
         setWasserkosten(nebenkostenToEdit.wasserkosten?.toString() || "");
 
-        const existingCostItems: CostItem[] = (nebenkostenToEdit.nebenkostenart || []).map((art, index) => ({
-          id: generateId(),
+        const existingCostItemsData: CostItem[] = (nebenkostenToEdit.nebenkostenart || []).map((art, idx) => ({
+          id: generateId(), // Fresh ID for session
           art: art,
-          betrag: nebenkostenToEdit.betrag?.[index]?.toString() || "",
-          berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === nebenkostenToEdit.berechnungsart?.[index])?.value as BerechnungsartValue) || '',
+          betrag: nebenkostenToEdit.berechnungsart?.[idx] === 'nach Rechnung' ? '' : nebenkostenToEdit.betrag?.[idx]?.toString() || "",
+          berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === nebenkostenToEdit.berechnungsart?.[idx])?.value as BerechnungsartValue) || '',
         }));
-        setCostItems(existingCostItems.length > 0 ? existingCostItems : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+        setCostItems(existingCostItemsData.length > 0 ? existingCostItemsData : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+        
+        // For editing, rechnungen will be populated by the combined effect below,
+        // once tenants are fetched and costItems are set.
+        // We can pre-populate rechnungen here if we parse `nebenkostenToEdit.einzel_rechnungen` (assuming it's passed)
+        // For now, relying on the main effect.
+        if (nebenkostenToEdit.haeuser_id !== haeuserId) {
+             setRechnungen({});
+        }
 
       } else {
         // Reset for new entry
@@ -98,9 +200,97 @@ export function BetriebskostenEditModal({
         setHaeuserId(haeuser && haeuser.length > 0 ? haeuser[0].id : "");
         setWasserkosten("");
         setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+        setRechnungen({});
       }
+    } else {
+      // Modal is closed, reset all relevant states
+      setJahr("");
+      setWasserkosten("");
+      setHaeuserId(""); 
+      setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+      setSelectedHausMieter([]);
+      setRechnungen({});
+      setIsSaving(false);
+      setIsFetchingTenants(false);
     }
   }, [isOpen, nebenkostenToEdit, haeuser]);
+
+
+  // Part 1.2 & 3.7 (combined): Effect to fetch tenants AND initialize/clear/update rechnungen based on tenants and costItems
+  // This is now split into two effects as per optimization task.
+
+  // New useEffect for Tenant Fetching
+  useEffect(() => {
+    if (isOpen && haeuserId) {
+      const fetchTenants = async () => {
+        setIsFetchingTenants(true);
+        try {
+          const actionResponse = await getMieterByHausIdAction(haeuserId);
+          if (actionResponse.success && actionResponse.data) {
+            setSelectedHausMieter(actionResponse.data);
+          } else {
+            const errorMessage = actionResponse.error || "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.";
+            toast({
+              title: "Fehler beim Laden der Mieter",
+              description: errorMessage,
+              variant: "destructive",
+            });
+            setSelectedHausMieter([]);
+          }
+        } catch (error: any) { 
+          console.error("Error calling getMieterByHausIdAction:", error);
+          toast({
+            title: "Systemfehler",
+            description: "Ein unerwarteter Fehler ist beim Laden der Mieter aufgetreten.",
+            variant: "destructive",
+          });
+          setSelectedHausMieter([]);
+        } finally {
+          setIsFetchingTenants(false);
+        }
+      };
+      fetchTenants();
+    } else if (!isOpen || !haeuserId) {
+      setSelectedHausMieter([]);
+      setIsFetchingTenants(false); 
+    }
+  }, [haeuserId, isOpen, toast]);
+
+
+  // Modified useEffect for Rechnungen Synchronization
+  const syncRechnungenState = (
+    currentTenants: Mieter[], 
+    currentCostItems: CostItem[],
+    dbRechnungen?: Nebenkosten['Rechnungen'] | null
+  ) => {
+    setRechnungen(prevRechnungen => {
+      const newRechnungenState: Record<string, RechnungEinzel[]> = {};
+      currentCostItems.forEach(costItem => {
+        if (costItem.berechnungsart === 'nach Rechnung') {
+          newRechnungenState[costItem.id] = currentTenants.map(tenant => {
+            const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id);
+            const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
+            return {
+              mieterId: tenant.id,
+              betrag: dbRechnungForTenant ? dbRechnungForTenant.betrag.toString() : (existingEntryInState?.betrag || ''),
+            };
+          });
+        }
+      });
+      return newRechnungenState;
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      // This effect now reacts to changes in selectedHausMieter (from tenant fetching effect),
+      // costItems (from user interaction or initial load), and nebenkostenToEdit (for dbRechnungen).
+      syncRechnungenState(selectedHausMieter, costItems, nebenkostenToEdit?.Rechnungen);
+    } else {
+      // Clear rechnungen when modal is not open
+      setRechnungen({}); 
+    }
+  }, [selectedHausMieter, costItems, nebenkostenToEdit, isOpen]); // Removed toast as syncRechnungenState does not use it.
 
   const handleSubmit = async () => {
     setIsSaving(true);
@@ -134,28 +324,36 @@ export function BetriebskostenEditModal({
 
     for (const item of costItems) {
       const art = item.art.trim();
-      const betragValue = parseFloat(item.betrag); // Or Number(item.betrag)
       const berechnungsart = item.berechnungsart;
+      let currentBetragValue: number;
 
       if (!art) {
         toast({ title: "Validierungsfehler", description: `Art der Kosten darf nicht leer sein. Bitte überprüfen Sie Posten ${costItems.indexOf(item) + 1}.`, variant: "destructive" });
         setIsSaving(false);
         return;
       }
-      // Allow 0 as a valid amount, but not empty strings that become NaN
-      if (item.betrag.trim() === '' || isNaN(betragValue)) {
-        toast({ title: "Validierungsfehler", description: `Betrag "${item.betrag}" ist keine gültige Zahl für Kostenart "${art}".`, variant: "destructive" });
-        setIsSaving(false);
-        return;
-      }
-      if (!berechnungsart) { // Check for empty string as per CostItem type
+      if (!berechnungsart) { 
         toast({ title: "Validierungsfehler", description: `Berechnungsart muss für Kostenart "${art}" ausgewählt werden.`, variant: "destructive" });
         setIsSaving(false);
         return;
       }
 
+      if (item.berechnungsart === 'nach Rechnung') {
+        const individualRechnungen = rechnungen[item.id] || [];
+        currentBetragValue = individualRechnungen.reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0);
+        // Additional validation for individual rechnungen amounts (e.g. all must be valid numbers) can be added here if needed
+        // For now, we rely on parseFloat turning invalid numbers to 0 or NaN (which || 0 handles)
+      } else {
+        currentBetragValue = parseFloat(item.betrag);
+        if (item.betrag.trim() === '' || isNaN(currentBetragValue)) {
+          toast({ title: "Validierungsfehler", description: `Betrag "${item.betrag}" ist keine gültige Zahl für Kostenart "${art}".`, variant: "destructive" });
+          setIsSaving(false);
+          return;
+        }
+      }
+
       nebenkostenartArray.push(art);
-      betragArray.push(betragValue);
+      betragArray.push(currentBetragValue); // Push the determined betrag value
       berechnungsartArray.push(berechnungsart);
     }
 
@@ -177,9 +375,79 @@ export function BetriebskostenEditModal({
     }
 
     if (response.success) {
+      const nebenkosten_id = nebenkostenToEdit?.id || response.data?.id;
+
+      if (nebenkosten_id) {
+        console.log('Nebenkosten ID:', nebenkosten_id); 
+        
+        // If editing, first delete existing Rechnungen for this Nebenkosten entry
+        if (nebenkostenToEdit) {
+          console.log('[Edit Mode] Deleting existing Rechnungen for Nebenkosten ID:', nebenkosten_id);
+          const deleteResponse = await deleteRechnungenByNebenkostenId(nebenkosten_id);
+          if (!deleteResponse.success) {
+            toast({
+              title: "Fehler beim Aktualisieren der Einzelrechnungen",
+              description: `Die alten Einzelrechnungen konnten nicht gelöscht werden. Neue Rechnungen wurden nicht erstellt. Fehler: ${deleteResponse.message || "Unbekannter Fehler."}`,
+              variant: "destructive",
+            });
+            setIsSaving(false);
+            return; // Stop processing to prevent inconsistent data
+          }
+          console.log('[Edit Mode] Successfully deleted old Rechnungen.');
+        }
+
+        const rechnungenToSave: RechnungData[] = [];
+        costItems.forEach(item => {
+          if (item.berechnungsart === 'nach Rechnung') {
+            const individualRechnungen = rechnungen[item.id] || [];
+            individualRechnungen.forEach(rechnungEinzel => {
+              const parsedAmount = parseFloat(rechnungEinzel.betrag);
+              if (!isNaN(parsedAmount)) { // Changed condition to include 0 amounts
+                // Find mieter name (optional, can be done in server action too if preferred)
+                const mieterName = selectedHausMieter.find(m => m.id === rechnungEinzel.mieterId)?.name || rechnungEinzel.mieterId;
+                
+                rechnungenToSave.push({
+                  nebenkosten_id: nebenkosten_id,
+                  mieter_id: rechnungEinzel.mieterId,
+                  betrag: parsedAmount,
+                  name: `Rechnung für ${item.art || 'Unbenannte Kostenart'} - Mieter ${mieterName} - ${jahr}`,
+                });
+              }
+            });
+          }
+        });
+
+        console.log('Rechnungen to Save:', JSON.stringify(rechnungenToSave, null, 2)); // Added console.log
+
+        if (rechnungenToSave.length > 0) {
+          console.log('Calling createRechnungenBatch with rechnungenToSave'); // Added console.log
+          const rechnungenSaveResponse = await createRechnungenBatch(rechnungenToSave);
+          if (!rechnungenSaveResponse.success) {
+            toast({ 
+              title: "Fehler beim Speichern der Einzelrechnungen", 
+              description: rechnungenSaveResponse.message || "Ein unbekannter Fehler ist aufgetreten.", 
+              variant: "destructive" 
+            });
+            // Main data was saved, but individual invoices failed. User is informed.
+            // onClose() will still be called.
+          } else {
+            // Both main data and individual invoices were saved successfully.
+            toast({
+              title: "Erfolgreich gespeichert",
+              description: "Die Betriebskosten und alle zugehörigen Einzelrechnungen wurden erfolgreich gespeichert.",
+            });
+            onClose();
+            return; // Exit early as we've shown the comprehensive success toast
+          }
+        } else {
+          console.log('No Rechnungen to save.'); // Added console.log for else case
+        }
+      }
+
+      // This toast is shown if no individual rechnungen needed saving, or if they failed (user already informed by specific error toast)
       toast({
-        title: "Erfolgreich gespeichert",
-        description: "Die Betriebskostendaten wurden erfolgreich gespeichert.",
+        title: "Betriebskosten erfolgreich gespeichert",
+        description: "Die Hauptdaten der Betriebskosten wurden gespeichert.",
       });
       onClose();
     } else {
@@ -195,7 +463,7 @@ export function BetriebskostenEditModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl"> {/* Changed max-w-3xl to max-w-4xl */}
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <DialogHeader>
             <DialogTitle>
@@ -206,7 +474,8 @@ export function BetriebskostenEditModal({
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4"> {/* Removed py-4, relying on DialogContent padding and space-y for inter-element spacing */}
+          {/* Adjusted padding from pr-2 py-1 to p-4 for better spacing around focus rings */}
+          <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4"> 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="formJahr">Jahr *</Label>
@@ -252,51 +521,111 @@ export function BetriebskostenEditModal({
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
               <div className="rounded-md border p-4 space-y-0 shadow-sm"> {/* Changed space-y-4 to space-y-0 as items have their own padding now */}
                 {costItems.map((item, index) => (
-                  <div key={item.id} className="flex flex-col sm:flex-row items-start gap-3 py-2 border-b last:border-b-0">
-                    <div className="w-full sm:flex-[4_1_0%]">
-                      <Input 
-                        id={`art-${item.id}`} // Simplified ID
-                        placeholder="Kostenart" 
-                        value={item.art} 
-                        onChange={(e) => handleCostItemChange(index, 'art', e.target.value)} 
-                      />
+                  <div key={item.id} className="flex flex-col gap-3 py-2 border-b last:border-b-0"> {/* Main container for a cost item row */}
+                    <div className="flex flex-col sm:flex-row items-start gap-3"> {/* Inputs row */}
+                      <div className="w-full sm:flex-[4_1_0%]">
+                        <Input 
+                          id={`art-${item.id}`}
+                          placeholder="Kostenart" 
+                          value={item.art} 
+                          onChange={(e) => handleCostItemChange(index, 'art', e.target.value)} 
+                        />
+                      </div>
+                      <div className="w-full sm:flex-[3_1_0%]">
+                        {item.berechnungsart === 'nach Rechnung' ? (
+                          <div className="flex items-center justify-center h-10 px-3 py-2 text-sm text-muted-foreground bg-gray-50 border rounded-md">
+                            Beträge pro Mieter unten
+                          </div>
+                        ) : (
+                          <Input 
+                            id={`betrag-${item.id}`}
+                            type="number" 
+                            placeholder="Betrag (€)" 
+                            value={item.betrag} 
+                            onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
+                            step="0.01"
+                          />
+                        )}
+                      </div>
+                      <div className="w-full sm:flex-[4_1_0%]">
+                        <Select 
+                          value={item.berechnungsart} 
+                          onValueChange={(value) => handleCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
+                        >
+                          <SelectTrigger id={`berechnungsart-${item.id}`}>
+                            <SelectValue placeholder="Berechnungsart..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BERECHNUNGSART_OPTIONS.map(opt => (
+                              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeCostItem(index)} 
+                          disabled={costItems.length <= 1}
+                          aria-label="Kostenposition entfernen"
+                        >
+                          <Trash2 className="h-5 w-5 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="w-full sm:flex-[3_1_0%]">
-                      <Input 
-                        id={`betrag-${item.id}`} // Simplified ID
-                        type="number" 
-                        placeholder="Betrag (€)" 
-                        value={item.betrag} 
-                        onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
-                        step="0.01" 
-                      />
-                    </div>
-                    <div className="w-full sm:flex-[4_1_0%]">
-                      <Select 
-                        value={item.berechnungsart} 
-                        onValueChange={(value) => handleCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
-                      >
-                        <SelectTrigger id={`berechnungsart-${item.id}`}> {/* Simplified ID */}
-                          <SelectValue placeholder="Berechnungsart..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {BERECHNUNGSART_OPTIONS.map(opt => (
-                            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => removeCostItem(index)} 
-                        disabled={costItems.length <= 1}
-                        aria-label="Kostenposition entfernen"
-                      >
-                        <Trash2 className="h-5 w-5 text-destructive" />
-                      </Button>
-                    </div>
+                    {/* Part 2.4 & 2.5: Replace placeholder with tenant invoice inputs */}
+                    {item.berechnungsart === 'nach Rechnung' && (
+                      <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md space-y-3 shadow-sm">
+                        <h4 className="text-md font-semibold text-gray-700">
+                          Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
+                        </h4>
+                        {isFetchingTenants && <p className="text-sm text-gray-500">Lade Mieterdetails...</p>}
+                        {!isFetchingTenants && !haeuserId && (
+                          <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">Bitte wählen Sie zuerst ein Haus aus, um Mieter zu laden.</p>
+                        )}
+                        {!isFetchingTenants && haeuserId && selectedHausMieter.length === 0 && (
+                          <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">Für das ausgewählte Haus wurden keine Mieter gefunden oder es sind keine Mieter dem Haus direkt zugeordnet.</p>
+                        )}
+                        {!isFetchingTenants && haeuserId && selectedHausMieter.length > 0 && (
+                          <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                            {selectedHausMieter.map(mieter => {
+                              const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
+                              return (
+                                <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-1 border-b border-gray-100 last:border-b-0">
+                                  <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="col-span-6 sm:col-span-7 truncate text-sm" title={mieter.name}>
+                                    {mieter.name}
+                                  </Label>
+                                  <div className="col-span-4 sm:col-span-3">
+                                    <Input
+                                      id={`rechnung-${item.id}-${mieter.id}`}
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="Betrag (€)"
+                                      value={rechnungForMieter?.betrag || ''}
+                                      onChange={(e) => handleRechnungChange(item.id, mieter.id, e.target.value)}
+                                      className="w-full text-sm"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                         {/* Display sum of individual invoices */}
+                         {item.berechnungsart === 'nach Rechnung' && rechnungen[item.id] && selectedHausMieter.length > 0 && (
+                            <div className="pt-2 mt-2 border-t border-gray-300 flex justify-end">
+                                <p className="text-sm font-semibold text-gray-700">
+                                    Summe Einzelbeträge: {
+                                        (rechnungen[item.id] || [])
+                                            .reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0)
+                                            .toFixed(2)
+                                    } €
+                                </p>
+                            </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
                 <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2">
