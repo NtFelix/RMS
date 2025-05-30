@@ -210,26 +210,34 @@ export function BetriebskostenEditModal({
         getNebenkostenDetailsAction(editId)
           .then(response => {
             if (response.success && response.data) {
-              setModalNebenkostenData(response.data);
-              setJahr(response.data.jahr || "");
-              setHaeuserId(response.data.haeuser_id || (haeuser.length > 0 ? haeuser[0].id : ""));
-              setWasserkosten(response.data.wasserkosten?.toString() || "");
+              const fetchedData = response.data; // Use a non-null variable
+              setModalNebenkostenData(fetchedData);
+              setJahr(fetchedData.jahr || "");
+              setHaeuserId(fetchedData.haeuser_id || (haeuser.length > 0 ? haeuser[0].id : ""));
+              setWasserkosten(fetchedData.wasserkosten?.toString() || "");
 
-              const fetchedCostItems: CostItem[] = (response.data.nebenkostenart || []).map((art, idx) => ({
+              const newCostItems: CostItem[] = (fetchedData.nebenkostenart || []).map((art, idx) => ({
                 id: generateId(), // Generate new client-side ID
                 art: art,
-                betrag: response.data.berechnungsart?.[idx] === 'nach Rechnung' ? '' : response.data.betrag?.[idx]?.toString() || "",
-                berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === response.data.berechnungsart?.[idx])?.value as BerechnungsartValue) || '',
+                betrag: fetchedData.berechnungsart?.[idx] === 'nach Rechnung' ? '' : fetchedData.betrag?.[idx]?.toString() || "",
+                berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === fetchedData.berechnungsart?.[idx])?.value as BerechnungsartValue) || '',
               }));
-              setCostItems(fetchedCostItems.length > 0 ? fetchedCostItems : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+              setCostItems(newCostItems.length > 0 ? newCostItems : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
               // Rechnungen state will be synced by its own effect, using modalNebenkostenData.Rechnungen
             } else {
+              // Handle failure or no data from action
               toast({
                 title: "Fehler beim Laden der Details",
                 description: response.message || "Die Nebenkostendetails konnten nicht geladen werden.",
                 variant: "destructive",
               });
-              // Optionally close modal or allow user to cancel: onClose();
+              setModalNebenkostenData(null);
+              // Reset form fields to a default "new entry" state
+              setJahr(new Date().getFullYear().toString());
+              setHaeuserId(haeuser && haeuser.length > 0 ? haeuser[0].id : "");
+              setWasserkosten("");
+              setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+              // Consider if onClose() should be called or if user should explicitly close. For now, leave modal open in reset state.
             }
           })
           .catch(error => {
