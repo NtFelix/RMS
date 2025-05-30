@@ -146,18 +146,39 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function fetchNebenkosten() {
+export async function fetchNebenkostenList() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Nebenkosten")
-    .select('*, Haeuser(name), Rechnungen(*)'); // Updated select
+    .select('*, Haeuser(name)'); // Rechnungen(*) removed
     
   if (error) {
-    console.error("Error fetching Nebenkosten (with Rechnungen):", error);
+    console.error("Error fetching Nebenkosten list:", error);
     return [];
   }
   
   return data as Nebenkosten[];
+}
+
+export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkosten | null> {
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("Nebenkosten")
+    .select('*, Haeuser(name), Rechnungen(*)')
+    .eq('id', id)
+    .single(); // Ensure only one record is fetched
+
+  if (error) {
+    console.error(`Error fetching Nebenkosten details for ID ${id}:`, error);
+    return null;
+  }
+
+  if (!data) {
+    console.warn(`No Nebenkosten found for ID ${id}`);
+    return null;
+  }
+
+  return data as Nebenkosten;
 }
 
 export async function fetchFinanzenByMonth() {
