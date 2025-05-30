@@ -1,4 +1,4 @@
-import { fetchNebenkosten, fetchHaeuser } from "../../../lib/data-fetching";
+import { fetchNebenkostenList, fetchHaeuser } from "../../../lib/data-fetching";
 import BetriebskostenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
 
@@ -8,7 +8,7 @@ export default async function BetriebskostenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  const nebenkostenData = await fetchNebenkosten();
+  const nebenkostenData = await fetchNebenkostenList();
   const haeuserData = await fetchHaeuser();
 
   return (
