@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten } from "../lib/data-fetching"; // Adjusted path
+import { Nebenkosten, fetchNebenkostenDetailsById } from "../lib/data-fetching"; // Adjusted path
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -169,4 +169,23 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   // No revalidatePath here as this is a subordinate action.
   // Revalidation should happen after the primary operation (e.g., updateNebenkosten) is complete.
   return { success: true };
+}
+
+export async function getNebenkostenDetailsAction(id: string): Promise<{
+  success: boolean;
+  data?: Nebenkosten | null;
+  message?: string;
+}> {
+  "use server";
+  try {
+    const nebenkostenDetails = await fetchNebenkostenDetailsById(id);
+    if (nebenkostenDetails) {
+      return { success: true, data: nebenkostenDetails };
+    } else {
+      return { success: false, message: "Nebenkosten not found." };
+    }
+  } catch (error: any) {
+    console.error("Error in getNebenkostenDetailsAction:", error);
+    return { success: false, message: error.message || "Failed to fetch Nebenkosten details." };
+  }
 }
