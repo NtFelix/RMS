@@ -71,6 +71,10 @@ export function BetriebskostenEditModal({
   const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
   const [isFetchingTenants, setIsFetchingTenants] = useState(false);
 
+  // Refs for tracking initial load and currently loaded Nebenkosten ID
+  const initialLoadDoneForCurrentInstance = React.useRef(false);
+  const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
+
   const generateId = () => Math.random().toString(36).substr(2, 9);
 
   // Part 1.3: Create handleRechnungChange function
@@ -172,38 +176,53 @@ export function BetriebskostenEditModal({
   // Effect for initializing modal state when it opens or data changes
   useEffect(() => {
     if (isOpen) {
-      if (nebenkostenToEdit) {
-        setJahr(nebenkostenToEdit.jahr || "");
-        const initialHausId = nebenkostenToEdit.haeuser_id || (haeuser.length > 0 ? haeuser[0].id : "");
-        setHaeuserId(initialHausId);
-        setWasserkosten(nebenkostenToEdit.wasserkosten?.toString() || "");
+      const newNebenkostenId = nebenkostenToEdit?.id;
+      const needsFullReset = !initialLoadDoneForCurrentInstance.current || newNebenkostenId !== currentlyLoadedNebenkostenId.current;
 
-        const existingCostItemsData: CostItem[] = (nebenkostenToEdit.nebenkostenart || []).map((art, idx) => ({
-          id: generateId(), // Fresh ID for session
-          art: art,
-          betrag: nebenkostenToEdit.berechnungsart?.[idx] === 'nach Rechnung' ? '' : nebenkostenToEdit.betrag?.[idx]?.toString() || "",
-          berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === nebenkostenToEdit.berechnungsart?.[idx])?.value as BerechnungsartValue) || '',
-        }));
-        setCostItems(existingCostItemsData.length > 0 ? existingCostItemsData : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
-        
-        // For editing, rechnungen will be populated by the combined effect below,
-        // once tenants are fetched and costItems are set.
-        // We can pre-populate rechnungen here if we parse `nebenkostenToEdit.einzel_rechnungen` (assuming it's passed)
-        // For now, relying on the main effect.
-        if (nebenkostenToEdit.haeuser_id !== haeuserId) {
-             setRechnungen({});
+      if (needsFullReset) {
+        console.log('[Modal Init Effect] Performing full reset or loading new/different Nebenkosten.');
+        if (nebenkostenToEdit) {
+          setJahr(nebenkostenToEdit.jahr || "");
+          // Ensure haeuserId is set from nebenkostenToEdit if available, otherwise from haeuser list
+          const initialHausId = nebenkostenToEdit.haeuser_id || (haeuser.length > 0 ? haeuser[0].id : "");
+          setHaeuserId(initialHausId);
+          setWasserkosten(nebenkostenToEdit.wasserkosten?.toString() || "");
+
+          const existingCostItemsData: CostItem[] = (nebenkostenToEdit.nebenkostenart || []).map((art, idx) => ({
+            id: generateId(),
+            art: art,
+            betrag: nebenkostenToEdit.berechnungsart?.[idx] === 'nach Rechnung' ? '' : nebenkostenToEdit.betrag?.[idx]?.toString() || "",
+            berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === nebenkostenToEdit.berechnungsart?.[idx])?.value as BerechnungsartValue) || '',
+          }));
+          setCostItems(existingCostItemsData.length > 0 ? existingCostItemsData : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+          // Rechnungen state will be synced by its own effect, triggered by costItems/nebenkostenToEdit change.
+          // However, if switching between *different* nebenkostenToEdit items, explicitly reset rechnungen here for clarity.
+          if (newNebenkostenId !== currentlyLoadedNebenkostenId.current) {
+            setRechnungen({}); // Clear rechnungen for the new item to ensure fresh pre-population
+          }
+
+        } else {
+          // Reset for new entry
+          setJahr(new Date().getFullYear().toString());
+          setHaeuserId(haeuser && haeuser.length > 0 ? haeuser[0].id : "");
+          setWasserkosten("");
+          setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
+          setRechnungen({}); // Clear rechnungen for a new entry
         }
-
+        currentlyLoadedNebenkostenId.current = newNebenkostenId;
+        initialLoadDoneForCurrentInstance.current = true;
       } else {
-        // Reset for new entry
-        setJahr(new Date().getFullYear().toString());
-        setHaeuserId(haeuser && haeuser.length > 0 ? haeuser[0].id : "");
-        setWasserkosten("");
-        setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
-        setRechnungen({});
+        console.log('[Modal Init Effect] Skipping full reset, Nebenkosten ID is the same or already loaded.');
+        // Potentially handle updates to `haeuser` prop if necessary, e.g., if current `haeuserId` becomes invalid.
+        // For now, this logic is focused on preventing data loss for `nebenkostenToEdit`.
+        if (haeuser && haeuserId && !haeuser.find(h => h.id === haeuserId)) {
+          // If current selected hausId is no longer in the list of haeuser (e.g. due to external update)
+          // set it to the first available, or clear it.
+          setHaeuserId(haeuser.length > 0 ? haeuser[0].id : "");
+        }
       }
     } else {
-      // Modal is closed, reset all relevant states
+      // Modal is closed, reset all relevant states and refs
       setJahr("");
       setWasserkosten("");
       setHaeuserId(""); 
@@ -212,12 +231,11 @@ export function BetriebskostenEditModal({
       setRechnungen({});
       setIsSaving(false);
       setIsFetchingTenants(false);
+      initialLoadDoneForCurrentInstance.current = false; // Reset for next open
+      currentlyLoadedNebenkostenId.current = null;      // Reset for next open
     }
-  }, [isOpen, nebenkostenToEdit, haeuser]);
+  }, [isOpen, nebenkostenToEdit, haeuser]); // Dependency array remains the same
 
-
-  // Part 1.2 & 3.7 (combined): Effect to fetch tenants AND initialize/clear/update rechnungen based on tenants and costItems
-  // This is now split into two effects as per optimization task.
 
   // New useEffect for Tenant Fetching
   useEffect(() => {
@@ -251,10 +269,11 @@ export function BetriebskostenEditModal({
       };
       fetchTenants();
     } else if (!isOpen || !haeuserId) {
+      // Clear tenants if modal is closed or no house is selected
       setSelectedHausMieter([]);
       setIsFetchingTenants(false); 
     }
-  }, [haeuserId, isOpen, toast]);
+  }, [haeuserId, isOpen, toast]); // This effect correctly handles tenant fetching
 
 
   // Modified useEffect for Rechnungen Synchronization
@@ -268,11 +287,20 @@ export function BetriebskostenEditModal({
       currentCostItems.forEach(costItem => {
         if (costItem.berechnungsart === 'nach Rechnung') {
           newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-            const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id);
+            const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id && dbR.name === costItem.art); // Changed to exact match for name
             const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
+            
+            // Prioritize DB data if available for the specific cost item and tenant
+            // This assumes dbRechnungForTenant.name contains enough info to link to costItem.art
+            // A more robust solution would be a direct link (e.g. cost_item_art_or_id in Rechnungen table)
+            let betragToSet = existingEntryInState?.betrag || ''; // Default to existing state or empty
+            if (dbRechnungForTenant) {
+                betragToSet = dbRechnungForTenant.betrag.toString();
+            }
+
             return {
               mieterId: tenant.id,
-              betrag: dbRechnungForTenant ? dbRechnungForTenant.betrag.toString() : (existingEntryInState?.betrag || ''),
+              betrag: betragToSet,
             };
           });
         }
@@ -288,9 +316,19 @@ export function BetriebskostenEditModal({
       syncRechnungenState(selectedHausMieter, costItems, nebenkostenToEdit?.Rechnungen);
     } else {
       // Clear rechnungen when modal is not open
-      setRechnungen({}); 
+      // The main initialization effect also handles clearing rechnungen when isOpen becomes false.
+      // setRechnungen({}); // This line might be redundant if the main init effect handles it.
+                         // Keeping it for safety or if the main init effect's !isOpen logic changes.
+                         // Re-evaluating: The main init effect's !isOpen block *does* clear rechnungen.
+                         // So this specific setRechnungen({}) here is likely redundant.
+                         // However, syncRechnungenState with empty tenants would also result in empty rechnungen for "nach Rechnung" items.
+                         // Let's rely on the main init effect's !isOpen block for a full clear.
+                         // This effect should primarily focus on SYNCING when isOpen is true.
     }
-  }, [selectedHausMieter, costItems, nebenkostenToEdit, isOpen]); // Removed toast as syncRechnungenState does not use it.
+  // Dependencies for rechnungen synchronization
+  }, [selectedHausMieter, costItems, nebenkostenToEdit, isOpen]); 
+  // Removed toast, as syncRechnungenState does not use it.
+  // The main init effect handles full reset on !isOpen.
 
   const handleSubmit = async () => {
     setIsSaving(true);
@@ -410,7 +448,7 @@ export function BetriebskostenEditModal({
                   nebenkosten_id: nebenkosten_id,
                   mieter_id: rechnungEinzel.mieterId,
                   betrag: parsedAmount,
-                  name: `Rechnung für ${item.art || 'Unbenannte Kostenart'} - Mieter ${mieterName} - ${jahr}`,
+                  name: item.art, // Changed name assignment to item.art
                 });
               }
             });
