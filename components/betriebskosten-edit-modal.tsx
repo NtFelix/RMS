@@ -287,7 +287,7 @@ export function BetriebskostenEditModal({
       currentCostItems.forEach(costItem => {
         if (costItem.berechnungsart === 'nach Rechnung') {
           newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-            const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id && dbR.name.includes(costItem.art)); // Simple check if name includes costItem.art
+            const dbRechnungForTenant = dbRechnungen?.find(dbR => dbR.mieter_id === tenant.id && dbR.name === costItem.art); // Changed to exact match for name
             const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
             
             // Prioritize DB data if available for the specific cost item and tenant
@@ -448,7 +448,7 @@ export function BetriebskostenEditModal({
                   nebenkosten_id: nebenkosten_id,
                   mieter_id: rechnungEinzel.mieterId,
                   betrag: parsedAmount,
-                  name: `Rechnung für ${item.art || 'Unbenannte Kostenart'} - Mieter ${mieterName} - ${jahr}`,
+                  name: item.art, // Changed name assignment to item.art
                 });
               }
             });
