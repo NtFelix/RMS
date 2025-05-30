@@ -288,7 +288,8 @@ export function BetriebskostenEditModal({
       const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
-          const actionResponse = await getMieterByHausIdAction(haeuserId);
+          // Pass the selected year to filter tenants who lived in the house during that year
+          const actionResponse = await getMieterByHausIdAction(haeuserId, jahr);
           if (actionResponse.success && actionResponse.data) {
             setSelectedHausMieter(actionResponse.data);
           } else {
@@ -318,7 +319,7 @@ export function BetriebskostenEditModal({
       setSelectedHausMieter([]);
       setIsFetchingTenants(false); 
     }
-  }, [haeuserId, isOpen, toast]); // This effect correctly handles tenant fetching
+  }, [haeuserId, isOpen, toast, jahr]); // Added jahr to dependency array to refetch when year changes
 
 
   // Modified useEffect for Rechnungen Synchronization
