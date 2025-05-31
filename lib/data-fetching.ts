@@ -41,6 +41,14 @@ export type Aufgabe = {
   aenderungsdatum: string;
 };
 
+export type HausMitFlaeche = {
+  id: string;
+  name: string;
+  gesamtFlaeche: number;
+  anzahlWohnungen: number;
+  anzahlMieter: number;
+};
+
 export type Nebenkosten = {
   id: string;
   jahr: string;
@@ -48,10 +56,14 @@ export type Nebenkosten = {
   betrag: number[] | null;
   berechnungsart: string[] | null;
   wasserkosten: number | null;
+  wasserverbrauch?: number | null; // Added for water consumption
   haeuser_id: string;
   Haeuser?: { name: string } | null;
   user_id?: string; 
-  Rechnungen?: RechnungSql[] | null; // Added for related Rechnungen
+  Rechnungen?: RechnungSql[] | null;
+  gesamtFlaeche?: number; // Added for total area
+  anzahlWohnungen?: number; // Number of apartments
+  anzahlMieter?: number; // Number of tenants
 };
 
 export type RechnungSql = {
@@ -146,39 +158,191 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function fetchNebenkostenList() {
+export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promise<{
+  gesamtFlaeche: number;
+  anzahlWohnungen: number;
+  anzahlMieter: number;
+}> {
+  if (!hausId) {
+    console.error('Invalid hausId provided to getHausGesamtFlaeche:', hausId);
+    return { gesamtFlaeche: 0, anzahlWohnungen: 0, anzahlMieter: 0 };
+  }
+
   const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("Nebenkosten")
-    .select('*, Haeuser(name)'); // Rechnungen(*) removed
+  
+  try {
+    // First, get the basic apartment data
+    const { data: wohnungen, error: wohnungenError } = await supabase
+      .from('Wohnungen')
+      .select('id, groesse')
+      .eq('haus_id', hausId);
+
+    if (wohnungenError) {
+      console.error('Error fetching apartments:', wohnungenError);
+      throw wohnungenError;
+    }
+
+    // If no apartments found, return zeros
+    if (!wohnungen || wohnungen.length === 0) {
+      console.warn(`No apartments found for haus_id: ${hausId}`);
+      return { gesamtFlaeche: 0, anzahlWohnungen: 0, anzahlMieter: 0 };
+    }
+
+    // Calculate total area
+    const totalArea = wohnungen.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
+    const anzahlWohnungen = wohnungen.length;
+
+    // Get tenant data for the specific year
+    let anzahlMieter = 0;
+    try {
+      // Get all tenants for the apartments in this house
+      const { data: mieter, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('id, wohnung_id, einzug, auszug')
+        .in('wohnung_id', wohnungen.map(w => w.id).filter(Boolean) as string[]);
+
+      if (mieterError) {
+        console.warn('Error fetching tenant data, will continue without it:', mieterError);
+      } else if (mieter && mieter.length > 0) {
+        if (jahr) {
+          // If a year is provided, filter tenants who lived there during that year
+          const yearNum = parseInt(jahr);
+          const yearStart = new Date(yearNum, 0, 1).toISOString().split('T')[0];
+          const yearEnd = new Date(yearNum, 11, 31).toISOString().split('T')[0];
+          
+          anzahlMieter = mieter.filter(tenant => {
+            const moveIn = tenant.einzug || '';
+            const moveOut = tenant.auszug || '9999-12-31'; // If no move-out date, assume still living there
+            
+            // Check if the tenant's stay overlaps with the target year
+            return (
+              (moveIn <= yearEnd) && 
+              (moveOut >= yearStart || !tenant.auszug)
+            );
+          }).length;
+        } else {
+          // If no year is provided, just count all tenants
+          anzahlMieter = mieter.length;
+        }
+      }
+    } catch (error) {
+      console.warn('Unexpected error when fetching tenant data, will continue without it:', error);
+    }
     
-  if (error) {
-    console.error("Error fetching Nebenkosten list:", error);
+    return { 
+      gesamtFlaeche: totalArea,
+      anzahlWohnungen,
+      anzahlMieter
+    };
+  } catch (error) {
+    console.error('Unexpected error in getHausGesamtFlaeche:', error);
+    return { gesamtFlaeche: 0, anzahlWohnungen: 0, anzahlMieter: 0 };
+  }
+}
+
+export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
+  const supabase = createSupabaseServerClient();
+  
+  try {
+    // First, get the Nebenkosten data with house information
+    const { data, error } = await supabase
+      .from("Nebenkosten")
+      .select('*, Haeuser!left(name)'); // Changed to left join to handle missing house data
+      
+    if (error) {
+      console.error("Error fetching Nebenkosten list:", error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    // Process each entry
+    const nebendkostenWithArea = [];
+    
+    for (const item of data) {
+      try {
+        // Skip if no house ID is available
+        if (!item.haeuser_id) {
+          console.warn('Skipping Nebenkosten entry with missing haus_id:', item.id);
+          continue;
+        }
+        
+        const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(item.haeuser_id, item.jahr);
+        
+        nebendkostenWithArea.push({
+          ...item,
+          gesamtFlaeche,
+          anzahlWohnungen,
+          anzahlMieter,
+          // Ensure Haeuser is always an object to prevent undefined errors
+          Haeuser: item.Haeuser || { name: 'Unbekanntes Haus' }
+        });
+      } catch (error) {
+        console.error(`Error processing Nebenkosten entry ${item.id}:`, error);
+        // Continue with other entries even if one fails
+      }
+    }
+    
+    return nebendkostenWithArea as Nebenkosten[];
+  } catch (error) {
+    console.error('Unexpected error in fetchNebenkostenList:', error);
     return [];
   }
-  
-  return data as Nebenkosten[];
 }
 
 export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkosten | null> {
+  if (!id) {
+    console.error('No ID provided to fetchNebenkostenDetailsById');
+    return null;
+  }
+
   const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("Nebenkosten")
-    .select('*, Haeuser(name), Rechnungen(*)')
-    .eq('id', id)
-    .single(); // Ensure only one record is fetched
+  
+  try {
+    const { data, error } = await supabase
+      .from("Nebenkosten")
+      .select('*, Haeuser!left(name), Rechnungen(*)')
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error(`Error fetching Nebenkosten details for ID ${id}:`, error);
+    if (error) {
+      console.error(`Error fetching Nebenkosten details for ID ${id}:`, error);
+      return null;
+    }
+
+    if (!data) {
+      console.warn(`No Nebenkosten found for ID ${id}`);
+      return null;
+    }
+
+    // Skip if no house ID is available
+    if (!data.haeuser_id) {
+      console.warn(`Nebenkosten entry ${id} has no associated house`);
+      return {
+        ...data,
+        Haeuser: { name: 'Unbekanntes Haus' },
+        gesamtFlaeche: 0,
+        anzahlWohnungen: 0,
+        anzahlMieter: 0
+      } as Nebenkosten;
+    }
+
+    // Get house metrics
+    const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(data.haeuser_id, data.jahr || undefined);
+    
+    return {
+      ...data,
+      Haeuser: data.Haeuser || { name: 'Unbekanntes Haus' },
+      gesamtFlaeche,
+      anzahlWohnungen,
+      anzahlMieter
+    } as Nebenkosten;
+  } catch (error) {
+    console.error(`Unexpected error in fetchNebenkostenDetailsById for ID ${id}:`, error);
     return null;
   }
-
-  if (!data) {
-    console.warn(`No Nebenkosten found for ID ${id}`);
-    return null;
-  }
-
-  return data as Nebenkosten;
 }
 
 export async function fetchFinanzenByMonth() {
