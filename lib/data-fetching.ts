@@ -452,7 +452,7 @@ export type Wasserzaehler = {
   ablese_datum: string | null; // date
   zaehlerstand: number; // numeric
   verbrauch: number; // numeric
-  nebekosten_id: string; // uuid // Corrected property name to match DB
+  nebenkosten_id: string; // uuid // Corrected property name to match DB
 };
 
 export type WasserzaehlerFormEntry = {
@@ -556,7 +556,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
       const { data: readings, error: readingsError } = await supabase
         .from('Wasserzaehler')
         .select('*')
-        .eq('nebekosten_id', nebenkostenId); // Corrected column name to match DB schema hint
+        .eq('nebenkosten_id', nebenkostenId); // Corrected column name to match DB schema hint
       // Optional: Further filter by mieter_ids if necessary, though nebenkosten_id should be specific enough.
       // .in('mieter_id', mieterList.map(m => m.id));
 
