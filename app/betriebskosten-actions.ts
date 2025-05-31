@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter } from "../lib/data-fetching"; // Adjusted path
+import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler } from "../lib/data-fetching"; // Adjusted path
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -187,6 +187,42 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
   } catch (error: any) {
     console.error("Error in getNebenkostenDetailsAction:", error);
     return { success: false, message: error.message || "Failed to fetch Nebenkosten details." };
+  }
+}
+
+export async function getWasserzaehlerRecordsAction(
+  nebenkostenId: string
+): Promise<{ success: boolean; data?: Wasserzaehler[]; message?: string }> {
+  "use server";
+
+  if (!nebenkostenId) {
+    return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("Wasserzaehler")
+      .select("*")
+      .eq("nebekosten_id", nebenkostenId) // Ensure correct column name here
+      .eq("user_id", user.id);
+
+    if (error) {
+      console.error(`Error fetching Wasserzaehler records for nebenkosten_id ${nebenkostenId}:`, error);
+      return { success: false, message: `Fehler beim Abrufen der Wasserzählerdaten: ${error.message}` };
+    }
+
+    return { success: true, data: data as Wasserzaehler[] };
+
+  } catch (error: any) {
+    console.error('Unexpected error in getWasserzaehlerRecordsAction:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
 

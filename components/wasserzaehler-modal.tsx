@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData } from "@/lib/data-fetching"; // Ensure types are imported
+import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching"; // Ensure types are imported
 
 interface WasserzaehlerModalProps {
   isOpen: boolean;
@@ -21,7 +21,7 @@ interface WasserzaehlerModalProps {
   nebenkosten: Nebenkosten | null;
   mieterList: Mieter[];
   onSave: (data: WasserzaehlerFormData) => Promise<void>; // onSave will be the server action call
-  // Optional: existingWasserzaehlerData?: Wasserzaehler[]; // To pre-fill form if editing
+  existingReadings?: Wasserzaehler[] | null;
 }
 
 export function WasserzaehlerModal({
@@ -30,24 +30,45 @@ export function WasserzaehlerModal({
   nebenkosten,
   mieterList,
   onSave,
+  existingReadings,
 }: WasserzaehlerModalProps) {
   const [formData, setFormData] = useState<WasserzaehlerFormEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen && nebenkosten && mieterList) {
-      // Initialize formData based on mieterList
-      // Later, this could pre-fill with existing Wasserzaehler data if provided
-      const initialFormData = mieterList.map(mieter => ({
-        mieter_id: mieter.id,
-        mieter_name: mieter.name,
-        ablese_datum: null, // Or a default date like end of Nebenkosten year
-        zaehlerstand: "", // Use empty string for controlled number inputs
-        verbrauch: "",   // Use empty string for controlled number inputs
-      }));
+      const initialFormData = mieterList.map(mieter => {
+        const existingReadingForMieter = existingReadings?.find(
+          reading => reading.mieter_id === mieter.id
+        );
+
+        if (existingReadingForMieter) {
+          return {
+            mieter_id: mieter.id,
+            mieter_name: mieter.name,
+            ablese_datum: existingReadingForMieter.ablese_datum || null,
+            zaehlerstand: existingReadingForMieter.zaehlerstand !== null && existingReadingForMieter.zaehlerstand !== undefined
+                          ? String(existingReadingForMieter.zaehlerstand)
+                          : "",
+            verbrauch: existingReadingForMieter.verbrauch !== null && existingReadingForMieter.verbrauch !== undefined
+                       ? String(existingReadingForMieter.verbrauch)
+                       : "",
+          };
+        } else {
+          return {
+            mieter_id: mieter.id,
+            mieter_name: mieter.name,
+            ablese_datum: null,
+            zaehlerstand: "",
+            verbrauch: "",
+          };
+        }
+      });
       setFormData(initialFormData);
+    } else if (!isOpen) {
+      // setFormData([]);
     }
-  }, [isOpen, nebenkosten, mieterList]);
+  }, [isOpen, nebenkosten, mieterList, existingReadings]);
 
   const handleInputChange = (index: number, field: keyof WasserzaehlerFormEntry, value: any) => {
     const updatedFormData = [...formData];
