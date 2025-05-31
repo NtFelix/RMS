@@ -13,9 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker"; // Assuming this exists and is usable
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData } from "@/lib/data-fetching"; // Ensure types are imported
-// If DatePicker is not available, remove its import and usage.
 
 interface WasserzaehlerModalProps {
   isOpen: boolean;
@@ -55,12 +53,6 @@ export function WasserzaehlerModal({
     const updatedFormData = [...formData];
     // Type assertion for safety, ensure value matches field type
     (updatedFormData[index] as any)[field] = value;
-    setFormData(updatedFormData);
-  };
-
-  const handleDateChange = (index: number, date: Date | undefined) => {
-    const updatedFormData = [...formData];
-    updatedFormData[index].ablese_datum = date ? date.toISOString().split('T')[0] : null;
     setFormData(updatedFormData);
   };
 
@@ -112,21 +104,13 @@ export function WasserzaehlerModal({
               <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor={`ablese_datum-${index}`} className="text-sm font-medium">Ablesedatum</Label>
-                  {/* If DatePicker is not available, use <Input type="date"> */}
-                  <DatePicker
-                    date={entry.ablese_datum ? new Date(entry.ablese_datum) : undefined}
-                    setDate={(date) => handleDateChange(index, date)}
-                    className="w-full"
-                  />
-                  {/* Fallback example:
                   <Input
                     id={`ablese_datum-${index}`}
                     type="date"
-                    value={entry.ablese_datum || ""}
-                    onChange={(e) => handleInputChange(index, "ablese_datum", e.target.value)}
+                    value={entry.ablese_datum || ""} // Ensure this is a string 'YYYY-MM-DD' or empty
+                    onChange={(e) => handleInputChange(index, "ablese_datum", e.target.value || null)}
                     className="w-full"
                   />
-                  */}
                 </div>
                 <div>
                   <Label htmlFor={`zaehlerstand-${index}`} className="text-sm font-medium">Zählerstand</Label>
