@@ -444,3 +444,101 @@ export async function getDashboardSummary() {
     offeneAufgabenCount: aufgaben.length
   };
 }
+
+export async function fetchMieterForNebenkosten(hausId: string, jahr: string): Promise<Mieter[]> {
+  if (!hausId || !jahr) {
+    console.error('Invalid hausId or jahr provided to fetchMieterForNebenkosten');
+    return [];
+  }
+
+  const supabase = createSupabaseServerClient();
+  const yearNum = parseInt(jahr);
+  // Construct ISO strings for the beginning and end of the year
+  // Ensure correct timezone handling if dates are stored in UTC and comparisons need to be local-time-aware
+  // For simplicity, assuming dates are comparable as strings in 'YYYY-MM-DD' format.
+  const yearStartStr = `${yearNum}-01-01`;
+  const yearEndStr = `${yearNum}-12-31`;
+
+  try {
+    // 1. Fetch Wohnungen associated with the hausId
+    const { data: wohnungen, error: wohnungenError } = await supabase
+      .from('Wohnungen')
+      .select('id')
+      .eq('haus_id', hausId);
+
+    if (wohnungenError) {
+      console.error(`Error fetching Wohnungen for hausId ${hausId}:`, wohnungenError);
+      throw wohnungenError;
+    }
+
+    if (!wohnungen || wohnungen.length === 0) {
+      console.warn(`No Wohnungen found for hausId: ${hausId}`);
+      return [];
+    }
+
+    const wohnungIds = wohnungen.map(w => w.id);
+
+    // 2. Fetch Mieter associated with these Wohnungen
+    // Also fetch Mieter.name for display purposes in the form later
+    const { data: mieter, error: mieterError } = await supabase
+      .from('Mieter')
+      .select('*, Wohnungen(name)') // Include Wohnung name if needed, or just Mieter fields
+      .in('wohnung_id', wohnungIds);
+
+    if (mieterError) {
+      console.error(`Error fetching Mieter for Wohnungen in hausId ${hausId}:`, mieterError);
+      throw mieterError;
+    }
+
+    if (!mieter || mieter.length === 0) {
+      console.warn(`No Mieter found for Wohnungen in hausId: ${hausId}`);
+      return [];
+    }
+
+    // 3. Filter Mieter based on einzug and auszug dates relative to the given jahr
+    const filteredMieter = mieter.filter(m => {
+      const einzug = m.einzug || ''; // Default to empty string if null
+      const auszug = m.auszug || '9999-12-31'; // Default to a very late date if null (still living there)
+
+      // A tenant is relevant if their rental period overlaps with the given year.
+      // Overlap conditions:
+      // - Tenant's start date is before or same as year's end date AND
+      // - Tenant's end date is after or same as year's start date.
+      const tenantEinzugRelevant = einzug <= yearEndStr;
+      const tenantAuszugRelevant = auszug >= yearStartStr;
+
+      return tenantEinzugRelevant && tenantAuszugRelevant;
+    });
+
+    return filteredMieter as Mieter[];
+
+  } catch (error) {
+    console.error('Unexpected error in fetchMieterForNebenkosten:', error);
+    return [];
+  }
+}
+
+export type Wasserzaehler = {
+  id: string; // uuid
+  user_id: string; // uuid, default auth.uid()
+  mieter_id: string; // uuid
+  ablese_datum: string | null; // date
+  zaehlerstand: number; // numeric
+  verbrauch: number; // numeric
+  nebenkosten_id: string; // uuid
+};
+
+export type WasserzaehlerFormEntry = {
+  mieter_id: string;
+  mieter_name: string; // For display purposes in the form
+  ablese_datum: string | null;
+  zaehlerstand: number | string; // string to handle empty input
+  verbrauch: number | string; // string to handle empty input
+  // Optional: Add an existing_wasserzaehler_id if we need to update existing records
+  // existing_wasserzaehler_id?: string | null;
+};
+
+export type WasserzaehlerFormData = {
+  entries: WasserzaehlerFormEntry[];
+  nebenkosten_id: string; // To associate the readings with a Nebenkosten entry
+};
