@@ -1,8 +1,8 @@
 import React from 'react';
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { OperatingCostsOverviewModal } from './operating-costs-overview-modal'; // Adjust path if necessary
-import { Nebenkosten } from '@/lib/data-fetching'; // Adjust path if necessary
+import { OperatingCostsOverviewModal } from './operating-costs-overview-modal';
+import { Nebenkosten } from '@/lib/data-fetching';
 
 // Default props for the modal
 const defaultProps = {
@@ -22,13 +22,12 @@ const createMockNebenkosten = (overrides: Partial<Nebenkosten>): Nebenkosten => 
     user_id: 'user-1',
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    gesamtFlaeche: 100, // Default total area for other calculations in modal
+    gesamtFlaeche: 100,
     anzahlWohnungen: 5,
     anzahlMieter: 10,
-    // Default Wasserkosten related fields (can be overridden)
     wasserkosten: null,
     wasserverbrauch: null,
-    Haeuser: { // Mocked Haeuser relation
+    Haeuser: {
       id: 'haus-1',
       name: 'Musterhaus',
       adresse: 'Musterstraße 1',
@@ -50,26 +49,20 @@ describe('OperatingCostsOverviewModal', () => {
     });
     render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
 
-    // Find the Wasserkosten section to scope queries
     const wasserkostenSection = screen.getByText('Wasserkosten').closest('div');
     expect(wasserkostenSection).toBeInTheDocument();
+    if (!wasserkostenSection) return;
 
-    if (!wasserkostenSection) return; // Type guard
-
-    // Check Gesamtverbrauch
     expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
     expect(within(wasserkostenSection).getByText('10 m³')).toBeInTheDocument();
 
-    // Check Gesamtkosten for water
     expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
-    // Note: The component uses new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value)
-    // This will format 100 to "100,00 €" (with non-breaking space for € on some systems/browsers)
-    // We use a regex to be more flexible with spacing.
     expect(within(wasserkostenSection).getByText(/100,00\s*€/)).toBeInTheDocument();
 
-    // Check Kosten pro m³
     expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
-    expect(within(wasserkostenSection).getByText(/10,00\s*€/)).toBeInTheDocument(); // 100 / 10 = 10
+    expect(within(wasserkostenSection).getByText(/10,00\s*€/)).toBeInTheDocument();
+
+    expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
   });
 
   test('does not display "Kosten pro m²" in the Wasserkosten section', () => {
@@ -83,7 +76,6 @@ describe('OperatingCostsOverviewModal', () => {
     expect(wasserkostenSection).toBeInTheDocument();
     if (!wasserkostenSection) return;
 
-    // Explicitly query for "Kosten pro m²" within the Wasserkosten section
     const kostenProSqmText = within(wasserkostenSection).queryByText('Kosten pro m²');
     expect(kostenProSqmText).not.toBeInTheDocument();
   });
@@ -99,17 +91,96 @@ describe('OperatingCostsOverviewModal', () => {
     expect(wasserkostenSection).toBeInTheDocument();
     if (!wasserkostenSection) return;
 
-    // Check Gesamtverbrauch (could be "0 m³" or "-")
-    // The component currently renders "0 m³" if wasserberbrauch is 0 (and not null)
     expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
     expect(within(wasserkostenSection).getByText('0 m³')).toBeInTheDocument();
 
-    // Check Kosten pro m³ (should display "-" or "N/A")
+    expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText(/50,00\s*€/)).toBeInTheDocument();
+
     expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
-    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // 50 / 0 is invalid for cost per m³
+
+    expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
   });
 
-  test('handles missing Wasserkosten data', () => {
+  test('wasserkosten is null, wasserverbrauch has value', () => {
+    const mockData = createMockNebenkosten({
+      wasserkosten: null,
+      wasserverbrauch: 50,
+    });
+    render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
+
+    const wasserkostenSection = screen.getByText('Wasserkosten').closest('div');
+    expect(wasserkostenSection).toBeInTheDocument();
+    if (!wasserkostenSection) return;
+
+    expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('50 m³')).toBeInTheDocument();
+
+    expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserkosten is null
+
+    expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserkosten is null
+
+    expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
+  });
+
+  test('wasserkosten is zero, wasserverbrauch has value', () => {
+    const mockData = createMockNebenkosten({
+      wasserkosten: 0,
+      wasserverbrauch: 50,
+    });
+    render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
+
+    const wasserkostenSection = screen.getByText('Wasserkosten').closest('div');
+    expect(wasserkostenSection).toBeInTheDocument();
+    if (!wasserkostenSection) return;
+
+    expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('50 m³')).toBeInTheDocument();
+
+    expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText(/0,00\s*€/)).toBeInTheDocument(); // Wasserkosten is 0
+
+    expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
+    // 0 / 50 = 0. Component logic: (wasserkosten > 0 && wasserverbrauch > 0) ? ... : '-'
+    // Correction: (wasserkosten && wasserverbrauch && wasserverbrauch > 0)
+    // With wasserrkosten = 0, (0 && 50 && 50 > 0) is false, so it shows '-'
+    // If component logic were (wasserkosten != null && wasserverbrauch > 0), it would be 0,00 €
+    // Current component logic for Kosten pro m³ is:
+    // (nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0 && nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0)
+    // So, if wasserrkosten is 0, this condition is false, leading to '-'.
+    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument();
+
+
+    expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
+  });
+
+  test('wasserkosten has value, wasserverbrauch is null', () => {
+    const mockData = createMockNebenkosten({
+      wasserkosten: 100,
+      wasserverbrauch: null,
+    });
+    render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
+
+    const wasserkostenSection = screen.getByText('Wasserkosten').closest('div');
+    expect(wasserkostenSection).toBeInTheDocument();
+    if (!wasserkostenSection) return;
+
+    expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserverbrauch is null
+
+    expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText(/100,00\s*€/)).toBeInTheDocument();
+
+    expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserverbrauch is null
+
+    expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
+  });
+
+  test('handles completely missing Wasserdaten (both null)', () => {
     const mockData = createMockNebenkosten({
       wasserkosten: null,
       wasserverbrauch: null,
@@ -120,32 +191,26 @@ describe('OperatingCostsOverviewModal', () => {
     expect(wasserkostenSection).toBeInTheDocument();
     if (!wasserkostenSection) return;
 
-    // Check for "Keine Wasserkosten gespeichert" message
-    // This message appears if nebenkosten.wasserkosten is null/undefined
-    expect(within(wasserkostenSection).getByText('Keine Wasserkosten gespeichert')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('Keine Wasserdaten erfasst.')).toBeInTheDocument();
 
-    // Ensure other fields are not showing actual values or calculations
     expect(within(wasserkostenSection).queryByText('Gesamtverbrauch')).not.toBeInTheDocument();
     expect(within(wasserkostenSection).queryByText('Gesamtkosten')).not.toBeInTheDocument();
     expect(within(wasserkostenSection).queryByText('Kosten pro m³')).not.toBeInTheDocument();
   });
 
-  test('handles undefined Wasserkosten data (alternative to null)', () => {
+  test('handles undefined Wasserdaten (both undefined)', () => {
     const mockData = createMockNebenkosten({
-      // wasserrkosten and wasserverbrauch will be undefined if not set in overrides
+       wasserkosten: undefined, // Explicitly undefined
+       wasserverbrauch: undefined, // Explicitly undefined
     });
-     // Or explicitly:
-    // const mockData = createMockNebenkosten({
-    //   wasserkosten: undefined,
-    //   wasserverbrauch: undefined,
-    // });
+    // Or createMockNebenkosten({}) and rely on defaults if they were undefined
     render(<OperatingCostsOverviewModal {...defaultProps} nebenkosten={mockData} />);
 
     const wasserkostenSection = screen.getByText('Wasserkosten').closest('div');
     expect(wasserkostenSection).toBeInTheDocument();
     if (!wasserkostenSection) return;
 
-    expect(within(wasserkostenSection).getByText('Keine Wasserkosten gespeichert')).toBeInTheDocument();
+    expect(within(wasserkostenSection).getByText('Keine Wasserdaten erfasst.')).toBeInTheDocument();
     expect(within(wasserkostenSection).queryByText('Gesamtverbrauch')).not.toBeInTheDocument();
     expect(within(wasserkostenSection).queryByText('Gesamtkosten')).not.toBeInTheDocument();
     expect(within(wasserkostenSection).queryByText('Kosten pro m³')).not.toBeInTheDocument();
