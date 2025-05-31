@@ -15,9 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
-import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler, fetchWasserzaehlerModalData } from "@/lib/data-fetching"; // Ensure types are imported
+// Removed fetchWasserzaehlerModalData, kept types
+import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
+import { getWasserzaehlerModalDataAction } from "@/app/(dashboard)/haeuser/actions"; // Added server action import
 
 interface WasserzaehlerModalProps {
   isOpen: boolean;
@@ -64,7 +66,8 @@ export function WasserzaehlerModal({
       const fetchData = async () => {
         try {
           // Ensure nebenkosten.id is not undefined before calling
-          const { mieterList: fetchedMieterList, existingReadings: fetchedExistingReadings } = await fetchWasserzaehlerModalData(nebenkosten.id!);
+          // Changed to use server action
+          const { mieterList: fetchedMieterList, existingReadings: fetchedExistingReadings } = await getWasserzaehlerModalDataAction(nebenkosten.id!);
           setInternalMieterList(fetchedMieterList);
           setInternalExistingReadings(fetchedExistingReadings);
         } catch (error) {
