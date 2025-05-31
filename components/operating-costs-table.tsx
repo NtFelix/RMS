@@ -13,8 +13,7 @@ import { Nebenkosten, Mieter, WasserzaehlerFormData } from "../lib/data-fetching
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Added Droplets
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
-import { fetchMieterForNebenkosten } from "@/lib/data-fetching" // Adjusted path
-import { saveWasserzaehlerData } from "@/app/betriebskosten-actions" // Adjusted path
+import { getMieterForNebenkostenAction, saveWasserzaehlerData } from "@/app/betriebskosten-actions" // Adjusted path
 import { toast } from "sonner" // For notifications
 
 
@@ -50,14 +49,24 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
       return;
     }
     setIsLoadingDataForModal(true);
-    setSelectedNebenkostenItem(item);
+    setSelectedNebenkostenItem(item); // Set this early for the loading indicator text
     try {
-      const mieter = await fetchMieterForNebenkosten(item.haeuser_id, item.jahr);
-      setMieterForModal(mieter);
-      setIsWasserzaehlerModalOpen(true);
-    } catch (error) {
-      console.error("Error fetching mieter for Wasserzaehler modal:", error);
-      toast.error("Fehler beim Laden der Mieterdaten.");
+      // Call the new server action
+      const result = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
+
+      if (result.success && result.data) {
+        setMieterForModal(result.data);
+        setIsWasserzaehlerModalOpen(true);
+      } else {
+        console.error("Error fetching mieter via action:", result.message);
+        toast.error(`Fehler beim Laden der Mieterdaten: ${result.message || "Unbekannter Fehler"}`);
+        // Do not open modal if data fetching failed
+        // setSelectedNebenkostenItem(null); // Optionally clear selection if modal won't open
+      }
+    } catch (error) { // Catch errors from the action call itself (e.g., network issues)
+      console.error("Error calling getMieterForNebenkostenAction:", error);
+      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Mieterdaten aufgetreten.");
+      // setSelectedNebenkostenItem(null); // Optionally clear selection
     } finally {
       setIsLoadingDataForModal(false);
     }
