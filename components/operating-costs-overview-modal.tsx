@@ -92,7 +92,7 @@ export function OperatingCostsOverviewModal({
           <div className="rounded-md border p-4">
             <h3 className="font-semibold mb-4">Wasserkosten</h3>
             {nebenkosten.wasserkosten ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Gesamtverbrauch</p>
                   <p className="font-medium">{nebenkosten.wasserverbrauch ? `${nebenkosten.wasserverbrauch} m³` : '-'}</p>
@@ -106,14 +106,6 @@ export function OperatingCostsOverviewModal({
                   <p className="font-medium">
                     {nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0
                       ? formatCurrency(nebenkosten.wasserkosten / nebenkosten.wasserverbrauch)
-                      : '-'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Kosten pro m²</p>
-                  <p className="font-medium">
-                    {totalArea > 0
-                      ? formatCurrency(nebenkosten.wasserkosten / totalArea)
                       : '-'}
                   </p>
                 </div>
