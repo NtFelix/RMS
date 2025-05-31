@@ -239,11 +239,13 @@ export async function saveWasserzaehlerData(
 
   const { nebenkosten_id, entries } = formData;
 
-  if (!nebenkosten_id || !entries || entries.length === 0) {
-    // If entries are empty, it might mean clearing existing data.
-    // Or it could be an invalid request. For now, let's assume it means clearing.
-    console.log(`No entries provided for nebenkosten_id: ${nebenkosten_id}. Deleting existing entries.`);
-  }
+  // --- Log Incoming Data ---
+  console.log(`[saveWasserzaehlerData] Called with nebenkosten_id: ${nebenkosten_id}, num_entries: ${entries ? entries.length : 'null or 0'}`);
+
+  // Original condition for logging, can be removed if the one above is sufficient
+  // if (!nebenkosten_id || !entries || entries.length === 0) {
+  //   console.log(`[saveWasserzaehlerData] No entries provided for nebenkosten_id: ${nebenkosten_id}. Considering deletion of existing entries or setting sum to 0.`);
+  // }
 
   // Strategy: Delete existing entries for this nebenkosten_id, then insert new ones.
   const { error: deleteError } = await supabase
@@ -252,26 +254,31 @@ export async function saveWasserzaehlerData(
     .eq("nebenkosten_id", nebenkosten_id) // Corrected column name
     .eq("user_id", user.id); // Ensure user can only delete their own records
 
+  // --- Log Deletion Result ---
   if (deleteError) {
-    console.error(`Error deleting existing Wasserzaehler entries for nebenkosten_id ${nebenkosten_id}:`, deleteError);
+    console.error(`[saveWasserzaehlerData] Error deleting Wasserzaehler entries for ${nebenkosten_id}:`, deleteError);
     return { success: false, message: `Fehler beim Löschen vorhandener Einträge: ${deleteError.message}` };
+  } else {
+    console.log(`[saveWasserzaehlerData] Successfully deleted existing Wasserzaehler entries for ${nebenkosten_id}.`);
   }
 
   // If there are no new entries to save, we are done after deletion.
   // However, we still need to update Nebenkosten.wasserverbrauch to 0.
   if (!entries || entries.length === 0) {
-    // Update Nebenkosten table, setting wasserverbrauch to 0
-    const { error: updateNkError } = await supabase
+    // --- Log Update to 0 (if entries are empty) ---
+    console.log(`[saveWasserzaehlerData] Attempting to set wasserverbrauch to 0 for Nebenkosten ID: ${nebenkosten_id}`);
+    const { data: updateData, error: updateNkError } = await supabase
       .from("Nebenkosten")
       .update({ wasserverbrauch: 0 })
       .eq("id", nebenkosten_id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .select(); // Add .select() to see what was updated
 
     if (updateNkError) {
-      console.error(`Error updating Nebenkosten.wasserverbrauch to 0 for ${nebenkosten_id}:`, updateNkError);
+      console.error(`[saveWasserzaehlerData] Error updating Nebenkosten.wasserverbrauch to 0 for ${nebenkosten_id}:`, updateNkError);
       // Non-fatal, but log it. The main operation (deleting entries) was successful.
-      // Decide if this should be a hard failure or just a logged warning.
-      // For now, let's consider it part of the overall success if deletion worked.
+    } else {
+      console.log(`[saveWasserzaehlerData] Successfully updated Nebenkosten.wasserverbrauch to 0 for ${nebenkosten_id}. Update data:`, updateData);
     }
 
     revalidatePath("/dashboard/betriebskosten");
@@ -292,13 +299,13 @@ export async function saveWasserzaehlerData(
     .insert(recordsToInsert)
     .select();
 
+  // --- Log Insertion Result ---
   if (insertError) {
-    console.error("Error inserting Wasserzaehler data:", insertError);
+    console.error(`[saveWasserzaehlerData] Error inserting new Wasserzaehler data for ${nebenkosten_id}:`, insertError);
     return { success: false, message: `Fehler beim Speichern der Wasserzählerdaten: ${insertError.message}` };
+  } else {
+    console.log(`[saveWasserzaehlerData] Successfully inserted ${insertedData ? insertedData.length : 0} new Wasserzaehler entries for ${nebenkosten_id}.`);
   }
-
-  revalidatePath("/dashboard/betriebskosten"); // Or a more specific path
-  // e.g., revalidatePath(`/dashboard/betriebskosten/${nebenkosten_id}`);
 
   // After successful insert, calculate sum and update Nebenkosten
   // 1. Query all Wasserzaehler records for this nebenkosten_id and user_id
@@ -308,40 +315,44 @@ export async function saveWasserzaehlerData(
     .eq("nebenkosten_id", nebenkosten_id)
     .eq("user_id", user.id);
 
+  // --- Log Sum Calculation ---
   if (fetchError) {
-    console.error(`Error fetching Wasserzaehler records for sum calculation (nebenkosten_id: ${nebenkosten_id}):`, fetchError);
+    console.error(`[saveWasserzaehlerData] Error fetching Wasserzaehler records for sum (nebenkosten_id: ${nebenkosten_id}):`, fetchError);
     // This is not ideal, as data was inserted but sum couldn't be updated.
     // Return success as main operation (insert) was successful, but include a warning or partial success message.
     return {
-      success: true, // Or false, depending on strictness. Let's say true, but with a message.
+      success: true,
       data: insertedData,
       message: `Wasserzählerdaten gespeichert, aber Gesamtverbrauch konnte nicht aktualisiert werden: ${fetchError.message}`
     };
+  } else {
+    console.log(`[saveWasserzaehlerData] Fetched ${zaehlerRecords ? zaehlerRecords.length : 0} records for sum. Calculated totalVerbrauch: ${zaehlerRecords.reduce((sum, record) => sum + (record.verbrauch || 0), 0)} for Nebenkosten ID: ${nebenkosten_id}`);
   }
 
   // 2. Calculate the sum of verbrauch
   const totalVerbrauch = zaehlerRecords.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
 
   // 3. Update the Nebenkosten table
-  const { error: updateNkError } = await supabase
+  // --- Log Final Nebenkosten Update ---
+  console.log(`[saveWasserzaehlerData] Attempting to update Nebenkosten ID: ${nebenkosten_id} with totalVerbrauch: ${totalVerbrauch}`);
+  const { data: finalUpdateData, error: updateNkError } = await supabase
     .from("Nebenkosten")
     .update({ wasserverbrauch: totalVerbrauch })
     .eq("id", nebenkosten_id)
-    .eq("user_id", user.id); // Ensure user context for security
+    .eq("user_id", user.id) // Ensure user context for security
+    .select(); // Add .select()
 
   if (updateNkError) {
-    console.error(`Error updating Nebenkosten.wasserverbrauch for ${nebenkosten_id}:`, updateNkError);
-    // Similar to above, data inserted, but the final update failed.
+    console.error(`[saveWasserzaehlerData] Error updating Nebenkosten.wasserverbrauch with totalVerbrauch for ${nebenkosten_id}:`, updateNkError);
     return {
-      success: true, // Or false
+      success: true,
       data: insertedData,
       message: `Wasserzählerdaten gespeichert und Gesamtverbrauch berechnet (${totalVerbrauch}), aber Update der Nebenkosten ist fehlgeschlagen: ${updateNkError.message}`
     };
+  } else {
+    console.log(`[saveWasserzaehlerData] Successfully updated Nebenkosten.wasserverbrauch with totalVerbrauch (${totalVerbrauch}) for ${nebenkosten_id}. Update data:`, finalUpdateData);
   }
 
-  // Call revalidatePath again if the update was successful and might affect other views.
-  // Since it's already called, this might be redundant unless specific conditions apply.
-  // However, it's safer to ensure the path is revalidated after all DB operations.
   revalidatePath("/dashboard/betriebskosten");
 
   return { success: true, data: insertedData, message: "Wasserzählerdaten erfolgreich gespeichert und Gesamtverbrauch aktualisiert." };
