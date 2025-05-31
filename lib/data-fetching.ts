@@ -158,7 +158,7 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function getHausGesamtFlaeche(hausId: string): Promise<{
+export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promise<{
   gesamtFlaeche: number;
   anzahlWohnungen: number;
   anzahlMieter: number;
@@ -192,24 +192,38 @@ export async function getHausGesamtFlaeche(hausId: string): Promise<{
     const totalArea = wohnungen.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
     const anzahlWohnungen = wohnungen.length;
 
-    // Get tenant data separately to avoid potential relation issues
+    // Get tenant data for the specific year
     let anzahlMieter = 0;
     try {
-      const { data: mietvertraege, error: mietvertraegeError } = await supabase
-        .from('Hausmietvertraege')
-        .select('id, wohnung_id')
+      // Get all tenants for the apartments in this house
+      const { data: mieter, error: mieterError } = await supabase
+        .from('Mieter')
+        .select('id, wohnung_id, einzug, auszug')
         .in('wohnung_id', wohnungen.map(w => w.id).filter(Boolean) as string[]);
 
-      if (mietvertraegeError) {
-        console.warn('Error fetching tenant data, will continue without it:', mietvertraegeError);
-      } else if (mietvertraege) {
-        // Count unique tenant IDs
-        const mieterIds = new Set(
-          mietvertraege
-            .filter((mv: { id: string }) => mv.id)
-            .map((mv: { id: string }) => mv.id)
-        );
-        anzahlMieter = mieterIds.size;
+      if (mieterError) {
+        console.warn('Error fetching tenant data, will continue without it:', mieterError);
+      } else if (mieter && mieter.length > 0) {
+        if (jahr) {
+          // If a year is provided, filter tenants who lived there during that year
+          const yearNum = parseInt(jahr);
+          const yearStart = new Date(yearNum, 0, 1).toISOString().split('T')[0];
+          const yearEnd = new Date(yearNum, 11, 31).toISOString().split('T')[0];
+          
+          anzahlMieter = mieter.filter(tenant => {
+            const moveIn = tenant.einzug || '';
+            const moveOut = tenant.auszug || '9999-12-31'; // If no move-out date, assume still living there
+            
+            // Check if the tenant's stay overlaps with the target year
+            return (
+              (moveIn <= yearEnd) && 
+              (moveOut >= yearStart || !tenant.auszug)
+            );
+          }).length;
+        } else {
+          // If no year is provided, just count all tenants
+          anzahlMieter = mieter.length;
+        }
       }
     } catch (error) {
       console.warn('Unexpected error when fetching tenant data, will continue without it:', error);
@@ -255,7 +269,7 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
           continue;
         }
         
-        const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(item.haeuser_id);
+        const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(item.haeuser_id, item.jahr);
         
         nebendkostenWithArea.push({
           ...item,
@@ -316,7 +330,7 @@ export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkost
     }
 
     // Get house metrics
-    const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(data.haeuser_id);
+    const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(data.haeuser_id, data.jahr || undefined);
     
     return {
       ...data,
