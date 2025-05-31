@@ -40,57 +40,13 @@ export function WasserzaehlerModal({
 }: WasserzaehlerModalProps) {
   const [formData, setFormData] = useState<WasserzaehlerFormEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingInitialData, setIsFetchingInitialData] = useState<boolean>(false);
-  const [internalMieterList, setInternalMieterList] = useState<Mieter[]>([]);
-  const [internalExistingReadings, setInternalExistingReadings] = useState<Wasserzaehler[] | null>(null);
-
-  // Effect to set isFetchingInitialData based on props, preparing for fetch
-  useEffect(() => {
-    if (isOpen && nebenkosten) {
-      // When modal opens with Nebenkosten, signal to start fetching.
-      // Actual fetch will happen in another effect that depends on isFetchingInitialData.
-      setIsFetchingInitialData(true);
-    } else if (!isOpen) {
-      // Reset fetching state and data when modal closes
-      setIsFetchingInitialData(false);
-      setInternalMieterList([]);
-      setInternalExistingReadings(null);
-      // also reset formData when closing, if not handled by the formData population effect
-      // setFormData([]);
-    }
-  }, [isOpen, nebenkosten]); // Runs when isOpen or nebenkosten changes
-
-  // Effect for Data Fetching
-  useEffect(() => {
-    if (isOpen && nebenkosten?.id && isFetchingInitialData) {
-      const fetchData = async () => {
-        try {
-          // Ensure nebenkosten.id is not undefined before calling
-          // Changed to use server action
-          const { mieterList: fetchedMieterList, existingReadings: fetchedExistingReadings } = await getWasserzaehlerModalDataAction(nebenkosten.id!);
-          setInternalMieterList(fetchedMieterList);
-          setInternalExistingReadings(fetchedExistingReadings);
-        } catch (error) {
-          console.error("Error fetching Wasserzaehler modal data:", error);
-          // Optionally, set an error state here to display to the user
-          setInternalMieterList([]); // Reset on error
-          setInternalExistingReadings(null); // Reset on error
-        } finally {
-          setIsFetchingInitialData(false);
-        }
-      };
-      fetchData();
-    }
-    // No explicit reset here if !isOpen, as the previous effect handles it.
-    // This effect is purely for fetching when conditions are met.
-  }, [isOpen, nebenkosten?.id, isFetchingInitialData]); // Removed setIsFetchingInitialData from deps as it's a setter
 
   // Effect for populating formData based on fetched data
   useEffect(() => {
     // Only populate formData if modal is open, not fetching, and data is available
-    if (isOpen && !isFetchingInitialData && nebenkosten && internalMieterList) {
-      const initialFormData = internalMieterList.map(mieter => {
-        const existingReadingForMieter = internalExistingReadings?.find(
+    if (isOpen && nebenkosten && mieterList) {
+      const initialFormData = mieterList.map(mieter => {
+        const existingReadingForMieter = existingReadings?.find(
           reading => reading.mieter_id === mieter.id
         );
 
@@ -119,9 +75,8 @@ export function WasserzaehlerModal({
       setFormData(initialFormData);
     } else if (!isOpen) {
       setFormData([]); // Reset formData when modal is closed
-      // setIsFetchingInitialData(false); // This is handled by the first effect now
     }
-  }, [isOpen, nebenkosten, internalMieterList, internalExistingReadings, isFetchingInitialData]);
+  }, [isOpen, nebenkosten, mieterList, existingReadings]);
 
   const handleInputChange = (index: number, field: keyof WasserzaehlerFormEntry, value: any) => {
     const updatedFormData = [...formData];
@@ -181,29 +136,6 @@ export function WasserzaehlerModal({
         </DialogHeader>
 
         <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-          {isFetchingInitialData ? (
-            [1, 2, 3].map((item) => (
-              <div key={item} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 border-b pb-4 mb-4">
-                <div className="md:col-span-1 md:text-right">
-                  <Skeleton className="h-5 w-3/4" /> {/* Skeleton for Tenant Name Label */}
-                </div>
-                <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <Skeleton className="h-4 w-1/2 mb-2" /> {/* Skeleton for "Ablesedatum" Label */}
-                    <Skeleton className="h-10 w-full" /> {/* Skeleton for DatePicker */}
-                  </div>
-                  <div>
-                    <Skeleton className="h-4 w-1/2 mb-2" /> {/* Skeleton for "Zählerstand" Label */}
-                    <Skeleton className="h-10 w-full" /> {/* Skeleton for Input */}
-                  </div>
-                  <div>
-                    <Skeleton className="h-4 w-1/2 mb-2" /> {/* Skeleton for "Verbrauch" Label */}
-                    <Skeleton className="h-10 w-full" /> {/* Skeleton for Input */}
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
             <>
               {formData.map((entry, index) => (
                 <div key={entry.mieter_id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 border-b pb-4 mb-4">
@@ -245,14 +177,13 @@ export function WasserzaehlerModal({
                   </div>
                 </div>
               ))}
-              {!isFetchingInitialData && formData.length === 0 && internalMieterList && internalMieterList.length === 0 && (
+              {formData.length === 0 && mieterList && mieterList.length === 0 && (
                 <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
               )}
-               {!isFetchingInitialData && formData.length === 0 && (!internalMieterList || internalMieterList.length > 0) && (
-                 <p>Geben Sie die Zählerstände für die Mieter ein oder passen Sie die Filter an.</p> // Fallback if formData is empty but mieters exist or list is null
+              {formData.length === 0 && (!mieterList || mieterList.length > 0) && (
+                 <p>Geben Sie die Zählerstände für die Mieter ein oder passen Sie die Filter an.</p>
                )}
             </>
-          )}
         </div>
 
         <DialogFooter>
