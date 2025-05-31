@@ -88,10 +88,10 @@ export function OperatingCostsOverviewModal({
             </Table>
           </div>
 
-          {/* Water costs section */}
-          {nebenkosten.wasserkosten && (
-            <div className="rounded-md border p-4">
-              <h3 className="font-semibold mb-4">Wasserkosten</h3>
+          {/* Water costs section - always show but handle missing data */}
+          <div className="rounded-md border p-4">
+            <h3 className="font-semibold mb-4">Wasserkosten</h3>
+            {nebenkosten.wasserkosten ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Gesamtverbrauch</p>
@@ -104,22 +104,24 @@ export function OperatingCostsOverviewModal({
                 <div>
                   <p className="text-sm text-muted-foreground">Kosten pro m³</p>
                   <p className="font-medium">
-                    {nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0 
-                      ? formatCurrency((nebenkosten.wasserkosten || 0) / nebenkosten.wasserverbrauch)
+                    {nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0
+                      ? formatCurrency(nebenkosten.wasserkosten / nebenkosten.wasserverbrauch)
                       : '-'}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Kosten pro m²</p>
                   <p className="font-medium">
-                    {totalArea > 0 
-                      ? formatCurrency((nebenkosten.wasserkosten || 0) / totalArea)
+                    {totalArea > 0
+                      ? formatCurrency(nebenkosten.wasserkosten / totalArea)
                       : '-'}
                   </p>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-muted-foreground italic">Keine Wasserkosten gespeichert</p>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
