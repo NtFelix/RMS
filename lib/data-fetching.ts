@@ -262,6 +262,15 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
     const nebendkostenWithArea = [];
     
     for (const item of data) {
+      // --- Start of added console logs ---
+      console.log(`Processing Nebenkosten ID: ${item.id}, Jahr: ${item.jahr}`);
+      console.log(`  Directly from DB - wasskerkosten: ${item.wasserkosten}, wasserverbrauch: ${item.wasserverbrauch}`);
+
+      if (item.haeuser_id === 'b203ef5c-0de4-4063-b2ed-bb981a13f032') {
+        console.log(`  ^^^ Problematic haus_id detected: ${item.haeuser_id} ^^^`);
+      }
+      // --- End of added console logs ---
+
       try {
         // Skip if no house ID is available
         if (!item.haeuser_id) {
@@ -271,14 +280,19 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
         
         const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(item.haeuser_id, item.jahr);
         
-        nebendkostenWithArea.push({
+        // --- Added console log for final composed item ---
+        const finalItem = {
           ...item,
           gesamtFlaeche,
           anzahlWohnungen,
           anzahlMieter,
           // Ensure Haeuser is always an object to prevent undefined errors
           Haeuser: item.Haeuser || { name: 'Unbekanntes Haus' }
-        });
+        };
+        console.log(`  Final composed item - wasskerkosten: ${finalItem.wasserkosten}, wasserverbrauch: ${finalItem.wasserverbrauch}`);
+        // --- End of added console log ---
+
+        nebendkostenWithArea.push(finalItem);
       } catch (error) {
         console.error(`Error processing Nebenkosten entry ${item.id}:`, error);
         // Continue with other entries even if one fails
