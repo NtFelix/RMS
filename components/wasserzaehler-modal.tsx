@@ -15,7 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
-import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching"; // Ensure types are imported
+// Removed fetchWasserzaehlerModalData, kept types
+import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/hooks/use-toast";
+import { getWasserzaehlerModalDataAction } from "@/app/(dashboard)/haeuser/actions"; // Added server action import
 
 interface WasserzaehlerModalProps {
   isOpen: boolean;
@@ -36,11 +40,57 @@ export function WasserzaehlerModal({
 }: WasserzaehlerModalProps) {
   const [formData, setFormData] = useState<WasserzaehlerFormEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingInitialData, setIsFetchingInitialData] = useState<boolean>(false);
+  const [internalMieterList, setInternalMieterList] = useState<Mieter[]>([]);
+  const [internalExistingReadings, setInternalExistingReadings] = useState<Wasserzaehler[] | null>(null);
 
+  // Effect to set isFetchingInitialData based on props, preparing for fetch
   useEffect(() => {
-    if (isOpen && nebenkosten && mieterList) {
-      const initialFormData = mieterList.map(mieter => {
-        const existingReadingForMieter = existingReadings?.find(
+    if (isOpen && nebenkosten) {
+      // When modal opens with Nebenkosten, signal to start fetching.
+      // Actual fetch will happen in another effect that depends on isFetchingInitialData.
+      setIsFetchingInitialData(true);
+    } else if (!isOpen) {
+      // Reset fetching state and data when modal closes
+      setIsFetchingInitialData(false);
+      setInternalMieterList([]);
+      setInternalExistingReadings(null);
+      // also reset formData when closing, if not handled by the formData population effect
+      // setFormData([]);
+    }
+  }, [isOpen, nebenkosten]); // Runs when isOpen or nebenkosten changes
+
+  // Effect for Data Fetching
+  useEffect(() => {
+    if (isOpen && nebenkosten?.id && isFetchingInitialData) {
+      const fetchData = async () => {
+        try {
+          // Ensure nebenkosten.id is not undefined before calling
+          // Changed to use server action
+          const { mieterList: fetchedMieterList, existingReadings: fetchedExistingReadings } = await getWasserzaehlerModalDataAction(nebenkosten.id!);
+          setInternalMieterList(fetchedMieterList);
+          setInternalExistingReadings(fetchedExistingReadings);
+        } catch (error) {
+          console.error("Error fetching Wasserzaehler modal data:", error);
+          // Optionally, set an error state here to display to the user
+          setInternalMieterList([]); // Reset on error
+          setInternalExistingReadings(null); // Reset on error
+        } finally {
+          setIsFetchingInitialData(false);
+        }
+      };
+      fetchData();
+    }
+    // No explicit reset here if !isOpen, as the previous effect handles it.
+    // This effect is purely for fetching when conditions are met.
+  }, [isOpen, nebenkosten?.id, isFetchingInitialData]); // Removed setIsFetchingInitialData from deps as it's a setter
+
+  // Effect for populating formData based on fetched data
+  useEffect(() => {
+    // Only populate formData if modal is open, not fetching, and data is available
+    if (isOpen && !isFetchingInitialData && nebenkosten && internalMieterList) {
+      const initialFormData = internalMieterList.map(mieter => {
+        const existingReadingForMieter = internalExistingReadings?.find(
           reading => reading.mieter_id === mieter.id
         );
 
@@ -68,9 +118,10 @@ export function WasserzaehlerModal({
       });
       setFormData(initialFormData);
     } else if (!isOpen) {
-      // setFormData([]);
+      setFormData([]); // Reset formData when modal is closed
+      // setIsFetchingInitialData(false); // This is handled by the first effect now
     }
-  }, [isOpen, nebenkosten, mieterList, existingReadings]);
+  }, [isOpen, nebenkosten, internalMieterList, internalExistingReadings, isFetchingInitialData]);
 
   const handleInputChange = (index: number, field: keyof WasserzaehlerFormEntry, value: any) => {
     const updatedFormData = [...formData];
@@ -99,7 +150,12 @@ export function WasserzaehlerModal({
     };
     try {
       await onSave(dataToSave);
-      // onClose(); // Keep modal open on error, or let parent handle
+      toast({
+        title: "Erfolgreich gespeichert",
+        description: "Die Wasserzählerstände wurden erfolgreich aktualisiert.",
+        variant: "success",
+      });
+      onClose();
     } catch (error) {
       console.error("Error saving Wasserzaehler data:", error);
       // Potentially show an error message to the user within the modal
@@ -125,47 +181,78 @@ export function WasserzaehlerModal({
         </DialogHeader>
 
         <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-          {formData.map((entry, index) => (
-            <div key={entry.mieter_id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 border-b pb-4 mb-4">
-              <Label htmlFor={`mieter_name-${index}`} className="md:col-span-1 md:text-right">
-                {entry.mieter_name}
-              </Label>
-              <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor={`ablese_datum-${index}`} className="text-sm font-medium">Ablesedatum</Label>
-                  <DatePicker
-                    value={entry.ablese_datum} // Pass the string 'YYYY-MM-DD' or null
-                    onChange={(date) => handleAbleseDatumChange(index, date)}
-                    placeholder="TT.MM.JJJJ"
-                    className="w-full"
-                  />
+          {isFetchingInitialData ? (
+            [1, 2, 3].map((item) => (
+              <div key={item} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 border-b pb-4 mb-4">
+                <div className="md:col-span-1 md:text-right">
+                  <Skeleton className="h-5 w-3/4" /> {/* Skeleton for Tenant Name Label */}
                 </div>
-                <div>
-                  <Label htmlFor={`zaehlerstand-${index}`} className="text-sm font-medium">Zählerstand</Label>
-                  <Input
-                    id={`zaehlerstand-${index}`}
-                    type="number"
-                    value={entry.zaehlerstand}
-                    onChange={(e) => handleInputChange(index, "zaehlerstand", e.target.value)}
-                    placeholder="z.B. 123.45"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`verbrauch-${index}`} className="text-sm font-medium">Verbrauch</Label>
-                  <Input
-                    id={`verbrauch-${index}`}
-                    type="number"
-                    value={entry.verbrauch}
-                    onChange={(e) => handleInputChange(index, "verbrauch", e.target.value)}
-                    placeholder="z.B. 10.5"
-                    className="w-full"
-                  />
+                <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <Skeleton className="h-4 w-1/2 mb-2" /> {/* Skeleton for "Ablesedatum" Label */}
+                    <Skeleton className="h-10 w-full" /> {/* Skeleton for DatePicker */}
+                  </div>
+                  <div>
+                    <Skeleton className="h-4 w-1/2 mb-2" /> {/* Skeleton for "Zählerstand" Label */}
+                    <Skeleton className="h-10 w-full" /> {/* Skeleton for Input */}
+                  </div>
+                  <div>
+                    <Skeleton className="h-4 w-1/2 mb-2" /> {/* Skeleton for "Verbrauch" Label */}
+                    <Skeleton className="h-10 w-full" /> {/* Skeleton for Input */}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-          {formData.length === 0 && <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>}
+            ))
+          ) : (
+            <>
+              {formData.map((entry, index) => (
+                <div key={entry.mieter_id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 border-b pb-4 mb-4">
+                  <Label htmlFor={`mieter_name-${index}`} className="md:col-span-1 md:text-right">
+                    {entry.mieter_name}
+                  </Label>
+                  <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor={`ablese_datum-${index}`} className="text-sm font-medium">Ablesedatum</Label>
+                      <DatePicker
+                        value={entry.ablese_datum} // Pass the string 'YYYY-MM-DD' or null
+                        onChange={(date) => handleAbleseDatumChange(index, date)}
+                        placeholder="TT.MM.JJJJ"
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`zaehlerstand-${index}`} className="text-sm font-medium">Zählerstand</Label>
+                      <Input
+                        id={`zaehlerstand-${index}`}
+                        type="number"
+                        value={entry.zaehlerstand}
+                        onChange={(e) => handleInputChange(index, "zaehlerstand", e.target.value)}
+                        placeholder="z.B. 123.45"
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`verbrauch-${index}`} className="text-sm font-medium">Verbrauch</Label>
+                      <Input
+                        id={`verbrauch-${index}`}
+                        type="number"
+                        value={entry.verbrauch}
+                        onChange={(e) => handleInputChange(index, "verbrauch", e.target.value)}
+                        placeholder="z.B. 10.5"
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {!isFetchingInitialData && formData.length === 0 && internalMieterList && internalMieterList.length === 0 && (
+                <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
+              )}
+               {!isFetchingInitialData && formData.length === 0 && (!internalMieterList || internalMieterList.length > 0) && (
+                 <p>Geben Sie die Zählerstände für die Mieter ein oder passen Sie die Filter an.</p> // Fallback if formData is empty but mieters exist or list is null
+               )}
+            </>
+          )}
         </div>
 
         <DialogFooter>
