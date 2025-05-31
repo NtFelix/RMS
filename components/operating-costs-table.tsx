@@ -9,11 +9,11 @@ import {
   ContextMenuItem,
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
-import { Nebenkosten, Mieter, WasserzaehlerFormData } from "../lib/data-fetching" // Adjusted path
+import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler } from "../lib/data-fetching" // Adjusted path
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Added Droplets
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
-import { getMieterForNebenkostenAction, saveWasserzaehlerData } from "@/app/betriebskosten-actions" // Adjusted path
+import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction } from "@/app/betriebskosten-actions" // Adjusted path
 import { toast } from "sonner" // For notifications
 
 
@@ -29,6 +29,7 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
   const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<Nebenkosten | null>(null);
   const [mieterForModal, setMieterForModal] = useState<Mieter[]>([]);
   const [isLoadingDataForModal, setIsLoadingDataForModal] = useState(false);
+  const [existingWasserzaehlerRecords, setExistingWasserzaehlerRecords] = useState<Wasserzaehler[] | null>(null);
   
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
@@ -52,21 +53,32 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
     setSelectedNebenkostenItem(item); // Set this early for the loading indicator text
     try {
       // Call the new server action
-      const result = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
+      const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
 
-      if (result.success && result.data) {
-        setMieterForModal(result.data);
-        setIsWasserzaehlerModalOpen(true);
+      if (mieterResult.success && mieterResult.data) {
+        setMieterForModal(mieterResult.data);
+
+        // Fetch existing Wasserzaehler records
+        const existingReadingsResult = await getWasserzaehlerRecordsAction(item.id); // item.id is nebenkosten_id
+
+        if (existingReadingsResult.success && existingReadingsResult.data) {
+          setExistingWasserzaehlerRecords(existingReadingsResult.data);
+        } else {
+          console.error("Error fetching existing Wasserzaehler records:", existingReadingsResult.message);
+          toast.error(`Fehler beim Laden vorhandener Zählerstände: ${existingReadingsResult.message || "Unbekannter Fehler"}`);
+          setExistingWasserzaehlerRecords(null); // Ensure it's reset if fetch fails
+        }
+        setIsWasserzaehlerModalOpen(true); // Open modal after all data is fetched (or attempted)
       } else {
-        console.error("Error fetching mieter via action:", result.message);
-        toast.error(`Fehler beim Laden der Mieterdaten: ${result.message || "Unbekannter Fehler"}`);
-        // Do not open modal if data fetching failed
-        // setSelectedNebenkostenItem(null); // Optionally clear selection if modal won't open
+        console.error("Error fetching mieter via action:", mieterResult.message);
+        toast.error(`Fehler beim Laden der Mieterdaten: ${mieterResult.message || "Unbekannter Fehler"}`);
+        setMieterForModal([]); // Ensure mieter list is empty if it failed
+        setExistingWasserzaehlerRecords(null); // Reset existing records too
       }
     } catch (error) { // Catch errors from the action call itself (e.g., network issues)
-      console.error("Error calling getMieterForNebenkostenAction:", error);
-      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Mieterdaten aufgetreten.");
-      // setSelectedNebenkostenItem(null); // Optionally clear selection
+      console.error("Error calling getMieterForNebenkostenAction or getWasserzaehlerRecordsAction:", error);
+      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten aufgetreten.");
+      setExistingWasserzaehlerRecords(null);
     } finally {
       setIsLoadingDataForModal(false);
     }
@@ -195,11 +207,15 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
       {selectedNebenkostenItem && (
         <WasserzaehlerModal
           isOpen={isWasserzaehlerModalOpen}
-          onClose={() => setIsWasserzaehlerModalOpen(false)}
+          onClose={() => {
+            setIsWasserzaehlerModalOpen(false);
+            setSelectedNebenkostenItem(null); // Also clear selected item
+            setExistingWasserzaehlerRecords(null); // Clear existing records on close
+          }}
           nebenkosten={selectedNebenkostenItem}
           mieterList={mieterForModal}
           onSave={handleSaveWasserzaehler}
-          // existingWasserzaehlerData={...} // If you implement pre-filling
+          existingReadings={existingWasserzaehlerRecords} // New prop
         />
       )}
     </div>
