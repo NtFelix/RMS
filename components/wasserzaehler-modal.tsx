@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format } from "date-fns";
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching"; // Ensure types are imported
 
 interface WasserzaehlerModalProps {
@@ -77,6 +79,12 @@ export function WasserzaehlerModal({
     setFormData(updatedFormData);
   };
 
+  const handleAbleseDatumChange = (index: number, date: Date | undefined) => {
+    const updatedFormData = [...formData];
+    updatedFormData[index].ablese_datum = date ? format(date, "yyyy-MM-dd") : null;
+    setFormData(updatedFormData);
+  };
+
   const handleSubmit = async () => {
     if (!nebenkosten) return;
     setIsLoading(true);
@@ -125,11 +133,10 @@ export function WasserzaehlerModal({
               <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <Label htmlFor={`ablese_datum-${index}`} className="text-sm font-medium">Ablesedatum</Label>
-                  <Input
-                    id={`ablese_datum-${index}`}
-                    type="date"
-                    value={entry.ablese_datum || ""} // Ensure this is a string 'YYYY-MM-DD' or empty
-                    onChange={(e) => handleInputChange(index, "ablese_datum", e.target.value || null)}
+                  <DatePicker
+                    value={entry.ablese_datum} // Pass the string 'YYYY-MM-DD' or null
+                    onChange={(date) => handleAbleseDatumChange(index, date)}
+                    placeholder="TT.MM.JJJJ"
                     className="w-full"
                   />
                 </div>
