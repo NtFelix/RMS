@@ -1,9 +1,7 @@
 "use client"
 
+import { useState } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-// Button and Edit icon are no longer used directly in this component
-// import { Button } from "@/components/ui/button"
-// import { Edit } from "lucide-react"
 import { 
   ContextMenu, 
   ContextMenuTrigger, 
@@ -11,8 +9,9 @@ import {
   ContextMenuItem,
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
-import { Nebenkosten } from "../lib/data-fetching"; // Corrected path
-import { Edit, Trash2 } from "lucide-react"; // Import icons
+import { Nebenkosten } from "../lib/data-fetching"
+import { Edit, Trash2, FileText } from "lucide-react"
+import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 
 interface OperatingCostsTableProps {
   nebenkosten: Nebenkosten[]; 
@@ -21,10 +20,20 @@ interface OperatingCostsTableProps {
 }
 
 export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: OperatingCostsTableProps) {
+  const [overviewItem, setOverviewItem] = useState<Nebenkosten | null>(null)
+  
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
   };
+  
+  const handleOpenOverview = (item: Nebenkosten) => {
+    setOverviewItem(item);
+  };
+  
+  const handleCloseOverview = () => {
+    setOverviewItem(null);
+  }; 
 
   return (
     <div className="rounded-md border">
@@ -78,6 +87,13 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
                 </ContextMenuTrigger>
                 <ContextMenuContent className="w-56">
                   <ContextMenuItem 
+                    onClick={(e) => { e.stopPropagation(); handleOpenOverview(item); }}
+                    className="flex items-center gap-2 cursor-pointer"
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>Übersicht</span>
+                  </ContextMenuItem>
+                  <ContextMenuItem 
                     onClick={(e) => { e.stopPropagation(); onEdit?.(item); }}
                     className="flex items-center gap-2 cursor-pointer"
                   >
@@ -98,6 +114,15 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
           )}
         </TableBody>
       </Table>
+      
+      {/* Overview Modal */}
+      {overviewItem && (
+        <OperatingCostsOverviewModal
+          isOpen={!!overviewItem}
+          onClose={handleCloseOverview}
+          nebenkosten={overviewItem}
+        />
+      )}
     </div>
   )
 }
