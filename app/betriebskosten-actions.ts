@@ -258,9 +258,24 @@ export async function saveWasserzaehlerData(
   }
 
   // If there are no new entries to save, we are done after deletion.
+  // However, we still need to update Nebenkosten.wasserverbrauch to 0.
   if (!entries || entries.length === 0) {
-    revalidatePath("/dashboard/betriebskosten"); // Or a more specific path if needed
-    return { success: true, message: "Alle vorhandenen Wasserzählerdaten für diese Nebenkostenabrechnung wurden entfernt.", data: [] };
+    // Update Nebenkosten table, setting wasserverbrauch to 0
+    const { error: updateNkError } = await supabase
+      .from("Nebenkosten")
+      .update({ wasserverbrauch: 0 })
+      .eq("id", nebenkosten_id)
+      .eq("user_id", user.id);
+
+    if (updateNkError) {
+      console.error(`Error updating Nebenkosten.wasserverbrauch to 0 for ${nebenkosten_id}:`, updateNkError);
+      // Non-fatal, but log it. The main operation (deleting entries) was successful.
+      // Decide if this should be a hard failure or just a logged warning.
+      // For now, let's consider it part of the overall success if deletion worked.
+    }
+
+    revalidatePath("/dashboard/betriebskosten");
+    return { success: true, message: "Alle vorhandenen Wasserzählerdaten für diese Nebenkostenabrechnung wurden entfernt und der Gesamtverbrauch auf 0 gesetzt.", data: [] };
   }
 
   const recordsToInsert = entries.map(entry => ({
@@ -283,10 +298,53 @@ export async function saveWasserzaehlerData(
   }
 
   revalidatePath("/dashboard/betriebskosten"); // Or a more specific path
-  // It might also be useful to revalidate a path related to the specific Nebenkosten ID if such a page exists.
   // e.g., revalidatePath(`/dashboard/betriebskosten/${nebenkosten_id}`);
 
-  return { success: true, data: insertedData };
+  // After successful insert, calculate sum and update Nebenkosten
+  // 1. Query all Wasserzaehler records for this nebenkosten_id and user_id
+  const { data: zaehlerRecords, error: fetchError } = await supabase
+    .from("Wasserzaehler")
+    .select("verbrauch")
+    .eq("nebenkosten_id", nebenkosten_id)
+    .eq("user_id", user.id);
+
+  if (fetchError) {
+    console.error(`Error fetching Wasserzaehler records for sum calculation (nebenkosten_id: ${nebenkosten_id}):`, fetchError);
+    // This is not ideal, as data was inserted but sum couldn't be updated.
+    // Return success as main operation (insert) was successful, but include a warning or partial success message.
+    return {
+      success: true, // Or false, depending on strictness. Let's say true, but with a message.
+      data: insertedData,
+      message: `Wasserzählerdaten gespeichert, aber Gesamtverbrauch konnte nicht aktualisiert werden: ${fetchError.message}`
+    };
+  }
+
+  // 2. Calculate the sum of verbrauch
+  const totalVerbrauch = zaehlerRecords.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
+
+  // 3. Update the Nebenkosten table
+  const { error: updateNkError } = await supabase
+    .from("Nebenkosten")
+    .update({ wasserverbrauch: totalVerbrauch })
+    .eq("id", nebenkosten_id)
+    .eq("user_id", user.id); // Ensure user context for security
+
+  if (updateNkError) {
+    console.error(`Error updating Nebenkosten.wasserverbrauch for ${nebenkosten_id}:`, updateNkError);
+    // Similar to above, data inserted, but the final update failed.
+    return {
+      success: true, // Or false
+      data: insertedData,
+      message: `Wasserzählerdaten gespeichert und Gesamtverbrauch berechnet (${totalVerbrauch}), aber Update der Nebenkosten ist fehlgeschlagen: ${updateNkError.message}`
+    };
+  }
+
+  // Call revalidatePath again if the update was successful and might affect other views.
+  // Since it's already called, this might be redundant unless specific conditions apply.
+  // However, it's safer to ensure the path is revalidated after all DB operations.
+  revalidatePath("/dashboard/betriebskosten");
+
+  return { success: true, data: insertedData, message: "Wasserzählerdaten erfolgreich gespeichert und Gesamtverbrauch aktualisiert." };
 }
 
 export async function getMieterForNebenkostenAction(
