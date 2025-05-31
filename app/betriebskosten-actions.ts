@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData } from "../lib/data-fetching"; // Adjusted path
+import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter } from "../lib/data-fetching"; // Adjusted path
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -251,4 +251,67 @@ export async function saveWasserzaehlerData(
   // e.g., revalidatePath(`/dashboard/betriebskosten/${nebenkosten_id}`);
 
   return { success: true, data: insertedData };
+}
+
+export async function getMieterForNebenkostenAction(
+  hausId: string,
+  jahr: string
+): Promise<{ success: boolean; data?: Mieter[]; message?: string }> {
+  "use server"; // Ensures this runs as a server action
+
+  if (!hausId || !jahr) {
+    return { success: false, message: 'Ungültige Haus-ID oder Jahr angegeben.' };
+  }
+
+  const supabase = await createClient(); // Uses the server client from utils/supabase/server
+  const yearNum = parseInt(jahr);
+  const yearStartStr = `${yearNum}-01-01`;
+  const yearEndStr = `${yearNum}-12-31`;
+
+  try {
+    const { data: wohnungen, error: wohnungenError } = await supabase
+      .from('Wohnungen')
+      .select('id')
+      .eq('haus_id', hausId);
+
+    if (wohnungenError) {
+      console.error(`Error fetching Wohnungen for hausId ${hausId} in action:`, wohnungenError);
+      return { success: false, message: `Fehler beim Abrufen der Wohnungen: ${wohnungenError.message}` };
+    }
+
+    if (!wohnungen || wohnungen.length === 0) {
+      // Not necessarily an error, could be a house with no apartments yet
+      return { success: true, data: [] };
+    }
+
+    const wohnungIds = wohnungen.map(w => w.id);
+
+    const { data: mieter, error: mieterError } = await supabase
+      .from('Mieter')
+      .select('*, Wohnungen(name)') // Fetch Mieter details
+      .in('wohnung_id', wohnungIds);
+
+    if (mieterError) {
+      console.error(`Error fetching Mieter for Wohnungen in hausId ${hausId} in action:`, mieterError);
+      return { success: false, message: `Fehler beim Abrufen der Mieter: ${mieterError.message}` };
+    }
+
+    if (!mieter || mieter.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const filteredMieter = mieter.filter(m => {
+      const einzug = m.einzug || '';
+      const auszug = m.auszug || '9999-12-31';
+      const tenantEinzugRelevant = einzug <= yearEndStr;
+      const tenantAuszugRelevant = auszug >= yearStartStr;
+      return tenantEinzugRelevant && tenantAuszugRelevant;
+    });
+
+    return { success: true, data: filteredMieter as Mieter[] };
+
+  } catch (error: any) {
+    console.error('Unexpected error in getMieterForNebenkostenAction:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
 }
