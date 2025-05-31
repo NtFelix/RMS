@@ -210,7 +210,7 @@ export async function getWasserzaehlerRecordsAction(
     const { data, error } = await supabase
       .from("Wasserzaehler")
       .select("*")
-      .eq("nebekosten_id", nebenkostenId) // Ensure correct column name here
+      .eq("nebenkosten_id", nebenkostenId) // Ensure correct column name here
       .eq("user_id", user.id);
 
     if (error) {
@@ -249,7 +249,7 @@ export async function saveWasserzaehlerData(
   const { error: deleteError } = await supabase
     .from("Wasserzaehler")
     .delete()
-    .eq("nebekosten_id", nebenkosten_id) // Corrected column name
+    .eq("nebenkosten_id", nebenkosten_id) // Corrected column name
     .eq("user_id", user.id); // Ensure user can only delete their own records
 
   if (deleteError) {
@@ -269,7 +269,7 @@ export async function saveWasserzaehlerData(
     ablese_datum: entry.ablese_datum, // Assumes this is already a string 'YYYY-MM-DD' or null
     zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
     verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
-    nebekosten_id: nebenkosten_id, // Corrected key for the database column
+    nebenkosten_id: nebenkosten_id, // Corrected key for the database column
   }));
 
   const { data: insertedData, error: insertError } = await supabase
