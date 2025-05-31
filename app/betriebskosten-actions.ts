@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById } from "../lib/data-fetching"; // Adjusted path
+import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData } from "../lib/data-fetching"; // Adjusted path
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -188,4 +188,67 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
     console.error("Error in getNebenkostenDetailsAction:", error);
     return { success: false, message: error.message || "Failed to fetch Nebenkosten details." };
   }
+}
+
+export async function saveWasserzaehlerData(
+  formData: WasserzaehlerFormData
+): Promise<{ success: boolean; message?: string; data?: any[] }> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    console.error("User not authenticated for saveWasserzaehlerData");
+    return { success: false, message: "User not authenticated" };
+  }
+
+  const { nebenkosten_id, entries } = formData;
+
+  if (!nebenkosten_id || !entries || entries.length === 0) {
+    // If entries are empty, it might mean clearing existing data.
+    // Or it could be an invalid request. For now, let's assume it means clearing.
+    console.log(`No entries provided for nebenkosten_id: ${nebenkosten_id}. Deleting existing entries.`);
+  }
+
+  // Strategy: Delete existing entries for this nebenkosten_id, then insert new ones.
+  const { error: deleteError } = await supabase
+    .from("Wasserzaehler")
+    .delete()
+    .eq("nebenkosten_id", nebenkosten_id)
+    .eq("user_id", user.id); // Ensure user can only delete their own records
+
+  if (deleteError) {
+    console.error(`Error deleting existing Wasserzaehler entries for nebenkosten_id ${nebenkosten_id}:`, deleteError);
+    return { success: false, message: `Fehler beim Löschen vorhandener Einträge: ${deleteError.message}` };
+  }
+
+  // If there are no new entries to save, we are done after deletion.
+  if (!entries || entries.length === 0) {
+    revalidatePath("/dashboard/betriebskosten"); // Or a more specific path if needed
+    return { success: true, message: "Alle vorhandenen Wasserzählerdaten für diese Nebenkostenabrechnung wurden entfernt.", data: [] };
+  }
+
+  const recordsToInsert = entries.map(entry => ({
+    user_id: user.id,
+    mieter_id: entry.mieter_id,
+    ablese_datum: entry.ablese_datum, // Assumes this is already a string 'YYYY-MM-DD' or null
+    zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
+    verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
+    nebenkosten_id: nebenkosten_id,
+  }));
+
+  const { data: insertedData, error: insertError } = await supabase
+    .from("Wasserzaehler")
+    .insert(recordsToInsert)
+    .select();
+
+  if (insertError) {
+    console.error("Error inserting Wasserzaehler data:", insertError);
+    return { success: false, message: `Fehler beim Speichern der Wasserzählerdaten: ${insertError.message}` };
+  }
+
+  revalidatePath("/dashboard/betriebskosten"); // Or a more specific path
+  // It might also be useful to revalidate a path related to the specific Nebenkosten ID if such a page exists.
+  // e.g., revalidatePath(`/dashboard/betriebskosten/${nebenkosten_id}`);
+
+  return { success: true, data: insertedData };
 }
