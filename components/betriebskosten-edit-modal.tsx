@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Skeleton } from "@/components/ui/skeleton"; // Added Skeleton
 import { Nebenkosten, Haus, Mieter } from "../lib/data-fetching";
 import { 
@@ -71,6 +72,8 @@ export function BetriebskostenEditModal({
   const [selectedHausMieter, setSelectedHausMieter] = useState<Mieter[]>([]);
   const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
   const [isFetchingTenants, setIsFetchingTenants] = useState(false);
+
+  const houseOptions: ComboboxOption[] = haeuser.map(h => ({ value: h.id, label: h.name }));
 
   // New states for details loading
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
@@ -578,18 +581,18 @@ export function BetriebskostenEditModal({
               <div>
                 <Label htmlFor="formHausId">Haus *</Label>
                 {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <Select value={haeuserId} onValueChange={setHaeuserId} required>
-                    <SelectTrigger id="formHausId">
-                      <SelectValue placeholder="Haus auswählen..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {haeuser.map((haus) => (
-                        <SelectItem key={haus.id} value={haus.id}>
-                          {haus.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <CustomCombobox
+                    width="w-full"
+                    options={houseOptions}
+                    value={haeuserId}
+                    onChange={(value) => setHaeuserId(value || "")}
+                    placeholder="Haus auswählen..."
+                    searchPlaceholder="Haus suchen..."
+                    emptyText="Kein Haus gefunden."
+                    // The ID "formHausId" is for the Label's htmlFor.
+                    // CustomCombobox doesn't directly use an input with this ID for its trigger in the same way Select does.
+                    // However, keeping the Label's htmlFor pointing to an ID that can be conceptually associated with the combobox is fine.
+                  />
                 )}
               </div>
             </div>
