@@ -107,7 +107,7 @@ export function AbrechnungModal({
             case 'pro einheit':
             case 'fix':
             default:
-              share = numberOfUnits > 0 ? totalCostForItem / numberOfUnits : 0;
+              share = totalCostForItem; // Changed calculation for these types
               break;
           }
           costItemsDetails.push({
