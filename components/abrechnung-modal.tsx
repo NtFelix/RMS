@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Combobox } from 'geist/components';
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung } from "@/lib/data-fetching";
 import { useEffect, useState } from "react"; // Import useEffect and useState
 
@@ -53,13 +53,13 @@ export function AbrechnungModal({
     }
 
     if (!selectedTenantId) {
-      setCalculatedTenantData([]);
+      setCalculatedTenantData([]); // Clear data if no tenant is selected
       return;
     }
 
     const activeTenant = tenants.find(t => t.id === selectedTenantId);
     if (!activeTenant) {
-      setCalculatedTenantData([]);
+      setCalculatedTenantData([]); // Clear data if selected tenant not found
       return;
     }
 
@@ -71,14 +71,13 @@ export function AbrechnungModal({
       gesamtFlaeche,  // total area of the house (from Nebenkosten object)
     } = nebenkostenItem;
 
-    // Calculate totalHouseArea and numberOfUnits based on ALL tenants, not just the selected one,
-    // as these are used for 'pro qm' or 'pro einheit' calculations that depend on the whole building.
+    // Calculate totalHouseArea and numberOfUnits based on ALL tenants for correct distribution logic
     const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
       ? gesamtFlaeche
       : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
     const numberOfUnits = tenants.length;
 
-    // Perform calculation only for the selected tenant
+    // Perform calculation only for the selected tenant (activeTenant)
     const tenant = activeTenant;
     const apartmentSize = tenant.Wohnungen?.groesse || 0;
     const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
@@ -86,64 +85,64 @@ export function AbrechnungModal({
     let tenantTotalForRegularItems = 0;
     const costItemsDetails: TenantCostDetails['costItems'] = [];
 
-    if (nebenkostenart && betrag && berechnungsart) {
-      nebenkostenart.forEach((costName, index) => {
-        const totalCostForItem = betrag[index] || 0;
-        const calcType = berechnungsart[index] || 'fix';
-        let share = 0;
+      if (nebenkostenart && betrag && berechnungsart) {
+        nebenkostenart.forEach((costName, index) => {
+          const totalCostForItem = betrag[index] || 0;
+          const calcType = berechnungsart[index] || 'fix'; // Default to 'fix' if not specified
+          let share = 0;
 
-        switch (calcType.toLowerCase()) {
-          case 'pro qm':
-          case 'qm':
-            share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
-            break;
-          case 'pro person':
-          case 'pro einheit':
-          case 'fix':
-          default:
-            share = numberOfUnits > 0 ? totalCostForItem / numberOfUnits : 0;
-            break;
-        }
-        costItemsDetails.push({
-          costName: costName || `Kostenart ${index + 1}`,
-          totalCostForItem,
-          calculationType: calcType,
-          tenantShare: share,
+          switch (calcType.toLowerCase()) {
+            case 'pro qm':
+            case 'qm':
+              share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
+              break;
+            case 'pro person': // Assuming 'pro Person' means per tenant/unit for now
+            case 'pro einheit':
+            case 'fix':
+            default:
+              share = numberOfUnits > 0 ? totalCostForItem / numberOfUnits : 0;
+              break;
+          }
+          costItemsDetails.push({
+            costName: costName || `Kostenart ${index + 1}`,
+            totalCostForItem,
+            calculationType: calcType,
+            tenantShare: share,
+          });
+          tenantTotalForRegularItems += share;
         });
-        tenantTotalForRegularItems += share;
-      });
-    }
-
-    let waterShare = 0;
-    const waterCalcType = totalHouseArea > 0 ? 'pro qm' : 'pro einheit';
-    if (wasserkosten && wasserkosten > 0) {
-      if (waterCalcType === 'pro qm') {
-        waterShare = totalHouseArea > 0 ? (wasserkosten / totalHouseArea) * apartmentSize : 0;
-      } else {
-        waterShare = numberOfUnits > 0 ? wasserkosten / numberOfUnits : 0;
       }
-    }
 
-    const tenantWaterCost = {
-      totalWaterCostOverall: wasserkosten || 0,
-      calculationType: waterCalcType,
-      tenantShare: waterShare,
-    };
+      let waterShare = 0;
+      const waterCalcType = totalHouseArea > 0 ? 'pro qm' : 'pro einheit';
+      if (wasserkosten && wasserkosten > 0) {
+        if (waterCalcType === 'pro qm') {
+          waterShare = totalHouseArea > 0 ? (wasserkosten / totalHouseArea) * apartmentSize : 0;
+        } else {
+          waterShare = numberOfUnits > 0 ? wasserkosten / numberOfUnits : 0;
+        }
+      }
 
-    const totalTenantCost = tenantTotalForRegularItems + waterShare;
+      const tenantWaterCost = {
+        totalWaterCostOverall: wasserkosten || 0,
+        calculationType: waterCalcType,
+        tenantShare: waterShare,
+      };
 
-    const singleTenantCalculatedData: TenantCostDetails = {
-      tenantId: tenant.id,
-      tenantName: tenant.name,
-      apartmentId: tenant.wohnung_id || 'N/A',
-      apartmentName: apartmentName,
-      apartmentSize: apartmentSize,
-      costItems: costItemsDetails,
-      waterCost: tenantWaterCost,
-      totalTenantCost: totalTenantCost,
-    };
+      const totalTenantCost = tenantTotalForRegularItems + waterShare;
 
-    setCalculatedTenantData([singleTenantCalculatedData]);
+      const singleTenantCalculatedData: TenantCostDetails = {
+        tenantId: tenant.id,
+        tenantName: tenant.name,
+        apartmentId: tenant.wohnung_id || 'N/A',
+        apartmentName: apartmentName,
+        apartmentSize: apartmentSize,
+        costItems: costItemsDetails,
+        waterCost: tenantWaterCost,
+        totalTenantCost: totalTenantCost,
+      };
+      // Set data for the single selected tenant
+      setCalculatedTenantData([singleTenantCalculatedData]);
 
   }, [isOpen, nebenkostenItem, tenants, selectedTenantId]);
 
@@ -156,6 +155,11 @@ export function AbrechnungModal({
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
   };
 
+  const tenantOptions: ComboboxOption[] = tenants.map(tenant => ({
+    value: tenant.id,
+    label: tenant.name,
+  }));
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -166,37 +170,23 @@ export function AbrechnungModal({
         </DialogHeader>
 
         {tenants && tenants.length > 0 && (
-          <div className="mb-4"> {/* Added a wrapper for potential styling/spacing */}
-            <label htmlFor="tenant-combobox-input" className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="mt-4 mb-4"> {/* Adjusted margin for consistency */}
+            <label htmlFor="tenant-combobox-trigger" className="block text-sm font-medium text-gray-700 mb-1">
               Mieter auswählen
             </label>
-            <Combobox
-              placeholder="Mieter suchen..."
-              width={300} // Adjusted width, can be fine-tuned
-              onSelectionChange={(value) => {
-                // The value from geist Combobox might be just the string value.
-                // Ensure selectedTenantId is set correctly.
-                // If value is null or undefined, it means deselection or empty.
-                setSelectedTenantId(value ? String(value) : null);
-              }}
-              // It's good practice to control the component's value if possible,
-              // though geist's Combobox might handle its state internally primarily.
-              // If direct value control is needed and supported:
-              // value={selectedTenantId || ''}
-            >
-              <Combobox.Input aria-label="Mieter auswählen" id="tenant-combobox-input" />
-              <Combobox.List>
-                {tenants.map((tenant) => (
-                  <Combobox.Option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </Combobox.Option>
-                ))}
-              </Combobox.List>
-            </Combobox>
+            <CustomCombobox
+              options={tenantOptions}
+              value={selectedTenantId}
+              onChange={(value) => setSelectedTenantId(value)}
+              placeholder="Mieter auswählen..."
+              searchPlaceholder="Mieter suchen..."
+              emptyText="Kein Mieter gefunden."
+              width="w-full"
+            />
           </div>
         )}
 
-        <div className="mt-4 space-y-6"> {/* Ensure this div has appropriate top margin if the Combobox div no longer has mt-4 */}
+        <div className="mt-4 space-y-6">
           {/* Message display logic based on selection and data availability */}
           {!selectedTenantId && tenants && tenants.length > 0 && (
             <p className="text-muted-foreground">
@@ -206,9 +196,13 @@ export function AbrechnungModal({
           {selectedTenantId && calculatedTenantData.length === 0 && (
              <p className="text-muted-foreground">Berechne Daten für ausgewählten Mieter...</p>
           )}
-          {(!tenants || tenants.length === 0) && (
-             <p className="text-muted-foreground">Keine Mieterdaten für die Abrechnung vorhanden.</p>
+          {(!tenants || tenants.length === 0) && !nebenkostenItem && ( // Adjusted condition for no data
+             <p className="text-muted-foreground">Keine Nebenkostenabrechnungsdaten oder Mieter vorhanden.</p>
           )}
+           {(!tenants || tenants.length === 0) && nebenkostenItem && (
+             <p className="text-muted-foreground">Keine Mieter für diese Abrechnung vorhanden.</p>
+          )}
+
 
           {calculatedTenantData.map((tenantData) => (
             <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-sm">
