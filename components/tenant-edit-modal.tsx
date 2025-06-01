@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
 
 interface Mieter {
@@ -84,6 +85,8 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
 
   const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
+
+  const apartmentOptions: ComboboxOption[] = internalWohnungen.map(w => ({ value: w.id, label: w.name }));
 
   useEffect(() => {
     if (open && (!initialWohnungen || initialWohnungen.length === 0)) {
@@ -165,21 +168,17 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>
-              <Select 
-                name="wohnung_id" 
-                value={formData.wohnung_id} 
-                onValueChange={v => setFormData({...formData, wohnung_id:v})}
-                disabled={isLoadingWohnungen}
-              >
-                <SelectTrigger id="wohnung_id">
-                  <SelectValue placeholder={isLoadingWohnungen ? "Lädt Wohnungen..." : "--"}/>
-                </SelectTrigger>
-                <SelectContent>
-                  {internalWohnungen.map(w => (
-                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CustomCombobox
+                width="w-full"
+                options={apartmentOptions}
+                value={formData.wohnung_id}
+                onChange={(value) => setFormData({ ...formData, wohnung_id: value || "" })}
+                placeholder={isLoadingWohnungen ? "Lädt Wohnungen..." : "Wohnung auswählen"}
+                searchPlaceholder="Wohnung suchen..."
+                emptyText="Keine Wohnung gefunden."
+                disabled={isLoadingWohnungen || isSubmitting}
+                // The ID "wohnung_id" is for the Label's htmlFor.
+              />
             </div>
             <div>
               <Label htmlFor="name">Name</Label>
