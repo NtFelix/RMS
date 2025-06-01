@@ -393,7 +393,7 @@ export async function getMieterForNebenkostenAction(
 
     const { data: mieter, error: mieterError } = await supabase
       .from('Mieter')
-      .select('*, Wohnungen(name)') // Fetch Mieter details
+      .select('*, Wohnungen(name, groesse)') // Fetch Mieter details including apartment size
       .in('wohnung_id', wohnungIds);
 
     if (mieterError) {
