@@ -55,7 +55,7 @@ jest.mock('../../../app/betriebskosten-actions', () => ({ // Adjusted for actual
 
 // Mock useToast
 const mockToast = jest.fn();
-jest.mock('@/hooks/use-toast', () => ({ 
+jest.mock('@/hooks/use-toast.ts', () => ({ // Added .ts extension
   useToast: () => ({ toast: mockToast }) 
 }));
 

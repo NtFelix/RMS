@@ -60,14 +60,13 @@ export function AbrechnungModal({
       // We will use tenants.length for per-unit calculations if anzahlWohnungen is not reliable or granular enough
     } = nebenkostenItem;
 
-    const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0 ? gesamtFlaeche : tenants.reduce((sum, t) => sum + ((t.Wohnungen as any)?.groesse || 0), 0);
+    const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0 ? gesamtFlaeche : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
     const numberOfUnits = tenants.length; // Assuming one tenant per unit for 'fix' or 'pro Person' if no specific person count
 
     const newCalculatedData: TenantCostDetails[] = tenants.map(tenant => {
       // Ensure tenant.Wohnungen exists and has groesse, default to 0 if not
-      const apartment = tenant.Wohnungen as any; // Cast to access groesse, assuming it's there from the updated action
-      const apartmentSize = apartment?.groesse || 0;
-      const apartmentName = apartment?.name || 'Unbekannt';
+      const apartmentSize = tenant.Wohnungen?.groesse || 0;
+      const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
 
       let tenantTotalForRegularItems = 0;
       const costItemsDetails: TenantCostDetails['costItems'] = [];

@@ -1,17 +1,52 @@
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react'; // Ensure act is imported
 import { BetriebskostenEditModal } from './betriebskosten-edit-modal';
-import { createNebenkosten, updateNebenkosten } from '../app/betriebskosten-actions';
-import { useToast } from '../hooks/use-toast';
+// Import the functions to be mocked so we can type-cast them and set return values
+import {
+  createNebenkosten,
+  updateNebenkosten,
+  getNebenkostenDetailsAction,
+  createRechnungenBatch,
+  deleteRechnungenByNebenkostenId
+  // Removed getWasserzaehlerRecordsAction, saveWasserzaehlerData, getMieterForNebenkostenAction if not used directly by this modal
+} from '@/app/betriebskosten-actions';
+import { getMieterByHausIdAction } from '@/app/mieter-actions';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock server actions
-jest.mock('../app/betriebskosten-actions', () => ({
+jest.mock('@/app/betriebskosten-actions', () => ({
   createNebenkosten: jest.fn(),
   updateNebenkosten: jest.fn(),
+  getNebenkostenDetailsAction: jest.fn(),
+  createRechnungenBatch: jest.fn(),
+  deleteRechnungenByNebenkostenId: jest.fn(),
+  // Keep other mocks if they are indeed called by the component, otherwise remove for clarity
+}));
+
+jest.mock('@/app/mieter-actions', () => ({
+  getMieterByHausIdAction: jest.fn(),
+  // handleSubmit and deleteTenantAction are likely not called directly by this modal, remove if so
+}));
+
+// Mock Supabase client - this is crucial to prevent "cookies" error
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(() => ({
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    insert: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    or: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: {}, error: null }),
+    auth: {
+      getUser: jest.fn().mockResolvedValue({ data: { user: {id: 'test-user-id'} }, error: null })
+    }
+  })),
 }));
 
 // Mock useToast
 const mockToast = jest.fn();
-jest.mock('../hooks/use-toast', () => ({
+jest.mock('@/hooks/use-toast.ts', () => ({ // Keep .ts if it helped client-wrapper
   useToast: () => ({ toast: mockToast }),
 }));
 
@@ -31,6 +66,13 @@ describe('BetriebskostenEditModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Provide default mock implementations that return successful promises
+    (createNebenkosten as jest.Mock).mockResolvedValue({ success: true });
+    (updateNebenkosten as jest.Mock).mockResolvedValue({ success: true });
+    (getNebenkostenDetailsAction as jest.Mock).mockResolvedValue({ success: true, data: null });
+    (createRechnungenBatch as jest.Mock).mockResolvedValue({ success: true });
+    (deleteRechnungenByNebenkostenId as jest.Mock).mockResolvedValue({ success: true });
+    (getMieterByHausIdAction as jest.Mock).mockResolvedValue({ success: true, data: [] });
   });
 
   const defaultProps = {
@@ -54,7 +96,7 @@ describe('BetriebskostenEditModal', () => {
     expect(screen.getAllByRole('combobox')).toHaveLength(1 + 1); // 1 for Haus, 1 for the default cost item
   });
 
-  it('populates cost items when nebenkostenToEdit is provided', () => {
+  it('populates cost items when nebenkostenToEdit is provided', async () => {
     const mockEntry = {
       id: '1',
       jahr: '2023',
@@ -64,15 +106,35 @@ describe('BetriebskostenEditModal', () => {
       berechnungsart: ['pro Flaeche', 'pro Mieter'],
       wasserkosten: 20,
       Haeuser: { name: 'Haus A' }, 
-      user_id: 'u1'
+      user_id: 'u1',
+      // Ensure all fields expected by the component are here, including Rechnungen if applicable
+      Rechnungen: [],
     };
-    render(<BetriebskostenEditModal {...defaultProps} nebenkostenToEdit={mockEntry} />);
-    expect(screen.getByDisplayValue('Strom')).toBeInTheDocument();
+
+    // Specific mock for getNebenkostenDetailsAction for this test
+    const betriebskostenActions = jest.requireMock('@/app/betriebskosten-actions');
+    betriebskostenActions.getNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry });
+
+    // Mock getMieterByHausIdAction to return some tenants if needed for 'nach Rechnung' population
+    const mieterActions = jest.requireMock('@/app/mieter-actions');
+    mieterActions.getMieterByHausIdAction.mockResolvedValueOnce({ success: true, data: [{id: 'm1', name: 'Mieter 1'}] });
+
+    await act(async () => {
+      render(<BetriebskostenEditModal {...defaultProps} nebenkostenToEdit={mockEntry} />);
+    });
+
+    // Wait for loading to complete by checking for a specific element that appears after loading
+    // For example, the "Jahr *" input field should be populated from mockEntry.jahr
+    expect(await screen.findByDisplayValue(mockEntry.jahr)).toBeInTheDocument();
+
+    // Assertions might need to wait for state updates from useEffect
+    expect(screen.getByDisplayValue('Strom')).toBeInTheDocument(); // Now use getBy...
     expect(screen.getByDisplayValue('100')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
     expect(screen.getByDisplayValue('50')).toBeInTheDocument();
+
     // Check that select elements are populated
-    expect(screen.getByText('pro Fläche')).toBeInTheDocument(); // Check if the label for the selected value is rendered
+    expect(screen.getByText('pro Fläche')).toBeInTheDocument();
     expect(screen.getByText('pro Mieter')).toBeInTheDocument();
   });
 
