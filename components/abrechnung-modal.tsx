@@ -45,6 +45,7 @@ export function AbrechnungModal({
 }: AbrechnungModalProps) {
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
 
   useEffect(() => {
     if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0) {
@@ -52,43 +53,30 @@ export function AbrechnungModal({
       return;
     }
 
-    if (!selectedTenantId) {
-      setCalculatedTenantData([]); // Clear data if no tenant is selected
-      return;
-    }
+    // Helper function for calculation logic (extracted to avoid repetition)
+    const calculateCostsForTenant = (tenant: Mieter): TenantCostDetails => {
+      const {
+        nebenkostenart,
+        betrag,
+        berechnungsart,
+        wasserkosten,
+        gesamtFlaeche,
+      } = nebenkostenItem!; // nebenkostenItem is checked in the outer scope
 
-    const activeTenant = tenants.find(t => t.id === selectedTenantId);
-    if (!activeTenant) {
-      setCalculatedTenantData([]); // Clear data if selected tenant not found
-      return;
-    }
+      const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
+        ? gesamtFlaeche
+        : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+      const numberOfUnits = tenants.length;
+      const apartmentSize = tenant.Wohnungen?.groesse || 0;
+      const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
 
-    const {
-      nebenkostenart, // array of cost names
-      betrag,         // array of amounts for each cost name
-      berechnungsart, // array of calculation methods for each cost name
-      wasserkosten,   // total water costs for the house
-      gesamtFlaeche,  // total area of the house (from Nebenkosten object)
-    } = nebenkostenItem;
-
-    // Calculate totalHouseArea and numberOfUnits based on ALL tenants for correct distribution logic
-    const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
-      ? gesamtFlaeche
-      : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
-    const numberOfUnits = tenants.length;
-
-    // Perform calculation only for the selected tenant (activeTenant)
-    const tenant = activeTenant;
-    const apartmentSize = tenant.Wohnungen?.groesse || 0;
-    const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
-
-    let tenantTotalForRegularItems = 0;
-    const costItemsDetails: TenantCostDetails['costItems'] = [];
+      let tenantTotalForRegularItems = 0;
+      const costItemsDetails: TenantCostDetails['costItems'] = [];
 
       if (nebenkostenart && betrag && berechnungsart) {
         nebenkostenart.forEach((costName, index) => {
           const totalCostForItem = betrag[index] || 0;
-          const calcType = berechnungsart[index] || 'fix'; // Default to 'fix' if not specified
+          const calcType = berechnungsart[index] || 'fix';
           let share = 0;
 
           switch (calcType.toLowerCase()) {
@@ -96,7 +84,7 @@ export function AbrechnungModal({
             case 'qm':
               share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
               break;
-            case 'pro person': // Assuming 'pro Person' means per tenant/unit for now
+            case 'pro person':
             case 'pro einheit':
             case 'fix':
             default:
@@ -131,7 +119,7 @@ export function AbrechnungModal({
 
       const totalTenantCost = tenantTotalForRegularItems + waterShare;
 
-      const singleTenantCalculatedData: TenantCostDetails = {
+      return {
         tenantId: tenant.id,
         tenantName: tenant.name,
         apartmentId: tenant.wohnung_id || 'N/A',
@@ -141,10 +129,26 @@ export function AbrechnungModal({
         waterCost: tenantWaterCost,
         totalTenantCost: totalTenantCost,
       };
-      // Set data for the single selected tenant
-      setCalculatedTenantData([singleTenantCalculatedData]);
+    };
 
-  }, [isOpen, nebenkostenItem, tenants, selectedTenantId]);
+    if (loadAllRelevantTenants) {
+      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant));
+      setCalculatedTenantData(allTenantsData);
+    } else {
+      if (!selectedTenantId) {
+        setCalculatedTenantData([]); // Clear data if no tenant is selected
+        return;
+      }
+
+      const activeTenant = tenants.find(t => t.id === selectedTenantId);
+      if (!activeTenant) {
+        setCalculatedTenantData([]); // Clear data if selected tenant not found
+        return;
+      }
+      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant);
+      setCalculatedTenantData([singleTenantCalculatedData]);
+    }
+  }, [isOpen, nebenkostenItem, tenants, selectedTenantId, loadAllRelevantTenants]); // Added loadAllRelevantTenants to dependency array
 
   if (!isOpen || !nebenkostenItem) {
     return null;
@@ -160,6 +164,16 @@ export function AbrechnungModal({
     label: tenant.name,
   }));
 
+  const handleLoadAllTenants = () => {
+    setLoadAllRelevantTenants(true);
+    setSelectedTenantId(null); // Clear single tenant selection
+  };
+
+  const handleTenantSelect = (value: string | null) => {
+    setLoadAllRelevantTenants(false); // Disable "load all" mode
+    setSelectedTenantId(value);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -174,35 +188,42 @@ export function AbrechnungModal({
             <label htmlFor="tenant-combobox-trigger" className="block text-sm font-medium text-gray-700 mb-1">
               Mieter auswählen
             </label>
-            <CustomCombobox
-              options={tenantOptions}
-              value={selectedTenantId}
-              onChange={(value) => setSelectedTenantId(value)}
-              placeholder="Mieter auswählen..."
-              searchPlaceholder="Mieter suchen..."
-              emptyText="Kein Mieter gefunden."
-              width="w-full"
-            />
+            <div className="flex items-center space-x-2">
+              <CustomCombobox
+                options={tenantOptions}
+                value={selectedTenantId}
+                onChange={handleTenantSelect} // Updated onChange handler
+                placeholder="Mieter auswählen..."
+                searchPlaceholder="Mieter suchen..."
+                emptyText="Kein Mieter gefunden."
+                width="w-full"
+              />
+              <Button variant="default" onClick={handleLoadAllTenants}> {/* Added onClick handler */}
+                Alle relevanten Mieter laden
+              </Button>
+            </div>
           </div>
         )}
 
         <div className="mt-4 space-y-6">
-          {/* Message display logic based on selection and data availability */}
-          {!selectedTenantId && tenants && tenants.length > 0 && (
+          {/* Message display logic updated */}
+          {(!tenants || tenants.length === 0) && nebenkostenItem && (
+            <p className="text-muted-foreground">Keine Mieter für diese Abrechnung vorhanden.</p>
+          )}
+          {(!tenants || tenants.length === 0) && !nebenkostenItem && (
+            <p className="text-muted-foreground">Keine Nebenkostenabrechnungsdaten oder Mieter vorhanden.</p>
+          )}
+          {tenants && tenants.length > 0 && !selectedTenantId && !loadAllRelevantTenants && (
             <p className="text-muted-foreground">
-              Bitte wählen Sie einen Mieter aus, um die Details anzuzeigen.
+              Bitte wählen Sie einen Mieter aus oder laden Sie alle relevanten Mieter, um die Details anzuzeigen.
             </p>
           )}
-          {selectedTenantId && calculatedTenantData.length === 0 && (
-             <p className="text-muted-foreground">Berechne Daten für ausgewählten Mieter...</p>
+          {tenants && tenants.length > 0 && selectedTenantId && calculatedTenantData.length === 0 && !loadAllRelevantTenants && (
+            <p className="text-muted-foreground">Berechne Daten für ausgewählten Mieter...</p>
           )}
-          {(!tenants || tenants.length === 0) && !nebenkostenItem && ( // Adjusted condition for no data
-             <p className="text-muted-foreground">Keine Nebenkostenabrechnungsdaten oder Mieter vorhanden.</p>
+          {tenants && tenants.length > 0 && loadAllRelevantTenants && calculatedTenantData.length === 0 && (
+            <p className="text-muted-foreground">Alle relevanten Mieter werden geladen...</p>
           )}
-           {(!tenants || tenants.length === 0) && nebenkostenItem && (
-             <p className="text-muted-foreground">Keine Mieter für diese Abrechnung vorhanden.</p>
-          )}
-
 
           {calculatedTenantData.map((tenantData) => (
             <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-sm">
