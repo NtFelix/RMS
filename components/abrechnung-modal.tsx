@@ -4,10 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Nebenkosten, Mieter, Wohnung } from "@/lib/data-fetching";
+import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 
 // Defined in Step 1:
+
+// Local Rechnung interface removed
+
 interface TenantCostDetails {
   tenantId: string;
   tenantName: string;
@@ -34,6 +37,7 @@ interface AbrechnungModalProps {
   onClose: () => void;
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
+  rechnungen: Rechnung[]; // Assumed new prop
   // wohnungen prop is removed as Mieter type now includes Wohnungen directly with name and groesse
 }
 
@@ -42,6 +46,7 @@ export function AbrechnungModal({
   onClose,
   nebenkostenItem,
   tenants,
+  rechnungen, // Destructured assumed new prop
 }: AbrechnungModalProps) {
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -83,6 +88,20 @@ export function AbrechnungModal({
             case 'pro qm':
             case 'qm':
               share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
+              break;
+            case 'nach rechnung': // New case for individual invoice calculation
+              // Ensure rechnungen is available and not undefined.
+              // The problem states rechnungen is pre-filtered for nebenkostenItem.id
+              if (rechnungen) {
+                const relevantRechnung = rechnungen.find(
+                  (r) => r.mieter_id === tenant.id && r.name === costName
+                );
+                share = relevantRechnung?.betrag || 0;
+              } else {
+                // Fallback or error handling if rechnungen is not provided as expected
+                console.warn(`Rechnungen array not available for costName: ${costName} and tenant: ${tenant.id}`);
+                share = 0; // Default to 0 if rechnungen is missing
+              }
               break;
             case 'pro person':
             case 'pro einheit':
@@ -148,7 +167,7 @@ export function AbrechnungModal({
       const singleTenantCalculatedData = calculateCostsForTenant(activeTenant);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
-  }, [isOpen, nebenkostenItem, tenants, selectedTenantId, loadAllRelevantTenants]); // Added loadAllRelevantTenants to dependency array
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants]); // Added rechnungen to dependency array
 
   if (!isOpen || !nebenkostenItem) {
     return null;
