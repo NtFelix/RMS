@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { toast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
 
@@ -28,6 +28,8 @@ export function ApartmentEditModal({ open, onOpenChange, apartmentId, onSuccess 
   const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" })
   const [houses, setHouses] = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(false)
+
+  const houseOptions: ComboboxOption[] = houses.map(h => ({ value: h.id, label: h.name }))
 
   // Lade Häuser für das Dropdown
   useEffect(() => {
@@ -139,14 +141,15 @@ export function ApartmentEditModal({ open, onOpenChange, apartmentId, onSuccess 
           </div>
           <div className="space-y-1">
             <Label htmlFor="haus_id">Haus</Label>
-            <Select value={formData.haus_id} onValueChange={v => setFormData({ ...formData, haus_id: v })}>
-              <SelectTrigger id="haus_id">
-                <SelectValue placeholder="Wählen Sie ein Haus" />
-              </SelectTrigger>
-              <SelectContent>
-                {houses.map(h => <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <CustomCombobox
+              width="w-full"
+              options={houseOptions}
+              value={formData.haus_id}
+              onChange={(value) => setFormData({ ...formData, haus_id: value || "" })}
+              placeholder="Wählen Sie ein Haus"
+              searchPlaceholder="Haus suchen..."
+              emptyText="Kein Haus gefunden."
+            />
           </div>
           <DialogFooter>
             <Button type="submit" disabled={loading}>
