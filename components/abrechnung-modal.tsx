@@ -237,6 +237,7 @@ export function AbrechnungModal({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-gray-700">Kostenart</TableHead>
+                    <TableHead className="text-gray-700">Abrechnungsart</TableHead> {/* Added New Header */}
                     <TableHead className="text-right text-gray-700">Anteil Mieter</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -244,15 +245,19 @@ export function AbrechnungModal({
                   {tenantData.costItems.map((item, index) => (
                     <TableRow key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                       <TableCell className="py-2 px-3">{item.costName}</TableCell>
+                      <TableCell className="py-2 px-3">{item.calculationType}</TableCell> {/* Added calculationType */}
                       <TableCell className="text-right py-2 px-3">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className={tenantData.costItems.length % 2 === 0 ? "bg-gray-50" : ""}>
                     <TableCell className="py-2 px-3">Wasserkosten</TableCell>
+                    <TableCell className="py-2 px-3">{tenantData.waterCost.calculationType}</TableCell> {/* Added waterCost.calculationType */}
                     <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
                   </TableRow>
                   <TableRow className="font-semibold bg-blue-50">
                     <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
+                    {/* Empty cell for alignment with the new header */}
+                    <TableCell className="py-3 px-3 text-blue-700"></TableCell>
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                 </TableBody>
