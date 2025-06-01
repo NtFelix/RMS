@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from 'geist/components';
 import { Nebenkosten, Mieter, Wohnung } from "@/lib/data-fetching";
 import { useEffect, useState } from "react"; // Import useEffect and useState
 
@@ -166,23 +166,37 @@ export function AbrechnungModal({
         </DialogHeader>
 
         {tenants && tenants.length > 0 && (
-          <div className="mt-4 mb-4">
-            <Select value={selectedTenantId || ""} onValueChange={setSelectedTenantId}>
-              <SelectTrigger className="w-[280px]">
-                <SelectValue placeholder="Mieter auswählen" />
-              </SelectTrigger>
-              <SelectContent>
+          <div className="mb-4"> {/* Added a wrapper for potential styling/spacing */}
+            <label htmlFor="tenant-combobox-input" className="block text-sm font-medium text-gray-700 mb-1">
+              Mieter auswählen
+            </label>
+            <Combobox
+              placeholder="Mieter suchen..."
+              width={300} // Adjusted width, can be fine-tuned
+              onSelectionChange={(value) => {
+                // The value from geist Combobox might be just the string value.
+                // Ensure selectedTenantId is set correctly.
+                // If value is null or undefined, it means deselection or empty.
+                setSelectedTenantId(value ? String(value) : null);
+              }}
+              // It's good practice to control the component's value if possible,
+              // though geist's Combobox might handle its state internally primarily.
+              // If direct value control is needed and supported:
+              // value={selectedTenantId || ''}
+            >
+              <Combobox.Input aria-label="Mieter auswählen" id="tenant-combobox-input" />
+              <Combobox.List>
                 {tenants.map((tenant) => (
-                  <SelectItem key={tenant.id} value={tenant.id}>
+                  <Combobox.Option key={tenant.id} value={tenant.id}>
                     {tenant.name}
-                  </SelectItem>
+                  </Combobox.Option>
                 ))}
-              </SelectContent>
-            </Select>
+              </Combobox.List>
+            </Combobox>
           </div>
         )}
 
-        <div className="mt-4 space-y-6">
+        <div className="mt-4 space-y-6"> {/* Ensure this div has appropriate top margin if the Combobox div no longer has mt-4 */}
           {/* Message display logic based on selection and data availability */}
           {!selectedTenantId && tenants && tenants.length > 0 && (
             <p className="text-muted-foreground">
