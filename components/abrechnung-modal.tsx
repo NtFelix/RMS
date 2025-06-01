@@ -22,6 +22,7 @@ interface TenantCostDetails {
     totalCostForItem: number; // Renamed from totalCost for clarity
     calculationType: string;
     tenantShare: number;
+    pricePerSqm?: number; // New field added here
   }>;
   waterCost: {
     totalWaterCostOverall: number; // Renamed for clarity
@@ -84,13 +85,20 @@ export function AbrechnungModal({
           const calcType = berechnungsart[index] || 'fix';
 
           let share = 0;
+          let itemPricePerSqm: number | undefined = undefined;
 
           switch (calcType.toLowerCase()) {
             case 'pro qm':
             case 'qm':
             case 'pro flaeche': // As seen in logs "pro Flaeche".toLowerCase()
             case 'pro fläche':  // To be safe with umlauts
-              share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
+              if (totalHouseArea > 0) {
+                  itemPricePerSqm = totalCostForItem / totalHouseArea;
+                  share = itemPricePerSqm * apartmentSize;
+              } else {
+                  share = 0;
+                  // itemPricePerSqm remains undefined
+              }
               break;
             case 'nach rechnung': // New case for individual invoice calculation
               // Ensure rechnungen is available and not undefined.
@@ -118,6 +126,7 @@ export function AbrechnungModal({
             totalCostForItem,
             calculationType: calcType,
             tenantShare: share,
+            pricePerSqm: itemPricePerSqm, // Add this line
           });
           tenantTotalForRegularItems += share;
         });
@@ -259,7 +268,8 @@ export function AbrechnungModal({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-gray-700">Kostenart</TableHead>
-                    <TableHead className="text-gray-700">Abrechnungsart</TableHead> {/* Added New Header */}
+                    <TableHead className="text-gray-700">Abrechnungsart</TableHead>
+                    <TableHead className="text-gray-700">Preis/qm</TableHead> {/* New Header */}
                     <TableHead className="text-right text-gray-700">Anteil Mieter</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -267,19 +277,21 @@ export function AbrechnungModal({
                   {tenantData.costItems.map((item, index) => (
                     <TableRow key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                       <TableCell className="py-2 px-3">{item.costName}</TableCell>
-                      <TableCell className="py-2 px-3">{item.calculationType}</TableCell> {/* Added calculationType */}
+                      <TableCell className="py-2 px-3">{item.calculationType}</TableCell>
+                      <TableCell className="py-2 px-3">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
                       <TableCell className="text-right py-2 px-3">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className={tenantData.costItems.length % 2 === 0 ? "bg-gray-50" : ""}>
                     <TableCell className="py-2 px-3">Wasserkosten</TableCell>
-                    <TableCell className="py-2 px-3">{tenantData.waterCost.calculationType}</TableCell> {/* Added waterCost.calculationType */}
+                    <TableCell className="py-2 px-3">{tenantData.waterCost.calculationType}</TableCell>
+                    <TableCell className="py-2 px-3">-</TableCell> {/* Empty cell for alignment */}
                     <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
                   </TableRow>
                   <TableRow className="font-semibold bg-blue-50">
                     <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
-                    {/* Empty cell for alignment with the new header */}
-                    <TableCell className="py-3 px-3 text-blue-700"></TableCell>
+                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
+                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                 </TableBody>
