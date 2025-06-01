@@ -80,6 +80,18 @@ export function AbrechnungModal({
 
       if (nebenkostenart && betrag && berechnungsart) {
         nebenkostenart.forEach((costName, index) => {
+          // Add these lines for debugging:
+          console.log("------------------------------------");
+          console.log("Processing costName:", costName);
+          console.log("Raw berechnungsart[index]:", nebenkostenItem!.berechnungsart![index]); // Accessing via nebenkostenItem directly
+          console.log("Derived calcType:", calcType);
+          console.log("totalCostForItem:", totalCostForItem);
+          console.log("totalHouseArea:", totalHouseArea);
+          console.log("apartmentSize:", apartmentSize);
+          // It would also be good to log the calculated 'share' just before costItemsDetails.push
+          // To do this, the log should be placed right before the costItemsDetails.push line
+          // console.log("Calculated share:", share); // This will be added by a subsequent instruction if needed
+
           const totalCostForItem = betrag[index] || 0;
           const calcType = berechnungsart[index] || 'fix';
           let share = 0;
@@ -110,6 +122,7 @@ export function AbrechnungModal({
               share = totalCostForItem; // Changed calculation for these types
               break;
           }
+          console.log("Calculated share for " + costName + ":", share);
           costItemsDetails.push({
             costName: costName || `Kostenart ${index + 1}`,
             totalCostForItem,
