@@ -19,10 +19,11 @@ const customJestConfig = {
     '^@/lib/(.*)$': '<rootDir>/lib/$1',
     '^@/utils/(.*)$': '<rootDir>/utils/$1',
     '^@/app/(.*)$': '<rootDir>/app/$1',
+    '^@/hooks/(.*)$': '<rootDir>/hooks/$1', // Added specific mapping for hooks
   },
   // If you're using TypeScript with a baseUrl to set up directory aliases,
   // you need to tell Jest about these paths too.
-  // moduleDirectories: ['node_modules', '<rootDir>/'], // Already handled by Next.js preset?
+  moduleDirectories: ['node_modules', '<rootDir>/'],
   collectCoverageFrom: [
     '**/*.{ts,tsx}',
     '!**/*.d.ts',
