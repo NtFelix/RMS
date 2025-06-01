@@ -29,6 +29,11 @@ export type Mieter = {
   nebenkosten: number[] | null;
   nebenkosten_datum: string[] | null;
   user_id: string;
+  Wohnungen?: { // Make it optional as not all Mieter queries might join this
+    name: string;
+    groesse: number;
+    // id and miete can be added if consistently selected and needed elsewhere
+  } | null; // Allow it to be null if the join returns no matching Wohnung
 };
 
 export type Aufgabe = {
