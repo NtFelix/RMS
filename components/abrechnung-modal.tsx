@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung } from "@/lib/data-fetching";
 import { useEffect, useState } from "react"; // Import useEffect and useState
 
@@ -43,6 +44,8 @@ export function AbrechnungModal({
   tenants,
 }: AbrechnungModalProps) {
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
+  const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
+  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
 
   useEffect(() => {
     if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0) {
@@ -50,21 +53,20 @@ export function AbrechnungModal({
       return;
     }
 
-    const {
-      nebenkostenart, // array of cost names
-      betrag,         // array of amounts for each cost name
-      berechnungsart, // array of calculation methods for each cost name
-      wasserkosten,   // total water costs for the house
-      gesamtFlaeche,  // total area of the house (from Nebenkosten object)
-      // anzahlWohnungen, // number of apartments in the house (from Nebenkosten object)
-      // We will use tenants.length for per-unit calculations if anzahlWohnungen is not reliable or granular enough
-    } = nebenkostenItem;
+    // Helper function for calculation logic (extracted to avoid repetition)
+    const calculateCostsForTenant = (tenant: Mieter): TenantCostDetails => {
+      const {
+        nebenkostenart,
+        betrag,
+        berechnungsart,
+        wasserkosten,
+        gesamtFlaeche,
+      } = nebenkostenItem!; // nebenkostenItem is checked in the outer scope
 
-    const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0 ? gesamtFlaeche : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
-    const numberOfUnits = tenants.length; // Assuming one tenant per unit for 'fix' or 'pro Person' if no specific person count
-
-    const newCalculatedData: TenantCostDetails[] = tenants.map(tenant => {
-      // Ensure tenant.Wohnungen exists and has groesse, default to 0 if not
+      const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
+        ? gesamtFlaeche
+        : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+      const numberOfUnits = tenants.length;
       const apartmentSize = tenant.Wohnungen?.groesse || 0;
       const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
 
@@ -74,7 +76,7 @@ export function AbrechnungModal({
       if (nebenkostenart && betrag && berechnungsart) {
         nebenkostenart.forEach((costName, index) => {
           const totalCostForItem = betrag[index] || 0;
-          const calcType = berechnungsart[index] || 'fix'; // Default to 'fix' if not specified
+          const calcType = berechnungsart[index] || 'fix';
           let share = 0;
 
           switch (calcType.toLowerCase()) {
@@ -82,7 +84,7 @@ export function AbrechnungModal({
             case 'qm':
               share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
               break;
-            case 'pro person': // Assuming 'pro Person' means per tenant/unit for now
+            case 'pro person':
             case 'pro einheit':
             case 'fix':
             default:
@@ -99,22 +101,19 @@ export function AbrechnungModal({
         });
       }
 
-      // Water cost calculation
-      // For now, distribute water costs by qm if totalHouseArea > 0, otherwise per unit.
-      // This can be refined later if individual meter readings (Wasserzaehler) are integrated.
       let waterShare = 0;
       const waterCalcType = totalHouseArea > 0 ? 'pro qm' : 'pro einheit';
       if (wasserkosten && wasserkosten > 0) {
         if (waterCalcType === 'pro qm') {
           waterShare = totalHouseArea > 0 ? (wasserkosten / totalHouseArea) * apartmentSize : 0;
-        } else { // pro einheit
+        } else {
           waterShare = numberOfUnits > 0 ? wasserkosten / numberOfUnits : 0;
         }
       }
 
       const tenantWaterCost = {
         totalWaterCostOverall: wasserkosten || 0,
-        calculationType: waterCalcType, // Placeholder, can be made more dynamic
+        calculationType: waterCalcType,
         tenantShare: waterShare,
       };
 
@@ -130,11 +129,26 @@ export function AbrechnungModal({
         waterCost: tenantWaterCost,
         totalTenantCost: totalTenantCost,
       };
-    });
+    };
 
-    setCalculatedTenantData(newCalculatedData);
+    if (loadAllRelevantTenants) {
+      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant));
+      setCalculatedTenantData(allTenantsData);
+    } else {
+      if (!selectedTenantId) {
+        setCalculatedTenantData([]); // Clear data if no tenant is selected
+        return;
+      }
 
-  }, [isOpen, nebenkostenItem, tenants]);
+      const activeTenant = tenants.find(t => t.id === selectedTenantId);
+      if (!activeTenant) {
+        setCalculatedTenantData([]); // Clear data if selected tenant not found
+        return;
+      }
+      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant);
+      setCalculatedTenantData([singleTenantCalculatedData]);
+    }
+  }, [isOpen, nebenkostenItem, tenants, selectedTenantId, loadAllRelevantTenants]); // Added loadAllRelevantTenants to dependency array
 
   if (!isOpen || !nebenkostenItem) {
     return null;
@@ -143,6 +157,21 @@ export function AbrechnungModal({
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+  };
+
+  const tenantOptions: ComboboxOption[] = tenants.map(tenant => ({
+    value: tenant.id,
+    label: tenant.name,
+  }));
+
+  const handleLoadAllTenants = () => {
+    setLoadAllRelevantTenants(true);
+    setSelectedTenantId(null); // Clear single tenant selection
+  };
+
+  const handleTenantSelect = (value: string | null) => {
+    setLoadAllRelevantTenants(false); // Disable "load all" mode
+    setSelectedTenantId(value);
   };
 
   return (
@@ -154,11 +183,46 @@ export function AbrechnungModal({
           </DialogTitle>
         </DialogHeader>
 
+        {tenants && tenants.length > 0 && (
+          <div className="mt-4 mb-4"> {/* Adjusted margin for consistency */}
+            <label htmlFor="tenant-combobox-trigger" className="block text-sm font-medium text-gray-700 mb-1">
+              Mieter auswählen
+            </label>
+            <div className="flex items-center space-x-2">
+              <CustomCombobox
+                options={tenantOptions}
+                value={selectedTenantId}
+                onChange={handleTenantSelect} // Updated onChange handler
+                placeholder="Mieter auswählen..."
+                searchPlaceholder="Mieter suchen..."
+                emptyText="Kein Mieter gefunden."
+                width="w-full"
+              />
+              <Button variant="default" onClick={handleLoadAllTenants}> {/* Added onClick handler */}
+                Alle relevanten Mieter laden
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 space-y-6">
-          {calculatedTenantData.length === 0 && (
+          {/* Message display logic updated */}
+          {(!tenants || tenants.length === 0) && nebenkostenItem && (
+            <p className="text-muted-foreground">Keine Mieter für diese Abrechnung vorhanden.</p>
+          )}
+          {(!tenants || tenants.length === 0) && !nebenkostenItem && (
+            <p className="text-muted-foreground">Keine Nebenkostenabrechnungsdaten oder Mieter vorhanden.</p>
+          )}
+          {tenants && tenants.length > 0 && !selectedTenantId && !loadAllRelevantTenants && (
             <p className="text-muted-foreground">
-              {tenants && tenants.length > 0 ? "Berechne Daten..." : "Keine Mieterdaten für die Abrechnung vorhanden oder Nebenkosten nicht vollständig konfiguriert."}
+              Bitte wählen Sie einen Mieter aus oder laden Sie alle relevanten Mieter, um die Details anzuzeigen.
             </p>
+          )}
+          {tenants && tenants.length > 0 && selectedTenantId && calculatedTenantData.length === 0 && !loadAllRelevantTenants && (
+            <p className="text-muted-foreground">Berechne Daten für ausgewählten Mieter...</p>
+          )}
+          {tenants && tenants.length > 0 && loadAllRelevantTenants && calculatedTenantData.length === 0 && (
+            <p className="text-muted-foreground">Alle relevanten Mieter werden geladen...</p>
           )}
 
           {calculatedTenantData.map((tenantData) => (
