@@ -83,20 +83,13 @@ export function AbrechnungModal({
           const totalCostForItem = betrag[index] || 0;
           const calcType = berechnungsart[index] || 'fix';
 
-          // Corrected placement for debugging logs:
-          console.log("------------------------------------");
-          console.log("Processing costName:", costName);
-          console.log("Raw berechnungsart[index]:", nebenkostenItem!.berechnungsart![index]);
-          console.log("Derived calcType:", calcType);
-          console.log("totalCostForItem:", totalCostForItem);
-          console.log("totalHouseArea:", totalHouseArea);
-          console.log("apartmentSize:", apartmentSize);
-
           let share = 0;
 
           switch (calcType.toLowerCase()) {
             case 'pro qm':
             case 'qm':
+            case 'pro flaeche': // As seen in logs "pro Flaeche".toLowerCase()
+            case 'pro fläche':  // To be safe with umlauts
               share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
               break;
             case 'nach rechnung': // New case for individual invoice calculation
@@ -120,7 +113,6 @@ export function AbrechnungModal({
               share = totalCostForItem; // Changed calculation for these types
               break;
           }
-          console.log("Calculated share for " + costName + ":", share);
           costItemsDetails.push({
             costName: costName || `Kostenart ${index + 1}`,
             totalCostForItem,
