@@ -11,7 +11,7 @@ import {
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
 import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler } from "../lib/data-fetching" // Adjusted path
-import { Edit, Trash2, FileText, Droplets, Calculator } from "lucide-react" // Added Calculator
+import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
 import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction } from "@/app/betriebskosten-actions" // Adjusted path
@@ -225,19 +225,6 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
                   >
                     <FileText className="h-4 w-4" />
                     <span>{isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id ? "Lade Daten..." : "Abrechnung erstellen"}</span>
-                  </ContextMenuItem>
-                  <ContextMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleOpenAbrechnungModal(item); // This was already present, let's assume the new one is for a different purpose or this is a correction.
-                                                          // Based on the prompt, this existing item seems to be what was requested to be added.
-                                                          // I will adjust the text and icon as per the new requirement, assuming this is the target item.
-                    }}
-                    className="flex items-center gap-2 cursor-pointer"
-                    disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
-                  >
-                    <Calculator className="h-4 w-4" />
-                    <span>{isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id ? "Lade Daten..." : "Abrechnung"}</span>
                   </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem 
