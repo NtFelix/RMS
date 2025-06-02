@@ -200,7 +200,23 @@ export function AbrechnungModal({
   ) => {
     const { default: jsPDF } = await import('jspdf');
     const autoTableModule = await import('jspdf-autotable');
-    console.log('jspdf-autotable module:', autoTableModule);
+    // console.log('jspdf-autotable module:', autoTableModule); // Keep for now
+
+    if (autoTableModule && typeof autoTableModule.applyPlugin === 'function') {
+      autoTableModule.applyPlugin(jsPDF);
+    } else {
+      // Fallback or error if applyPlugin is not found
+      console.error("jspdf-autotable module does not have applyPlugin function!", autoTableModule);
+      // As a deeper fallback, try to attach the default export if it's the autoTable function
+      if (autoTableModule && typeof autoTableModule.default === 'function') {
+          console.log("Attempting to attach autoTableModule.default to jsPDF.API.autoTable");
+          (jsPDF.API as any).autoTable = autoTableModule.default;
+      } else {
+        // If neither works, the PDF generation will likely fail, but this provides some diagnostic.
+        alert("PDF AutoTable plugin could not be initialized. PDF generation may fail.");
+        return; // Stop further execution if plugin can't be initialized
+      }
+    }
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height;
