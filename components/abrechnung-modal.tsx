@@ -6,10 +6,18 @@ import { Button } from "@/components/ui/button";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 // Defined in Step 1:
 
 // Local Rechnung interface removed
+
+// Helper function for currency formatting
+const formatCurrency = (value: number | null | undefined) => {
+  if (value == null) return "-";
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+};
 
 interface TenantCostDetails {
   tenantId: string;
@@ -181,14 +189,131 @@ export function AbrechnungModal({
     }
   }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants]); // Added rechnungen to dependency array
 
+  const generateSettlementPDF = (
+    tenantData: TenantCostDetails | TenantCostDetails[],
+    nebenkostenItem: Nebenkosten,
+    ownerName: string = "[Name Owner]",
+    ownerAddress: string = "[Adresse Owner]"
+  ) => {
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.height;
+    let startY = 20; // Initial Y position for content
+
+    const processTenant = (singleTenantData: TenantCostDetails) => {
+      // Reset startY for each tenant if it's a new page
+      if (startY > pageHeight - 50) { // Check if new page is needed (50 as buffer)
+        doc.addPage();
+        startY = 20;
+      }
+
+      // 1. Owner Information & Title
+      doc.setFontSize(10);
+      doc.text(ownerName, 20, startY);
+      startY += 6;
+      doc.text(ownerAddress, 20, startY);
+      startY += 10;
+
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Jahresabrechnung", doc.internal.pageSize.getWidth() / 2, startY, { align: "center" });
+      startY += 10;
+
+      // 2. Settlement Period
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Zeitraum: 01.01.${nebenkostenItem.jahr} - 31.12.${nebenkostenItem.jahr}`, 20, startY);
+      startY += 6;
+
+      // 3. Property Details
+      const propertyDetails = `Objekt: ${nebenkostenItem.Haeuser?.name || 'N/A'}, ${singleTenantData.apartmentName}, ${singleTenantData.apartmentSize} qm`;
+      doc.text(propertyDetails, 20, startY);
+      startY += 10;
+
+      // 4. Costs Table
+      const tableColumn = ["Leistungsart", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+      const tableRows: any[][] = [];
+
+      singleTenantData.costItems.forEach(item => {
+        const row = [
+          item.costName,
+          item.calculationType,
+          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
+          formatCurrency(item.tenantShare)
+        ];
+        tableRows.push(row);
+      });
+
+      // Add water cost row
+      tableRows.push([
+        "Wasserkosten",
+        singleTenantData.waterCost.calculationType,
+        "-",
+        formatCurrency(singleTenantData.waterCost.tenantShare)
+      ]);
+
+      (doc as any).autoTable({
+        head: [tableColumn],
+        body: tableRows,
+        startY: startY,
+        theme: 'grid',
+        headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
+        styles: { fontSize: 9, cellPadding: 1.5 },
+        columnStyles: {
+          3: { halign: 'right' } // Align "Kostenanteil In €" to the right
+        }
+      });
+
+      startY = (doc as any).lastAutoTable.finalY + 10; // Update startY to below the table
+
+      // Table Footer (Betriebskosten gesamt) - displayed as a line of text for simplicity
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Betriebskosten gesamt:", 20, startY);
+      doc.text(formatCurrency(singleTenantData.totalTenantCost), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      startY += 8;
+      doc.setFont("helvetica", "normal");
+
+
+      // 5. Final Summary
+      doc.setFontSize(10);
+      doc.text("Gesamtkosten:", 20, startY);
+      doc.text(formatCurrency(singleTenantData.totalTenantCost), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      startY += 6;
+
+      doc.text("bereits geleistete Zahlungen:", 20, startY);
+      doc.text("[Betrag]", doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      startY += 6;
+      
+      // For Nachzahlung, let's display it as text for now
+      doc.text("Nachzahlung:", 20, startY);
+      doc.text(`${formatCurrency(singleTenantData.totalTenantCost)} - [Betrag]`, doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      startY += 10;
+    };
+
+    if (Array.isArray(tenantData)) {
+      tenantData.forEach((td, index) => {
+        processTenant(td);
+        if (index < tenantData.length - 1) {
+          doc.addPage();
+          startY = 20; // Reset Y for new page
+        }
+      });
+      const filename = `Abrechnung_${nebenkostenItem.jahr}_Alle_Mieter.pdf`;
+      doc.save(filename);
+    } else if (tenantData) {
+      processTenant(tenantData);
+      const filename = `Abrechnung_${nebenkostenItem.jahr}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
+      doc.save(filename);
+    } else {
+      console.error("No tenant data available to generate PDF.");
+      // Optionally, show a toast or alert to the user
+      return;
+    }
+  };
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
-
-  const formatCurrency = (value: number | null | undefined) => {
-    if (value == null) return "-";
-    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
-  };
 
   const tenantOptions: ComboboxOption[] = tenants.map(tenant => ({
     value: tenant.id,
@@ -303,6 +428,9 @@ export function AbrechnungModal({
         <DialogFooter className="mt-8 pt-4 border-t">
           <Button variant="outline" onClick={onClose}>
             Schließen
+          </Button>
+          <Button variant="default" onClick={() => generateSettlementPDF(calculatedTenantData, nebenkostenItem!)}>
+            Als PDF exportieren
           </Button>
         </DialogFooter>
       </DialogContent>
