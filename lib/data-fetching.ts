@@ -71,6 +71,17 @@ export type Nebenkosten = {
   anzahlMieter?: number; // Number of tenants
 };
 
+// Added as per subtask
+export interface Rechnung {
+  id:string;
+  user_id: string;
+  nebenkosten_id: string | null;
+  mieter_id: string | null;
+  name: string; // This should correspond to a 'nebenkostenart'
+  betrag: number | null;
+  // Add any other relevant fields from the 'Rechnungen' table
+}
+
 export type RechnungSql = {
   id: string;
   nebenkosten_id: string;
