@@ -10,11 +10,11 @@ import {
   ContextMenuItem,
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
-import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler } from "../lib/data-fetching" // Adjusted path
+import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung } from "../lib/data-fetching" // Adjusted path, Added Rechnung
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
-import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction } from "@/app/betriebskosten-actions" // Adjusted path
+import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction, getRechnungenForNebenkostenAction } from "@/app/betriebskosten-actions" // Adjusted path, Added getRechnungenForNebenkostenAction
 import { toast } from "sonner" // For notifications
 
 
@@ -35,6 +35,7 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<Nebenkosten | null>(null);
   const [tenantsForAbrechnungModal, setTenantsForAbrechnungModal] = useState<Mieter[]>([]);
   const [isLoadingAbrechnungData, setIsLoadingAbrechnungData] = useState(false);
+  const [rechnungenForAbrechnungModal, setRechnungenForAbrechnungModal] = useState<Rechnung[]>([]);
   
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
@@ -119,15 +120,26 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
       const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
       if (mieterResult.success && mieterResult.data) {
         setTenantsForAbrechnungModal(mieterResult.data);
-        setIsAbrechnungModalOpen(true);
+
+        // Fetch Rechnungen for the Nebenkosten item
+        const rechnungenResult = await getRechnungenForNebenkostenAction(item.id);
+        if (rechnungenResult.success && rechnungenResult.data) {
+          setRechnungenForAbrechnungModal(rechnungenResult.data);
+        } else {
+          toast.error(`Fehler beim Laden der Rechnungen: ${rechnungenResult.message || "Keine Rechnungen gefunden oder Fehler."}`);
+          setRechnungenForAbrechnungModal([]); // Ensure it's empty if fetch fails or no data
+        }
+        setIsAbrechnungModalOpen(true); // Open modal only after all data is fetched
       } else {
         toast.error(`Fehler beim Laden der Mieterdaten für Abrechnung: ${mieterResult.message || "Unbekannter Fehler"}`);
         setTenantsForAbrechnungModal([]);
+        setRechnungenForAbrechnungModal([]); // Also clear rechnungen if mieter fetch fails
       }
     } catch (error) {
-      console.error("Error calling getMieterForNebenkostenAction for Abrechnung:", error);
-      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Mieterdaten für die Abrechnung aufgetreten.");
+      console.error("Error calling getMieterForNebenkostenAction or getRechnungenForNebenkostenAction for Abrechnung:", error);
+      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten für die Abrechnung aufgetreten.");
       setTenantsForAbrechnungModal([]);
+      setRechnungenForAbrechnungModal([]);
     } finally {
       setIsLoadingAbrechnungData(false);
     }
@@ -137,6 +149,7 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
     setIsAbrechnungModalOpen(false);
     setSelectedNebenkostenForAbrechnung(null);
     setTenantsForAbrechnungModal([]);
+    setRechnungenForAbrechnungModal([]); // Clear Rechnungen data on close
   };
 
   return (
@@ -273,6 +286,7 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
           onClose={handleCloseAbrechnungModal}
           nebenkostenItem={selectedNebenkostenForAbrechnung}
           tenants={tenantsForAbrechnungModal}
+          rechnungen={rechnungenForAbrechnungModal} // Pass the Rechnungen data
         />
       )}
     </div>

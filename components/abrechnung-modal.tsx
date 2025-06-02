@@ -4,10 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Nebenkosten, Mieter, Wohnung } from "@/lib/data-fetching";
+import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 
 // Defined in Step 1:
+
+// Local Rechnung interface removed
+
 interface TenantCostDetails {
   tenantId: string;
   tenantName: string;
@@ -19,6 +22,7 @@ interface TenantCostDetails {
     totalCostForItem: number; // Renamed from totalCost for clarity
     calculationType: string;
     tenantShare: number;
+    pricePerSqm?: number; // New field added here
   }>;
   waterCost: {
     totalWaterCostOverall: number; // Renamed for clarity
@@ -34,6 +38,7 @@ interface AbrechnungModalProps {
   onClose: () => void;
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
+  rechnungen: Rechnung[]; // Assumed new prop
   // wohnungen prop is removed as Mieter type now includes Wohnungen directly with name and groesse
 }
 
@@ -42,6 +47,7 @@ export function AbrechnungModal({
   onClose,
   nebenkostenItem,
   tenants,
+  rechnungen, // Destructured assumed new prop
 }: AbrechnungModalProps) {
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
@@ -77,18 +83,42 @@ export function AbrechnungModal({
         nebenkostenart.forEach((costName, index) => {
           const totalCostForItem = betrag[index] || 0;
           const calcType = berechnungsart[index] || 'fix';
+
           let share = 0;
+          let itemPricePerSqm: number | undefined = undefined;
 
           switch (calcType.toLowerCase()) {
             case 'pro qm':
             case 'qm':
-              share = totalHouseArea > 0 ? (totalCostForItem / totalHouseArea) * apartmentSize : 0;
+            case 'pro flaeche': // As seen in logs "pro Flaeche".toLowerCase()
+            case 'pro fläche':  // To be safe with umlauts
+              if (totalHouseArea > 0) {
+                  itemPricePerSqm = totalCostForItem / totalHouseArea;
+                  share = itemPricePerSqm * apartmentSize;
+              } else {
+                  share = 0;
+                  // itemPricePerSqm remains undefined
+              }
+              break;
+            case 'nach rechnung': // New case for individual invoice calculation
+              // Ensure rechnungen is available and not undefined.
+              // The problem states rechnungen is pre-filtered for nebenkostenItem.id
+              if (rechnungen) {
+                const relevantRechnung = rechnungen.find(
+                  (r) => r.mieter_id === tenant.id && r.name === costName
+                );
+                share = relevantRechnung?.betrag || 0;
+              } else {
+                // Fallback or error handling if rechnungen is not provided as expected
+                console.warn(`Rechnungen array not available for costName: ${costName} and tenant: ${tenant.id}`);
+                share = 0; // Default to 0 if rechnungen is missing
+              }
               break;
             case 'pro person':
             case 'pro einheit':
             case 'fix':
             default:
-              share = numberOfUnits > 0 ? totalCostForItem / numberOfUnits : 0;
+              share = totalCostForItem; // Changed calculation for these types
               break;
           }
           costItemsDetails.push({
@@ -96,6 +126,7 @@ export function AbrechnungModal({
             totalCostForItem,
             calculationType: calcType,
             tenantShare: share,
+            pricePerSqm: itemPricePerSqm, // Add this line
           });
           tenantTotalForRegularItems += share;
         });
@@ -148,7 +179,7 @@ export function AbrechnungModal({
       const singleTenantCalculatedData = calculateCostsForTenant(activeTenant);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
-  }, [isOpen, nebenkostenItem, tenants, selectedTenantId, loadAllRelevantTenants]); // Added loadAllRelevantTenants to dependency array
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants]); // Added rechnungen to dependency array
 
   if (!isOpen || !nebenkostenItem) {
     return null;
@@ -237,6 +268,8 @@ export function AbrechnungModal({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-gray-700">Kostenart</TableHead>
+                    <TableHead className="text-gray-700">Abrechnungsart</TableHead>
+                    <TableHead className="text-gray-700">Preis/qm</TableHead> {/* New Header */}
                     <TableHead className="text-right text-gray-700">Anteil Mieter</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -244,15 +277,21 @@ export function AbrechnungModal({
                   {tenantData.costItems.map((item, index) => (
                     <TableRow key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
                       <TableCell className="py-2 px-3">{item.costName}</TableCell>
+                      <TableCell className="py-2 px-3">{item.calculationType}</TableCell>
+                      <TableCell className="py-2 px-3">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
                       <TableCell className="text-right py-2 px-3">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className={tenantData.costItems.length % 2 === 0 ? "bg-gray-50" : ""}>
                     <TableCell className="py-2 px-3">Wasserkosten</TableCell>
+                    <TableCell className="py-2 px-3">{tenantData.waterCost.calculationType}</TableCell>
+                    <TableCell className="py-2 px-3">-</TableCell> {/* Empty cell for alignment */}
                     <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
                   </TableRow>
                   <TableRow className="font-semibold bg-blue-50">
                     <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
+                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
+                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                 </TableBody>
