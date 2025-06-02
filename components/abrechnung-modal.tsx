@@ -266,7 +266,7 @@ export function AbrechnungModal({
         }
       });
 
-      startY = (doc as any).lastAutoTable.finalY + 10; // Update startY to below the table
+      startY = doc.lastAutoTable.finalY + 10; // Update startY to below the table
 
       // Table Footer (Betriebskosten gesamt) - displayed as a line of text for simplicity
       doc.setFontSize(10);
