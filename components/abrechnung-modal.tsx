@@ -7,7 +7,10 @@ import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
+
+// Explicitly register autoTable plugin
+(jsPDF.API as any).autoTable = autoTable;
 
 // Defined in Step 1:
 
@@ -251,7 +254,7 @@ export function AbrechnungModal({
         formatCurrency(singleTenantData.waterCost.tenantShare)
       ]);
 
-      (doc as any).autoTable({
+      doc.autoTable({
         head: [tableColumn],
         body: tableRows,
         startY: startY,
