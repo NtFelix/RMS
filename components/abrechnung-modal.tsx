@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
+import { useToast } from "@/hooks/use-toast";
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -60,6 +61,7 @@ export function AbrechnungModal({
   tenants,
   rechnungen, // Destructured assumed new prop
 }: AbrechnungModalProps) {
+  const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
@@ -213,7 +215,11 @@ export function AbrechnungModal({
           (jsPDF.API as any).autoTable = autoTableModule.default;
       } else {
         // If neither works, the PDF generation will likely fail, but this provides some diagnostic.
-        alert("PDF AutoTable plugin could not be initialized. PDF generation may fail.");
+        toast({
+          title: "Fehler bei PDF-Initialisierung",
+          description: "Das PDF AutoTable-Plugin konnte nicht initialisiert werden. Die PDF-Generierung schlägt möglicherweise fehl.",
+          variant: "destructive",
+        });
         return; // Stop further execution if plugin can't be initialized
       }
     }
