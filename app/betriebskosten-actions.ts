@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler } from "../lib/data-fetching"; // Adjusted path
+import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -222,6 +222,44 @@ export async function getWasserzaehlerRecordsAction(
 
   } catch (error: any) {
     console.error('Unexpected error in getWasserzaehlerRecordsAction:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
+export async function getRechnungenForNebenkostenAction(nebenkostenId: string): Promise<{
+  success: boolean;
+  data?: Rechnung[];
+  message?: string;
+}> {
+  "use server";
+
+  if (!nebenkostenId) {
+    return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("Rechnungen")
+      .select("*") // Selects all columns, matching the Rechnung interface
+      .eq("nebenkosten_id", nebenkostenId)
+      .eq("user_id", user.id); // Ensuring user can only fetch their own Rechnungen
+
+    if (error) {
+      console.error(`Error fetching Rechnungen for nebenkosten_id ${nebenkostenId}:`, error);
+      return { success: false, message: `Fehler beim Abrufen der Rechnungen: ${error.message}` };
+    }
+
+    return { success: true, data: data as Rechnung[] };
+
+  } catch (error: any) {
+    console.error('Unexpected error in getRechnungenForNebenkostenAction:', error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
   }
 }
