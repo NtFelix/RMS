@@ -199,7 +199,8 @@ export function AbrechnungModal({
     ownerAddress: string = "[Adresse Owner]"
   ) => {
     const { default: jsPDF } = await import('jspdf');
-    await import('jspdf-autotable'); // For its side-effects
+    const autoTableModule = await import('jspdf-autotable');
+    console.log('jspdf-autotable module:', autoTableModule);
 
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height;
