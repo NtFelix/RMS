@@ -266,7 +266,14 @@ export function AbrechnungModal({
         }
       });
 
-      startY = doc.lastAutoTable.finalY + 10; // Update startY to below the table
+      if (doc.lastAutoTable && typeof doc.lastAutoTable.finalY === 'number') {
+        startY = doc.lastAutoTable.finalY + 10;
+      } else {
+        // Fallback logic: if finalY is not available (which shouldn't happen after a successful autoTable call),
+        // increment startY by a default value to prevent overlap and log an error.
+        startY += 10; // Default spacing
+        console.error("Error: doc.lastAutoTable.finalY was not available after autoTable call. Using default spacing.");
+      }
 
       // Table Footer (Betriebskosten gesamt) - displayed as a line of text for simplicity
       doc.setFontSize(10);
