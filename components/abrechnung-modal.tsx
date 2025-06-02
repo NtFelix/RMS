@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// import jsPDF from 'jspdf'; // Removed for dynamic import
+// import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
-// Explicitly register autoTable plugin
-(jsPDF.API as any).autoTable = autoTable;
+// Explicitly register autoTable plugin // Removed as autoTable will be imported dynamically
+// (jsPDF.API as any).autoTable = autoTable;
 
 // Defined in Step 1:
 
@@ -192,12 +192,15 @@ export function AbrechnungModal({
     }
   }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants]); // Added rechnungen to dependency array
 
-  const generateSettlementPDF = (
+  const generateSettlementPDF = async ( // Changed to async
     tenantData: TenantCostDetails | TenantCostDetails[],
     nebenkostenItem: Nebenkosten,
     ownerName: string = "[Name Owner]",
     ownerAddress: string = "[Adresse Owner]"
   ) => {
+    const { default: jsPDF } = await import('jspdf');
+    await import('jspdf-autotable'); // For its side-effects
+
     const doc = new jsPDF();
     const pageHeight = doc.internal.pageSize.height;
     let startY = 20; // Initial Y position for content
@@ -254,7 +257,7 @@ export function AbrechnungModal({
         formatCurrency(singleTenantData.waterCost.tenantShare)
       ]);
 
-      doc.autoTable({
+      (doc as any).autoTable({ // Changed to (doc as any).autoTable
         head: [tableColumn],
         body: tableRows,
         startY: startY,
@@ -266,8 +269,9 @@ export function AbrechnungModal({
         }
       });
 
-      if (doc.lastAutoTable && typeof doc.lastAutoTable.finalY === 'number') {
-        startY = doc.lastAutoTable.finalY + 10;
+      const finalY = (doc as any).lastAutoTable?.finalY; // Changed to (doc as any) and optional chaining
+      if (typeof finalY === 'number') {
+        startY = finalY + 10;
       } else {
         // Fallback logic: if finalY is not available (which shouldn't happen after a successful autoTable call),
         // increment startY by a default value to prevent overlap and log an error.
@@ -439,7 +443,7 @@ export function AbrechnungModal({
           <Button variant="outline" onClick={onClose}>
             Schließen
           </Button>
-          <Button variant="default" onClick={() => generateSettlementPDF(calculatedTenantData, nebenkostenItem!)}>
+          <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!); }}>
             Als PDF exportieren
           </Button>
         </DialogFooter>
