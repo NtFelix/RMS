@@ -608,3 +608,30 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     return { mieterList: [], existingReadings: [] };
   }
 }
+
+export async function getAbrechnungModalData(nebenkostenId: string): Promise<{
+  nebenkostenItem: Nebenkosten | null;
+  tenants: Mieter[];
+  wasserzaehlerReadings: Wasserzaehler[];
+} | null> {
+  if (!nebenkostenId) {
+    console.error("getAbrechnungModalData: nebenkostenId is required");
+    return null;
+  }
+
+  const nebenkostenItem = await fetchNebenkostenDetailsById(nebenkostenId);
+  if (!nebenkostenItem) {
+    // If nebenkostenItem itself is null, we probably can't proceed meaningfully.
+    return null;
+  }
+
+  // fetchWasserzaehlerModalData expects nebenkostenId and returns { mieterList, existingReadings }
+  // We need to ensure that the Mieter[] from mieterList and Wasserzaehler[] from existingReadings are correctly typed.
+  const wasserzaehlerData = await fetchWasserzaehlerModalData(nebenkostenId);
+
+  return {
+    nebenkostenItem,
+    tenants: wasserzaehlerData.mieterList,
+    wasserzaehlerReadings: wasserzaehlerData.existingReadings,
+  };
+}
