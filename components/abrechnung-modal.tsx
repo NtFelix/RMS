@@ -18,19 +18,22 @@ import { Progress } from "@/components/ui/progress";
 // (jsPDF.API as any).autoTable = autoTable;
 
 const calculateOccupancy = (einzug: string | null | undefined, auszug: string | null | undefined, abrechnungsjahr: number): { percentage: number, daysInYear: number, daysOccupied: number } => {
-  if (!einzug) return { percentage: 0, daysInYear: 365, daysOccupied: 0 }; // No move-in date, 0% occupancy
+  const daysInBillingYear = 360; // Fixed for 30/360 convention
 
-  const yearStartDate = new Date(Date.UTC(abrechnungsjahr, 0, 1));
-  const yearEndDate = new Date(Date.UTC(abrechnungsjahr, 11, 31, 23, 59, 59, 999)); // End of Dec 31st
-
-  const moveInDate = new Date(einzug);
-  // If move-in is after the billing year, or invalid, treat as 0 occupancy for this year
-  if (isNaN(moveInDate.getTime()) || moveInDate > yearEndDate) {
-    return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  // Handle cases where tenant has no valid move-in date for the billing year
+  if (!einzug) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
   }
 
-  // Adjust move-in to start of billing year if it's earlier
-  const effectiveMoveIn = moveInDate < yearStartDate ? yearStartDate : moveInDate;
+  // Determine the actual calendar start and end of the billing year for boundary checks
+  const actualBillingYearStartDate = new Date(Date.UTC(abrechnungsjahr, 0, 1)); // January 1st
+  const actualBillingYearEndDate = new Date(Date.UTC(abrechnungsjahr, 11, 31, 23, 59, 59, 999)); // December 31st, end of day
+
+  const moveInDate = new Date(einzug);
+  // If move-in is after the billing year (calendar-wise), no occupancy in this year
+  if (isNaN(moveInDate.getTime()) || moveInDate > actualBillingYearEndDate) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
+  }
 
   let moveOutDate: Date | null = null;
   if (auszug) {
@@ -40,30 +43,52 @@ const calculateOccupancy = (einzug: string | null | undefined, auszug: string | 
     }
   }
 
-  // If move-out is before the billing year, treat as 0 occupancy for this year
-  if (moveOutDate && moveOutDate < yearStartDate) {
-      return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  // If move-out is before the billing year (calendar-wise), no occupancy in this year
+  if (moveOutDate && moveOutDate < actualBillingYearStartDate) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
   }
 
-  // Adjust move-out to end of billing year if it's later or not set
-  const effectiveMoveOut = (!moveOutDate || moveOutDate > yearEndDate) ? yearEndDate : moveOutDate;
+  // Determine the effective start and end dates of the occupancy period,
+  // clamped to the boundaries of the actual billing year.
+  const effectivePeriodStart = moveInDate < actualBillingYearStartDate ? actualBillingYearStartDate : moveInDate;
+  const effectivePeriodEnd = (!moveOutDate || moveOutDate > actualBillingYearEndDate) ? actualBillingYearEndDate : moveOutDate;
 
-  // If effectiveMoveIn is after effectiveMoveOut (e.g. einzug is after auszug within the same year), occupancy is 0
-  if (effectiveMoveIn > effectiveMoveOut) {
-      return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  // If the effective start is after the effective end, implies no valid occupancy period
+  if (effectivePeriodStart > effectivePeriodEnd) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
   }
 
-  const oneDay = 24 * 60 * 60 * 1000; // Milliseconds in a day
-  // Add 1 to include both start and end dates in the occupied period
-  const daysOccupied = Math.round(Math.abs((effectiveMoveOut.getTime() - effectiveMoveIn.getTime()) / oneDay)) + 1;
+  // Apply 30/360 (Eurobond) day count convention for calculation
+  let y1 = effectivePeriodStart.getUTCFullYear();
+  let m1 = effectivePeriodStart.getUTCMonth(); // 0-indexed (January is 0)
+  let d1 = effectivePeriodStart.getUTCDate();
 
-  // Check for leap year to determine daysInYear
-  const isLeap = new Date(abrechnungsjahr, 1, 29).getDate() === 29;
-  const daysInYear = isLeap ? 366 : 365;
+  let y2 = effectivePeriodEnd.getUTCFullYear();
+  let m2 = effectivePeriodEnd.getUTCMonth(); // 0-indexed
+  let d2 = effectivePeriodEnd.getUTCDate();
 
-  const percentage = Math.min(100, Math.max(0, (daysOccupied / daysInYear) * 100));
+  // Adjust day 31 to 30 for the calculation (Eurobond method)
+  if (d1 === 31) d1 = 30;
+  if (d2 === 31) d2 = 30;
+  // Note: More complex 30E/360 methods have specific rules for February.
+  // This implementation uses the simpler D1=31->30, D2=31->30 rule,
+  // aligning with the user's request for "12 months with each 30 days".
 
-  return { percentage, daysInYear, daysOccupied };
+  let calculatedDaysOccupied = (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1) + 1;
+
+  // Ensure calculated days are within reasonable bounds (0 to daysInBillingYear)
+  // Negative values could occur if, after date adjustments, d2 < d1 within the same month/year,
+  // though the clamping of effectivePeriodStart/End should mostly prevent this.
+  calculatedDaysOccupied = Math.max(0, calculatedDaysOccupied);
+  calculatedDaysOccupied = Math.min(calculatedDaysOccupied, daysInBillingYear);
+
+  const percentage = (calculatedDaysOccupied / daysInBillingYear) * 100;
+
+  return {
+    percentage: Math.max(0, Math.min(100, percentage)), // Clamp percentage between 0 and 100
+    daysInYear: daysInBillingYear, // This will always be 360
+    daysOccupied: calculatedDaysOccupied,
+  };
 };
 
 // Defined in Step 1:

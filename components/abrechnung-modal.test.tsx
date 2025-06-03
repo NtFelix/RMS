@@ -12,8 +12,8 @@ jest.mock('jspdf', () => {
     const mockJspdfInstance = {
         internal: {
             pageSize: {
-                height: 297, // A4 height in mm
-                getWidth: () => 210 // A4 width in mm
+                height: 297,
+                getWidth: () => 210
             }
         },
         setFontSize: jest.fn(),
@@ -21,81 +21,78 @@ jest.mock('jspdf', () => {
         setFont: jest.fn(),
         addPage: jest.fn(),
         save: jest.fn(),
-        lastAutoTable: { finalY: 0 }, // Mock this property
+        lastAutoTable: { finalY: 0 },
     };
     const mock = jest.fn(() => mockJspdfInstance);
-    (mock as any).API = { autoTable: jest.fn() }; // Mock the API property for autoTable
+    (mock as any).API = { autoTable: jest.fn() };
     return mock;
 });
 
 
 jest.mock('jspdf-autotable', () => ({
   applyPlugin: jest.fn(),
-  default: jest.fn(), // Mock the default export if that's what's used
+  default: jest.fn(),
 }));
 
 
-// Re-declare calculateOccupancy for isolated testing (corrected version)
+// Re-declare calculateOccupancy with 30/360 Eurobond convention
 const calculateOccupancy = (einzug: string | null | undefined, auszug: string | null | undefined, abrechnungsjahr: number): { percentage: number, daysInYear: number, daysOccupied: number } => {
-  if (!einzug) return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  const daysInBillingYear = 360; // Fixed for 30/360 convention
 
-  const yearStartDate = new Date(Date.UTC(abrechnungsjahr, 0, 1));
-  const yearEndDate = new Date(Date.UTC(abrechnungsjahr, 11, 31));
-
-  let moveInDateAttempt = new Date(einzug);
-  if (typeof einzug === 'string' && einzug.match(/^\d{4}-\d{2}-\d{2}$/)) {
-    const [year, month, day] = einzug.split('-').map(Number);
-    moveInDateAttempt = new Date(Date.UTC(year, month - 1, day));
-  } else {
-      moveInDateAttempt = new Date(einzug);
-  }
-  const moveInDate = moveInDateAttempt;
-
-
-  if (isNaN(moveInDate.getTime()) || moveInDate.getUTCFullYear() > abrechnungsjahr || (moveInDate.getUTCFullYear() === abrechnungsjahr && moveInDate > new Date(Date.UTC(abrechnungsjahr, 11, 31)))) {
-    return { percentage: 0, daysInYear: new Date(abrechnungsjahr, 1, 29).getUTCDate() === 29 ? 366 : 365, daysOccupied: 0 };
+  if (!einzug) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
   }
 
-  const effectiveMoveIn = moveInDate < yearStartDate ? yearStartDate : moveInDate;
+  const actualBillingYearStartDate = new Date(Date.UTC(abrechnungsjahr, 0, 1));
+  const actualBillingYearEndDate = new Date(Date.UTC(abrechnungsjahr, 11, 31, 23, 59, 59, 999));
+
+  const moveInDate = new Date(einzug);
+  if (isNaN(moveInDate.getTime()) || moveInDate > actualBillingYearEndDate) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
+  }
 
   let moveOutDate: Date | null = null;
   if (auszug) {
-    let moveOutDateAttempt = new Date(auszug);
-    if (typeof auszug === 'string' && auszug.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        const [year, month, day] = auszug.split('-').map(Number);
-        moveOutDateAttempt = new Date(Date.UTC(year, month - 1, day));
-    } else {
-        moveOutDateAttempt = new Date(auszug);
-    }
-    if (!isNaN(moveOutDateAttempt.getTime())) {
-      moveOutDate = moveOutDateAttempt;
+    const parsedMoveOut = new Date(auszug);
+    if (!isNaN(parsedMoveOut.getTime())) {
+      moveOutDate = parsedMoveOut;
     }
   }
 
-  if (moveOutDate && (moveOutDate.getUTCFullYear() < abrechnungsjahr || (moveOutDate.getUTCFullYear() === abrechnungsjahr && moveOutDate < new Date(Date.UTC(abrechnungsjahr,0,1))))) {
-    return { percentage: 0, daysInYear: new Date(abrechnungsjahr, 1, 29).getUTCDate() === 29 ? 366 : 365, daysOccupied: 0 };
+  if (moveOutDate && moveOutDate < actualBillingYearStartDate) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
   }
 
-  const effectiveMoveOut = (!moveOutDate || moveOutDate > yearEndDate) ? yearEndDate : moveOutDate;
+  const effectivePeriodStart = moveInDate < actualBillingYearStartDate ? actualBillingYearStartDate : moveInDate;
+  const effectivePeriodEnd = (!moveOutDate || moveOutDate > actualBillingYearEndDate) ? actualBillingYearEndDate : moveOutDate;
 
-  if (effectiveMoveIn > effectiveMoveOut) {
-      return { percentage: 0, daysInYear: new Date(abrechnungsjahr, 1, 29).getUTCDate() === 29 ? 366 : 365, daysOccupied: 0 };
+  if (effectivePeriodStart > effectivePeriodEnd) {
+    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
   }
 
-  const oneDay = 24 * 60 * 60 * 1000;
-  const normEffectiveMoveIn = Date.UTC(effectiveMoveIn.getUTCFullYear(), effectiveMoveIn.getUTCMonth(), effectiveMoveIn.getUTCDate());
-  const normEffectiveMoveOut = Date.UTC(effectiveMoveOut.getUTCFullYear(), effectiveMoveOut.getUTCMonth(), effectiveMoveOut.getUTCDate());
+  let y1 = effectivePeriodStart.getUTCFullYear();
+  let m1 = effectivePeriodStart.getUTCMonth();
+  let d1 = effectivePeriodStart.getUTCDate();
 
-  const daysOccupied = Math.round((normEffectiveMoveOut - normEffectiveMoveIn) / oneDay) + 1;
+  let y2 = effectivePeriodEnd.getUTCFullYear();
+  let m2 = effectivePeriodEnd.getUTCMonth();
+  let d2 = effectivePeriodEnd.getUTCDate();
 
-  const isLeap = new Date(abrechnungsjahr, 1, 29).getUTCDate() === 29;
-  const daysInYear = isLeap ? 366 : 365;
+  if (d1 === 31) d1 = 30;
+  if (d2 === 31) d2 = 30;
 
-  const finalDaysOccupied = Math.min(daysOccupied, daysInYear);
+  let calculatedDaysOccupied = (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1) + 1;
 
-  const percentage = Math.min(100, Math.max(0, (finalDaysOccupied / daysInYear) * 100));
+  calculatedDaysOccupied = Math.max(0, calculatedDaysOccupied);
+  calculatedDaysOccupied = Math.min(calculatedDaysOccupied, daysInBillingYear);
 
-  return { percentage, daysInYear, daysOccupied: finalDaysOccupied };
+  const percentage = (calculatedDaysOccupied / daysInBillingYear) * 100;
+
+  return {
+    percentage: Math.max(0, Math.min(100, percentage)),
+    daysInYear: daysInBillingYear,
+    daysOccupied: calculatedDaysOccupied,
+  };
 };
 
 
@@ -105,47 +102,50 @@ const formatCurrency = (value: number | null | undefined) => {
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 };
 
-describe('calculateOccupancy', () => {
-  // ... all calculateOccupancy tests are passing ...
-  it('calculates full year, non-leap', () => {
+describe('calculateOccupancy (30/360 Convention)', () => {
+  it('calculates full year', () => {
     const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2023-01-01", "2023-12-31", 2023);
-    expect(daysOccupied).toBe(365);
-    expect(daysInYear).toBe(365);
+    expect(daysOccupied).toBe(360); // (12-1)*30 + (30-1)+1 = 330 + 30 = 360 (Incorrect manual calc, (11-0)*30 + (30-1)+1 = 330+30 = 360)
+                                      // (2023-2023)*360 + (11-0)*30 + (30-1)+1 = 0 + 330 + 29 + 1 = 360
+    expect(daysInYear).toBe(360);
     expect(percentage).toBeCloseTo(100);
   });
 
-  it('calculates full year, leap', () => {
-    const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2024-01-01", "2024-12-31", 2024);
-    expect(daysOccupied).toBe(366);
-    expect(daysInYear).toBe(366);
-    expect(percentage).toBeCloseTo(100);
-  });
-
-  it('calculates partial year, start (non-leap)', () => {
+  it('calculates partial year, start (Jan 1 to Jun 30)', () => {
+    // Y1=2023, M1=0, D1=1 -> D1=1
+    // Y2=2023, M2=5, D2=30 -> D2=30 (June 30th)
+    // Days = (0)*360 + (5-0)*30 + (30-1) + 1 = 150 + 29 + 1 = 180 days.
     const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2023-01-01", "2023-06-30", 2023);
-    expect(daysOccupied).toBe(181);
-    expect(daysInYear).toBe(365);
-    expect(percentage).toBeCloseTo((181 / 365) * 100);
+    expect(daysOccupied).toBe(180);
+    expect(daysInYear).toBe(360);
+    expect(percentage).toBeCloseTo(50);
   });
 
-  it('calculates partial year, mid (non-leap)', () => {
+  it('calculates partial year, mid (Mar 1 to Sep 30)', () => {
+    // Y1=2023, M1=2, D1=1 (Mar 1st)
+    // Y2=2023, M2=8, D2=30 (Sep 30th)
+    // Days = (0)*360 + (8-2)*30 + (30-1) + 1 = 180 + 29 + 1 = 210 days.
     const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2023-03-01", "2023-09-30", 2023);
-    expect(daysOccupied).toBe(214);
-    expect(daysInYear).toBe(365);
-    expect(percentage).toBeCloseTo((214 / 365) * 100);
+    expect(daysOccupied).toBe(210);
+    expect(daysInYear).toBe(360);
+    expect(percentage).toBeCloseTo((210 / 360) * 100);
   });
 
-  it('calculates partial year, end (non-leap)', () => {
+  it('calculates partial year, end (Jul 1 to Dec 31)', () => {
+    // Y1=2023, M1=6, D1=1 (Jul 1st)
+    // Y2=2023, M2=11, D2=31 -> D2=30 (Dec 31st)
+    // Days = (0)*360 + (11-6)*30 + (30-1) + 1 = 150 + 29 + 1 = 180 days.
     const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2023-07-01", "2023-12-31", 2023);
-    expect(daysOccupied).toBe(184);
-    expect(daysInYear).toBe(365);
-    expect(percentage).toBeCloseTo((184 / 365) * 100);
+    expect(daysOccupied).toBe(180);
+    expect(daysInYear).toBe(360);
+    expect(percentage).toBeCloseTo(50);
   });
 
   it('returns zero occupancy if no einzug date', () => {
-    const { percentage, daysOccupied } = calculateOccupancy(null, "2023-12-31", 2023);
+    const { percentage, daysOccupied, daysInYear } = calculateOccupancy(null, "2023-12-31", 2023);
     expect(percentage).toBe(0);
     expect(daysOccupied).toBe(0);
+    expect(daysInYear).toBe(360);
   });
 
   it('returns zero occupancy if einzug is after auszug', () => {
@@ -166,174 +166,124 @@ describe('calculateOccupancy', () => {
     expect(daysOccupied).toBe(0);
   });
 
-  it('calculates 100% occupancy if move-in is before and move-out is after billing year (2023)', () => {
+  it('calculates 100% (360 days) if move-in is before and move-out is after billing year', () => {
     const { percentage, daysOccupied, daysInYear } = calculateOccupancy("2022-01-01", "2024-12-31", 2023);
-    expect(daysOccupied).toBe(365);
-    expect(daysInYear).toBe(365);
+    expect(daysOccupied).toBe(360);
+    expect(daysInYear).toBe(360);
     expect(percentage).toBeCloseTo(100);
   });
-
-  it('calculates 100% occupancy if move-in is before and move-out is after billing year (2024 leap)', () => {
-    const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2023-01-01", "2025-12-31", 2024);
-    expect(daysOccupied).toBe(366);
-    expect(daysInYear).toBe(366);
-    expect(percentage).toBeCloseTo(100);
-  });
-
 
   it('calculates correctly if move-in is during billing year and move-out is after', () => {
+    // Effective: 2023-07-01 to 2023-12-31 (180 days by 30/360 logic)
     const { percentage, daysOccupied, daysInYear } = calculateOccupancy("2023-07-01", "2024-06-30", 2023);
-    expect(daysOccupied).toBe(184);
-    expect(daysInYear).toBe(365);
-    expect(percentage).toBeCloseTo((184 / 365) * 100);
+    expect(daysOccupied).toBe(180);
+    expect(daysInYear).toBe(360);
+    expect(percentage).toBeCloseTo(50);
   });
 
   it('calculates correctly if move-in is before billing year and move-out is during', () => {
+    // Effective: 2023-01-01 to 2023-06-30 (180 days by 30/360 logic)
     const { percentage, daysOccupied, daysInYear } = calculateOccupancy("2022-07-01", "2023-06-30", 2023);
-    expect(daysOccupied).toBe(181);
-    expect(daysInYear).toBe(365);
-    expect(percentage).toBeCloseTo((181 / 365) * 100);
+    expect(daysOccupied).toBe(180);
+    expect(daysInYear).toBe(360);
+    expect(percentage).toBeCloseTo(50);
+  });
+
+  it('calculates correctly for a leap year date range (Jan 1 to Mar 31, 2024)', () => {
+    // Y1=2024, M1=0, D1=1
+    // Y2=2024, M2=2, D2=31 -> D2=30
+    // Days = (0)*360 + (2-0)*30 + (30-1) + 1 = 60 + 29 + 1 = 90 days.
+    const { percentage, daysInYear, daysOccupied } = calculateOccupancy("2024-01-01", "2024-03-31", 2024);
+    expect(daysOccupied).toBe(90);
+    expect(daysInYear).toBe(360);
+    expect(percentage).toBeCloseTo(25);
   });
 });
 
-// Mock Data
+// Mock Data (Wohnung size 50qm, Haus total area 100qm)
 const mockHaus: Haus = { id: "haus1", name: "Test Haus", adresse: "Teststr. 1" };
 
-const commonNebenkostenItem: Nebenkosten = {
-  id: "nk1",
+const commonNebenkostenItem2023: Nebenkosten = {
+  id: "nk1_2023",
   jahr: "2023",
   nebenkostenart: ["Grundsteuer", "Versicherung"],
-  betrag: [1200, 600],
+  betrag: [1200, 600], // Total for house: Grundsteuer 12€/qm, Versicherung 6€/qm
   berechnungsart: ["pro qm", "pro qm"],
   beschreibung: ["Steuer", "Police"],
-  faelligkeit: ["2023-12-31", "2023-12-31"],
-  bezahlt_am: ["2023-12-01", "2023-12-01"],
-  status: "bezahlt",
-  wasserkosten: 300,
+  faelligkeit: [], bezahlt_am: [], status: "offen",
+  wasserkosten: 300, // Total for house: 3€/qm
   gesamtFlaeche: 100,
-  haus_id: "haus1",
-  Haeuser: mockHaus,
-  Rechnungen: [],
+  haus_id: "haus1", Haeuser: mockHaus, Rechnungen: [],
 };
 
-const leapYearNebenkostenItem: Nebenkosten = {
-  ...commonNebenkostenItem,
-  id: "nk_leap",
+const nebenkostenItem2024Leap: Nebenkosten = {
+  ...commonNebenkostenItem2023,
+  id: "nk1_2024",
   jahr: "2024",
 };
 
 const tenantWohnung: Wohnung = {
-  id: "whg1",
-  name: "Wohnung 1",
-  groesse: 50,
-  haus_id: "haus1",
-  Haeuser: mockHaus,
-  Mieter: [],
-  wasserzaehler_ids: [],
-  wasserzaehler_verbrauch: {},
+  id: "whg1", name: "Wohnung 1", groesse: 50, haus_id: "haus1",
+  Haeuser: mockHaus, Mieter: [], wasserzaehler_ids: [], wasserzaehler_verbrauch: {},
 };
 
-const tenant1_FullYear: Mieter = {
-  id: "m1", name: "Tenant FullYear", telefon: "", email: "",
-  einzug: "2023-01-01", auszug: "2023-12-31",
-  wohnung_id: "whg1", Wohnungen: tenantWohnung,
-  nebenkosten: [], nebenkosten_datum: [],
+// Tenant costs for 50qm: Grundsteuer=600, Versicherung=300, Wasser=150. Total = 1050 (unprorated)
+
+const tenant1_FullYear2023: Mieter = {
+  id: "m1", name: "Tenant FullYear", einzug: "2023-01-01", auszug: "2023-12-31",
+  wohnung_id: "whg1", Wohnungen: tenantWohnung, nebenkosten: [], nebenkosten_datum: [],
 };
 
-const tenant2_HalfYearMoveOut: Mieter = {
-  id: "m2", name: "Tenant HalfYear MoveOut", telefon: "", email: "",
-  einzug: "2023-01-01", auszug: "2023-06-30",
-  wohnung_id: "whg1", Wohnungen: tenantWohnung,
-  nebenkosten: [], nebenkosten_datum: [],
+// 30/360: 180 days, 50%
+const tenant2_HalfYearMoveOut2023: Mieter = {
+  id: "m2", name: "Tenant HalfYear MoveOut", einzug: "2023-01-01", auszug: "2023-06-30",
+  wohnung_id: "whg1", Wohnungen: tenantWohnung, nebenkosten: [], nebenkosten_datum: [],
 };
 
-const tenant3_HalfYearMoveIn: Mieter = {
-  id: "m3", name: "Tenant HalfYear MoveIn", telefon: "", email: "",
-  einzug: "2023-07-01", auszug: "2023-12-31",
-  wohnung_id: "whg1", Wohnungen: tenantWohnung,
-  nebenkosten: [], nebenkosten_datum: [],
+// 30/360: 90 days, 25%
+const tenant4_LeapYearPartial2024: Mieter = {
+  id: "m4", name: "Tenant LeapYear Partial", einzug: "2024-01-01", auszug: "2024-03-31",
+  wohnung_id: "whg1", Wohnungen: tenantWohnung, nebenkosten: [], nebenkosten_datum: [],
 };
 
-const tenant4_LeapYearPartial: Mieter = {
-  id: "m4", name: "Tenant LeapYear Partial", telefon: "", email: "",
-  einzug: "2024-01-01", auszug: "2024-03-31",
-  wohnung_id: "whg1", Wohnungen: tenantWohnung,
-  nebenkosten: [], nebenkosten_datum: [],
+const tenant5_ZeroOccupancy2023: Mieter = {
+  id: "m5", name: "Tenant ZeroOccupancy", einzug: "2024-01-01", auszug: null,
+  wohnung_id: "whg1", Wohnungen: tenantWohnung, nebenkosten: [], nebenkosten_datum: [],
 };
 
-const tenant5_ZeroOccupancy: Mieter = {
-  id: "m5", name: "Tenant ZeroOccupancy", telefon: "", email: "",
-  einzug: "2024-01-01", auszug: null,
-  wohnung_id: "whg1", Wohnungen: tenantWohnung,
-  nebenkosten: [], nebenkosten_datum: [],
+// 30/360: 180 days, 50%
+const tenant6_NachRechnung2023: Mieter = {
+    id: "m6", name: "Tenant NachRechnung", einzug: "2023-07-01", auszug: "2023-12-31",
+    wohnung_id: "whg1", Wohnungen: tenantWohnung, nebenkosten: [], nebenkosten_datum: [],
 };
 
-const tenant6_NachRechnung: Mieter = {
-    id: "m6", name: "Tenant NachRechnung", telefon: "", email: "",
-    einzug: "2023-07-01", auszug: "2023-12-31",
-    wohnung_id: "whg1", Wohnungen: tenantWohnung,
-    nebenkosten: [], nebenkosten_datum: [],
-};
-
-const nebenkostenItem_NachRechnung: Nebenkosten = {
+const nebenkostenItem_NachRechnung2023: Nebenkosten = {
+    ...commonNebenkostenItem2023,
     id: "nk_nach_rechnung",
-    jahr: "2023",
-    nebenkostenart: ["Heizungswartung"],
-    betrag: [200],
-    berechnungsart: ["nach rechnung"],
-    beschreibung: ["Wartung"],
-    faelligkeit: ["2023-10-15"],
-    bezahlt_am: ["2023-10-01"],
-    status: "bezahlt",
-    wasserkosten: 300,
-    gesamtFlaeche: 100,
-    haus_id: "haus1",
-    Haeuser: mockHaus,
-    Rechnungen: [],
+    nebenkostenart: ["Heizungswartung"], betrag: [200], berechnungsart: ["nach rechnung"],
 };
-
-const rechnungen_NachRechnung: Rechnung[] = [{
-    id: "r1",
-    name: "Heizungswartung",
-    betrag: 200,
-    datum: "2023-10-10",
-    beschreibung: "Wartung XYZ",
-    kategorie: "Instandhaltung",
-    nebenkosten_id: "nk_nach_rechnung",
-    mieter_id: "m6",
-    haus_id: "haus1",
-    wohnung_id: "whg1",
-    rechnungsnummer: "R123"
+const rechnungen_NachRechnung_Tenant6: Rechnung[] = [{
+    id: "r1", name: "Heizungswartung", betrag: 200, datum: "2023-10-10",
+    beschreibung: "Wartung XYZ", kategorie: "Instandhaltung",
+    nebenkosten_id: "nk_nach_rechnung", mieter_id: "m6", haus_id: "haus1", wohnung_id: "whg1", rechnungsnummer: "R123"
 }];
 
 
-describe('AbrechnungModal Cost Calculation & Proration', () => {
-  const defaultProps = {
-    isOpen: true,
-    onClose: jest.fn(),
-    rechnungen: [],
-  };
+describe('AbrechnungModal Cost Calculation & Proration (30/360 Convention)', () => {
+  const defaultProps = { isOpen: true, onClose: jest.fn(), rechnungen: [], };
 
   async function assertTenantCosts(
-    tenantName: string,
-    expectedDays: number,
-    totalDaysInYear: number,
-    expectedPercentage: number, // This is the float percentage
+    tenantName: string, expectedDays: number, totalDaysInYear: number, expectedPercentage: number,
     costs: Array<{ name: string, expectedShare: number }>,
-    expectedWaterShare: number,
-    expectedTotalCost: number
+    expectedWaterShare: number, expectedTotalCost: number
   ) {
     await waitFor(() => {
-        const tenantHeader = screen.queryByText((content, element) => {
-            return element?.tagName.toLowerCase() === 'span' && element.textContent === tenantName;
-        });
+        const tenantHeader = screen.queryByText((content, element) => element?.tagName.toLowerCase() === 'span' && element.textContent === tenantName);
         expect(tenantHeader).toBeInTheDocument();
     }, { timeout: 3000 });
 
     const tenantSection = screen.getByText((content, element) => element?.tagName.toLowerCase() === 'span' && element.textContent === tenantName)
-                                .closest('h3')
-                                ?.parentElement;
-
+                                .closest('h3')?.parentElement;
     expect(tenantSection).toBeInTheDocument();
     if (!tenantSection) throw new Error(`Tenant section for ${tenantName} not found`);
 
@@ -345,21 +295,19 @@ describe('AbrechnungModal Cost Calculation & Proration', () => {
         expect(progressBar).toHaveAttribute('aria-valuenow', String(expectedPercentage));
     });
 
-
     costs.forEach(cost => {
       const itemRow = within(tenantSection).getByText(cost.name).closest('tr');
       expect(itemRow).toBeInTheDocument();
       if (itemRow) {
         const cells = within(itemRow).getAllByRole('cell');
-        const shareCell = cells[3]; // "Anteil Mieter" is the 4th cell
+        const shareCell = cells[3];
         expect(shareCell.textContent).toBe(formatCurrency(cost.expectedShare));
       }
     });
 
     const waterCardTitle = within(tenantSection).getByText('Wasserkosten');
-    // Assuming CardTitle is within a CardHeader (div), which is within the Card (div)
-    const waterCard = waterCardTitle.closest('.bg-card, [class*="card"]'); // Try a more general selector for card
-    expect(waterCard).toBeInTheDocument(); // This is the line that might fail (359)
+    const waterCard = waterCardTitle.closest('.bg-card, [class*="card"]');
+    expect(waterCard).toBeInTheDocument();
 
     if (waterCard) {
         const valueElement = within(waterCard).getByText((content, element) =>
@@ -373,138 +321,98 @@ describe('AbrechnungModal Cost Calculation & Proration', () => {
     expect(totalRow).toBeInTheDocument();
     if (totalRow) {
         const cells = within(totalRow).getAllByRole('cell');
-        const totalValueCell = cells[cells.length - 1]; // Last cell for total
+        const totalValueCell = cells[cells.length - 1];
         expect(totalValueCell.textContent).toBe(formatCurrency(expectedTotalCost));
     }
   }
 
-
-  it('should calculate costs correctly for full year occupancy (2023)', async () => {
-    render(<AbrechnungModal {...defaultProps} nebenkostenItem={commonNebenkostenItem} tenants={[tenant1_FullYear]} />);
+  it('should calculate costs correctly for full year occupancy (2023, 30/360)', async () => {
+    render(<AbrechnungModal {...defaultProps} nebenkostenItem={commonNebenkostenItem2023} tenants={[tenant1_FullYear2023]} />);
     await userEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
 
-    const factor = 1.0;
-    const grundsteuerShare = (1200 / 100) * 50 * factor;
-    const versicherungShare = (600 / 100) * 50 * factor;
-    const waterShare = (300 / 100) * 50 * factor;
-    const totalCost = grundsteuerShare + versicherungShare + waterShare;
-    const percentage = 100.0;
-
-    await assertTenantCosts(
-      tenant1_FullYear.name,
-      365, 365, percentage,
-      [
-        { name: 'Grundsteuer', expectedShare: grundsteuerShare },
-        { name: 'Versicherung', expectedShare: versicherungShare },
-      ],
-      waterShare,
-      totalCost
-    );
-  });
-
-  it('should calculate costs correctly for half year move-out (2023)', async () => {
-    render(<AbrechnungModal {...defaultProps} nebenkostenItem={commonNebenkostenItem} tenants={[tenant2_HalfYearMoveOut]} />);
-    await userEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
-
-    const daysOccupied = 181;
-    const daysInYear = 365;
-    const factor = daysOccupied / daysInYear;
-    const percentage = factor * 100;
-
-    const grundsteuerShare = (1200 / 100) * 50 * factor;
-    const versicherungShare = (600 / 100) * 50 * factor;
-    const waterShare = (300 / 100) * 50 * factor;
+    const percentage = 100.0; // 360/360
+    const factor = percentage / 100;
+    const grundsteuerShare = 600 * factor;
+    const versicherungShare = 300 * factor;
+    const waterShare = 150 * factor;
     const totalCost = grundsteuerShare + versicherungShare + waterShare;
 
-    await assertTenantCosts(
-      tenant2_HalfYearMoveOut.name,
-      daysOccupied, daysInYear, percentage,
-      [
-        { name: 'Grundsteuer', expectedShare: grundsteuerShare },
-        { name: 'Versicherung', expectedShare: versicherungShare },
-      ],
-      waterShare,
-      totalCost
+    await assertTenantCosts( tenant1_FullYear2023.name, 360, 360, percentage,
+      [{ name: 'Grundsteuer', expectedShare: grundsteuerShare }, { name: 'Versicherung', expectedShare: versicherungShare }],
+      waterShare, totalCost
     );
   });
 
-  it('should calculate costs correctly for leap year, partial occupancy (2024)', async () => {
-    render(<AbrechnungModal {...defaultProps} nebenkostenItem={leapYearNebenkostenItem} tenants={[tenant4_LeapYearPartial]} />);
+  it('should calculate costs correctly for half year move-out (2023, 30/360)', async () => {
+    render(<AbrechnungModal {...defaultProps} nebenkostenItem={commonNebenkostenItem2023} tenants={[tenant2_HalfYearMoveOut2023]} />);
     await userEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
 
-    const daysOccupied = 91;
-    const daysInYear = 366;
-    const factor = daysOccupied / daysInYear;
-    const percentage = factor * 100;
+    const daysOccupied = 180; // Jan 1 to Jun 30 -> 30/360 convention
+    const percentage = 50.0; // 180/360
+    const factor = percentage / 100;
 
-    const grundsteuerShare = (1200 / 100) * 50 * factor;
-    const versicherungShare = (600 / 100) * 50 * factor;
-    const waterShare = (300 / 100) * 50 * factor;
+    const grundsteuerShare = 600 * factor;
+    const versicherungShare = 300 * factor;
+    const waterShare = 150 * factor;
     const totalCost = grundsteuerShare + versicherungShare + waterShare;
 
-    await assertTenantCosts(
-      tenant4_LeapYearPartial.name,
-      daysOccupied, daysInYear, percentage,
-      [
-        { name: 'Grundsteuer', expectedShare: grundsteuerShare },
-        { name: 'Versicherung', expectedShare: versicherungShare },
-      ],
-      waterShare,
-      totalCost
+    await assertTenantCosts( tenant2_HalfYearMoveOut2023.name, daysOccupied, 360, percentage,
+      [{ name: 'Grundsteuer', expectedShare: grundsteuerShare }, { name: 'Versicherung', expectedShare: versicherungShare }],
+      waterShare, totalCost
     );
   });
 
-  it('should result in zero costs for zero occupancy (2023)', async () => {
-    render(<AbrechnungModal {...defaultProps} nebenkostenItem={commonNebenkostenItem} tenants={[tenant5_ZeroOccupancy]} />);
+  it('should calculate costs correctly for partial year in leap year (2024, 30/360)', async () => {
+    render(<AbrechnungModal {...defaultProps} nebenkostenItem={nebenkostenItem2024Leap} tenants={[tenant4_LeapYearPartial2024]} />);
     await userEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
-    const percentage = 0.0;
-    await assertTenantCosts(
-      tenant5_ZeroOccupancy.name,
-      0, 365, percentage,
-      [
-        { name: 'Grundsteuer', expectedShare: 0 },
-        { name: 'Versicherung', expectedShare: 0 },
-      ],
-      0,
-      0
+
+    const daysOccupied = 90; // Jan 1 to Mar 31 -> 30/360 convention
+    const percentage = 25.0; // 90/360
+    const factor = percentage / 100;
+
+    const grundsteuerShare = 600 * factor;
+    const versicherungShare = 300 * factor;
+    const waterShare = 150 * factor;
+    const totalCost = grundsteuerShare + versicherungShare + waterShare;
+
+    await assertTenantCosts( tenant4_LeapYearPartial2024.name, daysOccupied, 360, percentage,
+      [{ name: 'Grundsteuer', expectedShare: grundsteuerShare }, { name: 'Versicherung', expectedShare: versicherungShare }],
+      waterShare, totalCost
     );
   });
 
-  it('should calculate costs correctly with "nach Rechnung" and proration (2023)', async () => {
-    const nkItemWithRechnung = {
-        ...nebenkostenItem_NachRechnung,
-        Rechnungen: rechnungen_NachRechnung,
-    };
+  it('should result in zero costs for zero occupancy (2023, 30/360)', async () => {
+    render(<AbrechnungModal {...defaultProps} nebenkostenItem={commonNebenkostenItem2023} tenants={[tenant5_ZeroOccupancy2023]} />);
+    await userEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
+    await assertTenantCosts( tenant5_ZeroOccupancy2023.name, 0, 360, 0.0,
+      [{ name: 'Grundsteuer', expectedShare: 0 }, { name: 'Versicherung', expectedShare: 0 }], 0, 0
+    );
+  });
 
+  it('should calculate "nach Rechnung" costs with proration (2023, 30/360)', async () => {
     render(<AbrechnungModal
              {...defaultProps}
-             nebenkostenItem={nkItemWithRechnung}
-             tenants={[tenant6_NachRechnung]}
-             rechnungen={rechnungen_NachRechnung}
+             nebenkostenItem={nebenkostenItem_NachRechnung2023}
+             tenants={[tenant6_NachRechnung2023]}
+             rechnungen={rechnungen_NachRechnung_Tenant6}
            />);
     await userEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
 
-    const daysOccupied = 184;
-    const daysInYear = 365;
-    const factor = daysOccupied / daysInYear;
-    const percentage = factor * 100;
+    const daysOccupied = 180; // Jul 1 to Dec 31 -> 30/360 convention
+    const percentage = 50.0; // 180/360
+    const factor = percentage / 100;
 
     const heizungswartungDirectCost = 200;
     const heizungswartungProrated = heizungswartungDirectCost * factor;
 
-    const waterShareTotal = (nebenkostenItem_NachRechnung.wasserkosten / nebenkostenItem_NachRechnung.gesamtFlaeche) * tenantWohnung.groesse;
-    const waterShareProrated = waterShareTotal * factor;
+    const waterShareTotalForTenant = 150; // (300 / 100qm) * 50qm
+    const waterShareProrated = waterShareTotalForTenant * factor;
 
     const totalCost = heizungswartungProrated + waterShareProrated;
 
-    await assertTenantCosts(
-      tenant6_NachRechnung.name,
-      daysOccupied, daysInYear, percentage,
-      [
-        { name: 'Heizungswartung', expectedShare: heizungswartungProrated },
-      ],
-      waterShareProrated,
-      totalCost
+    await assertTenantCosts( tenant6_NachRechnung2023.name, daysOccupied, 360, percentage,
+      [{ name: 'Heizungswartung', expectedShare: heizungswartungProrated }],
+      waterShareProrated, totalCost
     );
   });
 });
