@@ -329,7 +329,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 1: Simple Full-Year Prepayment', async () => {
       const tenantS1: Mieter = {
-        id: 'tS1', name: 'Tenant S1 FullYear', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS1', name: 'Tenant S1 FullYear', einzug: '2023-01-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [100], nebenkosten_datum: ['2023-01-01'],
         // other Mieter fields if necessary
       };
@@ -340,7 +340,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 2: Prepayment Change Mid-Year', async () => {
       const tenantS2: Mieter = {
-        id: 'tS2', name: 'Tenant S2 MidYearChange', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS2', name: 'Tenant S2 MidYearChange', einzug: '2023-01-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [100, 120], nebenkosten_datum: ['2023-01-01', '2023-07-01'],
       };
       await renderAndSelectTenant(tenantS2);
@@ -350,7 +350,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 3: Tenant Moves In Mid-Year', async () => {
       const tenantS3: Mieter = {
-        id: 'tS3', name: 'Tenant S3 MoveInMidYear', mietbeginn: '2023-04-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS3', name: 'Tenant S3 MoveInMidYear', einzug: '2023-04-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [100], nebenkosten_datum: ['2023-01-01'], // Rate active from before move-in
       };
       await renderAndSelectTenant(tenantS3);
@@ -360,7 +360,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 4: Tenant Moves Out Mid-Year', async () => {
       const tenantS4: Mieter = {
-        id: 'tS4', name: 'Tenant S4 MoveOutMidYear', mietbeginn: '2023-01-01', mietende: '2023-08-31', Wohnungen: mockWohnungAlice,
+        id: 'tS4', name: 'Tenant S4 MoveOutMidYear', einzug: '2023-01-01', auszug: '2023-08-31', Wohnungen: mockWohnungAlice,
         nebenkosten: [100], nebenkosten_datum: ['2023-01-01'],
       };
       await renderAndSelectTenant(tenantS4);
@@ -370,7 +370,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 5: Tenant Moves In and Out Within Abrechnungsjahr', async () => {
       const tenantS5: Mieter = {
-        id: 'tS5', name: 'Tenant S5 InOutYear', mietbeginn: '2023-02-01', mietende: '2023-10-31', Wohnungen: mockWohnungAlice,
+        id: 'tS5', name: 'Tenant S5 InOutYear', einzug: '2023-02-01', auszug: '2023-10-31', Wohnungen: mockWohnungAlice,
         nebenkosten: [100], nebenkosten_datum: ['2023-01-01'],
       };
       await renderAndSelectTenant(tenantS5);
@@ -380,7 +380,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 6: Prepayment Starts After Abrechnungsjahr Begins', async () => {
       const tenantS6: Mieter = {
-        id: 'tS6', name: 'Tenant S6 LateStartPrepay', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS6', name: 'Tenant S6 LateStartPrepay', einzug: '2023-01-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [100], nebenkosten_datum: ['2023-03-01'],
       };
       await renderAndSelectTenant(tenantS6);
@@ -390,7 +390,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 7: Effective Prepayment for month based on latest schedule before month start', async () => {
       const tenantS7: Mieter = {
-        id: 'tS7', name: 'Tenant S7 EffectiveRate', mietbeginn: '2023-03-01', mietende: '2023-06-30', Wohnungen: mockWohnungAlice, // Active Mar, Apr, May, Jun (4 months)
+        id: 'tS7', name: 'Tenant S7 EffectiveRate', einzug: '2023-03-01', auszug: '2023-06-30', Wohnungen: mockWohnungAlice, // Active Mar, Apr, May, Jun (4 months)
         nebenkosten: [50, 60], nebenkosten_datum: ['2023-01-01', '2023-05-01'],
       };
       await renderAndSelectTenant(tenantS7);
@@ -404,7 +404,7 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 8: No nebenkosten or nebenkosten_datum', async () => {
       const tenantS8: Mieter = {
-        id: 'tS8', name: 'Tenant S8 NoPrepayData', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS8', name: 'Tenant S8 NoPrepayData', einzug: '2023-01-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [], nebenkosten_datum: [],
       };
       await renderAndSelectTenant(tenantS8);
@@ -414,14 +414,14 @@ describe('AbrechnungModal', () => {
 
     it('Scenario 9: Invalid dates in nebenkosten_datum or mismatch length', async () => {
       const tenantS9A: Mieter = { // Invalid date string
-        id: 'tS9A', name: 'Tenant S9A InvalidDate', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS9A', name: 'Tenant S9A InvalidDate', einzug: '2023-01-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [100], nebenkosten_datum: ['invalid-date-string'],
       };
       await renderAndSelectTenant(tenantS9A);
       assertPrepaymentsAndSettlement(0, baseTotalTenantCost - 0, 'Nachzahlung');
 
       const tenantS9B: Mieter = { // Mismatched length
-        id: 'tS9B', name: 'Tenant S9B Mismatch', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        id: 'tS9B', name: 'Tenant S9B Mismatch', einzug: '2023-01-01', auszug: null, Wohnungen: mockWohnungAlice,
         nebenkosten: [100, 120], nebenkosten_datum: ['2023-01-01'],
       };
       // Need to close the previous render if renderAndSelectTenant does not unmount/cleanup
@@ -443,8 +443,8 @@ describe('AbrechnungModal', () => {
      it('Scenario 10: Tenant moves in, first prepayment starts later', async () => {
       const tenantS10: Mieter = {
         id: 'tS10', name: 'Tenant S10 MoveInPrepayLater',
-        mietbeginn: '2023-01-01', // Active Jan-Dec
-        mietende: null,
+        einzug: '2023-01-01', // Active Jan-Dec
+        auszug: null,
         Wohnungen: mockWohnungAlice,
         nebenkosten: [100],
         nebenkosten_datum: ['2023-03-01'], // Prepayment starts in March
@@ -459,8 +459,8 @@ describe('AbrechnungModal', () => {
     it('Scenario 11: Tenant moves out before any prepayment schedule starts', async () => {
       const tenantS11: Mieter = {
         id: 'tS11', name: 'Tenant S11 MoveOutBeforePrepay',
-        mietbeginn: '2023-01-01',
-        mietende: '2023-03-31', // Active Jan, Feb, Mar
+        einzug: '2023-01-01',
+        auszug: '2023-03-31', // Active Jan, Feb, Mar
         Wohnungen: mockWohnungAlice,
         nebenkosten: [100],
         nebenkosten_datum: ['2023-05-01'], // Prepayment starts in May
