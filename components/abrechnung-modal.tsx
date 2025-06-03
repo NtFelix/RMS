@@ -288,7 +288,7 @@ export function AbrechnungModal({
       const waterCalcType = "nach Verbrauch";
 
       const tenantWaterCost = {
-        totalWaterCostOverall: wasskosten || 0,
+        totalWaterCostOverall: wasserkosten || 0,
         calculationType: waterCalcType,
         tenantShare: waterShare,
         consumption: individualConsumption,
