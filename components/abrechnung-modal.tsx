@@ -87,25 +87,54 @@ export function AbrechnungModal({
         gesamtFlaeche,
       } = nebenkostenItem!; // nebenkostenItem is checked in the outer scope
 
-      const nebenkostenJahrNumber = Number(jahr); // Convert string jahr to number
+      const abrechnungsjahr = Number(jahr); // Convert string jahr to number
 
-      // Calculate Vorauszahlungen
-      let vorauszahlungen = 0;
-      if (tenant.nebenkosten && tenant.nebenkosten_datum) {
-        tenant.nebenkosten.forEach((nkBetrag, index) => {
-          const nkDatumString = tenant.nebenkosten_datum![index]; // This is a string
+      // Calculate Vorauszahlungen based on monthly recurring prepayments
+      let totalVorauszahlungen = 0;
 
-          // Ensure nkDatumString is a valid string that can be parsed into a Date,
-          // and nkBetrag is a number.
-          if (typeof nkDatumString === 'string' && typeof nkBetrag === 'number') {
-            const dateObject = new Date(nkDatumString);
-            // Check if dateObject is valid before calling getFullYear
-            if (!isNaN(dateObject.getTime()) && dateObject.getFullYear() === nebenkostenJahrNumber) {
-              vorauszahlungen += nkBetrag;
+      const prepaymentSchedule: Array<{ date: Date; amount: number }> = [];
+      if (Array.isArray(tenant.nebenkosten) && Array.isArray(tenant.nebenkosten_datum) && tenant.nebenkosten.length === tenant.nebenkosten_datum.length) {
+        tenant.nebenkosten.forEach((amount, index) => {
+          const dateStr = tenant.nebenkosten_datum![index];
+          if (typeof dateStr === 'string' && typeof amount === 'number') {
+            const dateObj = new Date(dateStr);
+            if (!isNaN(dateObj.getTime())) {
+              prepaymentSchedule.push({ date: dateObj, amount });
             }
           }
         });
+        prepaymentSchedule.sort((a, b) => a.date.getTime() - b.date.getTime());
       }
+
+      const einzugDate = tenant.mietbeginn ? new Date(tenant.mietbeginn) : null;
+      const auszugDate = tenant.mietende ? new Date(tenant.mietende) : null;
+
+      if (einzugDate && !isNaN(einzugDate.getTime())) { // Tenant must have a valid einzug date
+        for (let month = 0; month < 12; month++) {
+          const currentMonthStart = new Date(abrechnungsjahr, month, 1);
+          const currentMonthEnd = new Date(abrechnungsjahr, month + 1, 0); // Day 0 of next month is last day of current
+
+          // Check tenant activity for the month
+          const isActiveThisMonth =
+            einzugDate <= currentMonthEnd &&
+            (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart);
+
+          if (!isActiveThisMonth) {
+            continue; // Skip to next month if tenant not active
+          }
+
+          // Find effective prepayment amount for this month
+          let effectivePrepaymentForMonth = 0;
+          for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
+            if (prepaymentSchedule[i].date <= currentMonthStart) {
+              effectivePrepaymentForMonth = prepaymentSchedule[i].amount;
+              break;
+            }
+          }
+          totalVorauszahlungen += effectivePrepaymentForMonth;
+        }
+      }
+      // END of new Vorauszahlungen calculation
 
       const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
         ? gesamtFlaeche
@@ -187,7 +216,8 @@ export function AbrechnungModal({
       };
 
       const totalTenantCost = tenantTotalForRegularItems + waterShare;
-      const finalSettlement = totalTenantCost - vorauszahlungen;
+      // Use the new totalVorauszahlungen variable
+      const finalSettlement = totalTenantCost - totalVorauszahlungen;
 
       return {
         tenantId: tenant.id,
@@ -198,7 +228,7 @@ export function AbrechnungModal({
         costItems: costItemsDetails,
         waterCost: tenantWaterCost,
         totalTenantCost: totalTenantCost,
-        vorauszahlungen: vorauszahlungen,
+        vorauszahlungen: totalVorauszahlungen, // Use the new variable here
         finalSettlement: finalSettlement,
       };
     };
@@ -348,13 +378,16 @@ export function AbrechnungModal({
       doc.text(formatCurrency(singleTenantData.totalTenantCost), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
       startY += 6;
 
-      doc.text("bereits geleistete Zahlungen:", 20, startY);
-      doc.text("[Betrag]", doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      doc.text("Vorauszahlungen:", 20, startY); // Changed from "bereits geleistete Zahlungen"
+      doc.text(formatCurrency(singleTenantData.vorauszahlungen), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" }); // Used singleTenantData.vorauszahlungen
       startY += 6;
       
-      // For Nachzahlung, let's display it as text for now
-      doc.text("Nachzahlung:", 20, startY);
-      doc.text(`${formatCurrency(singleTenantData.totalTenantCost)} - [Betrag]`, doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      // Updated Nachzahlung/Guthaben display
+      const settlementText = singleTenantData.finalSettlement >= 0 ? "Nachzahlung:" : "Guthaben:";
+      doc.setFont("helvetica", "bold");
+      doc.text(settlementText, 20, startY);
+      doc.text(formatCurrency(singleTenantData.finalSettlement), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+      doc.setFont("helvetica", "normal");
       startY += 10;
     };
 

@@ -285,106 +285,190 @@ describe('AbrechnungModal', () => {
     created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notizen: '', kaution: 500, ist_aktiv: true
   }; // Expected Total Cost for 2023: 320, Vorauszahlung for 2023: 130 => Nachzahlung: 190
 
-  const mockTenantNoVorauszahlung: Mieter = {
-    id: 't_alice_novorauszahlung',
-    name: 'Alice NoVorauszahlung',
-    wohnung_id: 'w_alice',
-    haus_id: 'h_test',
-    Wohnungen: mockWohnungAlice,
-    email: 'alice.no@example.com', phone: '123', mietbeginn: '2023-01-01', mietende: null,
-    nebenkosten: [],
-    nebenkosten_datum: [],
-    created_at: new Date().toISOString(), updated_at: new Date().toISOString(), notizen: '', kaution: 500, ist_aktiv: true
-  }; // Expected Total Cost: 320, Vorauszahlung: 0 => Nachzahlung: 320
+  // Base total cost for mockWohnungAlice (80qm) with mockNebenkostenItem2023 is 320€
+  // Grundsteuer (pro qm): (200 / 200qm) * 80qm = 80€
+  // Versicherung (pro einheit, current logic takes full amount): 150€
+  // Müllgebühren (fix, current logic takes full amount): 50€
+  // Wasserkosten (pro qm): (100 / 200qm) * 80qm = 40€
+  // Total = 80 + 150 + 50 + 40 = 320€
+  const baseTotalTenantCost = 320;
 
-  describe('AbrechnungModal - Vorauszahlungen and Final Settlement', () => {
-    it('should calculate and display Nachzahlung correctly', async () => {
+  describe('AbrechnungModal - Monthly Recurring Vorauszahlungen', () => {
+    const renderAndSelectTenant = async (tenant: Mieter) => {
       renderModal({
-        tenants: [mockTenantNachzahlung],
-        nebenkostenItem: mockNebenkostenItem2023,
-      });
-
-      // Select the tenant
-      fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
-      fireEvent.click(screen.getByText(mockTenantNachzahlung.name));
-
-      await waitFor(() => {
-        expect(screen.getByText('Vorauszahlungen')).toBeInTheDocument();
-      });
-
-      // Verify Vorauszahlungen
-      const vorauszahlungenCell = screen.getByText('Vorauszahlungen').closest('tr')?.querySelector('td:last-child');
-      expect(vorauszahlungenCell).toHaveTextContent('150,00 €'); // 50 + 50 + 50
-
-      // Verify Nachzahlung
-      const nachzahlungLabelCell = screen.getByText('Nachzahlung').closest('tr')?.querySelector('td:first-child');
-      expect(nachzahlungLabelCell).toHaveClass('text-red-600');
-      const nachzahlungValueCell = screen.getByText('Nachzahlung').closest('tr')?.querySelector('td:last-child');
-      expect(nachzahlungValueCell).toHaveTextContent('170,00 €'); // 320 (total) - 150 (vorauszahlung)
-      expect(nachzahlungValueCell).toHaveClass('text-red-600');
-    });
-
-    it('should calculate and display Guthaben correctly', async () => {
-      renderModal({
-        tenants: [mockTenantGuthaben],
-        nebenkostenItem: mockNebenkostenItem2023,
-      });
-
-      fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
-      fireEvent.click(screen.getByText(mockTenantGuthaben.name));
-
-      await waitFor(() => {
-        expect(screen.getByText('Vorauszahlungen')).toBeInTheDocument();
-      });
-
-      const vorauszahlungenCell = screen.getByText('Vorauszahlungen').closest('tr')?.querySelector('td:last-child');
-      expect(vorauszahlungenCell).toHaveTextContent('400,00 €'); // 100 * 4
-
-      const guthabenLabelCell = screen.getByText('Guthaben').closest('tr')?.querySelector('td:first-child');
-      expect(guthabenLabelCell).toHaveClass('text-green-600');
-      const guthabenValueCell = screen.getByText('Guthaben').closest('tr')?.querySelector('td:last-child');
-      expect(guthabenValueCell).toHaveTextContent('-80,00 €'); // 320 (total) - 400 (vorauszahlung)
-      expect(guthabenValueCell).toHaveClass('text-green-600');
-    });
-
-    it('should filter Vorauszahlungen by the Nebenkostenabrechnung year', async () => {
-      renderModal({
-        tenants: [mockTenantMultiYear],
+        tenants: [tenant],
         nebenkostenItem: mockNebenkostenItem2023, // Abrechnung for 2023
       });
-
       fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
-      fireEvent.click(screen.getByText(mockTenantMultiYear.name));
-
+      fireEvent.click(screen.getByText(tenant.name));
       await waitFor(() => {
         expect(screen.getByText('Vorauszahlungen')).toBeInTheDocument();
       });
+    };
 
+    const assertPrepaymentsAndSettlement = (
+      expectedVorauszahlungen: number,
+      expectedSettlement: number,
+      settlementType: 'Nachzahlung' | 'Guthaben'
+    ) => {
       const vorauszahlungenCell = screen.getByText('Vorauszahlungen').closest('tr')?.querySelector('td:last-child');
-      expect(vorauszahlungenCell).toHaveTextContent('130,00 €'); // 60 (2023-03-01) + 70 (2023-07-01)
+      expect(vorauszahlungenCell).toHaveTextContent(formatCurrency(expectedVorauszahlungen).replace(/\s/g, ' ')); // Format with non-breaking space
 
-      const nachzahlungValueCell = screen.getByText('Nachzahlung').closest('tr')?.querySelector('td:last-child');
-      expect(nachzahlungValueCell).toHaveTextContent('190,00 €'); // 320 (total) - 130 (vorauszahlung 2023)
+      const settlementLabelCell = screen.getByText(settlementType).closest('tr')?.querySelector('td:first-child');
+      expect(settlementLabelCell).toHaveClass(expectedSettlement >= 0 ? 'text-red-600' : 'text-green-600');
+
+      const settlementValueCell = screen.getByText(settlementType).closest('tr')?.querySelector('td:last-child');
+      expect(settlementValueCell).toHaveTextContent(formatCurrency(expectedSettlement).replace(/\s/g, ' '));
+      expect(settlementValueCell).toHaveClass(expectedSettlement >= 0 ? 'text-red-600' : 'text-green-600');
+    };
+
+    // Helper for currency formatting in assertions
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
+    };
+
+    it('Scenario 1: Simple Full-Year Prepayment', async () => {
+      const tenantS1: Mieter = {
+        id: 'tS1', name: 'Tenant S1 FullYear', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [100], nebenkosten_datum: ['2023-01-01'],
+        // other Mieter fields if necessary
+      };
+      await renderAndSelectTenant(tenantS1);
+      const expectedVorauszahlungen = 100 * 12; // 1200
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 1200 = -880
     });
 
-    it('should handle cases with no Vorauszahlungen', async () => {
-      renderModal({
-        tenants: [mockTenantNoVorauszahlung],
+    it('Scenario 2: Prepayment Change Mid-Year', async () => {
+      const tenantS2: Mieter = {
+        id: 'tS2', name: 'Tenant S2 MidYearChange', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [100, 120], nebenkosten_datum: ['2023-01-01', '2023-07-01'],
+      };
+      await renderAndSelectTenant(tenantS2);
+      const expectedVorauszahlungen = (100 * 6) + (120 * 6); // 600 + 720 = 1320
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 1320 = -1000
+    });
+
+    it('Scenario 3: Tenant Moves In Mid-Year', async () => {
+      const tenantS3: Mieter = {
+        id: 'tS3', name: 'Tenant S3 MoveInMidYear', mietbeginn: '2023-04-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [100], nebenkosten_datum: ['2023-01-01'], // Rate active from before move-in
+      };
+      await renderAndSelectTenant(tenantS3);
+      const expectedVorauszahlungen = 100 * 9; // April to Dec = 9 months = 900
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 900 = -580
+    });
+
+    it('Scenario 4: Tenant Moves Out Mid-Year', async () => {
+      const tenantS4: Mieter = {
+        id: 'tS4', name: 'Tenant S4 MoveOutMidYear', mietbeginn: '2023-01-01', mietende: '2023-08-31', Wohnungen: mockWohnungAlice,
+        nebenkosten: [100], nebenkosten_datum: ['2023-01-01'],
+      };
+      await renderAndSelectTenant(tenantS4);
+      const expectedVorauszahlungen = 100 * 8; // Jan to Aug = 8 months = 800
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 800 = -480
+    });
+
+    it('Scenario 5: Tenant Moves In and Out Within Abrechnungsjahr', async () => {
+      const tenantS5: Mieter = {
+        id: 'tS5', name: 'Tenant S5 InOutYear', mietbeginn: '2023-02-01', mietende: '2023-10-31', Wohnungen: mockWohnungAlice,
+        nebenkosten: [100], nebenkosten_datum: ['2023-01-01'],
+      };
+      await renderAndSelectTenant(tenantS5);
+      const expectedVorauszahlungen = 100 * 9; // Feb to Oct = 9 months = 900
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 900 = -580
+    });
+
+    it('Scenario 6: Prepayment Starts After Abrechnungsjahr Begins', async () => {
+      const tenantS6: Mieter = {
+        id: 'tS6', name: 'Tenant S6 LateStartPrepay', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [100], nebenkosten_datum: ['2023-03-01'],
+      };
+      await renderAndSelectTenant(tenantS6);
+      const expectedVorauszahlungen = 100 * 10; // Mar to Dec = 10 months = 1000
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 1000 = -680
+    });
+
+    it('Scenario 7: Effective Prepayment for month based on latest schedule before month start', async () => {
+      const tenantS7: Mieter = {
+        id: 'tS7', name: 'Tenant S7 EffectiveRate', mietbeginn: '2023-03-01', mietende: '2023-06-30', Wohnungen: mockWohnungAlice, // Active Mar, Apr, May, Jun (4 months)
+        nebenkosten: [50, 60], nebenkosten_datum: ['2023-01-01', '2023-05-01'],
+      };
+      await renderAndSelectTenant(tenantS7);
+      // Mar: uses 50 (from 2023-01-01)
+      // Apr: uses 50 (from 2023-01-01)
+      // May: uses 60 (from 2023-05-01)
+      // Jun: uses 60 (from 2023-05-01)
+      const expectedVorauszahlungen = (50 * 2) + (60 * 2); // 100 + 120 = 220
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Nachzahlung'); // 320 - 220 = 100
+    });
+
+    it('Scenario 8: No nebenkosten or nebenkosten_datum', async () => {
+      const tenantS8: Mieter = {
+        id: 'tS8', name: 'Tenant S8 NoPrepayData', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [], nebenkosten_datum: [],
+      };
+      await renderAndSelectTenant(tenantS8);
+      const expectedVorauszahlungen = 0;
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Nachzahlung'); // 320 - 0 = 320
+    });
+
+    it('Scenario 9: Invalid dates in nebenkosten_datum or mismatch length', async () => {
+      const tenantS9A: Mieter = { // Invalid date string
+        id: 'tS9A', name: 'Tenant S9A InvalidDate', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [100], nebenkosten_datum: ['invalid-date-string'],
+      };
+      await renderAndSelectTenant(tenantS9A);
+      assertPrepaymentsAndSettlement(0, baseTotalTenantCost - 0, 'Nachzahlung');
+
+      const tenantS9B: Mieter = { // Mismatched length
+        id: 'tS9B', name: 'Tenant S9B Mismatch', mietbeginn: '2023-01-01', mietende: null, Wohnungen: mockWohnungAlice,
+        nebenkosten: [100, 120], nebenkosten_datum: ['2023-01-01'],
+      };
+      // Need to close the previous render if renderAndSelectTenant does not unmount/cleanup
+      // For simplicity, assuming each renderAndSelectTenant is fresh or component handles this.
+      // If not, separate renders would be needed.
+      // Let's test this by rendering S9B in a new block to be safe, though it makes the helper less useful here.
+       renderModal({
+        tenants: [tenantS9B],
         nebenkostenItem: mockNebenkostenItem2023,
       });
-
       fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
-      fireEvent.click(screen.getByText(mockTenantNoVorauszahlung.name));
-
+      fireEvent.click(screen.getByText(tenantS9B.name));
       await waitFor(() => {
         expect(screen.getByText('Vorauszahlungen')).toBeInTheDocument();
       });
+      assertPrepaymentsAndSettlement(0, baseTotalTenantCost - 0, 'Nachzahlung');
+    });
 
-      const vorauszahlungenCell = screen.getByText('Vorauszahlungen').closest('tr')?.querySelector('td:last-child');
-      expect(vorauszahlungenCell).toHaveTextContent('0,00 €');
+     it('Scenario 10: Tenant moves in, first prepayment starts later', async () => {
+      const tenantS10: Mieter = {
+        id: 'tS10', name: 'Tenant S10 MoveInPrepayLater',
+        mietbeginn: '2023-01-01', // Active Jan-Dec
+        mietende: null,
+        Wohnungen: mockWohnungAlice,
+        nebenkosten: [100],
+        nebenkosten_datum: ['2023-03-01'], // Prepayment starts in March
+      };
+      await renderAndSelectTenant(tenantS10);
+      // Jan: 0, Feb: 0
+      // Mar-Dec: 100 * 10 = 1000
+      const expectedVorauszahlungen = 100 * 10;
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Guthaben'); // 320 - 1000 = -680
+    });
 
-      const nachzahlungValueCell = screen.getByText('Nachzahlung').closest('tr')?.querySelector('td:last-child');
-      expect(nachzahlungValueCell).toHaveTextContent('320,00 €'); // Total cost, as vorauszahlung is 0
+    it('Scenario 11: Tenant moves out before any prepayment schedule starts', async () => {
+      const tenantS11: Mieter = {
+        id: 'tS11', name: 'Tenant S11 MoveOutBeforePrepay',
+        mietbeginn: '2023-01-01',
+        mietende: '2023-03-31', // Active Jan, Feb, Mar
+        Wohnungen: mockWohnungAlice,
+        nebenkosten: [100],
+        nebenkosten_datum: ['2023-05-01'], // Prepayment starts in May
+      };
+      await renderAndSelectTenant(tenantS11);
+      // Jan: 0, Feb: 0, Mar: 0 (prepayment schedule starts May)
+      const expectedVorauszahlungen = 0;
+      assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Nachzahlung'); // 320 - 0 = 320
     });
   });
 });
