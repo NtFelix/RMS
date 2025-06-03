@@ -39,11 +39,6 @@ interface MonthlyVorauszahlung {
 
 interface TenantCostDetails {
   tenantId: string;
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
-};
-
-interface TenantCostDetails {
-  tenantId: string;
   tenantName: string;
   apartmentId: string;
   apartmentName: string;
