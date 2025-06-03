@@ -10,11 +10,61 @@ import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; //
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
+import { Progress } from "@/components/ui/progress";
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
 // Explicitly register autoTable plugin // Removed as autoTable will be imported dynamically
 // (jsPDF.API as any).autoTable = autoTable;
+
+const calculateOccupancy = (einzug: string | null | undefined, auszug: string | null | undefined, abrechnungsjahr: number): { percentage: number, daysInYear: number, daysOccupied: number } => {
+  if (!einzug) return { percentage: 0, daysInYear: 365, daysOccupied: 0 }; // No move-in date, 0% occupancy
+
+  const yearStartDate = new Date(Date.UTC(abrechnungsjahr, 0, 1));
+  const yearEndDate = new Date(Date.UTC(abrechnungsjahr, 11, 31, 23, 59, 59, 999)); // End of Dec 31st
+
+  const moveInDate = new Date(einzug);
+  // If move-in is after the billing year, or invalid, treat as 0 occupancy for this year
+  if (isNaN(moveInDate.getTime()) || moveInDate > yearEndDate) {
+    return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  }
+
+  // Adjust move-in to start of billing year if it's earlier
+  const effectiveMoveIn = moveInDate < yearStartDate ? yearStartDate : moveInDate;
+
+  let moveOutDate: Date | null = null;
+  if (auszug) {
+    const parsedMoveOut = new Date(auszug);
+    if (!isNaN(parsedMoveOut.getTime())) {
+      moveOutDate = parsedMoveOut;
+    }
+  }
+
+  // If move-out is before the billing year, treat as 0 occupancy for this year
+  if (moveOutDate && moveOutDate < yearStartDate) {
+      return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  }
+
+  // Adjust move-out to end of billing year if it's later or not set
+  const effectiveMoveOut = (!moveOutDate || moveOutDate > yearEndDate) ? yearEndDate : moveOutDate;
+
+  // If effectiveMoveIn is after effectiveMoveOut (e.g. einzug is after auszug within the same year), occupancy is 0
+  if (effectiveMoveIn > effectiveMoveOut) {
+      return { percentage: 0, daysInYear: 365, daysOccupied: 0 };
+  }
+
+  const oneDay = 24 * 60 * 60 * 1000; // Milliseconds in a day
+  // Add 1 to include both start and end dates in the occupied period
+  const daysOccupied = Math.round(Math.abs((effectiveMoveOut.getTime() - effectiveMoveIn.getTime()) / oneDay)) + 1;
+
+  // Check for leap year to determine daysInYear
+  const isLeap = new Date(abrechnungsjahr, 1, 29).getDate() === 29;
+  const daysInYear = isLeap ? 366 : 365;
+
+  const percentage = Math.min(100, Math.max(0, (daysOccupied / daysInYear) * 100));
+
+  return { percentage, daysInYear, daysOccupied };
+};
 
 // Defined in Step 1:
 
@@ -60,6 +110,9 @@ interface TenantCostDetails {
   vorauszahlungen: number; // Added for advance payments
   monthlyVorauszahlungen: MonthlyVorauszahlung[]; // New field for monthly breakdown
   finalSettlement: number; // Added for the final settlement amount
+  occupancyPercentage: number;
+  daysOccupied: number;
+  daysInBillingYear: number;
 }
 
 interface AbrechnungModalProps {
@@ -102,6 +155,8 @@ export function AbrechnungModal({
       } = nebenkostenItem!; // nebenkostenItem is checked in the outer scope
 
       const abrechnungsjahr = Number(jahr); // Convert string jahr to number
+
+      const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
 
       // Calculate Vorauszahlungen based on monthly recurring prepayments
       let totalVorauszahlungen = 0;
@@ -164,7 +219,7 @@ export function AbrechnungModal({
       const apartmentSize = tenant.Wohnungen?.groesse || 0;
       const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
 
-      let tenantTotalForRegularItems = 0;
+      // let tenantTotalForRegularItems = 0; // Will be calculated after the loop by summing prorated shares
       const costItemsDetails: TenantCostDetails['costItems'] = [];
 
       if (nebenkostenart && betrag && berechnungsart) {
@@ -209,16 +264,23 @@ export function AbrechnungModal({
               share = totalCostForItem; // Changed calculation for these types
               break;
           }
+
+          // Prorate the share based on occupancy
+          const proratedShare = share * (occupancyPercentage / 100);
+
           costItemsDetails.push({
             costName: costName || `Kostenart ${index + 1}`,
             totalCostForItem,
             calculationType: calcType,
-            tenantShare: share,
-            pricePerSqm: itemPricePerSqm, // Add this line
+            tenantShare: proratedShare, // Use proratedShare here
+            pricePerSqm: itemPricePerSqm,
           });
-          tenantTotalForRegularItems += share;
+          // tenantTotalForRegularItems += proratedShare; // Accumulation moved after the loop
         });
       }
+
+      // Recalculate tenantTotalForRegularItems by summing up the prorated shares
+      const finalTenantTotalForRegularItems = costItemsDetails.reduce((sum, item) => sum + item.tenantShare, 0);
 
       let waterShare = 0;
       const waterCalcType = totalHouseArea > 0 ? 'pro qm' : 'pro einheit';
@@ -230,13 +292,18 @@ export function AbrechnungModal({
         }
       }
 
+      // Prorate waterShare based on occupancy
+      const proratedWaterShare = waterShare * (occupancyPercentage / 100);
+
       const tenantWaterCost = {
         totalWaterCostOverall: wasserkosten || 0,
         calculationType: waterCalcType,
-        tenantShare: waterShare,
+        tenantShare: proratedWaterShare, // Use proratedWaterShare here
+        // Consumption logic remains as is, assuming it might be direct or needs specific handling elsewhere if shared.
+        // consumption: tenant.Wohnungen?.wasserzaehler_verbrauch?.[nebenkostenItemId]
       };
 
-      const totalTenantCost = tenantTotalForRegularItems + waterShare;
+      const totalTenantCost = finalTenantTotalForRegularItems + proratedWaterShare;
       // Use the new totalVorauszahlungen variable
       const finalSettlement = totalTenantCost - totalVorauszahlungen;
 
@@ -252,6 +319,9 @@ export function AbrechnungModal({
         vorauszahlungen: totalVorauszahlungen,
         monthlyVorauszahlungen: monthlyVorauszahlungenDetails, // Add new data here
         finalSettlement: finalSettlement,
+        occupancyPercentage,
+        daysOccupied,
+        daysInBillingYear,
       };
     };
 
@@ -522,6 +592,20 @@ export function AbrechnungModal({
               </h3>
               <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
               <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
+
+              {/* Occupancy Progress Bar and Text */}
+              <div className="my-3">
+                <div className="flex justify-between mb-1">
+                  <span className="text-sm font-medium text-gray-700">
+                    Anwesenheit im Abrechnungsjahr ({tenantData.daysOccupied} / {tenantData.daysInBillingYear} Tage)
+                  </span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {tenantData.occupancyPercentage.toFixed(2)}%
+                  </span>
+                </div>
+                <Progress value={tenantData.occupancyPercentage} className="w-full h-2" />
+              </div>
+
               <hr className="my-3 border-gray-200" />
               {/* Container for Info Cards */}
               <div className="flex flex-wrap justify-start gap-4 my-4">
