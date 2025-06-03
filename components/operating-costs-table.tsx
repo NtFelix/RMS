@@ -36,6 +36,7 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
   const [tenantsForAbrechnungModal, setTenantsForAbrechnungModal] = useState<Mieter[]>([]);
   const [isLoadingAbrechnungData, setIsLoadingAbrechnungData] = useState(false);
   const [rechnungenForAbrechnungModal, setRechnungenForAbrechnungModal] = useState<Rechnung[]>([]);
+  const [wasserzaehlerReadingsForAbrechnungModal, setWasserzaehlerReadingsForAbrechnungModal] = useState<Wasserzaehler[]>([]);
   
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
@@ -127,19 +128,32 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
           setRechnungenForAbrechnungModal(rechnungenResult.data);
         } else {
           toast.error(`Fehler beim Laden der Rechnungen: ${rechnungenResult.message || "Keine Rechnungen gefunden oder Fehler."}`);
-          setRechnungenForAbrechnungModal([]); // Ensure it's empty if fetch fails or no data
+          setRechnungenForAbrechnungModal([]);
         }
-        setIsAbrechnungModalOpen(true); // Open modal only after all data is fetched
+
+        // >>> NEW: Fetch Wasserzaehler Readings <<<
+        const wasserzaehlerResult = await getWasserzaehlerRecordsAction(item.id); // item.id is nebenkosten_id
+        if (wasserzaehlerResult.success && wasserzaehlerResult.data) {
+          setWasserzaehlerReadingsForAbrechnungModal(wasserzaehlerResult.data);
+        } else {
+          toast.error(`Fehler beim Laden der Wasserzählerstände: ${wasserzaehlerResult.message || "Keine Daten gefunden oder Fehler."}`);
+          setWasserzaehlerReadingsForAbrechnungModal([]); // Ensure it's empty if fetch fails
+        }
+        // >>> END NEW <<<
+
+        setIsAbrechnungModalOpen(true);
       } else {
         toast.error(`Fehler beim Laden der Mieterdaten für Abrechnung: ${mieterResult.message || "Unbekannter Fehler"}`);
         setTenantsForAbrechnungModal([]);
-        setRechnungenForAbrechnungModal([]); // Also clear rechnungen if mieter fetch fails
+        setRechnungenForAbrechnungModal([]);
+        setWasserzaehlerReadingsForAbrechnungModal([]); // Also clear this if mieter fetch fails
       }
     } catch (error) {
-      console.error("Error calling getMieterForNebenkostenAction or getRechnungenForNebenkostenAction for Abrechnung:", error);
+      console.error("Error calling actions for Abrechnung:", error);
       toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten für die Abrechnung aufgetreten.");
       setTenantsForAbrechnungModal([]);
       setRechnungenForAbrechnungModal([]);
+      setWasserzaehlerReadingsForAbrechnungModal([]); // Clear all related states on error
     } finally {
       setIsLoadingAbrechnungData(false);
     }
@@ -149,7 +163,8 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
     setIsAbrechnungModalOpen(false);
     setSelectedNebenkostenForAbrechnung(null);
     setTenantsForAbrechnungModal([]);
-    setRechnungenForAbrechnungModal([]); // Clear Rechnungen data on close
+    setRechnungenForAbrechnungModal([]);
+    setWasserzaehlerReadingsForAbrechnungModal([]); // <<< NEW: Clear this state >>>
   };
 
   return (
@@ -286,7 +301,8 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
           onClose={handleCloseAbrechnungModal}
           nebenkostenItem={selectedNebenkostenForAbrechnung}
           tenants={tenantsForAbrechnungModal}
-          rechnungen={rechnungenForAbrechnungModal} // Pass the Rechnungen data
+          rechnungen={rechnungenForAbrechnungModal}
+          wasserzaehlerReadings={wasserzaehlerReadingsForAbrechnungModal} // <<< MODIFIED HERE >>>
         />
       )}
     </div>
