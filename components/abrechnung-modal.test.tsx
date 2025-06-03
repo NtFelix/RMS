@@ -311,36 +311,51 @@ describe('AbrechnungModal', () => {
       expectedSettlement: number,
       settlementType: 'Nachzahlung' | 'Guthaben'
     ) => {
+      const cardBaseSelector = 'div[class*="min-w-"]'; // Common selector part for our Cards
+
+      // Wasserkosten Info Card
+      const wasserkostenTitle = screen.getByText("Wasserkosten");
+      const wasserkostenCard = wasserkostenTitle.closest(cardBaseSelector);
+      expect(wasserkostenCard).toBeInTheDocument();
+      const wasserkostenHeader = wasserkostenTitle.closest('header'); // CardHeader is a header tag
+      expect(wasserkostenHeader).toBeInTheDocument();
+      expect(wasserkostenHeader!.querySelector('svg')).toBeInTheDocument(); // Check for Droplet icon
+      // Assuming text-sm and font-medium are default for CardTitle via components/ui/card
+      expect(wasserkostenTitle).toHaveClass("text-sm font-medium");
+      const wasserkostenAmountEl = wasserkostenCard!.querySelector('div.text-2xl.font-semibold');
+      expect(wasserkostenAmountEl).toHaveTextContent(formatCurrency(40).replace(/\s/g, ' ')); // Expected water cost for mockWohnungAlice
+      expect(wasserkostenAmountEl).toHaveClass('text-gray-800');
+
       // Vorauszahlungen Info Card
       const vorauszahlungenTitle = screen.getByText('Vorauszahlungen');
-      // Assuming the card is a div that is a parent of the title and has specific styling.
-      // The classes "bg-gray-50", "p-4", "border", "rounded-lg", "shadow-sm" are on the card.
-      // We can use a combination or a more unique attribute if available.
-      // Searching for a div that contains the title and has at least "rounded-lg" and "p-4"
-      const vorauszahlungenCard = vorauszahlungenTitle.closest('div.p-4.rounded-lg');
+      const vorauszahlungenCard = vorauszahlungenTitle.closest(cardBaseSelector);
       expect(vorauszahlungenCard).toBeInTheDocument();
-      expect(vorauszahlungenCard).toHaveClass('bg-gray-50'); // Check specific background for this card
+      const vorauszahlungenHeader = vorauszahlungenTitle.closest('header');
+      expect(vorauszahlungenHeader).toBeInTheDocument();
+      expect(vorauszahlungenHeader!.querySelector('svg')).toBeInTheDocument(); // Check for Landmark icon
+      expect(vorauszahlungenTitle).toHaveClass("text-sm font-medium");
 
-      const vorauszahlungenAmountEl = vorauszahlungenCard!.querySelector('p.text-2xl.font-semibold');
+      const vorauszahlungenAmountEl = vorauszahlungenCard!.querySelector('div.text-2xl.font-semibold');
       expect(vorauszahlungenAmountEl).toHaveTextContent(formatCurrency(expectedVorauszahlungen).replace(/\s/g, ' '));
       expect(vorauszahlungenAmountEl).toHaveClass('text-gray-800');
 
-
       // Final Settlement Info Card (Nachzahlung/Guthaben)
       const settlementTitleEl = screen.getByText(settlementType);
-      const settlementCard = settlementTitleEl.closest('div.p-4.rounded-lg'); // Parent card div
+      const settlementCard = settlementTitleEl.closest(cardBaseSelector);
       expect(settlementCard).toBeInTheDocument();
+      const settlementHeader = settlementTitleEl.closest('header');
+      expect(settlementHeader).toBeInTheDocument();
+      const settlementIcon = settlementHeader!.querySelector('svg');
+      expect(settlementIcon).toBeInTheDocument();
 
       const isNachzahlung = expectedSettlement >= 0;
-      // Check card background and border
-      expect(settlementCard).toHaveClass(isNachzahlung ? 'bg-red-100' : 'bg-green-100');
-      expect(settlementCard).toHaveClass(isNachzahlung ? 'border-red-200' : 'border-green-200');
-
       // Check title color
       expect(settlementTitleEl).toHaveClass(isNachzahlung ? 'text-red-700' : 'text-green-700');
+      // Check icon color
+      expect(settlementIcon).toHaveClass(isNachzahlung ? 'text-red-500' : 'text-green-500');
 
       // Check amount value and color
-      const settlementAmountEl = settlementCard!.querySelector('p.text-2xl.font-semibold');
+      const settlementAmountEl = settlementCard!.querySelector('div.text-2xl.font-semibold');
       expect(settlementAmountEl).toHaveTextContent(formatCurrency(expectedSettlement).replace(/\s/g, ' '));
       expect(settlementAmountEl).toHaveClass(isNachzahlung ? 'text-red-700' : 'text-green-700');
     };
