@@ -331,30 +331,30 @@ export function AbrechnungModal({
       startY += 10;
     };
 
-    // Ensure tenantData is always treated as an array, as calculatedTenantData is an array.
-    if (!tenantData || tenantData.length === 0) {
+    // Ensure dataForProcessing is definitely an array.
+    const dataForProcessing: TenantCostDetails[] = Array.isArray(tenantData) ? tenantData : [tenantData];
+
+    if (dataForProcessing.length === 0) {
       console.error("No tenant data available to generate PDF.");
       toast({
-          title: "Fehler bei PDF-Generierung",
-          description: "Keine Mieterdaten für den Export vorhanden.",
-          variant: "destructive",
+         title: "Fehler bei PDF-Generierung",
+         description: "Keine Mieterdaten für den Export vorhanden.",
+         variant: "destructive",
       });
       return;
     }
 
     let filename = "";
-    if (tenantData.length === 1) {
-      // Single tenant export
-      const singleTenant = tenantData[0];
-      processTenant(singleTenant); // Process the single tenant
+    if (dataForProcessing.length === 1) {
+      const singleTenant = dataForProcessing[0];
+      processTenant(singleTenant);
       filename = `Abrechnung_${nebenkostenItem.jahr}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
-    } else {
-      // Multiple tenants export
-      (tenantData as TenantCostDetails[]).forEach((td, index) => { // Explicitly cast to TenantCostDetails[]
+    } else { // Multiple tenants
+      dataForProcessing.forEach((td, index) => {
         processTenant(td);
-        if (index < (tenantData as TenantCostDetails[]).length - 1) {
+        if (index < dataForProcessing.length - 1) {
           doc.addPage();
-          startY = 20; // Reset Y for new page - This should be handled within processTenant or before calling it if pages are added
+          startY = 20; // Reset Y for new page - This should be handled within processTenant or immediately after addPage if needed
         }
       });
       filename = `Abrechnung_${nebenkostenItem.jahr}_Alle_Mieter.pdf`;
