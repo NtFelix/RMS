@@ -7,6 +7,7 @@ import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox"
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useToast } from "@/hooks/use-toast";
+import { FileDown } from 'lucide-react'; // Added FileDown import
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -230,6 +231,9 @@ export function AbrechnungModal({
 
     const processTenant = (singleTenantData: TenantCostDetails) => {
       // Reset startY for each tenant if it's a new page
+      // This check is important if processTenant is called multiple times for the same document instance.
+      // However, if a new page is added *before* calling processTenant (e.g., in a loop for multiple tenants),
+      // startY should be reset there. Let's assume startY is managed correctly before this call for new pages.
       if (startY > pageHeight - 50) { // Check if new page is needed (50 as buffer)
         doc.addPage();
         startY = 20;
@@ -327,25 +331,35 @@ export function AbrechnungModal({
       startY += 10;
     };
 
-    if (Array.isArray(tenantData)) {
-      tenantData.forEach((td, index) => {
-        processTenant(td);
-        if (index < tenantData.length - 1) {
-          doc.addPage();
-          startY = 20; // Reset Y for new page
-        }
-      });
-      const filename = `Abrechnung_${nebenkostenItem.jahr}_Alle_Mieter.pdf`;
-      doc.save(filename);
-    } else if (tenantData) {
-      processTenant(tenantData);
-      const filename = `Abrechnung_${nebenkostenItem.jahr}_${tenantData.tenantName.replace(/\s+/g, '_')}.pdf`;
-      doc.save(filename);
-    } else {
+    // Ensure dataForProcessing is definitely an array.
+    const dataForProcessing: TenantCostDetails[] = Array.isArray(tenantData) ? tenantData : [tenantData];
+
+    if (dataForProcessing.length === 0) {
       console.error("No tenant data available to generate PDF.");
-      // Optionally, show a toast or alert to the user
+      toast({
+         title: "Fehler bei PDF-Generierung",
+         description: "Keine Mieterdaten für den Export vorhanden.",
+         variant: "destructive",
+      });
       return;
     }
+
+    let filename = "";
+    if (dataForProcessing.length === 1) {
+      const singleTenant = dataForProcessing[0];
+      processTenant(singleTenant);
+      filename = `Abrechnung_${nebenkostenItem.jahr}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
+    } else { // Multiple tenants
+      dataForProcessing.forEach((td, index) => {
+        processTenant(td);
+        if (index < dataForProcessing.length - 1) {
+          doc.addPage();
+          startY = 20; // Reset Y for new page - This should be handled within processTenant or immediately after addPage if needed
+        }
+      });
+      filename = `Abrechnung_${nebenkostenItem.jahr}_Alle_Mieter.pdf`;
+    }
+    doc.save(filename);
   };
 
   if (!isOpen || !nebenkostenItem) {
@@ -467,6 +481,7 @@ export function AbrechnungModal({
             Schließen
           </Button>
           <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!); }}>
+            <FileDown className="mr-2 h-4 w-4" />
             Als PDF exportieren
           </Button>
         </DialogFooter>
