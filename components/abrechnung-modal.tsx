@@ -132,10 +132,11 @@ export function AbrechnungModal({
         let effectivePrepaymentForMonth = 0;
 
         // Check tenant activity for the month (must have a valid einzug date)
-        const isActiveThisMonth =
+        const isActiveThisMonth = !!(
           einzugDate && !isNaN(einzugDate.getTime()) &&
           einzugDate <= currentMonthEnd &&
-          (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart);
+          (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart)
+        );
 
         if (isActiveThisMonth) {
           // Find effective prepayment amount for this month from the schedule
