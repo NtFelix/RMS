@@ -44,6 +44,8 @@ interface TenantCostDetails {
     consumption?: number;
   };
   totalTenantCost: number;
+  vorauszahlungen: number; // Added for advance payments
+  finalSettlement: number; // Added for the final settlement amount
 }
 
 interface AbrechnungModalProps {
@@ -76,12 +78,29 @@ export function AbrechnungModal({
     // Helper function for calculation logic (extracted to avoid repetition)
     const calculateCostsForTenant = (tenant: Mieter): TenantCostDetails => {
       const {
+        id: nebenkostenItemId, // Assuming nebenkostenItem has an 'id' for matching if needed, and more importantly 'jahr'
+        jahr: nebenkostenJahr,
         nebenkostenart,
         betrag,
         berechnungsart,
         wasserkosten,
         gesamtFlaeche,
       } = nebenkostenItem!; // nebenkostenItem is checked in the outer scope
+
+      // Calculate Vorauszahlungen
+      let vorauszahlungen = 0;
+      if (tenant.nebenkosten && tenant.nebenkosten_datum) {
+        tenant.nebenkosten.forEach((nkBetrag, index) => {
+          const nkDatum = tenant.nebenkosten_datum![index]; // Assume datum exists if betrag exists
+          // Ensure nkDatum is a string and extract year part to compare with nebenkostenJahr
+          if (typeof nkDatum === 'string' && new Date(nkDatum).getFullYear() === nebenkostenJahr) {
+            vorauszahlungen += nkBetrag || 0;
+          } else if (nkDatum instanceof Date && nkDatum.getFullYear() === nebenkostenJahr) {
+            // Handle if nkDatum is already a Date object
+            vorauszahlungen += nkBetrag || 0;
+          }
+        });
+      }
 
       const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
         ? gesamtFlaeche
@@ -163,6 +182,7 @@ export function AbrechnungModal({
       };
 
       const totalTenantCost = tenantTotalForRegularItems + waterShare;
+      const finalSettlement = totalTenantCost - vorauszahlungen;
 
       return {
         tenantId: tenant.id,
@@ -173,6 +193,8 @@ export function AbrechnungModal({
         costItems: costItemsDetails,
         waterCost: tenantWaterCost,
         totalTenantCost: totalTenantCost,
+        vorauszahlungen: vorauszahlungen,
+        finalSettlement: finalSettlement,
       };
     };
 
@@ -469,6 +491,24 @@ export function AbrechnungModal({
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
+                  </TableRow>
+                  {/* Vorauszahlungen Row */}
+                  <TableRow className="font-semibold">
+                    <TableCell className="py-2 px-3">Vorauszahlungen</TableCell>
+                    <TableCell className="py-2 px-3"></TableCell>
+                    <TableCell className="py-2 px-3"></TableCell>
+                    <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.vorauszahlungen)}</TableCell>
+                  </TableRow>
+                  {/* Final Settlement Row */}
+                  <TableRow className="font-bold text-lg">
+                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {tenantData.finalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
+                    </TableCell>
+                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
+                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
+                    <TableCell className={`text-right py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatCurrency(tenantData.finalSettlement)}
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
