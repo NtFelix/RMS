@@ -48,7 +48,7 @@ jest.mock('@/hooks/use-toast', () => ({
 // Mock data
 const mockNebenkostenItemDefault: Nebenkosten = {
   id: 'nk1',
-  jahr: 2023,
+  jahr: "2023", // Changed to string
   nebenkostenart: ['Grundsteuer', 'Versicherung'],
   betrag: [200, 150],
   berechnungsart: ['pro qm', 'pro einheit'],
@@ -154,7 +154,7 @@ describe('AbrechnungModal', () => {
   it('should generate PDF with tenant name in filename for single tenant export', async () => {
      renderModal({
          tenants: mockSingleTenantList,
-         nebenkostenItem: { ...mockNebenkostenItemDefault, jahr: 2024 }
+         nebenkostenItem: { ...mockNebenkostenItemDefault, jahr: "2024" } // Changed to string
      });
 
      fireEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
@@ -176,7 +176,7 @@ describe('AbrechnungModal', () => {
   it('should generate PDF with "Alle_Mieter" in filename for multiple tenants export', async () => {
      renderModal({
          tenants: mockMultipleTenantsList,
-         nebenkostenItem: { ...mockNebenkostenItemDefault, jahr: 2025 }
+         nebenkostenItem: { ...mockNebenkostenItemDefault, jahr: "2025" } // Changed to string
      });
 
      fireEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
@@ -198,7 +198,7 @@ describe('AbrechnungModal', () => {
  it('should show a toast message if no tenant data is available for export', async () => {
      renderModal({
          tenants: [], // No tenants
-         nebenkostenItem: { ...mockNebenkostenItemDefault, jahr: 2026 }
+         nebenkostenItem: { ...mockNebenkostenItemDefault, jahr: "2026" } // Changed to string
      });
 
      fireEvent.click(screen.getByRole('button', { name: /Alle relevanten Mieter laden/i }));
@@ -228,7 +228,7 @@ describe('AbrechnungModal', () => {
   const mockNebenkostenItem2023: Nebenkosten = {
     ...mockNebenkostenItemDefault,
     id: 'nk2023',
-    jahr: 2023,
+    jahr: "2023", // Changed to string
     nebenkostenart: ['Grundsteuer', 'Versicherung', 'Müllgebühren'],
     betrag: [200, 150, 50], // Total: 400
     berechnungsart: ['pro qm', 'pro einheit', 'fix'], // Müllgebühren 'fix' means it applies directly
