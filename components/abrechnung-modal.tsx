@@ -78,8 +78,8 @@ export function AbrechnungModal({
     // Helper function for calculation logic (extracted to avoid repetition)
     const calculateCostsForTenant = (tenant: Mieter): TenantCostDetails => {
       const {
-        id: nebenkostenItemId, // Assuming nebenkostenItem has an 'id' for matching if needed, and more importantly 'jahr'
-        jahr: nebenkostenJahr,
+        id: nebenkostenItemId,
+        jahr, // jahr is a string here
         nebenkostenart,
         betrag,
         berechnungsart,
@@ -87,17 +87,22 @@ export function AbrechnungModal({
         gesamtFlaeche,
       } = nebenkostenItem!; // nebenkostenItem is checked in the outer scope
 
+      const nebenkostenJahrNumber = Number(jahr); // Convert string jahr to number
+
       // Calculate Vorauszahlungen
       let vorauszahlungen = 0;
       if (tenant.nebenkosten && tenant.nebenkosten_datum) {
         tenant.nebenkosten.forEach((nkBetrag, index) => {
-          const nkDatum = tenant.nebenkosten_datum![index]; // Assume datum exists if betrag exists
-          // Ensure nkDatum is a string and extract year part to compare with nebenkostenJahr
-          if (typeof nkDatum === 'string' && new Date(nkDatum).getFullYear() === nebenkostenJahr) {
-            vorauszahlungen += nkBetrag || 0;
-          } else if (nkDatum instanceof Date && nkDatum.getFullYear() === nebenkostenJahr) {
-            // Handle if nkDatum is already a Date object
-            vorauszahlungen += nkBetrag || 0;
+          const nkDatumString = tenant.nebenkosten_datum![index]; // This is a string
+
+          // Ensure nkDatumString is a valid string that can be parsed into a Date,
+          // and nkBetrag is a number.
+          if (typeof nkDatumString === 'string' && typeof nkBetrag === 'number') {
+            const dateObject = new Date(nkDatumString);
+            // Check if dateObject is valid before calling getFullYear
+            if (!isNaN(dateObject.getTime()) && dateObject.getFullYear() === nebenkostenJahrNumber) {
+              vorauszahlungen += nkBetrag;
+            }
           }
         });
       }
@@ -276,7 +281,7 @@ export function AbrechnungModal({
       // 2. Settlement Period
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Zeitraum: 01.01.${nebenkostenItem.jahr} - 31.12.${nebenkostenItem.jahr}`, 20, startY);
+      doc.text(`Zeitraum: 01.01.${Number(nebenkostenItem.jahr)} - 31.12.${Number(nebenkostenItem.jahr)}`, 20, startY);
       startY += 6;
 
       // 3. Property Details
@@ -367,10 +372,11 @@ export function AbrechnungModal({
     }
 
     let filename = "";
+      const currentJahr = Number(nebenkostenItem.jahr); // Ensure jahr is treated as number for filename
     if (dataForProcessing.length === 1) {
       const singleTenant = dataForProcessing[0];
       processTenant(singleTenant);
-      filename = `Abrechnung_${nebenkostenItem.jahr}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
+        filename = `Abrechnung_${currentJahr}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
     } else { // Multiple tenants
       dataForProcessing.forEach((td, index) => {
         processTenant(td);
@@ -379,7 +385,7 @@ export function AbrechnungModal({
           startY = 20; // Reset Y for new page - This should be handled within processTenant or immediately after addPage if needed
         }
       });
-      filename = `Abrechnung_${nebenkostenItem.jahr}_Alle_Mieter.pdf`;
+        filename = `Abrechnung_${currentJahr}_Alle_Mieter.pdf`;
     }
     doc.save(filename);
   };
@@ -408,7 +414,7 @@ export function AbrechnungModal({
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Betriebskostenabrechnung {nebenkostenItem.jahr} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
+            Betriebskostenabrechnung {Number(nebenkostenItem.jahr)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
         </DialogHeader>
 
