@@ -106,8 +106,8 @@ export function AbrechnungModal({
         prepaymentSchedule.sort((a, b) => a.date.getTime() - b.date.getTime());
       }
 
-      const einzugDate = tenant.mietbeginn ? new Date(tenant.mietbeginn) : null;
-      const auszugDate = tenant.mietende ? new Date(tenant.mietende) : null;
+      const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
+      const auszugDate = tenant.auszug ? new Date(tenant.auszug) : null;
 
       if (einzugDate && !isNaN(einzugDate.getTime())) { // Tenant must have a valid einzug date
         for (let month = 0; month < 12; month++) {
