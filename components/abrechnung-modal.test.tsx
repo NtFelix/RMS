@@ -311,15 +311,38 @@ describe('AbrechnungModal', () => {
       expectedSettlement: number,
       settlementType: 'Nachzahlung' | 'Guthaben'
     ) => {
-      const vorauszahlungenCell = screen.getByText('Vorauszahlungen').closest('tr')?.querySelector('td:last-child');
-      expect(vorauszahlungenCell).toHaveTextContent(formatCurrency(expectedVorauszahlungen).replace(/\s/g, ' ')); // Format with non-breaking space
+      // Vorauszahlungen Info Card
+      const vorauszahlungenTitle = screen.getByText('Vorauszahlungen');
+      // Assuming the card is a div that is a parent of the title and has specific styling.
+      // The classes "bg-gray-50", "p-4", "border", "rounded-lg", "shadow-sm" are on the card.
+      // We can use a combination or a more unique attribute if available.
+      // Searching for a div that contains the title and has at least "rounded-lg" and "p-4"
+      const vorauszahlungenCard = vorauszahlungenTitle.closest('div.p-4.rounded-lg');
+      expect(vorauszahlungenCard).toBeInTheDocument();
+      expect(vorauszahlungenCard).toHaveClass('bg-gray-50'); // Check specific background for this card
 
-      const settlementLabelCell = screen.getByText(settlementType).closest('tr')?.querySelector('td:first-child');
-      expect(settlementLabelCell).toHaveClass(expectedSettlement >= 0 ? 'text-red-600' : 'text-green-600');
+      const vorauszahlungenAmountEl = vorauszahlungenCard!.querySelector('p.text-2xl.font-semibold');
+      expect(vorauszahlungenAmountEl).toHaveTextContent(formatCurrency(expectedVorauszahlungen).replace(/\s/g, ' '));
+      expect(vorauszahlungenAmountEl).toHaveClass('text-gray-800');
 
-      const settlementValueCell = screen.getByText(settlementType).closest('tr')?.querySelector('td:last-child');
-      expect(settlementValueCell).toHaveTextContent(formatCurrency(expectedSettlement).replace(/\s/g, ' '));
-      expect(settlementValueCell).toHaveClass(expectedSettlement >= 0 ? 'text-red-600' : 'text-green-600');
+
+      // Final Settlement Info Card (Nachzahlung/Guthaben)
+      const settlementTitleEl = screen.getByText(settlementType);
+      const settlementCard = settlementTitleEl.closest('div.p-4.rounded-lg'); // Parent card div
+      expect(settlementCard).toBeInTheDocument();
+
+      const isNachzahlung = expectedSettlement >= 0;
+      // Check card background and border
+      expect(settlementCard).toHaveClass(isNachzahlung ? 'bg-red-100' : 'bg-green-100');
+      expect(settlementCard).toHaveClass(isNachzahlung ? 'border-red-200' : 'border-green-200');
+
+      // Check title color
+      expect(settlementTitleEl).toHaveClass(isNachzahlung ? 'text-red-700' : 'text-green-700');
+
+      // Check amount value and color
+      const settlementAmountEl = settlementCard!.querySelector('p.text-2xl.font-semibold');
+      expect(settlementAmountEl).toHaveTextContent(formatCurrency(expectedSettlement).replace(/\s/g, ' '));
+      expect(settlementAmountEl).toHaveClass(isNachzahlung ? 'text-red-700' : 'text-green-700');
     };
 
     // Helper for currency formatting in assertions

@@ -531,26 +531,36 @@ export function AbrechnungModal({
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
-                  {/* Vorauszahlungen Row */}
-                  <TableRow className="font-semibold bg-slate-50">
-                    <TableCell className="py-3 px-3">Vorauszahlungen</TableCell>
-                    <TableCell className="py-3 px-3"></TableCell>
-                    <TableCell className="py-3 px-3"></TableCell>
-                    <TableCell className="text-right py-3 px-3">{formatCurrency(tenantData.vorauszahlungen)}</TableCell>
-                  </TableRow>
-                  {/* Final Settlement Row */}
-                  <TableRow className={`font-bold text-lg ${tenantData.finalSettlement >= 0 ? 'bg-red-100' : 'bg-green-100'}`}>
-                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {tenantData.finalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
-                    </TableCell>
-                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
-                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
-                    <TableCell className={`text-right py-3 px-3 text-xl ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(tenantData.finalSettlement)}
-                    </TableCell>
-                  </TableRow>
                 </TableBody>
               </Table>
+              {/* Container for Info Cards */}
+              <div className="flex flex-wrap justify-start gap-4 mt-4">
+                {/* Vorauszahlungen Info Card */}
+                <div className="bg-gray-50 p-4 border border-gray-200 rounded-lg shadow-sm flex-grow min-w-[220px] sm:min-w-[250px]">
+                  <h4 className="text-sm font-medium text-gray-600 mb-1">Vorauszahlungen</h4>
+                  <p className="text-2xl font-semibold text-gray-800">{formatCurrency(tenantData.vorauszahlungen)}</p>
+                </div>
+                {/* Final Settlement Info Card */}
+                {(() => {
+                  const isNachzahlung = tenantData.finalSettlement >= 0;
+                  const cardClasses = `p-4 border rounded-lg shadow-sm flex-grow min-w-[220px] sm:min-w-[250px] ${
+                    isNachzahlung ? 'bg-red-100 border-red-200' : 'bg-green-100 border-green-200'
+                  }`;
+                  const titleColor = isNachzahlung ? 'text-red-700' : 'text-green-700';
+                  const amountColor = isNachzahlung ? 'text-red-700' : 'text-green-700';
+
+                  return (
+                    <div className={cardClasses}>
+                      <h4 className={`text-sm font-medium ${titleColor} mb-1`}>
+                        {isNachzahlung ? "Nachzahlung" : "Guthaben"}
+                      </h4>
+                      <p className={`text-2xl font-semibold ${amountColor}`}>
+                        {formatCurrency(tenantData.finalSettlement)}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           ))}
         </div>
