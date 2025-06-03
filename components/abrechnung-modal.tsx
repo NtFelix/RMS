@@ -91,41 +91,12 @@ export function AbrechnungModal({
       return;
     }
 
-    // Add these logs:
-    console.log("--- AbrechnungModal INCOMING DATA ---");
-    if (nebenkostenItem) {
-      console.log("Nebenkosten Item ID:", nebenkostenItem.id);
-      console.log("Total Wasserkosten (Building):", nebenkostenItem.wasserkosten);
-      console.log("Total Wasserverbrauch (Building):", nebenkostenItem.wasserverbrauch);
-    } else {
-      console.log("Nebenkosten Item is null or undefined.");
-    }
-
-    console.log("Tenants Array:", tenants);
-    const joeKleine = tenants.find(t => t.name === "Joe Kleine");
-    if (joeKleine) {
-      console.log("Found Tenant 'Joe Kleine':", joeKleine);
-    } else {
-      console.log("Tenant 'Joe Kleine' not found in initial tenants array.");
-    }
-
-    console.log("Wasserzaehler Readings Prop:", wasserzaehlerReadings);
-    console.log("--- END AbrechnungModal INCOMING DATA ---");
-
     const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
-    console.log("Calculated pricePerCubicMeter:", pricePerCubicMeter);
 
     // Helper function for calculation logic (extracted to avoid repetition)
     const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
-      if (tenant.name === "Joe Kleine") {
-        console.log("--- calculateCostsForTenant for Joe Kleine ---");
-        console.log("Tenant ID:", tenant.id, "Tenant Name:", tenant.name);
-        console.log("Nebenkosten Item ID (context):", nebenkostenItem?.id);
-        console.log("Passed pricePerCubicMeter:", pricePerCubicMeter);
-        console.log("Wasserzaehler Readings available in function:", wasserzaehlerReadings);
-      }
       const {
         id: nebenkostenItemId,
         jahr, // jahr is a string here
@@ -258,11 +229,6 @@ export function AbrechnungModal({
       const tenantReading = wasserzaehlerReadings?.find(r => r.mieter_id === tenant.id && r.nebenkosten_id === nebenkostenItemId);
       const individualConsumption = tenantReading?.verbrauch || 0;
 
-      if (tenant.name === "Joe Kleine") {
-        console.log("Tenant Reading for Joe Kleine:", tenantReading);
-        console.log("Individual Consumption for Joe Kleine:", individualConsumption);
-      }
-
       const waterShare = individualConsumption * pricePerCubicMeter; // Use the parameter
       const waterCalcType = "nach Verbrauch";
 
@@ -272,11 +238,6 @@ export function AbrechnungModal({
         tenantShare: waterShare,
         consumption: individualConsumption, // Populate this field
       };
-
-      if (tenant.name === "Joe Kleine") {
-        console.log("Tenant Water Cost object for Joe Kleine:", tenantWaterCost);
-        console.log("--- END calculateCostsForTenant for Joe Kleine ---");
-      }
 
       const totalTenantCost = tenantTotalForRegularItems + waterShare;
       // Use the new totalVorauszahlungen variable
