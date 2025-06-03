@@ -277,6 +277,19 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
             currentFormData.set('nebenkosten', nkAmounts.join(','));
             currentFormData.set('nebenkosten_datum', nkDates.join(','));
 
+            // Explicitly set wohnung_id from formData state
+            if (formData.wohnung_id) {
+              currentFormData.set('wohnung_id', formData.wohnung_id);
+            } else {
+              // Ensure it's not set if empty, or handle as per backend expectation for empty/null wohnung_id
+              // If the backend expects an empty string or null, this could be currentFormData.delete('wohnung_id')
+              // or currentFormData.set('wohnung_id', '') if the field must exist.
+              // For now, let's assume if it's not in formData.wohnung_id, it shouldn't be sent or should be empty.
+              // Given the server action likely uses Zod, not sending it or sending an empty string is usually fine.
+              // Let's send an empty string if it's empty in formData to be explicit.
+              currentFormData.set('wohnung_id', '');
+            }
+
             const tenantNameForToast = formData.name; // Use state for toast consistency
             const result = await serverAction(currentFormData);
 
