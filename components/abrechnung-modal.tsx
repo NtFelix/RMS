@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
+import { Nebenkosten, Mieter, Wohnung, Rechnung, Wasserzaehler } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
@@ -68,6 +68,7 @@ interface AbrechnungModalProps {
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
   rechnungen: Rechnung[]; // Assumed new prop
+  wasserzaehlerReadings?: Wasserzaehler[];
   // wohnungen prop is removed as Mieter type now includes Wohnungen directly with name and groesse
 }
 
@@ -77,6 +78,7 @@ export function AbrechnungModal({
   nebenkostenItem,
   tenants,
   rechnungen, // Destructured assumed new prop
+  wasserzaehlerReadings,
 }: AbrechnungModalProps) {
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
@@ -89,8 +91,12 @@ export function AbrechnungModal({
       return;
     }
 
+    const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
+      ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
+      : 0;
+
     // Helper function for calculation logic (extracted to avoid repetition)
-    const calculateCostsForTenant = (tenant: Mieter): TenantCostDetails => {
+    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
       const {
         id: nebenkostenItemId,
         jahr, // jahr is a string here
@@ -220,20 +226,17 @@ export function AbrechnungModal({
         });
       }
 
-      let waterShare = 0;
-      const waterCalcType = totalHouseArea > 0 ? 'pro qm' : 'pro einheit';
-      if (wasserkosten && wasserkosten > 0) {
-        if (waterCalcType === 'pro qm') {
-          waterShare = totalHouseArea > 0 ? (wasserkosten / totalHouseArea) * apartmentSize : 0;
-        } else {
-          waterShare = numberOfUnits > 0 ? wasserkosten / numberOfUnits : 0;
-        }
-      }
+      const tenantReading = wasserzaehlerReadings?.find(r => r.mieter_id === tenant.id && r.nebenkosten_id === nebenkostenItemId);
+      const individualConsumption = tenantReading?.verbrauch || 0;
+
+      const waterShare = individualConsumption * pricePerCubicMeter;
+      const waterCalcType = "nach Verbrauch"; // New calculation type
 
       const tenantWaterCost = {
-        totalWaterCostOverall: wasserkosten || 0,
+        totalWaterCostOverall: wasskerkosten || 0, // This remains the total for the building
         calculationType: waterCalcType,
         tenantShare: waterShare,
+        consumption: individualConsumption, // Populate this field
       };
 
       const totalTenantCost = tenantTotalForRegularItems + waterShare;
@@ -256,7 +259,7 @@ export function AbrechnungModal({
     };
 
     if (loadAllRelevantTenants) {
-      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant));
+      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
       setCalculatedTenantData(allTenantsData);
     } else {
       if (!selectedTenantId) {
@@ -269,10 +272,10 @@ export function AbrechnungModal({
         setCalculatedTenantData([]); // Clear data if selected tenant not found
         return;
       }
-      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant);
+      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants]); // Added rechnungen to dependency array
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings]); // Added rechnungen to dependency array
 
   const generateSettlementPDF = async ( // Changed to async
     tenantData: TenantCostDetails | TenantCostDetails[],

@@ -1,6 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { AbrechnungModal } from './abrechnung-modal'; // Adjust path as needed
-import { Nebenkosten, Mieter, Rechnung, Wohnung } from '@/lib/data-fetching'; // For type annotations
+import { Nebenkosten, Mieter, Rechnung, Wohnung, Wasserzaehler } from '@/lib/data-fetching'; // For type annotations
 
 // Mock for jsPDF and its methods
 const mockSave = jest.fn();
@@ -134,6 +134,7 @@ describe('AbrechnungModal', () => {
       nebenkostenItem: mockNebenkostenItemDefault,
       tenants: [], // Default to empty, override in tests
       rechnungen: mockRechnungenDefault,
+      wasserzaehlerReadings: [], // Added default for wasserzaehlerReadings
       ...props,
     };
     return render(<AbrechnungModal {...defaultProps} />);
@@ -233,6 +234,7 @@ describe('AbrechnungModal', () => {
     betrag: [200, 150, 50], // Total: 400
     berechnungsart: ['pro qm', 'pro einheit', 'fix'], // Müllgebühren 'fix' means it applies directly
     wasserkosten: 100, // Total NK for house: 400 + 100 = 500
+    wasserverbrauch: 20, // Added as per plan: 100 / 20 = 5 €/m³
     gesamtFlaeche: 200, // For 'pro qm' (Grundsteuer: 200 / 200 = 1/qm)
     umlage_einheiten: 2, // For 'pro einheit' (Versicherung: 150 / 2 = 75 per unit, but component logic changed this to full amount)
                         // Current component logic for 'pro einheit' and 'fix' applies the full 'betrag[index]' to the tenant.
@@ -293,11 +295,37 @@ describe('AbrechnungModal', () => {
   // Total = 80 + 150 + 50 + 40 = 320€
   const baseTotalTenantCost = 320;
 
+  const mockWasserzaehlerReadingsNk2023: Wasserzaehler[] = [
+    { id: 'wz1', user_id: 'user1', mieter_id: 't_alice_nachzahlung', ablese_datum: '2023-12-31', zaehlerstand: 100, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wz2', user_id: 'user1', mieter_id: 't_alice_guthaben', ablese_datum: '2023-12-31', zaehlerstand: 150, verbrauch: 7, nebenkosten_id: 'nk2023' },
+    { id: 'wz3', user_id: 'user1', mieter_id: 't_alice_multiyear', ablese_datum: '2023-12-31', zaehlerstand: 200, verbrauch: 6, nebenkosten_id: 'nk2023' },
+    { id: 'wzS1', user_id: 'user1', mieter_id: 'tS1', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS2', user_id: 'user1', mieter_id: 'tS2', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS3', user_id: 'user1', mieter_id: 'tS3', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS4', user_id: 'user1', mieter_id: 'tS4', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS5', user_id: 'user1', mieter_id: 'tS5', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS6', user_id: 'user1', mieter_id: 'tS6', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS7', user_id: 'user1', mieter_id: 'tS7', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS8', user_id: 'user1', mieter_id: 'tS8', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS9A', user_id: 'user1', mieter_id: 'tS9A', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS9B', user_id: 'user1', mieter_id: 'tS9B', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS10', user_id: 'user1', mieter_id: 'tS10', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+    { id: 'wzS11', user_id: 'user1', mieter_id: 'tS11', ablese_datum: '2023-12-31', zaehlerstand: 0, verbrauch: 8, nebenkosten_id: 'nk2023' },
+  ];
+
   describe('AbrechnungModal - Monthly Recurring Vorauszahlungen', () => {
-    const renderAndSelectTenant = async (tenant: Mieter) => {
+    // beforeEach for this specific describe block to set up common props
+    beforeEach(() => {
+      // This is a bit redundant if renderModal is called in each test,
+      // but if there were common setup before renderModal, it would go here.
+      // For now, we'll ensure relevant props are passed in renderAndSelectTenant.
+    });
+
+    const renderAndSelectTenant = async (tenant: Mieter, customNkItem?: Nebenkosten, customWasserReadings?: Wasserzaehler[]) => {
       renderModal({
         tenants: [tenant],
-        nebenkostenItem: mockNebenkostenItem2023, // Abrechnung for 2023
+        nebenkostenItem: customNkItem || mockNebenkostenItem2023, // Abrechnung for 2023
+        wasserzaehlerReadings: customWasserReadings || mockWasserzaehlerReadingsNk2023,
       });
       fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
       fireEvent.click(screen.getByText(tenant.name));
@@ -469,6 +497,7 @@ describe('AbrechnungModal', () => {
        renderModal({
         tenants: [tenantS9B],
         nebenkostenItem: mockNebenkostenItem2023,
+        wasserzaehlerReadings: mockWasserzaehlerReadingsNk2023, // Ensure readings are passed
       });
       fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
       fireEvent.click(screen.getByText(tenantS9B.name));
@@ -507,6 +536,78 @@ describe('AbrechnungModal', () => {
       // Jan: 0, Feb: 0, Mar: 0 (prepayment schedule starts May)
       const expectedVorauszahlungen = 0;
       assertPrepaymentsAndSettlement(expectedVorauszahlungen, baseTotalTenantCost - expectedVorauszahlungen, 'Nachzahlung'); // 320 - 0 = 320
+    });
+
+    it('should correctly display water costs based on individual consumption', async () => {
+      const testTenant: Mieter = {
+         id: 't_water_test', name: 'Tenant Water Test', einzug: '2023-01-01', auszug: null,
+         Wohnungen: mockWohnungAlice, // 80qm apartment
+         nebenkosten: [0], nebenkosten_datum: ['2023-01-01'], // No prepayments for simplicity
+      };
+      const testWasserlesung: Wasserzaehler[] = [{
+         id: 'wz_test', user_id: 'user1', mieter_id: 't_water_test',
+         ablese_datum: '2023-12-31', zaehlerstand: 100, verbrauch: 10, // Specific consumption: 10 m³
+         nebenkosten_id: 'nk2023',
+      }];
+      const nkItemWithWasserverbrauch = {
+          ...mockNebenkostenItem2023, //wasserkosten:100, wasserverbrauch: 20 => pricePerM3 = 5
+          wasserverbrauch: 20, // Explicitly ensure it's set for this test item
+      };
+
+      // Use the updated renderAndSelectTenant or call renderModal directly
+      await renderAndSelectTenant(testTenant, nkItemWithWasserverbrauch, testWasserlesung);
+      // Or direct render:
+      // renderModal({
+      //   tenants: [testTenant],
+      //   nebenkostenItem: nkItemWithWasserverbrauch,
+      //   wasserzaehlerReadings: testWasserlesung,
+      // });
+      // fireEvent.click(screen.getByRole('button', { name: /Mieter auswählen/i }));
+      // fireEvent.click(screen.getByText(testTenant.name));
+
+
+      await waitFor(() => {
+        // Check for the Wasserkosten card elements
+        const wasserkostenTitle = screen.getByText("Wasserkosten");
+        // The card structure might be complex. Let's find a stable parent based on content.
+        // Assuming CardTitle is a direct child of CardHeader, and CardHeader sibling to CardContent.
+        // And the hover card trigger wraps the display card.
+        // The actual displayed card is what we want to inspect.
+        // Let's assume the card visible on screen (not the hover content initially)
+        // contains the title "Wasserkosten" and its value.
+        let currentElement: HTMLElement | null = wasserkostenTitle;
+        let wasserkostenCard: HTMLElement | null = null;
+        while(currentElement && !wasserkostenCard) {
+            if (currentElement.classList.contains('min-w-[220px]') || currentElement.classList.contains('sm:min-w-[250px]')) {
+                wasserkostenCard = currentElement;
+                break;
+            }
+            currentElement = currentElement.parentElement;
+        }
+        expect(wasserkostenCard).toBeInTheDocument();
+
+        // Open HoverCard to check details
+        const triggerCard = wasserkostenTitle.closest('button[data-state="closed"]'); // HoverCardTrigger is a button
+        if(triggerCard) fireEvent.mouseEnter(triggerCard); // Or focus, depending on trigger mechanism
+
+        // Wait for HoverCardContent to appear
+        const hoverCardContent = await screen.findByRole('tooltip'); // HoverCardContent has role="tooltip"
+        expect(hoverCardContent).toBeInTheDocument();
+
+        // Assert calculation method
+        expect(within(hoverCardContent).getByText('Berechnungsmethode:')).toBeInTheDocument();
+        expect(within(hoverCardContent).getByText('nach Verbrauch')).toBeInTheDocument();
+
+        // Assert consumption display
+        expect(within(hoverCardContent).getByText('Verbrauch:')).toBeInTheDocument();
+        expect(within(hoverCardContent).getByText('10 m³')).toBeInTheDocument(); // 10 m³ from testWasserlesung
+
+        // Assert tenant's share (this is visible on the main card, not just hover)
+        // Expected share = 10 m³ * (100 € / 20 m³) = 10 * 5 = 50 €
+        const expectedShareFormatted = formatCurrency(50).replace(/\s/g, ' ');
+        const tenantShareElement = wasserkostenCard!.querySelector('div.text-2xl.font-semibold');
+        expect(tenantShareElement).toHaveTextContent(expectedShareFormatted);
+      });
     });
   });
 });
