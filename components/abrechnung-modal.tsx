@@ -444,7 +444,7 @@ export function AbrechnungModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Betriebskostenabrechnung {Number(nebenkostenItem.jahr)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
@@ -500,7 +500,7 @@ export function AbrechnungModal({
               </h3>
               <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
               <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
-
+              <hr className="my-3 border-gray-200" />
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -513,39 +513,39 @@ export function AbrechnungModal({
                 <TableBody>
                   {tenantData.costItems.map((item, index) => (
                     <TableRow key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
-                      <TableCell className="py-2 px-3">{item.costName}</TableCell>
-                      <TableCell className="py-2 px-3">{item.calculationType}</TableCell>
-                      <TableCell className="py-2 px-3">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
-                      <TableCell className="text-right py-2 px-3">{formatCurrency(item.tenantShare)}</TableCell>
+                      <TableCell className="py-2 px-3 align-top">{item.costName}</TableCell>
+                      <TableCell className="py-2 px-3 align-top">{item.calculationType}</TableCell>
+                      <TableCell className="py-2 px-3 align-top">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
+                      <TableCell className="text-right py-2 px-3 align-top">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className={tenantData.costItems.length % 2 === 0 ? "bg-gray-50" : ""}>
-                    <TableCell className="py-2 px-3">Wasserkosten</TableCell>
-                    <TableCell className="py-2 px-3">{tenantData.waterCost.calculationType}</TableCell>
-                    <TableCell className="py-2 px-3">-</TableCell> {/* Empty cell for alignment */}
-                    <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
+                    <TableCell className="py-2 px-3 align-top">Wasserkosten</TableCell>
+                    <TableCell className="py-2 px-3 align-top">{tenantData.waterCost.calculationType}</TableCell>
+                    <TableCell className="py-2 px-3 align-top">-</TableCell> {/* Empty cell for alignment */}
+                    <TableCell className="text-right py-2 px-3 align-top">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
                   </TableRow>
-                  <TableRow className="font-semibold bg-blue-50">
+                  <TableRow className="font-semibold bg-blue-50 border-t-2 border-gray-200">
                     <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                   {/* Vorauszahlungen Row */}
-                  <TableRow className="font-semibold">
-                    <TableCell className="py-2 px-3">Vorauszahlungen</TableCell>
-                    <TableCell className="py-2 px-3"></TableCell>
-                    <TableCell className="py-2 px-3"></TableCell>
-                    <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.vorauszahlungen)}</TableCell>
+                  <TableRow className="font-semibold bg-slate-50">
+                    <TableCell className="py-3 px-3">Vorauszahlungen</TableCell>
+                    <TableCell className="py-3 px-3"></TableCell>
+                    <TableCell className="py-3 px-3"></TableCell>
+                    <TableCell className="text-right py-3 px-3">{formatCurrency(tenantData.vorauszahlungen)}</TableCell>
                   </TableRow>
                   {/* Final Settlement Row */}
-                  <TableRow className="font-bold text-lg">
+                  <TableRow className={`font-bold text-lg ${tenantData.finalSettlement >= 0 ? 'bg-red-100' : 'bg-green-100'}`}>
                     <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {tenantData.finalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
                     </TableCell>
                     <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
                     <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
-                    <TableCell className={`text-right py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <TableCell className={`text-right py-3 px-3 text-xl ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {formatCurrency(tenantData.finalSettlement)}
                     </TableCell>
                   </TableRow>
