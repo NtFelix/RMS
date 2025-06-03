@@ -126,8 +126,8 @@ export function AbrechnungModal({
 
       // Iterate through all 12 months for the breakdown
       for (let month = 0; month < 12; month++) {
-        const currentMonthStart = new Date(abrechnungsjahr, month, 1);
-        const currentMonthEnd = new Date(abrechnungsjahr, month + 1, 0); // Day 0 of next month is last day of current
+        const currentMonthStart = new Date(Date.UTC(abrechnungsjahr, month, 1));
+        const currentMonthEnd = new Date(Date.UTC(abrechnungsjahr, month + 1, 0)); // Day 0 of next month is last day of current
         const monthName = GERMAN_MONTHS[month];
         let effectivePrepaymentForMonth = 0;
 
