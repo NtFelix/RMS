@@ -76,6 +76,20 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
     // Nebenkosten fields removed from here, will be handled by nebenkostenEntries
   });
 
+  // Helper function to sort Nebenkosten entries
+  const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
+    const sorted = [...entries];
+    sorted.sort((a, b) => {
+      const dateA = a.date || "";
+      const dateB = b.date || "";
+      if (dateA === "" && dateB === "") return 0;
+      if (dateA === "") return 1;
+      if (dateB === "") return -1;
+      return dateA.localeCompare(dateB);
+    });
+    return sorted;
+  };
+
   useEffect(() => {
     // Initialize formData (without nebenkosten)
     setFormData({
@@ -92,12 +106,13 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
     if (open && initialData) {
       const amounts = initialData.nebenkosten ? initialData.nebenkosten.split(',').map(s => s.trim()) : [];
       const dates = initialData.nebenkosten_datum ? initialData.nebenkosten_datum.split(',').map(s => s.trim()) : [];
-      const newEntries = amounts.map((amount, index) => ({
+      let newEntries = amounts.map((amount, index) => ({
         id: Math.random().toString(36).substr(2, 9), // Generate unique ID
         amount: amount,
         date: dates[index] || "" // Handle potential mismatch in lengths
       }));
-      setNebenkostenEntries(newEntries);
+
+      setNebenkostenEntries(getSortedNebenkostenEntries(newEntries));
     } else if (open && !initialData) {
       setNebenkostenEntries([]); // Or [{ id: generateUniqueId(), amount: "", date: "" }] for a default empty entry
     }
@@ -178,16 +193,16 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
           return newErrors;
         });
       }
-      return newEntries;
+      // Sort entries after any change, especially if a date was modified.
+      return getSortedNebenkostenEntries(newEntries);
     });
   };
 
   const addNebenkostenEntry = () => {
     const newId = Math.random().toString(36).substr(2, 9);
-    setNebenkostenEntries(entries => [
-      ...entries,
-      { id: newId, amount: "", date: "" }
-    ]);
+    setNebenkostenEntries(entries =>
+      getSortedNebenkostenEntries([...entries, { id: newId, amount: "", date: "" }])
+    );
     // Optionally, clear validation for this new entry if it was somehow set before
     setNebenkostenValidationErrors(prev => {
         const newErrors = {...prev};
