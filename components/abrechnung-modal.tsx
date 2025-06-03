@@ -3,11 +3,13 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useToast } from "@/hooks/use-toast";
-import { FileDown } from 'lucide-react'; // Added FileDown import
+import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -23,6 +25,17 @@ const formatCurrency = (value: number | null | undefined) => {
   if (value == null) return "-";
   return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
 };
+
+const GERMAN_MONTHS = [
+  "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember"
+];
+
+interface MonthlyVorauszahlung {
+  monthName: string;
+  amount: number;
+  isActiveMonth: boolean;
+}
 
 interface TenantCostDetails {
   tenantId: string;
@@ -45,6 +58,7 @@ interface TenantCostDetails {
   };
   totalTenantCost: number;
   vorauszahlungen: number; // Added for advance payments
+  monthlyVorauszahlungen: MonthlyVorauszahlung[]; // New field for monthly breakdown
   finalSettlement: number; // Added for the final settlement amount
 }
 
@@ -91,6 +105,7 @@ export function AbrechnungModal({
 
       // Calculate Vorauszahlungen based on monthly recurring prepayments
       let totalVorauszahlungen = 0;
+      const monthlyVorauszahlungenDetails: MonthlyVorauszahlung[] = [];
 
       const prepaymentSchedule: Array<{ date: Date; amount: number }> = [];
       if (Array.isArray(tenant.nebenkosten) && Array.isArray(tenant.nebenkosten_datum) && tenant.nebenkosten.length === tenant.nebenkosten_datum.length) {
@@ -109,22 +124,22 @@ export function AbrechnungModal({
       const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
       const auszugDate = tenant.auszug ? new Date(tenant.auszug) : null;
 
-      if (einzugDate && !isNaN(einzugDate.getTime())) { // Tenant must have a valid einzug date
-        for (let month = 0; month < 12; month++) {
-          const currentMonthStart = new Date(abrechnungsjahr, month, 1);
-          const currentMonthEnd = new Date(abrechnungsjahr, month + 1, 0); // Day 0 of next month is last day of current
+      // Iterate through all 12 months for the breakdown
+      for (let month = 0; month < 12; month++) {
+        const currentMonthStart = new Date(Date.UTC(abrechnungsjahr, month, 1));
+        const currentMonthEnd = new Date(Date.UTC(abrechnungsjahr, month + 1, 0)); // Day 0 of next month is last day of current
+        const monthName = GERMAN_MONTHS[month];
+        let effectivePrepaymentForMonth = 0;
 
-          // Check tenant activity for the month
-          const isActiveThisMonth =
-            einzugDate <= currentMonthEnd &&
-            (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart);
+        // Check tenant activity for the month (must have a valid einzug date)
+        const isActiveThisMonth = !!(
+          einzugDate && !isNaN(einzugDate.getTime()) &&
+          einzugDate <= currentMonthEnd &&
+          (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart)
+        );
 
-          if (!isActiveThisMonth) {
-            continue; // Skip to next month if tenant not active
-          }
-
-          // Find effective prepayment amount for this month
-          let effectivePrepaymentForMonth = 0;
+        if (isActiveThisMonth) {
+          // Find effective prepayment amount for this month from the schedule
           for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
             if (prepaymentSchedule[i].date <= currentMonthStart) {
               effectivePrepaymentForMonth = prepaymentSchedule[i].amount;
@@ -133,6 +148,12 @@ export function AbrechnungModal({
           }
           totalVorauszahlungen += effectivePrepaymentForMonth;
         }
+
+        monthlyVorauszahlungenDetails.push({
+          monthName,
+          amount: effectivePrepaymentForMonth, // Store 0 if not active or no prepayment found
+          isActiveMonth: isActiveThisMonth,
+        });
       }
       // END of new Vorauszahlungen calculation
 
@@ -228,7 +249,8 @@ export function AbrechnungModal({
         costItems: costItemsDetails,
         waterCost: tenantWaterCost,
         totalTenantCost: totalTenantCost,
-        vorauszahlungen: totalVorauszahlungen, // Use the new variable here
+        vorauszahlungen: totalVorauszahlungen,
+        monthlyVorauszahlungen: monthlyVorauszahlungenDetails, // Add new data here
         finalSettlement: finalSettlement,
       };
     };
@@ -444,7 +466,7 @@ export function AbrechnungModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Betriebskostenabrechnung {Number(nebenkostenItem.jahr)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
@@ -500,7 +522,105 @@ export function AbrechnungModal({
               </h3>
               <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
               <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
+              <hr className="my-3 border-gray-200" />
+              {/* Container for Info Cards */}
+              <div className="flex flex-wrap justify-start gap-4 my-4">
+                {/* Wasserkosten Info Card */}
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Wasserkosten</CardTitle>
+                        <Droplet className="h-5 w-5 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-semibold text-gray-800">
+                          {formatCurrency(tenantData.waterCost.tenantShare)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-80 text-sm">
+                    <div className="space-y-1">
+                      <div>
+                        <strong>Berechnungsmethode:</strong> {tenantData.waterCost.calculationType}
+                      </div>
+                      <div>
+                        <strong>Gesamte Wasserkosten:</strong> {formatCurrency(tenantData.waterCost.totalWaterCostOverall)}
+                      </div>
+                      <div>
+                        <strong>Anteil Mieter:</strong> {formatCurrency(tenantData.waterCost.tenantShare)}
+                      </div>
+                      {tenantData.waterCost.consumption != null && ( // Check for null or undefined
+                        <div>
+                          <strong>Verbrauch:</strong> {tenantData.waterCost.consumption} m³
+                        </div>
+                      )}
+                    </div>
+                  </HoverCardContent>
+                </HoverCard>
+                {/* Vorauszahlungen Info Card */}
+                <HoverCard>
+                  <HoverCardTrigger asChild>
+                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
+                        <Landmark className="h-5 w-5 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-semibold text-gray-800">
+                          {formatCurrency(tenantData.vorauszahlungen)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </HoverCardTrigger>
+                  <HoverCardContent className="w-96 text-sm">
+                    <h4 className="font-semibold mb-2 text-center">Monatliche Vorauszahlungen</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="px-2 py-1 h-auto text-xs">Monat</TableHead>
+                          <TableHead className="text-right px-2 py-1 h-auto text-xs">Zahlung</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tenantData.monthlyVorauszahlungen.map((payment) => (
+                          <TableRow key={payment.monthName}>
+                            <TableCell className="px-2 py-1 text-xs">{payment.monthName}</TableCell>
+                            <TableCell className="text-right px-2 py-1 text-xs">
+                              {payment.isActiveMonth ? formatCurrency(payment.amount) : "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </HoverCardContent>
+                </HoverCard>
+                {/* Final Settlement Info Card */}
+                {(() => {
+                  const isNachzahlung = tenantData.finalSettlement >= 0;
+                  const SettlementIcon = isNachzahlung ? AlertCircle : CheckCircle2;
+                  const titleColor = isNachzahlung ? "text-red-700" : "text-green-700";
+                  const amountColor = isNachzahlung ? "text-red-700" : "text-green-700";
+                  const iconColor = isNachzahlung ? "text-red-500" : "text-green-500";
 
+                  return (
+                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className={`text-sm font-medium ${titleColor}`}>
+                          {isNachzahlung ? "Nachzahlung" : "Guthaben"}
+                        </CardTitle>
+                        <SettlementIcon className={`h-5 w-5 ${iconColor}`} />
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-2xl font-semibold ${amountColor}`}>
+                          {formatCurrency(tenantData.finalSettlement)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -513,41 +633,18 @@ export function AbrechnungModal({
                 <TableBody>
                   {tenantData.costItems.map((item, index) => (
                     <TableRow key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
-                      <TableCell className="py-2 px-3">{item.costName}</TableCell>
-                      <TableCell className="py-2 px-3">{item.calculationType}</TableCell>
-                      <TableCell className="py-2 px-3">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
-                      <TableCell className="text-right py-2 px-3">{formatCurrency(item.tenantShare)}</TableCell>
+                      <TableCell className="py-2 px-3 align-top">{item.costName}</TableCell>
+                      <TableCell className="py-2 px-3 align-top">{item.calculationType}</TableCell>
+                      <TableCell className="py-2 px-3 align-top">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
+                      <TableCell className="text-right py-2 px-3 align-top">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className={tenantData.costItems.length % 2 === 0 ? "bg-gray-50" : ""}>
-                    <TableCell className="py-2 px-3">Wasserkosten</TableCell>
-                    <TableCell className="py-2 px-3">{tenantData.waterCost.calculationType}</TableCell>
-                    <TableCell className="py-2 px-3">-</TableCell> {/* Empty cell for alignment */}
-                    <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
-                  </TableRow>
-                  <TableRow className="font-semibold bg-blue-50">
+                  {/* Wasserkosten row removed from here */}
+                  <TableRow className="font-semibold bg-blue-50 border-t-2 border-gray-200">
                     <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
                     <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
-                  </TableRow>
-                  {/* Vorauszahlungen Row */}
-                  <TableRow className="font-semibold">
-                    <TableCell className="py-2 px-3">Vorauszahlungen</TableCell>
-                    <TableCell className="py-2 px-3"></TableCell>
-                    <TableCell className="py-2 px-3"></TableCell>
-                    <TableCell className="text-right py-2 px-3">{formatCurrency(tenantData.vorauszahlungen)}</TableCell>
-                  </TableRow>
-                  {/* Final Settlement Row */}
-                  <TableRow className="font-bold text-lg">
-                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {tenantData.finalSettlement >= 0 ? "Nachzahlung" : "Guthaben"}
-                    </TableCell>
-                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
-                    <TableCell className={`py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}></TableCell>
-                    <TableCell className={`text-right py-3 px-3 ${tenantData.finalSettlement >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(tenantData.finalSettlement)}
-                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
