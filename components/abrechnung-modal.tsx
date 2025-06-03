@@ -3,11 +3,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung } from "@/lib/data-fetching"; // Added Rechnung to import
 import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useToast } from "@/hooks/use-toast";
-import { FileDown } from 'lucide-react'; // Added FileDown import
+import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -501,6 +502,57 @@ export function AbrechnungModal({
               <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
               <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
               <hr className="my-3 border-gray-200" />
+              {/* Container for Info Cards */}
+              <div className="flex flex-wrap justify-start gap-4 my-4">
+                {/* Wasserkosten Info Card */}
+                <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Wasserkosten</CardTitle>
+                    <Droplet className="h-5 w-5 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-semibold text-gray-800">
+                      {formatCurrency(tenantData.waterCost.tenantShare)}
+                    </div>
+                  </CardContent>
+                </Card>
+                {/* Vorauszahlungen Info Card */}
+                <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Vorauszahlungen</CardTitle>
+                    <Landmark className="h-5 w-5 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-semibold text-gray-800">
+                      {formatCurrency(tenantData.vorauszahlungen)}
+                    </div>
+                  </CardContent>
+                </Card>
+                {/* Final Settlement Info Card */}
+                {(() => {
+                  const isNachzahlung = tenantData.finalSettlement >= 0;
+                  const SettlementIcon = isNachzahlung ? AlertCircle : CheckCircle2;
+                  const titleColor = isNachzahlung ? "text-red-700" : "text-green-700";
+                  const amountColor = isNachzahlung ? "text-red-700" : "text-green-700";
+                  const iconColor = isNachzahlung ? "text-red-500" : "text-green-500";
+
+                  return (
+                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className={`text-sm font-medium ${titleColor}`}>
+                          {isNachzahlung ? "Nachzahlung" : "Guthaben"}
+                        </CardTitle>
+                        <SettlementIcon className={`h-5 w-5 ${iconColor}`} />
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-2xl font-semibold ${amountColor}`}>
+                          {formatCurrency(tenantData.finalSettlement)}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -519,12 +571,7 @@ export function AbrechnungModal({
                       <TableCell className="text-right py-2 px-3 align-top">{formatCurrency(item.tenantShare)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow className={tenantData.costItems.length % 2 === 0 ? "bg-gray-50" : ""}>
-                    <TableCell className="py-2 px-3 align-top">Wasserkosten</TableCell>
-                    <TableCell className="py-2 px-3 align-top">{tenantData.waterCost.calculationType}</TableCell>
-                    <TableCell className="py-2 px-3 align-top">-</TableCell> {/* Empty cell for alignment */}
-                    <TableCell className="text-right py-2 px-3 align-top">{formatCurrency(tenantData.waterCost.tenantShare)}</TableCell>
-                  </TableRow>
+                  {/* Wasserkosten row removed from here */}
                   <TableRow className="font-semibold bg-blue-50 border-t-2 border-gray-200">
                     <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
                     <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
@@ -533,34 +580,6 @@ export function AbrechnungModal({
                   </TableRow>
                 </TableBody>
               </Table>
-              {/* Container for Info Cards */}
-              <div className="flex flex-wrap justify-start gap-4 mt-4">
-                {/* Vorauszahlungen Info Card */}
-                <div className="bg-gray-50 p-4 border border-gray-200 rounded-lg shadow-sm flex-grow min-w-[220px] sm:min-w-[250px]">
-                  <h4 className="text-sm font-medium text-gray-600 mb-1">Vorauszahlungen</h4>
-                  <p className="text-2xl font-semibold text-gray-800">{formatCurrency(tenantData.vorauszahlungen)}</p>
-                </div>
-                {/* Final Settlement Info Card */}
-                {(() => {
-                  const isNachzahlung = tenantData.finalSettlement >= 0;
-                  const cardClasses = `p-4 border rounded-lg shadow-sm flex-grow min-w-[220px] sm:min-w-[250px] ${
-                    isNachzahlung ? 'bg-red-100 border-red-200' : 'bg-green-100 border-green-200'
-                  }`;
-                  const titleColor = isNachzahlung ? 'text-red-700' : 'text-green-700';
-                  const amountColor = isNachzahlung ? 'text-red-700' : 'text-green-700';
-
-                  return (
-                    <div className={cardClasses}>
-                      <h4 className={`text-sm font-medium ${titleColor} mb-1`}>
-                        {isNachzahlung ? "Nachzahlung" : "Guthaben"}
-                      </h4>
-                      <p className={`text-2xl font-semibold ${amountColor}`}>
-                        {formatCurrency(tenantData.finalSettlement)}
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
             </div>
           ))}
         </div>
