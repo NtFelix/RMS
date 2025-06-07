@@ -34,12 +34,7 @@ jobs:
         run: npm run build
         # oder: yarn build
 
-      # 5) Next.js statisch exportieren
-      - name: Export Static Site
-        run: npm run export
-        # Standardmäßig schreibt `next export` in `out/`
-
-      # 6) Statischen Server starten
+      # 5) Statischen Server starten
       - name: Serve static files
         run: |
           # 'serve' im Hintergrund starten auf Port 5000
@@ -47,7 +42,7 @@ jobs:
           # Kurze Pause, damit der Server hochfährt
           sleep 5
 
-      # 7) Lighthouse Performance Audit
+      # 6) Lighthouse Performance Audit
       - name: Run Lighthouse Performance Audit
         uses: jakejarvis/lighthouse-action@v0.3.2
         with:
@@ -55,7 +50,7 @@ jobs:
           thresholds: '{"performance": 90, "accessibility": 80}'
           output: html,json
 
-      # 8) Artefakte hochladen (Reports)
+      # 7) Artefakte hochladen (Reports)
       - name: Upload Lighthouse Reports
         uses: actions/upload-artifact@v4
         with:
