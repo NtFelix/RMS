@@ -15,7 +15,7 @@ import { createClient } from "@/utils/supabase/client"
 const sidebarNavItems = [
   {
     title: "Dashboard",
-    href: "/",
+    href: "/home",
     icon: BarChart3,
   },
   {
@@ -89,7 +89,7 @@ export function DashboardSidebar() {
         )}
       >
         <div className="border-b px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Link href="/home" className="flex items-center gap-2 font-semibold">
             <Building2 className="h-6 w-6" />
             <span>Property Manager</span>
           </Link>
