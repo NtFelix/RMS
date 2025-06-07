@@ -1,6 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+
 // GET spezifische Finanztransaktion by ID
 export async function GET(
   _request: NextRequest,
