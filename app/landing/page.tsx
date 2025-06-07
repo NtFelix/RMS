@@ -3,6 +3,13 @@ import Link from 'next/link';
 export default function LandingPage() {
   return (
     <div className="container mx-auto px-4 py-16 text-center">
+      <nav className="mb-12">
+        <ul className="flex justify-center space-x-6">
+          <li><Link href="/" className="text-blue-500 hover:underline">Home</Link></li>
+          <li><Link href="/documentation" className="text-blue-500 hover:underline">Documentation</Link></li>
+          <li><Link href="/auth/login" className="text-blue-500 hover:underline">Login</Link></li>
+        </ul>
+      </nav>
       <h1 className="text-4xl font-bold mb-8">Welcome to Our Product!</h1>
       <p className="text-xl mb-12">
         Discover how our product can help you manage your properties efficiently.
