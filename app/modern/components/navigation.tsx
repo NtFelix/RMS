@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, FileText, Home } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from '../../../components/ui/button'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 

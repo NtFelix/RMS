@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { motion } from "framer-motion"
 import { ChevronDown, ChevronRight, Search, Book, Code, Zap, Settings, HelpCircle } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Input } from "../../../components/ui/input"
 
 const sidebarSections = [
   {
