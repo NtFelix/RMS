@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Code, Paintbrush, Rocket, Users } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Button } from '../../../components/ui/button'
 
 const services = [
   {
