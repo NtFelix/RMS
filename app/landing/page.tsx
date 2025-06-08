@@ -1,37 +1,43 @@
-import Link from 'next/link';
+'use client';
+
+import Hero from '../modern/components/hero';
+import Features from '../modern/components/features';
+import Services from '../modern/components/services';
+import Testimonials from '../modern/components/testimonials';
+import CTA from '../modern/components/cta';
+import Footer from '../modern/components/footer';
+import Navigation from '../modern/components/navigation';
+import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
+  const router = useRouter();
+  
+  // Redirect to login when CTA is clicked
+  const handleGetStarted = () => {
+    router.push('/auth/login');
+  };
+
   return (
-    <div className="container mx-auto px-4 py-16 text-center">
-      <nav className="mb-12">
-        <ul className="flex justify-center space-x-6">
-          <li><Link href="/" className="text-blue-500 hover:underline">Home</Link></li>
-          <li><Link href="/documentation" className="text-blue-500 hover:underline">Documentation</Link></li>
-          <li><Link href="/auth/login" className="text-blue-500 hover:underline">Login</Link></li>
-        </ul>
-      </nav>
-      <h1 className="text-4xl font-bold mb-8">Welcome to Our Product!</h1>
-      <p className="text-xl mb-12">
-        Discover how our product can help you manage your properties efficiently.
-        Track finances, manage tenants, and organize tasks all in one place.
-      </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-        <div className="border p-6 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-4">Feature 1: Comprehensive Dashboard</h2>
-          <p>Get a clear overview of your properties, finances, and tasks at a glance.</p>
+    <>
+      <Navigation />
+      <main className="min-h-screen bg-zinc-950 text-white overflow-x-hidden">
+        <div id="hero">
+          <Hero onGetStarted={handleGetStarted} />
         </div>
-        <div className="border p-6 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-4">Feature 2: Tenant Management</h2>
-          <p>Easily manage tenant information, track payments, and communicate effectively.</p>
+        <div id="features">
+          <Features />
         </div>
-        <div className="border p-6 rounded-lg">
-          <h2 className="text-2xl font-semibold mb-4">Feature 3: Task Organization</h2>
-          <p>Create, assign, and track tasks to ensure nothing falls through the cracks.</p>
+        <div id="services">
+          <Services />
         </div>
-      </div>
-      <Link href="/auth/login" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded text-lg">
-        Get Started
-      </Link>
-    </div>
+        <div id="testimonials">
+          <Testimonials />
+        </div>
+        <div id="cta">
+          <CTA onGetStarted={handleGetStarted} />
+        </div>
+        <Footer />
+      </main>
+    </>
   );
 }
