@@ -46,7 +46,7 @@ async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpd
 export async function POST(req: Request) {
   try {
     const body = await req.text();
-    const signature = headers().get('stripe-signature') as string;
+    const signature = (await headers()).get('stripe-signature') as string;
 
     let event: Stripe.Event;
 
