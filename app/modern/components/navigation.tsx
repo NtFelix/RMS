@@ -94,7 +94,11 @@ export default function Navigation() {
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-slate-400 group-hover:w-full transition-all duration-300" />
             </Link>
 
-            <Button size="sm" className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold">
+            <Button 
+              size="sm" 
+              className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold"
+              onClick={() => window.location.href = '/auth/login'}
+            >
               Get Started
             </Button>
           </div>
@@ -153,7 +157,11 @@ export default function Navigation() {
                 Documentation
               </Link>
 
-              <Button size="sm" className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold w-full mt-4">
+              <Button 
+                size="sm" 
+                className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold w-full mt-4"
+                onClick={() => window.location.href = '/auth/login'}
+              >
                 Get Started
               </Button>
             </div>
