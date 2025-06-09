@@ -88,18 +88,18 @@ export async function POST(req: Request) {
             break;
         }
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        if (!subscription) {
+        const retrievedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
             break;
         }
 
         await updateProfileInSupabase(userId, {
           stripe_customer_id: customerId,
-          stripe_subscription_id: subscriptionId,
-          stripe_subscription_status: subscription.status,
-          stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          stripe_subscription_id: retrievedSubscription.id, // Use ID from retrieved object
+          stripe_subscription_status: retrievedSubscription.status,
+          stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
+          stripe_current_period_end: new Date(retrievedSubscription.current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for user ${userId} after checkout.`);
         break;
@@ -115,16 +115,16 @@ export async function POST(req: Request) {
             break;
         }
 
-        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        if (!subscription) {
+        const retrievedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
             break;
         }
 
         await updateProfileByCustomerIdInSupabase(customerId, {
-          stripe_subscription_status: subscription.status,
-          stripe_price_id: subscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          stripe_subscription_status: retrievedSubscription.status,
+          stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
+          stripe_current_period_end: new Date(retrievedSubscription.current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for customer ${customerId} after invoice payment.`);
         break;
@@ -142,8 +142,8 @@ export async function POST(req: Request) {
         let status = 'past_due'; // Default status
         if (subscriptionId) {
             try {
-                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-                status = subscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
+                const retrievedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+                status = retrievedSubscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
             } catch (subError) {
                 console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
                 // Stick with 'past_due' or decide on another default if subscription is not retrievable
@@ -157,35 +157,36 @@ export async function POST(req: Request) {
         break;
       }
       case 'customer.subscription.updated': {
-        const subscription = event.data.object as Stripe.Subscription;
-        console.log('Subscription updated:', subscription.id, 'Status:', subscription.status);
-        const customerId = subscription.customer as string;
+        // The 'subscription' object here is directly from the event data, not from a 'retrieve' call.
+        const subscriptionFromEvent = event.data.object as Stripe.Subscription;
+        console.log('Subscription updated:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
+        const customerId = subscriptionFromEvent.customer as string;
         if (!customerId) {
-            console.error('Customer ID not found in subscription (updated):', subscription.id);
+            console.error('Customer ID not found in subscription (updated):', subscriptionFromEvent.id);
             break;
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
-            stripe_subscription_id: subscription.id, // Ensure subscription ID is updated if it can change (though unlikely for this event)
-            stripe_subscription_status: subscription.status,
-            stripe_price_id: subscription.items.data[0]?.price.id,
-            stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            stripe_subscription_id: subscriptionFromEvent.id,
+            stripe_subscription_status: subscriptionFromEvent.status,
+            stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
+            stripe_current_period_end: new Date(subscriptionFromEvent.current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for customer ${customerId} after subscription update.`);
         break;
       }
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object as Stripe.Subscription;
-        console.log('Subscription deleted:', subscription.id, 'Status:', subscription.status);
-        const customerId = subscription.customer as string;
+        // The 'subscription' object here is directly from the event data.
+        const subscriptionFromEvent = event.data.object as Stripe.Subscription;
+        console.log('Subscription deleted:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
+        const customerId = subscriptionFromEvent.customer as string;
          if (!customerId) {
-            console.error('Customer ID not found in subscription (deleted):', subscription.id);
+            console.error('Customer ID not found in subscription (deleted):', subscriptionFromEvent.id);
             break;
         }
         await updateProfileByCustomerIdInSupabase(customerId, {
-          stripe_subscription_status: subscription.status, // Stripe sends 'canceled' for deleted subscriptions
-          // stripe_current_period_end: null, // Or keep it to show when access expired
-          // stripe_price_id: null, // Consider nullifying if access is immediately revoked
-          // stripe_subscription_id: null, // Set to null as it's no longer valid
+          stripe_subscription_status: subscriptionFromEvent.status, // Stripe sends 'canceled', or other relevant status.
+          // Consider how you want to handle other fields on deletion.
+          // stripe_subscription_id: null, // Might be good to nullify if it's truly deleted and not just 'canceled' status.
         });
         console.log(`Profile updated for customer ${customerId} after subscription deletion.`);
         break;
