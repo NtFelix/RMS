@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -47,6 +47,11 @@ const sidebarNavItems = [
     title: "Aufgaben",
     href: "/todos",
     icon: CheckSquare,
+  },
+  {
+    title: "Subscription",
+    href: "/subscription",
+    icon: CreditCard,
   },
 ]
 

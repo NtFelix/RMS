@@ -475,6 +475,37 @@ export async function getDashboardSummary() {
   };
 }
 
+export async function fetchUserProfile() {
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    // This case should ideally be handled by route protection or redirects
+    console.log("No user logged in");
+    return null;
+  }
+
+  const { data: profile, error } = await supabase
+    .from('profiles') // Assuming your table is named 'profiles'
+    .select(`
+      id,
+      email,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_subscription_status,
+      stripe_price_id,
+      stripe_current_period_end
+    `)
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user profile:', error);
+    return null;
+  }
+
+  return profile;
+}
 export type Wasserzaehler = {
   id: string; // uuid
   user_id: string; // uuid, default auth.uid()

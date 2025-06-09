@@ -1,0 +1,203 @@
+import { NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import { headers } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
+
+// Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are in your .env.local
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+
+async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
+  console.log(`Updating profile for user ${userId} with data:`, dataToUpdate);
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update(dataToUpdate)
+    .eq('id', userId);
+
+  if (error) {
+    console.error(`Supabase error updating profile for user ${userId}:`, error.message);
+    throw error;
+  }
+  console.log(`Profile update successful for user ${userId}.`);
+  return data;
+}
+
+async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: any) {
+  console.log(`Updating profile for customer ${customerId} with data:`, dataToUpdate);
+  const { data, error } = await supabaseAdmin
+    .from('profiles')
+    .update(dataToUpdate)
+    .eq('stripe_customer_id', customerId);
+
+  if (error) {
+    console.error(`Supabase error updating profile for customer ${customerId}:`, error.message);
+    throw error;
+  }
+  console.log(`Profile update successful for customer ${customerId}.`);
+  return data;
+}
+
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.text();
+    const signature = headers().get('stripe-signature') as string;
+
+    let event: Stripe.Event;
+
+    if (!webhookSecret) {
+     console.error('STRIPE_WEBHOOK_SECRET is not set.');
+     return new NextResponse('Webhook secret is not configured', { status: 500 });
+    }
+     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Supabase URL or Service Role Key is not set for Admin client.');
+      return new NextResponse('Supabase admin client not configured', { status: 500 });
+    }
+
+
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`⚠️  Webhook signature verification failed: ${errorMessage}`);
+      return new NextResponse(`Webhook Error: ${errorMessage}`, { status: 400 });
+    }
+
+    console.log(`Received Stripe event: ${event.type}`, event.id);
+
+    // Handle the event
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        console.log('Checkout session completed:', session.id);
+        const userId = session.metadata?.userId;
+        const customerId = session.customer as string;
+        const subscriptionId = session.subscription as string;
+
+        if (!userId) {
+          console.error('User ID not found in session metadata for session:', session.id);
+          break; // Acknowledge event but don't process further if critical info is missing
+        }
+        if (!customerId || !subscriptionId) {
+            console.error('Customer ID or Subscription ID not found in session:', session.id);
+            break;
+        }
+
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (!subscription) {
+            console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
+            break;
+        }
+
+        await updateProfileInSupabase(userId, {
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          stripe_subscription_status: subscription.status,
+          stripe_price_id: subscription.items.data[0]?.price.id,
+          stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        });
+        console.log(`Profile updated for user ${userId} after checkout.`);
+        break;
+      }
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        console.log('Invoice paid:', invoice.id);
+        const customerId = invoice.customer as string;
+        const subscriptionId = invoice.subscription as string;
+
+        if (!customerId || !subscriptionId) {
+            console.error('Customer ID or Subscription ID not found in invoice:', invoice.id);
+            break;
+        }
+
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (!subscription) {
+            console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
+            break;
+        }
+
+        await updateProfileByCustomerIdInSupabase(customerId, {
+          stripe_subscription_status: subscription.status,
+          stripe_price_id: subscription.items.data[0]?.price.id,
+          stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        });
+        console.log(`Profile updated for customer ${customerId} after invoice payment.`);
+        break;
+      }
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        console.log('Invoice payment failed:', invoice.id);
+        const customerId = invoice.customer as string;
+        if (!customerId) {
+            console.error('Customer ID not found in invoice (payment_failed):', invoice.id);
+            break;
+        }
+
+        const subscriptionId = invoice.subscription as string;
+        let status = 'past_due'; // Default status
+        if (subscriptionId) {
+            try {
+                const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+                status = subscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
+            } catch (subError) {
+                console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
+                // Stick with 'past_due' or decide on another default if subscription is not retrievable
+            }
+        }
+
+        await updateProfileByCustomerIdInSupabase(customerId, {
+          stripe_subscription_status: status,
+        });
+        console.log(`Profile updated for customer ${customerId} to status '${status}' after invoice payment failure.`);
+        break;
+      }
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log('Subscription updated:', subscription.id, 'Status:', subscription.status);
+        const customerId = subscription.customer as string;
+        if (!customerId) {
+            console.error('Customer ID not found in subscription (updated):', subscription.id);
+            break;
+        }
+        await updateProfileByCustomerIdInSupabase(customerId, {
+            stripe_subscription_id: subscription.id, // Ensure subscription ID is updated if it can change (though unlikely for this event)
+            stripe_subscription_status: subscription.status,
+            stripe_price_id: subscription.items.data[0]?.price.id,
+            stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        });
+        console.log(`Profile updated for customer ${customerId} after subscription update.`);
+        break;
+      }
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        console.log('Subscription deleted:', subscription.id, 'Status:', subscription.status);
+        const customerId = subscription.customer as string;
+         if (!customerId) {
+            console.error('Customer ID not found in subscription (deleted):', subscription.id);
+            break;
+        }
+        await updateProfileByCustomerIdInSupabase(customerId, {
+          stripe_subscription_status: subscription.status, // Stripe sends 'canceled' for deleted subscriptions
+          // stripe_current_period_end: null, // Or keep it to show when access expired
+          // stripe_price_id: null, // Consider nullifying if access is immediately revoked
+          // stripe_subscription_id: null, // Set to null as it's no longer valid
+        });
+        console.log(`Profile updated for customer ${customerId} after subscription deletion.`);
+        break;
+      }
+      default:
+        console.log(`Unhandled event type ${event.type} for event ID ${event.id}`);
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (error) {
+    console.error('Error handling Stripe webhook:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return new NextResponse(`Internal Server Error in webhook: ${errorMessage}`, { status: 500 });
+  }
+}
