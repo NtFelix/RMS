@@ -111,6 +111,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
         >
           <Button
             size="lg"
+            onClick={onGetStarted}
             className="relative bg-gradient-to-r from-zinc-800 to-slate-800 text-white hover:from-zinc-700 hover:to-slate-700 px-8 py-4 text-lg font-semibold group overflow-hidden border-0"
           >
             {/* Animated water-like border gradient */}
@@ -169,7 +170,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               </div>
             </div>
 
-            <span className="relative z-10 flex items-center" onClick={onGetStarted}>
+            <span className="relative z-10 flex items-center">
               Get Started
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </span>
