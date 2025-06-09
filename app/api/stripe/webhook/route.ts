@@ -88,7 +88,7 @@ export async function POST(req: Request) {
             break;
         }
 
-        const retrievedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
             break;
@@ -115,7 +115,7 @@ export async function POST(req: Request) {
             break;
         }
 
-        const retrievedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
         if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
             break;
@@ -142,7 +142,7 @@ export async function POST(req: Request) {
         let status = 'past_due'; // Default status
         if (subscriptionId) {
             try {
-                const retrievedSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+                const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
                 status = retrievedSubscription.status; // e.g., 'past_due', 'unpaid', 'canceled'
             } catch (subError) {
                 console.error(`Could not retrieve subscription ${subscriptionId} for failed invoice ${invoice.id}:`, subError);
