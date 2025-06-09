@@ -84,9 +84,9 @@ export default function Navigation() {
             )}
 
             <Link
-              href="/documentation"
+              href="/modern/documentation"
               className={`flex items-center gap-2 text-slate-300 hover:text-white transition-colors relative group ${
-                pathname === "/documentation" ? "text-white" : ""
+                pathname?.startsWith("/modern/documentation") ? "text-white" : ""
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -143,10 +143,10 @@ export default function Navigation() {
               )}
 
               <Link
-                href="/documentation"
+                href="/modern/documentation"
                 onClick={() => setIsOpen(false)}
                 className={`flex items-center gap-2 text-slate-300 hover:text-white transition-colors py-2 ${
-                  pathname === "/documentation" ? "text-white" : ""
+                  pathname?.startsWith("/modern/documentation") ? "text-white" : ""
                 }`}
               >
                 <FileText className="w-4 h-4" />
