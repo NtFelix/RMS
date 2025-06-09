@@ -107,9 +107,10 @@ export async function POST(req: Request) {
       }
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
+        console.log('Invoice Object (invoice.paid):', JSON.stringify(invoice, null, 2));
         console.log('Invoice paid:', invoice.id);
         const customerId = invoice.customer as string;
-        const subscriptionId = invoice.subscription as string;
+        const subscriptionId = (invoice as any).subscription as string;
 
         if (!customerId || !subscriptionId) {
             console.error('Customer ID or Subscription ID not found in invoice:', invoice.id);
@@ -133,6 +134,8 @@ export async function POST(req: Request) {
       }
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
+        // It might be useful to log the invoice object here too if issues persist with this handler
+        // console.log('Invoice Object (invoice.payment_failed):', JSON.stringify(invoice, null, 2));
         console.log('Invoice payment failed:', invoice.id);
         const customerId = invoice.customer as string;
         if (!customerId) {
@@ -140,7 +143,7 @@ export async function POST(req: Request) {
             break;
         }
 
-        const subscriptionId = invoice.subscription as string;
+        const subscriptionId = (invoice as any).subscription as string; // Apply similar fix here if this was also an issue
         let status = 'past_due'; // Default status
         if (subscriptionId) {
             try {
