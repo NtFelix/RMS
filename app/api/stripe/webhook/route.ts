@@ -89,6 +89,7 @@ export async function POST(req: Request) {
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        console.log('Retrieved Subscription Object (checkout.session.completed):', JSON.stringify(retrievedSubscription, null, 2));
         if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
             break;
@@ -99,7 +100,7 @@ export async function POST(req: Request) {
           stripe_subscription_id: retrievedSubscription.id, // Use ID from retrieved object
           stripe_subscription_status: retrievedSubscription.status,
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date(retrievedSubscription.current_period_end * 1000).toISOString(),
+          stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for user ${userId} after checkout.`);
         break;
@@ -116,6 +117,7 @@ export async function POST(req: Request) {
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        console.log('Retrieved Subscription Object (invoice.paid):', JSON.stringify(retrievedSubscription, null, 2));
         if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
             break;
@@ -124,7 +126,7 @@ export async function POST(req: Request) {
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: retrievedSubscription.status,
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date(retrievedSubscription.current_period_end * 1000).toISOString(),
+          stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for customer ${customerId} after invoice payment.`);
         break;
@@ -159,6 +161,7 @@ export async function POST(req: Request) {
       case 'customer.subscription.updated': {
         // The 'subscription' object here is directly from the event data, not from a 'retrieve' call.
         const subscriptionFromEvent = event.data.object as Stripe.Subscription;
+        console.log('Subscription Object from Event (customer.subscription.updated):', JSON.stringify(subscriptionFromEvent, null, 2));
         console.log('Subscription updated:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
         const customerId = subscriptionFromEvent.customer as string;
         if (!customerId) {
@@ -169,7 +172,7 @@ export async function POST(req: Request) {
             stripe_subscription_id: subscriptionFromEvent.id,
             stripe_subscription_status: subscriptionFromEvent.status,
             stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
-            stripe_current_period_end: new Date(subscriptionFromEvent.current_period_end * 1000).toISOString(),
+            stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for customer ${customerId} after subscription update.`);
         break;
