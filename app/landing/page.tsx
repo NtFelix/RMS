@@ -101,7 +101,7 @@ export default function LandingPage() {
     }
   };
 
-  const handleAuthFlow = (priceId: string) => {
+  const handleAuthFlow = async (priceId: string) => {
     setSelectedPriceId(priceId);
     if (isLoadingAuth) return; // Do nothing if auth state is still loading
 
@@ -113,7 +113,7 @@ export default function LandingPage() {
     }
   };
   
-  const handleGetStarted = () => {
+  const handleGetStarted = async () => {
     // When "Get Started" is clicked (e.g. from Hero or CTA)
     // Default to selecting the main available plan and opening the auth modal if not logged in.
     // If logged in, it will proceed to checkout for the main plan.
@@ -126,9 +126,10 @@ export default function LandingPage() {
     }
   };
 
-  const handleSelectPlan = (priceId: string) => {
+  const handleSelectPlan = async (priceId: string) => {
     // This is called from the Pricing component when a user clicks "Select Plan"
-    handleAuthFlow(priceId);
+    // Needs to be async if handleAuthFlow is async
+    await handleAuthFlow(priceId);
   };
 
   const handleAuthenticated = async () => {
