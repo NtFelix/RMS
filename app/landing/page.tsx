@@ -45,13 +45,18 @@ export default function LandingPage() {
     getUser();
   }, [supabase.auth]);
 
-  const proceedToCheckout = async (priceId: string) => {
-    if (!currentUser || !currentUser.email || !currentUser.id) {
-      toast({ title: 'Error', description: 'User information not available. Please log in again.', variant: 'destructive' });
-      setIsAuthModalOpen(true); // Re-open auth modal if user info is somehow lost
+  const proceedToCheckout = async (priceId: string, user: User | null) => {
+    if (!user || !user.email || !user.id) {
+      console.error('User object or user details missing in proceedToCheckout');
+      toast({ title: 'Error', description: 'User information not available. Please try logging in again.', variant: 'destructive' });
+      // setIsAuthModalOpen(true); // Optionally re-open auth modal or guide user
+      setIsProcessingCheckout(false);
       return;
     }
     setIsProcessingCheckout(true);
+    const customerEmail = user.email;
+    const userId = user.id;
+
     try {
       const response = await fetch('/api/stripe/checkout-session', {
         method: 'POST',
@@ -60,8 +65,8 @@ export default function LandingPage() {
         },
         body: JSON.stringify({
           priceId: priceId,
-          customerEmail: currentUser.email,
-          userId: currentUser.id,
+          customerEmail: customerEmail,
+          userId: userId,
         }),
       });
 
@@ -101,7 +106,7 @@ export default function LandingPage() {
     if (isLoadingAuth) return; // Do nothing if auth state is still loading
 
     if (currentUser) {
-      proceedToCheckout(priceId);
+      await proceedToCheckout(priceId, currentUser); // Pass current user from state
     } else {
       setAuthModalInitialTab('login'); // Default to login, can be changed by specific triggers
       setIsAuthModalOpen(true);
@@ -114,7 +119,7 @@ export default function LandingPage() {
     // If logged in, it will proceed to checkout for the main plan.
     setSelectedPriceId(MAIN_PLAN_PRICE_ID); // Set the main plan
     if (currentUser) {
-      proceedToCheckout(MAIN_PLAN_PRICE_ID);
+      await proceedToCheckout(MAIN_PLAN_PRICE_ID, currentUser); // Pass current user
     } else {
       setAuthModalInitialTab('register'); // Suggest registration for new users from CTA
       setIsAuthModalOpen(true);
@@ -128,12 +133,13 @@ export default function LandingPage() {
 
   const handleAuthenticated = async () => {
     setIsAuthModalOpen(false);
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-    if (user && selectedPriceId) {
-      proceedToCheckout(selectedPriceId);
-    } else if (!user) {
-        toast({ title: 'Authentication Error', description: 'Could not verify user after authentication.', variant: 'destructive'});
+    const { data: { user: freshlyFetchedUser } } = await supabase.auth.getUser();
+    setCurrentUser(freshlyFetchedUser); // Update state as well
+
+    if (selectedPriceId && freshlyFetchedUser) {
+      await proceedToCheckout(selectedPriceId, freshlyFetchedUser); // Pass the freshly fetched user
+    } else if (!freshlyFetchedUser) {
+        toast({ title: 'Authentication Error', description: 'Could not retrieve user details after authentication.', variant: 'destructive'});
     }
     // selectedPriceId remains set, so if proceedToCheckout wasn't called, it will be tried on next interaction or page load if user is fetched
   };
