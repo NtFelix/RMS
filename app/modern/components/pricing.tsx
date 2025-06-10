@@ -16,29 +16,34 @@ interface Plan {
   price: string;
   features: string[];
   priceId: string;
+  disabled?: boolean;
 }
+
+const mainPriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN;
 
 const plans: Plan[] = [
   {
     id: 'basic',
-    name: 'Basic',
-    price: '$9/mo',
-    features: ['Feature A', 'Feature B'],
-    priceId: 'price_basic_monthly_placeholder',
+    name: 'Standard Plan', // Renamed Basic to Standard or similar, or keep as Basic
+    price: '$19/mo', // Example price, can be dynamic or env var too
+    features: ['Access to core features', 'Up to 10 projects', 'Basic support'],
+    priceId: mainPriceId || 'price_basic_monthly_placeholder', // Use env var with fallback
   },
   {
     id: 'pro',
-    name: 'Pro',
-    price: '$29/mo',
-    features: ['Feature A', 'Feature B', 'Feature C'],
-    priceId: 'price_pro_monthly_placeholder',
+    name: 'Pro (Coming Soon)',
+    price: '$49/mo',
+    features: ['All Standard features', 'Unlimited projects', 'Priority support'],
+    priceId: 'not_available_yet_pro',
+    disabled: true,
   },
   {
     id: 'premium',
-    name: 'Premium',
+    name: 'Premium (Coming Soon)',
     price: '$99/mo',
-    features: ['Feature A', 'Feature B', 'Feature C', 'Feature D'],
-    priceId: 'price_premium_monthly_placeholder',
+    features: ['All Pro features', 'Dedicated account manager', 'Custom integrations'],
+    priceId: 'not_available_yet_premium',
+    disabled: true,
   },
 ];
 
@@ -87,8 +92,9 @@ export default function Pricing({ onSelectPlan }: PricingProps) {
                 <Button
                   onClick={() => onSelectPlan(plan.priceId)}
                   className="w-full"
+                  disabled={plan.disabled || !plan.priceId.startsWith('price_')}
                 >
-                  Select Plan
+                  {plan.disabled ? 'Coming Soon' : 'Select Plan'}
                 </Button>
               </CardFooter>
             </Card>

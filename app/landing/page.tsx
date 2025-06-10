@@ -20,7 +20,8 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-const BASIC_PLAN_PRICE_ID = 'price_basic_monthly_placeholder'; // Define placeholder
+// Use the new environment variable for the main available plan, with a fallback.
+const MAIN_PLAN_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN || 'price_basic_monthly_placeholder';
 
 export default function LandingPage() {
   // Removed useRouter as Stripe will handle redirection
@@ -109,11 +110,11 @@ export default function LandingPage() {
   
   const handleGetStarted = () => {
     // When "Get Started" is clicked (e.g. from Hero or CTA)
-    // Default to selecting the basic plan and opening the auth modal if not logged in.
-    // If logged in, it will proceed to checkout for the basic plan.
-    setSelectedPriceId(BASIC_PLAN_PRICE_ID); // Set a default plan
+    // Default to selecting the main available plan and opening the auth modal if not logged in.
+    // If logged in, it will proceed to checkout for the main plan.
+    setSelectedPriceId(MAIN_PLAN_PRICE_ID); // Set the main plan
     if (currentUser) {
-      proceedToCheckout(BASIC_PLAN_PRICE_ID);
+      proceedToCheckout(MAIN_PLAN_PRICE_ID);
     } else {
       setAuthModalInitialTab('register'); // Suggest registration for new users from CTA
       setIsAuthModalOpen(true);
