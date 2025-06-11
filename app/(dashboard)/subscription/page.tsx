@@ -47,7 +47,7 @@ export default function SubscriptionPage() {
     getProfile();
   }, [toast]);
 
-  const handleSubscribeClick = async () => {
+  const handleSubscribeClick = async (priceId: string) => {
     setIsLoading(true);
     try {
       if (!profile || !profile.email || !profile.id) {
@@ -62,7 +62,7 @@ export default function SubscriptionPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          priceId: process.env.STRIPE_PRICE_ID!,
+          priceId: priceId, // Use the function argument here
           customerEmail: profile.email, // Use fetched profile email
           userId: profile.id, // Use fetched profile ID
         }),
@@ -135,8 +135,8 @@ export default function SubscriptionPage() {
       )}
 
       {(!subscriptionStatus || subscriptionStatus === 'inactive' || subscriptionStatus === 'canceled') && (
-        <Button onClick={handleSubscribeClick} disabled={isLoading || !profile?.id}>
-          {isLoading ? 'Processing...' : 'Subscribe Now'}
+        <Button onClick={() => handleSubscribeClick('price_basic_monthly_placeholder')} disabled={isLoading || !profile?.id}>
+          {isLoading ? 'Processing...' : 'Subscribe Now (Basic Plan)'}
         </Button>
       )}
 
