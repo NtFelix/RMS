@@ -480,31 +480,62 @@ export async function fetchUserProfile() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    // This case should ideally be handled by route protection or redirects
-    console.log("No user logged in");
+    console.log("No user logged in for fetchUserProfile");
     return null;
   }
 
-  const { data: profile, error } = await supabase
-    .from('profiles') // Assuming your table is named 'profiles'
+  // Fetch profile data from 'profiles' table, excluding 'email'
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
     .select(`
       id,
-      email,
       stripe_customer_id,
       stripe_subscription_id,
       stripe_subscription_status,
       stripe_price_id,
       stripe_current_period_end
+      // DO NOT select 'email' here anymore
     `)
     .eq('id', user.id)
     .single();
 
-  if (error) {
-    console.error('Error fetching user profile:', error);
-    return null;
+  if (profileError) {
+    console.error('Error fetching user profile data from profiles table:', profileError.message);
+    // If profile row doesn't exist (PGRST116: "JSON object requested, multiple (or no) rows returned")
+    // it's not necessarily a fatal error for returning basic user info.
+    if (profileError.code === 'PGRST116') {
+        return {
+            id: user.id,
+            email: user.email, // Email from auth.user
+            // Initialize Stripe fields as null
+            stripe_customer_id: null,
+            stripe_subscription_id: null,
+            stripe_subscription_status: null,
+            stripe_price_id: null,
+            stripe_current_period_end: null,
+        };
+    }
+    // For other errors, log it and return basic user info or rethrow based on policy
+    console.error('Unhandled error fetching profile data:', profileError);
+    // Fallback: return basic user info without profile/Stripe details
+     return {
+        id: user.id,
+        email: user.email, // Email from auth.user
+        // Ensure other fields expected by Profile type are present, even if null
+        stripe_customer_id: null,
+        stripe_subscription_id: null,
+        stripe_subscription_status: null,
+        stripe_price_id: null,
+        stripe_current_period_end: null,
+     };
   }
 
-  return profile;
+  // Combine email from auth.user with data from profiles table
+  return {
+    id: user.id,
+    email: user.email, // Key change: email now comes directly from the auth user object
+    ...profileData, // Spread the rest of the data from the 'profiles' table
+  };
 }
 export type Wasserzaehler = {
   id: string; // uuid

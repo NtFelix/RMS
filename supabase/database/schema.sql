@@ -1,31 +1,28 @@
--- Supabase Function to handle new user entries and create a profile
--- This function should be owned by the correct role (usually postgres or supabase_admin)
--- Ensure the search_path is set correctly if your 'profiles' table is not in 'public'.
+-- Supabase Function to handle new user entries and create a profile with only the ID.
+-- The email will be sourced from auth.users when needed.
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
 LANGUAGE plpgsql
-SECURITY DEFINER SET SEARCH_PATH = public -- Important for accessing auth.users data
+SECURITY DEFINER SET SEARCH_PATH = public
 AS $$
 BEGIN
-  -- Insert a new row into public.profiles
-  -- NEW.id comes from auth.users.id
-  -- NEW.raw_user_meta_data->>'email' gets the email from the user's metadata set during signup.
-  -- Adjust the fields (e.g., full_name, avatar_url) according to your 'profiles' table structure
-  -- and the metadata your authentication provider might send.
-  INSERT INTO public.profiles (id, email)
-  VALUES (NEW.id, NEW.raw_user_meta_data->>'email');
+  -- Log the incoming data
+  RAISE LOG '[handle_new_user] Triggered. NEW.id: %', NEW.id;
 
-  -- Example with more fields if your 'profiles' table has them and metadata provides them:
-  -- INSERT INTO public.profiles (id, email, full_name, avatar_url)
-  -- VALUES (
-  --   NEW.id,
-  --   NEW.raw_user_meta_data->>'email',
-  --   NEW.raw_user_meta_data->>'full_name',  -- Assuming 'full_name' might be in metadata
-  --   NEW.raw_user_meta_data->>'avatar_url'  -- Assuming 'avatar_url' might be in metadata
-  -- );
+  -- Insert a new row into public.profiles, only with the user's ID.
+  -- The 'email' column should be removed from 'profiles' table.
+  INSERT INTO public.profiles (id)
+  VALUES (NEW.id);
 
+  RAISE LOG '[handle_new_user] Successfully inserted profile ID for user: %', NEW.id;
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    -- Log any error that occurs during the INSERT
+    RAISE LOG '[handle_new_user] Error inserting profile ID for user %: SQLSTATE: %, SQLERRM: %', NEW.id, SQLSTATE, SQLERRM;
+    -- Return NULL to indicate failure, which might help in debugging if the transaction doesn't roll back.
+    RETURN NULL;
 END;
 $$;
 
@@ -41,14 +38,13 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW
   EXECUTE FUNCTION public.handle_new_user();
 
--- Grant usage on the function to the supabase_auth_admin role (or relevant role)
--- This might be necessary if the trigger has issues with permissions,
--- though SECURITY DEFINER should generally handle it.
--- Check Supabase logs if new users don't get profiles created.
--- GRANT EXECUTE ON FUNCTION public.handle_new_user() TO supabase_auth_admin;
+-- Command to remove the 'email' column from 'public.profiles'
+-- Run this AFTER ensuring your application no longer relies on 'profiles.email'.
+-- The data-fetching logic will be updated to get email from auth.users.
+ALTER TABLE public.profiles
+DROP COLUMN IF EXISTS email;
 
 -- Reminder:
 -- 1. Run this SQL in your Supabase SQL Editor.
--- 2. Ensure your 'public.profiles' table has an 'id' (UUID, primary key) and 'email' (TEXT) column.
--- 3. The 'id' column in 'profiles' should be a foreign key to 'auth.users.id' for data integrity if desired,
---    though this trigger works by copying the ID.
+-- 2. Ensure your 'public.profiles' table has an 'id' (UUID, primary key) column.
+--    Other columns will be for Stripe data (e.g., stripe_customer_id, etc.).
