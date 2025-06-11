@@ -475,21 +475,32 @@ export async function getDashboardSummary() {
   };
 }
 
-export async function fetchUserProfile() {
+// Make sure Profile type is defined if you use it, or adjust return types
+// For example:
+type Profile = {
+  id: string;
+  email?: string; // Email will come from auth.user primarily
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_subscription_status?: string | null;
+  stripe_price_id?: string | null;
+  stripe_current_period_end?: string | null; // Consider Date type if you parse it
+};
+
+export async function fetchUserProfile(): Promise<Profile | null> {
   const supabase = createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    // This case should ideally be handled by route protection or redirects
-    console.log("No user logged in");
+    console.log("No user logged in for fetchUserProfile");
     return null;
   }
 
-  const { data: profile, error } = await supabase
-    .from('profiles') // Assuming your table is named 'profiles'
+  // Fetch profile data from 'profiles' table, excluding 'email'
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
     .select(`
       id,
-      email,
       stripe_customer_id,
       stripe_subscription_id,
       stripe_subscription_status,
@@ -499,12 +510,37 @@ export async function fetchUserProfile() {
     .eq('id', user.id)
     .single();
 
-  if (error) {
-    console.error('Error fetching user profile:', error);
-    return null;
+  const baseUserProfile: Profile = {
+    id: user.id,
+    email: user.email!, // Assert email is non-null from auth user, or handle if it can be null
+    stripe_customer_id: null,
+    stripe_subscription_id: null,
+    stripe_subscription_status: null,
+    stripe_price_id: null,
+    stripe_current_period_end: null,
+  };
+
+  if (profileError) {
+    console.error('Error fetching user profile data from profiles table:', profileError.message);
+    // If profile row doesn't exist (PGRST116) or other error, return base user info with null Stripe fields
+    // This ensures the function always returns a consistently shaped object or null.
+    if (profileError.code === 'PGRST116') {
+        console.log(`Profile not found in 'profiles' for user ${user.id}. Returning auth info only.`);
+    } else {
+        console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
+    }
+    return baseUserProfile;
   }
 
-  return profile;
+  // If profileData is successfully fetched (not null and no error)
+  // Combine email from auth.user with data from profiles table
+  // The explicit check `profileData ? profileData : {}` is more robust for TypeScript.
+  const finalProfile: Profile = {
+    ...baseUserProfile, // Start with base (id, email, nullified stripe fields)
+    ...(profileData ? profileData : {}), // Spread actual profile data if available
+  };
+
+  return finalProfile;
 }
 export type Wasserzaehler = {
   id: string; // uuid
