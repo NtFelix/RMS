@@ -533,8 +533,8 @@ export async function fetchUserProfile() {
   // Combine email from auth.user with data from profiles table
   return {
     id: user.id,
-    email: user.email, // Key change: email now comes directly from the auth user object
-    ...profileData, // Spread the rest of the data from the 'profiles' table
+    email: user.email,
+    ...(profileData || {}), // If profileData is null/undefined, spread an empty object instead
   };
 }
 export type Wasserzaehler = {
