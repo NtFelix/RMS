@@ -2,10 +2,21 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, FileText, Home } from "lucide-react"
+import { Menu, X, FileText, Home, User as UserIcon, LogIn, LogOut } from "lucide-react"
 import { Button } from '../../../components/ui/button'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { User } from "@supabase/supabase-js";
+import { createClient } from "@/utils/supabase/client";
+import AuthModal from "@/components/auth-modal";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 const navItems = [
   { name: "Home", href: "#hero", icon: Home },
@@ -20,6 +31,10 @@ export default function Navigation() {
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
 
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalInitialTab, setAuthModalInitialTab] = useState<"login" | "register">("login");
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50)
@@ -27,6 +42,23 @@ export default function Navigation() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  useEffect(() => {
+    const supabase = createClient();
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    fetchUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleNavClick = (href: string) => {
     if (href.startsWith("#") && pathname === "/") {
@@ -37,6 +69,40 @@ export default function Navigation() {
     }
     setIsOpen(false)
   }
+
+  const handleAuthenticated = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+    setIsAuthModalOpen(false);
+  };
+
+  const handleOpenLoginModal = () => {
+    setAuthModalInitialTab("login");
+    setIsAuthModalOpen(true);
+  };
+
+  const handleOpenRegisterModal = () => {
+    setAuthModalInitialTab("register");
+    setIsAuthModalOpen(true);
+  };
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error("Error logging out:", error.message);
+        // Optionally: toast({ title: "Logout Failed", description: error.message, variant: "destructive" });
+      } else {
+        setCurrentUser(null);
+        // Optionally: toast({ title: "Logged Out", description: "You have been successfully logged out." });
+      }
+    } catch (error: any) {
+      console.error("Error logging out (catch):", error.message);
+      // Optionally: toast({ title: "Logout Failed", description: "An unexpected error occurred.", variant: "destructive" });
+    }
+  };
 
   return (
     <motion.nav
@@ -94,13 +160,39 @@ export default function Navigation() {
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-slate-400 group-hover:w-full transition-all duration-300" />
             </Link>
 
-            <Button 
-              size="sm" 
-              className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold"
-              onClick={() => window.location.href = '/auth/login'}
-            >
-              Get Started
-            </Button>
+            {currentUser ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="relative cursor-pointer transition-opacity hover:opacity-80">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                      <AvatarFallback className="bg-slate-700">
+                        <UserIcon className="w-4 h-4 text-slate-300" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-slate-300">
+                  <DropdownMenuItem
+                    onSelect={handleLogout}
+                    className="text-red-400 hover:!bg-red-500/10 hover:!text-red-400 focus:!bg-red-500/10 focus:!text-red-400 cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-300 hover:text-white hover:bg-slate-700"
+                onClick={handleOpenLoginModal}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Login
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -157,17 +249,50 @@ export default function Navigation() {
                 Documentation
               </Link>
 
-              <Button 
-                size="sm" 
-                className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold w-full mt-4"
-                onClick={() => window.location.href = '/auth/login'}
-              >
-                Get Started
-              </Button>
+              {currentUser ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-slate-700"> {/* Added hover bg for full trigger area */}
+                      <Avatar className="w-8 h-8">
+                        <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                        <AvatarFallback className="bg-slate-700">
+                          <UserIcon className="w-4 h-4 text-slate-300" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-slate-300">Profile</span> {/* Removed hover:text-white from here, parent div handles hover state */}
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-700 text-slate-300 w-[calc(100vw-2rem)]"> {/* Adjusted width for mobile */}
+                    <DropdownMenuItem
+                      onSelect={handleLogout}
+                      className="text-red-400 hover:!bg-red-500/10 hover:!text-red-400 focus:!bg-red-500/10 focus:!text-red-400 cursor-pointer"
+                    >
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700 py-2 mt-4"
+                  onClick={handleOpenLoginModal}
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login
+                </Button>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthenticated={handleAuthenticated}
+        initialTab={authModalInitialTab}
+      />
     </motion.nav>
   )
 }
