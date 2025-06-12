@@ -70,9 +70,43 @@ export default function LandingPage() {
         }),
       });
 
+      if (response.status === 409) {
+        const errorData = await response.json();
+        toast({
+          title: 'Subscription Information',
+          description: errorData.message || 'You are already subscribed.',
+          variant: 'default',
+        });
+        // setIsProcessingCheckout(false) is handled by the finally block
+        return;
+      }
+
       if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Failed to create checkout session: ${errorBody}`);
+        let errorMessage = `HTTP error ${response.status}`;
+        try {
+          // Try to parse the response body as JSON for a more specific error
+          const errorBody = await response.json();
+          errorMessage = errorBody.error || errorBody.message || JSON.stringify(errorBody);
+        } catch (e) {
+          // If response is not JSON or parsing fails, try to get text
+          // Note: response.text() can only be consumed once. If .json() failed, .text() might also have issues
+          // or might return an empty string if the body was already read by .json().
+          // A more robust way might involve cloning the response if you need to try multiple parsing methods,
+          // but for this case, we assume .json() failing means we try .text() on the original response (if available).
+          // For simplicity, we'll assume if .json() fails, we might not get a useful .text() either,
+          // so we rely on the initial errorMessage or what .json() might have partially provided if it threw an error mid-parse.
+          // A safer approach if .text() is needed after a failed .json() is to read it first or clone.
+          // However, usually if it's an error, it's either JSON or plain text.
+          // Let's try to get text if json parsing failed.
+          try {
+            const textError = await response.text(); // This might fail if body already read by response.json()
+            errorMessage = textError.substring(0, 100); // Limit length
+          } catch (textE) {
+            // Fallback to statusText if text() also fails
+            errorMessage = response.statusText || `HTTP error ${response.status}`;
+          }
+        }
+        throw new Error(`Failed to create checkout session: ${errorMessage}`);
       }
 
       const { sessionId, url } = await response.json();
