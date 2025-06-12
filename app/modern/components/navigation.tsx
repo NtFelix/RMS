@@ -2,10 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, FileText, Home } from "lucide-react"
+import { Menu, X, FileText, Home, User as UserIcon, LogIn } from "lucide-react"
 import { Button } from '../../../components/ui/button'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { User } from "@supabase/supabase-js";
+import { createClient } from "@/utils/supabase/client";
+import AuthModal from "@/components/AuthModal";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
   { name: "Home", href: "#hero", icon: Home },
@@ -20,6 +24,10 @@ export default function Navigation() {
   const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
 
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalInitialTab, setAuthModalInitialTab] = useState<"login" | "register">("login");
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50)
@@ -27,6 +35,23 @@ export default function Navigation() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  useEffect(() => {
+    const supabase = createClient();
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    fetchUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setCurrentUser(session?.user ?? null);
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const handleNavClick = (href: string) => {
     if (href.startsWith("#") && pathname === "/") {
@@ -37,6 +62,23 @@ export default function Navigation() {
     }
     setIsOpen(false)
   }
+
+  const handleAuthenticated = async () => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    setCurrentUser(user);
+    setIsAuthModalOpen(false);
+  };
+
+  const handleOpenLoginModal = () => {
+    setAuthModalInitialTab("login");
+    setIsAuthModalOpen(true);
+  };
+
+  const handleOpenRegisterModal = () => {
+    setAuthModalInitialTab("register");
+    setIsAuthModalOpen(true);
+  };
 
   return (
     <motion.nav
@@ -94,13 +136,24 @@ export default function Navigation() {
               <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-slate-400 group-hover:w-full transition-all duration-300" />
             </Link>
 
-            <Button 
-              size="sm" 
-              className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold"
-              onClick={() => window.location.href = '/auth/login'}
-            >
-              Get Started
-            </Button>
+            {currentUser ? (
+              <Avatar onClick={handleOpenLoginModal} className="cursor-pointer w-8 h-8">
+                <AvatarImage src={currentUser.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-slate-700">
+                  <UserIcon className="w-4 h-4 text-slate-300" />
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-300 hover:text-white hover:bg-slate-700"
+                onClick={handleOpenLoginModal}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Login
+              </Button>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -157,17 +210,37 @@ export default function Navigation() {
                 Documentation
               </Link>
 
-              <Button 
-                size="sm" 
-                className="bg-white text-zinc-900 hover:bg-slate-100 font-semibold w-full mt-4"
-                onClick={() => window.location.href = '/auth/login'}
-              >
-                Get Started
-              </Button>
+              {currentUser ? (
+                <div className="mt-4 flex items-center space-x-3 cursor-pointer" onClick={handleOpenLoginModal}>
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={currentUser.user_metadata?.avatar_url} />
+                    <AvatarFallback className="bg-slate-700">
+                      <UserIcon className="w-4 h-4 text-slate-300" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-slate-300 hover:text-white">Profile</span>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-700 py-2 mt-4"
+                  onClick={handleOpenLoginModal}
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login
+                </Button>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthenticated={handleAuthenticated}
+        initialTab={authModalInitialTab}
+      />
     </motion.nav>
   )
 }
