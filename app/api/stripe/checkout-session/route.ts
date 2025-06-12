@@ -108,13 +108,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (error) {
     console.error('Error creating Stripe checkout session:', error);
-      success_url: `${req.headers.get('origin')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`, // Redirect to new success page
-      cancel_url: `${req.headers.get('origin')}/checkout/cancel`, // Redirect to new cancel page
-    });
-
-    return NextResponse.json({ sessionId: session.id, url: session.url });
-  } catch (error) {
-    console.error('Error creating Stripe checkout session:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
     return new NextResponse(JSON.stringify({ error: errorMessage }), {
         status: 500,
