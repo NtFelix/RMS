@@ -75,7 +75,7 @@ export default function LandingPage() {
         toast({
           title: 'Subscription Information',
           description: errorData.message || 'You are already subscribed.',
-          variant: 'info', // Or 'default'
+          variant: 'default',
         });
         // setIsProcessingCheckout(false) is handled by the finally block
         return;
