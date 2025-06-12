@@ -54,6 +54,11 @@ export default function AuthModal({
   const [registerLoading, setRegisterLoading] = useState(false);
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState<string | null>(null);
 
+  // Email confirmation modal state
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+
+
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
@@ -72,6 +77,8 @@ export default function AuthModal({
       setRegisterError(null);
       setRegisterLoading(false);
       setRegisterSuccessMessage(null);
+      setShowConfirmationModal(false);
+      setConfirmationMessage('');
     }
   }, [isOpen]);
 
@@ -127,24 +134,52 @@ export default function AuthModal({
         onAuthenticated();
         onClose(); // Close modal on success
       } else {
-        setRegisterSuccessMessage('Registration successful! Please check your email to confirm your account.');
-        // Don't call onAuthenticated here, wait for email confirmation if that's your flow.
-        // For this modal, we will call it to simulate immediate access.
-        onAuthenticated();
-        onClose();
+        // User signed up, but email confirmation is needed
+        setConfirmationMessage('Registration successful! Please check your email to confirm your account. Click OK to attempt login.');
+        setShowConfirmationModal(true);
+        // Do not call onAuthenticated() or onClose() here.
+        // The main modal will remain open, and the confirmation modal will show on top.
       }
     }
     setRegisterLoading(false);
   };
 
+  const handleConfirmAndLogin = async () => {
+    setLoginLoading(true);
+    setLoginError(null);
+    setLoginSuccessMessage(null);
+    setShowConfirmationModal(false);
+
+    // Populate login form fields with registered email for convenience,
+    // as these are used by signInWithPassword and also displayed if login fails.
+    setLoginEmail(registerEmail);
+    setLoginPassword(registerPassword);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: registerEmail, // Use email from registration
+      password: registerPassword, // Use password from registration
+    });
+
+    if (error) {
+      setLoginError(error.message);
+      setActiveTab('login'); // Switch to login tab to show the error
+    } else {
+      setLoginSuccessMessage('Account confirmed and you are now logged in! Redirecting...');
+      onAuthenticated();
+      onClose();
+    }
+    setLoginLoading(false);
+  };
+
   if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {activeTab === 'login' ? 'Login' : 'Create an Account'}
+    <>
+      <Dialog open={isOpen && !showConfirmationModal} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {activeTab === 'login' ? 'Login' : 'Create an Account'}
           </DialogTitle>
           <DialogDescription>
             {activeTab === 'login'
@@ -263,5 +298,26 @@ export default function AuthModal({
         </Tabs>
       </DialogContent>
     </Dialog>
+
+    {/* Email Confirmation Modal */}
+    <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Email Confirmation</DialogTitle>
+        </DialogHeader>
+        <div className="py-4">
+          <p>{confirmationMessage}</p>
+        </div>
+        <DialogFooter>
+          <Button
+            onClick={handleConfirmAndLogin}
+            disabled={loginLoading}
+          >
+            {loginLoading ? 'Logging in...' : 'OK'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }
