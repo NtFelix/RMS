@@ -8,7 +8,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
-import AuthModal from "@/components/AuthModal";
+import AuthModal from "@/components/auth-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const navItems = [
