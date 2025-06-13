@@ -93,14 +93,17 @@ describe('Middleware', () => {
     expect(res.headers.get('location')).toContain('/subscription-locked');
   });
 
-  it('should allow access if profile fetch fails for an authenticated user (current behavior)', async () => {
+  it('should redirect to /landing with error if profile fetch fails for an authenticated user', async () => {
     mockSupabaseAuthUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
     mockSupabaseSingle.mockResolvedValue({ data: null, error: new Error('Profile fetch failed') });
-    const req = mockRequest('/home');
+    const req = mockRequest('/home'); // A protected route
     const res = await middleware(req);
-    // Current middleware logs error but returns original response from updateSession
-    expect(res.status).toBe(200);
-    expect(console.error).toHaveBeenCalledWith('Error fetching profile:', expect.any(Error)); // Check if console.error was called
+
+    expect(console.error).toHaveBeenCalledWith('Error fetching profile:', expect.any(Error));
+    expect(res.status).toBe(307); // Redirect status
+    const redirectUrl = new URL(res.headers.get('location')!, 'http://localhost:3000');
+    expect(redirectUrl.pathname).toBe('/landing');
+    expect(redirectUrl.searchParams.get('error')).toBe('profile_fetch_failed');
   });
 
    beforeAll(() => {

@@ -13,6 +13,7 @@ import Pricing from '../modern/components/pricing';
 import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
+import { useSearchParams } from 'next/navigation'; // Added
 
 // Stripe Promise for client-side redirection
 const stripePromise = loadStripe(
@@ -23,10 +24,10 @@ const stripePromise = loadStripe(
 const MAIN_PLAN_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN || 'price_basic_monthly_placeholder';
 
 export default function LandingPage() {
-  // Removed useRouter as Stripe will handle redirection
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
+  const searchParams = useSearchParams(); // Added
 
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -148,6 +149,19 @@ export default function LandingPage() {
     }
   };
   
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'profile_fetch_failed') {
+      toast({
+        title: "Error",
+        description: "Could not retrieve your user details. Please try logging in again or contact support if the issue persists.",
+        variant: "destructive",
+      });
+      // Remove the error query parameter from the URL without adding to history
+      router.replace('/landing', { scroll: false });
+    }
+  }, [searchParams, router, toast]);
+
   const handleGetStarted = async () => {
     router.push('/home');
   };
