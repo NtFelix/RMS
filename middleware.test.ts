@@ -93,6 +93,25 @@ describe('Middleware', () => {
     expect(res.headers.get('location')).toContain('/subscription-locked');
   });
 
+  it('should allow access if authenticated user has "trialing" subscription status', async () => {
+    mockSupabaseAuthUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+    mockSupabaseSingle.mockResolvedValue({ data: { stripe_subscription_status: 'trialing' }, error: null });
+    const req = mockRequest('/home'); // A protected route
+    const res = await middleware(req);
+    expect(res.status).toBe(200); // Allowed access
+    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles');
+  });
+
+  it('should redirect to /subscription-locked if authenticated user has no profile record', async () => {
+    mockSupabaseAuthUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
+    mockSupabaseSingle.mockResolvedValue({ data: null, error: null }); // No profile data, no error
+    const req = mockRequest('/home'); // A protected route
+    const res = await middleware(req);
+    expect(res.status).toBe(307); // Redirect status
+    expect(res.headers.get('location')).toContain('/subscription-locked');
+    expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles'); // Profile was checked
+  });
+
   it('should redirect to /landing with error if profile fetch fails for an authenticated user', async () => {
     mockSupabaseAuthUser.mockResolvedValue({ data: { user: { id: 'user123' } }, error: null });
     mockSupabaseSingle.mockResolvedValue({ data: null, error: new Error('Profile fetch failed') });
