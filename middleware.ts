@@ -1,33 +1,21 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
+import { createServerClient } from "@supabase/ssr"
 
 export async function middleware(request: NextRequest) {
-  // Update the session
-  const response = await updateSession(request)
-
-  // Get the pathname from the URL
-  const pathname = request.nextUrl.pathname
-
-  // Check if the user is authenticated
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  // Create a Supabase client
-  const { createServerClient } = await import("@supabase/ssr")
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value
-      },
-      set() {}, // We don't need to set cookies in this middleware
-      remove() {}, // We don't need to remove cookies in this middleware
+  // Initialize response
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
     },
   })
 
-  // Get the user from the session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Update the session and get the user
+  const { response: updatedResponse, user: sessionUser } = await updateSession(request, response)
+  response = updatedResponse // Use the response from updateSession
+
+  // Get the pathname from the URL
+  const pathname = request.nextUrl.pathname
 
   // Public routes that don't require authentication
   const publicRoutes = [
@@ -47,7 +35,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // If the user is not authenticated and trying to access a protected route, redirect to login
-  if (!user && !publicRoutes.some(route => {
+  if (!sessionUser && !publicRoutes.some(route => {
     const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
     return regex.test(pathname);
   })) {
@@ -60,19 +48,39 @@ export async function middleware(request: NextRequest) {
   }
 
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
-  if (user && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
+  if (sessionUser && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
     return NextResponse.redirect(new URL('/home', request.url))
   }
 
   // Subscription check
-  if (user && !publicRoutes.some(route => {
+  // This requires a Supabase client, so we create one here if needed.
+  if (sessionUser && !publicRoutes.some(route => {
     const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
     return regex.test(pathname);
   }) && pathname !== '/subscription-locked') {
+    // Create a Supabase client only for this block if sessionUser exists
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value
+          },
+          set(name, value, options) {
+            response.cookies.set(name, value, options);
+          },
+          remove(name, options) {
+            response.cookies.set(name, '', options); // Or response.cookies.delete(name, options) if preferred
+          },
+        },
+      }
+    );
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_subscription_status')
-      .eq('id', user.id)
+      .eq('id', sessionUser.id)
       .single()
 
     if (profileError) {
