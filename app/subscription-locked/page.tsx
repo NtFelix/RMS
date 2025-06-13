@@ -1,30 +1,41 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
+import { Button } from '@/components/ui/button'; // Import the Button component
 
 const SubscriptionLockedPage = () => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 dark:bg-gray-900 backdrop-blur-md p-4">
-      <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl text-center max-w-md w-full">
+    // Using slate for a deep blue, primary could also be an option if defined as dark blue
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-900 dark:bg-slate-950 backdrop-blur-md p-4 text-slate-100">
+      {/* Using bg-card and text-card-foreground for the card itself */}
+      <div className="bg-card text-card-foreground p-8 rounded-lg shadow-xl text-center max-w-md w-full">
         <div className="mb-6">
-          <Lock size={96} className="mx-auto text-red-500 dark:text-red-400" />
+          {/* Icon color adjusted for dark theme visibility */}
+          <Lock size={96} className="mx-auto text-slate-400 dark:text-slate-500" />
         </div>
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+        {/* Text colors adjusted for dark theme */}
+        <h1 className="text-3xl font-bold mb-4"> {/* text-card-foreground is inherited */}
           Zugriff gesperrt
         </h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-8">
+        {/* Using text-muted-foreground for less emphasis */}
+        <p className="text-muted-foreground mb-8">
           Ihr aktuelles Abonnement erlaubt keinen Zugriff auf diese Seite. Bitte aktualisieren Sie Ihr Abonnement oder laden Sie Ihre Daten herunter.
         </p>
         <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out w-full sm:w-auto"
+          {/* Using the project's Button component with variants */}
+          <Button
+            variant="default" // bg-primary, text-primary-foreground
+            size="lg"
+            className="w-full sm:w-auto"
           >
             Abo auswählen
-          </button>
-          <button
-            className="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition duration-150 ease-in-out w-full sm:w-auto"
+          </Button>
+          <Button
+            variant="secondary" // bg-secondary, text-secondary-foreground
+            size="lg"
+            className="w-full sm:w-auto"
           >
             Daten herunterladen
-          </button>
+          </Button>
         </div>
       </div>
     </div>
