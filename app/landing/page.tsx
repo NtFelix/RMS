@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Hero from '../modern/components/hero';
 import Features from '../modern/components/features';
 import Services from '../modern/components/services';
@@ -23,6 +24,7 @@ const MAIN_PLAN_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN || 'pric
 
 export default function LandingPage() {
   // Removed useRouter as Stripe will handle redirection
+  const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
 
@@ -147,20 +149,7 @@ export default function LandingPage() {
   };
   
   const handleGetStarted = async () => {
-    if (isProcessingCheckout) return;
-    setSelectedPriceId(MAIN_PLAN_PRICE_ID); // Set the main plan
-
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      await proceedToCheckout(MAIN_PLAN_PRICE_ID);
-    } else {
-      toast({
-        title: 'Login Required',
-        description: 'Please log in via the navigation bar to get started.',
-        variant: 'default',
-      });
-    }
+    router.push('/home');
   };
 
   const handleSelectPlan = async (priceId: string) => {
