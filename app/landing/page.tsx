@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react'; // Added Suspense
+import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams will be used by the new component
 import Hero from '../modern/components/hero';
 import Features from '../modern/components/features';
 import Services from '../modern/components/services';
@@ -22,11 +22,35 @@ const stripePromise = loadStripe(
 // Use the new environment variable for the main available plan, with a fallback.
 const MAIN_PLAN_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN || 'price_basic_monthly_placeholder';
 
+// Internal Client Component for Handling Profile Fetch Error Toast
+function ProfileErrorToastHandler() {
+  // Hooks specific to this error handling logic
+  const searchParams = useSearchParams();
+  const router = useRouter(); // Gets its own instance of router
+  const { toast } = useToast(); // Gets its own instance of toast
+
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'profile_fetch_failed') {
+      toast({
+        title: "Error",
+        description: "Could not retrieve your user details. Please try logging in again or contact support if the issue persists.",
+        variant: "destructive",
+      });
+      // Remove the error query parameter from the URL without adding to history
+      router.replace('/landing', { scroll: false });
+    }
+  }, [searchParams, router, toast]);
+
+  return null; // This component does not render anything visible
+}
+
 export default function LandingPage() {
-  // Removed useRouter as Stripe will handle redirection
+  // router and toast are still needed here for other functionalities
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
+  // searchParams and the useEffect for profile_fetch_failed are moved to ProfileErrorToastHandler
 
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
@@ -72,32 +96,19 @@ export default function LandingPage() {
           description: errorData.message || 'You are already subscribed.',
           variant: 'default',
         });
-        // setIsProcessingCheckout(false) is handled by the finally block
         return;
       }
 
       if (!response.ok) {
         let errorMessage = `HTTP error ${response.status}`;
         try {
-          // Try to parse the response body as JSON for a more specific error
           const errorBody = await response.json();
           errorMessage = errorBody.error || errorBody.message || JSON.stringify(errorBody);
         } catch (e) {
-          // If response is not JSON or parsing fails, try to get text
-          // Note: response.text() can only be consumed once. If .json() failed, .text() might also have issues
-          // or might return an empty string if the body was already read by .json().
-          // A more robust way might involve cloning the response if you need to try multiple parsing methods,
-          // but for this case, we assume .json() failing means we try .text() on the original response (if available).
-          // For simplicity, we'll assume if .json() fails, we might not get a useful .text() either,
-          // so we rely on the initial errorMessage or what .json() might have partially provided if it threw an error mid-parse.
-          // A safer approach if .text() is needed after a failed .json() is to read it first or clone.
-          // However, usually if it's an error, it's either JSON or plain text.
-          // Let's try to get text if json parsing failed.
           try {
-            const textError = await response.text(); // This might fail if body already read by response.json()
-            errorMessage = textError.substring(0, 100); // Limit length
+            const textError = await response.text();
+            errorMessage = textError.substring(0, 100);
           } catch (textE) {
-            // Fallback to statusText if text() also fails
             errorMessage = response.statusText || `HTTP error ${response.status}`;
           }
         }
@@ -106,9 +117,9 @@ export default function LandingPage() {
 
       const { sessionId, url } = await response.json();
 
-      if (url) { // Preferred: Redirect handled by Stripe if URL is provided (e.g. for payment method collection)
+      if (url) {
         window.location.href = url;
-      } else if (sessionId) { // Fallback: Client-side redirect using Stripe.js
+      } else if (sessionId) {
         const stripe = await stripePromise;
         if (stripe) {
           const { error } = await stripe.redirectToCheckout({ sessionId });
@@ -131,9 +142,9 @@ export default function LandingPage() {
   };
 
   const handleAuthFlow = async (priceId: string) => {
-    setSelectedPriceId(priceId); // Keep track of selected plan
+    setSelectedPriceId(priceId);
 
-    if (isProcessingCheckout) return; // Prevent multiple submissions
+    if (isProcessingCheckout) return;
 
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -148,17 +159,21 @@ export default function LandingPage() {
     }
   };
   
+  // useEffect for profile_fetch_failed has been moved to ProfileErrorToastHandler
+
   const handleGetStarted = async () => {
     router.push('/home');
   };
 
   const handleSelectPlan = async (priceId: string) => {
-    // This is called from the Pricing component when a user clicks "Select Plan"
-    await handleAuthFlow(priceId); // This will set selectedPriceId and then check auth
+    await handleAuthFlow(priceId);
   };
 
   return (
     <>
+      <Suspense fallback={null}>
+        <ProfileErrorToastHandler />
+      </Suspense>
       <Navigation />
       <main className="min-h-screen bg-zinc-950 text-white overflow-x-hidden">
         <div id="hero">
