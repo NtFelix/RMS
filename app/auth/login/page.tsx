@@ -42,8 +42,8 @@ export default function LoginPage() {
       return
     }
 
-    router.push(redirect)
-    router.refresh()
+    window.location.assign(redirect)
+    // router.refresh() // Removed as per requirement
   }
 
   return (
