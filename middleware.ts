@@ -38,6 +38,7 @@ export async function middleware(request: NextRequest) {
     '/auth/.*', // Allow all auth routes
     '/_next/.*', // Allow Next.js internal routes
     '/favicon.ico', // Allow favicon
+    '/subscription-locked', // Allow subscription locked page
   ]
 
   // If we're already on the login page, don't redirect
@@ -61,6 +62,27 @@ export async function middleware(request: NextRequest) {
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
   if (user && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
     return NextResponse.redirect(new URL('/home', request.url))
+  }
+
+  // Subscription check
+  if (user && !publicRoutes.some(route => {
+    const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
+    return regex.test(pathname);
+  }) && pathname !== '/subscription-locked') {
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('stripe_subscription_status')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError) {
+      console.error('Error fetching profile:', profileError);
+      const url = new URL('/landing', request.url);
+      url.searchParams.set('error', 'profile_fetch_failed');
+      return NextResponse.redirect(url);
+    } else if (!profile || (profile.stripe_subscription_status !== 'active' && profile.stripe_subscription_status !== 'trialing')) {
+      return NextResponse.redirect(new URL('/subscription-locked', request.url));
+    }
   }
 
   return response
