@@ -43,7 +43,7 @@ export default function LoginPage() {
     }
 
     router.push(redirect)
-    router.refresh()
+    // router.refresh() // Removed as per requirement
   }
 
   return (
