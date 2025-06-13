@@ -80,7 +80,7 @@ export async function middleware(request: NextRequest) {
       const url = new URL('/landing', request.url);
       url.searchParams.set('error', 'profile_fetch_failed');
       return NextResponse.redirect(url);
-    } else if (profile && profile.stripe_subscription_status !== 'active') {
+    } else if (!profile || (profile.stripe_subscription_status !== 'active' && profile.stripe_subscription_status !== 'trialing')) {
       return NextResponse.redirect(new URL('/subscription-locked', request.url));
     }
   }
