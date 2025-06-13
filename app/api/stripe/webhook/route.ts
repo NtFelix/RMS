@@ -3,47 +3,48 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
-// Ensure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are in your .env.local
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+// Module-level constants that are safe to initialize here
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
-  console.log(`Updating profile for user ${userId} with data:`, dataToUpdate);
-  const { data, error } = await supabaseAdmin
-    .from('profiles')
-    .update(dataToUpdate)
-    .eq('id', userId);
-
-  if (error) {
-    console.error(`Supabase error updating profile for user ${userId}:`, error.message);
-    throw error;
-  }
-  console.log(`Profile update successful for user ${userId}.`);
-  return data;
-}
-
-async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: any) {
-  console.log(`Updating profile for customer ${customerId} with data:`, dataToUpdate);
-  const { data, error } = await supabaseAdmin
-    .from('profiles')
-    .update(dataToUpdate)
-    .eq('stripe_customer_id', customerId);
-
-  if (error) {
-    console.error(`Supabase error updating profile for customer ${customerId}:`, error.message);
-    throw error;
-  }
-  console.log(`Profile update successful for customer ${customerId}.`);
-  return data;
-}
-
+// Note: supabaseAdmin and stripe client initializations are moved into the POST handler.
 
 export async function POST(req: Request) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // Define helper functions within POST to access supabaseAdmin
+  async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
+    console.log(`Updating profile for user ${userId} with data:`, dataToUpdate);
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .update(dataToUpdate)
+      .eq('id', userId);
+
+    if (error) {
+      console.error(`Supabase error updating profile for user ${userId}:`, error.message);
+      throw error;
+    }
+    console.log(`Profile update successful for user ${userId}.`);
+    return data;
+  }
+
+  async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: any) {
+    console.log(`Updating profile for customer ${customerId} with data:`, dataToUpdate);
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .update(dataToUpdate)
+      .eq('stripe_customer_id', customerId);
+
+    if (error) {
+      console.error(`Supabase error updating profile for customer ${customerId}:`, error.message);
+      throw error;
+    }
+    console.log(`Profile update successful for customer ${customerId}.`);
+    return data;
+  }
+
   try {
     const body = await req.text();
     const signature = (await headers()).get('stripe-signature') as string;
