@@ -42,7 +42,7 @@ export default function LoginPage() {
       return
     }
 
-    router.push(redirect)
+    window.location.assign(redirect)
     // router.refresh() // Removed as per requirement
   }
 
