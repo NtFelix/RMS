@@ -48,11 +48,6 @@ const sidebarNavItems = [
     href: "/todos",
     icon: CheckSquare,
   },
-  {
-    title: "Subscription",
-    href: "/subscription",
-    icon: CreditCard,
-  },
 ]
 
 export function DashboardSidebar() {
