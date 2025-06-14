@@ -8,6 +8,14 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
+import { loadStripe } from '@stripe/stripe-js';
+import type { Profile } from '@/types/supabase'; // Import the Profile type
+
+// Make sure to call `loadStripe` outside of a component’s render to avoid
+// recreating the `Stripe` object on every render.
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
@@ -23,6 +31,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
 
+  // State for subscription tab
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoadingSub, setIsLoadingSub] = useState(false); // Renamed to avoid conflict with 'loading'
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+
+
   useEffect(() => {
     supabase.auth.getUser().then(res => {
       const user = res.data.user
@@ -34,6 +48,34 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     })
   }, [supabase])
+
+  useEffect(() => {
+    if (open && activeTab === 'subscription') {
+      const getProfile = async () => {
+        setIsFetchingStatus(true);
+        try {
+          const response = await fetch('/api/user/profile');
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Failed to fetch profile:", response.status, errorText);
+            throw new Error(`Failed to fetch profile: ${response.status} ${errorText}`);
+          }
+          const userProfile = await response.json();
+          if (!userProfile) {
+            throw new Error('User profile not found.');
+          }
+          setProfile(userProfile);
+        } catch (error) {
+          console.error("Failed to fetch profile:", error);
+          toast({ title: 'Fehler', description: `Abo-Details konnten nicht geladen werden. ${(error as Error).message}`, variant: 'destructive' });
+          setProfile({ id: '', email: '', stripe_subscription_status: 'error' } as Profile); // Default error state
+        } finally {
+          setIsFetchingStatus(false);
+        }
+      };
+      getProfile();
+    }
+  }, [open, activeTab, toast]);
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -55,6 +97,61 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setLoading(false)
     error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
   }
+
+  const handleSubscribeClick = async (priceId: string) => {
+    setIsLoadingSub(true);
+    try {
+      if (!profile || !profile.email || !profile.id) {
+        toast({ title: 'Fehler', description: 'Benutzerinformationen nicht verfügbar. Abonnement kann nicht fortgesetzt werden.', variant: 'destructive' });
+        setIsLoadingSub(false);
+        return;
+      }
+
+      const response = await fetch('/api/stripe/checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: priceId,
+          customerEmail: profile.email,
+          userId: profile.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`Checkout-Sitzung konnte nicht erstellt werden: ${errorBody}`);
+      }
+
+      const { sessionId, url } = await response.json();
+
+      if (url) {
+        window.location.href = url;
+      } else {
+        const stripe = await stripePromise;
+        if (stripe && sessionId) {
+          const { error } = await stripe.redirectToCheckout({ sessionId });
+          if (error) {
+            console.error('Stripe redirectToCheckout error:', error);
+            toast({ title: 'Fehler', description: error.message || 'Weiterleitung zu Stripe fehlgeschlagen.', variant: 'destructive' });
+          }
+        } else {
+          throw new Error('Stripe.js nicht geladen oder Sitzungs-ID fehlt.');
+        }
+      }
+    } catch (error) {
+      console.error('Subscription error:', error);
+      toast({ title: 'Abonnement-Fehler', description: (error as Error).message || 'Abonnement konnte nicht gestartet werden.', variant: 'destructive' });
+    } finally {
+      setIsLoadingSub(false);
+    }
+  };
+
+  const subscriptionStatus = profile?.stripe_subscription_status;
+  const currentPeriodEnd = profile?.stripe_current_period_end
+    ? new Date(profile.stripe_current_period_end).toLocaleDateString()
+    : null;
 
   const tabs: Tab[] = [
     {
@@ -142,10 +239,38 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       icon: CreditCard,
       content: (
         <div className="flex flex-col space-y-4">
-          <p className="text-sm">Verwalte dein Abo hier.</p>
-          <Button onClick={() => alert("Aboverwaltung kommt bald")}>
-            Abo verwalten
-          </Button>
+          {isFetchingStatus ? (
+            <p>Abo-Status wird geladen...</p>
+          ) : subscriptionStatus === 'error' || !profile ? (
+            <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
+          ) : (
+            <>
+              <p className="text-sm">Dein aktueller Abo-Status: <strong>{subscriptionStatus || 'Nicht abonniert'}</strong></p>
+              {subscriptionStatus === 'active' && currentPeriodEnd && (
+                <p className="text-sm">Dein Abonnement ist aktiv bis: <strong>{currentPeriodEnd}</strong></p>
+              )}
+              {subscriptionStatus === 'past_due' && (
+                <p className="text-sm text-orange-500">Dein Abonnement ist überfällig. Bitte aktualisiere deine Zahlungsmethode.</p>
+              )}
+              {subscriptionStatus === 'canceled' && (
+                <p className="text-sm">Dein Abonnement wurde gekündigt.</p>
+              )}
+
+              {(!subscriptionStatus || subscriptionStatus === 'inactive' || subscriptionStatus === 'canceled') && (
+                <Button onClick={() => handleSubscribeClick('price_basic_monthly_placeholder')} disabled={isLoadingSub || !profile?.id}>
+                  {isLoadingSub ? 'Wird bearbeitet...' : 'Jetzt abonnieren (Basis-Plan)'}
+                </Button>
+              )}
+
+              {subscriptionStatus === 'active' && (
+                <div>
+                  <p className="text-sm text-green-600 mb-2">Du bist derzeit abonniert. Vielen Dank!</p>
+                  {/* TODO: Add button to manage subscription (portal) */}
+                  {/* <Button>Manage Subscription</Button> */}
+                </div>
+              )}
+            </>
+          )}
         </div>
       ),
     },
