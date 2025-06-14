@@ -18,10 +18,16 @@ import { useModalStore } from "@/hooks/use-modal-store"; // Added
 // Client-side component for interactive UI elements
 export function WohnungenClient({ 
   initialWohnungen, 
-  houses 
+  houses,
+  apartmentCount,
+  apartmentLimit,
+  isActiveSubscription
 }: { 
   initialWohnungen: Apartment[]; 
   houses: { id: string; name: string }[]; 
+  apartmentCount: number;
+  apartmentLimit: number;
+  isActiveSubscription: boolean;
 }) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,6 +37,14 @@ export function WohnungenClient({
   // const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" });
   const reloadRef = useRef<(() => void) | null>(null);
   const [apartments, setApartments] = useState(initialWohnungen);
+
+  let buttonTooltipMessage = "";
+  if (!isActiveSubscription) {
+    buttonTooltipMessage = "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.";
+  } else if (apartmentCount >= apartmentLimit) {
+    buttonTooltipMessage = "Sie haben die maximale Anzahl an Wohnungen für Ihr aktuelles Abonnement erreicht.";
+  }
+  const isAddButtonDisabled = !isActiveSubscription || apartmentCount >= apartmentLimit;
   
   // Function to update the apartments list with a new or updated apartment
   const updateApartmentInList = useCallback((updatedApartment: Apartment) => {
@@ -131,11 +145,15 @@ export function WohnungenClient({
   return (
     <>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-        {/* Button now directly calls handleAddWohnung to open global modal */}
-        <Button onClick={handleAddWohnung} className="sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Wohnung hinzufügen
-        </Button>
+        <div> {/* Added a div to group button and potential message */}
+          <Button onClick={handleAddWohnung} className="sm:w-auto" disabled={isAddButtonDisabled}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Wohnung hinzufügen
+          </Button>
+          {isAddButtonDisabled && (
+            <p className="text-sm text-red-500 mt-1">{buttonTooltipMessage}</p>
+          )}
+        </div>
         {/* Local Dialog component for adding/editing is removed */}
       </div>
 
