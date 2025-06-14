@@ -67,7 +67,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           setProfile(userProfile);
         } catch (error) {
           console.error("Failed to fetch profile:", error);
-          toast({ title: 'Fehler', description: `Abo-Details konnten nicht geladen werden. ${(error as Error).message}`, variant: 'destructive' });
+          toast.error(`Abo-Details konnten nicht geladen werden: ${(error as Error).message}`);
           setProfile({ id: '', email: '', stripe_subscription_status: 'error' } as Profile); // Default error state
         } finally {
           setIsFetchingStatus(false);
