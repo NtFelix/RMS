@@ -1,16 +1,57 @@
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
+const APARTMENT_LIMIT = 5;
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error('API: User not authenticated:', userError);
+      return NextResponse.json({ error: "Benutzer nicht authentifiziert." }, { status: 401 });
+    }
+    const userId = user.id;
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('stripe_subscription_status')
+      .eq('id', userId)
+      .single();
+
+    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no rows found, which is a valid case
+      console.error('API: Error fetching profile:', profileError);
+      return NextResponse.json({ error: "Fehler beim Abrufen des Benutzerprofils." }, { status: 500 });
+    }
+
+    if (!profile || profile.stripe_subscription_status !== 'active') {
+      return NextResponse.json({ error: "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen." }, { status: 403 });
+    }
+
+    const { count, error: countError } = await supabase
+      .from('Wohnungen')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      console.error('API: Error counting apartments:', countError);
+      return NextResponse.json({ error: "Fehler beim Zählen der Wohnungen." }, { status: 500 });
+    }
+
+    // const APARTMENT_LIMIT = 5; // Already defined at the top of the file
+    if (count !== null && count >= APARTMENT_LIMIT) {
+      return NextResponse.json({ error: "Maximale Anzahl an Wohnungen für Ihr Abonnement erreicht." }, { status: 403 });
+    }
+
     const { name, groesse, miete, haus_id } = await request.json();
     if (!name || groesse == null || miete == null) {
       return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { status: 400 });
     }
     const { data, error } = await supabase
       .from('Wohnungen')
-      .insert({ name, groesse, miete, haus_id })
+      .insert({ name, groesse, miete, haus_id, user_id: userId }) // Add user_id here
       .select();
     if (error) {
       console.error("Supabase Insert Error (Wohnungen):", error);

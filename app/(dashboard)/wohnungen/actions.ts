@@ -1,7 +1,9 @@
 "use server";
 
+const APARTMENT_LIMIT = 5;
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+import { fetchUserProfile } from '@/lib/data-fetching';
 
 // Typdefinition für die Wohnungsdaten
 type WohnungFormData = {
@@ -17,12 +19,41 @@ type WohnungFormData = {
 export async function speichereWohnung(formData: WohnungFormData) {
   try {
     const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error('User not authenticated:', userError);
+      return { error: 'Benutzer nicht authentifiziert.' };
+    }
+    const userId = user.id;
+
+    const userProfile = await fetchUserProfile();
+
+    if (!userProfile || userProfile.stripe_subscription_status !== 'active') {
+      return { error: 'Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.' };
+    }
+
+    const { count, error: countError } = await supabase
+      .from('Wohnungen')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      console.error('Error counting apartments:', countError);
+      return { error: 'Fehler beim Zählen der Wohnungen.' };
+    }
+
+    // const APARTMENT_LIMIT = 5; // Already defined at the top of the file
+    if (count !== null && count >= APARTMENT_LIMIT) {
+      return { error: 'Maximale Anzahl an Wohnungen für Ihr Abonnement erreicht.' };
+    }
     
     const { error } = await supabase.from('Wohnungen').insert({
       name: formData.name,
       groesse: parseFloat(formData.groesse),
       miete: parseFloat(formData.miete),
-      haus_id: formData.haus_id || null
+      haus_id: formData.haus_id || null,
+      user_id: userId
     });
     
     if (error) {
