@@ -278,7 +278,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogOverlay />
       <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
           <DialogTitle className="sr-only">Einstellungen</DialogTitle>
         <div className="flex h-full overflow-hidden">
