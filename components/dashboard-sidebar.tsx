@@ -84,7 +84,7 @@ export function DashboardSidebar() {
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-[51] flex w-72 flex-col transition-transform md:sticky md:translate-x-0",
+          "fixed inset-y-0 left-0 z-[49] flex w-72 flex-col transition-transform md:sticky md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
