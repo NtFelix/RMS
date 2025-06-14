@@ -84,40 +84,42 @@ export function DashboardSidebar() {
       />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-72 flex-col border-r bg-background transition-transform md:sticky md:translate-x-0",
+          "fixed inset-y-0 left-0 z-[51] flex w-72 flex-col transition-transform md:sticky md:translate-x-0",
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="border-b px-6 py-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
-            <Building2 className="h-6 w-6" />
-            <span>Property Manager</span>
-          </Link>
-        </div>
-        <ScrollArea className="flex-1 py-4">
-          <nav className="grid gap-1 px-2">
-            {sidebarNavItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                  pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                )}
-              >
-                <item.icon className="h-4 w-4" />
-                {item.title}
-              </Link>
-            ))}
-          </nav>
-        </ScrollArea>
-        <div className="mt-auto border-t p-4">
-          <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
-            <UserSettings />
-            <div className="grid gap-0.5">
-              <p className="text-xs font-medium">{userEmail ?? "Property Manager"}</p>
-              <p className="text-xs text-muted-foreground">v2.0.0</p>
+        <div className="h-full w-full flex flex-col bg-background border-r border-border">
+          <div className="border-b px-6 py-4">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
+              <Building2 className="h-6 w-6" />
+              <span>Property Manager</span>
+            </Link>
+          </div>
+          <ScrollArea className="flex-1 py-4">
+            <nav className="grid gap-1 px-2">
+              {sidebarNavItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+                    pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.title}
+                </Link>
+              ))}
+            </nav>
+          </ScrollArea>
+          <div className="mt-auto border-t p-4">
+            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+              <UserSettings />
+              <div className="grid gap-0.5">
+                <p className="text-xs font-medium">{userEmail ?? "Property Manager"}</p>
+                <p className="text-xs text-muted-foreground">v2.0.0</p>
+              </div>
             </div>
           </div>
         </div>
