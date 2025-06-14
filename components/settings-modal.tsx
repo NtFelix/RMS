@@ -102,7 +102,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setIsLoadingSub(true);
     try {
       if (!profile || !profile.email || !profile.id) {
-        toast({ title: 'Fehler', description: 'Benutzerinformationen nicht verfügbar. Abonnement kann nicht fortgesetzt werden.', variant: 'destructive' });
+        toast.error('Benutzerinformationen nicht verfügbar. Abonnement kann nicht fortgesetzt werden.');
         setIsLoadingSub(false);
         return;
       }
@@ -134,7 +134,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           const { error } = await stripe.redirectToCheckout({ sessionId });
           if (error) {
             console.error('Stripe redirectToCheckout error:', error);
-            toast({ title: 'Fehler', description: error.message || 'Weiterleitung zu Stripe fehlgeschlagen.', variant: 'destructive' });
+            toast.error(error.message || 'Weiterleitung zu Stripe fehlgeschlagen.');
           }
         } else {
           throw new Error('Stripe.js nicht geladen oder Sitzungs-ID fehlt.');
@@ -142,7 +142,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     } catch (error) {
       console.error('Subscription error:', error);
-      toast({ title: 'Abonnement-Fehler', description: (error as Error).message || 'Abonnement konnte nicht gestartet werden.', variant: 'destructive' });
+      toast.error((error as Error).message || 'Abonnement konnte nicht gestartet werden.');
     } finally {
       setIsLoadingSub(false);
     }
