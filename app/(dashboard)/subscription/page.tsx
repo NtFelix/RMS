@@ -150,8 +150,8 @@ export default function SubscriptionPage() {
   // User has an active subscription
   if (profile.hasActiveSubscription && profile.activePlan) {
     const { activePlan } = profile;
-    // Ensure features is an array for mapping, even if it's a single string initially
-    const featuresList = Array.isArray(activePlan.features) ? activePlan.features : (activePlan.features || '').split(',').map(f => f.trim()).filter(f => f);
+    // activePlan.features is now guaranteed to be a string[] by the API and type definition.
+    const featuresList = activePlan.features || [];
 
 
     return (
