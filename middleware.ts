@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
     '/_next/.*', // Allow Next.js internal routes
     '/favicon.ico', // Allow favicon
     '/subscription-locked', // Allow subscription locked page
+    '/api/stripe/plans', // Public API route for fetching plans
   ]
 
   // If we're already on the login page, don't redirect
@@ -39,12 +40,18 @@ export async function middleware(request: NextRequest) {
     const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
     return regex.test(pathname);
   })) {
-    const url = new URL('/auth/login', request.url)
-    // Only set redirect if it's not an auth route and not an API route
-    if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
-      url.searchParams.set('redirect', pathname)
+    if (pathname.startsWith('/api/')) {
+      // For API routes, return a JSON response indicating not authenticated
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    } else {
+      // For non-API routes, redirect to login
+      const url = new URL('/auth/login', request.url);
+      // Only set redirect search param if it's not an auth route and not an _next route (already covered by non-API)
+      if (!pathname.startsWith('/_next/')) { // No need to check /api/ here
+        url.searchParams.set('redirect', pathname);
+      }
+      return NextResponse.redirect(url);
     }
-    return NextResponse.redirect(url)
   }
 
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
@@ -54,10 +61,14 @@ export async function middleware(request: NextRequest) {
 
   // Subscription check
   // This requires a Supabase client, so we create one here if needed.
-  if (sessionUser && !publicRoutes.some(route => {
-    const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
-    return regex.test(pathname);
-  }) && pathname !== '/subscription-locked') {
+  if (sessionUser &&
+      !publicRoutes.some(route => {
+        const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
+        return regex.test(pathname);
+      }) &&
+      pathname !== '/subscription-locked' &&
+      pathname !== '/api/stripe/checkout-session' // Exempt checkout session from subscription status check
+     ) {
     // Create a Supabase client only for this block if sessionUser exists
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,12 +95,22 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (profileError) {
-      console.error('Error fetching profile:', profileError);
-      const url = new URL('/landing', request.url);
-      url.searchParams.set('error', 'profile_fetch_failed');
-      return NextResponse.redirect(url);
+      console.error('Error fetching profile for subscription check:', profileError);
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Failed to fetch user profile for subscription status.', details: profileError.message }, { status: 500 });
+      } else {
+        const url = new URL('/landing', request.url); // Or a generic error page
+        url.searchParams.set('error', 'profile_fetch_failed');
+        return NextResponse.redirect(url);
+      }
     } else if (!profile || (profile.stripe_subscription_status !== 'active' && profile.stripe_subscription_status !== 'trialing')) {
-      return NextResponse.redirect(new URL('/subscription-locked', request.url));
+      if (pathname.startsWith('/api/')) {
+        // For API routes, return a JSON response indicating subscription issue
+        return NextResponse.json({ error: 'Subscription inactive or invalid. Please subscribe or manage your subscription.' }, { status: 403 });
+      } else {
+        // For non-API routes, redirect to subscription locked page
+        return NextResponse.redirect(new URL('/subscription-locked', request.url));
+      }
     }
   }
 
