@@ -9,61 +9,116 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card';
+import { useEffect, useState } from 'react'; // Import useEffect and useState
 
+// Updated Plan interface to match the API response structure
 interface Plan {
-  id: string;
+  id: string; // Stripe Price ID
   name: string;
-  price: string;
+  price: number; // unit_amount in cents
+  currency: string;
+  interval: string | null;
+  interval_count: number | null;
   features: string[];
-  priceId: string;
-  disabled?: boolean;
+  limit_wohnungen?: number; // From API, but not directly displayed in this basic card
+  priceId: string; // Stripe Price ID (same as id)
 }
 
-const mainPriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN;
+// Helper function to format price
+const formatPrice = (amount: number, currency: string, interval: string | null, intervalCount: number | null): string => {
+  const price = (amount / 100).toLocaleString('en-US', {
+    style: 'currency',
+    currency: currency,
+    minimumFractionDigits: 0, // Adjust as needed, e.g. 2 for $10.00
+  });
+  if (interval && intervalCount) {
+    const plural = intervalCount > 1 ? 's' : '';
+    if (intervalCount === 1) {
+        return `${price}/${interval}`;
+    }
+    return `${price} / ${intervalCount} ${interval}${plural}`;
+  }
+  return price; // For one-time payments or if interval info is missing
+};
 
-const plans: Plan[] = [
-  {
-    id: 'basic',
-    name: 'Standard Plan', // Renamed Basic to Standard or similar, or keep as Basic
-    price: '$19/mo', // Example price, can be dynamic or env var too
-    features: ['Access to core features', 'Up to 10 projects', 'Basic support'],
-    priceId: mainPriceId || 'price_basic_monthly_placeholder', // Use env var with fallback
-  },
-  {
-    id: 'pro',
-    name: 'Pro (Coming Soon)',
-    price: '$49/mo',
-    features: ['All Standard features', 'Unlimited projects', 'Priority support'],
-    priceId: 'not_available_yet_pro',
-    disabled: true,
-  },
-  {
-    id: 'premium',
-    name: 'Premium (Coming Soon)',
-    price: '$99/mo',
-    features: ['All Pro features', 'Dedicated account manager', 'Custom integrations'],
-    priceId: 'not_available_yet_premium',
-    disabled: true,
-  },
-];
 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
+  isLoading?: boolean; // Renamed from isSubmitting for clarity, passed from parent
 }
 
-export default function Pricing({ onSelectPlan }: PricingProps) {
+export default function Pricing({ onSelectPlan, isLoading: isSubmitting }: PricingProps) {
+  const [plansData, setPlansData] = useState<Plan[]>([]);
+  const [isLoadingPlans, setIsLoadingPlans] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      setIsLoadingPlans(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/stripe/plans');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `Failed to fetch plans: ${response.status}`);
+        }
+        const data: Plan[] = await response.json();
+        setPlansData(data);
+      } catch (err) {
+        console.error(err);
+        setError((err as Error).message || 'An unexpected error occurred');
+      } finally {
+        setIsLoadingPlans(false);
+      }
+    };
+
+    fetchPlans();
+  }, []);
+
+  if (isLoadingPlans) {
+    return (
+      <section className="py-12">
+        <div className="container mx-auto px-4 text-center">
+          <p>Loading plans...</p>
+          {/* Optional: Add a spinner here */}
+        </div>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="py-12">
+        <div className="container mx-auto px-4 text-center text-red-500">
+          <p>Error loading plans: {error}</p>
+        </div>
+      </section>
+    );
+  }
+
+  if (plansData.length === 0) {
+    return (
+      <section className="py-12">
+        <div className="container mx-auto px-4 text-center">
+          <p>No subscription plans are currently available. Please check back later.</p>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-12">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-8">
+        {/* Title can be kept or removed if parent page provides it */}
+        {/* <h2 className="text-3xl font-bold text-center mb-8">
           Choose Your Plan
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {plans.map((plan) => (
+        </h2> */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {plansData.map((plan) => (
             <Card key={plan.id} className="flex flex-col">
               <CardHeader>
                 <CardTitle>{plan.name}</CardTitle>
-                <CardDescription>{plan.price}</CardDescription>
+                <CardDescription>{formatPrice(plan.price, plan.currency, plan.interval, plan.interval_count)}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow">
                 <ul className="space-y-2">
@@ -92,9 +147,9 @@ export default function Pricing({ onSelectPlan }: PricingProps) {
                 <Button
                   onClick={() => onSelectPlan(plan.priceId)}
                   className="w-full"
-                  disabled={plan.disabled || !plan.priceId.startsWith('price_')}
+                  disabled={isSubmitting} // Disable button if parent is submitting
                 >
-                  {plan.disabled ? 'Coming Soon' : 'Select Plan'}
+                  {isSubmitting ? 'Processing...' : 'Select Plan'}
                 </Button>
               </CardFooter>
             </Card>

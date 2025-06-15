@@ -5,18 +5,34 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
-import type { Profile } from '@/types/supabase'; // Import the Profile type
+import type { Profile as SupabaseProfile } from '@/types/supabase'; // Renamed to avoid conflict
+import { Pricing } from '@/app/modern/components/pricing'; // Import Pricing component
+
+// Define the richer profile type
+interface UserSubscriptionProfile extends SupabaseProfile {
+  email: string;
+  hasActiveSubscription: boolean;
+  activePlan?: { // Renamed from 'plan' to 'activePlan' to match API response
+    priceId: string; // priceId from Stripe Price object
+    name: string;
+    price: number; // unit_amount from Stripe Price object
+    currency: string;
+    features: string; // Assuming features is a single string, adjust if it's an array
+    limitWohnungen?: string; // Or number, adjust as per your actual data
+  };
+  // stripe_current_period_end is already in SupabaseProfile
+  // stripe_subscription_status is already in SupabaseProfile
+}
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
-// recreating the `Stripe` object on every render.
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
 export default function SubscriptionPage() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  const [profile, setProfile] = useState<UserSubscriptionProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(false); // For checkout redirection
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
   const { toast } = useToast();
 
   useEffect(() => {
@@ -31,15 +47,27 @@ export default function SubscriptionPage() {
           console.error("Failed to fetch profile:", response.status, errorText);
           throw new Error(`Failed to fetch profile: ${response.status} ${errorText}`);
         }
-        const userProfile = await response.json();
-        if (!userProfile) { // Handle case where API returns empty but OK
-            throw new Error('User profile not found.');
+        const userProfile: UserSubscriptionProfile = await response.json();
+        if (!userProfile) {
+            throw new Error('User profile not found or is empty.');
+        }
+        // Ensure features are parsed as an array if they come as a comma-separated string
+        if (userProfile.activePlan && typeof userProfile.activePlan.features === 'string') {
+          userProfile.activePlan.features = userProfile.activePlan.features.split(',').map(f => f.trim());
         }
         setProfile(userProfile);
       } catch (error) {
         console.error("Failed to fetch profile:", error);
         toast({ title: 'Error', description: `Could not load your subscription details. ${(error as Error).message}`, variant: 'destructive' });
-        setProfile({ id: '', email: '', stripe_subscription_status: 'error' } as Profile); // Default error state
+        // Set a minimal profile for error display, ensuring email is not lost if previously available
+        // This part might need adjustment based on how you want to handle partial errors
+        setProfile(prevProfile => ({
+          ...(prevProfile || {}), // Keep existing profile info if any
+          id: prevProfile?.id || '', // Ensure id is always a string
+          email: prevProfile?.email || '', // Ensure email is always a string
+          hasActiveSubscription: false,
+          stripe_subscription_status: 'error',
+        } as UserSubscriptionProfile));
       } finally {
         setIsFetchingStatus(false);
       }
@@ -97,56 +125,109 @@ export default function SubscriptionPage() {
     }
   };
 
-  const subscriptionStatus = profile?.stripe_subscription_status;
   const currentPeriodEnd = profile?.stripe_current_period_end
     ? new Date(profile.stripe_current_period_end).toLocaleDateString()
     : null;
 
   if (isFetchingStatus) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4 text-center">
         <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
-        <p className="mb-4">Loading subscription status...</p>
+        <p className="mb-4">Loading your subscription details...</p>
+        {/* You could add a spinner here */}
       </div>
     );
   }
 
-  if (subscriptionStatus === 'error' || !profile) {
+  if (profile?.stripe_subscription_status === 'error' || !profile?.id) {
+    return (
+      <div className="container mx-auto p-4 text-center">
+        <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
+        <p className="mb-4 text-red-500">Could not load your subscription details. Please refresh the page or try again later.</p>
+      </div>
+    );
+  }
+
+  // User has an active subscription
+  if (profile.hasActiveSubscription && profile.activePlan) {
+    const { activePlan } = profile;
+    // Ensure features is an array for mapping, even if it's a single string initially
+    const featuresList = Array.isArray(activePlan.features) ? activePlan.features : (activePlan.features || '').split(',').map(f => f.trim()).filter(f => f);
+
+
     return (
       <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
-        <p className="mb-4 text-red-500">Could not load your subscription details. Please ensure you are logged in and try again.</p>
+        <h1 className="text-2xl font-bold mb-6 text-center">Subscription Management</h1>
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-3">Your Current Plan</h2>
+          <p className="mb-2">
+            You are currently subscribed to the <strong>{activePlan.name}</strong> plan.
+          </p>
+          {activePlan.price && activePlan.currency && (
+             <p className="mb-2">Price: <strong>{(activePlan.price / 100).toFixed(2)} {activePlan.currency.toUpperCase()}</strong> / month</p>
+          )}
+          {currentPeriodEnd && (
+            <p className="mb-2">
+              Your subscription is active until: <strong>{currentPeriodEnd}</strong>
+            </p>
+          )}
+           {profile.stripe_subscription_status && (
+            <p className="mb-2">Status: <span className={`font-semibold ${profile.stripe_subscription_status === 'active' ? 'text-green-600' : 'text-orange-500'}`}>{profile.stripe_subscription_status}</span></p>
+          )}
+
+          {featuresList.length > 0 && (
+            <div className="mt-4">
+              <h3 className="font-semibold">Plan Features:</h3>
+              <ul className="list-disc list-inside pl-4">
+                {featuresList.map((feature, index) => (
+                  <li key={index}>{feature}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {activePlan.limitWohnungen && (
+            <p className="mt-2">
+              Wohnungen Limit: <strong>{activePlan.limitWohnungen}</strong>
+            </p>
+          )}
+        </div>
+        {/* TODO: Add button to manage subscription (portal) */}
+        {/* <Button disabled>Manage Subscription (Coming Soon)</Button> */}
       </div>
     );
   }
 
+  // User does not have an active subscription or it's in a state where they can choose a new one
+  // (e.g., 'canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired')
+  const showPricing = !profile.hasActiveSubscription ||
+                      ['canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired', null, undefined].includes(profile.stripe_subscription_status);
+
+  if (showPricing) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-6 text-center">Choose Your Plan</h1>
+        {profile.stripe_subscription_status && profile.stripe_subscription_status !== 'canceled' && (
+            <p className="mb-4 text-center text-orange-500">
+                Your current subscription status is: <strong>{profile.stripe_subscription_status}</strong>. You can choose a new plan below.
+            </p>
+        )}
+        {profile.stripe_subscription_status === 'canceled' && (
+             <p className="mb-4 text-center">Your previous subscription was canceled. You can subscribe to a new plan below.</p>
+        )}
+        {!profile.stripe_subscription_status && (
+            <p className="mb-4 text-center">You are not currently subscribed. Choose a plan to get started!</p>
+        )}
+        <Pricing onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
+      </div>
+    );
+  }
+
+  // Fallback for any other states, though ideally covered above
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
-      <p className="mb-2">Your current subscription status: <strong>{subscriptionStatus || 'Not subscribed'}</strong></p>
-      {subscriptionStatus === 'active' && currentPeriodEnd && (
-        <p className="mb-4">Your subscription is active until: <strong>{currentPeriodEnd}</strong></p>
-      )}
-      {subscriptionStatus === 'past_due' && (
-        <p className="mb-4 text-orange-500">Your subscription is past due. Please update your payment method.</p>
-      )}
-      {subscriptionStatus === 'canceled' && (
-        <p className="mb-4">Your subscription has been canceled.</p>
-      )}
-
-      {(!subscriptionStatus || subscriptionStatus === 'inactive' || subscriptionStatus === 'canceled') && (
-        <Button onClick={() => handleSubscribeClick('price_basic_monthly_placeholder')} disabled={isLoading || !profile?.id}>
-          {isLoading ? 'Processing...' : 'Subscribe Now (Basic Plan)'}
-        </Button>
-      )}
-
-      {subscriptionStatus === 'active' && (
-        <div>
-          <p className="text-green-600 mb-4">You are currently subscribed. Thank you!</p>
-          {/* TODO: Add button to manage subscription (portal) */}
-          {/* <Button>Manage Subscription</Button> */}
-        </div>
-      )}
+    <div className="container mx-auto p-4 text-center">
+        <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
+        <p>Your subscription status: <strong>{profile.stripe_subscription_status || 'Unknown'}</strong>.</p>
+        <p>If you believe this is an error, please contact support.</p>
     </div>
   );
 }
