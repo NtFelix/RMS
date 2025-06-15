@@ -3,6 +3,7 @@
 import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
+import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 
 // Define the expected return type for clarity, similar to UserProfileWithSubscription
 // This helps ensure consistency with what the client-side components expect.
@@ -42,23 +43,8 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
       return { error: 'Profile not found', details: profileError?.message };
     }
 
-    let currentWohnungenCount = 0;
-    try {
-      const { count, error: countError } = await supabase
-        .from('Wohnungen')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      if (countError) {
-        console.error('Wohnungen count error in getUserProfileForSettings:', countError);
-        // Default to 0, but log the error
-      } else {
-        currentWohnungenCount = count || 0;
-      }
-    } catch (error) {
-      console.error('Exception fetching Wohnungen count in getUserProfileForSettings:', error);
-      // Default to 0 in case of other errors
-    }
+    // Use the new utility function to get the count of Wohnungen
+    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
 
     let planDetails = null;
     if (profile.stripe_price_id &&
