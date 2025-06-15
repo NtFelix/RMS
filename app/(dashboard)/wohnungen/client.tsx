@@ -134,13 +134,30 @@ export function WohnungenClient({
 
   // Function to trigger adding a new apartment using the global modal
   const handleAddWohnung = useCallback(() => {
-    useModalStore.getState().openWohnungModal(undefined, houses, handleSuccess);
-  }, [houses, handleSuccess]);
+    useModalStore.getState().openWohnungModal(
+      undefined, // initialData for new apartment
+      houses,
+      handleSuccess,
+      apartmentCount,      // Pass the prop
+      apartmentLimit,      // Pass the prop
+      isActiveSubscription // Pass the prop
+    );
+  }, [houses, handleSuccess, apartmentCount, apartmentLimit, isActiveSubscription]);
 
   // Function to handle editing an apartment
   const handleEdit = useCallback((apt: Apartment) => {
-    useModalStore.getState().openWohnungModal(apt, houses, handleSuccess);
-  }, [houses, handleSuccess]);
+    // For editing, limit props might not be directly relevant for the modal's primary function,
+    // but passing them for consistency if the modal ever needs them.
+    // Or, they could be omitted if strictly not used by the edit flow inside the modal.
+    useModalStore.getState().openWohnungModal(
+      apt,
+      houses,
+      handleSuccess,
+      apartmentCount,
+      apartmentLimit,
+      isActiveSubscription
+    );
+  }, [houses, handleSuccess, apartmentCount, apartmentLimit, isActiveSubscription]);
 
   return (
     <>

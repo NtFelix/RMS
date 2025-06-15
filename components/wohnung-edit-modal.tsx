@@ -57,6 +57,10 @@ interface WohnungEditModalProps {
     payload: WohnungServerActionPayload
   ) => Promise<{ success: boolean; error?: any; data?: any }>;
   onSuccess?: (data: any) => void;
+  // Add these new lines for apartment limits and subscription
+  apartmentCount?: number;
+  apartmentLimit?: number;
+  isActiveSubscription?: boolean;
 }
 
 export function WohnungEditModal(props: WohnungEditModalProps) {
@@ -67,6 +71,10 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     initialHaeuser = [],
     serverAction,
     onSuccess,
+    // Destructure new props
+    apartmentCount,
+    apartmentLimit,
+    isActiveSubscription,
   } = props;
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -81,6 +89,24 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
+
+  const isAddNewMode = !initialData;
+  let limitMessage = "";
+  let isSaveDisabledByLimitsOrSubscription = false;
+
+  if (isAddNewMode) {
+    if (isActiveSubscription === false) { // Explicitly check for false, as undefined means not passed
+      isSaveDisabledByLimitsOrSubscription = true;
+      limitMessage = "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.";
+    } else if (
+      typeof apartmentCount === 'number' &&
+      typeof apartmentLimit === 'number' &&
+      apartmentCount >= apartmentLimit
+    ) {
+      isSaveDisabledByLimitsOrSubscription = true;
+      limitMessage = "Sie haben die maximale Anzahl an Wohnungen für Ihr Abonnement erreicht.";
+    }
+  }
 
   useEffect(() => {
     // Reset form data when initialData or open state changes
@@ -270,11 +296,17 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               // The ID "haus_id" is for the Label's htmlFor.
             />
           </div>
+          {isAddNewMode && isSaveDisabledByLimitsOrSubscription && limitMessage && (
+            <p className="text-sm text-red-500 mb-2 text-center">{limitMessage}</p>
+          )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={isSubmitting || isLoadingHaeuser}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || isLoadingHaeuser || (isAddNewMode && isSaveDisabledByLimitsOrSubscription)}
+            >
               {isSubmitting ? (initialData ? "Wird aktualisiert..." : "Wird erstellt...") : (initialData ? "Änderungen speichern" : "Wohnung erstellen")}
             </Button>
           </DialogFooter>
