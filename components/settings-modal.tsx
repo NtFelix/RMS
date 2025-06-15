@@ -16,10 +16,12 @@ import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Impor
 interface UserProfileWithSubscription extends SupabaseProfile {
   currentWohnungenCount?: number;
   activePlan?: {
-    name?: string;
-    description?: string;
-    price?: string;
-    limitWohnungen?: number | null; // Ensure this matches API and Stripe logic
+    priceId: string; // Added
+    name: string; // Kept, ensure it's string not string? if always present
+    price: number | null; // Changed from string
+    currency: string; // Added
+    features: string[]; // Added
+    limitWohnungen: number | null; // Confirmed
     // Add other plan details if needed
   } | null;
 }

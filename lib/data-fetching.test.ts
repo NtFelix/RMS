@@ -1,5 +1,5 @@
 // lib/data-fetching.test.ts
-import { fetchNebenkostenList } from './data-fetching'; // Changed to fetchNebenkostenList
+import { fetchNebenkostenList, getCurrentWohnungenCount } from './data-fetching'; // Changed to fetchNebenkostenList
 import { createSupabaseServerClient } from './supabase-server';
 
 jest.mock('./supabase-server', () => ({
@@ -113,5 +113,71 @@ describe('fetchNebenkosten', () => {
     expect(result).toEqual([]);
     expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching Nebenkosten list:', expect.any(Error)); // Adjusted error message
     consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('getCurrentWohnungenCount', () => {
+  const mockSupabaseClient = {
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn(),
+  };
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    (createSupabaseServerClient as jest.Mock).mockReturnValue(mockSupabaseClient);
+    mockSupabaseClient.from.mockClear();
+    mockSupabaseClient.select.mockClear();
+    mockSupabaseClient.eq.mockClear();
+    // Spy on console.error before each test and restore it after each test
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should return the count of Wohnungen on successful retrieval', async () => {
+    const userId = 'test-user-id';
+    const mockCount = 5;
+    mockSupabaseClient.eq.mockResolvedValueOnce({ data: [], count: mockCount, error: null });
+
+    const result = await getCurrentWohnungenCount(mockSupabaseClient as any, userId);
+
+    expect(result).toBe(mockCount);
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith('Wohnungen');
+    expect(mockSupabaseClient.select).toHaveBeenCalledWith('*', { count: 'exact', head: true });
+    expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', userId);
+  });
+
+  it('should return 0 and log error if Supabase call fails', async () => {
+    const userId = 'test-user-id';
+    const dbError = new Error('Supabase DB Error');
+    mockSupabaseClient.eq.mockResolvedValueOnce({ data: null, count: null, error: dbError });
+
+    const result = await getCurrentWohnungenCount(mockSupabaseClient as any, userId);
+
+    expect(result).toBe(0);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching Wohnungen count:', dbError);
+  });
+
+  it('should return 0 and log error if no userId is provided', async () => {
+    const result = await getCurrentWohnungenCount(mockSupabaseClient as any, '');
+
+    expect(result).toBe(0);
+    expect(consoleErrorSpy).toHaveBeenCalledWith('getCurrentWohnungenCount: userId is required');
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled(); // Ensure DB is not called
+  });
+
+  it('should return 0 if Supabase returns null for count (no records found)', async () => {
+    const userId = 'test-user-id';
+    mockSupabaseClient.eq.mockResolvedValueOnce({ data: [], count: null, error: null });
+
+    const result = await getCurrentWohnungenCount(mockSupabaseClient as any, userId);
+
+    expect(result).toBe(0);
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith('Wohnungen');
+    expect(mockSupabaseClient.select).toHaveBeenCalledWith('*', { count: 'exact', head: true });
+    expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', userId);
   });
 });
