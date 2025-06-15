@@ -30,12 +30,18 @@ export async function getPlanDetails(priceId: string) {
       }
     }
 
+    let featuresArray: string[] = [];
+    const featuresString = price.metadata.features || product.metadata.features;
+    if (featuresString && typeof featuresString === 'string') {
+      featuresArray = featuresString.split(',').map(f => f.trim()).filter(f => f); // filter empty strings
+    }
+
     const planDetails = {
       priceId: price.id,
       name: price.nickname || product.name,
       price: price.unit_amount,
       currency: price.currency,
-      features: price.metadata.features || product.metadata.features || '', // Fallback to product metadata
+      features: featuresArray, // Now a string[]
       limitWohnungen: limitWohnungenValue, // Now a number or null
     };
 
