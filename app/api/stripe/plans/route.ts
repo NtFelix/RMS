@@ -13,6 +13,7 @@ interface Plan {
   limit_wohnungen?: number;
   // priceId is the same as id, kept for consistency if frontend expects it explicitly
   priceId: string;
+  position?: number;
 }
 
 export async function GET() {
@@ -53,6 +54,15 @@ export async function GET() {
           limitWohnungen = undefined;
       }
 
+      let position: number | undefined = undefined;
+      if (price.metadata.position) {
+        position = parseInt(price.metadata.position, 10);
+      } else if (product.metadata.position) {
+        position = parseInt(product.metadata.position, 10);
+      }
+      if (isNaN(position!)) {
+        position = undefined;
+      }
 
       return {
         id: price.id,
@@ -64,7 +74,15 @@ export async function GET() {
         interval_count: price.recurring?.interval_count || null,
         features: featuresArray,
         limit_wohnungen: limitWohnungen,
+        position: position,
       };
+    });
+
+    plans.sort((a, b) => {
+      if (a.position === undefined && b.position === undefined) return 0;
+      if (a.position === undefined) return 1; // a comes after b
+      if (b.position === undefined) return -1; // b comes after a
+      return a.position - b.position;
     });
 
     return NextResponse.json(plans);

@@ -22,6 +22,7 @@ interface Plan {
   features: string[];
   limit_wohnungen?: number; // From API, but not directly displayed in this basic card
   priceId: string; // Stripe Price ID (same as id)
+  position?: number;
 }
 
 // Helper function to format price
