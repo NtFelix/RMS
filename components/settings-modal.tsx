@@ -69,7 +69,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         try {
           const userProfileData = await getUserProfileForSettings();
 
-          if (userProfileData.error) {
+          if ('error' in userProfileData && userProfileData.error) {
             console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
             toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
             // Set a minimal profile error state, ensuring it matches UserProfileWithSubscription
