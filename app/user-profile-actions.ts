@@ -10,12 +10,13 @@ export interface UserProfileForSettings extends SupabaseProfile {
   email?: string; // Email from auth.user
   profileEmail?: string; // Email from profiles table
   activePlan?: {
-    name?: string;
-    description?: string;
-    price?: string; // Formatted price string
-    limitWohnungen?: number | null;
-    // Add other relevant plan details
-  } | null;
+    priceId: string; // Added
+    name: string; // Kept, ensure it's string not string? if always present
+    price: number | null; // Changed from string
+    currency: string; // Added
+    features: string[]; // Added
+    limitWohnungen: number | null; // Confirmed
+  } | null | undefined; // Added undefined
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;
 }
