@@ -66,7 +66,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const getProfile = async () => {
         setIsFetchingStatus(true);
         try {
-          const response = await fetch('/api/user/profile');
+          const response = await fetch('/api/user/profile', { credentials: 'include' });
           if (!response.ok) {
             const errorText = await response.text();
             console.error("Failed to fetch profile:", response.status, errorText);
