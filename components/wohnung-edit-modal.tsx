@@ -57,10 +57,7 @@ interface WohnungEditModalProps {
     payload: WohnungServerActionPayload
   ) => Promise<{ success: boolean; error?: any; data?: any }>;
   onSuccess?: (data: any) => void;
-  // Add these new lines for apartment limits and subscription
-  apartmentCount?: number;
-  apartmentLimit?: number;
-  isActiveSubscription?: boolean;
+  // apartmentCount, apartmentLimit, isActiveSubscription are removed as per new instructions
 }
 
 export function WohnungEditModal(props: WohnungEditModalProps) {
@@ -71,10 +68,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     initialHaeuser = [],
     serverAction,
     onSuccess,
-    // Destructure new props
-    apartmentCount,
-    apartmentLimit,
-    isActiveSubscription,
+    // apartmentCount, apartmentLimit, isActiveSubscription are removed
   } = props;
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -88,25 +82,16 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   const [isLoadingHaeuser, setIsLoadingHaeuser] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // New state variables for context fetching
+  const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const [isSaveDisabledByLimitsOrSubscriptionState, setIsSaveDisabledByLimitsOrSubscriptionState] = useState(false);
+  const [contextualSaveMessage, setContextualSaveMessage] = useState("");
+
   const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
 
   const isAddNewMode = !initialData;
-  let limitMessage = "";
-  let isSaveDisabledByLimitsOrSubscription = false;
-
-  if (isAddNewMode) {
-    if (isActiveSubscription === false) { // Explicitly check for false, as undefined means not passed
-      isSaveDisabledByLimitsOrSubscription = true;
-      limitMessage = "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.";
-    } else if (
-      typeof apartmentCount === 'number' &&
-      typeof apartmentLimit === 'number' &&
-      apartmentCount >= apartmentLimit
-    ) {
-      isSaveDisabledByLimitsOrSubscription = true;
-      limitMessage = "Sie haben die maximale Anzahl an Wohnungen für Ihr Abonnement erreicht.";
-    }
-  }
+  // The logic for limitMessage and isSaveDisabledByLimitsOrSubscription using props is removed.
+  // It will now be handled by useEffect and new state variables.
 
   useEffect(() => {
     // Reset form data when initialData or open state changes
@@ -122,7 +107,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     if (open && (!initialHaeuser || initialHaeuser.length === 0)) {
       const fetchHaeuser = async () => {
         setIsLoadingHaeuser(true);
-        const supabase = createClient();
+        const supabase = createClient(); // Already imported
         const { data, error } = await supabase.from("Haeuser").select("id, name");
         if (error) {
           console.error("Error fetching Haeuser:", error);
@@ -141,6 +126,79 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       setInternalHaeuser(initialHaeuser);
     }
   }, [open, initialHaeuser]);
+
+  useEffect(() => {
+    // Only run if modal is open and it's for creating a new apartment
+    if (open && !initialData) {
+      const fetchContext = async () => {
+        setIsLoadingContext(true);
+        setIsSaveDisabledByLimitsOrSubscriptionState(false);
+        setContextualSaveMessage("");
+
+        const supabase = createClient(); // From @/utils/supabase/client
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          console.error("Modal: User not authenticated for context fetching.", userError);
+          setContextualSaveMessage("Benutzer nicht authentifiziert. Speichern nicht möglich.");
+          setIsSaveDisabledByLimitsOrSubscriptionState(true);
+          setIsLoadingContext(false);
+          return;
+        }
+
+        // Fetch apartment count
+        const { count, error: countError } = await supabase
+          .from('Wohnungen')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id);
+
+        if (countError) {
+          console.error("Modal: Error counting apartments.", countError);
+          setContextualSaveMessage("Fehler beim Laden der Wohnungsdaten.");
+          setIsSaveDisabledByLimitsOrSubscriptionState(true); // Or handle differently
+          setIsLoadingContext(false);
+          return;
+        }
+
+        // Fetch subscription status
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('stripe_subscription_status')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error("Modal: Error fetching profile.", profileError);
+          setContextualSaveMessage("Fehler beim Laden des Abonnementstatus.");
+          setIsSaveDisabledByLimitsOrSubscriptionState(true); // Or handle differently
+          setIsLoadingContext(false);
+          return;
+        }
+
+        const isActiveSubscriptionContext = profile?.stripe_subscription_status === 'active';
+        const APARTMENT_LIMIT = 5; // Define the limit, could be from config or env
+
+        if (!isActiveSubscriptionContext) {
+          setContextualSaveMessage("Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.");
+          setIsSaveDisabledByLimitsOrSubscriptionState(true);
+        } else if (count !== null && count >= APARTMENT_LIMIT) {
+          setContextualSaveMessage("Sie haben die maximale Anzahl an Wohnungen für Ihr Abonnement erreicht.");
+          setIsSaveDisabledByLimitsOrSubscriptionState(true);
+        } else {
+          setIsSaveDisabledByLimitsOrSubscriptionState(false);
+          setContextualSaveMessage("");
+        }
+        setIsLoadingContext(false);
+      };
+
+      fetchContext();
+    } else if (!open) {
+      // Reset when modal is closed
+      setIsLoadingContext(false);
+      setIsSaveDisabledByLimitsOrSubscriptionState(false);
+      setContextualSaveMessage("");
+    }
+  }, [open, initialData]); // Re-run if modal opens or initialData changes
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -296,8 +354,8 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               // The ID "haus_id" is for the Label's htmlFor.
             />
           </div>
-          {isAddNewMode && isSaveDisabledByLimitsOrSubscription && limitMessage && (
-            <p className="text-sm text-red-500 mb-2 text-center">{limitMessage}</p>
+          {isAddNewMode && contextualSaveMessage && (
+            <p className="text-sm text-red-500 mb-2 text-center">{contextualSaveMessage}</p>
           )}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
@@ -305,7 +363,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || isLoadingHaeuser || (isAddNewMode && isSaveDisabledByLimitsOrSubscription)}
+              disabled={isSubmitting || isLoadingHaeuser || (isAddNewMode && (isLoadingContext || isSaveDisabledByLimitsOrSubscriptionState))}
             >
               {isSubmitting ? (initialData ? "Wird aktualisiert..." : "Wird erstellt...") : (initialData ? "Änderungen speichern" : "Wohnung erstellen")}
             </Button>
