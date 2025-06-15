@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
 import { Profile } from '@/types/supabase'; // Import the Profile type
+import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 
 export async function GET() {
   const cookieStore = cookies();
@@ -28,24 +29,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Get the count of Wohnungen for the current user
-    let currentWohnungenCount = 0;
-    try {
-      const { count, error: wohnungenError } = await supabase
-        .from('Wohnungen')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      if (wohnungenError) {
-        console.error('Wohnungen count error:', wohnungenError);
-        // Default to 0 if there's an error
-      } else {
-        currentWohnungenCount = count || 0;
-      }
-    } catch (error) {
-      console.error('Error fetching Wohnungen count:', error);
-      // Default to 0 in case of any other error
-    }
+    // Use the new utility function to get the count of Wohnungen
+    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
 
 
     let planDetails = null;
