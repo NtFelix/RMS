@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils"
 import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
+import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -66,23 +67,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const getProfile = async () => {
         setIsFetchingStatus(true);
         try {
-          const response = await fetch('/api/user/profile', { credentials: 'include' });
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Failed to fetch profile:", response.status, errorText);
-            throw new Error(`Failed to fetch profile: ${response.status} ${errorText}`);
+          const userProfileData = await getUserProfileForSettings();
+
+          if (userProfileData.error) {
+            console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
+            toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
+            // Set a minimal profile error state, ensuring it matches UserProfileWithSubscription
+            // Attempt to preserve existing user email if available, otherwise default to empty string
+            const currentEmail = profile?.email || ''; // Get email from existing profile state or default
+            setProfile({
+              id: profile?.id || '', // Preserve ID if available
+              email: currentEmail, // Use existing email
+              stripe_subscription_status: 'error',
+              currentWohnungenCount: 0,
+              activePlan: null,
+              // Ensure all other required fields from SupabaseProfile are technically present or optional
+              // For example, if 'username' is required by SupabaseProfile, it should be here.
+              // However, UserProfileWithSubscription makes many fields from SupabaseProfile optional.
+              // Adjust based on strictness of UserProfileWithSubscription and SupabaseProfile.
+              // Assuming most SupabaseProfile fields are optional or handled by spreading `...profile` if profile exists
+            } as UserProfileWithSubscription);
+          } else {
+            // The server action returns data structured like UserProfileForSettings,
+            // which should be compatible with UserProfileWithSubscription.
+            setProfile(userProfileData as UserProfileWithSubscription);
           }
-          const userProfile = await response.json();
-          if (!userProfile) {
-            throw new Error('User profile not found.');
-          }
-          // Ensure the fetched data is cast to the new type
-          setProfile(userProfile as UserProfileWithSubscription);
-        } catch (error) {
-          console.error("Failed to fetch profile:", error);
-          toast.error(`Abo-Details konnten nicht geladen werden: ${(error as Error).message}`);
-          // Adjust default error state if necessary, ensuring it matches UserProfileWithSubscription
-          setProfile({ id: '', email: '', stripe_subscription_status: 'error', currentWohnungenCount: 0, activePlan: null } as UserProfileWithSubscription);
+        } catch (error) { // Catch unexpected errors from the server action call itself
+          console.error("Exception when calling getUserProfileForSettings:", error);
+          toast.error(`Ein unerwarteter Fehler ist aufgetreten: ${(error as Error).message}`);
+          const currentEmail = profile?.email || '';
+          setProfile({
+            id: profile?.id || '',
+            email: currentEmail,
+            stripe_subscription_status: 'error',
+            currentWohnungenCount: 0,
+            activePlan: null,
+          } as UserProfileWithSubscription); // Consistent error state
         } finally {
           setIsFetchingStatus(false);
         }
