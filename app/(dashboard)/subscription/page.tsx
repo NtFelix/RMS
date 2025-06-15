@@ -17,7 +17,7 @@ interface UserSubscriptionProfile extends SupabaseProfile {
     name: string;
     price: number; // unit_amount from Stripe Price object
     currency: string;
-    features: string; // Assuming features is a single string, adjust if it's an array
+    features: string[]; // Changed from string to string[]
     limitWohnungen?: string; // Or number, adjust as per your actual data
   };
   // stripe_current_period_end is already in SupabaseProfile
