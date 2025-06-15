@@ -28,7 +28,7 @@ export interface Wohnung {
 }
 
 export default async function WohnungenPage() {
-  const supabase = createClient(); // Server-side client
+  const supabase = await createClient(); // Server-side client
 
   // Get current user
   const { data: { user } } = await supabase.auth.getUser();
