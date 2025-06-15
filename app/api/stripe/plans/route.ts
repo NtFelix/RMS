@@ -22,7 +22,7 @@ export async function GET() {
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-04-10', // Use your desired API version
+    apiVersion: '2025-05-28.basil', // Use your desired API version
   });
 
   try {
@@ -70,10 +70,23 @@ export async function GET() {
     return NextResponse.json(plans);
 
   } catch (error) {
-    console.error('Stripe API Error:', error);
-    let errorMessage = 'An unknown error occurred.';
+    let errorMessage = 'An unknown error occurred while fetching plans.';
     if (error instanceof Stripe.errors.StripeError) {
-        errorMessage = error.message;
+      console.error('Stripe API Error Details:', {
+        type: error.type,
+        code: error.code,
+        statusCode: error.statusCode,
+        message: error.message,
+        param: error.param,
+        requestId: error.requestId,
+        raw: error.raw // Contains the full raw error
+      });
+      errorMessage = error.message; // Keep a user-friendly message for the client
+    } else if (error instanceof Error) {
+      console.error('Generic Error when fetching plans:', error.message, error.stack);
+      errorMessage = error.message;
+    } else {
+      console.error('Unknown error object when fetching plans:', error);
     }
     return NextResponse.json({ error: 'Failed to fetch plans from Stripe.', details: errorMessage }, { status: 500 });
   }
