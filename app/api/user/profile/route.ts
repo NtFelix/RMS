@@ -3,6 +3,7 @@ import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
 import { cookies } from 'next/headers';
 import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
 import { Profile } from '@/types/supabase'; // Import the Profile type
+import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 
 export async function GET() {
   const cookieStore = cookies();
@@ -27,6 +28,10 @@ export async function GET() {
       // You might want to return a default profile structure or a 404
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
+
+    // Use the new utility function to get the count of Wohnungen
+    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
+
 
     let planDetails = null;
     if (profile.stripe_price_id &&
@@ -54,6 +59,7 @@ export async function GET() {
       stripe_current_period_end: profile.stripe_current_period_end,
       activePlan: planDetails, // This will be null if no active plan or error fetching
       hasActiveSubscription: !!planDetails && (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing'),
+      currentWohnungenCount: currentWohnungenCount, // Add this line
     };
 
     return NextResponse.json(responseData);
