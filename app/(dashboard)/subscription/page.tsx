@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Renamed to avoid conflict
-import { Pricing } from '@/app/modern/components/pricing'; // Import Pricing component
+import Pricing from '@/app/modern/components/pricing'; // Import Pricing component as default
 
 // Define the richer profile type
 interface UserSubscriptionProfile extends SupabaseProfile {
