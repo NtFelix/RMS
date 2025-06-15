@@ -22,7 +22,7 @@ export async function GET() {
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2023-10-16', // Use your desired API version
+    apiVersion: '2025-05-28.basil', // Use your desired API version
   });
 
   try {
