@@ -9,7 +9,19 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
 import { loadStripe } from '@stripe/stripe-js';
-import type { Profile } from '@/types/supabase'; // Import the Profile type
+import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
+
+// Define a more specific type for the profile state in this component
+interface UserProfileWithSubscription extends SupabaseProfile {
+  currentWohnungenCount?: number;
+  activePlan?: {
+    name?: string;
+    description?: string;
+    price?: string;
+    limitWohnungen?: number | null; // Ensure this matches API and Stripe logic
+    // Add other plan details if needed
+  } | null;
+}
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
 // recreating the `Stripe` object on every render.
@@ -32,7 +44,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [loading, setLoading] = useState<boolean>(false)
 
   // State for subscription tab
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
   const [isLoadingSub, setIsLoadingSub] = useState(false); // Renamed to avoid conflict with 'loading'
   const [isFetchingStatus, setIsFetchingStatus] = useState(true);
 
@@ -64,11 +76,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           if (!userProfile) {
             throw new Error('User profile not found.');
           }
-          setProfile(userProfile);
+          // Ensure the fetched data is cast to the new type
+          setProfile(userProfile as UserProfileWithSubscription);
         } catch (error) {
           console.error("Failed to fetch profile:", error);
           toast.error(`Abo-Details konnten nicht geladen werden: ${(error as Error).message}`);
-          setProfile({ id: '', email: '', stripe_subscription_status: 'error' } as Profile); // Default error state
+          // Adjust default error state if necessary, ensuring it matches UserProfileWithSubscription
+          setProfile({ id: '', email: '', stripe_subscription_status: 'error', currentWohnungenCount: 0, activePlan: null } as UserProfileWithSubscription);
         } finally {
           setIsFetchingStatus(false);
         }
@@ -248,6 +262,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <p className="text-sm">Dein aktueller Abo-Status: <strong>{subscriptionStatus || 'Nicht abonniert'}</strong></p>
               {subscriptionStatus === 'active' && currentPeriodEnd && (
                 <p className="text-sm">Dein Abonnement ist aktiv bis: <strong>{currentPeriodEnd}</strong></p>
+              )}
+              {/* Display Wohnungen usage */}
+              {profile && typeof profile.currentWohnungenCount === 'number' && (
+                <p className="text-sm">
+                  Genutzte Wohnungen: {profile.currentWohnungenCount ?? 0} / {profile.activePlan?.limitWohnungen ?? 'Unbegrenzt'}
+                </p>
               )}
               {subscriptionStatus === 'past_due' && (
                 <p className="text-sm text-orange-500">Dein Abonnement ist überfällig. Bitte aktualisiere deine Zahlungsmethode.</p>
