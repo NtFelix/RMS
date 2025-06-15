@@ -28,6 +28,26 @@ export async function GET() {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
+    // Get the count of Wohnungen for the current user
+    let currentWohnungenCount = 0;
+    try {
+      const { count, error: wohnungenError } = await supabase
+        .from('Wohnungen')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      if (wohnungenError) {
+        console.error('Wohnungen count error:', wohnungenError);
+        // Default to 0 if there's an error
+      } else {
+        currentWohnungenCount = count || 0;
+      }
+    } catch (error) {
+      console.error('Error fetching Wohnungen count:', error);
+      // Default to 0 in case of any other error
+    }
+
+
     let planDetails = null;
     if (profile.stripe_price_id &&
         (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
@@ -54,6 +74,7 @@ export async function GET() {
       stripe_current_period_end: profile.stripe_current_period_end,
       activePlan: planDetails, // This will be null if no active plan or error fetching
       hasActiveSubscription: !!planDetails && (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing'),
+      currentWohnungenCount: currentWohnungenCount, // Add this line
     };
 
     return NextResponse.json(responseData);
