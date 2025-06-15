@@ -51,10 +51,9 @@ export default function SubscriptionPage() {
         if (!userProfile) {
             throw new Error('User profile not found or is empty.');
         }
-        // Ensure features are parsed as an array if they come as a comma-separated string
-        if (userProfile.activePlan && typeof userProfile.activePlan.features === 'string') {
-          userProfile.activePlan.features = userProfile.activePlan.features.split(',').map(f => f.trim());
-        }
+        // The 'features' field is now expected to be a string[] directly from the API response.
+        // The UserSubscriptionProfile interface defines activePlan.features as string[].
+        // The parsing from string to string[] is handled by lib/stripe-server.ts.
         setProfile(userProfile);
       } catch (error) {
         console.error("Failed to fetch profile:", error);
