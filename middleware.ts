@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
     '/_next/.*', // Allow Next.js internal routes
     '/favicon.ico', // Allow favicon
     '/subscription-locked', // Allow subscription locked page
+    '/api/stripe/plans', // Public API route for fetching plans
   ]
 
   // If we're already on the login page, don't redirect
