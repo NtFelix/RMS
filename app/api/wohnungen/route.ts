@@ -36,8 +36,13 @@ export async function POST(request: Request) {
           console.error(`API: Invalid limitWohnungen configuration: ${planDetails.limitWohnungen}`);
           return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { status: 500 });
         }
-      } catch (planError: any) {
-        console.error("API: Error fetching plan details for limit enforcement:", planError);
+      } catch (planError: unknown) {
+        if (planError instanceof Error) {
+          console.error("API: Error fetching plan details for limit enforcement:", planError.message);
+          console.error("Stack trace:", planError.stack);
+        } else {
+          console.error("API: Error fetching plan details for limit enforcement (unknown type):", planError);
+        }
         // It's important to inform the user if plan details fetching fails
         return NextResponse.json({ error: "Fehler beim Abrufen der Plandetails für Ihr Abonnement." }, { status: 500 });
       }
