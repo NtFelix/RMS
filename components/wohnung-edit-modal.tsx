@@ -57,7 +57,8 @@ interface WohnungEditModalProps {
     payload: WohnungServerActionPayload
   ) => Promise<{ success: boolean; error?: any; data?: any }>;
   onSuccess?: (data: any) => void;
-  // apartmentCount, apartmentLimit, isActiveSubscription are removed as per new instructions
+  currentApartmentLimitFromProps?: number | typeof Infinity; // For "add new" mode check
+  isActiveSubscriptionFromProps?: boolean; // For "add new" mode check
 }
 
 export function WohnungEditModal(props: WohnungEditModalProps) {
@@ -68,7 +69,8 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     initialHaeuser = [],
     serverAction,
     onSuccess,
-    // apartmentCount, apartmentLimit, isActiveSubscription are removed
+    currentApartmentLimitFromProps,
+    isActiveSubscriptionFromProps,
   } = props;
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -160,31 +162,25 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           return;
         }
 
-        // Fetch subscription status
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('stripe_subscription_status')
-          .eq('id', user.id)
-          .single();
+        // Removed direct fetching of profile for subscription status. Will use props.
 
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error("Modal: Error fetching profile.", profileError);
-          setContextualSaveMessage("Fehler beim Laden des Abonnementstatus.");
-          setIsSaveDisabledByLimitsOrSubscriptionState(true); // Or handle differently
+        // Use props for subscription status and limit
+        if (isActiveSubscriptionFromProps === undefined || currentApartmentLimitFromProps === undefined) {
+          console.error("Modal: Subscription status or apartment limit not provided for 'add new' mode.");
+          setContextualSaveMessage("Konfigurationsfehler: Abonnementdetails nicht verfügbar.");
+          setIsSaveDisabledByLimitsOrSubscriptionState(true);
           setIsLoadingContext(false);
           return;
         }
 
-        const isActiveSubscriptionContext = profile?.stripe_subscription_status === 'active';
-        const APARTMENT_LIMIT = 5; // Define the limit, could be from config or env
-
-        if (!isActiveSubscriptionContext) {
+        if (!isActiveSubscriptionFromProps) {
           setContextualSaveMessage("Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.");
           setIsSaveDisabledByLimitsOrSubscriptionState(true);
-        } else if (count !== null && count >= APARTMENT_LIMIT) {
-          setContextualSaveMessage("Sie haben die maximale Anzahl an Wohnungen für Ihr Abonnement erreicht.");
+        } else if (currentApartmentLimitFromProps !== Infinity && count !== null && count >= currentApartmentLimitFromProps) {
+          setContextualSaveMessage(`Sie haben die maximale Anzahl an Wohnungen (${currentApartmentLimitFromProps}) für Ihr Abonnement erreicht.`);
           setIsSaveDisabledByLimitsOrSubscriptionState(true);
         } else {
+          // All good, enable save
           setIsSaveDisabledByLimitsOrSubscriptionState(false);
           setContextualSaveMessage("");
         }
@@ -198,7 +194,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       setIsSaveDisabledByLimitsOrSubscriptionState(false);
       setContextualSaveMessage("");
     }
-  }, [open, initialData]); // Re-run if modal opens or initialData changes
+  }, [open, initialData, isActiveSubscriptionFromProps, currentApartmentLimitFromProps]); // Add new props to dependency array
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
