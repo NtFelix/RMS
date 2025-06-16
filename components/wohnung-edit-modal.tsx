@@ -59,6 +59,7 @@ interface WohnungEditModalProps {
   onSuccess?: (data: any) => void;
   currentApartmentLimitFromProps?: number | typeof Infinity; // For "add new" mode check
   isActiveSubscriptionFromProps?: boolean; // For "add new" mode check
+  currentApartmentCountFromProps?: number | undefined; // Added new prop
 }
 
 export function WohnungEditModal(props: WohnungEditModalProps) {
@@ -71,6 +72,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     onSuccess,
     currentApartmentLimitFromProps,
     isActiveSubscriptionFromProps,
+    currentApartmentCountFromProps, // Added
   } = props;
   const router = useRouter();
   const [formData, setFormData] = useState({
@@ -146,42 +148,38 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
         if (userError || !user) {
           determinedMessage = "Benutzer nicht authentifiziert. Speichern nicht möglich.";
           determinedDisabled = true;
+        } else if (currentApartmentCountFromProps === undefined) { // Check if prop is undefined
+          determinedMessage = "Fehler: Wohnungsanzahl nicht verfügbar.";
+          determinedDisabled = true;
         } else {
-          const { count, error: countError } = await supabase
-            .from('Wohnungen')
-            .select('*', { count: 'exact', head: true })
-            .eq('user_id', user.id);
+          const count = currentApartmentCountFromProps; // Use prop directly
 
-          if (countError) {
-            determinedMessage = "Fehler beim Laden der Wohnungsdaten."; // More generic, as this affects edit too
+          // Check subscription and limit based on props
+          if (isActiveSubscriptionFromProps === false) { // Explicitly check for false
+            determinedMessage = "Ein aktives Abonnement ist erforderlich.";
             determinedDisabled = true;
-          } else {
-            // Check subscription and limit based on props
-            if (isActiveSubscriptionFromProps === false) { // Explicitly check for false
-              determinedMessage = "Ein aktives Abonnement ist erforderlich.";
+          } else if (isActiveSubscriptionFromProps === undefined) { // Should not happen if props are passed correctly
+              determinedMessage = "Konfigurationsfehler: Abonnementstatus nicht verfügbar.";
               determinedDisabled = true;
-            } else if (isActiveSubscriptionFromProps === undefined) { // Should not happen if props are passed correctly
-                determinedMessage = "Konfigurationsfehler: Abonnementstatus nicht verfügbar.";
-                determinedDisabled = true;
-            } else if (currentApartmentLimitFromProps === undefined) {
-              determinedMessage = "Konfigurationsfehler: Abonnementdetails (Limit) nicht verfügbar.";
+          } else if (currentApartmentLimitFromProps === undefined) {
+            determinedMessage = "Konfigurationsfehler: Abonnementdetails (Limit) nicht verfügbar.";
+            determinedDisabled = true;
+          } else if (currentApartmentLimitFromProps !== Infinity && count !== null) {
+            const limit = currentApartmentLimitFromProps;
+            // Differentiate between add and edit mode for limit checks
+            if (!initialData && count >= limit) { // ADD mode: count >= limit
+              determinedMessage = `Sie haben die maximale Anzahl an Wohnungen (${limit}) für Ihr Abonnement erreicht.`;
               determinedDisabled = true;
-            } else if (currentApartmentLimitFromProps !== Infinity && count !== null) {
-              const limit = currentApartmentLimitFromProps;
-              // Differentiate between add and edit mode for limit checks
-              if (!initialData && count >= limit) { // ADD mode: count >= limit
-                determinedMessage = `Sie haben die maximale Anzahl an Wohnungen (${limit}) für Ihr Abonnement erreicht.`;
-                determinedDisabled = true;
-              } else if (initialData && count > limit) { // EDIT mode: count > limit (user is already over limit)
-                // This scenario implies the user somehow got more apartments than allowed,
-                // possibly due to a plan change or an admin action. Editing is blocked.
-                determinedMessage = `Bearbeitung nicht möglich. Sie haben bereits mehr Wohnungen (${count}) als Ihr Abonnement erlaubt (${limit}).`;
+            } else if (initialData && count > limit) { // EDIT mode: count > limit (user is already over limit)
+              // This scenario implies the user somehow got more apartments than allowed,
+              // possibly due to a plan change or an admin action. Editing is blocked.
+              determinedMessage = `Bearbeitung nicht möglich. Sie haben bereits mehr Wohnungen (${count}) als Ihr Abonnement erlaubt (${limit}).`;
                 determinedDisabled = true;
               }
               // If in EDIT mode and count <= limit, no message/disable based on this specific check.
             }
           }
-        }
+        // EXTRA BRACE REMOVED FROM HERE
         setContextualSaveMessage(determinedMessage);
         setIsSaveDisabledByLimitsOrSubscriptionState(determinedDisabled);
         setIsLoadingContext(false);
@@ -194,7 +192,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       setIsSaveDisabledByLimitsOrSubscriptionState(false);
       setIsLoadingContext(false);
     }
-  }, [open, initialData, isActiveSubscriptionFromProps, currentApartmentLimitFromProps]);
+  }, [open, initialData, isActiveSubscriptionFromProps, currentApartmentLimitFromProps, currentApartmentCountFromProps]); // Added currentApartmentCountFromProps to dependency array
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
