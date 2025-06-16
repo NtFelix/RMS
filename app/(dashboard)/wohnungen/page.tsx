@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from '@/utils/supabase/server'; // For getting user and counting
 import { fetchUserProfile } from '@/lib/data-fetching'; // For subscription status
+import { getPlanDetails } from '@/lib/stripe-server'; // Import for fetching plan details
 import { WohnungenClient } from './client';
 // Assuming fetchWohnungen and fetchHaeuser might be used or adapted later,
 // but current implementation fetches directly.
@@ -35,9 +36,44 @@ export default async function WohnungenPage() {
 
   let apartmentCount = 0;
   let isActiveSubscription = false;
-  const apartmentLimit = 5; // Current hardcoded limit
+  // const apartmentLimit = 5; // REMOVE: Current hardcoded limit
+  let effectiveApartmentLimit = 0; // Default to 0 if no active sub or plan details issue
 
   if (user) {
+    // Fetch user profile for subscription status
+    const userProfile = await fetchUserProfile(); // This function already uses server client
+
+    if (userProfile && userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
+      isActiveSubscription = true;
+      try {
+        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+        if (planDetails) {
+          if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+            effectiveApartmentLimit = planDetails.limitWohnungen;
+          } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+            effectiveApartmentLimit = Infinity; // Unlimited
+          } else {
+            // Invalid limitWohnungen configuration in plan, default to 0 as a safe measure
+            console.warn('Invalid limitWohnungen configuration in plan:', planDetails.limitWohnungen);
+            effectiveApartmentLimit = 0;
+          }
+        } else {
+          // Plan details could not be fetched (e.g., price_id not found on Stripe)
+          console.warn('Plan details not found for price ID:', userProfile.stripe_price_id);
+          effectiveApartmentLimit = 0;
+        }
+      } catch (error) {
+        console.error('Error fetching plan details:', error);
+        effectiveApartmentLimit = 0; // Error fetching plan, default to 0
+      }
+    } else if (userProfile && userProfile.stripe_subscription_status === 'active') {
+      // Active subscription but no price_id, treat as limited (or specific logic if needed)
+      isActiveSubscription = true;
+      console.warn('User has active subscription but no stripe_price_id.');
+      effectiveApartmentLimit = 0; // Or some other default if applicable
+    }
+    // If not active or no userProfile, isActiveSubscription remains false and effectiveApartmentLimit remains 0.
+
     // Fetch apartment count for the user
     const { count, error: countError } = await supabase
       .from('Wohnungen')
@@ -50,13 +86,8 @@ export default async function WohnungenPage() {
       apartmentCount = count || 0;
     }
 
-    // Fetch user profile for subscription status
-    const userProfile = await fetchUserProfile(); // This function already uses server client
-    if (userProfile && userProfile.stripe_subscription_status === 'active') {
-      isActiveSubscription = true;
-    }
-  } else {
     // Handle case where there is no user (e.g., redirect or show login message)
+    // isActiveSubscription and effectiveApartmentLimit will remain at their initial defaults (false, 0)
     // For now, props will reflect a non-subscribed, zero-apartment state if no user.
   }
 
@@ -131,7 +162,7 @@ export default async function WohnungenPage() {
             initialWohnungen={initialWohnungen}
             houses={houses}
             apartmentCount={apartmentCount}
-            apartmentLimit={apartmentLimit}
+            apartmentLimit={effectiveApartmentLimit}
             isActiveSubscription={isActiveSubscription}
           />
         </CardContent>
