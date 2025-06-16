@@ -29,7 +29,7 @@ interface ModalState {
   wohnungModalOnSuccess?: (data: any) => void;
   // Add these new lines for apartment limits and subscription
   wohnungApartmentCount?: number;
-  wohnungApartmentLimit?: number;
+  wohnungApartmentLimit?: number | typeof Infinity; // Corrected type
   wohnungIsActiveSubscription?: boolean;
   // Update openWohnungModal signature
   openWohnungModal: (
