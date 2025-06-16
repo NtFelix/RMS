@@ -95,22 +95,8 @@ export async function speichereWohnung(formData: WohnungFormData) {
         return { error: 'Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
-
-    const { count, error: countError } = await supabase
-      .from('Wohnungen') // Ensure this table name is correct
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
-    if (countError) {
-      console.error('Error counting apartments:', countError);
-      return { error: 'Fehler beim Zählen der Wohnungen.' };
-    }
-
-    if (currentApartmentLimit !== null && currentApartmentLimit !== Infinity) {
-      if (count !== null && count >= currentApartmentLimit) {
-        return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
-      }
-    }
+    // The count variable from the first block (around line 61) is in scope here and should be used.
+    // The duplicated block that was here has been removed.
 
     const { error } = await supabase.from('Wohnungen').insert({
       name: formData.name,
