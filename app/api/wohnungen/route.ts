@@ -69,7 +69,8 @@ export async function POST(request: Request) {
     if (currentApartmentLimit === null) {
         // This should ideally be caught by the "Ein aktives Abonnement..." error message.
         console.warn("API: Reached apartment count check with null limit but no active subscription error was returned earlier.");
-        return NextResponse.json({ error: "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen." }, { status: 403 });
+        return NextResponse.json({ error: "Fehler bei der Ermittlung des Wohnungslimits für Ihr Abonnement." }, { status: 500 });
+    }
     }
 
     if (currentApartmentLimit !== Infinity) { // Only check if not unlimited
