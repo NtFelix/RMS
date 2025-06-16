@@ -51,6 +51,9 @@ export default function DashboardRootLayout({
     wohnungModalOnSuccess,
     openWohnungModal,
     closeWohnungModal,
+    // Additions for Wohnung modal props
+    wohnungApartmentLimit,
+    wohnungIsActiveSubscription,
     // Aufgabe modal state and actions
     isAufgabeModalOpen,
     aufgabeInitialData,
@@ -124,6 +127,8 @@ export default function DashboardRootLayout({
           initialData={wohnungInitialData}
           initialHaeuser={wohnungModalHaeuser}
           serverAction={wohnungServerAction}
+          currentApartmentLimitFromProps={wohnungApartmentLimit} // Added prop
+          isActiveSubscriptionFromProps={wohnungIsActiveSubscription} // Added prop
           onSuccess={(data) => {
             // Call the success callback if it exists
             if (wohnungModalOnSuccess) {
