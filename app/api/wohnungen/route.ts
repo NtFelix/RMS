@@ -71,6 +71,16 @@ export async function POST(request: Request) {
         console.warn("API: Reached apartment count check with null limit but no active subscription error was returned earlier.");
         return NextResponse.json({ error: "Fehler bei der Ermittlung des Wohnungslimits für Ihr Abonnement." }, { status: 500 });
     }
+      return NextResponse.json({ error: "Fehler beim Zählen der Wohnungen." }, { status: 500 });
+    }
+
+    // Enforce the limit
+    // If currentApartmentLimit is null here, it means the active subscription check failed earlier,
+    // or stripe_price_id was missing, and that case should have already returned an error.
+    if (currentApartmentLimit === null) {
+        // This should ideally be caught by the "Ein aktives Abonnement..." error message.
+        console.warn("API: Reached apartment count check with null limit but no active subscription error was returned earlier.");
+        return NextResponse.json({ error: "Fehler bei der Ermittlung des Wohnungslimits für Ihr Abonnement." }, { status: 500 });
     }
 
     if (currentApartmentLimit !== Infinity) { // Only check if not unlimited
