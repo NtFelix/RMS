@@ -41,22 +41,27 @@ export async function speichereWohnung(formData: WohnungFormData) {
     if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-        if (planDetails && typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+
+        if (planDetails === null) {
+          return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bitte überprüfen Sie Ihr Abonnement oder kontaktieren Sie den Support.' };
+        }
+
+        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
           currentApartmentLimit = planDetails.limitWohnungen;
-        } else if (planDetails && (planDetails.limitWohnungen === null || planDetails.limitWohnungen <= 0)) {
-          // Plan explicitly allows unlimited or has 0/negative limit, treat as unlimited for this logic.
+        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+          // Plan explicitly allows unlimited or has 0/negative limit (e.g. -1 for unlimited legacy plans), treat as unlimited.
           currentApartmentLimit = Infinity; // Using Infinity to signify unlimited
+        } else {
+          // Invalid configuration for limitWohnungen (e.g., undefined, string, etc.)
+          console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
+          return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
         }
       } catch (planError) {
         console.error("Error fetching plan details for limit enforcement:", planError);
-        // Potentially return an error or proceed with a default conservative limit / no limit
-        // For now, if plan details fail, we won't enforce a dynamic limit.
-        // Consider if this should be a hard error: return { error: 'Fehler beim Abrufen der Plandetails.' };
+        return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };
       }
     } else {
-      // No active subscription or price ID, so no dynamic limit can be fetched.
-      // You might want to prevent creation entirely or fall back to a default for free users if applicable.
-      // For now, let's assume if no active sub, they can't add.
+      // No active subscription or price ID.
       return { error: 'Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
@@ -75,16 +80,41 @@ export async function speichereWohnung(formData: WohnungFormData) {
         return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
       }
     }
-    // If currentApartmentLimit is null (e.g. failed to fetch plan) or Infinity, limit check is bypassed.
-    // If it's null, it means the plan details weren't fetched properly or limit wasn't set.
-    // This might be a state where you DON'T want to allow creation, or fall back to a very basic limit.
-    // For this implementation, if currentApartmentLimit is null, it means we couldn't determine a limit,
-    // so we are currently bypassing. This might need stricter handling.
-    // A simple strict handling: if (currentApartmentLimit === null) return { error: "Could not determine apartment limit." }
+    // If currentApartmentLimit is still null here, it means the active subscription check failed earlier,
+    // or stripe_price_id was missing, and that case should already have returned an error.
+    // If it's Infinity, the limit check will be bypassed correctly.
+
+    // The check for currentApartmentLimit === null before counting is important.
+    // If it's null at this stage, it means the user doesn't have an active plan,
+    // and the error for that should have been returned.
+    // Adding an explicit check here for robustness, though theoretically covered by the earlier return.
+    if (currentApartmentLimit === null && !(userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id)) {
+        // This case should ideally be caught by the "Ein aktives Abonnement..." error message.
+        // If it reaches here with currentApartmentLimit = null, it implies a logic flaw or an untested edge case.
+        console.warn("Reached apartment count check with null limit but no active subscription error was returned.");
+        return { error: 'Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen.' };
+    }
+
+
+    const { count, error: countError } = await supabase
+      .from('Wohnungen') // Ensure this table name is correct
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (countError) {
+      console.error('Error counting apartments:', countError);
+      return { error: 'Fehler beim Zählen der Wohnungen.' };
+    }
+
+    if (currentApartmentLimit !== null && currentApartmentLimit !== Infinity) {
+      if (count !== null && count >= currentApartmentLimit) {
+        return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
+      }
+    }
 
     const { error } = await supabase.from('Wohnungen').insert({
       name: formData.name,
-      groesse: parseFloat(formData.groesse),
+      groesse: parseFloat(formData.groesse), // Ensure this is a number
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
       user_id: userId
@@ -109,6 +139,77 @@ export async function speichereWohnung(formData: WohnungFormData) {
 export async function aktualisiereWohnung(id: string, formData: WohnungFormData) {
   try {
     const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      console.error('User not authenticated for update:', userError);
+      return { error: 'Benutzer nicht authentifiziert.' };
+    }
+    const userId = user.id;
+
+    const userProfile = await fetchUserProfile(); // Fetches profile for the authenticated user
+    if (!userProfile) {
+      return { error: 'Benutzerprofil nicht gefunden.' };
+    }
+
+    let currentApartmentLimit: number | null | typeof Infinity = null;
+
+    if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
+      try {
+        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+        if (planDetails === null) {
+          return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bearbeitung nicht möglich.' };
+        }
+
+        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+          currentApartmentLimit = planDetails.limitWohnungen;
+        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+          currentApartmentLimit = Infinity;
+        } else {
+          console.error('Invalid limitWohnungen configuration for update:', planDetails.limitWohnungen);
+          return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bearbeitung nicht möglich.' };
+        }
+      } catch (planError) {
+        console.error("Error fetching plan details for update:", planError);
+        return { error: 'Fehler beim Abrufen der Plandetails. Bearbeitung nicht möglich.' };
+      }
+    } else {
+      return { error: 'Ein aktives Abonnement ist für die Bearbeitung erforderlich.' };
+    }
+
+    // This check is only relevant if the plan has a defined, finite limit.
+    // If currentApartmentLimit is Infinity, this check is skipped.
+    // If currentApartmentLimit is null here, it means the user doesn't have an active subscription,
+    // which should have been caught by the 'Ein aktives Abonnement...' error above.
+    if (currentApartmentLimit !== Infinity && currentApartmentLimit !== null) {
+      const { count, error: countError } = await supabase
+        .from('Wohnungen')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId);
+
+      if (countError) {
+        console.error('Error counting apartments for update:', countError);
+        return { error: 'Fehler beim Zählen der Wohnungen.' };
+      }
+
+      // Note: The problem description said "count > currentApartmentLimit".
+      // However, if a user has 5/5 apartments, they should still be able to EDIT one of those 5.
+      // They should only be blocked if they are trying to ADD a new one that would exceed the limit.
+      // For editing, the count check might be more relevant if an admin action somehow put them over limit,
+      // and we want to prevent further edits until resolved.
+      // Given the prompt "Sie haben die maximale Anzahl an Wohnungen (...) überschritten", this implies
+      // we should check if their *current* state is already over the limit, which is unusual for an edit action.
+      // Let's assume the intention is to prevent edits IF the user is ALREADY over their limit
+      // (e.g. due to a plan downgrade or admin action).
+      // If the user has N apartments and limit is L, they can edit if N <= L.
+      // If N > L, they cannot edit.
+      // The problem states: "If currentApartmentLimit !== Infinity && count !== null && count > currentApartmentLimit"
+      // This means if count is 5 and limit is 5, count > limit is false, so they can edit.
+      // If count is 6 and limit is 5, count > limit is true, so they are blocked. This matches the prompt.
+      if (count !== null && count > currentApartmentLimit) {
+         return { error: `Bearbeitung nicht möglich. Sie haben die maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement überschritten.` };
+      }
+    }
     
     const { error } = await supabase.from('Wohnungen')
       .update({
