@@ -179,7 +179,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               // If in EDIT mode and count <= limit, no message/disable based on this specific check.
             }
           }
-        }
+        // EXTRA BRACE REMOVED FROM HERE
         setContextualSaveMessage(determinedMessage);
         setIsSaveDisabledByLimitsOrSubscriptionState(determinedDisabled);
         setIsLoadingContext(false);
