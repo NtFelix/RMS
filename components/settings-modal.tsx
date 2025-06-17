@@ -62,10 +62,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // State for subscription tab
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
-  const [isLoadingSub, setIsLoadingSub] = useState(false); // Used for plan selection/checkout
+  // isLoadingSub removed as Pricing component is removed
   const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
-  // Removed plans and isLoadingPlans states, Pricing component handles its own fetching
-  const [isCancellingSubscription, setIsCancellingSubscription] = useState<boolean>(false);
+  // isCancellingSubscription removed
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
 
 
@@ -147,88 +146,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
   }
 
-  const handlePlanSelected = async (priceId: string) => {
-    setIsLoadingSub(true);
-    try {
-      if (!profile || !profile.email || !profile.id) {
-        toast.error('Benutzerinformationen nicht verfügbar. Vorgang kann nicht fortgesetzt werden.');
-        setIsLoadingSub(false);
-        return;
-      }
-
-      const response = await fetch('/api/stripe/checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId: priceId,
-          customerEmail: profile.email, // Ensure profile.email is correctly populated
-          userId: profile.id, // Ensure profile.id is correctly populated
-          stripeCustomerId: profile.stripe_customer_id // Pass existing customer ID if available
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.json(); // Assuming error response is JSON
-        throw new Error(errorBody.error || `Checkout-Sitzung konnte nicht erstellt werden: ${response.statusText}`);
-      }
-
-      const { sessionId, url } = await response.json();
-
-      if (url) { // If a URL is provided (e.g., for first-time subscriptions or specific Stripe setups)
-        window.location.href = url;
-      } else if (sessionId) { // Standard path: redirect to Stripe Checkout
-        const stripe = await stripePromise;
-        if (stripe) {
-          const { error } = await stripe.redirectToCheckout({ sessionId });
-          if (error) {
-            console.error('Stripe redirectToCheckout error:', error);
-            toast.error(error.message || 'Weiterleitung zu Stripe fehlgeschlagen.');
-          }
-        } else {
-          throw new Error('Stripe.js nicht geladen.');
-        }
-      } else {
-        throw new Error('Sitzungs-ID oder URL nicht von API erhalten.');
-      }
-    } catch (error) {
-      console.error('Plan selection error:', error);
-      toast.error((error as Error).message || 'Vorgang konnte nicht gestartet werden.');
-    } finally {
-      setIsLoadingSub(false);
-    }
-  };
-
-  // Original handleSubscribeClick can be removed or aliased to handlePlanSelected if its specific logic is no longer needed.
-
-  const handleCancelSubscription = async () => {
-    if (!profile || !profile.stripe_subscription_id) {
-      toast.error("Abonnement-ID nicht gefunden. Kündigung nicht möglich.");
-      return;
-    }
-    setIsCancellingSubscription(true);
-    try {
-      const response = await fetch('/api/stripe/cancel-subscription', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeSubscriptionId: profile.stripe_subscription_id }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Abo-Kündigung fehlgeschlagen.");
-      }
-
-      toast.success("Dein Abonnement wurde erfolgreich gekündigt.");
-      await refreshUserProfile(); // Refresh profile to show updated status
-    } catch (error) {
-      console.error("Cancel subscription error:", error);
-      toast.error((error as Error).message || "Abo-Kündigung fehlgeschlagen.");
-    } finally {
-      setIsCancellingSubscription(false);
-    }
-  };
+  // handlePlanSelected removed as Pricing component is removed
+  // handleCancelSubscription removed
 
   const handleManageSubscription = async () => {
     if (!profile || !profile.stripe_customer_id) {
@@ -359,61 +278,62 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
           ) : (
             <>
-              <div className="mb-4">
-                { profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
-                  <p className="text-sm text-orange-500">
-                    Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
-                  </p>
-                ) : subscriptionStatus === 'active' && currentPeriodEnd ? (
-                  <p className="text-sm">Dein Abonnement ist aktiv bis: <strong>{currentPeriodEnd}</strong></p>
-                ) : subscriptionStatus ? (
-                  <p className="text-sm">Dein aktueller Abo-Status: <strong>{subscriptionStatus}</strong></p>
+              {/* Simplified Subscription Info Display */}
+              <div className="space-y-2 mb-4">
+                {profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
+                  <>
+                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan?.name || 'Unbekannt'}</strong></p>
+                    <p className="text-sm text-orange-500">
+                      Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
+                    </p>
+                  </>
+                ) : profile.stripe_subscription_status === 'active' && profile.activePlan ? (
+                  <>
+                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan.name}</strong></p>
+                    {currentPeriodEnd && (
+                      <p className="text-sm">Nächste Verlängerung am: <strong>{currentPeriodEnd}</strong></p>
+                    )}
+                    <p className="text-sm text-green-600">Dein Abonnement ist aktiv.</p>
+                  </>
                 ) : (
-                  <p className="text-sm">Du hast derzeit kein aktives Abonnement.</p>
+                  <p className="text-sm">
+                    Dein aktueller Abo-Status: <strong>{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</strong>.
+                  </p>
                 )}
 
-                {/* Additional status messages */}
-                {subscriptionStatus === 'past_due' && (
-                  <p className="text-sm text-orange-500">Dein Abonnement ist überfällig. Bitte aktualisiere deine Zahlungsmethode.</p>
+                {/* Message for truly non-active states */}
+                { (!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
+                  ! (profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
+                  <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
                 )}
-                {/* Explicitly 'canceled' status (not just pending cancellation) */}
-                {subscriptionStatus === 'canceled' && (profile.stripe_cancel_at_period_end === false || typeof profile.stripe_cancel_at_period_end === 'undefined') && (
-                  <p className="text-sm">Dein Abonnement wurde gekündigt.</p>
-                )}
-                 {profile && typeof profile.currentWohnungenCount === 'number' && (
-                  <p className="text-sm">
-                    Genutzte Wohnungen: {profile.currentWohnungenCount ?? 0} / {profile.activePlan?.limitWohnungen ?? (profile.activePlan ? profile.activePlan.limitWohnungen : 'N/A')}
+
+                {/* Display Wohnungen usage - keep if still relevant */}
+                {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
+                  <p className="text-sm mt-2">
+                    Genutzte Wohnungen: {profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}
                   </p>
                 )}
               </div>
 
-              {/* Pricing component will handle its own loading and plan display */}
-              <Pricing
-                onSelectPlan={handlePlanSelected}
-                currentPlanId={profile?.activePlan?.priceId} // Pass current plan ID
-                isLoading={isLoadingSub} // Pass the loading state for checkout process
-              />
-              {subscriptionStatus === 'active' && (
-                <div className="mt-6 pt-4 border-t border-gray-200 space-y-3">
-                  <h3 className="text-md font-semibold text-gray-800">Abonnement verwalten</h3>
+              {/* REMOVED: Pricing component for plan overview */}
+
+              {/* Manage Subscription Button - visible if user has a stripe_customer_id */}
+              {profile.stripe_customer_id && (
+                <div className="mt-6 pt-4 border-t">
+                  <p className="text-sm mb-2 text-gray-600">
+                    Du kannst dein Abonnement, deine Zahlungsmethoden und Rechnungen über das Stripe Kundenportal verwalten.
+                  </p>
                   <Button
                     onClick={handleManageSubscription}
-                    disabled={isLoadingSub || isManagingSubscription || isCancellingSubscription || !profile?.stripe_customer_id}
+                    disabled={isManagingSubscription} // Only disable if this specific action is loading
                     className="w-full"
                     variant="outline"
                   >
-                    {isManagingSubscription ? 'Wird geladen...' : 'Zahlungsmethode aktualisieren / Rechnungen'}
-                  </Button>
-                  <Button
-                    onClick={handleCancelSubscription}
-                    disabled={isLoadingSub || isCancellingSubscription || isManagingSubscription || !profile?.stripe_subscription_id}
-                    variant="destructive"
-                    className="w-full"
-                  >
-                    {isCancellingSubscription ? 'Wird gekündigt...' : 'Abonnement kündigen'}
+                    {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
                   </Button>
                 </div>
               )}
+              {/* REMOVED: Cancel Subscription button and logic */}
             </>
           )}
         </div>
