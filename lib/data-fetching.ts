@@ -702,3 +702,27 @@ export async function getAbrechnungModalData(nebenkostenId: string): Promise<{
     wasserzaehlerReadings: wasserzaehlerData.existingReadings,
   };
 }
+
+export async function getCurrentWohnungenCount(supabaseClient: any, userId: string): Promise<number> {
+  if (!userId) {
+    console.error("getCurrentWohnungenCount: userId is required");
+    return 0;
+  }
+
+  try {
+    const { count, error } = await supabaseClient
+      .from("Wohnungen")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error fetching Wohnungen count:", error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error("Unexpected error in getCurrentWohnungenCount:", error);
+    return 0;
+  }
+}

@@ -1,35 +1,71 @@
 import { NextResponse } from 'next/server';
-import { fetchUserProfile } from '@/lib/data-fetching';
-import { createSupabaseServerClient } from '@/lib/supabase-server'; // Ensure this is the correct path
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { cookies } from 'next/headers';
+import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
+import { Profile } from '@/types/supabase'; // Import the Profile type
+import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 
 export async function GET() {
-  const supabase = createSupabaseServerClient(); // Needed for auth context if fetchUserProfile relies on it implicitly
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const cookieStore = cookies();
+  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
 
   try {
-    const profile = await fetchUserProfile(); // fetchUserProfile should handle its own Supabase client and user fetching.
-                                            // Or, if it expects user object: await fetchUserProfile(user);
-                                            // Based on its current implementation, it gets user itself.
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-    if (!profile) {
-      return new NextResponse(JSON.stringify({ error: 'Profile not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    if (authError || !user) {
+      console.error('Auth error:', authError);
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
-    return NextResponse.json(profile);
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single<Profile>(); // Use the imported Profile type
+
+    if (profileError || !profile) {
+      console.error('Profile error:', profileError);
+      // You might want to return a default profile structure or a 404
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // Use the new utility function to get the count of Wohnungen
+    const currentWohnungenCount = await getCurrentWohnungenCount(supabase, user.id);
+
+
+    let planDetails = null;
+    if (profile.stripe_price_id &&
+        (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
+      try {
+        planDetails = await getPlanDetails(profile.stripe_price_id);
+      } catch (stripeError) {
+        console.error('Stripe API error:', stripeError);
+        // Depending on the error, you might want to return a specific message
+        // For now, we'll just indicate that plan details couldn't be fetched
+        return NextResponse.json({ error: 'Could not fetch plan details' }, { status: 500 });
+      }
+    }
+
+    const responseData = {
+      // Ensure all fields from the Profile type are potentially available if selected
+      // You might want to explicitly pick fields from the profile for the response
+      id: profile.id,
+      email: user.email, // User's primary email from auth
+      profileEmail: profile.email, // Email from profile table, if different or specifically needed
+      stripe_customer_id: profile.stripe_customer_id,
+      stripe_subscription_id: profile.stripe_subscription_id,
+      stripe_subscription_status: profile.stripe_subscription_status,
+      stripe_price_id: profile.stripe_price_id,
+      stripe_current_period_end: profile.stripe_current_period_end,
+      activePlan: planDetails, // This will be null if no active plan or error fetching
+      hasActiveSubscription: !!planDetails && (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing'),
+      currentWohnungenCount: currentWohnungenCount, // Add this line
+    };
+
+    return NextResponse.json(responseData);
+
   } catch (error) {
-    console.error('Error in /api/user/profile:', error);
-    return new NextResponse(JSON.stringify({ error: 'Internal Server Error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('Generic server error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
