@@ -18,10 +18,10 @@ export async function POST(req: Request) {
     }
 
     // The priceId is expected from the client request body now, not hardcoded.
-    const { priceId } = await req.json();
+    const { priceId: requestedPriceId } = await req.json(); // Renamed for clarity
 
-    if (!priceId) {
-      return new NextResponse(JSON.stringify({ error: 'Price ID is required' }), {
+    if (!requestedPriceId) {
+      return new NextResponse(JSON.stringify({ error: 'Price ID (requestedPriceId) is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     // Fetch the user's profile to get Stripe details
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_current_period_end')
+      .select('stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_current_period_end, stripe_price_id') // Added stripe_price_id
       .eq('id', user.id)
       .single();
 
@@ -45,37 +45,37 @@ export async function POST(req: Request) {
     // Check for active subscription
     if (profile && profile.stripe_subscription_id &&
         (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing')) {
-      console.log('User has an active subscription:', profile.stripe_subscription_id, 'status:', profile.stripe_subscription_status);
+      console.log('User has an active subscription:', profile.stripe_subscription_id, 'status:', profile.stripe_subscription_status, 'current plan price ID:', profile.stripe_price_id);
 
-      let formattedDate = 'N/A';
-      if (profile.stripe_current_period_end) {
-        try {
-          const date = new Date(profile.stripe_current_period_end);
-          const day = String(date.getDate()).padStart(2, '0');
-          const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-indexed
-          const year = date.getFullYear();
-          formattedDate = `${day}.${month}.${year}`;
-          console.log('Formatted subscription end date:', formattedDate);
-        } catch (dateError) {
-          console.error('Error formatting stripe_current_period_end:', dateError);
-          // If date formatting fails, use the raw date or a placeholder
-          formattedDate = profile.stripe_current_period_end;
+      // User has an active subscription, check if they are trying to subscribe to the SAME plan
+      if (profile.stripe_price_id === requestedPriceId) {
+        console.log(`User is already subscribed to the requested plan: ${requestedPriceId}.`);
+        let formattedDate = 'N/A';
+        if (profile.stripe_current_period_end) {
+          try {
+            const date = new Date(profile.stripe_current_period_end);
+            // Adjust formatting as needed for user display
+            formattedDate = date.toLocaleDateString('de-DE', { year: 'numeric', month: 'long', day: 'numeric' });
+          } catch (dateError) {
+            console.error('Error formatting stripe_current_period_end:', dateError);
+            // Fallback to raw date string if formatting fails
+            formattedDate = typeof profile.stripe_current_period_end === 'string' ? profile.stripe_current_period_end : 'Invalid Date';
+          }
         }
-      } else {
-        console.log('stripe_current_period_end is null or undefined.');
+        return new NextResponse(JSON.stringify({
+          error: "Already subscribed to this plan",
+          message: `Du bist bereits für diesen Plan angemeldet. Dein aktuelles Abonnement endet am ${formattedDate}.`,
+          subscriptionEndDate: formattedDate,
+        }), {
+          status: 409, // Conflict
+          headers: { 'Content-Type': 'application/json' },
+        });
       }
-
-      return new NextResponse(JSON.stringify({
-        error: "Already subscribed",
-        message: `You are already subscribed. Your subscription ends on ${formattedDate}.`,
-        subscriptionEndDate: formattedDate,
-      }), {
-        status: 409, // Conflict
-        headers: { 'Content-Type': 'application/json' },
-      });
+      // If requestedPriceId is DIFFERENT, it's an upgrade/downgrade. Proceed to create checkout session.
+      console.log(`User has an active subscription (${profile.stripe_price_id}) but is changing to a different plan (${requestedPriceId}). Proceeding to checkout.`);
+    } else {
+      console.log('No active subscription found, or profile data incomplete for active check. Proceeding to create Stripe Checkout session.');
     }
-
-    console.log('No active subscription found, proceeding to create Stripe Checkout session.');
 
     // Prepare parameters for Stripe session creation
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
       mode: 'subscription',
       line_items: [
         {
-          price: priceId, // Use the priceId from the request
+          price: requestedPriceId, // Use the requestedPriceId from the request
           quantity: 1,
         },
       ],
