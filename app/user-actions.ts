@@ -19,8 +19,8 @@ export async function getUserSubscriptionContext(): Promise<{
       };
     }
     return {
-      stripe_price_id: userProfile.stripe_price_id,
-      stripe_subscription_status: userProfile.stripe_subscription_status,
+      stripe_price_id: userProfile.stripe_price_id ?? null,
+      stripe_subscription_status: userProfile.stripe_subscription_status ?? null,
     };
   } catch (error) {
     console.error("Error in getUserSubscriptionContext:", error);
@@ -61,7 +61,7 @@ export async function getUserApartmentCount(): Promise<{
   error?: string;
 }> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const {
       data: { user },
       error: authError,
