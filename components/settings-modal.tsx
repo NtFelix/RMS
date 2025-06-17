@@ -390,7 +390,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               {/* Pricing component will handle its own loading and plan display */}
               <Pricing
                 onSelectPlan={handlePlanSelected}
-                // currentPlanId={profile?.activePlan?.priceId} // Removed: Pricing component does not accept this prop currently
+                currentPlanId={profile?.activePlan?.priceId} // Pass current plan ID
                 isLoading={isLoadingSub} // Pass the loading state for checkout process
               />
               {subscriptionStatus === 'active' && (
