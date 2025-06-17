@@ -27,7 +27,20 @@ interface ModalState {
   wohnungInitialData?: any; // Replace 'any' with actual Wohnung type
   wohnungModalHaeuser: any[]; // Replace 'any' with actual Haus type
   wohnungModalOnSuccess?: (data: any) => void;
-  openWohnungModal: (initialData?: any, haeuser?: any[], onSuccess?: (data: any) => void) => void;
+  // Add these new lines for apartment limits and subscription
+  wohnungApartmentCount?: number;
+  wohnungApartmentLimit?: number | typeof Infinity; // Corrected type
+  wohnungIsActiveSubscription?: boolean;
+  // Update openWohnungModal signature
+  openWohnungModal: (
+    initialData?: any,
+    haeuser?: any[],
+    onSuccess?: (data: any) => void,
+    // Add new parameters here
+    apartmentCount?: number,
+    apartmentLimit?: number,
+    isActiveSubscription?: boolean
+  ) => void;
   closeWohnungModal: () => void;
 
   // Aufgabe Modal State
@@ -92,17 +105,36 @@ export const useModalStore = create<ModalState>((set) => ({
   wohnungInitialData: undefined,
   wohnungModalHaeuser: [],
   wohnungModalOnSuccess: undefined,
-  openWohnungModal: (initialData, haeuser, onSuccess) => set({
+  wohnungApartmentCount: undefined,
+  wohnungApartmentLimit: undefined,
+  wohnungIsActiveSubscription: undefined,
+  openWohnungModal: (
+    initialData,
+    haeuser,
+    onSuccess,
+    // Add new parameters
+    apartmentCount,
+    apartmentLimit,
+    isActiveSubscription
+  ) => set({
     isWohnungModalOpen: true,
     wohnungInitialData: initialData,
     wohnungModalHaeuser: haeuser || [],
     wohnungModalOnSuccess: onSuccess,
+    // Set new state values
+    wohnungApartmentCount: apartmentCount,
+    wohnungApartmentLimit: apartmentLimit,
+    wohnungIsActiveSubscription: isActiveSubscription,
   }),
   closeWohnungModal: () => set({
     isWohnungModalOpen: false,
     wohnungInitialData: undefined,
     wohnungModalHaeuser: [],
     wohnungModalOnSuccess: undefined,
+    // Reset new state values
+    wohnungApartmentCount: undefined,
+    wohnungApartmentLimit: undefined,
+    wohnungIsActiveSubscription: undefined,
   }),
 
   // Aufgabe Modal
