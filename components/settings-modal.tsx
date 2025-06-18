@@ -8,6 +8,7 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
@@ -273,7 +274,23 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       content: (
         <div className="flex flex-col space-y-4">
           {isFetchingStatus ? (
-            <p>Abo-Status wird geladen...</p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></p>
+                <Skeleton className="h-4 w-48" /> {/* For status message */}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm">Nächste Verlängerung am: <Skeleton className="h-4 w-24 inline-block" /></p>
+              </div>
+              <div className="space-y-1">
+                 <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
+              </div>
+              {/* Skeleton for Manage Subscription Button section */}
+              <div className="mt-6 pt-4 border-t">
+                <Skeleton className="h-4 w-3/4 mb-2" /> {/* For description paragraph */}
+                <Skeleton className="h-10 w-full" /> {/* For button */}
+              </div>
+            </div>
           ) : subscriptionStatus === 'error' || !profile ? (
             <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
           ) : (
