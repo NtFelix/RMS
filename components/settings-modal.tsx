@@ -487,12 +487,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <section className="flex-1 overflow-y-auto p-3">
               {tabs.find(tab => tab.value === activeTab)?.content}
             </section>
-            </nav>
-            <div className="flex-1 flex flex-col">
-              <section className="flex-1 overflow-y-auto p-3">
-                {tabs.find(tab => tab.value === activeTab)?.content}
-              </section>
-            </div>
+            </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
           </div>
         </DialogContent>
       </Dialog>
