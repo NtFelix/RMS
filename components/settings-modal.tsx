@@ -8,22 +8,37 @@ import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
+import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
   currentWohnungenCount?: number;
   activePlan?: {
-    priceId: string; // Added
-    name: string; // Kept, ensure it's string not string? if always present
-    price: number | null; // Changed from string
-    currency: string; // Added
-    features: string[]; // Added
-    limitWohnungen: number | null; // Confirmed
-    // Add other plan details if needed
+    priceId: string;
+    name: string;
+    price: number | null;
+    currency: string;
+    features: string[];
+    limitWohnungen: number | null;
   } | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_cancel_at_period_end?: boolean | null; // Added for UI clarity
+}
+
+// Define the Plan type
+interface Plan {
+  id: string;
+  name: string;
+  price: number | null;
+  currency: string;
+  features: string[];
+  limitWohnungen: number | null;
+  priceId: string; // priceId is the lookup key for Stripe
 }
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
@@ -48,8 +63,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // State for subscription tab
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
-  const [isLoadingSub, setIsLoadingSub] = useState(false); // Renamed to avoid conflict with 'loading'
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
+  // isLoadingSub removed as Pricing component is removed
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
+  // isCancellingSubscription removed
+  const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
 
 
   useEffect(() => {
@@ -64,54 +81,50 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     })
   }, [supabase])
 
-  useEffect(() => {
-    if (open && activeTab === 'subscription') {
-      const getProfile = async () => {
-        setIsFetchingStatus(true);
-        try {
-          const userProfileData = await getUserProfileForSettings();
-
-          if ('error' in userProfileData && userProfileData.error) {
-            console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
-            toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
-            // Set a minimal profile error state, ensuring it matches UserProfileWithSubscription
-            // Attempt to preserve existing user email if available, otherwise default to empty string
-            const currentEmail = profile?.email || ''; // Get email from existing profile state or default
-            setProfile({
-              id: profile?.id || '', // Preserve ID if available
-              email: currentEmail, // Use existing email
-              stripe_subscription_status: 'error',
-              currentWohnungenCount: 0,
-              activePlan: null,
-              // Ensure all other required fields from SupabaseProfile are technically present or optional
-              // For example, if 'username' is required by SupabaseProfile, it should be here.
-              // However, UserProfileWithSubscription makes many fields from SupabaseProfile optional.
-              // Adjust based on strictness of UserProfileWithSubscription and SupabaseProfile.
-              // Assuming most SupabaseProfile fields are optional or handled by spreading `...profile` if profile exists
-            } as UserProfileWithSubscription);
-          } else {
-            // The server action returns data structured like UserProfileForSettings,
-            // which should be compatible with UserProfileWithSubscription.
-            setProfile(userProfileData as UserProfileWithSubscription);
-          }
-        } catch (error) { // Catch unexpected errors from the server action call itself
-          console.error("Exception when calling getUserProfileForSettings:", error);
-          toast.error(`Ein unerwarteter Fehler ist aufgetreten: ${(error as Error).message}`);
-          const currentEmail = profile?.email || '';
-          setProfile({
-            id: profile?.id || '',
-            email: currentEmail,
-            stripe_subscription_status: 'error',
-            currentWohnungenCount: 0,
-            activePlan: null,
-          } as UserProfileWithSubscription); // Consistent error state
-        } finally {
-          setIsFetchingStatus(false);
-        }
-      };
-      getProfile();
+  const refreshUserProfile = async () => {
+    setIsFetchingStatus(true);
+    try {
+      const userProfileData = await getUserProfileForSettings();
+      if ('error' in userProfileData && userProfileData.error) {
+        console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
+        toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
+        const currentEmail = profile?.email || '';
+        setProfile({
+          id: profile?.id || '',
+          email: currentEmail,
+          stripe_subscription_status: 'error',
+          currentWohnungenCount: 0,
+          activePlan: null,
+        } as UserProfileWithSubscription);
+      } else {
+        setProfile(userProfileData as UserProfileWithSubscription);
+      }
+    } catch (error) {
+      console.error("Exception when calling getUserProfileForSettings:", error);
+      toast.error(`Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`);
+      const currentEmail = profile?.email || '';
+      setProfile({
+        id: profile?.id || '',
+        email: currentEmail,
+        stripe_subscription_status: 'error',
+        currentWohnungenCount: 0,
+        activePlan: null,
+      } as UserProfileWithSubscription);
+    } finally {
+      setIsFetchingStatus(false);
     }
-  }, [open, activeTab, toast]);
+  };
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      if (open && activeTab === 'subscription') {
+        await refreshUserProfile(); // Fetch profile
+        // Plan fetching removed from here. Pricing component will fetch its own plans.
+      }
+    };
+
+    fetchInitialData();
+  }, [open, activeTab]);
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -134,59 +147,44 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
   }
 
-  const handleSubscribeClick = async (priceId: string) => {
-    setIsLoadingSub(true);
-    try {
-      if (!profile || !profile.email || !profile.id) {
-        toast.error('Benutzerinformationen nicht verfügbar. Abonnement kann nicht fortgesetzt werden.');
-        setIsLoadingSub(false);
-        return;
-      }
+  // handlePlanSelected removed as Pricing component is removed
+  // handleCancelSubscription removed
 
-      const response = await fetch('/api/stripe/checkout-session', {
+  const handleManageSubscription = async () => {
+    if (!profile || !profile.stripe_customer_id) {
+      toast.error("Kunden-ID nicht gefunden. Verwaltung nicht möglich.");
+      return;
+    }
+    setIsManagingSubscription(true);
+    try {
+      const response = await fetch('/api/stripe/customer-portal', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId: priceId,
-          customerEmail: profile.email,
-          userId: profile.id,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeCustomerId: profile.stripe_customer_id }),
       });
 
       if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`Checkout-Sitzung konnte nicht erstellt werden: ${errorBody}`);
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Kundenportal konnte nicht geöffnet werden.");
       }
 
-      const { sessionId, url } = await response.json();
-
+      const { url } = await response.json();
       if (url) {
         window.location.href = url;
       } else {
-        const stripe = await stripePromise;
-        if (stripe && sessionId) {
-          const { error } = await stripe.redirectToCheckout({ sessionId });
-          if (error) {
-            console.error('Stripe redirectToCheckout error:', error);
-            toast.error(error.message || 'Weiterleitung zu Stripe fehlgeschlagen.');
-          }
-        } else {
-          throw new Error('Stripe.js nicht geladen oder Sitzungs-ID fehlt.');
-        }
+        throw new Error("URL für Kundenportal nicht erhalten.");
       }
     } catch (error) {
-      console.error('Subscription error:', error);
-      toast.error((error as Error).message || 'Abonnement konnte nicht gestartet werden.');
+      console.error("Manage subscription error:", error);
+      toast.error((error as Error).message || "Kundenportal konnte nicht geöffnet werden.");
     } finally {
-      setIsLoadingSub(false);
+      setIsManagingSubscription(false);
     }
   };
 
   const subscriptionStatus = profile?.stripe_subscription_status;
   const currentPeriodEnd = profile?.stripe_current_period_end
-    ? new Date(profile.stripe_current_period_end).toLocaleDateString()
+    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE') // Apply de-DE locale for DD.MM.YYYY
     : null;
 
   const tabs: Tab[] = [
@@ -276,41 +274,83 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       content: (
         <div className="flex flex-col space-y-4">
           {isFetchingStatus ? (
-            <p>Abo-Status wird geladen...</p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></p>
+                <Skeleton className="h-4 w-48" /> {/* For status message */}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm">Nächste Verlängerung am: <Skeleton className="h-4 w-24 inline-block" /></p>
+              </div>
+              <div className="space-y-1">
+                 <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
+              </div>
+              {/* Skeleton for Manage Subscription Button section */}
+              <div className="mt-6 pt-4 border-t">
+                <Skeleton className="h-4 w-3/4 mb-2" /> {/* For description paragraph */}
+                <Skeleton className="h-10 w-full" /> {/* For button */}
+              </div>
+            </div>
           ) : subscriptionStatus === 'error' || !profile ? (
             <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
           ) : (
             <>
-              <p className="text-sm">Dein aktueller Abo-Status: <strong>{subscriptionStatus || 'Nicht abonniert'}</strong></p>
-              {subscriptionStatus === 'active' && currentPeriodEnd && (
-                <p className="text-sm">Dein Abonnement ist aktiv bis: <strong>{currentPeriodEnd}</strong></p>
-              )}
-              {/* Display Wohnungen usage */}
-              {profile && typeof profile.currentWohnungenCount === 'number' && (
-                <p className="text-sm">
-                  Genutzte Wohnungen: {profile.currentWohnungenCount ?? 0} / {profile.activePlan?.limitWohnungen ?? 'Unbegrenzt'}
-                </p>
-              )}
-              {subscriptionStatus === 'past_due' && (
-                <p className="text-sm text-orange-500">Dein Abonnement ist überfällig. Bitte aktualisiere deine Zahlungsmethode.</p>
-              )}
-              {subscriptionStatus === 'canceled' && (
-                <p className="text-sm">Dein Abonnement wurde gekündigt.</p>
-              )}
+              {/* Simplified Subscription Info Display */}
+              <div className="space-y-2 mb-4">
+                {profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
+                  <>
+                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan?.name || 'Unbekannt'}</strong></p>
+                    <p className="text-sm text-orange-500">
+                      Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
+                    </p>
+                  </>
+                ) : profile.stripe_subscription_status === 'active' && profile.activePlan ? (
+                  <>
+                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan.name}</strong></p>
+                    {currentPeriodEnd && (
+                      <p className="text-sm">Nächste Verlängerung am: <strong>{currentPeriodEnd}</strong></p>
+                    )}
+                    <p className="text-sm text-green-600">Dein Abonnement ist aktiv.</p>
+                  </>
+                ) : (
+                  <p className="text-sm">
+                    Dein aktueller Abo-Status: <strong>{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</strong>.
+                  </p>
+                )}
 
-              {(!subscriptionStatus || subscriptionStatus === 'inactive' || subscriptionStatus === 'canceled') && (
-                <Button onClick={() => handleSubscribeClick('price_basic_monthly_placeholder')} disabled={isLoadingSub || !profile?.id}>
-                  {isLoadingSub ? 'Wird bearbeitet...' : 'Jetzt abonnieren (Basis-Plan)'}
-                </Button>
-              )}
+                {/* Message for truly non-active states */}
+                { (!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
+                  ! (profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
+                  <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
+                )}
 
-              {subscriptionStatus === 'active' && (
-                <div>
-                  <p className="text-sm text-green-600 mb-2">Du bist derzeit abonniert. Vielen Dank!</p>
-                  {/* TODO: Add button to manage subscription (portal) */}
-                  {/* <Button>Manage Subscription</Button> */}
+                {/* Display Wohnungen usage - keep if still relevant */}
+                {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
+                  <p className="text-sm mt-2">
+                    Genutzte Wohnungen: {profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}
+                  </p>
+                )}
+              </div>
+
+              {/* REMOVED: Pricing component for plan overview */}
+
+              {/* Manage Subscription Button - visible if user has a stripe_customer_id */}
+              {profile.stripe_customer_id && (
+                <div className="mt-6 pt-4 border-t">
+                  <p className="text-sm mb-2 text-gray-600">
+                    Du kannst dein Abonnement, deine Zahlungsmethoden und Rechnungen über das Stripe Kundenportal verwalten.
+                  </p>
+                  <Button
+                    onClick={handleManageSubscription}
+                    disabled={isManagingSubscription} // Only disable if this specific action is loading
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
+                  </Button>
                 </div>
               )}
+              {/* REMOVED: Cancel Subscription button and logic */}
             </>
           )}
         </div>
