@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Dialog, DialogOverlay, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -67,6 +68,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
   const [reauthCode, setReauthCode] = useState<string>("")
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
+  const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
 
   // State for subscription tab
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
@@ -272,10 +274,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           </Button>
 
           <div className="mt-6 pt-6 border-t border-destructive/50">
+            <p className="text-sm text-muted-foreground mb-3">
+              Hier können Sie Ihr Konto endgültig löschen. Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
+            </p>
             <Button
               variant="destructive"
-              onClick={handleDeleteAccountInitiation}
-              disabled={isDeleting}
+              onClick={() => setShowDeleteAccountConfirmModal(true)}
+              disabled={isDeleting} // Keep this disabled if any part of delete is in progress
               className="w-full"
             >
               {isDeleting ? "Wird vorbereitet..." : <><Trash2 className="mr-2 h-4 w-4" />Konto löschen</>}
@@ -456,11 +461,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   ]
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
-          <DialogTitle className="sr-only">Einstellungen</DialogTitle>
-        <div className="flex h-full overflow-hidden">
-          <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
+            <DialogTitle className="sr-only">Einstellungen</DialogTitle>
+          <div className="flex h-full overflow-hidden">
+            <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
             {tabs.map(tab => (
               <button
                 key={tab.value}
@@ -481,9 +487,25 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <section className="flex-1 overflow-y-auto p-3">
               {tabs.find(tab => tab.value === activeTab)?.content}
             </section>
+            </nav>
+            <div className="flex-1 flex flex-col">
+              <section className="flex-1 overflow-y-auto p-3">
+                {tabs.find(tab => tab.value === activeTab)?.content}
+              </section>
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <ConfirmationAlertDialog
+        isOpen={showDeleteAccountConfirmModal}
+        onOpenChange={setShowDeleteAccountConfirmModal}
+        title="Konto wirklich löschen?"
+        description="Sind Sie sicher, dass Sie Ihr Konto endgültig löschen möchten? Dieser Schritt startet den Prozess zur sicheren Entfernung Ihrer Daten. Sie erhalten anschließend eine E-Mail zur Bestätigung."
+        onConfirm={handleDeleteAccountInitiation}
+        confirmButtonText="Löschen einleiten"
+        cancelButtonText="Abbrechen"
+        confirmButtonVariant="destructive"
+      />
+    </>
   )
 }

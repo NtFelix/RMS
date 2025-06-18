@@ -1,105 +1,85 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { corsHeaders } from '../_shared/cors.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// Define a type for the environment variables for clarity
-interface Env {
-  SUPABASE_URL: string;
-  SUPABASE_SERVICE_ROLE_KEY: string;
-}
-
-// Define a type for the expected user structure (optional, but good practice)
-interface User {
-  id: string;
-  // Add other user properties if needed
-}
-
-console.log("Delete user account function initializing.");
+// Define allowed origins
+const allowedOrigins = [
+  'https://rms-1g5d48one-felixs-projects-3080273c.vercel.app', // Your Vercel deployment
+  'http://localhost:3000', // Common local development URL
+  'http://localhost:3001'  // Often used by Vercel CLI local dev
+];
 
 Deno.serve(async (req: Request) => {
-  // Handle OPTIONS request for CORS preflight
+  const origin = req.headers.get('Origin');
+  let accessControlAllowOrigin = allowedOrigins[0]; // Default to your primary deployment URL
+
+  if (origin && allowedOrigins.includes(origin)) {
+    accessControlAllowOrigin = origin;
+  } else if (origin) { // If origin is present but not in allowed list, log it
+    console.warn(`Origin ${origin} not in allowedOrigins. Defaulting to ${allowedOrigins[0]} for Access-Control-Allow-Origin header.`);
+  }
+
+
+  const commonCorsHeaders = {
+    'Access-Control-Allow-Origin': accessControlAllowOrigin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type', // Ensure all necessary headers are listed
+  };
+
   if (req.method === 'OPTIONS') {
-    console.log("Handling OPTIONS request");
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: commonCorsHeaders, status: 200 });
   }
 
   try {
-    console.log("Processing request...");
-    const env = Deno.env.toObject() as unknown as Env;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-    if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.error("Missing Supabase URL or Service Role Key in environment variables.");
-      return new Response(JSON.stringify({ error: 'Server configuration error: Missing Supabase credentials.' }), {
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error('Missing Supabase environment variables in Edge Function.');
+      return new Response(JSON.stringify({ error: 'Server configuration error: Missing Supabase environment variables' }), {
+        headers: { ...commonCorsHeaders, 'Content-Type': 'application/json' },
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Create Supabase admin client
-    const supabaseAdmin: SupabaseClient = createClient(
-      env.SUPABASE_URL,
-      env.SUPABASE_SERVICE_ROLE_KEY,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get JWT from Authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      console.warn("Missing Authorization header.");
-      return new Response(JSON.stringify({ error: 'Unauthorized: Missing token' }), {
+    const userToken = req.headers.get('Authorization')?.replace('Bearer ', '');
+    if (!userToken) {
+      return new Response(JSON.stringify({ error: 'Authentication error: Missing auth token' }), {
+        headers: { ...commonCorsHeaders, 'Content-Type': 'application/json' },
         status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const token = authHeader.replace('Bearer ', '');
-
-    // Get user from JWT
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
-
-    if (userError) {
-      console.error("Error getting user from token:", userError.message);
-      return new Response(JSON.stringify({ error: `Forbidden: ${userError.message}` }), {
-        status: 403, // Or 401 if preferred for invalid token
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (!user) {
-      console.warn("No user found for the provided token.");
-      return new Response(JSON.stringify({ error: 'Forbidden: User not found' }), {
-        status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(userToken);
+
+    if (userError || !user) {
+      console.error('User auth error in Edge Function:', userError?.message);
+      return new Response(JSON.stringify({ error: userError?.message || 'User not authenticated or token invalid' }), {
+        headers: { ...commonCorsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
       });
     }
 
-    console.log(`Attempting to delete user with ID: ${user.id}`);
-
-    // Delete the user
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
 
     if (deleteError) {
-      console.error(`Error deleting user ${user.id}:`, deleteError.message);
+      console.error('Supabase admin.deleteUser error in Edge Function:', deleteError.message, deleteError.stack);
       return new Response(JSON.stringify({ error: `Failed to delete user: ${deleteError.message}` }), {
+        headers: { ...commonCorsHeaders, 'Content-Type': 'application/json' },
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`User ${user.id} deleted successfully.`);
     return new Response(JSON.stringify({ message: 'User deleted successfully' }), {
+      headers: { ...commonCorsHeaders, 'Content-Type': 'application/json' },
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (e) {
-    console.error("Unexpected error in function:", e.message);
-    return new Response(JSON.stringify({ error: `Internal Server Error: ${e.message}` }), {
+  } catch (err) {
+    console.error('Catch-all error in Edge Function:', err.message, err.stack);
+    return new Response(JSON.stringify({ error: `An unexpected error occurred: ${err.message}` }), {
+      headers: { ...commonCorsHeaders, 'Content-Type': 'application/json' },
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
