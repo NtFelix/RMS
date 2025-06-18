@@ -183,7 +183,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const subscriptionStatus = profile?.stripe_subscription_status;
   const currentPeriodEnd = profile?.stripe_current_period_end
-    ? new Date(profile.stripe_current_period_end).toLocaleDateString()
+    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE') // Apply de-DE locale for DD.MM.YYYY
     : null;
 
   const tabs: Tab[] = [
