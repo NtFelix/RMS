@@ -46,9 +46,10 @@ const formatPrice = (amount: number, currency: string, interval: string | null, 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
   isLoading?: boolean; // Renamed from isSubmitting for clarity, passed from parent
+  currentPlanId?: string | null; // New optional prop
 }
 
-export default function Pricing({ onSelectPlan, isLoading: isSubmitting }: PricingProps) {
+export default function Pricing({ onSelectPlan, isLoading: isSubmitting, currentPlanId }: PricingProps) {
   const [plansData, setPlansData] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,9 +149,12 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting }: Prici
                 <Button
                   onClick={() => onSelectPlan(plan.priceId)}
                   className="w-full"
-                  disabled={isSubmitting} // Disable button if parent is submitting
+                  disabled={isSubmitting || plan.priceId === currentPlanId}
+                  variant={plan.priceId === currentPlanId ? "outline" : "default"}
                 >
-                  {isSubmitting ? 'Processing...' : 'Select Plan'}
+                  {plan.priceId === currentPlanId
+                    ? 'Aktueller Plan'
+                    : (isSubmitting ? 'Wird bearbeitet...' : 'Plan auswählen')}
                 </Button>
               </CardFooter>
             </Card>

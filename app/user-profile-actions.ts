@@ -13,13 +13,20 @@ export interface UserProfileForSettings extends SupabaseProfile {
   activePlan?: {
     priceId: string; // Added
     name: string; // Kept, ensure it's string not string? if always present
-    price: number | null; // Changed from string
-    currency: string; // Added
-    features: string[]; // Added
-    limitWohnungen: number | null; // Confirmed
-  } | null | undefined; // Added undefined
+    price: number | null;
+    currency: string;
+    features: string[];
+    limitWohnungen: number | null;
+  } | null | undefined;
   hasActiveSubscription: boolean;
   currentWohnungenCount: number;
+  // Explicitly add fields expected by SettingsModal and other parts of the system
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_subscription_status?: string | null;
+  stripe_price_id?: string | null;
+  stripe_current_period_end?: string | null; // Supabase typically stores timestampz as ISO strings
+  stripe_cancel_at_period_end?: boolean | null;
 }
 
 export async function getUserProfileForSettings(): Promise<UserProfileForSettings | { error: string; details?: any }> {
@@ -64,15 +71,28 @@ export async function getUserProfileForSettings(): Promise<UserProfileForSetting
 
     // Construct the response, ensuring it matches UserProfileForSettings
     const responseData: UserProfileForSettings = {
-      ...profile, // Spread all fields from the fetched SupabaseProfile
-      email: user.email, // Primary email from auth
-      profileEmail: profile.email, // Email from the profile table
+      ...profile, // Spreads all fields from the fetched SupabaseProfile.
+                  // This includes id, email (from profiles table), stripe_customer_id, etc.,
+                  // assuming they are columns in 'profiles' table and part of SupabaseProfile type.
+
+      email: user.email, // Override with the primary email from auth.users if it's different or more authoritative.
+                         // If profile.email is preferred, this line can be removed or conditional.
+
+      // Ensure profile specific email is explicitly mapped if needed, though ...profile should cover it.
+      // profileEmail: profile.email, // This is already covered by ...profile if 'email' is the column name.
+                                   // If UserProfileForSettings expects 'profileEmail' and db column is 'email', then map it:
+                                   // profileEmail: profile.email
+
+      // The UserProfileForSettings interface now explicitly lists these Stripe fields.
+      // Spreading ...profile should populate them if the column names match and are in SupabaseProfile.
+      // No need to re-declare them here if ...profile handles it.
+      // stripe_customer_id: profile.stripe_customer_id, (covered by ...profile)
+      // stripe_subscription_id: profile.stripe_subscription_id, (covered by ...profile)
+      // ... and so on for other fields that are directly from the 'profiles' table.
+
       activePlan: planDetails,
       hasActiveSubscription,
       currentWohnungenCount,
-      // Ensure all required fields from SupabaseProfile are present
-      // id is from profile
-      // stripe_customer_id is from profile, etc.
     };
 
     return responseData;
