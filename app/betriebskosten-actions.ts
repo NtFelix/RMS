@@ -41,7 +41,7 @@ export async function createNebenkosten(formData: NebenkostenFormData) {
   };
 
   const { data, error } = await supabase
-    .from("Nebenkosten")
+    .from("nebenkosten")
     .insert([preparedData])
     .select()
     .single(); // Assuming we want the single created record back
@@ -70,7 +70,7 @@ export async function updateNebenkosten(id: string, formData: Partial<Nebenkoste
   // // The provided formData will not have user_id, so this is more of a note.
 
   const { data, error } = await supabase
-    .from("Nebenkosten")
+    .from("nebenkosten")
     .update(formData) // formData here is Partial<NebenkostenFormData>, so no user_id from client
     .eq("id", id)
     .select()
@@ -90,7 +90,7 @@ export async function deleteNebenkosten(id: string) {
   const supabase = await createClient();
 
   const { error } = await supabase
-    .from("Nebenkosten")
+    .from("nebenkosten")
     .delete()
     .eq("id", id);
 
@@ -121,7 +121,7 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
   console.log('[Server Action] Data to insert into Rechnungen table:', JSON.stringify(dataWithUserId, null, 2));
 
   const { data, error } = await supabase
-    .from("Rechnungen")
+    .from("rechnungen")
     .insert(dataWithUserId)
     .select(); // .select() returns the inserted rows
   
@@ -156,7 +156,7 @@ export async function deleteRechnungenByNebenkostenId(nebenkostenId: string): Pr
   }
 
   const { error } = await supabase
-    .from("Rechnungen")
+    .from("rechnungen")
     .delete()
     .eq("nebenkosten_id", nebenkostenId);
 
@@ -208,7 +208,7 @@ export async function getWasserzaehlerRecordsAction(
 
   try {
     const { data, error } = await supabase
-      .from("Wasserzaehler")
+      .from("wasserzaehler")
       .select("*")
       .eq("nebenkosten_id", nebenkostenId) // Ensure correct column name here
       .eq("user_id", user.id);
@@ -246,7 +246,7 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
 
   try {
     const { data, error } = await supabase
-      .from("Rechnungen")
+      .from("rechnungen")
       .select("*") // Selects all columns, matching the Rechnung interface
       .eq("nebenkosten_id", nebenkostenId)
       .eq("user_id", user.id); // Ensuring user can only fetch their own Rechnungen
@@ -287,7 +287,7 @@ export async function saveWasserzaehlerData(
 
   // Strategy: Delete existing entries for this nebenkosten_id, then insert new ones.
   const { error: deleteError } = await supabase
-    .from("Wasserzaehler")
+    .from("wasserzaehler")
     .delete()
     .eq("nebenkosten_id", nebenkosten_id) // Corrected column name
     .eq("user_id", user.id); // Ensure user can only delete their own records
@@ -306,7 +306,7 @@ export async function saveWasserzaehlerData(
     // --- Log Update to 0 (if entries are empty) ---
     console.log(`[saveWasserzaehlerData] Attempting to set wasserverbrauch to 0 for Nebenkosten ID: ${nebenkosten_id}`);
     const { data: updateData, error: updateNkError } = await supabase
-      .from("Nebenkosten")
+      .from("nebenkosten")
       .update({ wasserverbrauch: 0 })
       .eq("id", nebenkosten_id)
       .eq("user_id", user.id)
@@ -333,7 +333,7 @@ export async function saveWasserzaehlerData(
   }));
 
   const { data: insertedData, error: insertError } = await supabase
-    .from("Wasserzaehler")
+    .from("wasserzaehler")
     .insert(recordsToInsert)
     .select();
 
@@ -348,7 +348,7 @@ export async function saveWasserzaehlerData(
   // After successful insert, calculate sum and update Nebenkosten
   // 1. Query all Wasserzaehler records for this nebenkosten_id and user_id
   const { data: zaehlerRecords, error: fetchError } = await supabase
-    .from("Wasserzaehler")
+    .from("wasserzaehler")
     .select("verbrauch")
     .eq("nebenkosten_id", nebenkosten_id)
     .eq("user_id", user.id);
@@ -374,7 +374,7 @@ export async function saveWasserzaehlerData(
   // --- Log Final Nebenkosten Update ---
   console.log(`[saveWasserzaehlerData] Attempting to update Nebenkosten ID: ${nebenkosten_id} with totalVerbrauch: ${totalVerbrauch}`);
   const { data: finalUpdateData, error: updateNkError } = await supabase
-    .from("Nebenkosten")
+    .from("nebenkosten")
     .update({ wasserverbrauch: totalVerbrauch })
     .eq("id", nebenkosten_id)
     .eq("user_id", user.id) // Ensure user context for security
@@ -413,7 +413,7 @@ export async function getMieterForNebenkostenAction(
 
   try {
     const { data: wohnungen, error: wohnungenError } = await supabase
-      .from('Wohnungen')
+      .from('wohnungen')
       .select('id')
       .eq('haus_id', hausId);
 
@@ -430,7 +430,7 @@ export async function getMieterForNebenkostenAction(
     const wohnungIds = wohnungen.map(w => w.id);
 
     const { data: mieter, error: mieterError } = await supabase
-      .from('Mieter')
+      .from('mieter')
       .select('*, Wohnungen(name, groesse)') // Fetch Mieter details including apartment size
       .in('wohnung_id', wohnungIds);
 

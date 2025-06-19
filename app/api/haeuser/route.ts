@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     if (!name || !strasse || !ort) {
       return NextResponse.json({ error: "Alle Felder (Name, Straße, Ort) sind erforderlich." }, { status: 400 })
     }
-    const { data, error } = await supabase.from('Haeuser').insert({ name, strasse, ort })
+    const { data, error } = await supabase.from('haeuser').insert({ name, strasse, ort })
     if (error) {
       console.error("Supabase Insert Error:", error)
       return NextResponse.json({ error: error.message }, { status: 500 })
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const supabase = await createClient()
-  const { data: houses, error: housesError } = await supabase.from('Haeuser').select("*")
+  const { data: houses, error: housesError } = await supabase.from('haeuser').select("*")
   
   if (housesError) {
     return NextResponse.json({ error: housesError.message }, { status: 500 })
@@ -30,7 +30,7 @@ export async function GET() {
   
   // Get apartments with their related houses
   const { data: apartments, error: aptsError } = await supabase
-    .from('Wohnungen')
+    .from('wohnungen')
     .select('id, name, groesse, miete, haus_id')
   
   if (aptsError) {
@@ -39,7 +39,7 @@ export async function GET() {
   
   // Get tenants to check apartment occupancy
   const { data: tenants, error: tenantsError } = await supabase
-    .from('Mieter')
+    .from('mieter')
     .select('id, wohnung_id, auszug')
   
   if (tenantsError) {
@@ -99,7 +99,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Haus-ID ist erforderlich." }, { status: 400 })
     }
 
-    const { error } = await supabase.from('Haeuser').delete().match({ id })
+    const { error } = await supabase.from('haeuser').delete().match({ id })
 
     if (error) {
       console.error("Supabase Delete Error:", error)
@@ -128,7 +128,7 @@ export async function PUT(request: Request) {
     }
 
     const { data, error } = await supabase
-      .from('Haeuser')
+      .from('haeuser')
       .update({ name, strasse, ort })
       .match({ id })
       .select() // Select the updated row to return it

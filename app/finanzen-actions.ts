@@ -40,10 +40,10 @@ export async function financeServerAction(id: string | null, data: FinanzInput):
     let dbResponse;
     if (id) {
       // Update existing record
-      dbResponse = await supabase.from("Finanzen").update(payload).eq("id", id).select().single();
+      dbResponse = await supabase.from("finanzen").update(payload).eq("id", id).select().single();
     } else {
       // Create new record
-      dbResponse = await supabase.from("Finanzen").insert(payload).select().single();
+      dbResponse = await supabase.from("finanzen").insert(payload).select().single();
     }
     
     if (dbResponse.error) throw dbResponse.error;
@@ -60,7 +60,7 @@ export async function deleteFinanceAction(financeId: string): Promise<{ success:
   try {
     const supabase = await createClient();
     const { error } = await supabase
-      .from("Finanzen")
+      .from("finanzen")
       .delete()
       .eq("id", financeId);
 

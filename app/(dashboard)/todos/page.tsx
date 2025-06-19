@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 
 export default async function TodosPage() {
   const supabase = await createClient();
-  const { data: tasksData } = await supabase.from('Aufgaben').select('*');
+  const { data: tasksData } = await supabase.from('aufgaben').select('*');
   const tasks = tasksData ?? [];
 
   return <TodosClientWrapper tasks={tasks} />;

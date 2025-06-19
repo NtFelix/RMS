@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from('Finanzen')
+      .from('finanzen')
       .select('*, Wohnungen(name)')
       .order('datum', { ascending: false });
       
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const data = await request.json();
     
     const { error, data: result } = await supabase
-      .from('Finanzen')
+      .from('finanzen')
       .insert(data)
       .select('*, Wohnungen(name)')
       .single();
@@ -55,7 +55,7 @@ export async function PUT(request: Request) {
     const data = await request.json();
     
     const { error, data: result } = await supabase
-      .from('Finanzen')
+      .from('finanzen')
       .update(data)
       .match({ id })
       .select();
@@ -86,7 +86,7 @@ export async function DELETE(request: Request) {
     }
     
     const supabase = await createClient();
-    const { error } = await supabase.from('Finanzen').delete().match({ id });
+    const { error } = await supabase.from('finanzen').delete().match({ id });
     
     if (error) {
       console.error('DELETE /api/finanzen error:', error);

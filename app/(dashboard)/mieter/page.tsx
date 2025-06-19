@@ -35,9 +35,9 @@ export default async function MieterPage() {
   // createClient is still needed for fetching initial page data
   const { createClient } = await import("@/utils/supabase/server");
   const supabase = await createClient(); // Added await here
-  const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
+  const { data: wohnungenData } = await supabase.from('wohnungen').select('id,name');
   const wohnungen: Wohnung[] = wohnungenData ?? [];
-  const { data: mieterData } = await supabase.from('Mieter').select('*');
+  const { data: mieterData } = await supabase.from('mieter').select('*');
   const mieter: Mieter[] = mieterData ?? [];
 
   // SSR-optimiertes Dialog-Handling

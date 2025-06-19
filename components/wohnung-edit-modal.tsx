@@ -112,7 +112,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       const fetchHaeuser = async () => {
         setIsLoadingHaeuser(true);
         const supabase = createClient(); // Already imported
-        const { data, error } = await supabase.from("Haeuser").select("id, name");
+        const { data, error } = await supabase.from("haeuser").select("id, name");
         if (error) {
           console.error("Error fetching Haeuser:", error);
           toast({

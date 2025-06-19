@@ -21,12 +21,12 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
 
   try {
     if (id) {
-      const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
+      const { error } = await supabase.from('mieter').update(payload).eq('id', id as string);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const { error } = await supabase.from('Mieter').insert(payload);
+      const { error } = await supabase.from('mieter').insert(payload);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -42,7 +42,7 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
   try {
     const supabase = await createClient();
     const { error } = await supabase
-      .from("Mieter")
+      .from("mieter")
       .delete()
       .eq("id", tenantId);
 
@@ -81,7 +81,7 @@ export async function getMieterByHausIdAction(hausId: string, jahr?: string): Pr
   try {
     // Step 1: Fetch Wohnungen associated with the hausId
     const { data: wohnungenInHaus, error: wohnungenError } = await supabase
-      .from("Wohnungen")
+      .from("wohnungen")
       .select("id")
       .eq("haus_id", hausId);
 
@@ -100,7 +100,7 @@ export async function getMieterByHausIdAction(hausId: string, jahr?: string): Pr
     // Step 2: Fetch Mieter who are in these Wohnungen
     // Including Wohnungen details as per the original fetchMieter and potential needs
     let query = supabase
-      .from("Mieter")
+      .from("mieter")
       .select("*, Wohnungen(name, groesse, miete)")
       .in("wohnung_id", wohnungIds);
 

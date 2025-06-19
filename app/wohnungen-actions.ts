@@ -49,10 +49,10 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
     let dbResponse;
     if (id) {
       // Update existing record
-      dbResponse = await supabase.from("Wohnungen").update(payload).eq("id", id).select().single();
+      dbResponse = await supabase.from("wohnungen").update(payload).eq("id", id).select().single();
     } else {
       // Create new record
-      dbResponse = await supabase.from("Wohnungen").insert(payload).select().single();
+      dbResponse = await supabase.from("wohnungen").insert(payload).select().single();
     }
     
     if (dbResponse.error) throw dbResponse.error;

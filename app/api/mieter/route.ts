@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.from('Mieter').select('*');
+    const { data, error } = await supabase.from('mieter').select('*');
     if (error) {
       console.error('GET /api/mieter error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const m = await request.json();
     console.error('POST /api/mieter payload:', m);
-    const { data, error } = await supabase.from('Mieter').insert(m).select();
+    const { data, error } = await supabase.from('mieter').insert(m).select();
     if (error) {
       console.error('POST /api/mieter error:', error);
       return NextResponse.json({ error: error.message, code: error.code, details: error.details }, { status: 400 });
@@ -39,7 +39,7 @@ export async function PUT(request: Request) {
     const id = url.searchParams.get('id');
     const supabase = await createClient();
     const m = await request.json();
-    const { data, error } = await supabase.from('Mieter').update(m).match({ id }).select();
+    const { data, error } = await supabase.from('mieter').update(m).match({ id }).select();
     if (error) {
       console.error('PUT /api/mieter error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -57,7 +57,7 @@ export async function DELETE(request: Request) {
     const id = url.searchParams.get('id');
     if (!id) return NextResponse.json({ error: 'Mieter-ID erforderlich.' }, { status: 400 });
     const supabase = await createClient();
-    const { error } = await supabase.from('Mieter').delete().match({ id });
+    const { error } = await supabase.from('mieter').delete().match({ id });
     if (error) {
       console.error('DELETE /api/mieter error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });

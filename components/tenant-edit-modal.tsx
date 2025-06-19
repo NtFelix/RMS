@@ -130,7 +130,7 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
       const fetchWohnungen = async () => {
         setIsLoadingWohnungen(true);
         const supabase = createClient();
-        const { data, error } = await supabase.from("Wohnungen").select("id, name");
+        const { data, error } = await supabase.from("wohnungen").select("id, name");
         if (error) {
           console.error("Error fetching wohnungen:", error);
           // Optionally: show toast or error message

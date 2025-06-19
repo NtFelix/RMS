@@ -46,12 +46,12 @@ export async function aufgabeServerAction(id: string | null, data: AufgabePayloa
     let dbResponse;
     if (id) {
       // Update existing record
-      dbResponse = await supabase.from("Aufgaben").update(payload).eq("id", id).select().single();
+      dbResponse = await supabase.from("aufgaben").update(payload).eq("id", id).select().single();
     } else {
       // Create new record
       // Ensure ist_erledigt is explicitly set for new records if not in payload (already handled above)
       const insertPayload = { ...payload, ist_erledigt: payload.ist_erledigt ?? false };
-      dbResponse = await supabase.from("Aufgaben").insert(insertPayload).select().single();
+      dbResponse = await supabase.from("aufgaben").insert(insertPayload).select().single();
     }
     
     if (dbResponse.error) throw dbResponse.error;
@@ -74,7 +74,7 @@ export async function toggleTaskStatusAction(
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
-      .from("Aufgaben")
+      .from("aufgaben")
       .update({
         ist_erledigt: newStatus,
         aenderungsdatum: new Date().toISOString(), // Update modification timestamp
@@ -110,7 +110,7 @@ export async function deleteTaskAction(taskId: string): Promise<{ success: boole
   try {
     const supabase = await createClient();
     const { error } = await supabase
-      .from("Aufgaben")
+      .from("aufgaben")
       .delete()
       .eq("id", taskId);
 

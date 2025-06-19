@@ -54,7 +54,7 @@ export async function POST(request: Request) {
 
     // Now, count existing apartments
     const { count, error: countError } = await supabase
-      .from('Wohnungen')
+      .from('wohnungen')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { status: 400 });
     }
     const { data, error } = await supabase
-      .from('Wohnungen')
+      .from('wohnungen')
       .insert({ name, groesse, miete, haus_id, user_id: userId }) // Add user_id here
       .select();
     if (error) {
@@ -103,7 +103,7 @@ export async function GET() {
   
   // Join Haeuser to get house name
   const { data: apartments, error } = await supabase
-    .from('Wohnungen')
+    .from('wohnungen')
     .select('id, name, groesse, miete, haus_id, Haeuser(name)');
   
   if (error) {
@@ -113,7 +113,7 @@ export async function GET() {
   
   // Get tenants to determine occupation status
   const { data: tenants, error: tenantsError } = await supabase
-    .from('Mieter')
+    .from('mieter')
     .select('id, wohnung_id, auszug, einzug, name');
   
   if (tenantsError) {
@@ -159,7 +159,7 @@ export async function DELETE(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Wohnungs-ID ist erforderlich." }, { status: 400 });
     }
-    const { error } = await supabase.from('Wohnungen').delete().match({ id });
+    const { error } = await supabase.from('wohnungen').delete().match({ id });
     if (error) {
       console.error("Supabase Delete Error (Wohnungen):", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -184,7 +184,7 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: "Name, Größe und Miete sind erforderlich." }, { status: 400 });
     }
     const { data, error } = await supabase
-      .from('Wohnungen')
+      .from('wohnungen')
       .update({ name, groesse, miete, haus_id })
       .match({ id })
       .select();

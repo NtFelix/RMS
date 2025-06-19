@@ -66,7 +66,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
     }
 
     const { count, error: countError } = await supabase
-      .from('Wohnungen') // Ensure this table name is correct
+      .from('wohnungen') // Ensure this table name is correct
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
@@ -98,7 +98,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
     // The count variable from the first block (around line 61) is in scope here and should be used.
     // The duplicated block that was here has been removed.
 
-    const { error } = await supabase.from('Wohnungen').insert({
+    const { error } = await supabase.from('wohnungen').insert({
       name: formData.name,
       groesse: parseFloat(formData.groesse), // Ensure this is a number
       miete: parseFloat(formData.miete),
@@ -169,7 +169,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
     // which should have been caught by the 'Ein aktives Abonnement...' error above.
     if (currentApartmentLimit !== Infinity && currentApartmentLimit !== null) {
       const { count, error: countError } = await supabase
-        .from('Wohnungen')
+        .from('wohnungen')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId);
 
@@ -197,7 +197,7 @@ export async function aktualisiereWohnung(id: string, formData: WohnungFormData)
       }
     }
     
-    const { error } = await supabase.from('Wohnungen')
+    const { error } = await supabase.from('wohnungen')
       .update({
         name: formData.name,
         groesse: parseFloat(formData.groesse),
@@ -226,7 +226,7 @@ export async function loescheWohnung(id: string) {
   try {
     const supabase = await createClient();
     
-    const { error } = await supabase.from('Wohnungen')
+    const { error } = await supabase.from('wohnungen')
       .delete()
       .eq('id', id);
     

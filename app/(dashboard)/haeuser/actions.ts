@@ -14,7 +14,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
         // No need to check for 'id' in formData anymore
         updatePayload[key] = value;
       });
-      const { error } = await supabase.from("Haeuser").update(updatePayload).eq("id", id);
+      const { error } = await supabase.from("haeuser").update(updatePayload).eq("id", id);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -28,7 +28,7 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       formData.forEach((value, key) => {
         insertData[key] = value;
       });
-      const { error } = await supabase.from("Haeuser").insert(insertData); // Adjusted to pass an object
+      const { error } = await supabase.from("haeuser").insert(insertData); // Adjusted to pass an object
       if (error) {
         return { success: false, error: { message: error.message } };
       }
@@ -44,7 +44,7 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
   try {
     const supabase = await createClient();
     const { error } = await supabase
-      .from("Haeuser")
+      .from("haeuser")
       .delete()
       .eq("id", houseId);
 

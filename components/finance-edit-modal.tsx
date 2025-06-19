@@ -94,7 +94,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       const fetchWohnungen = async () => {
         setIsLoadingWohnungen(true);
         const supabase = createClient();
-        const { data, error } = await supabase.from("Wohnungen").select("id, name");
+        const { data, error } = await supabase.from("wohnungen").select("id, name");
         if (error) {
           console.error("Error fetching wohnungen for finance modal:", error);
           toast({ title: "Fehler", description: "Wohnungen konnten nicht geladen werden.", variant: "destructive" });

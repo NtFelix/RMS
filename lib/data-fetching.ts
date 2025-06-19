@@ -106,7 +106,7 @@ export type Finanzen = {
 export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("Haeuser")
+    .from("haeuser")
     .select('*');
     
   if (error) {
@@ -120,7 +120,7 @@ export async function fetchHaeuser() {
 export async function fetchWohnungen() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("Wohnungen")
+    .from("wohnungen")
     .select('*');
     
   if (error) {
@@ -134,7 +134,7 @@ export async function fetchWohnungen() {
 export async function fetchMieter() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("Mieter")
+    .from("mieter")
     .select('*, Wohnungen(name, groesse, miete)');
     
   if (error) {
@@ -148,7 +148,7 @@ export async function fetchMieter() {
 export async function fetchAufgaben() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("Aufgaben")
+    .from("aufgaben")
     .select('*')
     .eq('ist_erledigt', false);
     
@@ -163,7 +163,7 @@ export async function fetchAufgaben() {
 export async function fetchFinanzen() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("Finanzen")
+    .from("finanzen")
     .select('*');
     
   if (error) {
@@ -189,7 +189,7 @@ export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promi
   try {
     // First, get the basic apartment data
     const { data: wohnungen, error: wohnungenError } = await supabase
-      .from('Wohnungen')
+      .from('wohnungen')
       .select('id, groesse')
       .eq('haus_id', hausId);
 
@@ -213,7 +213,7 @@ export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promi
     try {
       // Get all tenants for the apartments in this house
       const { data: mieter, error: mieterError } = await supabase
-        .from('Mieter')
+        .from('mieter')
         .select('id, wohnung_id, einzug, auszug')
         .in('wohnung_id', wohnungen.map(w => w.id).filter(Boolean) as string[]);
 
@@ -262,7 +262,7 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
   try {
     // First, get the Nebenkosten data with house information
     const { data, error } = await supabase
-      .from("Nebenkosten")
+      .from("nebenkosten")
       .select('*, Haeuser!left(name)'); // Changed to left join to handle missing house data
       
     if (error) {
@@ -332,7 +332,7 @@ export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkost
   
   try {
     const { data, error } = await supabase
-      .from("Nebenkosten")
+      .from("nebenkosten")
       .select('*, Haeuser!left(name), Rechnungen(*)')
       .eq('id', id)
       .single();
@@ -378,7 +378,7 @@ export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkost
 export async function fetchFinanzenByMonth() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
-    .from("Finanzen")
+    .from("finanzen")
     .select('*')
     .order('datum', { ascending: true });
     
@@ -573,7 +573,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
   try {
     // 1. Fetch Nebenkosten entry to get haeuser_id and jahr
     const { data: nebenkostenEntry, error: nebenkostenError } = await supabase
-      .from('Nebenkosten')
+      .from('nebenkosten')
       .select('haeuser_id, jahr')
       .eq('id', nebenkostenId)
       .single();
@@ -602,7 +602,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
 
     // Adjustment: Fetch Wohnungen for the house, then Mieter for those Wohnungen
     const { data: wohnungenInHaus, error: wohnungenError } = await supabase
-      .from('Wohnungen')
+      .from('wohnungen')
       .select('id')
       .eq('haus_id', haeuser_id);
 
@@ -619,7 +619,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     const wohnungIds = wohnungenInHaus.map(w => w.id);
 
     const { data: mieterForWohnungen, error: mieterForWohnungenError } = await supabase
-      .from('Mieter')
+      .from('mieter')
       .select('*')
       .in('wohnung_id', wohnungIds);
 
@@ -651,7 +651,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     let existingReadings: Wasserzaehler[] = [];
     if (mieterList.length > 0) { // Only fetch readings if there are relevant mieters
       const { data: readings, error: readingsError } = await supabase
-        .from('Wasserzaehler')
+        .from('wasserzaehler')
         .select('*')
         .eq('nebenkosten_id', nebenkostenId); // Corrected column name to match DB schema hint
       // Optional: Further filter by mieter_ids if necessary, though nebenkosten_id should be specific enough.
@@ -711,7 +711,7 @@ export async function getCurrentWohnungenCount(supabaseClient: any, userId: stri
 
   try {
     const { count, error } = await supabaseClient
-      .from("Wohnungen")
+      .from("wohnungen")
       .select("*", { count: "exact", head: true })
       .eq("user_id", userId);
 
