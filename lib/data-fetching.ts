@@ -135,7 +135,7 @@ export async function fetchMieter() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("mieter")
-    .select('*, Wohnungen(name, groesse, miete)');
+    .select('*, wohnungen(name, groesse, miete)');
     
   if (error) {
     console.error("Error fetching Mieter:", error);
@@ -263,7 +263,7 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
     // First, get the Nebenkosten data with house information
     const { data, error } = await supabase
       .from("nebenkosten")
-      .select('*, Haeuser!left(name)'); // Changed to left join to handle missing house data
+      .select('*, haeuser!left(name)'); // Changed to left join to handle missing house data
       
     if (error) {
       console.error("Error fetching Nebenkosten list:", error);
@@ -333,7 +333,7 @@ export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkost
   try {
     const { data, error } = await supabase
       .from("nebenkosten")
-      .select('*, Haeuser!left(name), Rechnungen(*)')
+      .select('*, haeuser!left(name), rechnungen(*)')
       .eq('id', id)
       .single();
 
@@ -593,7 +593,7 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
     // 2. Fetch Mieter List
     let mieterList: Mieter[] = [];
     const { data: allMieterForHaus, error: mieterError } = await supabase
-      .from('Mieter')
+      .from('mieter')
       .select('*') // Select all fields for Mieter
       .eq('haus_id', haeuser_id); // This assumes Mieter table has a direct haus_id reference.
                                   // If not, you might need to fetch Wohnungen first, then Mieter.

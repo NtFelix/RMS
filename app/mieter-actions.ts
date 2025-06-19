@@ -101,7 +101,7 @@ export async function getMieterByHausIdAction(hausId: string, jahr?: string): Pr
     // Including Wohnungen details as per the original fetchMieter and potential needs
     let query = supabase
       .from("mieter")
-      .select("*, Wohnungen(name, groesse, miete)")
+      .select("*, wohnungen(name, groesse, miete)")
       .in("wohnung_id", wohnungIds);
 
     // If a year is provided, filter tenants based on their move-in and move-out dates
