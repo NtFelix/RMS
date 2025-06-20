@@ -16,14 +16,19 @@ export async function POST(request: Request) {
     }
     const userId = userProfile.id; // Get userId from userProfile
 
-    let currentApartmentLimit: number | null = null;
+    const now = new Date();
+    const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
+    const isTrialActive = trialEndsAt && trialEndsAt > now && (!userProfile.trial_starts_at || new Date(userProfile.trial_starts_at) <= now);
 
-    if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
+    let currentApartmentLimit: number | null | typeof Infinity = null;
+
+    if (isTrialActive) {
+      currentApartmentLimit = 5;
+    } else if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
 
         if (planDetails === null) {
-          // Plan details not found for their price ID
           console.error(`API: Plan details not found for price_id: ${userProfile.stripe_price_id}`);
           return NextResponse.json({ error: "Details zu Ihrem Abonnementplan konnten nicht gefunden werden." }, { status: 403 });
         }
@@ -31,7 +36,7 @@ export async function POST(request: Request) {
         if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
           currentApartmentLimit = planDetails.limitWohnungen;
         } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
-          currentApartmentLimit = Infinity; // Unlimited
+          currentApartmentLimit = Infinity;
         } else {
           console.error(`API: Invalid limitWohnungen configuration: ${planDetails.limitWohnungen}`);
           return NextResponse.json({ error: "Ungültige Konfiguration für Wohnungslimit in Ihrem Plan." }, { status: 500 });
@@ -43,13 +48,11 @@ export async function POST(request: Request) {
         } else {
           console.error("API: Error fetching plan details for limit enforcement (unknown type):", planError);
         }
-        // It's important to inform the user if plan details fetching fails
         return NextResponse.json({ error: "Fehler beim Abrufen der Plandetails für Ihr Abonnement." }, { status: 500 });
       }
     } else {
-      // No active subscription or price ID.
-      // This means they don't have a plan that allows them to add apartments.
-      return NextResponse.json({ error: "Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen." }, { status: 403 });
+      // No active subscription or price ID, and not in trial
+      return NextResponse.json({ error: "Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen." }, { status: 403 });
     }
 
     // Now, count existing apartments
@@ -64,17 +67,21 @@ export async function POST(request: Request) {
     }
 
     // Enforce the limit
-    // If currentApartmentLimit is null here, it means the active subscription check failed earlier,
-    // or stripe_price_id was missing, and that case should have already returned an error.
+    // If currentApartmentLimit is still null here, it means neither trial nor subscription is valid.
+    // The blocks above (isTrialActive, or active subscription) should have set it or returned an error.
+    // This is a fallback / sanity check.
     if (currentApartmentLimit === null) {
-        // This should ideally be caught by the "Ein aktives Abonnement..." error message.
-        console.warn("API: Reached apartment count check with null limit but no active subscription error was returned earlier.");
-        return NextResponse.json({ error: "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen." }, { status: 403 });
+        console.warn("API: currentApartmentLimit is null after trial/subscription checks. This indicates a potential logic issue.");
+        return NextResponse.json({ error: "Zugriff verweigert. Keine gültige Testphase oder Abonnement gefunden." }, { status: 403 });
     }
 
     if (currentApartmentLimit !== Infinity) { // Only check if not unlimited
         if (count !== null && count >= currentApartmentLimit) {
-            return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` }, { status: 403 });
+            if (isTrialActive) {
+                return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` }, { status: 403 });
+            } else {
+                return NextResponse.json({ error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` }, { status: 403 });
+            }
         }
     }
     // === END NEW LOGIC ===
