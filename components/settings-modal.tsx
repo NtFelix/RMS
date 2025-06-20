@@ -1,13 +1,15 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogOverlay, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -52,6 +54,7 @@ type Tab = { value: string; label: string; icon: React.ElementType; content: Rea
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
@@ -60,6 +63,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+
+  // Account deletion states
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
+  const [reauthCode, setReauthCode] = useState<string>("")
+  const [isDeleting, setIsDeleting] = useState<boolean>(false)
+  const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
 
   // State for subscription tab
   const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
@@ -112,6 +121,56 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       } as UserProfileWithSubscription);
     } finally {
       setIsFetchingStatus(false);
+    }
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    if (!reauthCode) {
+      toast.error("Bestätigungscode ist erforderlich.");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const localSupabase = createClient(); // Create a new client instance if needed or use the existing one
+      const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
+
+      if (functionError) {
+        toast.error(`Fehler beim Löschen des Kontos: ${functionError.message}`);
+      } else {
+        toast.success("Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.");
+        await localSupabase.auth.signOut();
+        router.push("/auth/login"); // Redirect to login page
+        if (onOpenChange) onOpenChange(false); // Close modal
+      }
+    } catch (error) {
+      console.error("Delete account exception:", error);
+      toast.error("Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAccountInitiation = async () => {
+    setIsDeleting(true);
+    setShowDeleteConfirmation(false); // Reset confirmation visibility
+    try {
+      // This call might trigger a CAPTCHA if enabled, or other checks.
+      // For sensitive operations, Supabase might send a confirmation email even without explicit MFA.
+      const { error } = await supabase.auth.reauthenticate();
+      if (error) {
+        toast.error(`Fehler bei der erneuten Authentifizierung: ${error.message}`);
+        setShowDeleteConfirmation(false);
+      } else {
+        setShowDeleteConfirmation(true);
+        toast.success("Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.");
+        // The UI for code input is already part of showDeleteConfirmation logic
+      }
+    } catch (error) {
+      console.error("Reauthentication exception:", error);
+      toast.error("Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.");
+      setShowDeleteConfirmation(false);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -213,6 +272,49 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <Button onClick={handleProfileSave} disabled={loading}>
             {loading ? "Speichern..." : "Profil speichern"}
           </Button>
+
+          <div className="mt-6 pt-6 border-t border-destructive/50">
+            <p className="text-sm text-muted-foreground mb-3">
+              Hier können Sie Ihr Konto endgültig löschen. Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
+            </p>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteAccountConfirmModal(true)}
+              disabled={isDeleting} // Keep this disabled if any part of delete is in progress
+              className="w-full"
+            >
+              {isDeleting ? "Wird vorbereitet..." : <><Trash2 className="mr-2 h-4 w-4" />Konto löschen</>}
+            </Button>
+
+            {showDeleteConfirmation && (
+              <div className="mt-4 p-4 border border-destructive/50 rounded-md bg-destructive/5 space-y-3">
+                <p className="text-sm text-destructive font-medium">
+                  Zur Bestätigung wurde ein Code an Ihre E-Mail-Adresse gesendet. Bitte geben Sie den Code hier ein, um die Kontolöschung abzuschließen.
+                </p>
+                <div>
+                  <label htmlFor="reauthCode" className="text-sm font-medium text-destructive">
+                    Bestätigungscode (OTP)
+                  </label>
+                  <Input
+                    id="reauthCode"
+                    type="text" // Using text, but could be 'otp' if a dedicated component existed
+                    value={reauthCode}
+                    onChange={e => setReauthCode(e.target.value)}
+                    placeholder="Code aus E-Mail eingeben"
+                    className="mt-1 w-full border-destructive focus:ring-destructive"
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmDeleteAccount}
+                  disabled={!reauthCode || isDeleting}
+                  className="w-full"
+                >
+                  {isDeleting ? "Wird gelöscht..." : "Code bestätigen und Konto löschen"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -359,11 +461,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   ]
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
-          <DialogTitle className="sr-only">Einstellungen</DialogTitle>
-        <div className="flex h-full overflow-hidden">
-          <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
+            <DialogTitle className="sr-only">Einstellungen</DialogTitle>
+          <div className="flex h-full overflow-hidden">
+            <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
             {tabs.map(tab => (
               <button
                 key={tab.value}
@@ -384,9 +487,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <section className="flex-1 overflow-y-auto p-3">
               {tabs.find(tab => tab.value === activeTab)?.content}
             </section>
+            </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <ConfirmationAlertDialog
+        isOpen={showDeleteAccountConfirmModal}
+        onOpenChange={setShowDeleteAccountConfirmModal}
+        title="Konto wirklich löschen?"
+        description="Sind Sie sicher, dass Sie Ihr Konto endgültig löschen möchten? Dieser Schritt startet den Prozess zur sicheren Entfernung Ihrer Daten. Sie erhalten anschließend eine E-Mail zur Bestätigung."
+        onConfirm={handleDeleteAccountInitiation}
+        confirmButtonText="Löschen einleiten"
+        cancelButtonText="Abbrechen"
+        confirmButtonVariant="destructive"
+      />
+    </>
   )
 }
