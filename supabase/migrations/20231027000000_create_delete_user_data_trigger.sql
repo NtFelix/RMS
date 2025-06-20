@@ -2,23 +2,21 @@
 CREATE OR REPLACE FUNCTION handle_delete_user_data()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SECURITY DEFINER -- Added SECURITY DEFINER
 AS $$
 BEGIN
-  -- Delete from profiles table
-  DELETE FROM public.profiles WHERE id = OLD.id; -- Corrected column name
+  -- Delete from profiles table (usually lowercase and unquoted)
+  DELETE FROM public.profiles WHERE id = OLD.id;
 
-  -- Delete from user's custom tables
-  DELETE FROM public.Aufgaben WHERE user_id = OLD.id;
-  DELETE FROM public.Finanzen WHERE user_id = OLD.id;
-  DELETE FROM public.Haeuser WHERE user_id = OLD.id;
-  DELETE FROM public.Mieter WHERE user_id = OLD.id;
-  DELETE FROM public.Nebenkosten WHERE user_id = OLD.id;
-  DELETE FROM public.Rechnungen WHERE user_id = OLD.id;
-  DELETE FROM public.Wasserzaehler WHERE user_id = OLD.id;
-  DELETE FROM public.Wohnungen WHERE user_id = OLD.id;
-
-  -- Add any other tables that need cascading deletes here
-  -- e.g., DELETE FROM public.another_table WHERE user_id = OLD.id;
+  -- Delete from user's custom tables (quoted initial uppercase)
+  DELETE FROM public."Aufgaben" WHERE user_id = OLD.id;
+  DELETE FROM public."Finanzen" WHERE user_id = OLD.id;
+  DELETE FROM public."Haeuser" WHERE user_id = OLD.id;
+  DELETE FROM public."Mieter" WHERE user_id = OLD.id;
+  DELETE FROM public."Nebenkosten" WHERE user_id = OLD.id;
+  DELETE FROM public."Rechnungen" WHERE user_id = OLD.id;
+  DELETE FROM public."Wasserzaehler" WHERE user_id = OLD.id;
+  DELETE FROM public."Wohnungen" WHERE user_id = OLD.id;
 
   RETURN OLD;
 END;
