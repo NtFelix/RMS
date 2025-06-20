@@ -15,6 +15,7 @@ export type Haus = {
   name: string;
   user_id: string;
   strasse: string | null;
+  groesse?: number | null;
 };
 
 export type Mieter = {
@@ -107,7 +108,7 @@ export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("Haeuser")
-    .select('*');
+    .select('*, groesse');
     
   if (error) {
     console.error("Error fetching Haeuser:", error);
@@ -187,66 +188,106 @@ export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promi
   const supabase = createSupabaseServerClient();
   
   try {
-    // First, get the basic apartment data
-    const { data: wohnungen, error: wohnungenError } = await supabase
-      .from('Wohnungen')
-      .select('id, groesse')
-      .eq('haus_id', hausId);
+    // Fetch the specific house to check for a 'groesse' override
+    const { data: hausData, error: hausError } = await supabase
+      .from('Haeuser')
+      .select('groesse')
+      .eq('id', hausId)
+      .single();
 
-    if (wohnungenError) {
-      console.error('Error fetching apartments:', wohnungenError);
-      throw wohnungenError;
+    if (hausError) {
+      // Log the error but proceed, as we can still calculate from Wohnungen
+      console.warn(`Error fetching house data for ID ${hausId} in getHausGesamtFlaeche:`, hausError.message);
     }
 
-    // If no apartments found, return zeros
-    if (!wohnungen || wohnungen.length === 0) {
-      console.warn(`No apartments found for haus_id: ${hausId}`);
-      return { gesamtFlaeche: 0, anzahlWohnungen: 0, anzahlMieter: 0 };
-    }
+    let gesamtFlaecheCalc: number;
+    let anzahlWohnungen = 0;
+    let wohnungen: { id: string; groesse: number }[] = []; // Initialize wohnungen
 
-    // Calculate total area
-    const totalArea = wohnungen.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
-    const anzahlWohnungen = wohnungen.length;
+    if (hausData && typeof hausData.groesse === 'number' && hausData.groesse > 0) {
+      gesamtFlaecheCalc = hausData.groesse;
+      // Fetch wohnungen anyway to get anzahlWohnungen and for mieter calculation
+      const { data: wohnungenData, error: wohnungenError } = await supabase
+        .from('Wohnungen')
+        .select('id, groesse') // Keep groesse for potential individual calculations if needed elsewhere
+        .eq('haus_id', hausId);
+
+      if (wohnungenError) {
+        console.error('Error fetching apartments even when house.groesse is set:', wohnungenError);
+        // Depending on requirements, you might throw or continue with anzahlWohnungen = 0
+      } else if (wohnungenData) {
+        wohnungen = wohnungenData;
+        anzahlWohnungen = wohnungenData.length;
+      }
+    } else {
+      // Original logic: calculate gesamtFlaeche from apartments
+      const { data: wohnungenData, error: wohnungenError } = await supabase
+        .from('Wohnungen')
+        .select('id, groesse')
+        .eq('haus_id', hausId);
+
+      if (wohnungenError) {
+        console.error('Error fetching apartments:', wohnungenError);
+        throw wohnungenError; // Or handle more gracefully
+      }
+
+      if (!wohnungenData || wohnungenData.length === 0) {
+        console.warn(`No apartments found for haus_id: ${hausId}`);
+        // Return early if no apartments and no override groesse
+        return { gesamtFlaeche: 0, anzahlWohnungen: 0, anzahlMieter: 0 };
+      }
+      wohnungen = wohnungenData;
+      gesamtFlaecheCalc = wohnungen.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
+      anzahlWohnungen = wohnungen.length;
+    }
 
     // Get tenant data for the specific year
     let anzahlMieter = 0;
-    try {
-      // Get all tenants for the apartments in this house
-      const { data: mieter, error: mieterError } = await supabase
-        .from('Mieter')
-        .select('id, wohnung_id, einzug, auszug')
-        .in('wohnung_id', wohnungen.map(w => w.id).filter(Boolean) as string[]);
+    // Ensure wohnungen is populated before trying to map over it for tenant fetching
+    if (wohnungen.length > 0) {
+      try {
+        // Get all tenants for the apartments in this house
+        const { data: mieter, error: mieterError } = await supabase
+          .from('Mieter')
+          .select('id, wohnung_id, einzug, auszug')
+          .in('wohnung_id', wohnungen.map(w => w.id).filter(Boolean) as string[]);
 
-      if (mieterError) {
-        console.warn('Error fetching tenant data, will continue without it:', mieterError);
-      } else if (mieter && mieter.length > 0) {
-        if (jahr) {
-          // If a year is provided, filter tenants who lived there during that year
-          const yearNum = parseInt(jahr);
-          const yearStart = new Date(yearNum, 0, 1).toISOString().split('T')[0];
-          const yearEnd = new Date(yearNum, 11, 31).toISOString().split('T')[0];
-          
-          anzahlMieter = mieter.filter(tenant => {
-            const moveIn = tenant.einzug || '';
-            const moveOut = tenant.auszug || '9999-12-31'; // If no move-out date, assume still living there
+        if (mieterError) {
+          console.warn('Error fetching tenant data, will continue without it:', mieterError);
+        } else if (mieter && mieter.length > 0) {
+          if (jahr) {
+            // If a year is provided, filter tenants who lived there during that year
+            const yearNum = parseInt(jahr);
+            const yearStart = new Date(yearNum, 0, 1).toISOString().split('T')[0];
+            const yearEnd = new Date(yearNum, 11, 31).toISOString().split('T')[0];
             
-            // Check if the tenant's stay overlaps with the target year
-            return (
-              (moveIn <= yearEnd) && 
-              (moveOut >= yearStart || !tenant.auszug)
-            );
-          }).length;
-        } else {
-          // If no year is provided, just count all tenants
-          anzahlMieter = mieter.length;
+            anzahlMieter = mieter.filter(tenant => {
+              const moveIn = tenant.einzug || '';
+              const moveOut = tenant.auszug || '9999-12-31'; // If no move-out date, assume still living there
+
+              // Check if the tenant's stay overlaps with the target year
+              return (
+                (moveIn <= yearEnd) &&
+                (moveOut >= yearStart || !tenant.auszug)
+              );
+            }).length;
+          } else {
+            // If no year is provided, just count all tenants
+            anzahlMieter = mieter.length;
+          }
         }
+      } catch (error) {
+        console.warn('Unexpected error when fetching tenant data, will continue without it:', error);
       }
-    } catch (error) {
-      console.warn('Unexpected error when fetching tenant data, will continue without it:', error);
+    } else if (gesamtFlaecheCalc > 0) {
+      // This case means Haeuser.groesse was used, but no apartments were found (or fetched)
+      // anzahlWohnungen would be 0 (or the count from the separate fetch if that succeeded)
+      // anzahlMieter will remain 0 as there are no Wohnungen to link Mieter to.
+      console.warn(`Haus ${hausId} uses Haeuser.groesse, but no associated Wohnungen found for tenant calculation.`);
     }
     
     return { 
-      gesamtFlaeche: totalArea,
+      gesamtFlaeche: gesamtFlaecheCalc,
       anzahlWohnungen,
       anzahlMieter
     };

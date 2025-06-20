@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
 import { useRouter } from "next/navigation"; // Added for router.refresh()
 import { toast } from "@/hooks/use-toast"; // Added for toast notifications
 
@@ -21,6 +22,7 @@ interface House {
   name: string;
   strasse?: string;
   ort: string;
+  groesse?: number | null;
   // Add other fields as necessary
 }
 
@@ -45,11 +47,14 @@ export function HouseEditModal(props: HouseEditModalProps) {
     onSuccess
   } = props;
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false); // Added submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [automaticSize, setAutomaticSize] = useState(true);
+  const [manualGroesse, setManualGroesse] = useState<string>('');
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     strasse: initialData?.strasse || "",
     ort: initialData?.ort || "",
+    groesse: initialData?.groesse ?? null, // Reflects House interface
   });
 
   useEffect(() => {
@@ -58,12 +63,22 @@ export function HouseEditModal(props: HouseEditModalProps) {
         name: initialData.name,
         strasse: initialData.strasse || "",
         ort: initialData.ort,
+        groesse: initialData.groesse ?? null,
       });
+      if (initialData.groesse != null) {
+        setAutomaticSize(false);
+        setManualGroesse(String(initialData.groesse));
+      } else {
+        setAutomaticSize(true);
+        setManualGroesse('');
+      }
     } else {
       // Reset for adding new
-      setFormData({ name: "", strasse: "", ort: "" });
+      setFormData({ name: "", strasse: "", ort: "", groesse: null });
+      setAutomaticSize(true);
+      setManualGroesse('');
     }
-  }, [initialData, open]); // Re-initialize form when initialData or open status changes
+  }, [initialData, open]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -78,6 +93,12 @@ export function HouseEditModal(props: HouseEditModalProps) {
     form.append("name", formData.name);
     form.append("strasse", formData.strasse);
     form.append("ort", formData.ort);
+
+    if (automaticSize) {
+      form.append("groesse", ""); // Send empty string for NULL
+    } else {
+      form.append("groesse", manualGroesse);
+    }
 
     try {
       const result = await serverAction(initialData?.id || null, form);
@@ -158,6 +179,27 @@ export function HouseEditModal(props: HouseEditModalProps) {
               onChange={handleInputChange}
               required
               disabled={isSubmitting}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="automaticSize"
+              checked={automaticSize}
+              onCheckedChange={(checked) => setAutomaticSize(Boolean(checked))}
+              disabled={isSubmitting}
+            />
+            <Label htmlFor="automaticSize">Automatische Größe</Label>
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="manualGroesse">Größe (m²)</Label>
+            <Input
+              type="number"
+              id="manualGroesse"
+              name="manualGroesse"
+              value={manualGroesse}
+              onChange={(e) => setManualGroesse(e.target.value)}
+              disabled={automaticSize || isSubmitting}
+              placeholder={automaticSize ? "Automatisch berechnet" : "Manuell eingeben"}
             />
           </div>
           <DialogFooter>
