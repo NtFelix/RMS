@@ -1,5 +1,4 @@
-import { createSupabaseServerClient } from './supabase-server';
-import { Haus, Mieter, Finanzen, Wohnung, Nebenkosten, Aufgabe, Rechnung } from './data-fetching'; // Assuming types are exported from here
+import { Haus, Mieter, Finanzen, Wohnung, Nebenkosten, Aufgabe, Rechnung } from './data-fetching';
 
 // Helper function to convert an array of objects to CSV
 function convertToCSV(data: any[], columns: string[]): string {
@@ -25,76 +24,69 @@ function convertToCSV(data: any[], columns: string[]): string {
   return header + rows;
 }
 
-export async function exportDataAsCsv(): Promise<{ [key: string]: string }> {
-  const supabase = createSupabaseServerClient();
+// Define a type for the input data structure
+export type AllExportData = {
+  haeuser: Haus[];
+  mieter: Mieter[];
+  finanzen: Finanzen[];
+  wohnungen: Wohnung[];
+  nebenkosten: Nebenkosten[];
+  aufgaben: Aufgabe[];
+  rechnungen: Rechnung[];
+};
+
+export function processDataToCsv(allData: AllExportData): { [key: string]: string } {
   const csvData: { [key: string]: string } = {};
 
-  // Fetch and process Haeuser
-  const { data: haeuserData, error: haeuserError } = await supabase.from('Haeuser').select('id, ort, name, strasse, groesse');
-  if (haeuserError) console.error('Error fetching Haeuser:', haeuserError);
-  if (haeuserData) {
+  if (allData.haeuser && allData.haeuser.length > 0) {
     const columns = ['id', 'ort', 'name', 'strasse', 'groesse'];
-    csvData['haeuser.csv'] = convertToCSV(haeuserData, columns);
+    csvData['haeuser.csv'] = convertToCSV(allData.haeuser, columns);
   }
 
-  // Fetch and process Mieter
-  // Excludes: wohnung_id (FK)
-  const { data: mieterData, error: mieterError } = await supabase.from('Mieter').select('id, name, einzug, auszug, email, telefonnummer, notiz, nebenkosten, nebenkosten_datum');
-  if (mieterError) console.error('Error fetching Mieter:', mieterError);
-  if (mieterData) {
+  if (allData.mieter && allData.mieter.length > 0) {
     const columns = ['id', 'name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'];
-    csvData['mieter.csv'] = convertToCSV(mieterData, columns);
+    // Ensure all selected columns exist on Mieter type, especially FKs that might have been removed if not populated.
+    // For example, 'wohnung_id' is excluded in the original select.
+    csvData['mieter.csv'] = convertToCSV(allData.mieter, columns);
   }
 
-  // Fetch and process Finanzen
-  // Excludes: wohnung_id (FK)
-  const { data: finanzenData, error: finanzenError } = await supabase.from('Finanzen').select('id, name, datum, betrag, ist_einnahmen, notiz');
-  if (finanzenError) console.error('Error fetching Finanzen:', finanzenError);
-  if (finanzenData) {
+  if (allData.finanzen && allData.finanzen.length > 0) {
     const columns = ['id', 'name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'];
-    csvData['finanzen.csv'] = convertToCSV(finanzenData, columns);
+    // 'wohnung_id' excluded
+    csvData['finanzen.csv'] = convertToCSV(allData.finanzen, columns);
   }
 
-  // Fetch and process Wohnungen
-  // Excludes: haus_id (FK)
-  const { data: wohnungenData, error: wohnungenError } = await supabase.from('Wohnungen').select('id, groesse, name, miete');
-  if (wohnungenError) console.error('Error fetching Wohnungen:', wohnungenError);
-  if (wohnungenData) {
+  if (allData.wohnungen && allData.wohnungen.length > 0) {
     const columns = ['id', 'groesse', 'name', 'miete'];
-    csvData['wohnungen.csv'] = convertToCSV(wohnungenData, columns);
+    // 'haus_id' excluded
+    csvData['wohnungen.csv'] = convertToCSV(allData.wohnungen, columns);
   }
 
-  // Fetch and process Nebenkosten
-  // Excludes: haeuser_id (FK)
-  const { data: nebenkostenData, error: nebenkostenError } = await supabase.from('Nebenkosten').select('id, jahr, nebenkostenart, betrag, berechnungsart, wasserkosten');
-  if (nebenkostenError) console.error('Error fetching Nebenkosten:', nebenkostenError);
-  if (nebenkostenData) {
+  if (allData.nebenkosten && allData.nebenkosten.length > 0) {
     const columns = ['id', 'jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten'];
-    csvData['nebenkosten.csv'] = convertToCSV(nebenkostenData, columns);
+    // 'haeuser_id' excluded
+    csvData['nebenkosten.csv'] = convertToCSV(allData.nebenkosten, columns);
   }
 
-  // Fetch and process Aufgaben
-  // Excludes: user_id (FK) - user_id is typically auth.uid() and might not be desired in data export or it's implicit.
-  // Consider if erstellungsdatum and aenderungsdatum are needed.
-  const { data: aufgabenData, error: aufgabenError } = await supabase.from('Aufgaben').select('id, ist_erledigt, name, beschreibung, erstellungsdatum, aenderungsdatum');
-  if (aufgabenError) console.error('Error fetching Aufgaben:', aufgabenError);
-  if (aufgabenData) {
+  if (allData.aufgaben && allData.aufgaben.length > 0) {
     const columns = ['id', 'ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'];
-    csvData['aufgaben.csv'] = convertToCSV(aufgabenData, columns);
+    // 'user_id' excluded
+    csvData['aufgaben.csv'] = convertToCSV(allData.aufgaben, columns);
   }
 
-  // Fetch and process Rechnungen
-  // Excludes: nebenkosten_id (FK), mieter_id (FK)
-  const { data: rechnungenData, error: rechnungenError } = await supabase.from('Rechnungen').select('id, name, betrag');
-  if (rechnungenError) console.error('Error fetching Rechnungen:', rechnungenError);
-  if (rechnungenData) {
+  if (allData.rechnungen && allData.rechnungen.length > 0) {
     const columns = ['id', 'name', 'betrag'];
-    csvData['rechnungen.csv'] = convertToCSV(rechnungenData, columns);
+    // 'nebenkosten_id', 'mieter_id' excluded
+    csvData['rechnungen.csv'] = convertToCSV(allData.rechnungen, columns);
   }
 
-  // Note: Wasserzaehler table seems to only have id and user_id based on datenbankstruktur.md
-  // If it's intended to be exported, decide which fields are relevant.
-  // For now, skipping Wasserzaehler as it lacks non-FK data fields besides 'id'.
+  // Note: Wasserzaehler table was previously skipped. If it's added to AllExportData,
+  // similar processing logic would be needed here.
+  // Example:
+  // if (allData.wasserzaehler && allData.wasserzaehler.length > 0) {
+  //   const columns = ['id', 'ablese_datum', 'zaehlerstand', 'verbrauch']; // Adjust columns as needed
+  //   csvData['wasserzaehler.csv'] = convertToCSV(allData.wasserzaehler, columns);
+  // }
 
   return csvData;
 }

@@ -3,7 +3,8 @@ import React from 'react';
 import { useRouter } from 'next/navigation'; // Imported useRouter
 import { Lock, Download, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { exportDataAsCsv } from '@/lib/export-data';
+// import { exportDataAsCsv } from '@/lib/export-data'; // No longer needed directly
+import { generateCsvExportDataAction } from '@/app/actions/export-actions';
 import { toast } from 'sonner'; // Import toast
 
 const SubscriptionLockedPage = () => {
@@ -14,10 +15,12 @@ const SubscriptionLockedPage = () => {
   };
 
   const handleDownloadData = async () => {
-    console.log("Exporting data from subscription locked page...");
+    console.log("Exporting data from subscription locked page via server action...");
     toast.info("Datenexport wird gestartet...");
     try {
-      const csvData = await exportDataAsCsv();
+      // Call the server action
+      const csvData = await generateCsvExportDataAction();
+
       if (Object.keys(csvData).length === 0) {
         toast.warn("Keine Daten zum Exportieren vorhanden.");
         return;
@@ -43,7 +46,7 @@ const SubscriptionLockedPage = () => {
       }
       toast.success("Daten erfolgreich exportiert und heruntergeladen.");
     } catch (error) {
-      console.error("Error exporting data:", error);
+      console.error("Error exporting data from subscription locked page via server action:", error);
       toast.error("Fehler beim Exportieren der Daten: " + (error as Error).message);
     }
   };

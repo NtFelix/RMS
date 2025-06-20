@@ -15,7 +15,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
-import { exportDataAsCsv } from '@/lib/export-data';
+// import { exportDataAsCsv } from '@/lib/export-data'; // No longer needed directly
+import { generateCsvExportDataAction } from '@/app/actions/export-actions';
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -475,10 +476,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           </div>
           <Button
             onClick={async () => {
-              console.log("Exporting data...");
+              console.log("Exporting data via server action...");
               toast.info("Datenexport wird gestartet...");
               try {
-                const csvData = await exportDataAsCsv();
+                // Call the server action
+                const csvData = await generateCsvExportDataAction();
+
                 if (Object.keys(csvData).length === 0) {
                   toast.warn("Keine Daten zum Exportieren vorhanden.");
                   return;
@@ -504,7 +507,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 }
                 toast.success("Daten erfolgreich exportiert und heruntergeladen.");
               } catch (error) {
-                console.error("Error exporting data:", error);
+                console.error("Error exporting data via server action:", error);
                 toast.error("Fehler beim Exportieren der Daten: " + (error as Error).message);
               }
             }}
