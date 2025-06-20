@@ -540,10 +540,12 @@ export async function fetchUserProfile(): Promise<Profile | null> {
 
   // If profileData is successfully fetched (not null and no error)
   // Combine email from auth.user with data from profiles table
-  // The explicit check `profileData ? profileData : {}` is more robust for TypeScript.
+  // profileData can be null if .single() finds no record but no actual error occurred (though typically PGRST116 error is set).
+  const profileDataToSpread = profileData ? profileData : {};
+
   const finalProfile: Profile = {
     ...baseUserProfile, // Start with base (id, email, nullified stripe fields)
-    ...(profileData ? profileData : {}), // Spread actual profile data if available
+    ...profileDataToSpread, // Spread sanitized profile data
   };
 
   return finalProfile;
