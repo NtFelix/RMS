@@ -43,6 +43,7 @@ create table public."Haeuser" (
   name text not null,
   user_id uuid not null default auth.uid (),
   strasse text null,
+  groesse NUMERIC NULL,
   constraint Haeuser_pkey primary key (id),
   constraint Haeuser_name_key unique (name)
 ) TABLESPACE pg_default;

@@ -7,28 +7,49 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
   const supabase = await createClient();
 
   try {
+    const groesseValue = formData.get("groesse");
+    let processedGroesse: number | null = null;
+
+    if (typeof groesseValue === 'string' && groesseValue.trim() !== '') {
+      const num = parseFloat(groesseValue);
+      if (!isNaN(num)) {
+        processedGroesse = num;
+      }
+    } else if (typeof groesseValue === 'number') { // Should not happen with FormData but good for robustness
+      processedGroesse = groesseValue;
+    }
+
     if (id) {
-      // Use the id parameter directly
       const updatePayload: { [key: string]: any } = {};
       formData.forEach((value, key) => {
-        // No need to check for 'id' in formData anymore
-        updatePayload[key] = value;
+        if (key !== 'groesse') {
+          updatePayload[key] = value;
+        }
       });
+      updatePayload['groesse'] = processedGroesse;
+
       const { error } = await supabase.from("Haeuser").update(updatePayload).eq("id", id);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      // For insert, use formData directly
-      // Note: Supabase client insert typically takes an object or array of objects, not FormData directly.
-      // Assuming there's a utility or the client handles FormData, or this needs adjustment.
-      // For now, proceeding with the assumption that direct FormData insert is intended/handled.
-      // If it expects an object, conversion from FormData will be needed.
       const insertData: { [key: string]: any } = {};
       formData.forEach((value, key) => {
-        insertData[key] = value;
+        if (key !== 'groesse') {
+          insertData[key] = value;
+        }
       });
-      const { error } = await supabase.from("Haeuser").insert(insertData); // Adjusted to pass an object
+      insertData['groesse'] = processedGroesse;
+      // Ensure user_id is set for new houses if not coming from form
+      // For example, if auth.uid() should be the default:
+      // if (!insertData.user_id) {
+      //   const { data: { user } } = await supabase.auth.getUser();
+      //   if (user) insertData.user_id = user.id;
+      //   else throw new Error("User not authenticated for insert.");
+      // }
+
+
+      const { error } = await supabase.from("Haeuser").insert(insertData);
       if (error) {
         return { success: false, error: { message: error.message } };
       }
