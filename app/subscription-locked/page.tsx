@@ -3,12 +3,49 @@ import React from 'react';
 import { useRouter } from 'next/navigation'; // Imported useRouter
 import { Lock, Download, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { exportDataAsCsv } from '@/lib/export-data';
+import { toast } from 'sonner'; // Import toast
 
 const SubscriptionLockedPage = () => {
   const router = useRouter(); // Instantiated router
 
   const handleSelectSubscription = () => {
     router.push('/landing#pricing'); // Redirect to pricing section on landing page
+  };
+
+  const handleDownloadData = async () => {
+    console.log("Exporting data from subscription locked page...");
+    toast.info("Datenexport wird gestartet...");
+    try {
+      const csvData = await exportDataAsCsv();
+      if (Object.keys(csvData).length === 0) {
+        toast.warn("Keine Daten zum Exportieren vorhanden.");
+        return;
+      }
+      for (const filename in csvData) {
+        if (csvData.hasOwnProperty(filename)) {
+          const csvString = csvData[filename];
+          if (!csvString) {
+            console.warn(`No data for ${filename}, skipping download.`);
+            continue;
+          }
+          const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          const url = URL.createObjectURL(blob);
+          link.setAttribute("href", url);
+          link.setAttribute("download", filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }
+      }
+      toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+    } catch (error) {
+      console.error("Error exporting data:", error);
+      toast.error("Fehler beim Exportieren der Daten: " + (error as Error).message);
+    }
   };
 
   return (
@@ -39,6 +76,7 @@ const SubscriptionLockedPage = () => {
             variant="secondary"
             size="lg"
             className="w-full sm:w-auto"
+            onClick={handleDownloadData} // Use the new handler
             // Removed disabled attribute from this button as well for consistency
           >
             <Download /> {/* Icon added */}

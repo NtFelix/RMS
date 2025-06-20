@@ -9,12 +9,13 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2 } from "lucide-react"
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, Download } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
+import { exportDataAsCsv } from '@/lib/export-data';
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -458,6 +459,61 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         </div>
       ),
     },
+    {
+      value: "export",
+      label: "Datenexport",
+      icon: Download, // Make sure Download is imported from lucide-react
+      content: (
+        <div className="flex flex-col space-y-4">
+          <div>
+            <h3 className="text-lg font-medium">Datenexport</h3>
+            <p className="text-sm text-muted-foreground">
+              Hier können Sie Ihre gesamten Daten als CSV-Dateien herunterladen.
+              Jede Hauptdaten-Kategorie (Häuser, Mieter, Finanzen etc.) wird in einer separaten CSV-Datei exportiert.
+              Bitte beachten Sie, dass Verknüpfungen zwischen den Tabellen (Fremdschlüssel) nicht exportiert werden.
+            </p>
+          </div>
+          <Button
+            onClick={async () => {
+              console.log("Exporting data...");
+              toast.info("Datenexport wird gestartet...");
+              try {
+                const csvData = await exportDataAsCsv();
+                if (Object.keys(csvData).length === 0) {
+                  toast.warn("Keine Daten zum Exportieren vorhanden.");
+                  return;
+                }
+                for (const filename in csvData) {
+                  if (csvData.hasOwnProperty(filename)) {
+                    const csvString = csvData[filename];
+                    if (!csvString) {
+                      console.warn(`No data for ${filename}, skipping download.`);
+                      continue;
+                    }
+                    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", filename);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                  }
+                }
+                toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+              } catch (error) {
+                console.error("Error exporting data:", error);
+                toast.error("Fehler beim Exportieren der Daten: " + (error as Error).message);
+              }
+            }}
+          >
+            Daten exportieren
+          </Button>
+        </div>
+      ),
+    }
   ]
 
   return (
