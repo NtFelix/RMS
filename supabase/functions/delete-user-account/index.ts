@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 // Define allowed origins
 const allowedOrigins = [
   'https://rms-1g5d48one-felixs-projects-3080273c.vercel.app', // Your Vercel deployment
+  'https://rms-55zv7n00b-felixs-projects-3080273c.vercel.app', // New origin
   'http://localhost:3000', // Common local development URL
   'http://localhost:3001'  // Often used by Vercel CLI local dev
 ];
