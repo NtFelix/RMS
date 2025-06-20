@@ -24,6 +24,7 @@ interface UserSubscriptionProfile extends SupabaseProfile {
   // stripe_subscription_status is already in SupabaseProfile
   trial_starts_at?: string | null;
   trial_ends_at?: string | null;
+  isTrialActive?: boolean;
 }
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
@@ -149,20 +150,17 @@ export default function SubscriptionPage() {
     );
   }
 
-  const now = new Date();
-  const trialStartsAt = profile?.trial_starts_at ? new Date(profile.trial_starts_at) : null;
-  const trialEndsAt = profile?.trial_ends_at ? new Date(profile.trial_ends_at) : null;
-  // isTrialActive considers our custom trial. A Stripe 'trialing' status will be shown as a normal plan.
-  const isTrialActive = trialEndsAt && trialEndsAt > now && (!profile?.stripe_subscription_id || profile?.stripe_subscription_status === 'trialing') && (!trialStartsAt || trialStartsAt <= now);
-
-
+  // isTrialActive now comes from profile.isTrialActive
+  // daysRemaining calculation needs to use profile.trial_ends_at and profile.isTrialActive
   let daysRemaining = 0;
-  if (isTrialActive && trialEndsAt) {
-    const diffTime = Math.abs(trialEndsAt.getTime() - now.getTime());
+  if (profile?.isTrialActive && profile?.trial_ends_at) {
+    const trialEndsDate = new Date(profile.trial_ends_at);
+    const now = new Date();
+    const diffTime = Math.abs(trialEndsDate.getTime() - now.getTime());
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
-  if (isTrialActive) {
+  if (profile?.isTrialActive) {
     return (
       <div className="container mx-auto p-4">
         <h1 className="text-2xl font-bold mb-6 text-center">Subscription Management</h1>
@@ -171,9 +169,9 @@ export default function SubscriptionPage() {
           <p className="mb-2">
             You are currently on a free trial.
           </p>
-          {trialEndsAt && (
+          {profile?.trial_ends_at && (
             <p className="mb-2">
-              Your trial ends on: <strong>{trialEndsAt.toLocaleDateString()}</strong> ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining).
+              Your trial ends on: <strong>{new Date(profile.trial_ends_at).toLocaleDateString()}</strong> ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining).
             </p>
           )}
           <p className="mb-2">You can create up to <strong>5 Wohnungen</strong> during your trial.</p>
@@ -187,7 +185,8 @@ export default function SubscriptionPage() {
   }
 
   // User has an active PAID subscription (not our custom trial)
-  if (!isTrialActive && profile.hasActiveSubscription && profile.activePlan) {
+  // Use profile.isTrialActive from API
+  if (!profile?.isTrialActive && profile?.hasActiveSubscription && profile.activePlan) {
     const { activePlan } = profile;
     const featuresList = activePlan.features || [];
 
@@ -232,7 +231,8 @@ export default function SubscriptionPage() {
   }
 
   const isPaidSubscriptionProblematic = ['canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired', null, undefined].includes(profile?.stripe_subscription_status);
-  const showPricing = !isTrialActive && (!profile?.hasActiveSubscription || isPaidSubscriptionProblematic);
+  // Use profile.isTrialActive from API for showPricing logic
+  const showPricing = !profile?.isTrialActive && (!profile?.hasActiveSubscription || isPaidSubscriptionProblematic);
 
   if (showPricing) {
     return (

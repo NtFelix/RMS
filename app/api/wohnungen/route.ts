@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
+import { isUserInActiveTrial } from '@/lib/utils';
 
 export async function POST(request: Request) {
   try {
@@ -16,9 +17,7 @@ export async function POST(request: Request) {
     }
     const userId = userProfile.id; // Get userId from userProfile
 
-    const now = new Date();
-    const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
-    const isTrialActive = trialEndsAt && trialEndsAt > now && (!userProfile.trial_starts_at || new Date(userProfile.trial_starts_at) <= now);
+    const isTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
 
