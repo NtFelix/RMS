@@ -36,9 +36,15 @@ export async function speichereWohnung(formData: WohnungFormData) {
         return { error: 'Benutzerprofil nicht gefunden.' };
     }
 
-    let currentApartmentLimit: number | null = null; // Default to null (no limit or specific check failed)
+    const now = new Date();
+    const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
+    const isTrialActive = trialEndsAt && trialEndsAt > now && (!userProfile.trial_starts_at || new Date(userProfile.trial_starts_at) <= now);
 
-    if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
+    let currentApartmentLimit: number | null | typeof Infinity = null;
+
+    if (isTrialActive) {
+      currentApartmentLimit = 5;
+    } else if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
 
@@ -49,10 +55,8 @@ export async function speichereWohnung(formData: WohnungFormData) {
         if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
           currentApartmentLimit = planDetails.limitWohnungen;
         } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
-          // Plan explicitly allows unlimited or has 0/negative limit (e.g. -1 for unlimited legacy plans), treat as unlimited.
-          currentApartmentLimit = Infinity; // Using Infinity to signify unlimited
+          currentApartmentLimit = Infinity;
         } else {
-          // Invalid configuration for limitWohnungen (e.g., undefined, string, etc.)
           console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
           return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
         }
@@ -61,8 +65,8 @@ export async function speichereWohnung(formData: WohnungFormData) {
         return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };
       }
     } else {
-      // No active subscription or price ID.
-      return { error: 'Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen.' };
+      // No active subscription or price ID, and not in trial
+      return { error: 'Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
     const { count, error: countError } = await supabase
@@ -77,25 +81,25 @@ export async function speichereWohnung(formData: WohnungFormData) {
 
     if (currentApartmentLimit !== null && currentApartmentLimit !== Infinity) {
       if (count !== null && count >= currentApartmentLimit) {
-        return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
+        if (isTrialActive) {
+          return { error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` };
+        } else {
+          return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
+        }
       }
     }
-    // If currentApartmentLimit is still null here, it means the active subscription check failed earlier,
-    // or stripe_price_id was missing, and that case should already have returned an error.
-    // If it's Infinity, the limit check will be bypassed correctly.
-
-    // The check for currentApartmentLimit === null before counting is important.
-    // If it's null at this stage, it means the user doesn't have an active plan,
-    // and the error for that should have been returned.
-    // Adding an explicit check here for robustness, though theoretically covered by the earlier return.
-    if (currentApartmentLimit === null && !(userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id)) {
-        // This case should ideally be caught by the "Ein aktives Abonnement..." error message.
-        // If it reaches here with currentApartmentLimit = null, it implies a logic flaw or an untested edge case.
-        console.warn("Reached apartment count check with null limit but no active subscription error was returned.");
-        return { error: 'Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen.' };
+    // If currentApartmentLimit is still null here, it implies neither trial nor active subscription was found.
+    // The earlier check `else { return { error: 'Ein aktives Abonnement oder eine aktive Testphase... }; }` should cover this.
+    // Adding a check for robustness, although theoretically it should not be reached if currentApartmentLimit is null.
+    if (currentApartmentLimit === null) {
+        // This state should ideally be caught by the logic determining currentApartmentLimit.
+        // If isTrialActive is false, and stripe conditions are false, it returns the specific error.
+        // This is a fallback or for an unexpected state.
+        console.warn("Reached apartment count check with null limit, implying no active trial or subscription. This should have been caught earlier.");
+        return { error: 'Kein gültiger Plan oder Testphase aktiv, um Wohnungen hinzuzufügen.' };
     }
 
-    // The count variable from the first block (around line 61) is in scope here and should be used.
+    // The count variable from the first block is in scope here and should be used.
     // The duplicated block that was here has been removed.
 
     const { error } = await supabase.from('Wohnungen').insert({

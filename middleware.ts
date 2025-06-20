@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_subscription_status')
+      .select('stripe_subscription_status, trial_starts_at, trial_ends_at') // Added trial fields
       .eq('id', sessionUser.id)
       .single()
 
@@ -103,7 +103,10 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set('error', 'profile_fetch_failed');
         return NextResponse.redirect(url);
       }
-    } else if (!profile || (profile.stripe_subscription_status !== 'active' && profile.stripe_subscription_status !== 'trialing')) {
+    } else if (!profile ||
+               (profile.stripe_subscription_status !== 'active' &&
+                profile.stripe_subscription_status !== 'trialing' &&
+                !(profile.trial_ends_at && new Date(profile.trial_ends_at) > new Date()))) {
       if (pathname.startsWith('/api/')) {
         // For API routes, return a JSON response indicating subscription issue
         return NextResponse.json({ error: 'Subscription inactive or invalid. Please subscribe or manage your subscription.' }, { status: 403 });
