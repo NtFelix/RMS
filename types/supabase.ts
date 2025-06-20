@@ -8,4 +8,6 @@ export interface Profile {
   stripe_subscription_status?: string | null;
   stripe_price_id?: string | null;
   stripe_current_period_end?: string | null; // Or Date
+  trial_starts_at?: string | null;
+  trial_ends_at?: string | null;
 }
