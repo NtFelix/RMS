@@ -204,7 +204,7 @@ export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promi
     let anzahlWohnungen = 0;
     let wohnungen: { id: string; groesse: number }[] = []; // Initialize wohnungen
 
-    if (hausData && typeof hausData.groesse === 'number' && hausData.groesse > 0) {
+    if (hausData && typeof hausData.groesse === 'number') {
       gesamtFlaecheCalc = hausData.groesse;
       // Fetch wohnungen anyway to get anzahlWohnungen and for mieter calculation
       const { data: wohnungenData, error: wohnungenError } = await supabase
