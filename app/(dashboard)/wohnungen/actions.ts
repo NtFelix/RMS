@@ -5,6 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
+import { isUserInActiveTrial } from '@/lib/utils';
 
 // Typdefinition für die Wohnungsdaten
 type WohnungFormData = {
@@ -36,9 +37,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
         return { error: 'Benutzerprofil nicht gefunden.' };
     }
 
-    const now = new Date();
-    const trialEndsAt = userProfile.trial_ends_at ? new Date(userProfile.trial_ends_at) : null;
-    const isTrialActive = trialEndsAt && trialEndsAt > now && (!userProfile.trial_starts_at || new Date(userProfile.trial_starts_at) <= now);
+    const isTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
 
