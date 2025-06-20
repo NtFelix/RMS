@@ -485,6 +485,8 @@ type Profile = {
   stripe_subscription_status?: string | null;
   stripe_price_id?: string | null;
   stripe_current_period_end?: string | null; // Consider Date type if you parse it
+  trial_starts_at?: string | null;
+  trial_ends_at?: string | null;
 };
 
 export async function fetchUserProfile(): Promise<Profile | null> {
@@ -505,7 +507,9 @@ export async function fetchUserProfile(): Promise<Profile | null> {
       stripe_subscription_id,
       stripe_subscription_status,
       stripe_price_id,
-      stripe_current_period_end
+      stripe_current_period_end,
+      trial_starts_at, // Added
+      trial_ends_at    // Added
     `)
     .eq('id', user.id)
     .single();
@@ -518,6 +522,8 @@ export async function fetchUserProfile(): Promise<Profile | null> {
     stripe_subscription_status: null,
     stripe_price_id: null,
     stripe_current_period_end: null,
+    trial_starts_at: null,
+    trial_ends_at: null,
   };
 
   if (profileError) {

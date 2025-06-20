@@ -57,8 +57,11 @@ export async function GET() {
       stripe_subscription_status: profile.stripe_subscription_status,
       stripe_price_id: profile.stripe_price_id,
       stripe_current_period_end: profile.stripe_current_period_end,
+      trial_starts_at: profile.trial_starts_at,
+      trial_ends_at: profile.trial_ends_at,
       activePlan: planDetails, // This will be null if no active plan or error fetching
-      hasActiveSubscription: !!planDetails && (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing'),
+      hasActiveSubscription: (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') ||
+                             (profile.trial_ends_at && new Date(profile.trial_ends_at) > new Date() && profile.trial_starts_at && new Date(profile.trial_starts_at) <= new Date()),
       currentWohnungenCount: currentWohnungenCount, // Add this line
     };
 
