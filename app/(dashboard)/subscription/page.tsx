@@ -22,6 +22,9 @@ interface UserSubscriptionProfile extends SupabaseProfile {
   };
   // stripe_current_period_end is already in SupabaseProfile
   // stripe_subscription_status is already in SupabaseProfile
+  trial_starts_at?: string | null;
+  trial_ends_at?: string | null;
+  isTrialActive?: boolean;
 }
 
 // Make sure to call `loadStripe` outside of a component’s render to avoid
@@ -147,12 +150,45 @@ export default function SubscriptionPage() {
     );
   }
 
-  // User has an active subscription
-  if (profile.hasActiveSubscription && profile.activePlan) {
-    const { activePlan } = profile;
-    // activePlan.features is now guaranteed to be a string[] by the API and type definition.
-    const featuresList = activePlan.features || [];
+  // isTrialActive now comes from profile.isTrialActive
+  // daysRemaining calculation needs to use profile.trial_ends_at and profile.isTrialActive
+  let daysRemaining = 0;
+  if (profile?.isTrialActive && profile?.trial_ends_at) {
+    const trialEndsDate = new Date(profile.trial_ends_at);
+    const now = new Date();
+    const diffTime = Math.abs(trialEndsDate.getTime() - now.getTime());
+    daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
 
+  if (profile?.isTrialActive) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-6 text-center">Subscription Management</h1>
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-3">Your Free Trial</h2>
+          <p className="mb-2">
+            You are currently on a free trial.
+          </p>
+          {profile?.trial_ends_at && (
+            <p className="mb-2">
+              Your trial ends on: <strong>{new Date(profile.trial_ends_at).toLocaleDateString()}</strong> ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining).
+            </p>
+          )}
+          <p className="mb-2">You can create up to <strong>5 Wohnungen</strong> during your trial.</p>
+          <p className="mt-4">To continue using the service with more features and higher limits after your trial, please choose a subscription plan.</p>
+        </div>
+        {/* Optionally, show pricing plans below or a button to view them */}
+        <h2 className="text-xl font-bold mb-6 text-center">Choose a Plan to Activate After Trial</h2>
+        <Pricing onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
+      </div>
+    );
+  }
+
+  // User has an active PAID subscription (not our custom trial)
+  // Use profile.isTrialActive from API
+  if (!profile?.isTrialActive && profile?.hasActiveSubscription && profile.activePlan) {
+    const { activePlan } = profile;
+    const featuresList = activePlan.features || [];
 
     return (
       <div className="container mx-auto p-4">
@@ -171,9 +207,8 @@ export default function SubscriptionPage() {
             </p>
           )}
            {profile.stripe_subscription_status && (
-            <p className="mb-2">Status: <span className={`font-semibold ${profile.stripe_subscription_status === 'active' ? 'text-green-600' : 'text-orange-500'}`}>{profile.stripe_subscription_status}</span></p>
+            <p className="mb-2">Status: <span className={`font-semibold ${profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing' ? 'text-green-600' : 'text-orange-500'}`}>{profile.stripe_subscription_status}</span></p>
           )}
-
           {featuresList.length > 0 && (
             <div className="mt-4">
               <h3 className="font-semibold">Plan Features:</h3>
@@ -191,15 +226,13 @@ export default function SubscriptionPage() {
           )}
         </div>
         {/* TODO: Add button to manage subscription (portal) */}
-        {/* <Button disabled>Manage Subscription (Coming Soon)</Button> */}
       </div>
     );
   }
 
-  // User does not have an active subscription or it's in a state where they can choose a new one
-  // (e.g., 'canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired')
-  const showPricing = !profile.hasActiveSubscription ||
-                      ['canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired', null, undefined].includes(profile.stripe_subscription_status);
+  const isPaidSubscriptionProblematic = ['canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired', null, undefined].includes(profile?.stripe_subscription_status);
+  // Use profile.isTrialActive from API for showPricing logic
+  const showPricing = !profile?.isTrialActive && (!profile?.hasActiveSubscription || isPaidSubscriptionProblematic);
 
   if (showPricing) {
     return (
