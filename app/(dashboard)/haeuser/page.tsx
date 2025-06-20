@@ -30,16 +30,30 @@ export default async function HaeuserPage() {
       const occupied = tenant && (!tenant.auszug || new Date(tenant.auszug) > new Date());
       return acc + (occupied ? 0 : 1);
     }, 0);
-    const totalSize = apts.reduce((sum, apt) => sum + Number(apt.groesse), 0);
+
+    let displaySize;
+    // Assuming 'house.groesse' is the field from the database which can be number or null
+    // The 'Haus' type in lib/data-fetching.ts defines groesse as `groesse?: number | null;`
+    // The fetchHaeuser in lib/data-fetching.ts selects '*, groesse', so it should be available.
+    if (typeof house.groesse === 'number') {
+      displaySize = house.groesse.toString();
+    } else {
+      const calculatedSize = apts.reduce((sum, apt) => sum + Number(apt.groesse), 0);
+      displaySize = calculatedSize.toString();
+    }
+
     const totalRent = apts.reduce((sum, apt) => sum + Number(apt.miete), 0);
-    const avgRentPerSqm = apts.length > 0
-      ? apts.reduce((sum, apt) => sum + Number(apt.miete) / Number(apt.groesse), 0) / apts.length
+    // avgRentPerSqm should use the sum of actual apartment sizes for financial accuracy.
+    const sumOfApartmentSizes = apts.reduce((sum, apt) => sum + Number(apt.groesse), 0);
+    const avgRentPerSqm = sumOfApartmentSizes > 0
+      ? totalRent / sumOfApartmentSizes
       : 0;
+
     return {
-      ...house,
+      ...house, // This includes original house.id, name, ort, and potentially house.groesse
       totalApartments,
       freeApartments,
-      size: totalSize.toString(),
+      size: displaySize, // Corrected size for display
       rent: totalRent.toString(),
       pricePerSqm: avgRentPerSqm.toFixed(2),
     };
