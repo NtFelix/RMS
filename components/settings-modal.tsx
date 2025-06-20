@@ -483,7 +483,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 const csvData = await generateCsvExportDataAction();
 
                 if (Object.keys(csvData).length === 0) {
-                  toast.warn("Keine Daten zum Exportieren vorhanden.");
+                  toast.info("Keine Daten zum Exportieren vorhanden.");
                   return;
                 }
                 for (const filename in csvData) {
