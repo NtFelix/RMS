@@ -9,7 +9,7 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2 } from "lucide-react"
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, Download } from "lucide-react" // Added Download
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -76,6 +76,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
   // isCancellingSubscription removed
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false); // State for export button
 
 
   useEffect(() => {
@@ -121,6 +122,38 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       } as UserProfileWithSubscription);
     } finally {
       setIsFetchingStatus(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    toast.info("Datenexport wird vorbereitet...");
+    try {
+      const response = await fetch('/api/export', {
+        method: 'GET',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'datenexport.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+
+    } catch (error) {
+      console.error("Export error:", error);
+      toast.error((error as Error).message || "Ein Fehler ist beim Exportieren der Daten aufgetreten.");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -454,6 +487,39 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               )}
               {/* REMOVED: Cancel Subscription button and logic */}
             </>
+          )}
+        </div>
+      ),
+    },
+    {
+      value: "export",
+      label: "Datenexport",
+      icon: Download, // Using the imported Download icon
+      content: (
+        <div className="flex flex-col space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Hier können Sie alle Ihre eingegebenen Daten als CSV-Dateien herunterladen. Die Dateien werden in einem ZIP-Archiv zusammengefasst.
+            Dieser Vorgang kann je nach Datenmenge einige Augenblicke dauern.
+          </p>
+          <Button onClick={handleExportData} disabled={isExporting}>
+            {isExporting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Exportiere Daten...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" /> Daten herunterladen
+              </>
+            )}
+          </Button>
+          {isExporting && (
+            <p className="text-xs text-muted-foreground text-center">
+              Bitte warten Sie, der Download startet automatisch, sobald die Daten aufbereitet wurden.
+            </p>
           )}
         </div>
       ),
