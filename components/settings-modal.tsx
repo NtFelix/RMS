@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogOverlay, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog" // DialogOverlay removed as it's part of Dialog in new shadcn
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2 } from "lucide-react"
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud } from "lucide-react" // Added DownloadCloud
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
+import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -76,7 +77,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
   // isCancellingSubscription removed
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
-
+  const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -240,6 +241,38 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       setIsManagingSubscription(false);
     }
   };
+
+  // const handleDataExport = async () => { // Original function removed, now using hook
+  //   setIsExporting(true);
+  //   toast.info("Datenexport wird vorbereitet...");
+  //   try {
+  //     const response = await fetch('/api/export', {
+  //       method: 'GET',
+  //     });
+
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
+  //     }
+
+  //     const blob = await response.blob();
+  //     const url = window.URL.createObjectURL(blob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = "datenexport.zip";
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     a.remove();
+  //     window.URL.revokeObjectURL(url);
+  //     toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+
+  //   } catch (error) {
+  //     console.error("Data export error:", error);
+  //     toast.error((error as Error).message || "Datenexport fehlgeschlagen.");
+  //   } finally {
+  //     setIsExporting(false);
+  //   }
+  // };
 
   const subscriptionStatus = profile?.stripe_subscription_status;
   const currentPeriodEnd = profile?.stripe_current_period_end
@@ -458,6 +491,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         </div>
       ),
     },
+    {
+      value: "export",
+      label: "Datenexport",
+      icon: DownloadCloud,
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">Daten exportieren</h2>
+          <p className="text-sm text-muted-foreground">
+            Laden Sie alle Ihre Daten als CSV-Dateien herunter, verpackt in einem ZIP-Archiv.
+            Dies beinhaltet Daten zu Häusern, Wohnungen, Mietern, Finanzen und mehr.
+            Fremdschlüsselbeziehungen (Verknüpfungen zwischen Tabellen) werden nicht exportiert.
+          </p>
+          <Button onClick={performDataExport} disabled={isExporting} className="w-full sm:w-auto">
+            {isExporting ? (
+              <>
+                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Exportiere...
+              </>
+            ) : (
+              <>
+                <DownloadCloud className="mr-2 h-4 w-4" />
+                Daten als ZIP herunterladen
+              </>
+            )}
+          </Button>
+          {isExporting && (
+            <p className="text-sm text-muted-foreground text-center">
+              Der Export kann je nach Datenmenge einige Augenblicke dauern. Bitte haben Sie Geduld.
+            </p>
+          )}
+        </div>
+      ),
+    }
   ]
 
   return (
