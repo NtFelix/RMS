@@ -36,8 +36,10 @@ export async function GET() {
         return null;
       }
 
-      const csvData = data && data.length > 0 ? data : [Object.fromEntries(columns.map(col => [col, '']))];
-      const csv = Papa.unparse(csvData);
+      // Ensure csvData is always an array of objects, even for headers of empty table.
+      // Papa.unparse expects an array of objects or an object with fields and data.
+      const csvData = data && data.length > 0 ? data : columns.length > 0 ? [Object.fromEntries(columns.map(col => [col, '']))] : [];
+      const csv = Papa.unparse(csvData as Papa.UnparseObject<unknown>); // Cast to satisfy PapaParse types more explicitly
 
       return { tableName, csv };
     });
