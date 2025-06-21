@@ -14,8 +14,7 @@ const tablesToExport = {
   Rechnungen: ['id', 'name', 'betrag'],
   Wasserzaehler: ['id', 'ablese_datum', 'zaehlerstand', 'verbrauch'],
   Wohnungen: ['id', 'groesse', 'name', 'miete'],
-  // Exporting limited, non-sensitive fields from profiles
-  profiles: ['id', 'trial_starts_at', 'trial_ends_at'],
+  // profiles table removed from export as requested due to sensitive data.
 };
 
 export async function GET() {
