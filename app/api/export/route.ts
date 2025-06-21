@@ -4,16 +4,16 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 
 // Define the tables and columns to export based on the LATEST provided schema.
-// Exclude foreign keys (user_id, haus_id, wohnung_id, etc.) as requested.
+// Exclude ALL ID columns (primary and foreign keys) as requested.
 const tablesToExport = {
-  Aufgaben: ['id', 'ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'],
-  Finanzen: ['id', 'name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'],
-  Haeuser: ['id', 'ort', 'name', 'strasse', 'groesse'],
-  Mieter: ['id', 'name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
-  Nebenkosten: ['id', 'jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
-  Rechnungen: ['id', 'name', 'betrag'],
-  Wasserzaehler: ['id', 'ablese_datum', 'zaehlerstand', 'verbrauch'],
-  Wohnungen: ['id', 'groesse', 'name', 'miete'],
+  Aufgaben: ['ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'],
+  Finanzen: ['name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'],
+  Haeuser: ['ort', 'name', 'strasse', 'groesse'],
+  Mieter: ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
+  Nebenkosten: ['jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
+  Rechnungen: ['name', 'betrag'],
+  Wasserzaehler: ['ablese_datum', 'zaehlerstand', 'verbrauch'],
+  Wohnungen: ['groesse', 'name', 'miete'],
   // profiles table removed from export as requested due to sensitive data.
 };
 
