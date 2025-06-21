@@ -1,48 +1,17 @@
 "use client";
-import React, { useState } from 'react'; // Imported useState
+import React from 'react'; // Removed useState
 import { useRouter } from 'next/navigation';
 import { Lock, Download, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from "sonner"; // Imported toast
+import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 
 const SubscriptionLockedPage = () => {
   const router = useRouter();
-  const [isExporting, setIsExporting] = useState<boolean>(false); // State for export button
+  const { isExporting, handleDataExport } = useDataExport(); // Use the custom hook
 
   const handleSelectSubscription = () => {
     router.push('/landing#pricing');
-  };
-
-  const handleDataExport = async () => {
-    setIsExporting(true);
-    toast.info("Datenexport wird vorbereitet...");
-    try {
-      const response = await fetch('/api/export', {
-        method: 'GET',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "datenexport.zip";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Daten erfolgreich exportiert und heruntergeladen.");
-
-    } catch (error) {
-      console.error("Data export error:", error);
-      toast.error((error as Error).message || "Datenexport fehlgeschlagen.");
-    } finally {
-      setIsExporting(false);
-    }
   };
 
   return (
