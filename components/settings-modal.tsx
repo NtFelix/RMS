@@ -15,6 +15,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
+import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -76,8 +77,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
   // isCancellingSubscription removed
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
-  const [isExporting, setIsExporting] = useState<boolean>(false); // State for export button
-
+  const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -242,37 +242,37 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   };
 
-  const handleDataExport = async () => {
-    setIsExporting(true);
-    toast.info("Datenexport wird vorbereitet...");
-    try {
-      const response = await fetch('/api/export', {
-        method: 'GET',
-      });
+  // const handleDataExport = async () => { // Original function removed, now using hook
+  //   setIsExporting(true);
+  //   toast.info("Datenexport wird vorbereitet...");
+  //   try {
+  //     const response = await fetch('/api/export', {
+  //       method: 'GET',
+  //     });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
-      }
+  //     if (!response.ok) {
+  //       const errorData = await response.json();
+  //       throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
+  //     }
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = "datenexport.zip";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+  //     const blob = await response.blob();
+  //     const url = window.URL.createObjectURL(blob);
+  //     const a = document.createElement('a');
+  //     a.href = url;
+  //     a.download = "datenexport.zip";
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     a.remove();
+  //     window.URL.revokeObjectURL(url);
+  //     toast.success("Daten erfolgreich exportiert und heruntergeladen.");
 
-    } catch (error) {
-      console.error("Data export error:", error);
-      toast.error((error as Error).message || "Datenexport fehlgeschlagen.");
-    } finally {
-      setIsExporting(false);
-    }
-  };
+  //   } catch (error) {
+  //     console.error("Data export error:", error);
+  //     toast.error((error as Error).message || "Datenexport fehlgeschlagen.");
+  //   } finally {
+  //     setIsExporting(false);
+  //   }
+  // };
 
   const subscriptionStatus = profile?.stripe_subscription_status;
   const currentPeriodEnd = profile?.stripe_current_period_end
@@ -503,7 +503,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             Dies beinhaltet Daten zu Häusern, Wohnungen, Mietern, Finanzen und mehr.
             Fremdschlüsselbeziehungen (Verknüpfungen zwischen Tabellen) werden nicht exportiert.
           </p>
-          <Button onClick={handleDataExport} disabled={isExporting} className="w-full sm:w-auto">
+          <Button onClick={performDataExport} disabled={isExporting} className="w-full sm:w-auto">
             {isExporting ? (
               <>
                 <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
