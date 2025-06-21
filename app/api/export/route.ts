@@ -23,31 +23,33 @@ export async function GET() {
     const zip = new JSZip();
     let filesAdded = 0;
 
-    for (const [tableName, columns] of Object.entries(tablesToExport)) {
-      // Ensure columns is not empty before attempting to join
+    const exportPromises = Object.entries(tablesToExport).map(async ([tableName, columns]) => {
       if (columns.length === 0) {
         console.warn(`Skipping table ${tableName} as no columns are defined for export.`);
-        continue;
+        return null;
       }
       const selectStatement = columns.join(',');
       const { data, error } = await supabase.from(tableName).select(selectStatement);
 
       if (error) {
-        // Log detailed error and skip this table
         console.error(`Error fetching data for table ${tableName} (query: SELECT ${selectStatement}): ${error.message}. Code: ${error.code}. Details: ${error.details}. Hint: ${error.hint}`);
-        continue;
+        return null;
       }
 
-      if (data && data.length > 0) {
-        const csv = Papa.unparse(data);
-        zip.file(`${tableName}.csv`, csv);
+      // Ensure csvData is always an array of objects, even for headers of empty table.
+      // Papa.unparse expects an array of objects or an object with fields and data.
+      const csvData = data && data.length > 0 ? data : columns.length > 0 ? [Object.fromEntries(columns.map(col => [col, '']))] : [];
+      const csv = Papa.unparse(csvData as unknown as Papa.UnparseObject<unknown>); // Cast to unknown first, then to Papa.UnparseObject
+
+      return { tableName, csv };
+    });
+
+    const results = await Promise.all(exportPromises);
+
+    for (const result of results) {
+      if (result) {
+        zip.file(`${result.tableName}.csv`, result.csv);
         filesAdded++;
-      } else {
-        // Create an empty CSV with headers if no data
-        const emptyDataWithHeaders = [Object.fromEntries(columns.map(col => [col, '']))];
-        const csv = Papa.unparse(emptyDataWithHeaders);
-        zip.file(`${tableName}.csv`, csv);
-        filesAdded++; // Count as added, even if it's just headers + one empty row
       }
     }
 
