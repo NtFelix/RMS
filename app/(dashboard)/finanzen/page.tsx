@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 import FinanzenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";

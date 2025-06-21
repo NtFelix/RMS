@@ -1,14 +1,14 @@
+export const runtime = 'edge';
+
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
 import { Profile } from '@/types/supabase'; // Import the Profile type
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { isUserInActiveTrial, calculateOverallSubscriptionActivity } from '@/lib/utils';
 
 export async function GET() {
-  const cookieStore = cookies();
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  const supabase = await createClient();
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();

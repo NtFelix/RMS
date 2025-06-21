@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from '@/utils/supabase/server'; // For getting user and counting

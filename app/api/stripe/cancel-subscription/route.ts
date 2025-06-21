@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { NextResponse } from 'next/server';
 import StripeNode from 'stripe'; // Renamed import to StripeNode
 import { createSupabaseServerClient } from '@/lib/supabase-server'; // Adjusted path if necessary

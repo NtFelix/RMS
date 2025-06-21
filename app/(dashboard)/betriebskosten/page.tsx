@@ -2,7 +2,7 @@ import { fetchNebenkostenList, fetchHaeuser } from "../../../lib/data-fetching";
 import BetriebskostenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
 
-export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export default async function BetriebskostenPage() {
   const supabase = await createClient();

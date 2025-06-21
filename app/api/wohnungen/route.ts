@@ -1,3 +1,5 @@
+export const runtime = 'edge';
+
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
