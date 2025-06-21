@@ -39,43 +39,43 @@ export function processDataToCsv(allData: AllExportData): { [key: string]: strin
   const csvData: { [key: string]: string } = {};
 
   if (allData.haeuser && allData.haeuser.length > 0) {
-    const columns = ['id', 'ort', 'name', 'strasse', 'groesse'];
+    const columns = ['ort', 'name', 'strasse', 'groesse'];
     csvData['haeuser.csv'] = convertToCSV(allData.haeuser, columns);
   }
 
   if (allData.mieter && allData.mieter.length > 0) {
-    const columns = ['id', 'name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'];
+    const columns = ['name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'];
     // Ensure all selected columns exist on Mieter type, especially FKs that might have been removed if not populated.
     // For example, 'wohnung_id' is excluded in the original select.
     csvData['mieter.csv'] = convertToCSV(allData.mieter, columns);
   }
 
   if (allData.finanzen && allData.finanzen.length > 0) {
-    const columns = ['id', 'name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'];
+    const columns = ['name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'];
     // 'wohnung_id' excluded
     csvData['finanzen.csv'] = convertToCSV(allData.finanzen, columns);
   }
 
   if (allData.wohnungen && allData.wohnungen.length > 0) {
-    const columns = ['id', 'groesse', 'name', 'miete'];
+    const columns = ['groesse', 'name', 'miete'];
     // 'haus_id' excluded
     csvData['wohnungen.csv'] = convertToCSV(allData.wohnungen, columns);
   }
 
   if (allData.nebenkosten && allData.nebenkosten.length > 0) {
-    const columns = ['id', 'jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten'];
+    const columns = ['jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten'];
     // 'haeuser_id' excluded
     csvData['nebenkosten.csv'] = convertToCSV(allData.nebenkosten, columns);
   }
 
   if (allData.aufgaben && allData.aufgaben.length > 0) {
-    const columns = ['id', 'ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'];
+    const columns = ['ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'];
     // 'user_id' excluded
     csvData['aufgaben.csv'] = convertToCSV(allData.aufgaben, columns);
   }
 
   if (allData.rechnungen && allData.rechnungen.length > 0) {
-    const columns = ['id', 'name', 'betrag'];
+    const columns = ['name', 'betrag'];
     // 'nebenkosten_id', 'mieter_id' excluded
     csvData['rechnungen.csv'] = convertToCSV(allData.rechnungen, columns);
   }

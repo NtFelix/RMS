@@ -5,7 +5,8 @@ import { Lock, Download, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 // import { exportDataAsCsv } from '@/lib/export-data'; // No longer needed directly
 import { generateCsvExportDataAction } from '@/app/actions/export-actions';
-import { toast } from 'sonner'; // Import toast
+import { toast } from 'sonner';
+import JSZip from 'jszip'; // Import JSZip
 
 const SubscriptionLockedPage = () => {
   const router = useRouter(); // Instantiated router
@@ -15,39 +16,43 @@ const SubscriptionLockedPage = () => {
   };
 
   const handleDownloadData = async () => {
-    console.log("Exporting data from subscription locked page via server action...");
-    toast.info("Datenexport wird gestartet...");
+    console.log("Exporting data from subscription locked page as ZIP via server action...");
+    toast.info("Datenexport wird gestartet und als ZIP-Datei verpackt...");
     try {
-      // Call the server action
       const csvData = await generateCsvExportDataAction();
 
       if (Object.keys(csvData).length === 0) {
-        toast.info("Keine Daten zum Exportieren vorhanden.");
+        toast.info("Keine Daten zum Exportieren vorhanden."); // Changed from warn
         return;
       }
+
+      const zip = new JSZip();
       for (const filename in csvData) {
         if (csvData.hasOwnProperty(filename)) {
           const csvString = csvData[filename];
-          if (!csvString) {
-            console.warn(`No data for ${filename}, skipping download.`);
-            continue;
+          if (csvString) { // Ensure csvString is not empty
+            zip.file(filename, csvString);
+          } else {
+            console.info(`No data for ${filename}, skipping add to zip.`);
           }
-          const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-          const link = document.createElement("a");
-          const url = URL.createObjectURL(blob);
-          link.setAttribute("href", url);
-          link.setAttribute("download", filename);
-          link.style.visibility = 'hidden';
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(url);
         }
       }
-      toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(zipBlob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", "datenexport.zip"); // Fixed filename
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success("Daten erfolgreich als ZIP-Datei exportiert und heruntergeladen.");
     } catch (error) {
-      console.error("Error exporting data from subscription locked page via server action:", error);
-      toast.error("Fehler beim Exportieren der Daten: " + (error as Error).message);
+      console.error("Error exporting data from subscription locked page as ZIP:", error);
+      toast.error("Fehler beim Exportieren der Daten als ZIP: " + (error as Error).message);
     }
   };
 

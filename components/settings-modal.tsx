@@ -17,6 +17,7 @@ import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Impor
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 // import { exportDataAsCsv } from '@/lib/export-data'; // No longer needed directly
 import { generateCsvExportDataAction } from '@/app/actions/export-actions';
+import JSZip from 'jszip'; // Import JSZip
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -476,39 +477,43 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           </div>
           <Button
             onClick={async () => {
-              console.log("Exporting data via server action...");
-              toast.info("Datenexport wird gestartet...");
+              console.log("Exporting data via server action for ZIP...");
+              toast.info("Datenexport wird gestartet und als ZIP-Datei verpackt...");
               try {
-                // Call the server action
                 const csvData = await generateCsvExportDataAction();
 
                 if (Object.keys(csvData).length === 0) {
-                  toast.info("Keine Daten zum Exportieren vorhanden.");
+                  toast.info("Keine Daten zum Exportieren vorhanden."); // Changed from warn
                   return;
                 }
+
+                const zip = new JSZip();
                 for (const filename in csvData) {
                   if (csvData.hasOwnProperty(filename)) {
                     const csvString = csvData[filename];
-                    if (!csvString) {
-                      console.warn(`No data for ${filename}, skipping download.`);
-                      continue;
+                    if (csvString) { // Ensure csvString is not empty before adding
+                      zip.file(filename, csvString);
+                    } else {
+                      console.info(`No data for ${filename}, skipping add to zip.`);
                     }
-                    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-                    const link = document.createElement("a");
-                    const url = URL.createObjectURL(blob);
-                    link.setAttribute("href", url);
-                    link.setAttribute("download", filename);
-                    link.style.visibility = 'hidden';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    URL.revokeObjectURL(url);
                   }
                 }
-                toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const link = document.createElement("a");
+                const url = URL.createObjectURL(zipBlob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "datenexport.zip"); // Fixed filename
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                toast.success("Daten erfolgreich als ZIP-Datei exportiert und heruntergeladen.");
               } catch (error) {
-                console.error("Error exporting data via server action:", error);
-                toast.error("Fehler beim Exportieren der Daten: " + (error as Error).message);
+                console.error("Error exporting data as ZIP:", error);
+                toast.error("Fehler beim Exportieren der Daten als ZIP: " + (error as Error).message);
               }
             }}
           >
