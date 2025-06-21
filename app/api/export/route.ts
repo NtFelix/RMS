@@ -3,43 +3,63 @@ import { createClient } from '@/utils/supabase/server';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 
-// Define the tables and columns to export
-// Exclude foreign keys and sensitive data
+// Define the tables and columns to export based on the LATEST provided schema.
+// Exclude foreign keys (user_id, haus_id, wohnung_id, etc.) as requested.
 const tablesToExport = {
-  Haeuser: ['id', 'name', 'strasse', 'ort', 'plz', 'land', 'baujahr', 'modernisierungsjahr', 'heizungsart', 'energietraeger', 'energieausweis_typ', 'energieausweis_datum', 'energieausweis_gueltigkeit', 'endenergiebedarf', 'primaerenergiebedarf', 'energieeffizienzklasse', 'wohnflaeche_gesamt', 'grundstuecksflaeche', 'anzahl_wohneinheiten', 'anzahl_stellplaetze', 'kaufpreis', 'kaufdatum', 'notarkosten', 'maklerkosten', 'grundbuchkosten', 'grunderwerbssteuer', 'sonstige_kaufnebenkosten', 'darlehenssumme', 'tilgungsrate', 'zinssatz', 'restschuld', 'bankname', 'bemerkungen'],
-  Wohnungen: ['id', 'name', 'nummer', 'etage', 'groesse', 'zimmeranzahl', 'balkon_terrasse', 'kellerabteil', 'stellplatz', 'kaltmiete', 'nebenkosten_wohnung', 'heizkosten_wohnung', 'stromkosten_wohnung', 'wasseranschluss', 'heizungsart_wohnung', 'bodenbelag', 'kueche', 'bad_ausstattung', 'bemerkungen_wohnung', 'erstellungsdatum', 'letzte_aenderung'],
-  Mieter: ['id', 'anrede', 'vorname', 'nachname', 'geburtsdatum', 'email', 'telefon_mobil', 'telefon_festnetz', 'strasse_mieter', 'plz_mieter', 'ort_mieter', 'land_mieter', 'beruf', 'arbeitgeber', 'einkommen', 'familienstand', 'anzahl_kinder', 'haustiere', 'rauchen', 'schufa_score', 'schufa_datum', 'selbstauskunft_datum', 'vorvermieter_name', 'vorvermieter_kontakt', 'mietvertrag_beginn', 'mietvertrag_ende', 'kaution_betrag', 'kaution_datum', 'bemerkungen_mieter', 'erstellungsdatum_mieter', 'letzte_aenderung_mieter'],
-  Finanzen: ['id', 'name', 'datum', 'betrag', 'ist_einnahmen', 'kategorie', 'beschreibung', 'beleg_url', 'erstellungsdatum_finanz', 'letzte_aenderung_finanz'],
-  Nebenkosten: ['id', 'jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch', 'gesamtkosten_nebenkosten', 'abrechnungsdatum', 'zahlungsfrist', 'bemerkungen_nebenkosten', 'erstellungsdatum_nebenkosten', 'letzte_aenderung_nebenkosten'],
-  Aufgaben: ['id', 'name', 'beschreibung', 'faelligkeitsdatum', 'prioritaet', 'status', 'erinnerungsdatum', 'erstellungsdatum_aufgabe', 'letzte_aenderung_aufgabe'],
-  // Add other tables and their respective columns as needed
-  // Example:
-  // Dokumente: ['id', 'name', 'typ', 'datei_url', 'upload_datum', 'beschreibung_dokument', 'erstellungsdatum_dokument', 'letzte_aenderung_dokument'],
-  // Vertraege: ['id', 'name', 'vertragsart', 'vertragspartner', 'beginndatum', 'enddatum', 'kuendigungsfrist', 'monatliche_kosten', 'bemerkungen_vertrag', 'erstellungsdatum_vertrag', 'letzte_aenderung_vertrag'],
+  Aufgaben: ['id', 'ist_erledigt', 'name', 'beschreibung', 'erstellungsdatum', 'aenderungsdatum'],
+  Finanzen: ['id', 'name', 'datum', 'betrag', 'ist_einnahmen', 'notiz'],
+  Haeuser: ['id', 'ort', 'name', 'strasse', 'groesse'],
+  Mieter: ['id', 'name', 'einzug', 'auszug', 'email', 'telefonnummer', 'notiz', 'nebenkosten', 'nebenkosten_datum'],
+  Nebenkosten: ['id', 'jahr', 'nebenkostenart', 'betrag', 'berechnungsart', 'wasserkosten', 'wasserverbrauch'],
+  Rechnungen: ['id', 'name', 'betrag'],
+  Wasserzaehler: ['id', 'ablese_datum', 'zaehlerstand', 'verbrauch'],
+  Wohnungen: ['id', 'groesse', 'name', 'miete'],
+  // Exporting limited, non-sensitive fields from profiles
+  profiles: ['id', 'trial_starts_at', 'trial_ends_at'],
 };
 
 export async function GET() {
   try {
     const supabase = await createClient();
     const zip = new JSZip();
+    let filesAdded = 0;
 
     for (const [tableName, columns] of Object.entries(tablesToExport)) {
-      const { data, error } = await supabase.from(tableName).select(columns.join(','));
+      // Ensure columns is not empty before attempting to join
+      if (columns.length === 0) {
+        console.warn(`Skipping table ${tableName} as no columns are defined for export.`);
+        continue;
+      }
+      const selectStatement = columns.join(',');
+      const { data, error } = await supabase.from(tableName).select(selectStatement);
 
       if (error) {
-        console.error(`Error fetching data for table ${tableName}:`, error);
-        // Optionally skip this table or return an error response
+        // Log detailed error and skip this table
+        console.error(`Error fetching data for table ${tableName} (query: SELECT ${selectStatement}): ${error.message}. Code: ${error.code}. Details: ${error.details}. Hint: ${error.hint}`);
         continue;
       }
 
       if (data && data.length > 0) {
         const csv = Papa.unparse(data);
         zip.file(`${tableName}.csv`, csv);
+        filesAdded++;
       } else {
         // Create an empty CSV with headers if no data
-        const csv = Papa.unparse([Object.fromEntries(columns.map(col => [col, '']))]);
+        const emptyDataWithHeaders = [Object.fromEntries(columns.map(col => [col, '']))];
+        const csv = Papa.unparse(emptyDataWithHeaders);
         zip.file(`${tableName}.csv`, csv);
+        filesAdded++; // Count as added, even if it's just headers + one empty row
       }
+    }
+
+    if (filesAdded === 0) {
+      console.error('No data could be exported. All table queries might have failed or returned no data.');
+      return new NextResponse(JSON.stringify({ error: 'Keine Daten exportiert.', details: 'Möglicherweise sind alle Tabellen leer oder es gab Fehler beim Datenabruf für alle Tabellen.' }), {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
     }
 
     const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
@@ -52,7 +72,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('Error during data export:', error);
+    console.error('Error during data export process:', error);
     return new NextResponse(JSON.stringify({ error: 'Fehler beim Exportieren der Daten.', details: (error as Error).message }), {
       status: 500,
       headers: {
