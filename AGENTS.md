@@ -35,17 +35,35 @@ This document provides guidelines for AI agents working on this codebase.
 
 The database schema is defined in the file `supabase/database/schema.sql`.
 Migrations are managed by Supabase and are located in the `supabase/migrations` directory. Each migration file represents a version of the database schema.
+- **Database Triggers and Functions**: SQL-based database triggers and functions are typically defined within migration files in the `supabase/migrations` directory (e.g., `20231027000000_create_delete_user_data_trigger.sql`).
+- **Edge Functions**: Serverless functions (Edge Functions) are written in TypeScript and located in the `supabase/functions/` directory. Each sub-directory within `supabase/functions/` usually represents a separate function (e.g., `supabase/functions/delete-user-account/`).
 
 ## Building and Running the Application
 
-- Before pushing any code changes, ensure the application builds and runs correctly.
-- Use the command `npm run dev` to start the development server.
-- **Error Handling**:
-    - If any errors occur during the `npm run dev` process, these errors must be fixed before proceeding.
-    - If the `npm run dev` command times out, retry the command up to three times.
-    - If timeouts persist after three retries, attempt to verify the application's health using an alternative approach, such as:
-        - Running `npm run build` followed by `npm start`.
-        - Running linters (e.g., `npm run lint`) and tests (`npm test`) to catch potential issues if the development server is consistently unreliable.
+- **1. Install Dependencies**: Before anything else, ensure all project dependencies are installed by running:
+  ```bash
+  npm install
+  ```
+- **2. Build the Application**: After installing dependencies, build the application to check for compilation errors:
+  ```bash
+  npm run build
+  ```
+  This step must complete successfully.
+- **3. Running for Development**: For local development, use:
+  ```bash
+  npm run dev
+  ```
+- **4. Running a Production-like Preview (Optional but Recommended)**: To test the build in a more production-like environment, you can run:
+  ```bash
+  npm start
+  ```
+  (This command usually requires `npm run build` to have been run successfully first).
+
+- **Error Handling and Verification**:
+    - All the above commands (`npm install`, `npm run build`, `npm run dev`/`npm start`) must complete without errors before pushing code.
+    - If `npm run dev` or `npm start` times out, retry the command up to three times.
+    - If timeouts or other errors persist, they **must be fixed**.
+    - If `npm run dev` is consistently unreliable, ensure `npm run build` and `npm test` pass as a minimum verification before pushing.
 - Only push code that successfully passes these checks.
 
 ## Important Notes
