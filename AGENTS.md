@@ -9,7 +9,7 @@ This document provides guidelines for AI agents working on this codebase.
   - External modules
   - Internal modules (absolute paths)
   - Relative paths
-- **Formatting**: This project uses Prettier for code formatting. Please ensure your contributions are formatted correctly. You can run `npm run format` to format your code.
+- **Formatting**: This project uses Prettier (now installed as a dev dependency) for code formatting. Please ensure your contributions are formatted correctly. You can run `npm run format` to automatically format all supported file types in the project.
 - **Naming Conventions**: Follow standard TypeScript/JavaScript naming conventions (e.g., camelCase for variables and functions, PascalCase for classes and types).
 
 ## Running Tests
