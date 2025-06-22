@@ -1,11 +1,11 @@
 import { GET } from './route'; // Assuming route.ts is in the same directory for testing
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient } from '@supabase/ssr';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { NextResponse } from 'next/server';
 
 // Mock dependencies
-jest.mock('@supabase/auth-helpers-nextjs', () => ({
-  createRouteHandlerClient: jest.fn(),
+jest.mock('@supabase/ssr', () => ({
+  createServerClient: jest.fn(),
 }));
 jest.mock('@/lib/stripe-server', () => ({
   getPlanDetails: jest.fn(),
@@ -46,7 +46,7 @@ describe('API Route: /api/user/profile GET', () => {
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(),
     };
-    (createRouteHandlerClient as jest.Mock).mockReturnValue(mockSupabaseClient);
+    (createServerClient as jest.Mock).mockReturnValue(mockSupabaseClient);
   });
 
   it('should return 401 if user is not authenticated', async () => {
