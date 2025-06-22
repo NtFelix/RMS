@@ -14,7 +14,7 @@ This project is a web application designed to help users manage their properties
     ```bash
     npm install
     ```
-2.  Build the project:
+2.  Build the project to verify the setup:
     ```bash
     npm run build
     ```
