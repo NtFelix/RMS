@@ -549,8 +549,8 @@ export async function fetchUserProfile(): Promise<Profile | null> {
       stripe_subscription_status,
       stripe_price_id,
       stripe_current_period_end,
-      trial_starts_at, // Added
-      trial_ends_at    // Added
+      trial_starts_at,
+      trial_ends_at
     `)
     .eq('id', user.id)
     .single();
