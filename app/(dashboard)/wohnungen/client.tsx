@@ -38,6 +38,10 @@ export function WohnungenClient({
   const reloadRef = useRef<(() => void) | null>(null);
   const [apartments, setApartments] = useState(initialWohnungen);
 
+  useEffect(() => {
+    setApartments(initialWohnungen);
+  }, [initialWohnungen]);
+
   let buttonTooltipMessage = "";
   if (!isActiveSubscription) {
     buttonTooltipMessage = "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.";
@@ -46,53 +50,15 @@ export function WohnungenClient({
   }
   const isAddButtonDisabled = !isActiveSubscription || apartmentCount >= apartmentLimit;
   
-  // Function to update the apartments list with a new or updated apartment
-  const updateApartmentInList = useCallback((updatedApartment: Apartment) => {
-    setApartments(prevApartments => {
-      // If no previous apartments, just return the new one in an array
-      if (!prevApartments || prevApartments.length === 0) {
-        return [updatedApartment];
-      }
-      
-      // Check if the apartment already exists in the list
-      const exists = prevApartments.some(apt => apt.id === updatedApartment.id);
-      
-      if (exists) {
-        // Update existing apartment
-        return prevApartments.map(apt => 
-          apt.id === updatedApartment.id ? updatedApartment : apt
-        );
-      } else {
-        // Add new apartment to the beginning of the list
-        return [updatedApartment, ...prevApartments];
-      }
-    });
-  }, []);
-
-  // Function to refresh the table data
-  const refreshTable = useCallback(async () => {
-    try {
-      const res = await fetch('/api/wohnungen');
-      if (res.ok) {
-        const data = await res.json();
-        setApartments(data);
-        return data;
-      }
-      return [];
-    } catch (error) {
-      console.error('Error fetching wohnungen:', error);
-      return [];
-    }
-  }, []);
-
   // Function to handle successful form submission
-  const handleSuccess = useCallback((data: Apartment) => {
-    // Update the apartments list with the new/updated apartment
-    updateApartmentInList(data);
-    
-    // Also trigger a full refresh to ensure all data is in sync
-    refreshTable();
-  }, [refreshTable, updateApartmentInList]);
+  const handleSuccess = useCallback(() => {
+    // No longer manually updating client-side state here,
+    // as `revalidatePath` in server actions will trigger a data refresh.
+    // The optimistic update (`updateApartmentInList`) and `refreshTable`
+    // are removed to rely on Next.js's data fetching mechanism.
+    // If an optimistic update is still desired, it could be added here,
+    // but the primary source of truth will be the server-refreshed data.
+  }, []);
 
   // Event listener for edit-apartment Event
   const handleEditFromEvent = useCallback(async (apartmentId: string) => {
@@ -108,7 +74,7 @@ export function WohnungenClient({
         return;
       }
       // Use global modal with success callback
-      useModalStore.getState().openWohnungModal(apartment as Apartment, houses, handleSuccess);
+      useModalStore.getState().openWohnungModal(apartment as Apartment, houses, () => handleSuccess());
     } catch (error) {
       console.error('Fehler beim Laden der Wohnung:', error);
     }
