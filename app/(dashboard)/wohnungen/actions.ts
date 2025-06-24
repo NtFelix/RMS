@@ -37,42 +37,74 @@ export async function speichereWohnung(formData: WohnungFormData) {
         return { error: 'Benutzerprofil nicht gefunden.' };
     }
 
+    // ---- START DEBUG LOGGING ----
+    console.log('[DEBUG] speichereWohnung: User Profile Data:', {
+      stripe_status: userProfile.stripe_subscription_status,
+      stripe_price_id: userProfile.stripe_price_id,
+      trial_starts: userProfile.trial_starts_at,
+      trial_ends: userProfile.trial_ends_at,
+    });
+    // ---- END DEBUG LOGGING ----
+
     let currentApartmentLimit: number | null | typeof Infinity = null;
     let limitSource: 'trial' | 'subscription' | null = null;
 
     // 1. Check for an active paid Stripe subscription
     if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
+      // ---- START DEBUG LOGGING ----
+      console.log('[DEBUG] speichereWohnung: Checking for active Stripe subscription.');
+      // ---- END DEBUG LOGGING ----
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
         if (planDetails === null) {
+          console.log('[DEBUG] speichereWohnung: Plan details not found.');
           return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bitte überprüfen Sie Ihr Abonnement oder kontaktieren Sie den Support.' };
         }
+        // ---- START DEBUG LOGGING ----
+        console.log('[DEBUG] speichereWohnung: Plan details:', planDetails);
+        // ---- END DEBUG LOGGING ----
 
         if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
           currentApartmentLimit = planDetails.limitWohnungen;
         } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
-          // null or 0 or negative means unlimited
           currentApartmentLimit = Infinity;
         } else {
           console.error('Invalid limitWohnungen configuration in plan:', planDetails.limitWohnungen);
           return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
         }
         limitSource = 'subscription';
+        // ---- START DEBUG LOGGING ----
+        console.log(`[DEBUG] speichereWohnung: Limit set from subscription. Limit: ${currentApartmentLimit}`);
+        // ---- END DEBUG LOGGING ----
       } catch (planError) {
         console.error("Error fetching plan details for limit enforcement:", planError);
         return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };
       }
     } else {
+      // ---- START DEBUG LOGGING ----
+      console.log('[DEBUG] speichereWohnung: No active Stripe subscription. Checking for trial.');
+      // ---- END DEBUG LOGGING ----
       // 2. Else (no active paid subscription), check for active trial
       const isTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
+      // ---- START DEBUG LOGGING ----
+      console.log(`[DEBUG] speichereWohnung: isUserInActiveTrial result: ${isTrialActive}`);
+      console.log(`  - Trial Starts At (from profile): ${userProfile.trial_starts_at}`);
+      console.log(`  - Trial Ends At (from profile): ${userProfile.trial_ends_at}`);
+      // ---- END DEBUG LOGGING ----
       if (isTrialActive) {
         currentApartmentLimit = 5;
         limitSource = 'trial';
+        // ---- START DEBUG LOGGING ----
+        console.log(`[DEBUG] speichereWohnung: Limit set from trial. Limit: ${currentApartmentLimit}`);
+        // ---- END DEBUG LOGGING ----
       }
     }
 
     // 3. If neither active subscription nor active trial, then error
     if (currentApartmentLimit === null) {
+      // ---- START DEBUG LOGGING ----
+      console.log('[DEBUG] speichereWohnung: currentApartmentLimit is null. User needs active sub or trial.');
+      // ---- END DEBUG LOGGING ----
       return { error: 'Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
