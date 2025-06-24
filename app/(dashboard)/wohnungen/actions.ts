@@ -38,69 +38,75 @@ export async function speichereWohnung(formData: WohnungFormData) {
     }
 
     const isTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
-
     let currentApartmentLimit: number | null | typeof Infinity = null;
+    let limitSourceIsTrial = false;
 
-    if (isTrialActive) {
-      currentApartmentLimit = 5;
-    } else if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
+    // 1. Check for active Stripe subscription first
+    if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
       try {
         const planDetails = await getPlanDetails(userProfile.stripe_price_id);
 
         if (planDetails === null) {
-          return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bitte überprüfen Sie Ihr Abonnement oder kontaktieren Sie den Support.' };
+          // This case implies a configuration issue or Stripe API problem for an active subscription.
+          // It's critical, so perhaps a more specific error or logging is needed.
+          return { error: 'Details zu Ihrem aktiven Abonnementplan konnten nicht abgerufen werden. Bitte kontaktieren Sie den Support.' };
         }
 
+        // Determine limit from plan details
         if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
           currentApartmentLimit = planDetails.limitWohnungen;
         } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
+          // null or 0 or negative means unlimited
           currentApartmentLimit = Infinity;
         } else {
-          console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
-          return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
+          // Invalid configuration for limitWohnungen (e.g., not a number, not null)
+          console.error('Invalid limitWohnungen configuration in Stripe plan:', planDetails.limitWohnungen);
+          return { error: 'Ungültige Konfiguration für das Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
         }
       } catch (planError) {
-        console.error("Error fetching plan details for limit enforcement:", planError);
-        return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };
+        console.error("Error fetching plan details for active subscription:", planError);
+        return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut oder kontaktieren Sie den Support.' };
       }
-    } else {
-      // No active subscription or price ID, and not in trial
+    }
+    // 2. Else, if no active subscription, check for active trial
+    else if (isTrialActive) {
+      currentApartmentLimit = 5;
+      limitSourceIsTrial = true;
+    }
+    // 3. Else, no active subscription and no active trial
+    else {
       return { error: 'Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
+    // At this point, currentApartmentLimit should be set (either a number, Infinity, or an error would have been returned).
+    // If currentApartmentLimit is null here, it's an unexpected state.
+    if (currentApartmentLimit === null) {
+        console.error("Unexpected state: currentApartmentLimit is null after subscription/trial checks.");
+        return { error: 'Ein interner Fehler ist aufgetreten bei der Überprüfung Ihres Limits. Bitte kontaktieren Sie den Support.' };
+    }
+
+    // Check current apartment count against the determined limit
     const { count, error: countError } = await supabase
-      .from('Wohnungen') // Ensure this table name is correct
+      .from('Wohnungen')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
     if (countError) {
       console.error('Error counting apartments:', countError);
-      return { error: 'Fehler beim Zählen der Wohnungen.' };
+      return { error: 'Fehler beim Zählen Ihrer aktuellen Wohnungen.' };
     }
 
-    if (currentApartmentLimit !== null && currentApartmentLimit !== Infinity) {
+    if (currentApartmentLimit !== Infinity) { // Only check if the limit is not Infinity
       if (count !== null && count >= currentApartmentLimit) {
-        if (isTrialActive) {
+        if (limitSourceIsTrial) {
           return { error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` };
         } else {
-          return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
+          return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr aktuelles Abonnement erreicht.` };
         }
       }
     }
-    // If currentApartmentLimit is still null here, it implies neither trial nor active subscription was found.
-    // The earlier check `else { return { error: 'Ein aktives Abonnement oder eine aktive Testphase... }; }` should cover this.
-    // Adding a check for robustness, although theoretically it should not be reached if currentApartmentLimit is null.
-    if (currentApartmentLimit === null) {
-        // This state should ideally be caught by the logic determining currentApartmentLimit.
-        // If isTrialActive is false, and stripe conditions are false, it returns the specific error.
-        // This is a fallback or for an unexpected state.
-        console.warn("Reached apartment count check with null limit, implying no active trial or subscription. This should have been caught earlier.");
-        return { error: 'Kein gültiger Plan oder Testphase aktiv, um Wohnungen hinzuzufügen.' };
-    }
 
-    // The count variable from the first block is in scope here and should be used.
-    // The duplicated block that was here has been removed.
-
+    // Proceed to insert the apartment if limit is not reached
     const { error } = await supabase.from('Wohnungen').insert({
       name: formData.name,
       groesse: parseFloat(formData.groesse), // Ensure this is a number
