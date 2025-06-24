@@ -180,6 +180,8 @@ export function WohnungenClient({
         searchQuery={searchQuery}
         initialApartments={apartments}
         onEdit={handleEdit}
+        onTableRefresh={refreshTable} // Pass refreshTable to the component
+        reloadRef={reloadRef} // reloadRef is already passed by WohnungenClient
       />
     </>
   );
