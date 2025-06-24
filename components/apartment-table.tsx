@@ -35,42 +35,32 @@ export interface Apartment {
 interface ApartmentTableProps {
   filter: string
   searchQuery: string
-  reloadRef?: MutableRefObject<(() => void) | null>
+  reloadRef?: MutableRefObject<(() => void) | null> // This could potentially be removed if onTableRefresh is sufficient
   onEdit?: (apt: Apartment) => void
+  onTableRefresh?: () => Promise<void> // New prop for requesting data refresh from parent
   // optional initial apartments loaded server-side
   initialApartments?: Apartment[]
 }
 
-export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initialApartments }: ApartmentTableProps) {
-  // initialize with server-provided data if available
-  const [apartments, setApartments] = useState<Apartment[]>(initialApartments ?? [])
+export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments }: ApartmentTableProps) {
+  // initialApartments prop will be the direct source of truth for apartments data
   const [filteredData, setFilteredData] = useState<Apartment[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [aptToDelete, setAptToDelete] = useState<Apartment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  const fetchApartments = async () => {
-    const res = await fetch("/api/wohnungen")
-    if (res.ok) {
-      const data: Apartment[] = await res.json()
-      setApartments(data)
-    }
-  }
+  // Removed internal fetchApartments. Refresh is handled by onTableRefresh prop.
 
   useEffect(() => {
-    // skip initial fetch if server data provided, but set reloadRef
-    if (initialApartments) {
-      if (reloadRef) reloadRef.current = fetchApartments
-      return
-    }
-
-    // no initial data: fetch on mount
-    fetchApartments()
-    if (reloadRef) reloadRef.current = fetchApartments
-  }, [initialApartments])
+    // The reloadRef is managed by the parent. If the parent wants to trigger a refresh,
+    // it can call its own refresh function, which updates initialApartments.
+    // This table component doesn't need to assign to reloadRef.current here.
+    // If reloadRef is for the parent to call a function *on this component*, its use would be different.
+    // Given current setup in WohnungenClient, it seems reloadRef is for parent to store its own refresh.
+  }, [reloadRef]);
 
   useEffect(() => {
-    let result = apartments
+    let result = initialApartments ?? [] // Use initialApartments directly
     
     // Filter by status
     if (filter === 'free') {
@@ -92,7 +82,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initial
     }
     
     setFilteredData(result)
-  }, [apartments, filter, searchQuery])
+  }, [initialApartments, filter, searchQuery]) // Depend on initialApartments
 
   return (
     <div className="rounded-md border">
@@ -110,7 +100,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initial
         <TableBody>
           {filteredData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={6} className="h-24 text-center"> {/* Adjusted colSpan */}
                 Keine Wohnungen gefunden.
               </TableCell>
             </TableRow>
@@ -120,7 +110,11 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initial
                 key={apt.id}
                 apartment={apt}
                 onEdit={() => onEdit?.(apt)}
-                onRefresh={fetchApartments}
+                onRefresh={async () => { // Changed to call onTableRefresh
+                  if (onTableRefresh) {
+                    await onTableRefresh();
+                  }
+                }}
               >
                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(apt)}>
                   <TableCell className="font-medium">{apt.name}</TableCell>
@@ -159,7 +153,14 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, initial
               const res = await fetch(`/api/wohnungen?id=${aptToDelete.id}`, { method: 'DELETE' });
               setIsDeleting(false);
               setShowDeleteConfirm(false);
-              if (res.ok) { toast({ title: 'Gelöscht', description: 'Wohnung entfernt.' }); fetchApartments(); } else { toast({ title: 'Fehler', description: 'Löschen fehlgeschlagen.', variant: 'destructive' }); }
+              if (res.ok) {
+                toast({ title: 'Gelöscht', description: 'Wohnung entfernt.' });
+                if (onTableRefresh) {
+                  await onTableRefresh(); // Call parent's refresh after delete
+                }
+              } else {
+                toast({ title: 'Fehler', description: 'Löschen fehlgeschlagen.', variant: 'destructive' });
+              }
             }} className="bg-red-600 hover:bg-red-700">{isDeleting ? 'Lösche...' : 'Löschen'}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
