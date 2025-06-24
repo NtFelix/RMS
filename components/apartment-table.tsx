@@ -49,14 +49,6 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   // Removed internal fetchApartments. Refresh is handled by onTableRefresh prop.
 
   useEffect(() => {
-    // The reloadRef is managed by the parent. If the parent wants to trigger a refresh,
-    // it can call its own refresh function, which updates initialApartments.
-    // This table component doesn't need to assign to reloadRef.current here.
-    // If reloadRef is for the parent to call a function *on this component*, its use would be different.
-    // Given current setup in WohnungenClient, it seems reloadRef is for parent to store its own refresh.
-  }, [reloadRef]);
-
-  useEffect(() => {
     let result = initialApartments ?? [] // Use initialApartments directly
     
     // Filter by status
