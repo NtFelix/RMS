@@ -45,9 +45,6 @@ interface ApartmentTableProps {
 export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments }: ApartmentTableProps) {
   // initialApartments prop will be the direct source of truth for apartments data
   const [filteredData, setFilteredData] = useState<Apartment[]>([])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [aptToDelete, setAptToDelete] = useState<Apartment | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   // Removed internal fetchApartments. Refresh is handled by onTableRefresh prop.
 
@@ -139,32 +136,6 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
           )}
         </TableBody>
       </Table>
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
-            <AlertDialogDescription>Die Wohnung "{aptToDelete?.name}" wird gelöscht.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => {
-              if (!aptToDelete) return;
-              setIsDeleting(true);
-              const res = await fetch(`/api/wohnungen?id=${aptToDelete.id}`, { method: 'DELETE' });
-              setIsDeleting(false);
-              setShowDeleteConfirm(false);
-              if (res.ok) {
-                toast({ title: 'Gelöscht', description: 'Wohnung entfernt.' });
-                if (onTableRefresh) {
-                  await onTableRefresh(); // Call parent's refresh after delete
-                }
-              } else {
-                toast({ title: 'Fehler', description: 'Löschen fehlgeschlagen.', variant: 'destructive' });
-              }
-            }} className="bg-red-600 hover:bg-red-700">{isDeleting ? 'Lösche...' : 'Löschen'}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
