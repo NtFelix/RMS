@@ -45,19 +45,8 @@ interface ApartmentTableProps {
 export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments }: ApartmentTableProps) {
   // initialApartments prop will be the direct source of truth for apartments data
   const [filteredData, setFilteredData] = useState<Apartment[]>([])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [aptToDelete, setAptToDelete] = useState<Apartment | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   // Removed internal fetchApartments. Refresh is handled by onTableRefresh prop.
-
-  useEffect(() => {
-    // The reloadRef is managed by the parent. If the parent wants to trigger a refresh,
-    // it can call its own refresh function, which updates initialApartments.
-    // This table component doesn't need to assign to reloadRef.current here.
-    // If reloadRef is for the parent to call a function *on this component*, its use would be different.
-    // Given current setup in WohnungenClient, it seems reloadRef is for parent to store its own refresh.
-  }, [reloadRef]);
 
   useEffect(() => {
     let result = initialApartments ?? [] // Use initialApartments directly
@@ -139,32 +128,6 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
           )}
         </TableBody>
       </Table>
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
-            <AlertDialogDescription>Die Wohnung "{aptToDelete?.name}" wird gelöscht.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => {
-              if (!aptToDelete) return;
-              setIsDeleting(true);
-              const res = await fetch(`/api/wohnungen?id=${aptToDelete.id}`, { method: 'DELETE' });
-              setIsDeleting(false);
-              setShowDeleteConfirm(false);
-              if (res.ok) {
-                toast({ title: 'Gelöscht', description: 'Wohnung entfernt.' });
-                if (onTableRefresh) {
-                  await onTableRefresh(); // Call parent's refresh after delete
-                }
-              } else {
-                toast({ title: 'Fehler', description: 'Löschen fehlgeschlagen.', variant: 'destructive' });
-              }
-            }} className="bg-red-600 hover:bg-red-700">{isDeleting ? 'Lösche...' : 'Löschen'}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
