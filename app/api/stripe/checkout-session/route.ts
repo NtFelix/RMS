@@ -80,7 +80,7 @@ export async function POST(req: Request) {
 
     // Prepare parameters for Stripe session creation
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ['card'],
+      payment_method_collection: 'if_required', // Changed from payment_method_types
       mode: 'subscription',
       line_items: [
         {
