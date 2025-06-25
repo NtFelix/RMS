@@ -32,44 +32,70 @@ export async function speichereWohnung(formData: WohnungFormData) {
     // Fetch user profile - assuming it contains stripe_price_id and stripe_subscription_status
     // If not, this part needs to fetch from 'profiles' table directly using userId
     const userProfile = await fetchUserProfile();
-
     if (!userProfile) {
         return { error: 'Benutzerprofil nicht gefunden.' };
     }
 
-    const isTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
+    const isCustomTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
+    const isStripeTrialing = userProfile.stripe_subscription_status === 'trialing';
+    const isEffectivelyInTrial = isCustomTrialActive || isStripeTrialing;
+
+    const isPaidActiveStripeSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
+    let limitReasonIsTrial = false;
 
-    if (isTrialActive) {
-      currentApartmentLimit = 5;
-    } else if (userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
-      try {
-        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+    if (isEffectivelyInTrial) {
+        currentApartmentLimit = 5;
+        limitReasonIsTrial = true;
 
-        if (planDetails === null) {
-          return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bitte überprüfen Sie Ihr Abonnement oder kontaktieren Sie den Support.' };
+        if (isPaidActiveStripeSub && userProfile.stripe_price_id) { // Ensure stripe_price_id is non-null
+            try {
+                const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+                if (planDetails) {
+                    if (planDetails.limitWohnungen === null) {
+                        currentApartmentLimit = Infinity;
+                        limitReasonIsTrial = false;
+                    } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+                        if (planDetails.limitWohnungen > currentApartmentLimit) {
+                            currentApartmentLimit = planDetails.limitWohnungen;
+                            limitReasonIsTrial = false;
+                        }
+                    }
+                } else {
+                    console.warn(`Konnte Plandetails für aktive Subscription (${userProfile.stripe_price_id}) während Testphase nicht laden. Testphasenlimit (${currentApartmentLimit}) wird verwendet.`);
+                }
+            } catch (planError) {
+                console.error("Error fetching plan details for active sub during trial:", planError);
+                console.warn(`Fehler beim Laden der Plandetails für aktive Subscription (${userProfile.stripe_price_id}) während Testphase. Testphasenlimit (${currentApartmentLimit}) wird verwendet.`);
+            }
         }
+    } else if (isPaidActiveStripeSub && userProfile.stripe_price_id) { // Ensure stripe_price_id is non-null
+        try {
+            const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+            if (planDetails === null) {
+                return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bitte überprüfen Sie Ihr Abonnement oder kontaktieren Sie den Support.' };
+            }
 
-        if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-          currentApartmentLimit = planDetails.limitWohnungen;
-        } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
-          currentApartmentLimit = Infinity;
-        } else {
-          console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
-          return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
+            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+                currentApartmentLimit = planDetails.limitWohnungen;
+            } else if (planDetails.limitWohnungen === null) {
+                currentApartmentLimit = Infinity;
+            } else {
+                console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
+                return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
+            }
+            limitReasonIsTrial = false;
+        } catch (planError) {
+            console.error("Error fetching plan details for limit enforcement:", planError);
+            return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };
         }
-      } catch (planError) {
-        console.error("Error fetching plan details for limit enforcement:", planError);
-        return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };
-      }
     } else {
-      // No active subscription or price ID, and not in trial
-      return { error: 'Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.' };
+        return { error: 'Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.' };
     }
 
     const { count, error: countError } = await supabase
-      .from('Wohnungen') // Ensure this table name is correct
+      .from('Wohnungen')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId);
 
@@ -78,28 +104,23 @@ export async function speichereWohnung(formData: WohnungFormData) {
       return { error: 'Fehler beim Zählen der Wohnungen.' };
     }
 
-    if (currentApartmentLimit !== null && currentApartmentLimit !== Infinity) {
-      if (count !== null && count >= currentApartmentLimit) {
-        if (isTrialActive) {
-          return { error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` };
-        } else {
-          return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
-        }
-      }
-    }
-    // If currentApartmentLimit is still null here, it implies neither trial nor active subscription was found.
-    // The earlier check `else { return { error: 'Ein aktives Abonnement oder eine aktive Testphase... }; }` should cover this.
-    // Adding a check for robustness, although theoretically it should not be reached if currentApartmentLimit is null.
     if (currentApartmentLimit === null) {
-        // This state should ideally be caught by the logic determining currentApartmentLimit.
-        // If isTrialActive is false, and stripe conditions are false, it returns the specific error.
-        // This is a fallback or for an unexpected state.
-        console.warn("Reached apartment count check with null limit, implying no active trial or subscription. This should have been caught earlier.");
-        return { error: 'Kein gültiger Plan oder Testphase aktiv, um Wohnungen hinzuzufügen.' };
+        console.error("Apartment limit logic resulted in null limit unexpectedly. User ID:", userId, "Profile:", userProfile);
+        return { error: 'Fehler bei der Bestimmung Ihres Wohnungslimits. Bitte kontaktieren Sie den Support.' };
     }
 
-    // The count variable from the first block is in scope here and should be used.
-    // The duplicated block that was here has been removed.
+    if (currentApartmentLimit !== Infinity) {
+        if (count !== null && count >= currentApartmentLimit) {
+            if (limitReasonIsTrial) {
+                // If the effective limit is 5 and the reason is trial.
+                // This also correctly handles the case where a paid plan might have a limit <=5,
+                // but the trial limit of 5 was the operative one.
+                return { error: `Maximale Anzahl an Wohnungen (5) für Ihre Testphase erreicht.` };
+            } else {
+                return { error: `Maximale Anzahl an Wohnungen (${currentApartmentLimit}) für Ihr Abonnement erreicht.` };
+            }
+        }
+    }
 
     const { error } = await supabase.from('Wohnungen').insert({
       name: formData.name,
