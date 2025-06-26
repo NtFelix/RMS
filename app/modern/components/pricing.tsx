@@ -127,21 +127,32 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (groupedPlans.length === 0) {
     return (
-      <section className="py-12">
+      <section className="py-12 bg-transparent"> {/* Ensure section background is transparent to show landing page bg */}
         <div className="container mx-auto px-4 text-center">
-          <p>No subscription plans are currently available. Please check back later.</p>
+          <p className="text-foreground">No subscription plans are currently available. Please check back later.</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="py-12">
+    <section className="py-12 bg-transparent"> {/* Ensure section background is transparent */}
       <div className="container mx-auto px-4">
         <Tabs value={selectedInterval} onValueChange={(value) => setSelectedInterval(value as 'monthly' | 'annually')} className="mb-8">
-          <TabsList className="grid w-full grid-cols-2 md:w-1/3 mx-auto">
-            <TabsTrigger value="monthly">Monthly</TabsTrigger>
-            <TabsTrigger value="annually">Annually</TabsTrigger>
+          {/* Updated TabsList for better dark mode appearance */}
+          <TabsList className="grid w-full grid-cols-2 md:w-1/3 mx-auto bg-muted p-1 rounded-md">
+            <TabsTrigger
+              value="monthly"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10"
+            >
+              Monthly
+            </TabsTrigger>
+            <TabsTrigger
+              value="annually"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10"
+            >
+              Annually
+            </TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -155,25 +166,29 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
               : 0;
 
             return (
-              <Card key={group.productName} className="flex flex-col">
+              // Added explicit dark theme classes for Card
+              <Card key={group.productName} className="flex flex-col bg-card text-card-foreground border border-border shadow-lg hover:shadow-primary/50 transition-shadow duration-300">
                 <CardHeader>
-                  <CardTitle>{group.productName}</CardTitle>
-                  <CardDescription>
+                  {/* CardTitle will use text-card-foreground by default, which is good for dark theme */}
+                  <CardTitle className="text-2xl font-semibold">{group.productName}</CardTitle>
+                  {/* CardDescription will use a muted version of card-foreground by default from Shadcn, adjust if needed */}
+                  <CardDescription className="text-lg">
                     {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                    {planToDisplay.interval === 'month' ? ' / month' : ' / year'}
+                    <span className="text-sm text-muted-foreground">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
                     {selectedInterval === 'annually' && yearlySavings > 0 && group.monthly && (
-                      <span className="block text-sm text-green-600">
+                      // Ensure green text has good contrast
+                      <span className="block text-sm text-green-500 dark:text-green-400 font-medium">
                         Save {formatDisplayPrice(yearlySavings, planToDisplay.currency, null)} per year! (vs. monthly)
                       </span>
                     )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {group.features.map((feature, index) => (
-                      <li key={index} className="flex items-center">
+                      <li key={index} className="flex items-center text-sm">
                         <svg
-                          className="w-4 h-4 mr-2 text-green-500"
+                          className="w-5 h-5 mr-3 text-green-500 dark:text-green-400 flex-shrink-0" // Ensure icon color has good contrast
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
