@@ -149,9 +149,9 @@ export function WohnungenClient({
       handleSuccess,
       apartmentCount,      // Pass the prop
       apartmentLimit,      // Pass the prop
-      isActiveSubscription // Pass the prop
+      userIsEligibleToAdd // Pass the prop
     );
-  }, [houses, handleSuccess, apartmentCount, apartmentLimit, isActiveSubscription]);
+  }, [houses, handleSuccess, apartmentCount, apartmentLimit, userIsEligibleToAdd]);
 
   // Function to handle editing an apartment
   const handleEdit = useCallback((apt: Apartment) => {
@@ -164,9 +164,9 @@ export function WohnungenClient({
       handleSuccess,
       apartmentCount,
       apartmentLimit,
-      isActiveSubscription
+      userIsEligibleToAdd
     );
-  }, [houses, handleSuccess, apartmentCount, apartmentLimit, isActiveSubscription]);
+  }, [houses, handleSuccess, apartmentCount, apartmentLimit, userIsEligibleToAdd]);
 
   return (
     <>
