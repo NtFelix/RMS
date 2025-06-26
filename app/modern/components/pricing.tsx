@@ -166,29 +166,31 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
               : 0;
 
             return (
-              // Added explicit dark theme classes for Card
-              <Card key={group.productName} className="flex flex-col bg-card text-card-foreground border border-border shadow-lg hover:shadow-primary/50 transition-shadow duration-300">
-                <CardHeader>
-                  {/* CardTitle will use text-card-foreground by default, which is good for dark theme */}
-                  <CardTitle className="text-2xl font-semibold">{group.productName}</CardTitle>
-                  {/* CardDescription will use a muted version of card-foreground by default from Shadcn, adjust if needed */}
-                  <CardDescription className="text-lg">
+              // Updated Card styling to match features/services sections
+              <Card
+                key={group.productName}
+                className="flex flex-col bg-zinc-900/50 border-zinc-800 backdrop-blur-sm hover:bg-zinc-800/50 transition-all duration-300 relative overflow-hidden shadow-lg group"
+              >
+                <CardHeader className="relative z-10">
+                  <CardTitle className="text-2xl font-semibold text-white group-hover:text-slate-100 transition-colors">
+                    {group.productName}
+                  </CardTitle>
+                  <CardDescription className="text-lg text-slate-300">
                     {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                    <span className="text-sm text-muted-foreground">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
+                    <span className="text-sm text-slate-400">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
                     {selectedInterval === 'annually' && yearlySavings > 0 && group.monthly && (
-                      // Ensure green text has good contrast
-                      <span className="block text-sm text-green-500 dark:text-green-400 font-medium">
+                      <span className="block text-sm text-green-400 font-medium"> {/* Adjusted green for better visibility on dark bg */}
                         Save {formatDisplayPrice(yearlySavings, planToDisplay.currency, null)} per year! (vs. monthly)
                       </span>
                     )}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow">
+                <CardContent className="flex-grow relative z-10">
                   <ul className="space-y-3">
                     {group.features.map((feature, index) => (
-                      <li key={index} className="flex items-center text-sm">
+                      <li key={index} className="flex items-center text-sm text-slate-300">
                         <svg
-                          className="w-5 h-5 mr-3 text-green-500 dark:text-green-400 flex-shrink-0" // Ensure icon color has good contrast
+                          className="w-5 h-5 mr-3 text-green-400 flex-shrink-0" // Adjusted green for better visibility
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
