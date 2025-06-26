@@ -40,7 +40,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
 
     // Log the crucial parts of the fetched profile
     // Assuming userId is available from const userId = user.id; defined earlier in the function
-    console.log(`speichereWohnung: Debug User ID: ${userId}, Profile Status: ${userProfile.stripe_subscription_status}, Custom Trial Starts: ${userProfile.trial_starts_at}, Custom Trial Ends: ${userProfile.trial_ends_at}`);
+    console.log(`speichereWohnung: Debug User ID: ${userId.substring(0, 8)}..., Profile Status: ${userProfile.stripe_subscription_status}, Custom Trial Starts: ${userProfile.trial_starts_at}, Custom Trial Ends: ${userProfile.trial_ends_at}`);
 
     const isCustomTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
     const isStripeTrialing = userProfile.stripe_subscription_status === 'trialing';
