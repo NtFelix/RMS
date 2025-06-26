@@ -21,30 +21,39 @@ export function WohnungenClient({
   houses,
   apartmentCount,
   apartmentLimit,
-  isActiveSubscription
+  userIsEligibleToAdd, // Changed from isActiveSubscription
+  limitReason // New prop
 }: { 
   initialWohnungen: Apartment[]; 
   houses: { id: string; name: string }[]; 
   apartmentCount: number;
-  apartmentLimit: number;
-  isActiveSubscription: boolean;
+  apartmentLimit: number; // This is effectiveApartmentLimit
+  userIsEligibleToAdd: boolean; // Changed
+  limitReason: 'trial' | 'subscription' | 'none'; // New prop
 }) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  // Local dialog state (dialogOpen, editingId, formData) is removed
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-  // const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" });
   const reloadRef = useRef<(() => void) | null>(null);
   const [apartments, setApartments] = useState(initialWohnungen);
 
   let buttonTooltipMessage = "";
-  if (!isActiveSubscription) {
-    buttonTooltipMessage = "Ein aktives Abonnement ist erforderlich, um Wohnungen hinzuzufügen.";
-  } else if (apartmentCount >= apartmentLimit) {
-    buttonTooltipMessage = "Sie haben die maximale Anzahl an Wohnungen für Ihr aktuelles Abonnement erreicht.";
+  const isLimitReached = apartmentCount >= apartmentLimit && apartmentLimit !== Infinity;
+
+  if (!userIsEligibleToAdd) {
+    buttonTooltipMessage = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
+  } else if (isLimitReached) {
+    if (limitReason === 'trial') {
+      // apartmentLimit should be 5 in this case as per server logic for trials
+      buttonTooltipMessage = `Maximale Anzahl an Wohnungen (${apartmentLimit}) für Ihre Testphase erreicht.`;
+    } else if (limitReason === 'subscription') {
+      buttonTooltipMessage = `Sie haben die maximale Anzahl an Wohnungen (${apartmentLimit}) für Ihr aktuelles Abonnement erreicht.`;
+    } else {
+      // Fallback, though limitReason should ideally be 'trial' or 'subscription' if isLimitReached is true
+      buttonTooltipMessage = "Das Wohnungslimit ist erreicht.";
+    }
   }
-  const isAddButtonDisabled = !isActiveSubscription || apartmentCount >= apartmentLimit;
+
+  const isAddButtonDisabled = !userIsEligibleToAdd || isLimitReached;
   
   // Function to update the apartments list with a new or updated apartment
   const updateApartmentInList = useCallback((updatedApartment: Apartment) => {
@@ -140,9 +149,9 @@ export function WohnungenClient({
       handleSuccess,
       apartmentCount,      // Pass the prop
       apartmentLimit,      // Pass the prop
-      isActiveSubscription // Pass the prop
+      userIsEligibleToAdd // Pass the prop
     );
-  }, [houses, handleSuccess, apartmentCount, apartmentLimit, isActiveSubscription]);
+  }, [houses, handleSuccess, apartmentCount, apartmentLimit, userIsEligibleToAdd]);
 
   // Function to handle editing an apartment
   const handleEdit = useCallback((apt: Apartment) => {
@@ -155,9 +164,9 @@ export function WohnungenClient({
       handleSuccess,
       apartmentCount,
       apartmentLimit,
-      isActiveSubscription
+      userIsEligibleToAdd
     );
-  }, [houses, handleSuccess, apartmentCount, apartmentLimit, isActiveSubscription]);
+  }, [houses, handleSuccess, apartmentCount, apartmentLimit, userIsEligibleToAdd]);
 
   return (
     <>
