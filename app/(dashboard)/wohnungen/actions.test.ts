@@ -67,7 +67,7 @@ describe('Server Action: speichereWohnung', () => {
       stripe_price_id: 'price_123'
     });
     const result = await speichereWohnung(mockFormData);
-    expect(result.error).toBe('Ein aktives Abonnement mit einem gültigen Plan ist erforderlich, um Wohnungen hinzuzufügen.');
+    expect(result.error).toBe('Ein aktives Abonnement oder eine aktive Testphase ist erforderlich, um Wohnungen hinzuzufügen.');
   });
 
   it('should allow creation if plan limit is not reached', async () => {
