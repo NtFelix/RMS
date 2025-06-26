@@ -33,14 +33,22 @@ export async function speichereWohnung(formData: WohnungFormData) {
     // If not, this part needs to fetch from 'profiles' table directly using userId
     const userProfile = await fetchUserProfile();
     if (!userProfile) {
+        // Assuming userId is available from const userId = user.id; defined earlier in the function
+        console.error(`speichereWohnung: User profile not found for user ID: ${userId}`);
         return { error: 'Benutzerprofil nicht gefunden.' };
     }
+
+    // Log the crucial parts of the fetched profile
+    // Assuming userId is available from const userId = user.id; defined earlier in the function
+    console.log(`speichereWohnung: Debug User ID: ${userId}, Profile Status: ${userProfile.stripe_subscription_status}, Custom Trial Starts: ${userProfile.trial_starts_at}, Custom Trial Ends: ${userProfile.trial_ends_at}`);
 
     const isCustomTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
     const isStripeTrialing = userProfile.stripe_subscription_status === 'trialing';
     const isEffectivelyInTrial = isCustomTrialActive || isStripeTrialing;
-
     const isPaidActiveStripeSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+
+    // Log the derived boolean flags
+    console.log(`speichereWohnung: Debug Flags - isCustomTrialActive: ${isCustomTrialActive}, isStripeTrialing: ${isStripeTrialing}, isEffectivelyInTrial: ${isEffectivelyInTrial}, isPaidActiveStripeSub: ${isPaidActiveStripeSub}`);
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
     let limitReasonIsTrial = false;
