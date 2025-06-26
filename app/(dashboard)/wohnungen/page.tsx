@@ -36,46 +36,85 @@ export default async function WohnungenPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   let apartmentCount = 0;
-  let isActiveSubscription = false;
-  // const apartmentLimit = 5; // REMOVE: Current hardcoded limit
-  let effectiveApartmentLimit = 0; // Default to 0 if no active sub or plan details issue
+  let userIsEligibleToAdd = false; // Renamed from isActiveSubscription for clarity
+  let effectiveApartmentLimit: number | typeof Infinity = 0;
+  let limitReason: 'trial' | 'subscription' | 'none' = 'none';
 
   if (user) {
-    // Fetch user profile for subscription status
-    const userProfile = await fetchUserProfile(); // This function already uses server client
+    const userProfile = await fetchUserProfile();
 
-    if (userProfile && userProfile.stripe_subscription_status === 'active' && userProfile.stripe_price_id) {
-      isActiveSubscription = true;
-      try {
-        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-        if (planDetails) {
-          if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-            effectiveApartmentLimit = planDetails.limitWohnungen;
-          } else if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0)) {
-            effectiveApartmentLimit = Infinity; // Unlimited
-          } else {
-            // Invalid limitWohnungen configuration in plan, default to 0 as a safe measure
-            console.warn('Invalid limitWohnungen configuration in plan:', planDetails.limitWohnungen);
-            effectiveApartmentLimit = 0;
+    if (userProfile) {
+      const isCustomTrial = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
+      const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
+      const isEffectivelyInTrial = isCustomTrial || isStripeTrial;
+      const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+
+      if (isEffectivelyInTrial) {
+        userIsEligibleToAdd = true;
+        effectiveApartmentLimit = 5;
+        limitReason = 'trial';
+
+        if (isPaidActiveSub && userProfile.stripe_price_id) {
+          try {
+            const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+            if (planDetails) {
+              if (planDetails.limitWohnungen === null) {
+                effectiveApartmentLimit = Infinity;
+                limitReason = 'subscription'; // Overridden by unlimited plan
+              } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > effectiveApartmentLimit) {
+                effectiveApartmentLimit = planDetails.limitWohnungen;
+                limitReason = 'subscription'; // Overridden by higher plan limit
+              }
+            } else {
+              console.warn(`WohnungenPage: Plan details not found for active sub (${userProfile.stripe_price_id}) during trial. Using trial limit.`);
+            }
+          } catch (error) {
+            console.error('WohnungenPage: Error fetching plan details for active sub during trial:', error);
+            // Stick with trial limit
           }
-        } else {
-          // Plan details could not be fetched (e.g., price_id not found on Stripe)
-          console.warn('Plan details not found for price ID:', userProfile.stripe_price_id);
-          effectiveApartmentLimit = 0;
         }
-      } catch (error) {
-        console.error('Error fetching plan details:', error);
-        effectiveApartmentLimit = 0; // Error fetching plan, default to 0
+      } else if (isPaidActiveSub && userProfile.stripe_price_id) {
+        userIsEligibleToAdd = true;
+        limitReason = 'subscription';
+        try {
+          const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+          if (planDetails) {
+            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+              effectiveApartmentLimit = planDetails.limitWohnungen;
+            } else if (planDetails.limitWohnungen === null) {
+              effectiveApartmentLimit = Infinity;
+            } else {
+              console.warn('WohnungenPage: Invalid limitWohnungen in plan:', planDetails.limitWohnungen);
+              userIsEligibleToAdd = false; // Cannot determine limit, disable adding
+              effectiveApartmentLimit = 0;
+              limitReason = 'none';
+            }
+          } else {
+            console.warn('WohnungenPage: Plan details not found for price ID:', userProfile.stripe_price_id);
+            userIsEligibleToAdd = false; // Plan details missing, disable adding
+            effectiveApartmentLimit = 0;
+            limitReason = 'none';
+          }
+        } catch (error) {
+          console.error('WohnungenPage: Error fetching plan details:', error);
+          userIsEligibleToAdd = false; // Error fetching, disable adding
+          effectiveApartmentLimit = 0;
+          limitReason = 'none';
+        }
+      } else {
+        // Not in trial and no active paid subscription
+        userIsEligibleToAdd = false;
+        effectiveApartmentLimit = 0;
+        limitReason = 'none';
       }
-    } else if (userProfile && userProfile.stripe_subscription_status === 'active') {
-      // Active subscription but no price_id, treat as limited (or specific logic if needed)
-      isActiveSubscription = true;
-      console.warn('User has active subscription but no stripe_price_id.');
-      effectiveApartmentLimit = 0; // Or some other default if applicable
+    } else {
+      // No user profile found
+      userIsEligibleToAdd = false;
+      effectiveApartmentLimit = 0;
+      limitReason = 'none';
     }
-    // If not active or no userProfile, isActiveSubscription remains false and effectiveApartmentLimit remains 0.
 
-    // Fetch apartment count for the user
+    // Fetch apartment count for the user (existing logic)
     const { count, error: countError } = await supabase
       .from('Wohnungen')
       .select('*', { count: 'exact', head: true })
@@ -164,7 +203,8 @@ export default async function WohnungenPage() {
             houses={houses}
             apartmentCount={apartmentCount}
             apartmentLimit={effectiveApartmentLimit}
-            isActiveSubscription={isActiveSubscription}
+            userIsEligibleToAdd={userIsEligibleToAdd} // Pass the corrected prop
+            limitReason={limitReason} // Pass the new prop
           />
         </CardContent>
       </Card>
