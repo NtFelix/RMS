@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from '@/utils/supabase/server'; // For getting user and counting
 import { fetchUserProfile } from '@/lib/data-fetching'; // For subscription status
+import { isUserInActiveTrial } from '@/lib/utils'; // Import the utility
 import { getPlanDetails } from '@/lib/stripe-server'; // Import for fetching plan details
 import { WohnungenClient } from './client';
 // Assuming fetchWohnungen and fetchHaeuser might be used or adapted later,
