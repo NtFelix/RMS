@@ -153,10 +153,9 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
               viewport={{ once: true }}
-              whileHover={{ y: -5 }}
               className="group"
             >
-              <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm hover:bg-slate-200/50 transition-all duration-300 h-full relative overflow-hidden">
+              <Card className="bg-zinc-900/50 border border-transparent backdrop-blur-sm hover:border-primary/70 transition-all duration-300 h-full relative overflow-hidden">
                 <PatternBackground pattern={feature.pattern} />
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
