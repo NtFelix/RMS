@@ -134,7 +134,7 @@ export default function Navigation() {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                    className="text-muted-foreground hover:text-foreground transition-colors relative group"
+                    className="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group"
                   >
                     {item.name}
                     <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
@@ -143,7 +143,7 @@ export default function Navigation() {
               </>
             ) : (
               // Other pages navigation
-              <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors relative group">
+              <Link href="/" className="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">
                 Home
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
               </Link>
@@ -151,8 +151,8 @@ export default function Navigation() {
 
             <Link
               href="/modern/documentation"
-              className={`flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors relative group ${
-                pathname?.startsWith("/modern/documentation") ? "text-foreground" : ""
+              className={`flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group ${
+                pathname?.startsWith("/modern/documentation") ? "text-foreground bg-muted" : ""
               }`}
             >
               <FileText className="w-4 h-4" />
@@ -222,7 +222,7 @@ export default function Navigation() {
                     <button
                       key={item.name}
                       onClick={() => handleNavClick(item.href)}
-                      className="block w-full text-left text-muted-foreground hover:text-foreground transition-colors py-2"
+                      className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                     >
                       {item.name}
                     </button>
@@ -232,7 +232,7 @@ export default function Navigation() {
                 <Link
                   href="/"
                   onClick={() => setIsOpen(false)}
-                  className="block text-muted-foreground hover:text-foreground transition-colors py-2"
+                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
                   Home
                 </Link>
@@ -241,8 +241,8 @@ export default function Navigation() {
               <Link
                 href="/modern/documentation"
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors py-2 ${
-                  pathname?.startsWith("/modern/documentation") ? "text-foreground" : ""
+                className={`flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ${
+                  pathname?.startsWith("/modern/documentation") ? "text-foreground bg-muted" : ""
                 }`}
               >
                 <FileText className="w-4 h-4" />
