@@ -19,14 +19,14 @@ const socialLinks = [
 
 export default function Footer() {
   return (
-    <footer className="relative py-20 px-4 border-t border-zinc-800">
-      {/* Footer Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
+    <footer className="relative py-20 px-4 border-t border-border bg-background text-foreground">
+      {/* Footer Background Pattern - Adjusted for theme */}
+      <div className="absolute inset-0 opacity-5 dark:opacity-3">
         <div
           className="w-full h-full"
           style={{
-            backgroundImage: `linear-gradient(0deg, transparent 24%, rgba(148, 163, 184, 0.3) 25%, rgba(148, 163, 184, 0.3) 26%, transparent 27%, transparent 74%, rgba(113, 113, 122, 0.3) 75%, rgba(113, 113, 122, 0.3) 76%, transparent 77%, transparent),
-                           linear-gradient(90deg, transparent 24%, rgba(148, 163, 184, 0.3) 25%, rgba(148, 163, 184, 0.3) 26%, transparent 27%, transparent 74%, rgba(113, 113, 122, 0.3) 75%, rgba(113, 113, 122, 0.3) 76%, transparent 77%, transparent)`,
+            backgroundImage: `linear-gradient(0deg, transparent 24%, hsl(var(--muted-foreground)/0.1) 25%, hsl(var(--muted-foreground)/0.1) 26%, transparent 27%, transparent 74%, hsl(var(--muted-foreground)/0.05) 75%, hsl(var(--muted-foreground)/0.05) 76%, transparent 77%, transparent),
+                           linear-gradient(90deg, transparent 24%, hsl(var(--muted-foreground)/0.1) 25%, hsl(var(--muted-foreground)/0.1) 26%, transparent 27%, transparent 74%, hsl(var(--muted-foreground)/0.05) 75%, hsl(var(--muted-foreground)/0.05) 76%, transparent 77%, transparent)`,
             backgroundSize: "50px 50px",
           }}
         />
@@ -42,10 +42,10 @@ export default function Footer() {
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h3 className="text-2xl font-bold text-white mb-4">
-                Design<span className="text-slate-400">Studio</span>
+              <h3 className="text-2xl font-bold text-foreground mb-4">
+                Design<span className="text-primary">Studio</span>
               </h3>
-              <p className="text-slate-400 leading-relaxed mb-6">
+              <p className="text-muted-foreground leading-relaxed mb-6">
                 Crafting exceptional digital experiences with cutting-edge technology and innovative design patterns.
               </p>
               <div className="flex gap-4">
@@ -55,10 +55,10 @@ export default function Footer() {
                     href={social.href}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-10 h-10 bg-zinc-800 hover:bg-zinc-700 rounded-lg flex items-center justify-center transition-colors"
+                    className="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border"
                     aria-label={social.label}
                   >
-                    <social.icon className="w-5 h-5 text-slate-400" />
+                    <social.icon className="w-5 h-5 text-muted-foreground group-hover:text-accent-foreground" />
                   </motion.a>
                 ))}
               </div>
@@ -74,11 +74,11 @@ export default function Footer() {
               transition={{ duration: 0.6, delay: categoryIndex * 0.1 }}
               viewport={{ once: true }}
             >
-              <h4 className="text-white font-semibold mb-4">{category}</h4>
+              <h4 className="text-foreground font-semibold mb-4">{category}</h4>
               <ul className="space-y-3">
                 {links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <a href="#" className="text-slate-400 hover:text-slate-300 transition-colors">
+                    <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
                       {link}
                     </a>
                   </li>
@@ -94,10 +94,10 @@ export default function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           viewport={{ once: true }}
-          className="pt-8 border-t border-zinc-800 flex flex-col md:flex-row justify-between items-center gap-4"
+          className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4"
         >
-          <p className="text-slate-400 text-sm">© 2024 DesignStudio. All rights reserved.</p>
-          <p className="text-slate-500 text-sm">Built with passion and cutting-edge technology</p>
+          <p className="text-muted-foreground text-sm">© 2024 DesignStudio. All rights reserved.</p>
+          <p className="text-muted-foreground/70 text-sm">Built with passion and cutting-edge technology</p>
         </motion.div>
       </div>
     </footer>
