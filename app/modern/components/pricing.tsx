@@ -107,7 +107,7 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (isLoadingPlans) {
     return (
-      <section className="py-12">
+      <section className="py-12 bg-background text-foreground">
         <div className="container mx-auto px-4 text-center">
           <p>Loading plans...</p>
         </div>
@@ -117,8 +117,8 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (error) {
     return (
-      <section className="py-12">
-        <div className="container mx-auto px-4 text-center text-red-500">
+      <section className="py-12 bg-background text-foreground">
+        <div className="container mx-auto px-4 text-center text-destructive">
           <p>Error loading plans: {error}</p>
         </div>
       </section>
@@ -127,29 +127,28 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (groupedPlans.length === 0) {
     return (
-      <section className="py-12 bg-transparent"> {/* Ensure section background is transparent to show landing page bg */}
+      <section className="py-12 bg-background text-foreground">
         <div className="container mx-auto px-4 text-center">
-          <p className="text-foreground">No subscription plans are currently available. Please check back later.</p>
+          <p>No subscription plans are currently available. Please check back later.</p>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="py-12 bg-transparent"> {/* Ensure section background is transparent */}
+    <section className="py-12 bg-background text-foreground">
       <div className="container mx-auto px-4">
         <Tabs value={selectedInterval} onValueChange={(value) => setSelectedInterval(value as 'monthly' | 'annually')} className="mb-8">
-          {/* Updated TabsList for better dark mode appearance */}
           <TabsList className="grid w-full grid-cols-2 md:w-1/3 mx-auto bg-muted p-1 rounded-md">
             <TabsTrigger
               value="monthly"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10 transition-colors"
             >
               Monthly
             </TabsTrigger>
             <TabsTrigger
               value="annually"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10 transition-colors"
             >
               Annually
             </TabsTrigger>
@@ -159,27 +158,26 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {groupedPlans.map((group) => {
             const planToDisplay = selectedInterval === 'monthly' ? group.monthly : group.annually;
-            if (!planToDisplay) return null; // Skip if this product doesn't have an option for the selected interval
+            if (!planToDisplay) return null;
 
             const yearlySavings = group.monthly && group.annually
               ? (group.monthly.price * 12) - group.annually.price
               : 0;
 
             return (
-              // Updated Card styling to match features/services sections
               <Card
                 key={group.productName}
-                className="flex flex-col bg-zinc-900/50 border-zinc-800 backdrop-blur-sm hover:bg-zinc-800/50 transition-all duration-300 relative overflow-hidden shadow-lg group"
+                className="flex flex-col bg-card border-border backdrop-blur-sm hover:border-primary/70 transition-all duration-300 relative overflow-hidden shadow-lg group"
               >
                 <CardHeader className="relative z-10">
-                  <CardTitle className="text-2xl font-semibold text-white group-hover:text-slate-100 transition-colors">
+                  <CardTitle className="text-2xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
                     {group.productName}
                   </CardTitle>
-                  <CardDescription className="text-lg text-slate-300">
+                  <CardDescription className="text-lg text-muted-foreground">
                     {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                    <span className="text-sm text-slate-400">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
+                    <span className="text-sm">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
                     {selectedInterval === 'annually' && yearlySavings > 0 && group.monthly && (
-                      <span className="block text-sm text-green-400 font-medium"> {/* Adjusted green for better visibility on dark bg */}
+                      <span className="block text-sm text-green-500 dark:text-green-400 font-medium">
                         Save {formatDisplayPrice(yearlySavings, planToDisplay.currency, null)} per year! (vs. monthly)
                       </span>
                     )}
@@ -188,9 +186,9 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
                 <CardContent className="flex-grow relative z-10">
                   <ul className="space-y-3">
                     {group.features.map((feature, index) => (
-                      <li key={index} className="flex items-center text-sm text-slate-300">
+                      <li key={index} className="flex items-center text-sm text-muted-foreground">
                         <svg
-                          className="w-5 h-5 mr-3 text-green-400 flex-shrink-0" // Adjusted green for better visibility
+                          className="w-5 h-5 mr-3 text-green-500 dark:text-green-400 flex-shrink-0"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"

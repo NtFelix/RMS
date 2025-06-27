@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion"
 import { ArrowRight, Sparkles } from "lucide-react"
-import { Button } from '../../../components/ui/button'
+import { Button } from '@/components/ui/button' // Corrected import path
 
 interface CTAProps {
   onGetStarted: () => void;
@@ -10,14 +10,14 @@ interface CTAProps {
 
 export default function CTA({ onGetStarted }: CTAProps) {
   return (
-    <section className="py-32 px-4 relative overflow-hidden">
-      {/* Animated Background */}
+    <section className="py-32 px-4 relative overflow-hidden bg-background text-foreground">
+      {/* Animated Background - Adjusted for theme */}
       <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-gradient-to-r from-zinc-900 via-slate-900 to-zinc-900" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background" />
 
-        {/* Animated Gradient Orbs */}
+        {/* Animated Gradient Orbs - Adjusted for theme */}
         <motion.div
-          className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-slate-600/30 to-zinc-600/30 rounded-full blur-3xl"
+          className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
           animate={{
             scale: [1, 1.2, 1],
             opacity: [0.3, 0.5, 0.3],
@@ -29,7 +29,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           }}
         />
         <motion.div
-          className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-l from-zinc-600/30 to-slate-600/30 rounded-full blur-3xl"
+          className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-l from-secondary/20 to-primary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"
           animate={{
             scale: [1.2, 1, 1.2],
             opacity: [0.5, 0.3, 0.5],
@@ -41,12 +41,12 @@ export default function CTA({ onGetStarted }: CTAProps) {
           }}
         />
 
-        {/* Pattern Overlay */}
-        <div className="absolute inset-0 opacity-10">
+        {/* Pattern Overlay - Adjusted for theme */}
+        <div className="absolute inset-0 opacity-10 dark:opacity-5">
           <div
             className="w-full h-full"
             style={{
-              backgroundImage: `repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(148, 163, 184, 0.3) 60deg, transparent 120deg)`,
+              backgroundImage: `repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, hsl(var(--muted-foreground)/0.2) 60deg, transparent 120deg)`,
               backgroundSize: "100px 100px",
             }}
           />
@@ -61,9 +61,9 @@ export default function CTA({ onGetStarted }: CTAProps) {
           viewport={{ once: true }}
           className="mb-8"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm mb-8">
-            <Sparkles className="w-4 h-4 text-slate-400" />
-            <span className="text-sm text-slate-300">Ready to Transform?</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm mb-8">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <span className="text-sm text-muted-foreground">Ready to Transform?</span>
           </div>
         </motion.div>
 
@@ -72,11 +72,11 @@ export default function CTA({ onGetStarted }: CTAProps) {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
           viewport={{ once: true }}
-          className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-white via-slate-200 to-zinc-400 bg-clip-text text-transparent leading-tight"
+          className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
           Let's Build Something
           <br />
-          <span className="bg-gradient-to-r from-slate-400 via-zinc-300 to-slate-500 bg-clip-text text-transparent">
+          <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
             Extraordinary
           </span>
         </motion.h2>
@@ -86,7 +86,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
           viewport={{ once: true }}
-          className="text-xl md:text-2xl text-slate-400 mb-12 leading-relaxed"
+          className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed"
         >
           Join hundreds of forward-thinking companies who trust us to bring their vision to life with cutting-edge
           design and development.
@@ -101,7 +101,9 @@ export default function CTA({ onGetStarted }: CTAProps) {
         >
           <Button
             size="lg"
-            className="bg-white text-zinc-900 hover:bg-slate-100 px-12 py-6 text-xl font-semibold group"
+            // className="bg-white text-zinc-900 hover:bg-slate-100 px-12 py-6 text-xl font-semibold group"
+            // Using primary variant
+            className="px-12 py-6 text-xl font-semibold group"
             onClick={onGetStarted}
           >
             Get Started with Property Management
@@ -110,7 +112,9 @@ export default function CTA({ onGetStarted }: CTAProps) {
           <Button
             size="lg"
             variant="outline"
-            className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-12 py-6 text-xl font-semibold"
+            // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-12 py-6 text-xl font-semibold"
+            // Uses standard outline which respects theme
+            className="px-12 py-6 text-xl font-semibold text-foreground hover:text-accent-foreground"
           >
             Schedule Consultation
           </Button>
