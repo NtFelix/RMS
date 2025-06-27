@@ -156,8 +156,8 @@ export default function Features() {
               // whileHover={{ y: -5 }} // Removed lift effect
               className="group"
             >
-              {/* Removed hover:bg-zinc-800/50 from Card, cards in main app don't have hover unless content does */}
-              <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm transition-all duration-300 h-full relative overflow-hidden">
+              {/* Added hover:bg-zinc-800/50 to Card for a subtle, less greyish hover effect */}
+              <Card className="bg-zinc-900/50 hover:bg-zinc-800/50 border-zinc-800 backdrop-blur-sm transition-all duration-300 h-full relative overflow-hidden">
                 <PatternBackground pattern={feature.pattern} />
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">

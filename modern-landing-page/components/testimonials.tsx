@@ -76,8 +76,8 @@ export default function Testimonials() {
               // whileHover={{ y: -10 }} // Removed lift effect
               className="group" // Group class retained in case of future needs, though not currently used for hover
             >
-              {/* Removed hover:bg-zinc-800/60 from Card className */}
-              <Card className="bg-zinc-900/60 border-zinc-800 backdrop-blur-sm transition-all duration-300 h-full relative overflow-hidden">
+              {/* Added hover:bg-zinc-800/60 to Card for a subtle, less greyish hover effect */}
+              <Card className="bg-zinc-900/60 hover:bg-zinc-800/60 border-zinc-800 backdrop-blur-sm transition-all duration-300 h-full relative overflow-hidden">
                 {/* Card Pattern */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
                   <Quote className="w-full h-full text-slate-400" />
