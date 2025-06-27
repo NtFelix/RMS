@@ -153,24 +153,31 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
               viewport={{ once: true }}
-              whileHover={{ y: -5 }}
+              // whileHover={{ y: -5 }} // Removed lift effect
               className="group"
             >
-              <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm hover:bg-zinc-800/50 transition-all duration-300 h-full relative overflow-hidden">
+              {/* Removed hover:bg-zinc-800/50 from Card, cards in main app don't have hover unless content does */}
+              <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm transition-all duration-300 h-full relative overflow-hidden">
                 <PatternBackground pattern={feature.pattern} />
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
-                    <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-zinc-700 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    {/* Removed group-hover:scale-110 from icon container */}
+                    <div className="w-16 h-16 bg-gradient-to-br from-slate-600 to-zinc-700 rounded-2xl flex items-center justify-center transition-transform duration-300">
                       <feature.icon className="w-8 h-8 text-slate-200" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-slate-200 transition-colors">
+                  {/* Removed group-hover:text-slate-200 from title, text hover usually on links/buttons */}
+                  <h3 className="text-2xl font-bold text-white mb-4 transition-colors">
                     {feature.title}
                   </h3>
                   <p className="text-slate-400 leading-relaxed">{feature.description}</p>
+                  {/* Ensuring Button uses standard variant styles for hover */}
                   <Button
                     variant="outline"
-                    className="border-slate-600 text-black hover:bg-slate-800 hover:text-white group-hover:border-slate-500 transition-colors"
+                    // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white group-hover:border-slate-500 transition-colors"
+                    // Simplified to use standard outline variant from button.tsx
+                    // This will apply hover:bg-accent and hover:text-accent-foreground
+                    className="mt-4" // Added margin for spacing if needed
                   >
                     Learn More
                   </Button>

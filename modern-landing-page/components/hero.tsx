@@ -106,77 +106,31 @@ export default function Hero() {
           transition={{ duration: 0.8, delay: 0.6 }}
           className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
+          {/* Simplified "Get Started" Button */}
           <Button
             size="lg"
-            className="relative bg-gradient-to-r from-zinc-800 to-slate-800 text-white hover:from-zinc-700 hover:to-slate-700 px-8 py-4 text-lg font-semibold group overflow-hidden border-0"
+            variant="default" // Using the default variant from button.tsx
+            className="px-8 py-4 text-lg font-semibold group" // Removed specific bg, hover, border, overflow classes
           >
-            {/* Animated water-like border gradient */}
-            <div className="absolute inset-0 rounded-md p-[2px] bg-gradient-to-r from-slate-400 via-zinc-300 to-slate-500 animate-pulse">
-              <div className="absolute inset-[2px] bg-gradient-to-r from-zinc-800 to-slate-800 rounded-md group-hover:from-zinc-700 group-hover:to-slate-700 transition-all duration-300" />
-            </div>
-
-            {/* Moving gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-
-            {/* Animated border that flows like water */}
-            <div className="absolute inset-0 rounded-md overflow-hidden">
-              {/* Primary rotating gradient border */}
-              <div
-                className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{
-                  background:
-                    "conic-gradient(from 0deg, rgba(148, 163, 184, 0.9), rgba(113, 113, 122, 0.9), rgba(148, 163, 184, 0.9), rgba(113, 113, 122, 0.9))",
-                  animation: "spin 2s linear infinite",
-                }}
-              />
-
-              {/* Secondary counter-rotating gradient */}
-              <div
-                className="absolute inset-[1px] rounded-md opacity-0 group-hover:opacity-80 transition-opacity duration-700 delay-200"
-                style={{
-                  background:
-                    "conic-gradient(from 180deg, rgba(113, 113, 122, 0.7), rgba(148, 163, 184, 0.7), rgba(113, 113, 122, 0.7), rgba(148, 163, 184, 0.7))",
-                  animation: "spin 3s linear infinite reverse",
-                }}
-              />
-
-              {/* Pulsing inner glow */}
-              <div className="absolute inset-[2px] rounded-md bg-gradient-to-r from-zinc-800 to-slate-800 group-hover:from-zinc-700 group-hover:to-slate-700 transition-all duration-300">
-                <div className="absolute inset-0 rounded-md bg-gradient-to-r from-slate-400/20 via-transparent to-zinc-300/20 opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-500" />
-              </div>
-
-              {/* Flowing particles effect */}
-              <div className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-60 transition-opacity duration-800">
-                <div
-                  className="absolute top-1 left-1 w-1 h-1 bg-slate-300 rounded-full animate-ping"
-                  style={{ animationDelay: "0s" }}
-                />
-                <div
-                  className="absolute top-3 right-2 w-1 h-1 bg-zinc-300 rounded-full animate-ping"
-                  style={{ animationDelay: "0.5s" }}
-                />
-                <div
-                  className="absolute bottom-2 left-3 w-1 h-1 bg-slate-400 rounded-full animate-ping"
-                  style={{ animationDelay: "1s" }}
-                />
-                <div
-                  className="absolute bottom-1 right-1 w-1 h-1 bg-zinc-400 rounded-full animate-ping"
-                  style={{ animationDelay: "1.5s" }}
-                />
-              </div>
-            </div>
-
-            <span className="relative z-10 flex items-center">
-              Get Started
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </span>
+            Get Started
+            <ArrowRight className="ml-2 w-5 h-5 transition-transform group-hover:translate-x-1" />
           </Button>
+          {/* Simplified "Watch Demo" Button */}
           <Button
             size="lg"
             variant="outline"
-            className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-8 py-4 text-lg font-semibold group"
+            // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-8 py-4 text-lg font-semibold group"
+            // The line above is simplified by using the variant from button.tsx
+            // hover:bg-accent hover:text-accent-foreground will be applied from buttonVariants
+            // border-input will be applied from buttonVariants
+            // text-foreground will be applied from buttonVariants (or primary if not specified for outline)
+            // For dark theme, text-foreground is light, bg-background is dark. border-input is likely a mid-gray.
+            // hover:bg-accent (dark theme accent is 0 0% 14.9% - a lighter gray)
+            // hover:text-accent-foreground (dark theme accent-foreground is 0 0% 98% - white)
+            // This should align with the main app's subtle hover for outline buttons.
+            className="px-8 py-4 text-lg font-semibold group"
           >
-            <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+            <Zap className="mr-2 w-5 h-5 transition-transform group-hover:scale-110" /> {/* Retaining icon animation for now, can remove if too much */}
             Watch Demo
           </Button>
         </motion.div>
