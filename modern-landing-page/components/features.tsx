@@ -156,7 +156,7 @@ export default function Features() {
               whileHover={{ y: -5 }}
               className="group"
             >
-              <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm hover:bg-zinc-800/50 transition-all duration-300 h-full relative overflow-hidden">
+              <Card className="bg-zinc-900/50 border-zinc-800 backdrop-blur-sm hover:bg-slate-200/50 transition-all duration-300 h-full relative overflow-hidden">
                 <PatternBackground pattern={feature.pattern} />
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
