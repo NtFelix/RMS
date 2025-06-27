@@ -73,10 +73,11 @@ export default function Testimonials() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.2 }}
               viewport={{ once: true }}
-              whileHover={{ y: -10 }}
-              className="group"
+              // whileHover={{ y: -10 }} // Removed lift effect
+              className="group" // Group class retained in case of future needs, though not currently used for hover
             >
-              <Card className="bg-zinc-900/60 border-zinc-800 backdrop-blur-sm hover:bg-zinc-800/60 transition-all duration-300 h-full relative overflow-hidden">
+              {/* Removed hover:bg-zinc-800/60 from Card className */}
+              <Card className="bg-zinc-900/60 border-zinc-800 backdrop-blur-sm transition-all duration-300 h-full relative overflow-hidden">
                 {/* Card Pattern */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
                   <Quote className="w-full h-full text-slate-400" />
