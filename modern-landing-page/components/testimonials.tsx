@@ -75,7 +75,7 @@ export default function Testimonials() {
               viewport={{ once: true }}
               className="group"
             >
-              <Card className="bg-zinc-900/60 border border-transparent backdrop-blur-sm hover:border-primary/70 hover:bg-transparent transition-all duration-300 h-full relative overflow-hidden">
+              <Card className="bg-zinc-900/60 border border-transparent backdrop-blur-sm hover:border-primary/70 transition-all duration-300 h-full relative overflow-hidden">
                 {/* Card Pattern */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-5">
                   <Quote className="w-full h-full text-slate-400" />
