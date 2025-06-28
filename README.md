@@ -116,3 +116,27 @@ Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request oder öffnen S
 (Hier sollte der Lizenztext stehen. Da keiner in der ursprünglichen README.md explizit ausgewiesen war, wird dieser Abschnitt vorerst leer gelassen oder es müsste eine Standardlizenz wie MIT oder GPL vom Projekteigner ergänzt werden.)
 
 **Hinweis:** Wenn eine spezifische Lizenz für das Projekt gilt, sollte diese hier eingetragen werden. Z.B.: "Dieses Projekt steht unter der MIT-Lizenz. Details finden Sie in der Datei LICENSE." Wenn keine `LICENSE`-Datei existiert, sollte diese erstellt werden.
+
+## Viewing Documentation with Application Styles
+
+The main stylesheet for this application, located at `assets/styles/styles.css`, includes specific styles to ensure that this documentation, when rendered to HTML, matches the overall look and feel of the Rent-Managing-System.
+
+If you are rendering this Markdown file (or `datenbankstruktur.md`) to HTML, please ensure the following for correct styling:
+
+1.  **Include the Stylesheet:** Link to the `assets/styles/styles.css` file in your HTML document. For example:
+    ```html
+    <link rel="stylesheet" href="path/to/assets/styles/styles.css">
+    ```
+    (Adjust `path/to/` as necessary depending on your file structure.)
+
+2.  **Use the Wrapper Class:** Wrap the HTML output generated from the Markdown content within a `div` element that has the class `markdown-body`. For example:
+    ```html
+    <div class="markdown-body">
+        <!-- Rendered Markdown content goes here -->
+        <h1>My Document Title</h1>
+        <p>This is a paragraph...</p>
+        <!-- ... more content ... -->
+    </div>
+    ```
+
+By following these steps, the documentation will be displayed using the light theme and consistent styling defined for the application.

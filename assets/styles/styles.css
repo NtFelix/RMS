@@ -1223,3 +1223,132 @@ table button:hover {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* Markdown specific styles */
+.markdown-body { /* Assuming a container class for rendered Markdown */
+    font-family: Arial, Helvetica, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--bg-color);
+    padding: 20px;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    color: var(--primary-color);
+    margin-top: 24px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.markdown-body h1 { font-size: 2em; }
+.markdown-body h2 { font-size: 1.75em; }
+.markdown-body h3 { font-size: 1.5em; }
+.markdown-body h4 { font-size: 1.25em; }
+.markdown-body h5 { font-size: 1em; }
+.markdown-body h6 { font-size: 0.875em; }
+
+.markdown-body p {
+    margin-bottom: 16px;
+}
+
+.markdown-body a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.markdown-body a:hover {
+    text-decoration: underline;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+    margin-bottom: 16px;
+    padding-left: 30px;
+}
+
+.markdown-body li {
+    margin-bottom: 8px;
+}
+
+.markdown-body code {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #f0f0f0; /* A slightly different background for code blocks */
+    color: #333; /* Ensuring code text is dark */
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.markdown-body pre {
+    background-color: #f0f0f0;
+    color: #333;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+}
+
+.markdown-body pre code {
+    padding: 0;
+    background-color: transparent; /* Reset background for code inside pre */
+    border-radius: 0;
+}
+
+.markdown-body blockquote {
+    margin-left: 0;
+    padding-left: 20px;
+    border-left: 5px solid var(--secondary-color);
+    color: #555; /* Slightly muted text for blockquotes */
+    margin-bottom: 16px;
+}
+
+.markdown-body hr {
+    border: 0;
+    height: 1px;
+    background-color: #ddd; /* Light horizontal rule */
+    margin: 32px 0;
+}
+
+.markdown-body table {
+    width: auto; /* Let table determine its width, or set to 100% if needed */
+    border-collapse: collapse; /* Use collapse for Markdown tables */
+    margin-top: 20px;
+    margin-bottom: 20px;
+    font-size: 14px; /* Match existing table style */
+    border: 1px solid #ccc; /* Add a border around the table */
+}
+
+.markdown-body th,
+.markdown-body td {
+    border: 1px solid #ccc; /* Cell borders */
+    padding: 10px; /* Match existing table padding */
+    text-align: left;
+}
+
+.markdown-body th {
+    background-color: var(--primary-color); /* Match existing table header style */
+    color: white; /* Match existing table header style */
+    font-weight: bold;
+}
+
+.markdown-body tr:nth-child(even) {
+    background-color: #f9f9f9; /* Slightly different even row color for Markdown tables */
+}
+
+.markdown-body tr:hover {
+    background-color: #f1f1f1; /* Hover effect for Markdown table rows */
+}
+
+/* Ensure Markdown images are responsive */
+.markdown-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px; /* Optional: add some rounding to images */
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
