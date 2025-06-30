@@ -175,7 +175,7 @@ export default function LandingPage() {
         <ProfileErrorToastHandler />
       </Suspense>
       <Navigation />
-      <main className="min-h-screen bg-zinc-950 text-white overflow-x-hidden">
+      <main className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
         </div>
