@@ -1,7 +1,7 @@
 export const BERECHNUNGSART_OPTIONS = [
   { value: 'pro Flaeche', label: 'pro Fläche' },
   { value: 'pro Mieter', label: 'pro Mieter' },
-  { value: 'pauschal', label: 'pauschal' },
+  { value: 'nach Rechnung', label: 'nach Rechnung' },
 ] as const;
 
 export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value'];
