@@ -168,7 +168,7 @@ export default function Features() {
                       <feature.icon className="w-8 h-8 text-primary-foreground" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-card-foreground mb-4 group-hover:text-accent-foreground transition-colors">
+                  <h3 className="text-2xl font-bold text-card-foreground mb-4 transition-colors">
                     {feature.title}
                   </h3>
                   <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
