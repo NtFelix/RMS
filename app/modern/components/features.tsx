@@ -160,7 +160,7 @@ export default function Features() {
               whileHover={{ y: -5 }}
               className="group"
             >
-              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-accent/50 transition-all duration-300 h-full relative overflow-hidden">
+              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden">
                 <PatternBackground pattern={feature.pattern} />
                 <CardContent className="p-8 relative z-10">
                   <div className="mb-6">
@@ -168,7 +168,7 @@ export default function Features() {
                       <feature.icon className="w-8 h-8 text-primary-foreground" />
                     </div>
                   </div>
-                  <h3 className="text-2xl font-bold text-card-foreground mb-4 group-hover:text-accent-foreground transition-colors">
+                  <h3 className="text-2xl font-bold text-card-foreground mb-4 transition-colors">
                     {feature.title}
                   </h3>
                   <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
