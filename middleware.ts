@@ -29,16 +29,38 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Public routes that don't require authentication
+  const publicRoutes = [
+    '/',
+    '/landing',
+    '/modern/documentation',
+    '/modern/documentation/.*', // Allow all sub-routes under documentation
+    '/auth/.*', // Allow all auth routes
+    '/_next/.*', // Allow Next.js internal routes
+    '/favicon.ico', // Allow favicon
+  ]
+
+  // If we're already on the login page, don't redirect
+  if (pathname.startsWith('/auth/login')) {
+    return response
+  }
+
   // If the user is not authenticated and trying to access a protected route, redirect to login
-  if (!user && !pathname.startsWith("/auth")) {
-    const url = new URL("/auth/login", request.url)
-    url.searchParams.set("redirect", pathname)
+  if (!user && !publicRoutes.some(route => {
+    const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
+    return regex.test(pathname);
+  })) {
+    const url = new URL('/auth/login', request.url)
+    // Only set redirect if it's not an auth route and not an API route
+    if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
+      url.searchParams.set('redirect', pathname)
+    }
     return NextResponse.redirect(url)
   }
 
-  // If the user is authenticated and trying to access auth routes, redirect to dashboard
-  if (user && pathname.startsWith("/auth")) {
-    return NextResponse.redirect(new URL("/", request.url))
+  // If the user is authenticated and trying to access auth routes (except login), redirect to home
+  if (user && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
+    return NextResponse.redirect(new URL('/home', request.url))
   }
 
   return response
