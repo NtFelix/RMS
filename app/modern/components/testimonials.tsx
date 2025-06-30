@@ -76,7 +76,7 @@ export default function Testimonials() {
               whileHover={{ y: -10 }}
               className="group"
             >
-              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-accent/30 transition-all duration-300 h-full relative overflow-hidden">
+              <Card className="bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden">
                 {/* Card Pattern - Adjusted for theme */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3">
                   <Quote className="w-full h-full text-muted-foreground" />
