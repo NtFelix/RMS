@@ -184,9 +184,9 @@ export default function Navigation() {
               </DropdownMenu>
             ) : (
               <Button
-                variant="ghost"
+                variant="default" // Changed to default for blue button
                 size="sm"
-                className="text-muted-foreground hover:text-foreground hover:bg-accent"
+                // className="text-muted-foreground hover:text-foreground hover:bg-accent" // Removed custom class
                 onClick={handleOpenLoginModal}
               >
                 <LogIn className="w-4 h-4 mr-2" />
@@ -274,9 +274,9 @@ export default function Navigation() {
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="ghost"
+                  variant="default" // Changed to default for blue button
                   size="sm"
-                  className="w-full justify-start text-muted-foreground hover:text-foreground hover:bg-accent py-2 mt-4"
+                  className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
                   onClick={handleOpenLoginModal}
                 >
                   <LogIn className="w-4 h-4 mr-2" />

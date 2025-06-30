@@ -6,7 +6,8 @@ export default function DocumentationPage() {
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-zinc-950 text-white pt-16">
+      {/* Theming will be handled by ThemeProvider and globals.css */}
+      <div className="min-h-screen pt-16">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <DocumentationSidebar />
