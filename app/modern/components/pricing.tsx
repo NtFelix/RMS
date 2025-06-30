@@ -9,50 +9,55 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card';
-import { useEffect, useState } from 'react'; // Import useEffect and useState
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
+import { useEffect, useState, useMemo } from 'react';
 
 // Updated Plan interface to match the API response structure
 interface Plan {
   id: string; // Stripe Price ID
-  name: string;
+  name: string; // This should be the common product name, e.g., "Basic Plan"
   price: number; // unit_amount in cents
   currency: string;
-  interval: string | null;
+  interval: string | null; // 'month' or 'year'
   interval_count: number | null;
   features: string[];
-  limit_wohnungen?: number; // From API, but not directly displayed in this basic card
+  limit_wohnungen?: number;
   priceId: string; // Stripe Price ID (same as id)
   position?: number;
+  productName: string; // A common name for the product, e.g. "Basic", "Pro"
 }
 
-// Helper function to format price
-const formatPrice = (amount: number, currency: string, interval: string | null, intervalCount: number | null): string => {
-  const price = (amount / 100).toLocaleString('en-US', {
+// Helper function to format price for display
+const formatDisplayPrice = (amount: number, currency: string, interval: string | null): string => {
+  const price = (amount / 100).toLocaleString('de-DE', { // Using de-DE for Euro formatting
     style: 'currency',
     currency: currency,
-    minimumFractionDigits: 0, // Adjust as needed, e.g. 2 for $10.00
+    minimumFractionDigits: 2,
   });
-  if (interval && intervalCount) {
-    const plural = intervalCount > 1 ? 's' : '';
-    if (intervalCount === 1) {
-        return `${price}/${interval}`;
-    }
-    return `${price} / ${intervalCount} ${interval}${plural}`;
-  }
-  return price; // For one-time payments or if interval info is missing
+  // The interval text like "/month" or "/year" will be part of the tab/description, not the price itself
+  return price;
 };
 
 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
-  isLoading?: boolean; // Renamed from isSubmitting for clarity, passed from parent
-  currentPlanId?: string | null; // New optional prop
+  isLoading?: boolean;
+  currentPlanId?: string | null;
+}
+
+interface GroupedPlan {
+  productName: string; // e.g. "Basic", "Pro"
+  features: string[];
+  monthly: Plan | null;
+  annually: Plan | null;
+  position?: number;
 }
 
 export default function Pricing({ onSelectPlan, isLoading: isSubmitting, currentPlanId }: PricingProps) {
-  const [plansData, setPlansData] = useState<Plan[]>([]);
+  const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedInterval, setSelectedInterval] = useState<'monthly' | 'annually'>('monthly');
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -64,8 +69,9 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
           const errorData = await response.json();
           throw new Error(errorData.error || `Failed to fetch plans: ${response.status}`);
         }
+        // productName now comes directly from the API
         const data: Plan[] = await response.json();
-        setPlansData(data);
+        setAllPlans(data);
       } catch (err) {
         console.error(err);
         setError((err as Error).message || 'An unexpected error occurred');
@@ -77,12 +83,33 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
     fetchPlans();
   }, []);
 
+  const groupedPlans = useMemo(() => {
+    const groups: Record<string, GroupedPlan> = {};
+    allPlans.forEach(plan => {
+      const productName = plan.productName; // Use the new productName field
+      if (!groups[productName]) {
+        groups[productName] = {
+          productName: productName,
+          features: plan.features, // Assume features are the same for monthly/annual versions of the same product
+          monthly: null,
+          annually: null,
+          position: plan.position,
+        };
+      }
+      if (plan.interval === 'month') {
+        groups[productName].monthly = plan;
+      } else if (plan.interval === 'year') {
+        groups[productName].annually = plan;
+      }
+    });
+    return Object.values(groups).sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
+  }, [allPlans]);
+
   if (isLoadingPlans) {
     return (
-      <section className="py-12">
+      <section className="py-12 bg-background text-foreground">
         <div className="container mx-auto px-4 text-center">
           <p>Loading plans...</p>
-          {/* Optional: Add a spinner here */}
         </div>
       </section>
     );
@@ -90,17 +117,17 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (error) {
     return (
-      <section className="py-12">
-        <div className="container mx-auto px-4 text-center text-red-500">
+      <section className="py-12 bg-background text-foreground">
+        <div className="container mx-auto px-4 text-center text-destructive">
           <p>Error loading plans: {error}</p>
         </div>
       </section>
     );
   }
 
-  if (plansData.length === 0) {
+  if (groupedPlans.length === 0) {
     return (
-      <section className="py-12">
+      <section className="py-12 bg-background text-foreground">
         <div className="container mx-auto px-4 text-center">
           <p>No subscription plans are currently available. Please check back later.</p>
         </div>
@@ -109,56 +136,91 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
   }
 
   return (
-    <section className="py-12">
+    <section className="py-12 bg-background text-foreground">
       <div className="container mx-auto px-4">
-        {/* Title can be kept or removed if parent page provides it */}
-        {/* <h2 className="text-3xl font-bold text-center mb-8">
-          Choose Your Plan
-        </h2> */}
+        <Tabs value={selectedInterval} onValueChange={(value) => setSelectedInterval(value as 'monthly' | 'annually')} className="mb-8">
+          <TabsList className="grid w-full grid-cols-2 md:w-1/3 mx-auto bg-muted p-1 rounded-md">
+            <TabsTrigger
+              value="monthly"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10 transition-colors"
+            >
+              Monthly
+            </TabsTrigger>
+            <TabsTrigger
+              value="annually"
+              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10 transition-colors"
+            >
+              Annually
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {plansData.map((plan) => (
-            <Card key={plan.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle>{plan.name}</CardTitle>
-                <CardDescription>{formatPrice(plan.price, plan.currency, plan.interval, plan.interval_count)}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow">
-                <ul className="space-y-2">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-center">
-                      <svg
-                        className="w-4 h-4 mr-2 text-green-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M5 13l4 4L19 7"
-                        ></path>
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter>
-                <Button
-                  onClick={() => onSelectPlan(plan.priceId)}
-                  className="w-full"
-                  disabled={isSubmitting || plan.priceId === currentPlanId}
-                  variant={plan.priceId === currentPlanId ? "outline" : "default"}
-                >
-                  {plan.priceId === currentPlanId
-                    ? 'Aktueller Plan'
-                    : (isSubmitting ? 'Wird bearbeitet...' : 'Plan auswählen')}
-                </Button>
-              </CardFooter>
-            </Card>
-          ))}
+          {groupedPlans.map((group) => {
+            const planToDisplay = selectedInterval === 'monthly' ? group.monthly : group.annually;
+            if (!planToDisplay) return null;
+
+            const yearlySavings = group.monthly && group.annually
+              ? (group.monthly.price * 12) - group.annually.price
+              : 0;
+
+            return (
+              <Card
+                key={group.productName}
+                className="flex flex-col bg-card border-border backdrop-blur-sm hover:border-primary/70 transition-all duration-300 relative overflow-hidden shadow-lg group"
+              >
+                <CardHeader className="relative z-10">
+                  <CardTitle className="text-2xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
+                    {group.productName}
+                  </CardTitle>
+                  <CardDescription className="text-lg text-muted-foreground">
+                    {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
+                    <span className="text-sm">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
+                    {selectedInterval === 'annually' && yearlySavings > 0 && group.monthly && (
+                      <span className="block text-sm text-green-500 dark:text-green-400 font-medium">
+                        Save {formatDisplayPrice(yearlySavings, planToDisplay.currency, null)} per year! (vs. monthly)
+                      </span>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow relative z-10">
+                  <ul className="space-y-3">
+                    {group.features.map((feature, index) => (
+                      <li key={index} className="flex items-center text-sm text-muted-foreground">
+                        <svg
+                          className="w-5 h-5 mr-3 text-green-500 dark:text-green-400 flex-shrink-0"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M5 13l4 4L19 7"
+                          ></path>
+                        </svg>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </CardContent>
+                <CardFooter>
+                  <Button
+                    onClick={() => onSelectPlan(planToDisplay.priceId)}
+                    className="w-full"
+                    disabled={isSubmitting || planToDisplay.priceId === currentPlanId}
+                    variant={planToDisplay.priceId === currentPlanId ? "outline" : "default"}
+                  >
+                    {planToDisplay.priceId === currentPlanId
+                      ? 'Current Plan'
+                      : (isSubmitting ? 'Processing...' : 'Select Plan')}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </section>
