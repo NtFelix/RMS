@@ -83,15 +83,18 @@ export default function DocumentationSidebar() {
 
   return (
     <div className="sticky top-20 h-fit">
-      <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-6 backdrop-blur-sm">
+      {/* Changed to use theme-aware card styles */}
+      <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-sm">
         {/* Search */}
         <div className="relative mb-6">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+          {/* Changed icon color */}
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search documentation..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-zinc-800 border-zinc-700 text-white placeholder-slate-400 focus:border-slate-500"
+            // Removed dark-theme specific classes, relies on default Input styling + pl-10
+            className="pl-10"
           />
         </div>
 
@@ -101,16 +104,18 @@ export default function DocumentationSidebar() {
             <div key={section.title}>
               <button
                 onClick={() => toggleSection(section.title)}
-                className="flex items-center justify-between w-full p-2 text-left text-slate-300 hover:text-white hover:bg-zinc-800/50 rounded-lg transition-colors group"
+                // Changed text and background colors for light theme
+                className="flex items-center justify-between w-full p-2 text-left text-foreground/80 hover:text-foreground hover:bg-muted rounded-lg transition-colors group"
               >
                 <div className="flex items-center gap-2">
-                  <section.icon className="w-4 h-4" />
+                  <section.icon className="w-4 h-4" /> {/* Icon color should adapt or be text-muted-foreground if needed */}
                   <span className="font-medium">{section.title}</span>
                 </div>
                 {expandedSections.includes(section.title) ? (
-                  <ChevronDown className="w-4 h-4 group-hover:text-slate-300" />
+                  // Changed chevron hover color
+                  <ChevronDown className="w-4 h-4 group-hover:text-foreground" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 group-hover:text-slate-300" />
+                  <ChevronRight className="w-4 h-4 group-hover:text-foreground" />
                 )}
               </button>
 
@@ -128,7 +133,8 @@ export default function DocumentationSidebar() {
                     <button
                       key={item.title}
                       onClick={() => handleNavClick(item.href)}
-                      className="block w-full text-left p-2 text-sm text-slate-400 hover:text-slate-300 hover:bg-zinc-800/30 rounded-md transition-colors"
+                      // Changed text and background colors for light theme
+                      className="block w-full text-left p-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-md transition-colors"
                     >
                       {item.title}
                     </button>
