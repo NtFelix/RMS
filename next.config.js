@@ -2,6 +2,7 @@
 const path = require('path');
 
 const nextConfig = {
+  output: 'export',
   reactStrictMode: true,
   experimental: {
     optimizeCss: true,
