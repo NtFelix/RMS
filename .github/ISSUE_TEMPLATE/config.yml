@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💡 Feature Request
+    url: https://github.com/FelixPlant/RMS/issues/new?assignees=&labels=feature%2Ctriage&projects=&template=feature_request.md&title=%5BFeature%5D%3A+
+    about: Suggest an idea for this project
+  - name: 🐛 Bug Report
+    url: https://github.com/FelixPlant/RMS/issues/new?assignees=&labels=bug%2Ctriage&projects=&template=bug_report.md&title=%5BBug%5D%3A+
+    about: Report a bug to help us improve
