@@ -1,19 +1,20 @@
+export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
 // Define the Plan interface that will be returned by the API
 interface Plan {
   id: string; // Stripe Price ID
-  name: string;
+  name: string; // This will be the Price nickname (e.g., "Monthly", "Annually") or Product Name if nickname is not set
+  productName: string; // This will be the Stripe Product Name, used for grouping
   price: number; // unit_amount in cents
   currency: string;
   interval: string | null; // e.g., 'month', 'year'
   interval_count: number | null;
   features: string[];
   limit_wohnungen?: number;
-  // priceId is the same as id, kept for consistency if frontend expects it explicitly
-  priceId: string;
-  position?: number;
+  priceId: string; // Stripe Price ID (same as id)
+  position?: number; // Used for sorting products
 }
 
 export async function GET() {
@@ -36,53 +37,64 @@ export async function GET() {
       const product = price.product as Stripe.Product; // Type assertion after expansion
 
       let featuresArray: string[] = [];
-      if (price.metadata.features) {
-        featuresArray = price.metadata.features.split(',').map(f => f.trim());
-      } else if (product.metadata.features) {
-        // Fallback to product metadata if price metadata is missing
-        featuresArray = product.metadata.features.split(',').map(f => f.trim());
+      // Prefer features from Price metadata, then Product metadata
+      const featuresMetadata = price.metadata.features || product.metadata.features;
+      if (featuresMetadata) {
+        featuresArray = featuresMetadata.split(',').map(f => f.trim());
       }
 
       let limitWohnungen: number | undefined = undefined;
-      if (price.metadata.limit_wohnungen) {
-        limitWohnungen = parseInt(price.metadata.limit_wohnungen, 10);
-      } else if (product.metadata.limit_wohnungen) {
-        // Fallback to product metadata
-        limitWohnungen = parseInt(product.metadata.limit_wohnungen, 10);
-      }
-      if (isNaN(limitWohnungen!)) { // Check if parsing resulted in NaN
-          limitWohnungen = undefined;
+      const limitWohnungenMetadata = price.metadata.limit_wohnungen || product.metadata.limit_wohnungen;
+      if (limitWohnungenMetadata) {
+        const parsedLimit = parseInt(limitWohnungenMetadata, 10);
+        if (!isNaN(parsedLimit)) {
+          limitWohnungen = parsedLimit;
+        }
       }
 
+      // Position should ideally be on the Product, as it defines the display order of products.
+      // If plans within a product need specific ordering beyond monthly/annual, that's a different case.
       let position: number | undefined = undefined;
-      if (price.metadata.position) {
-        position = parseInt(price.metadata.position, 10);
-      } else if (product.metadata.position) {
-        position = parseInt(product.metadata.position, 10);
+      const positionMetadata = product.metadata.position || price.metadata.position; // Prefer product position
+      if (positionMetadata) {
+        const parsedPosition = parseInt(positionMetadata, 10);
+        if (!isNaN(parsedPosition)) {
+          position = parsedPosition;
+        }
       }
-      if (isNaN(position!)) {
-        position = undefined;
-      }
+
+      // productName is the underlying Stripe Product's name.
+      // name can be the Price's nickname (e.g., "Monthly Plan", "Annual Plan") or fallback to Product's name.
+      const productName = product.name;
+      const displayName = price.nickname || product.name; // This is what was 'name' before
 
       return {
         id: price.id,
         priceId: price.id,
-        name: price.nickname || product.name,
-        price: price.unit_amount || 0, // Default to 0 if null
+        name: displayName, // e.g., "Monthly Subscription" or "Pro Plan" if nickname is not set
+        productName: productName, // e.g., "Pro Plan" - used for grouping
+        price: price.unit_amount || 0,
         currency: price.currency,
         interval: price.recurring?.interval || null,
         interval_count: price.recurring?.interval_count || null,
         features: featuresArray,
         limit_wohnungen: limitWohnungen,
-        position: position,
+        position: position, // This position is used to sort products
       };
     });
 
+    // Sort plans primarily by product position, then by interval (e.g., monthly before yearly if positions are same)
     plans.sort((a, b) => {
-      if (a.position === undefined && b.position === undefined) return 0;
-      if (a.position === undefined) return 1; // a comes after b
-      if (b.position === undefined) return -1; // b comes after a
-      return a.position - b.position;
+      const posA = a.position ?? Infinity;
+      const posB = b.position ?? Infinity;
+      if (posA !== posB) {
+        return posA - posB;
+      }
+      // Optional: if product positions are the same, you might want a secondary sort
+      // For example, by interval (month before year) or price
+      if (a.interval === 'month' && b.interval === 'year') return -1;
+      if (a.interval === 'year' && b.interval === 'month') return 1;
+      return 0;
     });
 
     return NextResponse.json(plans);
@@ -97,9 +109,9 @@ export async function GET() {
         message: error.message,
         param: error.param,
         requestId: error.requestId,
-        raw: error.raw // Contains the full raw error
+        raw: error.raw
       });
-      errorMessage = error.message; // Keep a user-friendly message for the client
+      errorMessage = error.message;
     } else if (error instanceof Error) {
       console.error('Generic Error when fetching plans:', error.message, error.stack);
       errorMessage = error.message;

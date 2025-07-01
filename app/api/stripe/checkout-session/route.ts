@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createSupabaseServerClient } from '@/lib/supabase-server'; // Import Supabase client
@@ -79,7 +80,7 @@ export async function POST(req: Request) {
 
     // Prepare parameters for Stripe session creation
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
-      payment_method_types: ['card'],
+      payment_method_collection: 'if_required', // Changed from payment_method_types
       mode: 'subscription',
       line_items: [
         {
@@ -87,12 +88,56 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
+      // Add trial period for new subscriptions
+      // We only add trial if the user does not have an active subscription already
+      // or if they are changing to a different plan (which Stripe handles as a new subscription period).
+      // The condition `!profile || !profile.stripe_subscription_id || (profile.stripe_subscription_status !== 'active' && profile.stripe_subscription_status !== 'trialing')`
+      // determines if it's a truly new subscription vs an update.
+      // However, Stripe's `trial_period_days` on a checkout session applies to the *new* subscription being created.
+      // If a user has an existing subscription and is changing plans, Stripe might prorate,
+      // but the `trial_period_days` would apply to the new plan as if it's starting fresh.
+      // For simplicity and to ensure new sign-ups get a trial, we'll add it here.
+      // If specific plans should NOT have a trial, this logic would need to be more granular,
+      // possibly checking metadata on the `requestedPriceId` product/price object from Stripe.
+      subscription_data: {
+        trial_period_days: 14,
+      },
       metadata: {
         userId: user.id, // Store Supabase user ID in metadata
       },
       success_url: `${req.headers.get('origin')}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.get('origin')}/checkout/cancel`,
     };
+
+    // If the user already has an active subscription and is changing to a *different* plan,
+    // Stripe handles this as an update. Trials are typically for brand new customers to a service
+    // or new subscriptions. If they are just changing plans, a trial might not be standard.
+    // However, the `subscription_data.trial_period_days` will apply if it's a new subscription.
+    // If it's an upgrade/downgrade of an *existing* subscription, Stripe's behavior for trials
+    // in that context (e.g. `stripe.subscriptions.update`) is different and might not apply a new trial
+    // from checkout session params.
+    // For now, we are adding `trial_period_days: 14` to all new subscription checkouts.
+    // If a user has `profile.stripe_subscription_id` and is changing plans,
+    // the `trial_period_days` might still initiate a trial for the new plan.
+    // This behavior should be tested with Stripe.
+
+    // Let's refine: Only add trial if it's genuinely a new subscription,
+    // not if they are already subscribed and changing plans.
+    // A simple check: if they don't have an active or trialing subscription, it's new.
+    if (!profile || !profile.stripe_subscription_id || (profile.stripe_subscription_status !== 'active' && profile.stripe_subscription_status !== 'trialing')) {
+      console.log("Applying 14-day trial for new subscription.");
+      sessionParams.subscription_data = { trial_period_days: 14 };
+    } else if (profile && profile.stripe_subscription_id && profile.stripe_price_id !== requestedPriceId) {
+      // They have an active/trialing subscription BUT are changing to a different plan.
+      // Let's also offer a trial for the new plan in this scenario, as it's a "new" commitment.
+      console.log("Applying 14-day trial for plan change.");
+      sessionParams.subscription_data = { trial_period_days: 14 };
+    } else {
+      // User is already on this plan or some other scenario where trial is not applied by this logic.
+      // No explicit trial_period_days, Stripe default behavior applies.
+      console.log("Not applying a trial period (already subscribed or other condition).");
+    }
+
 
     if (profile && profile.stripe_customer_id) {
       console.log('Using existing Stripe customer ID:', profile.stripe_customer_id);

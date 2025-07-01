@@ -1,5 +1,5 @@
 // lib/data-fetching.test.ts
-import { fetchNebenkostenList, getCurrentWohnungenCount } from './data-fetching'; // Changed to fetchNebenkostenList
+import { fetchNebenkostenList, getCurrentWohnungenCount, fetchUserProfile } from './data-fetching'; // Changed to fetchNebenkostenList
 import { createSupabaseServerClient } from './supabase-server';
 
 jest.mock('./supabase-server', () => ({
@@ -179,5 +179,121 @@ describe('getCurrentWohnungenCount', () => {
     expect(mockSupabaseClient.from).toHaveBeenCalledWith('Wohnungen');
     expect(mockSupabaseClient.select).toHaveBeenCalledWith('*', { count: 'exact', head: true });
     expect(mockSupabaseClient.eq).toHaveBeenCalledWith('user_id', userId);
+  });
+});
+
+describe('fetchUserProfile', () => {
+  const mockSupabaseClient = {
+    auth: {
+      getUser: jest.fn(),
+    },
+    from: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn(),
+  };
+  let consoleErrorSpy: jest.SpyInstance;
+  let consoleLogSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    (createSupabaseServerClient as jest.Mock).mockReturnValue(mockSupabaseClient);
+    jest.clearAllMocks(); // Clear all mocks before each test
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+    consoleLogSpy.mockRestore();
+  });
+
+  it('should fetch and return user profile data if user is logged in and profile exists', async () => {
+    const mockUser = { id: 'user-123', email: 'test@example.com' };
+    const mockProfile = {
+      id: 'user-123',
+      stripe_customer_id: 'cust_123',
+      stripe_subscription_id: 'sub_123',
+      stripe_subscription_status: 'active',
+      stripe_price_id: 'price_123',
+      stripe_current_period_end: '2023-12-31T23:59:59.000Z',
+      trial_starts_at: null,
+      trial_ends_at: null,
+    };
+    mockSupabaseClient.auth.getUser.mockResolvedValueOnce({ data: { user: mockUser }, error: null });
+    mockSupabaseClient.single.mockResolvedValueOnce({ data: mockProfile, error: null });
+
+    const profile = await fetchUserProfile();
+
+    expect(mockSupabaseClient.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith('profiles');
+    expect(mockSupabaseClient.select).toHaveBeenCalledWith(`
+      id,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_subscription_status,
+      stripe_price_id,
+      stripe_current_period_end,
+      trial_starts_at,
+      trial_ends_at
+    `);
+    expect(mockSupabaseClient.eq).toHaveBeenCalledWith('id', mockUser.id);
+    expect(mockSupabaseClient.single).toHaveBeenCalledTimes(1);
+    expect(profile).toEqual({ ...mockProfile, email: mockUser.email });
+  });
+
+  it('should return base user profile if profile is not found (PGRST116)', async () => {
+    const mockUser = { id: 'user-456', email: 'another@example.com' };
+    const profileError = { code: 'PGRST116', message: 'Profile not found' };
+    mockSupabaseClient.auth.getUser.mockResolvedValueOnce({ data: { user: mockUser }, error: null });
+    mockSupabaseClient.single.mockResolvedValueOnce({ data: null, error: profileError });
+
+    const profile = await fetchUserProfile();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching user profile data from profiles table:', profileError.message);
+    expect(consoleLogSpy).toHaveBeenCalledWith(`Profile not found in 'profiles' for user ${mockUser.id}. Returning auth info only.`);
+    expect(profile).toEqual({
+      id: mockUser.id,
+      email: mockUser.email,
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      stripe_subscription_status: null,
+      stripe_price_id: null,
+      stripe_current_period_end: null,
+      trial_starts_at: null,
+      trial_ends_at: null,
+    });
+  });
+
+  it('should return base user profile on other profile fetch errors', async () => {
+    const mockUser = { id: 'user-789', email: 'yet_another@example.com' };
+    const profileError = { code: 'SOME_OTHER_ERROR', message: 'Some other DB error' };
+    mockSupabaseClient.auth.getUser.mockResolvedValueOnce({ data: { user: mockUser }, error: null });
+    mockSupabaseClient.single.mockResolvedValueOnce({ data: null, error: profileError });
+
+    const profile = await fetchUserProfile();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Error fetching user profile data from profiles table:', profileError.message);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(`Unhandled error fetching profile data for user ${mockUser.id}:`, profileError);
+    expect(profile).toEqual({
+      id: mockUser.id,
+      email: mockUser.email,
+      stripe_customer_id: null,
+      stripe_subscription_id: null,
+      stripe_subscription_status: null,
+      stripe_price_id: null,
+      stripe_current_period_end: null,
+      trial_starts_at: null,
+      trial_ends_at: null,
+    });
+  });
+
+  it('should return null if user is not logged in', async () => {
+    mockSupabaseClient.auth.getUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+
+    const profile = await fetchUserProfile();
+
+    expect(consoleLogSpy).toHaveBeenCalledWith("No user logged in for fetchUserProfile");
+    expect(profile).toBeNull();
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled();
   });
 });

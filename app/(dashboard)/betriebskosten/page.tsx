@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { fetchNebenkostenList, fetchHaeuser } from "../../../lib/data-fetching";
 import BetriebskostenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
