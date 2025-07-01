@@ -475,6 +475,81 @@ export async function getDashboardSummary() {
   };
 }
 
+// Make sure Profile type is defined if you use it, or adjust return types
+// For example:
+type Profile = {
+  id: string;
+  email?: string; // Email will come from auth.user primarily
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_subscription_status?: string | null;
+  stripe_price_id?: string | null;
+  stripe_current_period_end?: string | null; // Consider Date type if you parse it
+  trial_starts_at?: string | null;
+  trial_ends_at?: string | null;
+};
+
+export async function fetchUserProfile(): Promise<Profile | null> {
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    console.log("No user logged in for fetchUserProfile");
+    return null;
+  }
+
+  // Fetch profile data from 'profiles' table, excluding 'email'
+  const { data: profileData, error: profileError } = await supabase
+    .from('profiles')
+    .select(`
+      id,
+      stripe_customer_id,
+      stripe_subscription_id,
+      stripe_subscription_status,
+      stripe_price_id,
+      stripe_current_period_end,
+      trial_starts_at, // Added
+      trial_ends_at    // Added
+    `)
+    .eq('id', user.id)
+    .single();
+
+  const baseUserProfile: Profile = {
+    id: user.id,
+    email: user.email!, // Assert email is non-null from auth user, or handle if it can be null
+    stripe_customer_id: null,
+    stripe_subscription_id: null,
+    stripe_subscription_status: null,
+    stripe_price_id: null,
+    stripe_current_period_end: null,
+    trial_starts_at: null,
+    trial_ends_at: null,
+  };
+
+  if (profileError) {
+    console.error('Error fetching user profile data from profiles table:', profileError.message);
+    // If profile row doesn't exist (PGRST116) or other error, return base user info with null Stripe fields
+    // This ensures the function always returns a consistently shaped object or null.
+    if (profileError.code === 'PGRST116') {
+        console.log(`Profile not found in 'profiles' for user ${user.id}. Returning auth info only.`);
+    } else {
+        console.error(`Unhandled error fetching profile data for user ${user.id}:`, profileError);
+    }
+    return baseUserProfile;
+  }
+
+  // If profileData is successfully fetched (not null and no error)
+  // Combine email from auth.user with data from profiles table
+  // profileData can be null if .single() finds no record but no actual error occurred (though typically PGRST116 error is set).
+  const profileDataToSpread = profileData ? profileData : {};
+
+  const finalProfile: Profile = {
+    ...baseUserProfile, // Start with base (id, email, nullified stripe fields)
+    ...profileDataToSpread, // Spread sanitized profile data
+  };
+
+  return finalProfile;
+}
 export type Wasserzaehler = {
   id: string; // uuid
   user_id: string; // uuid, default auth.uid()
@@ -634,4 +709,28 @@ export async function getAbrechnungModalData(nebenkostenId: string): Promise<{
     tenants: wasserzaehlerData.mieterList,
     wasserzaehlerReadings: wasserzaehlerData.existingReadings,
   };
+}
+
+export async function getCurrentWohnungenCount(supabaseClient: any, userId: string): Promise<number> {
+  if (!userId) {
+    console.error("getCurrentWohnungenCount: userId is required");
+    return 0;
+  }
+
+  try {
+    const { count, error } = await supabaseClient
+      .from("Wohnungen")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Error fetching Wohnungen count:", error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error("Unexpected error in getCurrentWohnungenCount:", error);
+    return 0;
+  }
 }

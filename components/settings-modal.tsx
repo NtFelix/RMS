@@ -1,19 +1,60 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogOverlay, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard } from "lucide-react"
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton";
+import { loadStripe } from '@stripe/stripe-js';
+import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
+import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
+import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
+
+// Define a more specific type for the profile state in this component
+interface UserProfileWithSubscription extends SupabaseProfile {
+  currentWohnungenCount?: number;
+  activePlan?: {
+    priceId: string;
+    name: string;
+    price: number | null;
+    currency: string;
+    features: string[];
+    limitWohnungen: number | null;
+  } | null;
+  stripe_customer_id?: string | null;
+  stripe_subscription_id?: string | null;
+  stripe_cancel_at_period_end?: boolean | null; // Added for UI clarity
+}
+
+// Define the Plan type
+interface Plan {
+  id: string;
+  name: string;
+  price: number | null;
+  currency: string;
+  features: string[];
+  limitWohnungen: number | null;
+  priceId: string; // priceId is the lookup key for Stripe
+}
+
+// Make sure to call `loadStripe` outside of a component’s render to avoid
+// recreating the `Stripe` object on every render.
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
+);
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
@@ -22,6 +63,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+
+  // Account deletion states
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
+  const [reauthCode, setReauthCode] = useState<string>("")
+  const [isDeleting, setIsDeleting] = useState<boolean>(false)
+  const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
+
+  // State for subscription tab
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
+  // isLoadingSub removed as Pricing component is removed
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
+  // isCancellingSubscription removed
+  const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
+
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -34,6 +89,101 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     })
   }, [supabase])
+
+  const refreshUserProfile = async () => {
+    setIsFetchingStatus(true);
+    try {
+      const userProfileData = await getUserProfileForSettings();
+      if ('error' in userProfileData && userProfileData.error) {
+        console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
+        toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
+        const currentEmail = profile?.email || '';
+        setProfile({
+          id: profile?.id || '',
+          email: currentEmail,
+          stripe_subscription_status: 'error',
+          currentWohnungenCount: 0,
+          activePlan: null,
+        } as UserProfileWithSubscription);
+      } else {
+        setProfile(userProfileData as UserProfileWithSubscription);
+      }
+    } catch (error) {
+      console.error("Exception when calling getUserProfileForSettings:", error);
+      toast.error(`Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`);
+      const currentEmail = profile?.email || '';
+      setProfile({
+        id: profile?.id || '',
+        email: currentEmail,
+        stripe_subscription_status: 'error',
+        currentWohnungenCount: 0,
+        activePlan: null,
+      } as UserProfileWithSubscription);
+    } finally {
+      setIsFetchingStatus(false);
+    }
+  };
+
+  const handleConfirmDeleteAccount = async () => {
+    if (!reauthCode) {
+      toast.error("Bestätigungscode ist erforderlich.");
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const localSupabase = createClient(); // Create a new client instance if needed or use the existing one
+      const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
+
+      if (functionError) {
+        toast.error(`Fehler beim Löschen des Kontos: ${functionError.message}`);
+      } else {
+        toast.success("Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.");
+        await localSupabase.auth.signOut();
+        router.push("/auth/login"); // Redirect to login page
+        if (onOpenChange) onOpenChange(false); // Close modal
+      }
+    } catch (error) {
+      console.error("Delete account exception:", error);
+      toast.error("Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAccountInitiation = async () => {
+    setIsDeleting(true);
+    setShowDeleteConfirmation(false); // Reset confirmation visibility
+    try {
+      // This call might trigger a CAPTCHA if enabled, or other checks.
+      // For sensitive operations, Supabase might send a confirmation email even without explicit MFA.
+      const { error } = await supabase.auth.reauthenticate();
+      if (error) {
+        toast.error(`Fehler bei der erneuten Authentifizierung: ${error.message}`);
+        setShowDeleteConfirmation(false);
+      } else {
+        setShowDeleteConfirmation(true);
+        toast.success("Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.");
+        // The UI for code input is already part of showDeleteConfirmation logic
+      }
+    } catch (error) {
+      console.error("Reauthentication exception:", error);
+      toast.error("Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.");
+      setShowDeleteConfirmation(false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      if (open && activeTab === 'subscription') {
+        await refreshUserProfile(); // Fetch profile
+        // Plan fetching removed from here. Pricing component will fetch its own plans.
+      }
+    };
+
+    fetchInitialData();
+  }, [open, activeTab]);
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -55,6 +205,46 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setLoading(false)
     error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
   }
+
+  // handlePlanSelected removed as Pricing component is removed
+  // handleCancelSubscription removed
+
+  const handleManageSubscription = async () => {
+    if (!profile || !profile.stripe_customer_id) {
+      toast.error("Kunden-ID nicht gefunden. Verwaltung nicht möglich.");
+      return;
+    }
+    setIsManagingSubscription(true);
+    try {
+      const response = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeCustomerId: profile.stripe_customer_id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Kundenportal konnte nicht geöffnet werden.");
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error("URL für Kundenportal nicht erhalten.");
+      }
+    } catch (error) {
+      console.error("Manage subscription error:", error);
+      toast.error((error as Error).message || "Kundenportal konnte nicht geöffnet werden.");
+    } finally {
+      setIsManagingSubscription(false);
+    }
+  };
+
+  const subscriptionStatus = profile?.stripe_subscription_status;
+  const currentPeriodEnd = profile?.stripe_current_period_end
+    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE') // Apply de-DE locale for DD.MM.YYYY
+    : null;
 
   const tabs: Tab[] = [
     {
@@ -82,6 +272,49 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <Button onClick={handleProfileSave} disabled={loading}>
             {loading ? "Speichern..." : "Profil speichern"}
           </Button>
+
+          <div className="mt-6 pt-6 border-t border-destructive/50">
+            <p className="text-sm text-muted-foreground mb-3">
+              Hier können Sie Ihr Konto endgültig löschen. Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
+            </p>
+            <Button
+              variant="destructive"
+              onClick={() => setShowDeleteAccountConfirmModal(true)}
+              disabled={isDeleting} // Keep this disabled if any part of delete is in progress
+              className="w-full"
+            >
+              {isDeleting ? "Wird vorbereitet..." : <><Trash2 className="mr-2 h-4 w-4" />Konto löschen</>}
+            </Button>
+
+            {showDeleteConfirmation && (
+              <div className="mt-4 p-4 border border-destructive/50 rounded-md bg-destructive/5 space-y-3">
+                <p className="text-sm text-destructive font-medium">
+                  Zur Bestätigung wurde ein Code an Ihre E-Mail-Adresse gesendet. Bitte geben Sie den Code hier ein, um die Kontolöschung abzuschließen.
+                </p>
+                <div>
+                  <label htmlFor="reauthCode" className="text-sm font-medium text-destructive">
+                    Bestätigungscode (OTP)
+                  </label>
+                  <Input
+                    id="reauthCode"
+                    type="text" // Using text, but could be 'otp' if a dedicated component existed
+                    value={reauthCode}
+                    onChange={e => setReauthCode(e.target.value)}
+                    placeholder="Code aus E-Mail eingeben"
+                    className="mt-1 w-full border-destructive focus:ring-destructive"
+                  />
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={handleConfirmDeleteAccount}
+                  disabled={!reauthCode || isDeleting}
+                  className="w-full"
+                >
+                  {isDeleting ? "Wird gelöscht..." : "Code bestätigen und Konto löschen"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       ),
     },
@@ -142,22 +375,98 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       icon: CreditCard,
       content: (
         <div className="flex flex-col space-y-4">
-          <p className="text-sm">Verwalte dein Abo hier.</p>
-          <Button onClick={() => alert("Aboverwaltung kommt bald")}>
-            Abo verwalten
-          </Button>
+          {isFetchingStatus ? (
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></p>
+                <Skeleton className="h-4 w-48" /> {/* For status message */}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm">Nächste Verlängerung am: <Skeleton className="h-4 w-24 inline-block" /></p>
+              </div>
+              <div className="space-y-1">
+                 <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
+              </div>
+              {/* Skeleton for Manage Subscription Button section */}
+              <div className="mt-6 pt-4 border-t">
+                <Skeleton className="h-4 w-3/4 mb-2" /> {/* For description paragraph */}
+                <Skeleton className="h-10 w-full" /> {/* For button */}
+              </div>
+            </div>
+          ) : subscriptionStatus === 'error' || !profile ? (
+            <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
+          ) : (
+            <>
+              {/* Simplified Subscription Info Display */}
+              <div className="space-y-2 mb-4">
+                {profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
+                  <>
+                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan?.name || 'Unbekannt'}</strong></p>
+                    <p className="text-sm text-orange-500">
+                      Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
+                    </p>
+                  </>
+                ) : profile.stripe_subscription_status === 'active' && profile.activePlan ? (
+                  <>
+                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan.name}</strong></p>
+                    {currentPeriodEnd && (
+                      <p className="text-sm">Nächste Verlängerung am: <strong>{currentPeriodEnd}</strong></p>
+                    )}
+                    <p className="text-sm text-green-600">Dein Abonnement ist aktiv.</p>
+                  </>
+                ) : (
+                  <p className="text-sm">
+                    Dein aktueller Abo-Status: <strong>{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</strong>.
+                  </p>
+                )}
+
+                {/* Message for truly non-active states */}
+                { (!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
+                  ! (profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
+                  <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
+                )}
+
+                {/* Display Wohnungen usage - keep if still relevant */}
+                {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
+                  <p className="text-sm mt-2">
+                    Genutzte Wohnungen: {profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}
+                  </p>
+                )}
+              </div>
+
+              {/* REMOVED: Pricing component for plan overview */}
+
+              {/* Manage Subscription Button - visible if user has a stripe_customer_id */}
+              {profile.stripe_customer_id && (
+                <div className="mt-6 pt-4 border-t">
+                  <p className="text-sm mb-2 text-gray-600">
+                    Du kannst dein Abonnement, deine Zahlungsmethoden und Rechnungen über das Stripe Kundenportal verwalten.
+                  </p>
+                  <Button
+                    onClick={handleManageSubscription}
+                    disabled={isManagingSubscription} // Only disable if this specific action is loading
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
+                  </Button>
+                </div>
+              )}
+              {/* REMOVED: Cancel Subscription button and logic */}
+            </>
+          )}
         </div>
       ),
     },
   ]
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogOverlay />
-      <DialogContent className="w-[520px] h-[60vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
-          <DialogTitle className="sr-only">Einstellungen</DialogTitle>
-        <div className="flex h-full overflow-hidden">
-          <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
+            <DialogTitle className="sr-only">Einstellungen</DialogTitle>
+          <div className="flex h-full overflow-hidden">
+            <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
             {tabs.map(tab => (
               <button
                 key={tab.value}
@@ -178,9 +487,20 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <section className="flex-1 overflow-y-auto p-3">
               {tabs.find(tab => tab.value === activeTab)?.content}
             </section>
+            </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <ConfirmationAlertDialog
+        isOpen={showDeleteAccountConfirmModal}
+        onOpenChange={setShowDeleteAccountConfirmModal}
+        title="Konto wirklich löschen?"
+        description="Sind Sie sicher, dass Sie Ihr Konto endgültig löschen möchten? Dieser Schritt startet den Prozess zur sicheren Entfernung Ihrer Daten. Sie erhalten anschließend eine E-Mail zur Bestätigung."
+        onConfirm={handleDeleteAccountInitiation}
+        confirmButtonText="Löschen einleiten"
+        cancelButtonText="Abbrechen"
+        confirmButtonVariant="destructive"
+      />
+    </>
   )
 }

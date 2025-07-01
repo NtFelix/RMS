@@ -1,33 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
+import { createServerClient } from "@supabase/ssr"
+import { isUserInActiveTrial } from '@/lib/utils';
 
 export async function middleware(request: NextRequest) {
-  // Update the session
-  const response = await updateSession(request)
-
-  // Get the pathname from the URL
-  const pathname = request.nextUrl.pathname
-
-  // Check if the user is authenticated
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  // Create a Supabase client
-  const { createServerClient } = await import("@supabase/ssr")
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      get(name: string) {
-        return request.cookies.get(name)?.value
-      },
-      set() {}, // We don't need to set cookies in this middleware
-      remove() {}, // We don't need to remove cookies in this middleware
+  // Initialize response
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
     },
   })
 
-  // Get the user from the session
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Update the session and get the user
+  const { response: updatedResponse, user: sessionUser } = await updateSession(request, response)
+  response = updatedResponse // Use the response from updateSession
+
+  // Get the pathname from the URL
+  const pathname = request.nextUrl.pathname
 
   // Public routes that don't require authentication
   const publicRoutes = [
@@ -38,6 +27,8 @@ export async function middleware(request: NextRequest) {
     '/auth/.*', // Allow all auth routes
     '/_next/.*', // Allow Next.js internal routes
     '/favicon.ico', // Allow favicon
+    '/subscription-locked', // Allow subscription locked page
+    '/api/stripe/plans', // Public API route for fetching plans
   ]
 
   // If we're already on the login page, don't redirect
@@ -46,21 +37,96 @@ export async function middleware(request: NextRequest) {
   }
 
   // If the user is not authenticated and trying to access a protected route, redirect to login
-  if (!user && !publicRoutes.some(route => {
+  if (!sessionUser && !publicRoutes.some(route => {
     const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
     return regex.test(pathname);
   })) {
-    const url = new URL('/auth/login', request.url)
-    // Only set redirect if it's not an auth route and not an API route
-    if (!pathname.startsWith('/api/') && !pathname.startsWith('/_next/')) {
-      url.searchParams.set('redirect', pathname)
+    if (pathname.startsWith('/api/')) {
+      // For API routes, return a JSON response indicating not authenticated
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    } else {
+      // For non-API routes, redirect to login
+      const url = new URL('/auth/login', request.url);
+      // Only set redirect search param if it's not an auth route and not an _next route (already covered by non-API)
+      if (!pathname.startsWith('/_next/')) { // No need to check /api/ here
+        url.searchParams.set('redirect', pathname);
+      }
+      return NextResponse.redirect(url);
     }
-    return NextResponse.redirect(url)
   }
 
   // If the user is authenticated and trying to access auth routes (except login), redirect to home
-  if (user && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
+  if (sessionUser && pathname.startsWith('/auth') && !pathname.startsWith('/auth/login')) {
     return NextResponse.redirect(new URL('/home', request.url))
+  }
+
+  // Subscription check
+  // This requires a Supabase client, so we create one here if needed.
+  if (sessionUser &&
+      !publicRoutes.some(route => {
+        const regex = new RegExp(`^${route.replace(/\*/g, '.*')}$`);
+        return regex.test(pathname);
+      }) &&
+      pathname !== '/subscription-locked' &&
+      pathname !== '/api/stripe/checkout-session' // Exempt checkout session from subscription status check
+     ) {
+    // Create a Supabase client only for this block if sessionUser exists
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value
+          },
+          set(name, value, options) {
+            response.cookies.set(name, value, options);
+          },
+          remove(name, options) {
+            response.cookies.set(name, '', options); // Or response.cookies.delete(name, options) if preferred
+          },
+        },
+      }
+    );
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('stripe_subscription_status, trial_starts_at, trial_ends_at') // Added trial fields
+      .eq('id', sessionUser.id)
+      .single()
+
+    if (profileError) {
+      console.error('Error fetching profile for subscription check:', profileError);
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Failed to fetch user profile for subscription status.', details: profileError.message }, { status: 500 });
+      } else {
+        const url = new URL('/landing', request.url); // Or a generic error page
+        url.searchParams.set('error', 'profile_fetch_failed');
+        return NextResponse.redirect(url);
+      }
+    } else if (!profile ||
+               (profile.stripe_subscription_status !== 'active' &&
+                profile.stripe_subscription_status !== 'trialing' &&
+                !isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at))) {
+      if (pathname.startsWith('/api/')) {
+        // For API routes, return a JSON response indicating subscription issue
+        return NextResponse.json({ error: 'Subscription inactive or invalid. Please subscribe or manage your subscription.' }, { status: 403 });
+      } else {
+        // For non-API routes, redirect to subscription locked page
+        const redirectUrl = new URL('/subscription-locked', request.url);
+        // Add debug parameters
+        if (!profile) {
+          redirectUrl.searchParams.set('debug_profile_status', 'missing');
+        } else {
+          redirectUrl.searchParams.set('debug_profile_status', 'exists');
+          redirectUrl.searchParams.set('debug_stripe_status', profile.stripe_subscription_status || 'null');
+          redirectUrl.searchParams.set('debug_trial_ends_at', profile.trial_ends_at || 'null');
+          const trialValid = isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at);
+          redirectUrl.searchParams.set('debug_is_trial_calculated_valid', trialValid.toString());
+        }
+        return NextResponse.redirect(redirectUrl);
+      }
+    }
   }
 
   return response
