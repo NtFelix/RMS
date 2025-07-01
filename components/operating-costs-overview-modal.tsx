@@ -88,38 +88,39 @@ export function OperatingCostsOverviewModal({
             </Table>
           </div>
 
-          {/* Water costs section - always show but handle missing data */}
+          {/* Water costs section */}
           <div className="rounded-md border p-4">
             <h3 className="font-semibold mb-4">Wasserkosten</h3>
-            {nebenkosten.wasserkosten ? (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {(nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0) || typeof nebenkosten.wasserverbrauch === 'number' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {/* Gesamtverbrauch */}
                 <div>
                   <p className="text-sm text-muted-foreground">Gesamtverbrauch</p>
-                  <p className="font-medium">{nebenkosten.wasserverbrauch ? `${nebenkosten.wasserverbrauch} m³` : '-'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Gesamtkosten</p>
-                  <p className="font-medium">{formatCurrency(nebenkosten.wasserkosten)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Kosten pro m³</p>
                   <p className="font-medium">
-                    {nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0
-                      ? formatCurrency(nebenkosten.wasserkosten / nebenkosten.wasserverbrauch)
+                    {typeof nebenkosten.wasserverbrauch === 'number'
+                      ? `${nebenkosten.wasserverbrauch} m³`
                       : '-'}
                   </p>
                 </div>
+                {/* Gesamtkosten */}
                 <div>
-                  <p className="text-sm text-muted-foreground">Kosten pro m²</p>
+                  <p className="text-sm text-muted-foreground">Gesamtkosten</p>
                   <p className="font-medium">
-                    {totalArea > 0
-                      ? formatCurrency(nebenkosten.wasserkosten / totalArea)
+                    {formatCurrency(nebenkosten.wasserkosten)}
+                  </p>
+                </div>
+                {/* Kosten pro m³ */}
+                <div>
+                  <p className="text-sm text-muted-foreground">Kosten pro m³</p>
+                  <p className="font-medium">
+                    {(nebenkosten.wasserkosten && nebenkosten.wasserkosten > 0 && nebenkosten.wasserverbrauch && nebenkosten.wasserverbrauch > 0)
+                      ? formatCurrency(nebenkosten.wasserkosten / nebenkosten.wasserverbrauch)
                       : '-'}
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-muted-foreground italic">Keine Wasserkosten gespeichert</p>
+              <p className="text-muted-foreground italic">Keine Wasserdaten erfasst.</p>
             )}
           </div>
         </div>

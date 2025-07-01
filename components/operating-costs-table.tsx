@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { AbrechnungModal } from "./abrechnung-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
   ContextMenu, 
@@ -9,11 +10,11 @@ import {
   ContextMenuItem,
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
-import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler } from "../lib/data-fetching" // Adjusted path
-import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Added Droplets
+import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung } from "../lib/data-fetching" // Adjusted path, Added Rechnung
+import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
-import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction } from "@/app/betriebskosten-actions" // Adjusted path
+import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction, getRechnungenForNebenkostenAction } from "@/app/betriebskosten-actions" // Adjusted path, Added getRechnungenForNebenkostenAction
 import { toast } from "sonner" // For notifications
 
 
@@ -30,6 +31,12 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
   const [mieterForModal, setMieterForModal] = useState<Mieter[]>([]);
   const [isLoadingDataForModal, setIsLoadingDataForModal] = useState(false);
   const [existingWasserzaehlerRecords, setExistingWasserzaehlerRecords] = useState<Wasserzaehler[] | null>(null);
+  const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
+  const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<Nebenkosten | null>(null);
+  const [tenantsForAbrechnungModal, setTenantsForAbrechnungModal] = useState<Mieter[]>([]);
+  const [isLoadingAbrechnungData, setIsLoadingAbrechnungData] = useState(false);
+  const [rechnungenForAbrechnungModal, setRechnungenForAbrechnungModal] = useState<Rechnung[]>([]);
+  const [wasserzaehlerReadingsForAbrechnungModal, setWasserzaehlerReadingsForAbrechnungModal] = useState<Wasserzaehler[]>([]);
   
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
@@ -101,6 +108,63 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
     } finally {
       // setIsLoadingDataForModal(false);
     }
+  };
+
+  const handleOpenAbrechnungModal = async (item: Nebenkosten) => {
+    if (!item.haeuser_id || !item.jahr) {
+      toast.error("Haus-ID oder Jahr für Nebenkostenabrechnung nicht für Abrechnung gefunden.");
+      return;
+    }
+    setIsLoadingAbrechnungData(true);
+    setSelectedNebenkostenForAbrechnung(item);
+    try {
+      const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
+      if (mieterResult.success && mieterResult.data) {
+        setTenantsForAbrechnungModal(mieterResult.data);
+
+        // Fetch Rechnungen for the Nebenkosten item
+        const rechnungenResult = await getRechnungenForNebenkostenAction(item.id);
+        if (rechnungenResult.success && rechnungenResult.data) {
+          setRechnungenForAbrechnungModal(rechnungenResult.data);
+        } else {
+          toast.error(`Fehler beim Laden der Rechnungen: ${rechnungenResult.message || "Keine Rechnungen gefunden oder Fehler."}`);
+          setRechnungenForAbrechnungModal([]);
+        }
+
+        // >>> NEW: Fetch Wasserzaehler Readings <<<
+        const wasserzaehlerResult = await getWasserzaehlerRecordsAction(item.id); // item.id is nebenkosten_id
+        if (wasserzaehlerResult.success && wasserzaehlerResult.data) {
+          setWasserzaehlerReadingsForAbrechnungModal(wasserzaehlerResult.data);
+        } else {
+          toast.error(`Fehler beim Laden der Wasserzählerstände: ${wasserzaehlerResult.message || "Keine Daten gefunden oder Fehler."}`);
+          setWasserzaehlerReadingsForAbrechnungModal([]); // Ensure it's empty if fetch fails
+        }
+        // >>> END NEW <<<
+
+        setIsAbrechnungModalOpen(true);
+      } else {
+        toast.error(`Fehler beim Laden der Mieterdaten für Abrechnung: ${mieterResult.message || "Unbekannter Fehler"}`);
+        setTenantsForAbrechnungModal([]);
+        setRechnungenForAbrechnungModal([]);
+        setWasserzaehlerReadingsForAbrechnungModal([]); // Also clear this if mieter fetch fails
+      }
+    } catch (error) {
+      console.error("Error calling actions for Abrechnung:", error);
+      toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten für die Abrechnung aufgetreten.");
+      setTenantsForAbrechnungModal([]);
+      setRechnungenForAbrechnungModal([]);
+      setWasserzaehlerReadingsForAbrechnungModal([]); // Clear all related states on error
+    } finally {
+      setIsLoadingAbrechnungData(false);
+    }
+  };
+
+  const handleCloseAbrechnungModal = () => {
+    setIsAbrechnungModalOpen(false);
+    setSelectedNebenkostenForAbrechnung(null);
+    setTenantsForAbrechnungModal([]);
+    setRechnungenForAbrechnungModal([]);
+    setWasserzaehlerReadingsForAbrechnungModal([]); // <<< NEW: Clear this state >>>
   };
 
   return (
@@ -179,6 +243,17 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
                     <Droplets className="h-4 w-4" />
                     <span>{isLoadingDataForModal && selectedNebenkostenItem?.id === item.id ? "Lade Mieter..." : "Wasserzähler"}</span>
                   </ContextMenuItem>
+                  <ContextMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenAbrechnungModal(item);
+                    }}
+                    className="flex items-center gap-2 cursor-pointer"
+                    disabled={isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id}
+                  >
+                    <FileText className="h-4 w-4" />
+                    <span>{isLoadingAbrechnungData && selectedNebenkostenForAbrechnung?.id === item.id ? "Lade Daten..." : "Abrechnung erstellen"}</span>
+                  </ContextMenuItem>
                   <ContextMenuSeparator />
                   <ContextMenuItem 
                     onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
@@ -216,6 +291,18 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
           mieterList={mieterForModal}
           onSave={handleSaveWasserzaehler}
           existingReadings={existingWasserzaehlerRecords} // New prop
+        />
+      )}
+
+      {/* Abrechnung Modal */}
+      {selectedNebenkostenForAbrechnung && (
+        <AbrechnungModal
+          isOpen={isAbrechnungModalOpen}
+          onClose={handleCloseAbrechnungModal}
+          nebenkostenItem={selectedNebenkostenForAbrechnung}
+          tenants={tenantsForAbrechnungModal}
+          rechnungen={rechnungenForAbrechnungModal}
+          wasserzaehlerReadings={wasserzaehlerReadingsForAbrechnungModal} // <<< MODIFIED HERE >>>
         />
       )}
     </div>

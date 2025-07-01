@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { toast } from "@/hooks/use-toast"; // Changed import
 import { createClient } from "@/utils/supabase/client";
 
@@ -78,6 +79,8 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   const [internalHaeuser, setInternalHaeuser] = useState<Haus[]>(initialHaeuser);
   const [isLoadingHaeuser, setIsLoadingHaeuser] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
 
   useEffect(() => {
     // Reset form data when initialData or open state changes
@@ -255,23 +258,17 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           </div>
           <div>
             <Label htmlFor="haus_id">Zugehöriges Haus</Label>
-            <Select
-              name="haus_id"
-              value={formData.haus_id || ""}
-              onValueChange={(value) => handleSelectChange("haus_id", value)}
+            <CustomCombobox
+              width="w-full"
+              options={houseOptions}
+              value={formData.haus_id}
+              onChange={(value) => handleSelectChange("haus_id", value || "")}
+              placeholder={isLoadingHaeuser ? "Häuser laden..." : "Haus auswählen"}
+              searchPlaceholder="Haus suchen..."
+              emptyText="Kein Haus gefunden."
               disabled={isLoadingHaeuser || isSubmitting}
-            >
-              <SelectTrigger id="haus_id">
-                <SelectValue placeholder={isLoadingHaeuser ? "Häuser laden..." : "Haus auswählen"} />
-              </SelectTrigger>
-              <SelectContent>
-                {internalHaeuser.map((haus) => (
-                  <SelectItem key={haus.id} value={haus.id}>
-                    {haus.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              // The ID "haus_id" is for the Label's htmlFor.
+            />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>

@@ -20,6 +20,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "@/hooks/use-toast"; // Changed import path
 import { format, parseISO } from "date-fns";
@@ -73,6 +74,8 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const apartmentOptions: ComboboxOption[] = internalWohnungen.map(w => ({ value: w.id, label: w.name }));
 
   useEffect(() => {
     setFormData({
@@ -194,23 +197,17 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             </div>
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>
-              <Select 
-                name="wohnung_id" 
-                value={formData.wohnung_id || ""} 
-                onValueChange={(v) => setFormData({ ...formData, wohnung_id: v })}
+              <CustomCombobox
+                width="w-full"
+                options={apartmentOptions}
+                value={formData.wohnung_id}
+                onChange={(value) => setFormData({ ...formData, wohnung_id: value || "" })}
+                placeholder={isLoadingWohnungen ? "Lädt..." : "Wohnung auswählen"}
+                searchPlaceholder="Wohnung suchen..."
+                emptyText="Keine Wohnung gefunden."
                 disabled={isLoadingWohnungen || isSubmitting}
-              >
-                <SelectTrigger id="wohnung_id">
-                  <SelectValue placeholder={isLoadingWohnungen ? "Lädt..." : "--"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {internalWohnungen.map((w) => (
-                    <SelectItem key={w.id} value={w.id}>
-                      {w.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                // The ID "wohnung_id" is for the Label's htmlFor.
+              />
             </div>
             <div>
               <Label htmlFor="ist_einnahmen">Typ</Label>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
+import { Trash2 } from "lucide-react"; // Added
 import { createClient } from "@/utils/supabase/client" // Added
 import { toast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
 
 interface Mieter {
@@ -21,8 +23,13 @@ interface Mieter {
   email?: string
   telefonnummer?: string
   notiz?: string
-  nebenkosten?: number[]
-  nebenkosten_datum?: string[]
+  // nebenkosten and nebenkosten_datum are now handled by nebenkostenEntries
+}
+
+interface NebenkostenEntry {
+  id: string;
+  amount: string;
+  date: string;
 }
 
 interface Wohnung { // Added interface for type safety
@@ -45,8 +52,8 @@ interface TenantEditModalProps {
     email?: string
     telefonnummer?: string
     notiz?: string
-    nebenkosten?: string
-    nebenkosten_datum?: string
+    nebenkosten?: string // Will be string of comma-separated values
+    nebenkosten_datum?: string // Will be string of comma-separated values
   }
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
   loading?: boolean // This might be replaced by local isSubmitting state
@@ -55,6 +62,8 @@ interface TenantEditModalProps {
 export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnungen = [], initialData, serverAction }: TenantEditModalProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false); // Added submitting state
+  const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
+  const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({});
   const [formData, setFormData] = useState({
     // Ensure all form fields are initialized, possibly from initialData
     wohnung_id: initialData?.wohnung_id || "",
@@ -64,11 +73,25 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
     email: initialData?.email || "",
     telefonnummer: initialData?.telefonnummer || "",
     notiz: initialData?.notiz || "",
-    nebenkosten: initialData?.nebenkosten || "",
-    nebenkosten_datum: initialData?.nebenkosten_datum || ""
+    // Nebenkosten fields removed from here, will be handled by nebenkostenEntries
   });
 
+  // Helper function to sort Nebenkosten entries
+  const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
+    const sorted = [...entries];
+    sorted.sort((a, b) => {
+      const dateA = a.date || "";
+      const dateB = b.date || "";
+      if (dateA === "" && dateB === "") return 0;
+      if (dateA === "") return 1;
+      if (dateB === "") return -1;
+      return dateA.localeCompare(dateB);
+    });
+    return sorted;
+  };
+
   useEffect(() => {
+    // Initialize formData (without nebenkosten)
     setFormData({
       wohnung_id: initialData?.wohnung_id || "",
       name: initialData?.name || "",
@@ -77,13 +100,30 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
       email: initialData?.email || "",
       telefonnummer: initialData?.telefonnummer || "",
       notiz: initialData?.notiz || "",
-      nebenkosten: initialData?.nebenkosten || "",
-      nebenkosten_datum: initialData?.nebenkosten_datum || ""
     });
+
+    // Initialize nebenkostenEntries
+    if (open && initialData) {
+      const amounts = initialData.nebenkosten ? initialData.nebenkosten.split(',').map(s => s.trim()) : [];
+      const dates = initialData.nebenkosten_datum ? initialData.nebenkosten_datum.split(',').map(s => s.trim()) : [];
+      let newEntries = amounts.map((amount, index) => ({
+        id: Math.random().toString(36).substr(2, 9), // Generate unique ID
+        amount: amount,
+        date: dates[index] || "" // Handle potential mismatch in lengths
+      }));
+
+      setNebenkostenEntries(getSortedNebenkostenEntries(newEntries));
+    } else if (open && !initialData) {
+      setNebenkostenEntries([]); // Or [{ id: generateUniqueId(), amount: "", date: "" }] for a default empty entry
+    }
+    // Reset validation errors when modal opens/closes or initialData changes
+    setNebenkostenValidationErrors({});
   }, [initialData, open]);
 
   const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
+
+  const apartmentOptions: ComboboxOption[] = internalWohnungen.map(w => ({ value: w.id, label: w.name }));
 
   useEffect(() => {
     if (open && (!initialWohnungen || initialWohnungen.length === 0)) {
@@ -110,6 +150,76 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
+  const validateNebenkostenEntry = (entry: NebenkostenEntry): { amount?: string; date?: string } => {
+    const errors: { amount?: string; date?: string } = {};
+    const amountValue = entry.amount.trim() === "" ? NaN : parseFloat(entry.amount);
+
+    if (entry.amount.trim() !== "") { // Only validate amount if it's not empty
+        if (isNaN(amountValue)) {
+            errors.amount = "Ungültiger Betrag.";
+        } else if (amountValue <= 0) {
+            errors.amount = "Betrag muss positiv sein.";
+        }
+    }
+
+    if (entry.amount.trim() !== "" && entry.date.trim() === "") {
+      errors.date = "Datum ist erforderlich, wenn ein Betrag vorhanden ist.";
+    }
+    // Optional: Validate date format if needed, though DatePicker should handle it.
+    return errors;
+  };
+
+  const handleNebenkostenChange = (id: string, field: 'amount' | 'date', value: string) => {
+    let updatedEntryGlobal: NebenkostenEntry | undefined;
+    setNebenkostenEntries(entries => {
+      const newEntries = entries.map(entry => {
+        if (entry.id === id) {
+          updatedEntryGlobal = { ...entry, [field]: value };
+          return updatedEntryGlobal;
+        }
+        return entry;
+      });
+
+      // Perform validation after state update is reflected
+      if (updatedEntryGlobal) {
+        const errors = validateNebenkostenEntry(updatedEntryGlobal);
+        setNebenkostenValidationErrors(prev => {
+          const newErrors = { ...prev };
+          if (Object.keys(errors).length > 0) {
+            newErrors[id] = errors;
+          } else {
+            delete newErrors[id]; // Clear errors for this entry if valid
+          }
+          return newErrors;
+        });
+      }
+      // Sort entries after any change, especially if a date was modified.
+      return getSortedNebenkostenEntries(newEntries);
+    });
+  };
+
+  const addNebenkostenEntry = () => {
+    const newId = Math.random().toString(36).substr(2, 9);
+    setNebenkostenEntries(entries =>
+      getSortedNebenkostenEntries([...entries, { id: newId, amount: "", date: "" }])
+    );
+    // Optionally, clear validation for this new entry if it was somehow set before
+    setNebenkostenValidationErrors(prev => {
+        const newErrors = {...prev};
+        delete newErrors[newId];
+        return newErrors;
+    });
+  };
+
+  const removeNebenkostenEntry = (id: string) => {
+    setNebenkostenEntries(entries => entries.filter(entry => entry.id !== id));
+    setNebenkostenValidationErrors(prev => {
+      const newErrors = { ...prev };
+      delete newErrors[id];
+      return newErrors;
+    });
+  };
+
   // Specific handler for DatePicker changes
   const handleDateChange = (name: 'einzug' | 'auszug', date: Date | undefined) => {
     // Format date to YYYY-MM-DD string for the form data, or empty string if undefined
@@ -126,9 +236,75 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
         </DialogHeader>
         <form onSubmit={async e => {
           e.preventDefault();
-          setIsSubmitting(true);
+          setIsSubmitting(true); // Set submitting state early
+
+          // Pre-submission validation
+          let currentNkErrors: Record<string, { amount?: string; date?: string }> = {};
+          let hasValidationErrors = false;
+          for (const entry of nebenkostenEntries) {
+            // Skip validation for rows where amount is empty, unless a date is present
+            if (entry.amount.trim() === "" && entry.date.trim() === "") {
+                // If an error was previously set for this fully empty row, clear it.
+                if (nebenkostenValidationErrors[entry.id]) {
+                    setNebenkostenValidationErrors(prev => {
+                        const newErrors = { ...prev };
+                        delete newErrors[entry.id];
+                        return newErrors;
+                    });
+                }
+                continue;
+            }
+
+            const entryErrors = validateNebenkostenEntry(entry);
+            if (Object.keys(entryErrors).length > 0) {
+              currentNkErrors[entry.id] = entryErrors;
+              hasValidationErrors = true;
+            }
+          }
+          setNebenkostenValidationErrors(currentNkErrors);
+
+          if (hasValidationErrors) {
+            toast({
+              title: "Validierungsfehler",
+              description: "Bitte überprüfen Sie die Nebenkosten Einträge.",
+              variant: "destructive",
+            });
+            setIsSubmitting(false); // Reset submitting state
+            return;
+          }
+
+          // If validation passes, proceed with submission logic
           try {
             const currentFormData = new FormData(e.currentTarget);
+
+            // Process nebenkostenEntries (filter out entries that are entirely empty or just have a date but no amount)
+            // This filter is slightly different from validation; validation catches errors, this prepares data for submission
+            const finalNebenkostenEntries = nebenkostenEntries.filter(entry => {
+                const hasAmount = entry.amount.trim() !== "";
+                // We submit if there's an amount (date presence is validated by `validateNebenkostenEntry`)
+                // Or if it's an entirely empty entry (which will be filtered by the join if amounts/dates are empty)
+                return hasAmount;
+            });
+
+            const nkAmounts = finalNebenkostenEntries.map(entry => entry.amount.trim());
+            const nkDates = finalNebenkostenEntries.map(entry => entry.date.trim());
+
+            currentFormData.set('nebenkosten', nkAmounts.join(','));
+            currentFormData.set('nebenkosten_datum', nkDates.join(','));
+
+            // Explicitly set wohnung_id from formData state
+            if (formData.wohnung_id) {
+              currentFormData.set('wohnung_id', formData.wohnung_id);
+            } else {
+              // Ensure it's not set if empty, or handle as per backend expectation for empty/null wohnung_id
+              // If the backend expects an empty string or null, this could be currentFormData.delete('wohnung_id')
+              // or currentFormData.set('wohnung_id', '') if the field must exist.
+              // For now, let's assume if it's not in formData.wohnung_id, it shouldn't be sent or should be empty.
+              // Given the server action likely uses Zod, not sending it or sending an empty string is usually fine.
+              // Let's send an empty string if it's empty in formData to be explicit.
+              currentFormData.set('wohnung_id', '');
+            }
+
             const tenantNameForToast = formData.name; // Use state for toast consistency
             const result = await serverAction(currentFormData);
 
@@ -165,21 +341,17 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label htmlFor="wohnung_id">Wohnung</Label>
-              <Select 
-                name="wohnung_id" 
-                value={formData.wohnung_id} 
-                onValueChange={v => setFormData({...formData, wohnung_id:v})}
-                disabled={isLoadingWohnungen}
-              >
-                <SelectTrigger id="wohnung_id">
-                  <SelectValue placeholder={isLoadingWohnungen ? "Lädt Wohnungen..." : "--"}/>
-                </SelectTrigger>
-                <SelectContent>
-                  {internalWohnungen.map(w => (
-                    <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <CustomCombobox
+                width="w-full"
+                options={apartmentOptions}
+                value={formData.wohnung_id}
+                onChange={(value) => setFormData({ ...formData, wohnung_id: value || "" })}
+                placeholder={isLoadingWohnungen ? "Lädt Wohnungen..." : "Wohnung auswählen"}
+                searchPlaceholder="Wohnung suchen..."
+                emptyText="Keine Wohnung gefunden."
+                disabled={isLoadingWohnungen || isSubmitting}
+                // The ID "wohnung_id" is for the Label's htmlFor.
+              />
             </div>
             <div>
               <Label htmlFor="name">Name</Label>
@@ -219,32 +391,57 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
               <Label htmlFor="notiz">Notiz</Label>
               <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange}/>
             </div>
-            <div>
-              <Label htmlFor="nebenkosten">Nebenkosten (€)</Label>
-              <Input 
-                id="nebenkosten" 
-                name="nebenkosten" 
-                value={formData.nebenkosten} 
-                onChange={handleChange} 
-                placeholder="z.B. 25,30"
-              />
-            </div>
-            <div>
-              <Label htmlFor="nebenkosten_datum">Nebenkosten Datum</Label>
-              <Input 
-                id="nebenkosten_datum" 
-                name="nebenkosten_datum" 
-                value={formData.nebenkosten_datum} 
-                onChange={handleChange} 
-                placeholder="YYYY-MM-DD, ..."
-              />
+            {/* Nebenkosten dynamic entries */}
+            <div className="col-span-2 space-y-2">
+              <Label>Nebenkosten Einträge</Label>
+              {nebenkostenEntries.map((entry, index) => (
+                <div key={entry.id} className="p-2 border rounded-md space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-grow space-y-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Betrag (€)"
+                        value={entry.amount}
+                        onChange={(e) => handleNebenkostenChange(entry.id, 'amount', e.target.value)}
+                        className={`flex-grow ${nebenkostenValidationErrors[entry.id]?.amount ? 'border-red-500' : ''}`}
+                        disabled={isSubmitting}
+                      />
+                      {nebenkostenValidationErrors[entry.id]?.amount && (
+                        <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.amount}</p>
+                      )}
+                    </div>
+                    <div className="flex-grow space-y-1">
+                      <DatePicker
+                        value={entry.date} // Assuming DatePicker can take yyyy-MM-dd string
+                        onChange={(date) => handleNebenkostenChange(entry.id, 'date', date ? format(date, "yyyy-MM-dd") : "")}
+                        placeholder="Datum (TT.MM.JJJJ)"
+                        className={`${nebenkostenValidationErrors[entry.id]?.date ? '!border-red-500' : ''}`} // DatePicker might need !border-red-500 if it has its own border styling
+                        disabled={isSubmitting}
+                      />
+                      {nebenkostenValidationErrors[entry.id]?.date && (
+                        <p className="text-xs text-red-500">{nebenkostenValidationErrors[entry.id]?.date}</p>
+                      )}
+                    </div>
+                    <Button variant="ghost" size="icon" onClick={() => removeNebenkostenEntry(entry.id)} disabled={isSubmitting} className="self-start">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              <Button type="button" variant="outline" size="sm" onClick={addNebenkostenEntry} disabled={isSubmitting}>
+                Eintrag hinzufügen
+              </Button>
             </div>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
               Abbrechen
             </Button>
-            <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>
+            <Button
+              type="submit"
+              disabled={isSubmitting || isLoadingWohnungen || Object.values(nebenkostenValidationErrors).some(err => err.amount || err.date)}
+            >
               {isSubmitting ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>
