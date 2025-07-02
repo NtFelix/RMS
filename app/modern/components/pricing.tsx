@@ -26,6 +26,7 @@ interface Plan {
   priceId: string; // Stripe Price ID (same as id)
   position?: number;
   productName: string; // A common name for the product, e.g. "Basic", "Pro"
+  description?: string; // To hold description from API (Stripe Product description)
 }
 
 // Helper function to format price for display
@@ -94,7 +95,8 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
         groups[productName] = {
           productName: productName,
           features: plan.features, // Assume features are the same for monthly/annual versions of the same product
-          description: `Description for ${productName}`, // Placeholder description
+          // Use description from the plan (product description from API). Features and description are product-level.
+          description: plan.description,
           monthly: null,
           annually: null,
           position: plan.position,
