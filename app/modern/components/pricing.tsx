@@ -9,7 +9,8 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"; // Import Tabs components
+import { Badge } from "@/components/ui/badge";
+import { Check } from "lucide-react";
 import { useEffect, useState, useMemo } from 'react';
 
 // Updated Plan interface to match the API response structure
@@ -48,16 +49,18 @@ interface PricingProps {
 interface GroupedPlan {
   productName: string; // e.g. "Basic", "Pro"
   features: string[];
+  description?: string; // Added description
   monthly: Plan | null;
   annually: Plan | null;
   position?: number;
+  popular?: boolean; // Added popular flag
 }
 
 export default function Pricing({ onSelectPlan, isLoading: isSubmitting, currentPlanId }: PricingProps) {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedInterval, setSelectedInterval] = useState<'monthly' | 'annually'>('monthly');
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -91,9 +94,11 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
         groups[productName] = {
           productName: productName,
           features: plan.features, // Assume features are the same for monthly/annual versions of the same product
+          description: `Description for ${productName}`, // Placeholder description
           monthly: null,
           annually: null,
           position: plan.position,
+          popular: false, // Default to false
         };
       }
       if (plan.interval === 'month') {
@@ -102,13 +107,32 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
         groups[productName].annually = plan;
       }
     });
-    return Object.values(groups).sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
+
+    const sortedGroups = Object.values(groups).sort((a, b) => (a.position ?? Infinity) - (b.position ?? Infinity));
+
+    // Mark the first plan (lowest position) as popular if not otherwise set
+    // This is a common default, adjust if API provides a specific 'popular' flag
+    if (sortedGroups.length > 0) {
+      // Find the plan intended to be popular, e.g., by specific name or lowest position.
+      // For now, let's assume the API might provide a 'popular' hint via position or a metadata tag in future.
+      // Or, we can hardcode based on productName if known.
+      // Example: Mark "Professional" as popular if it exists.
+      const professionalPlan = sortedGroups.find(p => p.productName.toLowerCase() === "professional");
+      if (professionalPlan) {
+        professionalPlan.popular = true;
+      } else if (sortedGroups.length > 1) { // Fallback: if "Professional" not found, mark the middle one or second one.
+        sortedGroups[1].popular = true; // Example: mark the second plan as popular
+      } else if (sortedGroups.length === 1) { // If only one plan
+        sortedGroups[0].popular = true;
+      }
+    }
+    return sortedGroups;
   }, [allPlans]);
 
   if (isLoadingPlans) {
     return (
-      <section className="py-12 bg-background text-foreground">
-        <div className="container mx-auto px-4 text-center">
+      <section className="py-16 px-4 text-foreground"> {/* Adjusted padding and removed bg-background if not needed by theme */}
+        <div className="max-w-6xl mx-auto text-center"> {/* Adjusted container to match main layout */}
           <p>Loading plans...</p>
         </div>
       </section>
@@ -117,8 +141,8 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (error) {
     return (
-      <section className="py-12 bg-background text-foreground">
-        <div className="container mx-auto px-4 text-center text-destructive">
+      <section className="py-16 px-4 text-foreground"> {/* Adjusted padding */}
+        <div className="max-w-6xl mx-auto text-center text-destructive"> {/* Adjusted container */}
           <p>Error loading plans: {error}</p>
         </div>
       </section>
@@ -127,8 +151,8 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (groupedPlans.length === 0) {
     return (
-      <section className="py-12 bg-background text-foreground">
-        <div className="container mx-auto px-4 text-center">
+      <section className="py-16 px-4 text-foreground"> {/* Adjusted padding */}
+        <div className="max-w-6xl mx-auto text-center"> {/* Adjusted container */}
           <p>No subscription plans are currently available. Please check back later.</p>
         </div>
       </section>
@@ -136,91 +160,104 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
   }
 
   return (
-    <section className="py-12 bg-background text-foreground">
-      <div className="container mx-auto px-4">
-        <Tabs value={selectedInterval} onValueChange={(value) => setSelectedInterval(value as 'monthly' | 'annually')} className="mb-8">
-          <TabsList className="grid w-full grid-cols-2 md:w-1/3 mx-auto bg-muted p-1 rounded-md">
-            <TabsTrigger
-              value="monthly"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10 transition-colors"
+    <section className="py-16 px-4">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold mb-4">Simple, Transparent Pricing</h2>
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Choose the perfect plan for your needs. Upgrade or downgrade at any time.
+          </p>
+        </div>
+
+        <div className="flex justify-center mb-12">
+          <div className="inline-flex items-center rounded-full bg-muted p-1">
+            <Button
+              variant={billingCycle === "monthly" ? "default" : "ghost"}
+              onClick={() => setBillingCycle("monthly")}
+              className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
             >
               Monthly
-            </TabsTrigger>
-            <TabsTrigger
-              value="annually"
-              className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:text-muted-foreground hover:bg-primary/10 transition-colors"
+            </Button>
+            <Button
+              variant={billingCycle === "yearly" ? "default" : "ghost"}
+              onClick={() => setBillingCycle("yearly")}
+              className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
             >
-              Annually
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+              Yearly (20% off) {/* TODO: Adjust discount text if necessary based on actuals */}
+            </Button>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
           {groupedPlans.map((group) => {
-            const planToDisplay = selectedInterval === 'monthly' ? group.monthly : group.annually;
-            if (!planToDisplay) return null;
+            const planToDisplay = billingCycle === 'monthly' ? group.monthly : group.annually;
+            if (!planToDisplay) {
+              // If the selected cycle isn't available for this group, maybe show a message or skip
+              // For now, skipping seems fine as per original logic.
+              return null;
+            }
 
-            const yearlySavings = group.monthly && group.annually
-              ? (group.monthly.price * 12) - group.annually.price
-              : 0;
+            // const yearlySavings = group.monthly && group.annually
+            //   ? (group.monthly.price * 12) - group.annually.price
+            //   : 0;
+            // The example UI doesn't show savings this way, but has a "(20% off)" in the yearly button.
+            // We'll stick to the example's UI for now.
 
             return (
               <Card
                 key={group.productName}
-                className="flex flex-col bg-card border-border backdrop-blur-sm hover:border-primary/70 transition-all duration-300 relative overflow-hidden shadow-lg group"
+                className={`relative flex flex-col rounded-3xl ${group.popular ? "border-primary shadow-lg scale-105" : "border-border"}`}
               >
-                <CardHeader className="relative z-10">
-                  <CardTitle className="text-2xl font-semibold text-card-foreground group-hover:text-primary transition-colors">
-                    {group.productName}
-                  </CardTitle>
-                  <CardDescription className="text-lg text-muted-foreground">
-                    {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
-                    <span className="text-sm">{planToDisplay.interval === 'month' ? ' / month' : ' / year'}</span>
-                    {selectedInterval === 'annually' && yearlySavings > 0 && group.monthly && (
-                      <span className="block text-sm text-green-500 dark:text-green-400 font-medium">
-                        Save {formatDisplayPrice(yearlySavings, planToDisplay.currency, null)} per year! (vs. monthly)
-                      </span>
-                    )}
+                {group.popular && (
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">Most Popular</Badge>
+                )}
+
+                <CardHeader className="text-center pb-8">
+                  <CardTitle className="text-xl font-semibold">{group.productName}</CardTitle>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold">
+                      {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {billingCycle === "monthly" ? "/month" : "/year"}
+                    </span>
+                  </div>
+                  <CardDescription className="mt-2 h-12 overflow-hidden"> {/* Added fixed height and overflow for description consistency */}
+                    {group.description || `Our ${group.productName} plan.`} {/* Use group's description */}
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow relative z-10">
+
+                <CardContent className="flex-grow">
                   <ul className="space-y-3">
-                    {group.features.map((feature, index) => (
-                      <li key={index} className="flex items-center text-sm text-muted-foreground">
-                        <svg
-                          className="w-5 h-5 mr-3 text-green-500 dark:text-green-400 flex-shrink-0"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M5 13l4 4L19 7"
-                          ></path>
-                        </svg>
-                        {feature}
+                    {group.features.map((feature, featureIndex) => (
+                      <li key={featureIndex} className="flex items-center gap-3">
+                        <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span className="text-sm">{feature}</span>
                       </li>
                     ))}
                   </ul>
                 </CardContent>
-                <CardFooter>
+
+                <CardFooter className="mt-auto py-6">
                   <Button
                     onClick={() => onSelectPlan(planToDisplay.priceId)}
-                    className="w-full"
+                    className="w-full rounded-xl" // h-[] was in example, assuming default height is fine or adjust later
+                    variant={group.popular ? "default" : "outline"} // Popular plan gets default button style
+                    size="lg"
                     disabled={isSubmitting || planToDisplay.priceId === currentPlanId}
-                    variant={planToDisplay.priceId === currentPlanId ? "outline" : "default"}
                   >
                     {planToDisplay.priceId === currentPlanId
                       ? 'Current Plan'
-                      : (isSubmitting ? 'Processing...' : 'Select Plan')}
+                      : (isSubmitting ? 'Processing...' : 'Get Started')}
                   </Button>
                 </CardFooter>
               </Card>
             );
           })}
+        </div>
+
+        <div className="text-center mt-12">
+          <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
         </div>
       </div>
     </section>
