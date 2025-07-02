@@ -454,16 +454,62 @@ export function AbrechnungModal({
 
       // Draw "Betriebskosten gesamt" sums manually below the table
       const lastTable = (doc as any).lastAutoTable;
-      // Draw "Betriebskosten gesamt" sums manually below the table as a single line.
-      const tableLeftMargin = lastTable?.settings?.margin?.left || 20; // Use table's left margin or default
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
+      // Draw "Betriebskosten gesamt" sums manually below the table, aligned with columns
+      let sumsDrawnSuccessfully = false;
+      if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
+        const col0 = lastTable.columns[0];
+        const col1 = lastTable.columns[1];
+        const col4 = lastTable.columns[4];
 
-      const sumTextLine = `Betriebskosten gesamt: ${formatCurrency(sumOfTotalCostForItem)} ${formatCurrency(sumOfTenantSharesFromCostItems)}`;
-      doc.text(sumTextLine, tableLeftMargin, startY);
+        if (col0 && typeof col0.x === 'number' &&
+            col1 && typeof col1.x === 'number' && typeof col1.width === 'number' &&
+            col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
 
-      startY += 8; // Space after the sum line
-      doc.setFont("helvetica", "normal");
+          const leistungsartX = col0.x;
+          const gesamtkostenX = col1.x;
+          const gesamtkostenWidth = col1.width;
+          const kostenanteilX = col4.x;
+          const kostenanteilWidth = col4.width;
+
+          doc.setFontSize(9); // Match table body font size
+          doc.setFont("helvetica", "bold");
+
+          // Draw "Betriebskosten gesamt:" label, aligned with the first column
+          doc.text("Betriebskosten gesamt:", leistungsartX, startY, { align: 'left' });
+
+          // Draw sum for "Gesamtkosten in €" column
+          doc.text(
+            formatCurrency(sumOfTotalCostForItem),
+            gesamtkostenX + gesamtkostenWidth,
+            startY,
+            { align: 'right' }
+          );
+
+          // Draw sum for "Kostenanteil In €" column
+          doc.text(
+            formatCurrency(sumOfTenantSharesFromCostItems),
+            kostenanteilX + kostenanteilWidth,
+            startY,
+            { align: 'right' }
+          );
+
+          startY += 8; // Space after the sum line
+          doc.setFont("helvetica", "normal");
+          sumsDrawnSuccessfully = true;
+        }
+      }
+
+      if (!sumsDrawnSuccessfully) {
+        // Fallback if table column data isn't available or valid
+        console.error("Could not retrieve valid column data to draw 'Betriebskosten gesamt' sums accurately. Using fallback.");
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        // Fallback: Draw label and only the tenant's share sum, less precisely aligned
+        doc.text("Betriebskosten gesamt:", 20, startY);
+        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+        startY += 8;
+        doc.setFont("helvetica", "normal");
+      }
 
       // Unused finalY block and vestigial font changes removed.
       // startY is now correctly managed by tableFinalY and the subsequent drawing of "Betriebskosten gesamt" sums.
