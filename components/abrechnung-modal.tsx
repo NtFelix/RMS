@@ -475,6 +475,7 @@ export function AbrechnungModal({
 
           doc.text("Betriebskosten gesamt", leistungsartX, startY, { align: 'left' });
 
+          // Draw sum for "Gesamtkosten in €" column
           doc.text(
             formatCurrency(sumOfTotalCostForItem),
             gesamtkostenX + gesamtkostenWidth,
@@ -482,6 +483,7 @@ export function AbrechnungModal({
             { align: 'right' }
           );
 
+          // Draw sum for "Kostenanteil In €" column
           doc.text(
             formatCurrency(sumOfTenantSharesFromCostItems),
             kostenanteilX + kostenanteilWidth,
