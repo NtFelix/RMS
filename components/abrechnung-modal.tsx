@@ -454,6 +454,35 @@ export function AbrechnungModal({
       startY += 8;
       doc.setFont("helvetica", "normal");
 
+      // New Wasserzähler section
+      if (singleTenantData.waterCost && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0 && nebenkostenItem.wasserkosten) {
+        startY += 5; // Add some space before the new section
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Digitaler Wasserzähler", 20, startY);
+        startY += 7;
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+
+        const pricePerCubicMeter = nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch;
+
+        // Wasserverbrauch m³
+        doc.text("Wasserverbrauch m³:", 20, startY);
+        doc.text(singleTenantData.waterCost.consumption?.toFixed(2) || "0.00", doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+        startY += 6;
+
+        // Gesamtkosten Wasser
+        doc.text("Gesamtkosten Wasser:", 20, startY);
+        doc.text(formatCurrency(singleTenantData.waterCost.tenantShare), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+        startY += 6;
+
+        // Preis pro m³
+        doc.text("Preis pro m³:", 20, startY);
+        doc.text(formatCurrency(pricePerCubicMeter), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+        startY += 8; // Add some space after the new section
+      }
+
 
       // 5. Final Summary
       doc.setFontSize(10);
