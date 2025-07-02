@@ -493,18 +493,14 @@ export function AbrechnungModal({
           doc.setFontSize(9); // Match table body font size
           doc.setFont("helvetica", "bold");
 
-          // Draw "Betriebskosten gesamt:" label, aligned with the first column
-          doc.text("Betriebskosten gesamt:", leistungsartX, startY, { align: 'left' });
+          const labelText = "Betriebskosten gesamt: ";
+          const sum1Text = formatCurrency(sumOfTotalCostForItem);
+          const labelX = col0.x; // Start of first column for the label
 
-          // Draw sum for "Gesamtkosten in €" column
-          doc.text(
-            formatCurrency(sumOfTotalCostForItem),
-            gesamtkostenX + gesamtkostenWidth,
-            startY,
-            { align: 'right' }
-          );
+          // Draw label and first sum together
+          doc.text(labelText + sum1Text, labelX, startY, { align: 'left' });
 
-          // Draw sum for "Kostenanteil In €" column
+          // Draw sum for "Kostenanteil In €" column (sum2) aligned to its column
           doc.text(
             formatCurrency(sumOfTenantSharesFromCostItems),
             kostenanteilX + kostenanteilWidth,
@@ -524,19 +520,12 @@ export function AbrechnungModal({
         doc.setFontSize(9); // Consistent font size with primary attempt
         doc.setFont("helvetica", "bold");
 
-        // Fallback: Attempt to mimic multi-column layout with estimated positions
+        // Fallback: Label and first sum together, second sum on far right
         const fallbackLabelX = 20;
-        const fallbackSum1X = 125; // Estimated end position for 'Gesamtkosten in €' column sum
-        const fallbackSum2X = doc.internal.pageSize.getWidth() - 20; // Right margin for 'Kostenanteil In €' sum
+        const fallbackSum2X = doc.internal.pageSize.getWidth() - 20; // Right margin
 
-        doc.text("Betriebskosten gesamt:", fallbackLabelX, startY, { align: 'left' });
-
-        doc.text(
-          formatCurrency(sumOfTotalCostForItem),
-          fallbackSum1X,
-          startY,
-          { align: 'right' }
-        );
+        const labelAndSum1Text = `Betriebskosten gesamt: ${formatCurrency(sumOfTotalCostForItem)}`;
+        doc.text(labelAndSum1Text, fallbackLabelX, startY, {align: 'left'});
 
         doc.text(
           formatCurrency(sumOfTenantSharesFromCostItems),
