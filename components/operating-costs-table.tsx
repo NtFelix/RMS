@@ -10,7 +10,7 @@ import {
   ContextMenuItem,
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
-import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung } from "../lib/data-fetching" // Adjusted path, Added Rechnung
+import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung, Haus } from "../lib/data-fetching" // Adjusted path, Added Rechnung and Haus
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
@@ -22,9 +22,17 @@ interface OperatingCostsTableProps {
   nebenkosten: Nebenkosten[]; 
   onEdit?: (item: Nebenkosten) => void; 
   onDeleteItem: (id: string) => void;
+  ownerName: string;
+  allHaeuser: Haus[];
 }
 
-export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: OperatingCostsTableProps) {
+export function OperatingCostsTable({
+  nebenkosten,
+  onEdit,
+  onDeleteItem,
+  ownerName,
+  allHaeuser
+}: OperatingCostsTableProps) {
   const [overviewItem, setOverviewItem] = useState<Nebenkosten | null>(null);
   const [isWasserzaehlerModalOpen, setIsWasserzaehlerModalOpen] = useState(false);
   const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<Nebenkosten | null>(null);
@@ -302,7 +310,9 @@ export function OperatingCostsTable({ nebenkosten, onEdit, onDeleteItem }: Opera
           nebenkostenItem={selectedNebenkostenForAbrechnung}
           tenants={tenantsForAbrechnungModal}
           rechnungen={rechnungenForAbrechnungModal}
-          wasserzaehlerReadings={wasserzaehlerReadingsForAbrechnungModal} // <<< MODIFIED HERE >>>
+          wasserzaehlerReadings={wasserzaehlerReadingsForAbrechnungModal}
+          ownerName={ownerName}
+          ownerAddress={allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id) ? `${allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id)?.strasse || ''}, ${allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id)?.ort || ''}` : "Platzhalter Adresse"}
         />
       )}
     </div>

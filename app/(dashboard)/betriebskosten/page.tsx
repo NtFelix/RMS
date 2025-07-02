@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { fetchNebenkostenList, fetchHaeuser } from "../../../lib/data-fetching";
+import { fetchNebenkostenList, fetchHaeuser, fetchUserProfile } from "../../../lib/data-fetching";
 import BetriebskostenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
 
@@ -8,9 +8,16 @@ export const dynamic = 'force-dynamic';
 export default async function BetriebskostenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
   
   const nebenkostenData = await fetchNebenkostenList();
   const haeuserData = await fetchHaeuser();
+  const userProfile = userId ? await fetchUserProfile() : null;
+
+  // Use a more specific field for owner name if available, e.g., userProfile.full_name
+  // For now, using email as a placeholder if a more suitable field isn't present
+  // Also, providing a default fallback if userProfile or email is null.
+  const ownerName = userProfile?.email || "Vermieter Name";
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -23,7 +30,8 @@ export default async function BetriebskostenPage() {
       <BetriebskostenClientWrapper 
         initialNebenkosten={nebenkostenData} 
         initialHaeuser={haeuserData} 
-        userId={user?.id}
+        userId={userId}
+        ownerName={ownerName}
       />
     </div>
   )
