@@ -456,6 +456,25 @@ export function AbrechnungModal({
       const lastTable = (doc as any).lastAutoTable;
       // Draw "Betriebskosten gesamt" sums manually below the table, aligned with columns
       let sumsDrawnSuccessfully = false;
+
+      // --- BEGIN DEBUG LOGS ---
+      if (lastTable) {
+        console.log("Debug PDF: lastTable object:", JSON.parse(JSON.stringify(lastTable))); // Full table object
+        console.log("Debug PDF: lastTable.columns:", lastTable.columns);
+        console.log("Debug PDF: lastTable.columns type:", typeof lastTable.columns);
+        if (Array.isArray(lastTable.columns)) {
+          console.log("Debug PDF: lastTable.columns.length:", lastTable.columns.length);
+          lastTable.columns.forEach((col: any, index: number) => {
+            console.log(`Debug PDF: Column ${index}: x=${col?.x} (type: ${typeof col?.x}), width=${col?.width} (type: ${typeof col?.width})`);
+          });
+        }
+        console.log("Debug PDF: lastTable.settings:", lastTable.settings);
+        console.log("Debug PDF: lastTable.settings.margin:", lastTable.settings?.margin);
+      } else {
+        console.log("Debug PDF: lastTable is null or undefined.");
+      }
+      // --- END DEBUG LOGS ---
+
       if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
         const col0 = lastTable.columns[0];
         const col1 = lastTable.columns[1];
@@ -501,12 +520,14 @@ export function AbrechnungModal({
 
       if (!sumsDrawnSuccessfully) {
         // Fallback if table column data isn't available or valid
-        console.error("Could not retrieve valid column data to draw 'Betriebskosten gesamt' sums accurately. Using fallback.");
-        doc.setFontSize(10);
+        console.error("Could not retrieve valid column data to draw 'Betriebskosten gesamt' sums accurately. Using improved fallback.");
+        doc.setFontSize(9); // Consistent font size with primary attempt
         doc.setFont("helvetica", "bold");
-        // Fallback: Draw label and only the tenant's share sum, less precisely aligned
-        doc.text("Betriebskosten gesamt:", 20, startY);
-        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+
+        // Fallback: Draw label and both sums on a single line, left-aligned at x=20
+        const fallbackSumTextLine = `Betriebskosten gesamt: ${formatCurrency(sumOfTotalCostForItem)} ${formatCurrency(sumOfTenantSharesFromCostItems)}`;
+        doc.text(fallbackSumTextLine, 20, startY);
+
         startY += 8;
         doc.setFont("helvetica", "normal");
       }
