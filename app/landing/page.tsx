@@ -22,8 +22,6 @@ const stripePromise = loadStripe(
 // Use the new environment variable for the main available plan, with a fallback.
 const MAIN_PLAN_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN || 'price_basic_monthly_placeholder';
 
-import { PlanData } from '../modern/components/pricing'; // Import the PlanData interface
-
 // Internal Client Component for Handling Profile Fetch Error Toast
 function ProfileErrorToastHandler() {
   // Hooks specific to this error handling logic
@@ -171,57 +169,9 @@ export default function LandingPage() {
     await handleAuthFlow(priceId);
   };
 
-  // Define the plans data that will be passed to PricingSection
-  // User will need to replace placeholder price IDs
-  const plansData: PlanData[] = [
-    {
-      name: "Starter",
-      monthlyPrice: 9,
-      yearlyPrice: 9 * 10,
-      monthlyPriceId: "price_starter_monthly_placeholder", // Placeholder
-      yearlyPriceId: "price_starter_yearly_placeholder",   // Placeholder
-      description: "Perfect for individuals getting started",
-      features: ["Up to 5 projects", "10GB storage", "Basic support", "Standard templates", "Mobile app access"],
-      popular: false,
-    },
-    {
-      name: "Professional",
-      monthlyPrice: 29,
-      yearlyPrice: 29 * 10,
-      monthlyPriceId: "price_professional_monthly_placeholder", // Placeholder
-      yearlyPriceId: "price_professional_yearly_placeholder",   // Placeholder
-      description: "Best for growing teams and businesses",
-      features: [
-        "Unlimited projects",
-        "100GB storage",
-        "Priority support",
-        "Premium templates",
-        "Advanced analytics",
-        "Team collaboration",
-        "Custom integrations",
-      ],
-      popular: true,
-    },
-    {
-      name: "Enterprise",
-      monthlyPrice: 99,
-      yearlyPrice: 99 * 10,
-      monthlyPriceId: "price_enterprise_monthly_placeholder", // Placeholder
-      yearlyPriceId: "price_enterprise_yearly_placeholder",   // Placeholder
-      description: "For large organizations with advanced needs",
-      features: [
-        "Everything in Professional",
-        "Unlimited storage",
-        "24/7 dedicated support",
-        "Custom development",
-        "Advanced security",
-        "SSO integration",
-        "API access",
-        "White-label options",
-      ],
-      popular: false,
-    },
-  ];
+  // plansData is removed, PricingSection will use its internal plan data.
+  // LandingPage just needs to pass onSelectPlan.
+  // It doesn't manage an isLoading state for the pricing section itself.
 
   return (
     <>
@@ -240,7 +190,7 @@ export default function LandingPage() {
           <Services />
         </div>
         <div id="pricing">
-          <PricingSection plans={plansData} onSelectPlan={handleSelectPlan} />
+          <PricingSection onSelectPlan={handleSelectPlan} />
         </div>
         <div id="testimonials">
           <Testimonials />

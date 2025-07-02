@@ -6,32 +6,75 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 
-// Interface for the structure of a plan, to be potentially passed as props
-export interface PlanData { // Added export
+interface Plan {
   name: string;
   monthlyPrice: number;
   yearlyPrice: number;
+  monthlyPriceId: string; // Added
+  yearlyPriceId: string; // Added
   description: string;
   features: string[];
   popular: boolean;
-  // priceId related fields will be determined by how LandingPage passes data
-  monthlyPriceId?: string; // Making these optional for now
-  yearlyPriceId?: string;  // Making these optional for now
 }
 
-// Props for the PricingSection component
 interface PricingSectionProps {
-  plans: PlanData[];
   onSelectPlan: (priceId: string) => void;
-  isLoading?: boolean; // Added isLoading prop
+  isLoading?: boolean;
 }
 
-export default function PricingSection({ plans, onSelectPlan, isLoading = false }: PricingSectionProps) {
+export default function PricingSection({ onSelectPlan, isLoading = false }: PricingSectionProps) {
   const [billingCycle, setBillingCycle] = useState("monthly")
 
-  // The actual plan data will now come from props.
-  // The static data below is removed as it will be passed via props.
-  // const plans = [ ... static plans ... ]
+  // TODO: User needs to update these placeholder price IDs
+  const plans: Plan[] = [
+    {
+      name: "Starter",
+      monthlyPrice: 9,
+      yearlyPrice: 9 * 10,
+      monthlyPriceId: "price_starter_monthly_placeholder_internal", // Placeholder
+      yearlyPriceId: "price_starter_yearly_placeholder_internal",   // Placeholder
+      description: "Perfect for individuals getting started",
+      features: ["Up to 5 projects", "10GB storage", "Basic support", "Standard templates", "Mobile app access"],
+      popular: false,
+    },
+    {
+      name: "Professional",
+      monthlyPrice: 29,
+      yearlyPrice: 29 * 10,
+      monthlyPriceId: "price_professional_monthly_placeholder_internal", // Placeholder
+      yearlyPriceId: "price_professional_yearly_placeholder_internal",   // Placeholder
+      description: "Best for growing teams and businesses",
+      features: [
+        "Unlimited projects",
+        "100GB storage",
+        "Priority support",
+        "Premium templates",
+        "Advanced analytics",
+        "Team collaboration",
+        "Custom integrations",
+      ],
+      popular: true,
+    },
+    {
+      name: "Enterprise",
+      monthlyPrice: 99,
+      yearlyPrice: 99 * 10,
+      monthlyPriceId: "price_enterprise_monthly_placeholder_internal", // Placeholder
+      yearlyPriceId: "price_enterprise_yearly_placeholder_internal",   // Placeholder
+      description: "For large organizations with advanced needs",
+      features: [
+        "Everything in Professional",
+        "Unlimited storage",
+        "24/7 dedicated support",
+        "Custom development",
+        "Advanced security",
+        "SSO integration",
+        "API access",
+        "White-label options",
+      ],
+      popular: false,
+    },
+  ]
 
   return (
     <section className="w-full py-12 md:py-24 lg:py-32 bg-gray-100 dark:bg-gray-800">
@@ -43,12 +86,13 @@ export default function PricingSection({ plans, onSelectPlan, isLoading = false 
           </p>
         </div>
 
+        {/* Add the billing cycle selector here */}
         <div className="mt-8 flex justify-center space-x-2">
           <Button
             onClick={() => setBillingCycle("monthly")}
             variant={billingCycle === "monthly" ? "default" : "outline"}
             className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-            disabled={isLoading} // Disable if loading
+            disabled={isLoading}
           >
             Monthly
           </Button>
@@ -56,7 +100,7 @@ export default function PricingSection({ plans, onSelectPlan, isLoading = false 
             onClick={() => setBillingCycle("yearly")}
             variant={billingCycle === "yearly" ? "default" : "outline"}
             className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
-            disabled={isLoading} // Disable if loading
+            disabled={isLoading}
           >
             Yearly (20% off)
           </Button>
@@ -66,10 +110,10 @@ export default function PricingSection({ plans, onSelectPlan, isLoading = false 
           {plans.map((plan, index) => (
             <Card
               key={index}
-              className={`flex flex-col ${plan.popular ? "border-2 border-purple-600 shadow-lg dark:border-purple-400" : "border-gray-200 dark:border-gray-700"}`}
+              className={`flex flex-col ${plan.popular ? "border-2 border-blue-600 shadow-lg dark:border-blue-500" : "border-gray-200 dark:border-gray-700"}`}
             >
               {plan.popular && (
-                <Badge variant="secondary" className="absolute -top-3 -right-3 bg-purple-600 text-white dark:bg-purple-400 dark:text-gray-900">
+                <Badge variant="secondary" className="absolute -top-3 -right-3 bg-blue-600 text-white dark:bg-blue-500 dark:text-gray-900">
                   Most Popular
                 </Badge>
               )}
@@ -91,7 +135,7 @@ export default function PricingSection({ plans, onSelectPlan, isLoading = false 
                 <ul className="space-y-2">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center gap-2">
-                      <Check className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                      <Check className="h-5 w-5 text-blue-600 dark:text-blue-500" />
                       {feature}
                     </li>
                   ))}
@@ -100,18 +144,12 @@ export default function PricingSection({ plans, onSelectPlan, isLoading = false 
 
               <CardFooter>
                 <Button
-                  className={`w-full ${plan.popular ? "bg-purple-600 hover:bg-purple-700 text-white" : ""}`}
+                  className={`w-full ${plan.popular ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-gray-900 hover:bg-gray-800 text-white dark:bg-gray-50 dark:hover:bg-gray-200 dark:text-gray-900"}`}
                   onClick={() => {
                     const priceIdToUse = billingCycle === "monthly" ? plan.monthlyPriceId : plan.yearlyPriceId;
-                    if (priceIdToUse) {
-                      onSelectPlan(priceIdToUse);
-                    } else {
-                      console.warn("Price ID is undefined for the selected plan and billing cycle.");
-                      // Optionally, fall back to a default or show an error
-                    }
+                    onSelectPlan(priceIdToUse);
                   }}
-                  // Disable button if priceId is not available OR if overall isLoading is true
-                  disabled={isLoading || !(billingCycle === "monthly" ? plan.monthlyPriceId : plan.yearlyPriceId)}
+                  disabled={isLoading}
                 >
                   Get Started
                 </Button>
