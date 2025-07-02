@@ -427,14 +427,7 @@ export function AbrechnungModal({
       // It does NOT yet include their specific water consumption costs, which are handled by singleTenantData.waterCost.tenantShare
       const sumOfTenantSharesFromCostItems = singleTenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
 
-      // Add summary row for "Betriebskosten gesamt"
-      tableRows.push([
-        { content: "Betriebskosten gesamt", styles: { fontStyle: 'bold' } },
-        { content: formatCurrency(sumOfTotalCostForItem), styles: { fontStyle: 'bold', halign: 'right' } },
-        { content: "", styles: { fontStyle: 'bold' } }, // Empty for "Verteiler"
-        { content: "", styles: { fontStyle: 'bold' } }, // Empty for "Kosten Pro qm"
-        { content: formatCurrency(sumOfTenantSharesFromCostItems), styles: { fontStyle: 'bold', halign: 'right' } }
-      ]);
+      // "Betriebskosten gesamt" row is removed from here and will be drawn manually after the table.
 
       (doc as any).autoTable({
         head: [tableColumn],
@@ -447,31 +440,66 @@ export function AbrechnungModal({
           1: { halign: 'right' }, // Gesamtkosten in €
           3: { halign: 'right' }, // Kosten Pro qm
           4: { halign: 'right' }  // Kostenanteil In €
-        }
+        },
+        margin: { left: 20 } // Set left margin for the table
       });
 
-      const finalY = (doc as any).lastAutoTable?.finalY;
-      if (typeof finalY === 'number') {
-        startY = finalY + 10;
+      let tableFinalY = (doc as any).lastAutoTable?.finalY;
+      if (typeof tableFinalY === 'number') {
+        startY = tableFinalY + 6; // Space after table
       } else {
-        // Fallback logic: if finalY is not available (which shouldn't happen after a successful autoTable call),
-        // increment startY by a default value to prevent overlap and log an error.
-        startY += 10; // Default spacing
+        startY += 10; // Fallback spacing
         console.error("Error: doc.lastAutoTable.finalY was not available after autoTable call. Using default spacing.");
       }
 
-      // Table Footer (Betriebskosten gesamt) - displayed as a line of text for simplicity
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      // The "Betriebskosten gesamt" text line that was here is now effectively part of the table footer.
-      // We can remove it or repurpose startY adjustment if needed.
-      // startY was already incremented by autoTable's finalY + 10.
-      // Let's ensure startY is sufficient for the next section.
-      // If finalY was not available, startY was incremented by a default, so it should be safe.
-      doc.setFont("helvetica", "normal"); // Reset font style
+      // Draw "Betriebskosten gesamt" sums manually below the table
+      const lastTable = (doc as any).lastAutoTable;
+      if (lastTable && lastTable.columns && lastTable.settings.margin) {
+        const leistungsartX = lastTable.columns[0].x;
+        const gesamtkostenX = lastTable.columns[1].x;
+        const gesamtkostenWidth = lastTable.columns[1].width;
+        const kostenanteilX = lastTable.columns[4].x;
+        const kostenanteilWidth = lastTable.columns[4].width;
+
+        doc.setFontSize(9); // Match table body font size
+        doc.setFont("helvetica", "bold");
+
+        doc.text("Betriebskosten gesamt", leistungsartX, startY, { align: 'left' });
+
+        doc.text(
+          formatCurrency(sumOfTotalCostForItem),
+          gesamtkostenX + gesamtkostenWidth,
+          startY,
+          { align: 'right' }
+        );
+
+        doc.text(
+          formatCurrency(sumOfTenantSharesFromCostItems),
+          kostenanteilX + kostenanteilWidth,
+          startY,
+          { align: 'right' }
+        );
+
+        startY += 8; // Space after the sum line
+        doc.setFont("helvetica", "normal");
+      } else {
+        // Fallback if table column data isn't available (should not happen)
+        console.error("Could not retrieve column data to draw 'Betriebskosten gesamt' sums accurately.");
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Betriebskosten gesamt:", 20, startY); // Fallback position
+        doc.text(formatCurrency(sumOfTenantSharesFromCostItems), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
+        startY += 8;
+        doc.setFont("helvetica", "normal");
+      }
+
+      // Unused finalY block and vestigial font changes removed.
+      // startY is now correctly managed by tableFinalY and the subsequent drawing of "Betriebskosten gesamt" sums.
 
       // 4.5. Wasserzähler Data Section
-      startY += 5; // Add a bit of space before this new section
+      // startY was updated after drawing "Betriebskosten gesamt" sums (startY += 8).
+      // Add a consistent small space before this new section.
+      startY += 5;
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.text("Wasserverbrauch", 20, startY);
