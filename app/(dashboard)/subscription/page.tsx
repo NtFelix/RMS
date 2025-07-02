@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Renamed to avoid conflict
-import Pricing from '@/app/modern/components/pricing'; // Import Pricing component as default
+import Pricing, { PlanData } from '@/app/modern/components/pricing'; // Import Pricing component and PlanData
 
 // Define the richer profile type
 interface UserSubscriptionProfile extends SupabaseProfile {
@@ -31,6 +31,59 @@ interface UserSubscriptionProfile extends SupabaseProfile {
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
+
+// Helper function to provide plan data (user will need to update placeholders)
+function getPlansData(): PlanData[] {
+  return [
+    {
+      name: "Starter",
+      monthlyPrice: 9,
+      yearlyPrice: 9 * 10,
+      monthlyPriceId: "price_starter_monthly_placeholder_sub", // Placeholder
+      yearlyPriceId: "price_starter_yearly_placeholder_sub",   // Placeholder
+      description: "Perfect for individuals getting started",
+      features: ["Up to 5 projects", "10GB storage", "Basic support", "Standard templates", "Mobile app access"],
+      popular: false,
+    },
+    {
+      name: "Professional",
+      monthlyPrice: 29,
+      yearlyPrice: 29 * 10,
+      monthlyPriceId: "price_professional_monthly_placeholder_sub", // Placeholder
+      yearlyPriceId: "price_professional_yearly_placeholder_sub",   // Placeholder
+      description: "Best for growing teams and businesses",
+      features: [
+        "Unlimited projects",
+        "100GB storage",
+        "Priority support",
+        "Premium templates",
+        "Advanced analytics",
+        "Team collaboration",
+        "Custom integrations",
+      ],
+      popular: true,
+    },
+    {
+      name: "Enterprise",
+      monthlyPrice: 99,
+      yearlyPrice: 99 * 10,
+      monthlyPriceId: "price_enterprise_monthly_placeholder_sub", // Placeholder
+      yearlyPriceId: "price_enterprise_yearly_placeholder_sub",   // Placeholder
+      description: "For large organizations with advanced needs",
+      features: [
+        "Everything in Professional",
+        "Unlimited storage",
+        "24/7 dedicated support",
+        "Custom development",
+        "Advanced security",
+        "SSO integration",
+        "API access",
+        "White-label options",
+      ],
+      popular: false,
+    },
+  ];
+}
 
 export default function SubscriptionPage() {
   const [profile, setProfile] = useState<UserSubscriptionProfile | null>(null);
@@ -179,7 +232,7 @@ export default function SubscriptionPage() {
         </div>
         {/* Optionally, show pricing plans below or a button to view them */}
         <h2 className="text-xl font-bold mb-6 text-center">Choose a Plan to Activate After Trial</h2>
-        <Pricing onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
+        <Pricing plans={getPlansData()} onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
       </div>
     );
   }
@@ -249,7 +302,7 @@ export default function SubscriptionPage() {
         {!profile.stripe_subscription_status && (
             <p className="mb-4 text-center">You are not currently subscribed. Choose a plan to get started!</p>
         )}
-        <Pricing onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
+        <Pricing plans={getPlansData()} onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
       </div>
     );
   }
