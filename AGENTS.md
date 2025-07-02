@@ -27,7 +27,7 @@ To run the application in development mode, use the following command:
 npm run dev
 ```
 
-**Important:** Before pushing any code to GitHub, ensure that the application builds and runs correctly.
+**Important:** Before pushing any code to GitHub, ensure that the application builds and runs correctly. If the application does not build or run correctly, you may need to make changes to the codebase to fix the issue. If you are unable to resolve the errors, try a different approach to test the application's functionality before pushing the code. This might involve running specific tests or manually verifying critical features. You are not allowed to push code that does not build or run correctly before trying to test everything hardly.
 
 ### Troubleshooting Build/Run Issues
 
