@@ -454,37 +454,50 @@ export function AbrechnungModal({
 
       // Draw "Betriebskosten gesamt" sums manually below the table
       const lastTable = (doc as any).lastAutoTable;
-      if (lastTable && lastTable.columns && lastTable.settings.margin) {
-        const leistungsartX = lastTable.columns[0].x;
-        const gesamtkostenX = lastTable.columns[1].x;
-        const gesamtkostenWidth = lastTable.columns[1].width;
-        const kostenanteilX = lastTable.columns[4].x;
-        const kostenanteilWidth = lastTable.columns[4].width;
+      let sumsDrawnSuccessfully = false;
+      if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
+        const col0 = lastTable.columns[0];
+        const col1 = lastTable.columns[1];
+        const col4 = lastTable.columns[4];
 
-        doc.setFontSize(9); // Match table body font size
-        doc.setFont("helvetica", "bold");
+        if (col0 && typeof col0.x === 'number' &&
+            col1 && typeof col1.x === 'number' && typeof col1.width === 'number' &&
+            col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
 
-        doc.text("Betriebskosten gesamt", leistungsartX, startY, { align: 'left' });
+          const leistungsartX = col0.x;
+          const gesamtkostenX = col1.x;
+          const gesamtkostenWidth = col1.width;
+          const kostenanteilX = col4.x;
+          const kostenanteilWidth = col4.width;
 
-        doc.text(
-          formatCurrency(sumOfTotalCostForItem),
-          gesamtkostenX + gesamtkostenWidth,
-          startY,
-          { align: 'right' }
-        );
+          doc.setFontSize(9); // Match table body font size
+          doc.setFont("helvetica", "bold");
 
-        doc.text(
-          formatCurrency(sumOfTenantSharesFromCostItems),
-          kostenanteilX + kostenanteilWidth,
-          startY,
-          { align: 'right' }
-        );
+          doc.text("Betriebskosten gesamt", leistungsartX, startY, { align: 'left' });
 
-        startY += 8; // Space after the sum line
-        doc.setFont("helvetica", "normal");
-      } else {
-        // Fallback if table column data isn't available (should not happen)
-        console.error("Could not retrieve column data to draw 'Betriebskosten gesamt' sums accurately.");
+          doc.text(
+            formatCurrency(sumOfTotalCostForItem),
+            gesamtkostenX + gesamtkostenWidth,
+            startY,
+            { align: 'right' }
+          );
+
+          doc.text(
+            formatCurrency(sumOfTenantSharesFromCostItems),
+            kostenanteilX + kostenanteilWidth,
+            startY,
+            { align: 'right' }
+          );
+
+          startY += 8; // Space after the sum line
+          doc.setFont("helvetica", "normal");
+          sumsDrawnSuccessfully = true;
+        }
+      }
+
+      if (!sumsDrawnSuccessfully) {
+        // Fallback if table column data isn't available or valid
+        console.error("Could not retrieve valid column data to draw 'Betriebskosten gesamt' sums accurately. Using fallback.");
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.text("Betriebskosten gesamt:", 20, startY); // Fallback position
