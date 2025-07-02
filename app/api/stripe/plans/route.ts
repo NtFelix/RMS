@@ -15,6 +15,7 @@ interface Plan {
   limit_wohnungen?: number;
   priceId: string; // Stripe Price ID (same as id)
   position?: number; // Used for sorting products
+  description?: string; // Added for Stripe Product description
 }
 
 export async function GET() {
@@ -80,6 +81,7 @@ export async function GET() {
         features: featuresArray,
         limit_wohnungen: limitWohnungen,
         position: position, // This position is used to sort products
+        description: product.description || undefined, // Add product description
       };
     });
 
