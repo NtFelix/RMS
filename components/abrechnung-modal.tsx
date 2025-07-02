@@ -403,28 +403,40 @@ export function AbrechnungModal({
       startY += 10;
 
       // 4. Costs Table
-      const tableColumn = ["Leistungsart", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler Einheit /qm etc.", "Kosten Pro qm", "Kostenanteil In €"];
       const tableRows: any[][] = [];
 
       singleTenantData.costItems.forEach(item => {
         const row = [
           item.costName,
-          item.calculationType,
-          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
-          formatCurrency(item.tenantShare)
+          formatCurrency(item.totalCostForItem), // Gesamtkosten in €
+          item.calculationType, // Verteiler Einheit /qm etc.
+          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-', // Kosten Pro qm
+          formatCurrency(item.tenantShare) // Kostenanteil In €
         ];
         tableRows.push(row);
       });
 
-      // Add water cost row
+      // Note: The separate "Wasserkosten" row that was here has been removed.
+      // If "Digitaler Wasserzähler" or similar is a cost item, it will be included above.
+      // Specific tenant water consumption costs will be detailed separately below this table.
+
+      // Calculate sums for the footer row
+      const sumOfTotalCostForItem = singleTenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
+      // This sum represents the tenant's share of the general operating costs listed in costItems.
+      // It does NOT yet include their specific water consumption costs, which are handled by singleTenantData.waterCost.tenantShare
+      const sumOfTenantSharesFromCostItems = singleTenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
+
+      // Add summary row for "Betriebskosten gesamt"
       tableRows.push([
-        "Wasserkosten",
-        singleTenantData.waterCost.calculationType,
-        "-",
-        formatCurrency(singleTenantData.waterCost.tenantShare)
+        { content: "Betriebskosten gesamt", styles: { fontStyle: 'bold' } },
+        { content: formatCurrency(sumOfTotalCostForItem), styles: { fontStyle: 'bold', halign: 'right' } },
+        { content: "", styles: { fontStyle: 'bold' } }, // Empty for "Verteiler"
+        { content: "", styles: { fontStyle: 'bold' } }, // Empty for "Kosten Pro qm"
+        { content: formatCurrency(sumOfTenantSharesFromCostItems), styles: { fontStyle: 'bold', halign: 'right' } }
       ]);
 
-      (doc as any).autoTable({ // Changed to (doc as any).autoTable
+      (doc as any).autoTable({
         head: [tableColumn],
         body: tableRows,
         startY: startY,
@@ -432,11 +444,13 @@ export function AbrechnungModal({
         headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
         styles: { fontSize: 9, cellPadding: 1.5 },
         columnStyles: {
-          3: { halign: 'right' } // Align "Kostenanteil In €" to the right
+          1: { halign: 'right' }, // Gesamtkosten in €
+          3: { halign: 'right' }, // Kosten Pro qm
+          4: { halign: 'right' }  // Kostenanteil In €
         }
       });
 
-      const finalY = (doc as any).lastAutoTable?.finalY; // Changed to (doc as any) and optional chaining
+      const finalY = (doc as any).lastAutoTable?.finalY;
       if (typeof finalY === 'number') {
         startY = finalY + 10;
       } else {
@@ -449,10 +463,42 @@ export function AbrechnungModal({
       // Table Footer (Betriebskosten gesamt) - displayed as a line of text for simplicity
       doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.text("Betriebskosten gesamt:", 20, startY);
-      doc.text(formatCurrency(singleTenantData.totalTenantCost), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
-      startY += 8;
+      // The "Betriebskosten gesamt" text line that was here is now effectively part of the table footer.
+      // We can remove it or repurpose startY adjustment if needed.
+      // startY was already incremented by autoTable's finalY + 10.
+      // Let's ensure startY is sufficient for the next section.
+      // If finalY was not available, startY was incremented by a default, so it should be safe.
+      doc.setFont("helvetica", "normal"); // Reset font style
+
+      // 4.5. Wasserzähler Data Section
+      startY += 5; // Add a bit of space before this new section
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("Wasserverbrauch", 20, startY);
+      startY += 7;
+
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
+
+      const totalBuildingWaterCost = nebenkostenItem.wasserkosten || 0;
+      const totalBuildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
+      const pricePerCubicMeter = totalBuildingWaterConsumption > 0 ? totalBuildingWaterCost / totalBuildingWaterConsumption : 0;
+
+      // Display tenant's water consumption details
+      // TODO: For future enhancement, if data for old/new meters (Verbrauch alter WZ / neuer WZ) is available,
+      // it should be presented here as per the user's original example image.
+      // Current data provides total consumption for the period.
+      doc.text(`Gesamter Wasserverbrauch Mieter:`, 20, startY);
+      doc.text(`${singleTenantData.waterCost.consumption?.toFixed(2) || '0.00'} m³`, 100, startY);
+      startY += 6;
+
+      doc.text(`Kosten pro m³:`, 20, startY);
+      doc.text(formatCurrency(pricePerCubicMeter), 100, startY);
+      startY += 6;
+
+      doc.text(`Kostenanteil Wasserverbrauch Mieter:`, 20, startY);
+      doc.text(formatCurrency(singleTenantData.waterCost.tenantShare), 100, startY, { align: "left" }); // Explicitly left, though default
+      startY += 10;
 
 
       // 5. Final Summary
