@@ -524,9 +524,26 @@ export function AbrechnungModal({
         doc.setFontSize(9); // Consistent font size with primary attempt
         doc.setFont("helvetica", "bold");
 
-        // Fallback: Draw label and both sums on a single line, left-aligned at x=20
-        const fallbackSumTextLine = `Betriebskosten gesamt: ${formatCurrency(sumOfTotalCostForItem)} ${formatCurrency(sumOfTenantSharesFromCostItems)}`;
-        doc.text(fallbackSumTextLine, 20, startY);
+        // Fallback: Attempt to mimic multi-column layout with estimated positions
+        const fallbackLabelX = 20;
+        const fallbackSum1X = 125; // Estimated end position for 'Gesamtkosten in €' column sum
+        const fallbackSum2X = doc.internal.pageSize.getWidth() - 20; // Right margin for 'Kostenanteil In €' sum
+
+        doc.text("Betriebskosten gesamt:", fallbackLabelX, startY, { align: 'left' });
+
+        doc.text(
+          formatCurrency(sumOfTotalCostForItem),
+          fallbackSum1X,
+          startY,
+          { align: 'right' }
+        );
+
+        doc.text(
+          formatCurrency(sumOfTenantSharesFromCostItems),
+          fallbackSum2X,
+          startY,
+          { align: 'right' }
+        );
 
         startY += 8;
         doc.setFont("helvetica", "normal");
