@@ -56,8 +56,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          path: |
-            ./.lighthouseci/mobile
-            ./.lighthouseci/desktop
+          path: ./.lighthouseci/
 
       
