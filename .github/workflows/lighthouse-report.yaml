@@ -49,10 +49,10 @@ jobs:
       - name: Run Lighthouse CI
         run: |
           npm install -g @lhci/cli@0.13.0
-          lhci autorun --config=lighthouserc.js --collect.settings.emulatedFormFactor=mobile
-          lhci autorun --config=lighthouserc.js --collect.settings.emulatedFormFactor=desktop
-      
-      - name: Upload Lighthouse results
+          lhci autorun --config=lighthouserc.js --collect.url=http://localhost:3000 --collect.settings.emulatedFormFactor=mobile --upload.outputDir=./.lighthouseci/mobile
+          lhci autorun --config=lighthouserc.js --collect.url=http://localhost:3000 --collect.settings.emulatedFormFactor=desktop --upload.outputDir=./.lighthouseci/desktop
+
+      - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
