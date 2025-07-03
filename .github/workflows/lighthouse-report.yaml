@@ -34,11 +34,6 @@ jobs:
         run: npm run build
         # oder: yarn build
 
-      # 5) Next.js statisch exportieren
-      - name: Export Static Site
-        run: npm run export
-        # Standardmäßig schreibt `next export` in `out/`
-
       # 6) Statischen Server starten
       - name: Serve static files
         run: |
