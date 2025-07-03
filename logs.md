@@ -1,369 +1,776 @@
-2025-07-03T12:05:38.8941406Z Current runner version: '2.325.0'
-2025-07-03T12:05:38.8966043Z ##[group]Runner Image Provisioner
-2025-07-03T12:05:38.8966931Z Hosted Compute Agent
-2025-07-03T12:05:38.8967606Z Version: 20250701.355
-2025-07-03T12:05:38.8968736Z Commit: 27f92e4f1798a901b7712d341e6f04a2ff90d227
-2025-07-03T12:05:38.8969474Z Build Date: 2025-07-01T18:23:27Z
-2025-07-03T12:05:38.8970119Z ##[endgroup]
-2025-07-03T12:05:38.8970736Z ##[group]Operating System
-2025-07-03T12:05:38.8971311Z Ubuntu
-2025-07-03T12:05:38.8971872Z 24.04.2
-2025-07-03T12:05:38.8972351Z LTS
-2025-07-03T12:05:38.8972847Z ##[endgroup]
-2025-07-03T12:05:38.8973415Z ##[group]Runner Image
-2025-07-03T12:05:38.8974000Z Image: ubuntu-24.04
-2025-07-03T12:05:38.8974540Z Version: 20250622.1.0
-2025-07-03T12:05:38.8975546Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20250622.1/images/ubuntu/Ubuntu2404-Readme.md
-2025-07-03T12:05:38.8977234Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20250622.1
-2025-07-03T12:05:38.8978412Z ##[endgroup]
-2025-07-03T12:05:38.8979572Z ##[group]GITHUB_TOKEN Permissions
-2025-07-03T12:05:38.8981646Z Contents: read
-2025-07-03T12:05:38.8982304Z Metadata: read
-2025-07-03T12:05:38.8982849Z Packages: read
-2025-07-03T12:05:38.8983347Z ##[endgroup]
-2025-07-03T12:05:38.8985454Z Secret source: Actions
-2025-07-03T12:05:38.8986144Z Prepare workflow directory
-2025-07-03T12:05:38.9374764Z Prepare all required actions
-2025-07-03T12:05:38.9412557Z Getting action download info
-2025-07-03T12:05:39.3784177Z ##[group]Download immutable action package 'actions/checkout@v4'
-2025-07-03T12:05:39.3785961Z Version: 4.2.2
-2025-07-03T12:05:39.3787791Z Digest: sha256:ccb2698953eaebd21c7bf6268a94f9c26518a7e38e27e0b83c1fe1ad049819b1
-2025-07-03T12:05:39.3790244Z Source commit SHA: 11bd71901bbe5b1630ceea73d27597364c9af683
-2025-07-03T12:05:39.3791655Z ##[endgroup]
-2025-07-03T12:05:39.4716610Z ##[group]Download immutable action package 'actions/setup-node@v4'
-2025-07-03T12:05:39.4717545Z Version: 4.4.0
-2025-07-03T12:05:39.4719159Z Digest: sha256:9427cefe82346e992fb5b949e3569b39d537ae41aa3086483b14eceebfc16bc1
-2025-07-03T12:05:39.4720339Z Source commit SHA: 49933ea5288caeca8642d1e84afbd3f7d6820020
-2025-07-03T12:05:39.4721161Z ##[endgroup]
-2025-07-03T12:05:39.5695183Z ##[group]Download immutable action package 'actions/upload-artifact@v4'
-2025-07-03T12:05:39.5696147Z Version: 4.6.2
-2025-07-03T12:05:39.5696976Z Digest: sha256:290722aa3281d5caf23d0acdc3dbeb3424786a1a01a9cc97e72f147225e37c38
-2025-07-03T12:05:39.5698465Z Source commit SHA: ea165f8d65b6e75b540449e92b4886f43607fa02
-2025-07-03T12:05:39.5699343Z ##[endgroup]
-2025-07-03T12:05:39.7746450Z Complete job name: build-and-lighthouse
-2025-07-03T12:05:39.8443111Z ##[group]Run actions/checkout@v4
-2025-07-03T12:05:39.8444039Z with:
-2025-07-03T12:05:39.8444498Z   repository: NtFelix/RMS
-2025-07-03T12:05:39.8445287Z   token: ***
-2025-07-03T12:05:39.8445772Z   ssh-strict: true
-2025-07-03T12:05:39.8446240Z   ssh-user: git
-2025-07-03T12:05:39.8446728Z   persist-credentials: true
-2025-07-03T12:05:39.8447287Z   clean: true
-2025-07-03T12:05:39.8447771Z   sparse-checkout-cone-mode: true
-2025-07-03T12:05:39.8448738Z   fetch-depth: 1
-2025-07-03T12:05:39.8449222Z   fetch-tags: false
-2025-07-03T12:05:39.8449706Z   show-progress: true
-2025-07-03T12:05:39.8450199Z   lfs: false
-2025-07-03T12:05:39.8450661Z   submodules: false
-2025-07-03T12:05:39.8451170Z   set-safe-directory: true
-2025-07-03T12:05:39.8452002Z ##[endgroup]
-2025-07-03T12:05:39.9761305Z Syncing repository: NtFelix/RMS
-2025-07-03T12:05:39.9763893Z ##[group]Getting Git version info
-2025-07-03T12:05:39.9765022Z Working directory is '/home/runner/work/RMS/RMS'
-2025-07-03T12:05:39.9766761Z [command]/usr/bin/git version
-2025-07-03T12:05:39.9769117Z git version 2.49.0
-2025-07-03T12:05:39.9771807Z ##[endgroup]
-2025-07-03T12:05:39.9778787Z Temporarily overriding HOME='/home/runner/work/_temp/2ac1545f-7bc2-4bd7-ab97-9858e223b465' before making global git config changes
-2025-07-03T12:05:39.9781315Z Adding repository directory to the temporary git global config as a safe directory
-2025-07-03T12:05:39.9783657Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RMS/RMS
-2025-07-03T12:05:39.9806186Z Deleting the contents of '/home/runner/work/RMS/RMS'
-2025-07-03T12:05:39.9811709Z ##[group]Initializing the repository
-2025-07-03T12:05:39.9816856Z [command]/usr/bin/git init /home/runner/work/RMS/RMS
-2025-07-03T12:05:39.9885809Z hint: Using 'master' as the name for the initial branch. This default branch name
-2025-07-03T12:05:39.9888245Z hint: is subject to change. To configure the initial branch name to use in all
-2025-07-03T12:05:39.9890361Z hint: of your new repositories, which will suppress this warning, call:
-2025-07-03T12:05:39.9892021Z hint:
-2025-07-03T12:05:39.9892998Z hint: 	git config --global init.defaultBranch <name>
-2025-07-03T12:05:39.9894396Z hint:
-2025-07-03T12:05:39.9895843Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
-2025-07-03T12:05:39.9898268Z hint: 'development'. The just-created branch can be renamed via this command:
-2025-07-03T12:05:39.9900091Z hint:
-2025-07-03T12:05:39.9903050Z hint: 	git branch -m <name>
-2025-07-03T12:05:39.9906438Z Initialized empty Git repository in /home/runner/work/RMS/RMS/.git/
-2025-07-03T12:05:39.9915006Z [command]/usr/bin/git remote add origin https://github.com/NtFelix/RMS
-2025-07-03T12:05:39.9948569Z ##[endgroup]
-2025-07-03T12:05:39.9950539Z ##[group]Disabling automatic garbage collection
-2025-07-03T12:05:39.9952571Z [command]/usr/bin/git config --local gc.auto 0
-2025-07-03T12:05:39.9986214Z ##[endgroup]
-2025-07-03T12:05:39.9987661Z ##[group]Setting up auth
-2025-07-03T12:05:39.9993487Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
-2025-07-03T12:05:40.0027863Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
-2025-07-03T12:05:40.1252591Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
-2025-07-03T12:05:40.1255182Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
-2025-07-03T12:05:40.1257818Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
-2025-07-03T12:05:40.1259926Z ##[endgroup]
-2025-07-03T12:05:40.1260682Z ##[group]Fetching the repository
-2025-07-03T12:05:40.1262401Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +1b19bdff26e8f602324e4046b6445c9c8c142469:refs/remotes/pull/247/merge
-2025-07-03T12:05:40.8437563Z From https://github.com/NtFelix/RMS
-2025-07-03T12:05:40.8439900Z  * [new ref]         1b19bdff26e8f602324e4046b6445c9c8c142469 -> pull/247/merge
-2025-07-03T12:05:40.8466985Z ##[endgroup]
-2025-07-03T12:05:40.8468911Z ##[group]Determining the checkout info
-2025-07-03T12:05:40.8470699Z ##[endgroup]
-2025-07-03T12:05:40.8475339Z [command]/usr/bin/git sparse-checkout disable
-2025-07-03T12:05:40.8517810Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
-2025-07-03T12:05:40.8547605Z ##[group]Checking out the ref
-2025-07-03T12:05:40.8550256Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/247/merge
-2025-07-03T12:05:40.8733567Z Note: switching to 'refs/remotes/pull/247/merge'.
-2025-07-03T12:05:40.8734814Z 
-2025-07-03T12:05:40.8736027Z You are in 'detached HEAD' state. You can look around, make experimental
-2025-07-03T12:05:40.8739732Z changes and commit them, and you can discard any commits you make in this
-2025-07-03T12:05:40.8741801Z state without impacting any branches by switching back to a branch.
-2025-07-03T12:05:40.8743113Z 
-2025-07-03T12:05:40.8745850Z If you want to create a new branch to retain commits you create, you may
-2025-07-03T12:05:40.8747925Z do so (now or later) by using -c with the switch command. Example:
-2025-07-03T12:05:40.8749709Z 
-2025-07-03T12:05:40.8750311Z   git switch -c <new-branch-name>
-2025-07-03T12:05:40.8751228Z 
-2025-07-03T12:05:40.8751795Z Or undo this operation with:
-2025-07-03T12:05:40.8752683Z 
-2025-07-03T12:05:40.8753191Z   git switch -
-2025-07-03T12:05:40.8753825Z 
-2025-07-03T12:05:40.8754713Z Turn off this advice by setting config variable advice.detachedHead to false
-2025-07-03T12:05:40.8755926Z 
-2025-07-03T12:05:40.8757308Z HEAD is now at 1b19bdf Merge 4273d4d5b7f66ebf40f58df60cac5661de788ec4 into 7d95cb47c526dc38811778a0145d370107811599
-2025-07-03T12:05:40.8762200Z ##[endgroup]
-2025-07-03T12:05:40.8789743Z [command]/usr/bin/git log -1 --format=%H
-2025-07-03T12:05:40.8811446Z 1b19bdff26e8f602324e4046b6445c9c8c142469
-2025-07-03T12:05:40.9093333Z ##[group]Run actions/setup-node@v4
-2025-07-03T12:05:40.9094251Z with:
-2025-07-03T12:05:40.9094964Z   node-version: 20
-2025-07-03T12:05:40.9095724Z   always-auth: false
-2025-07-03T12:05:40.9096495Z   check-latest: false
-2025-07-03T12:05:40.9097423Z   token: ***
-2025-07-03T12:05:40.9098308Z ##[endgroup]
-2025-07-03T12:05:41.0894135Z Found in cache @ /opt/hostedtoolcache/node/20.19.2/x64
-2025-07-03T12:05:41.0900310Z ##[group]Environment details
-2025-07-03T12:05:41.5122289Z node: v20.19.2
-2025-07-03T12:05:41.5130152Z npm: 10.8.2
-2025-07-03T12:05:41.5132164Z yarn: 1.22.22
-2025-07-03T12:05:41.5133904Z ##[endgroup]
-2025-07-03T12:05:41.5345018Z ##[group]Run if [ -f yarn.lock ]; then
-2025-07-03T12:05:41.5346186Z [36;1mif [ -f yarn.lock ]; then[0m
-2025-07-03T12:05:41.5347262Z [36;1m  yarn install --frozen-lockfile[0m
-2025-07-03T12:05:41.5348668Z [36;1melse[0m
-2025-07-03T12:05:41.5349363Z [36;1m  npm ci[0m
-2025-07-03T12:05:41.5350089Z [36;1mfi[0m
-2025-07-03T12:05:41.5447635Z shell: /usr/bin/bash -e {0}
-2025-07-03T12:05:41.5448725Z ##[endgroup]
-2025-07-03T12:05:47.0922564Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
-2025-07-03T12:05:48.4386708Z npm warn deprecated critters@0.0.25: Ownership of Critters has moved to the Nuxt team, who will be maintaining the project going forward. If you'd like to keep using Critters, please switch to the actively-maintained fork at https://github.com/danielroe/beasties
-2025-07-03T12:05:48.7520608Z npm warn deprecated @supabase/auth-helpers-shared@0.7.0: This package is now deprecated - please use the @supabase/ssr package instead.
-2025-07-03T12:05:49.7193899Z npm warn deprecated @supabase/auth-helpers-nextjs@0.10.0: This package is now deprecated - please use the @supabase/ssr package instead.
-2025-07-03T12:05:50.3275916Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-2025-07-03T12:05:50.4357179Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-2025-07-03T12:05:50.5706444Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-2025-07-03T12:05:50.6940682Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-2025-07-03T12:06:03.8218817Z 
-2025-07-03T12:06:03.8219623Z added 783 packages, and audited 784 packages in 22s
-2025-07-03T12:06:03.8220343Z 
-2025-07-03T12:06:03.8238907Z 103 packages are looking for funding
-2025-07-03T12:06:03.8239493Z   run `npm fund` for details
-2025-07-03T12:06:03.8240107Z 
-2025-07-03T12:06:03.8240477Z 1 low severity vulnerability
-2025-07-03T12:06:03.8240780Z 
-2025-07-03T12:06:03.8240990Z To address all issues, run:
-2025-07-03T12:06:03.8241422Z   npm audit fix
-2025-07-03T12:06:03.8241640Z 
-2025-07-03T12:06:03.8241873Z Run `npm audit` for details.
-2025-07-03T12:06:03.8651595Z ##[group]Run npm run build
-2025-07-03T12:06:03.8651883Z [36;1mnpm run build[0m
-2025-07-03T12:06:03.8711343Z shell: /usr/bin/bash -e {0}
-2025-07-03T12:06:03.8711610Z ##[endgroup]
-2025-07-03T12:06:03.9881425Z 
-2025-07-03T12:06:03.9887879Z > my-v0-project@0.1.0 build
-2025-07-03T12:06:03.9888716Z > next build
-2025-07-03T12:06:03.9889212Z 
-2025-07-03T12:06:04.5740901Z ⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
-2025-07-03T12:06:04.5912261Z Attention: Next.js now collects completely anonymous telemetry regarding usage.
-2025-07-03T12:06:04.5917097Z This information is used to shape Next.js' roadmap and prioritize features.
-2025-07-03T12:06:04.5918881Z You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-2025-07-03T12:06:04.5919885Z https://nextjs.org/telemetry
-2025-07-03T12:06:04.5920227Z 
-2025-07-03T12:06:04.6476471Z    ▲ Next.js 15.3.1
-2025-07-03T12:06:04.6476932Z    - Environments: .env
-2025-07-03T12:06:04.6477468Z    - Experiments (use with caution):
-2025-07-03T12:06:04.6478274Z      ✓ optimizeCss
-2025-07-03T12:06:04.6478846Z      ✓ scrollRestoration
-2025-07-03T12:06:04.6479130Z 
-2025-07-03T12:06:04.7062729Z    Creating an optimized production build ...
-2025-07-03T12:06:51.7794312Z  ✓ Compiled successfully in 46s
-2025-07-03T12:06:51.7831900Z    Linting and checking validity of types ...
-2025-07-03T12:07:05.4491268Z    Collecting page data ...
-2025-07-03T12:07:06.1212063Z  ⚠ Using edge runtime on a page currently disables static generation for that page
-2025-07-03T12:07:08.7887744Z    Generating static pages (0/14) ...
-2025-07-03T12:07:09.9172863Z    Generating static pages (3/14) 
-2025-07-03T12:07:09.9182843Z    Generating static pages (6/14) 
-2025-07-03T12:07:10.1291110Z    Generating static pages (10/14) 
-2025-07-03T12:07:10.1296480Z  ✓ Generating static pages (14/14)
-2025-07-03T12:07:10.4679887Z    Finalizing page optimization ...
-2025-07-03T12:07:10.4681442Z    Collecting build traces ...
-2025-07-03T12:07:18.4071624Z 
-2025-07-03T12:07:18.4187228Z Route (app)                                 Size  First Load JS
-2025-07-03T12:07:18.4188428Z ┌ ○ /                                      201 B         241 kB
-2025-07-03T12:07:18.4189200Z ├ ○ /_not-found                            990 B         103 kB
-2025-07-03T12:07:18.4189949Z ├ ƒ /api/export                            210 B         102 kB
-2025-07-03T12:07:18.4190732Z ├ ƒ /api/finanzen                          210 B         102 kB
-2025-07-03T12:07:18.4191572Z ├ ƒ /api/finanzen/[id]                     210 B         102 kB
-2025-07-03T12:07:18.4192371Z ├ ƒ /api/haeuser                           210 B         102 kB
-2025-07-03T12:07:18.4193142Z ├ ƒ /api/mieter                            210 B         102 kB
-2025-07-03T12:07:18.4194228Z ├ ƒ /api/stripe/cancel-subscription        210 B         102 kB
-2025-07-03T12:07:18.4195206Z ├ ƒ /api/stripe/checkout-session           210 B         102 kB
-2025-07-03T12:07:18.4209745Z ├ ƒ /api/stripe/customer-portal            210 B         102 kB
-2025-07-03T12:07:18.4210874Z ├ ƒ /api/stripe/plans                      210 B         102 kB
-2025-07-03T12:07:18.4211972Z ├ ƒ /api/stripe/verify-session             210 B         102 kB
-2025-07-03T12:07:18.4213115Z ├ ƒ /api/stripe/webhook                    210 B         102 kB
-2025-07-03T12:07:18.4214230Z ├ ƒ /api/todos                             210 B         102 kB
-2025-07-03T12:07:18.4215226Z ├ ƒ /api/todos/[id]                        210 B         102 kB
-2025-07-03T12:07:18.4216258Z ├ ƒ /api/user/profile                      210 B         102 kB
-2025-07-03T12:07:18.4217342Z ├ ƒ /api/wohnungen                         210 B         102 kB
-2025-07-03T12:07:18.4218585Z ├ ƒ /auth/callback                         210 B         102 kB
-2025-07-03T12:07:18.4219631Z ├ ○ /auth/login                          4.21 kB         156 kB
-2025-07-03T12:07:18.4220936Z ├ ○ /auth/register                        4.3 kB         156 kB
-2025-07-03T12:07:18.4222119Z ├ ○ /auth/reset-password                 4.09 kB         155 kB
-2025-07-03T12:07:18.4223204Z ├ ○ /auth/update-password                4.07 kB         152 kB
-2025-07-03T12:07:18.4224304Z ├ ƒ /betriebskosten                        20 kB         208 kB
-2025-07-03T12:07:18.4225404Z ├ ○ /checkout/cancel                     1.91 kB         114 kB
-2025-07-03T12:07:18.4226876Z ├ ○ /checkout/success                    3.41 kB         116 kB
-2025-07-03T12:07:18.4227936Z ├ ƒ /finanzen                            17.7 kB         273 kB
-2025-07-03T12:07:18.4232678Z ├ ƒ /haeuser                             8.99 kB         148 kB
-2025-07-03T12:07:18.4233284Z ├ ƒ /home                                5.24 kB         292 kB
-2025-07-03T12:07:18.4233851Z ├ ○ /landing                               202 B         241 kB
-2025-07-03T12:07:18.4234431Z ├ ƒ /mieter                              5.95 kB         231 kB
-2025-07-03T12:07:18.4235058Z ├ ○ /modern/documentation                4.98 kB         231 kB
-2025-07-03T12:07:18.4235701Z ├ ○ /subscription                        6.93 kB         116 kB
-2025-07-03T12:07:18.4236463Z ├ ○ /subscription-locked                 3.54 kB         117 kB
-2025-07-03T12:07:18.4237229Z ├ ƒ /todos                                9.9 kB         161 kB
-2025-07-03T12:07:18.4238145Z └ ƒ /wohnungen                           8.03 kB         186 kB
-2025-07-03T12:07:18.4238859Z + First Load JS shared by all             102 kB
-2025-07-03T12:07:18.4239595Z   ├ chunks/1317-4be7c8f2dda6a784.js      46.4 kB
-2025-07-03T12:07:18.4240225Z   ├ chunks/4bd1b696-86b7f7b384ded616.js  53.2 kB
-2025-07-03T12:07:18.4240772Z   └ other shared chunks (total)          2.24 kB
-2025-07-03T12:07:18.4241013Z 
-2025-07-03T12:07:18.4241021Z 
-2025-07-03T12:07:18.4241280Z ƒ Middleware                             66.2 kB
-2025-07-03T12:07:18.4241530Z 
-2025-07-03T12:07:18.4241787Z ○  (Static)   prerendered as static content
-2025-07-03T12:07:18.4242256Z ƒ  (Dynamic)  server-rendered on demand
-2025-07-03T12:07:18.4242495Z 
-2025-07-03T12:07:18.5147156Z ##[group]Run npm run start &
-2025-07-03T12:07:18.5147438Z [36;1mnpm run start &[0m
-2025-07-03T12:07:18.5147711Z [36;1mnpx wait-on http://localhost:3000[0m
-2025-07-03T12:07:18.5203674Z shell: /usr/bin/bash -e {0}
-2025-07-03T12:07:18.5203905Z ##[endgroup]
-2025-07-03T12:07:18.7258948Z 
-2025-07-03T12:07:18.7259771Z > my-v0-project@0.1.0 start
-2025-07-03T12:07:18.7260258Z > next start
-2025-07-03T12:07:18.7260450Z 
-2025-07-03T12:07:19.3049633Z    ▲ Next.js 15.3.1
-2025-07-03T12:07:19.3119030Z    - Local:        http://localhost:3000
-2025-07-03T12:07:19.3154753Z    - Network:      http://10.1.0.8:3000
-2025-07-03T12:07:19.3155124Z 
-2025-07-03T12:07:19.3155423Z  ✓ Starting...
-2025-07-03T12:07:19.5820311Z  ✓ Ready in 694ms
-2025-07-03T12:07:25.0706813Z ##[group]Run curl -v http://localhost:3000
-2025-07-03T12:07:25.0707168Z [36;1mcurl -v http://localhost:3000[0m
-2025-07-03T12:07:25.0762553Z shell: /usr/bin/bash -e {0}
-2025-07-03T12:07:25.0762780Z ##[endgroup]
-2025-07-03T12:07:25.0885196Z * Host localhost:3000 was resolved.
-2025-07-03T12:07:25.0889863Z * IPv6: ::1
-2025-07-03T12:07:25.0892744Z * IPv4: 127.0.0.1
-2025-07-03T12:07:25.0895435Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-2025-07-03T12:07:25.0898530Z                                  Dload  Upload   Total   Spent    Left  Speed
-2025-07-03T12:07:25.0901084Z 
-2025-07-03T12:07:25.0903625Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying [::1]:3000...
-2025-07-03T12:07:25.0906479Z * Connected to localhost (::1) port 3000
-2025-07-03T12:07:25.0909322Z > GET / HTTP/1.1
-2025-07-03T12:07:25.0911147Z > Host: localhost:3000
-2025-07-03T12:07:25.0913576Z > User-Agent: curl/8.5.0
-2025-07-03T12:07:25.0914003Z > Accept: */*
-2025-07-03T12:07:25.0920134Z > 
-2025-07-03T12:07:25.0957741Z < HTTP/1.1 200 OK
-2025-07-03T12:07:25.0958943Z < x-nextjs-cache: HIT
-2025-07-03T12:07:25.0963055Z < x-nextjs-prerender: 1
-2025-07-03T12:07:25.1005237Z <!DOCTYPE html><html lang="en" class="light"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" href="/_next/static/media/e4af272ccee01ff0-s.p.woff2" as="font" crossorigin="" type="font/woff2"/><link rel="stylesheet" href="/_next/static/css/931b179cff3131dc.css" data-precedence="next"/><link rel="stylesheet" href="/_next/static/css/00b150651e02fe92.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-ca9acd3851de0c1b.js"/><script src="/_next/static/chunks/4bd1b696-86b7f7b384ded616.js" async=""></script><script src="/_next/static/chunks/1317-4be7c8f2dda6a784.js" async=""></script><script src="/_next/static/chunks/main-app-f4cd7c1a45bda5de.js" async=""></script><script src="/_next/static/chunks/5003-eb6688ed92ae5649.js" async=""></script><script src="/_next/static/chunks/7656-5fbc13fcafab7e1b.js" async=""></script><script src="/_next/static/chunks/9008-1899bf1833fa1f85.js" async=""></script><script src="/_next/static/chunks/app/layout-7acbe93f72d9b19e.js" async=""></script><script src="/_next/static/chunks/9696-135e09501a621d21.js" async=""></script><script src="/_next/static/chunks/9591-ef7e06ea0468694a.js" async=""></script><script src="/_next/static/chunks/6874-179161e2a141c8e0.js" async=""></script><script src="/_next/static/chunks/6073-10422efccbdef0ab.js" async=""></script><script src="/_next/static/chunks/5887-f2be0e4ed0da62ad.js" async=""></script><script src="/_next/static/chunks/8911-d3c510c708d07156.js" async=""></script><script src="/_next/static/chunks/2729-174c1028499685be.js" async=""></script><script src="/_next/static/chunks/app/page-e90106d2a4799220.js" async=""></script><meta name="next-size-adjust" content=""/><title>Property Management Dashboard</title><meta name="description" content="Modern dashboard for property management"/><meta name="generator" content="v0.dev"/><script>document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))</script><script src="/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body class="__className_e8ce0c"><script>((e,t,r,n,o,a,i,s)=>{let u=document.documentElement,l=["light","dark"];function c(t){var r;(Array.isArray(e)?e:[e]).forEach(e=>{let r="class"===e,n=r&&a?o.map(e=>a[e]||e):o;r?(u.classList.remove(...n),u.classList.add(a&&a[t]?a[t]:t)):u.setAttribute(e,t)}),r=t,s&&l.includes(r)&&(u.style.colorScheme=r)}if(n)c(n);else try{let e=localStorage.getItem(t)||r,n=i&&"system"===e?window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light":e;c(n)}catch(e){}})("class","theme","light",null,["light","dark"],null,false,true)</script><!--$!--><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template><!--/$--><nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent" style="transform:translateY(-100px)"><div class="max-w-7xl mx-auto px-4"><div class="flex items-center justify-between h-16"><a class="flex items-center space-x-2 group" href="/"><div class="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"><span class="text-primary-foreground font-bold text-sm">DS</span></div><span class="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">Design<span class="text-primary">Studio</span></span></a><div class="hidden md:flex items-center space-x-8"><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Home<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Features<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Services<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Testimonials<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Contact<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><a class="flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group " href="/modern/documentation"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text w-4 h-4"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>Documentation<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></a><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-md px-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-in w-4 h-4 mr-2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></svg>Login</button></div><button class="md:hidden text-foreground hover:text-foreground/80 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu w-6 h-6"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg></button></div></div></nav><main class="min-h-screen overflow-x-hidden"><div id="hero"><section class="jsx-23b26afbf4771c3e relative min-h-screen flex items-center justify-center overflow-hidden bg-background text-foreground"><div class="jsx-23b26afbf4771c3e absolute inset-0 opacity-20 dark:opacity-10"><div class="jsx-23b26afbf4771c3e absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-background"></div><div style="background-image:radial-gradient(circle at 25% 25%, hsl(var(--primary-foreground)/0.05) 0%, transparent 50%),
-2025-07-03T12:07:25.1026684Z < x-nextjs-stale-time: 4294967294
-2025-07-03T12:07:25.1026958Z < X-Powered-By: Next.js
-2025-07-03T12:07:25.1027225Z < Cache-Control: s-maxage=31536000
-2025-07-03T12:07:25.1027490Z < ETag: "bse46oadwr1jes"
-2025-07-03T12:07:25.1027760Z < Content-Type: text/html; charset=utf-8
-2025-07-03T12:07:25.1028275Z < Content-Length: 71815
-2025-07-03T12:07:25.1028517Z < Vary: Accept-Encoding
-2025-07-03T12:07:25.1028782Z < Date: Thu, 03 Jul 2025 12:07:25 GMT
-2025-07-03T12:07:25.1029046Z < Connection: keep-alive
-2025-07-03T12:07:25.1029276Z < Keep-Alive: timeout=5
-2025-07-03T12:07:25.1029471Z < 
-2025-07-03T12:07:25.1029648Z { [65189 bytes data]
-2025-07-03T12:07:25.1029765Z 
-2025-07-03T12:07:25.1030007Z 100 71815  100 71815    0     0  9271k      0 --:--:-- --:--:-- --:--:--  9.7M
-2025-07-03T12:07:25.1030399Z * Connection #0 to host localhost left intact
-2025-07-03T12:07:25.1030948Z                            radial-gradient(circle at 75% 75%, hsl(var(--secondary-foreground)/0.05) 0%, transparent 50%),
-2025-07-03T12:07:25.1054459Z                            linear-gradient(45deg, transparent 40%, hsl(var(--muted-foreground)/0.03) 50%, transparent 60%)" class="jsx-23b26afbf4771c3e absolute inset-0"></div></div><div class="absolute top-20 left-20 w-4 h-4 bg-primary/50 rounded-full"></div><div class="absolute top-40 right-32 w-6 h-6 border-2 border-secondary/50 rotate-45"></div><div class="absolute bottom-32 left-32 w-8 h-8 bg-gradient-to-r from-primary/60 to-secondary/60 rounded-full"></div><div class="jsx-23b26afbf4771c3e relative z-10 text-center max-w-6xl mx-auto px-4"><div class="mb-6" style="opacity:0;transform:translateY(30px)"><div class="jsx-23b26afbf4771c3e inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-4 h-4 text-primary"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></svg><span class="jsx-23b26afbf4771c3e text-sm text-muted-foreground">Welcome to RMS</span></div></div><h1 class="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight" style="opacity:0;transform:translateY(30px)">Design Beyond<br class="jsx-23b26afbf4771c3e"/><span class="jsx-23b26afbf4771c3e bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">Imagination</span></h1><p class="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed" style="opacity:0;transform:translateY(30px)">Manage your properties with our comprehensive real estate management system. Track finances, manage tenants, and organize tasks all in one place.</p><div class="flex flex-col sm:flex-row gap-4 justify-center items-center" style="opacity:0;transform:translateY(30px)"><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 h-11 rounded-md relative bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-4 text-lg font-semibold group overflow-hidden"><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md p-[2px] bg-gradient-to-r from-primary via-secondary to-primary animate-pulse"><div class="jsx-23b26afbf4771c3e absolute inset-[2px] bg-primary rounded-md group-hover:bg-primary/90 transition-all duration-300"></div></div><div class="jsx-23b26afbf4771c3e absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md overflow-hidden"><div style="background:conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)));animation:spin 2s linear infinite" class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div><div style="background:conic-gradient(from 180deg, hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)));animation:spin 3s linear infinite reverse" class="jsx-23b26afbf4771c3e absolute inset-[1px] rounded-md opacity-0 group-hover:opacity-80 transition-opacity duration-700 delay-200"></div><div class="jsx-23b26afbf4771c3e absolute inset-[2px] rounded-md bg-primary group-hover:bg-primary/90 transition-all duration-300"><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md bg-gradient-to-r from-primary-foreground/20 via-transparent to-secondary-foreground/20 opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-500"></div></div><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md opacity-0 group-hover:opacity-60 transition-opacity duration-800"><div style="animation-delay:0s" class="jsx-23b26afbf4771c3e absolute top-1 left-1 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"></div><div style="animation-delay:0.5s" class="jsx-23b26afbf4771c3e absolute top-3 right-2 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"></div><div style="animation-delay:1s" class="jsx-23b26afbf4771c3e absolute bottom-2 left-3 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"></div><div style="animation-delay:1.5s" class="jsx-23b26afbf4771c3e absolute bottom-1 right-1 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"></div></div></div><span class="jsx-23b26afbf4771c3e relative z-10 flex items-center">Get Started<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span></button><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 h-11 rounded-md px-8 py-4 text-lg font-semibold group text-foreground hover:text-accent-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap mr-2 w-5 h-5 group-hover:scale-110 transition-transform"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></svg>Watch Demo</button></div></div><div class="jsx-23b26afbf4771c3e absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent"></div></section></div><div id="features"><section class="py-32 px-4 relative bg-background text-foreground"><div class="absolute inset-0 opacity-5 dark:opacity-3"><div class="w-full h-full" style="background-image:linear-gradient(30deg, transparent 40%, hsl(var(--primary)/0.05) 50%, transparent 60%),
-2025-07-03T12:07:25.1158261Z                            linear-gradient(-30deg, transparent 40%, hsl(var(--secondary)/0.05) 50%, transparent 60%);background-size:100px 100px"></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="text-center mb-20" style="opacity:0;transform:translateY(30px)"><h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">Powerful Features</h2><p class="text-xl text-muted-foreground max-w-3xl mx-auto">Discover the advanced capabilities that make our platform the choice of industry leaders</p></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle, hsl(var(--muted-foreground)/0.3) 1px, transparent 1px);background-size:20px 20px"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette w-8 h-8 text-primary-foreground"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Advanced Design System</h3><p class="text-muted-foreground leading-relaxed">Comprehensive design tokens and components for consistent, scalable interfaces.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:linear-gradient(hsl(var(--muted-foreground)/0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--muted-foreground)/0.3) 1px, transparent 1px);background-size:20px 20px"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers w-8 h-8 text-primary-foreground"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Modular Architecture</h3><p class="text-muted-foreground leading-relaxed">Flexible, component-based structure that adapts to any project requirement.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,50 Q25,30 50,50 T100,50 V100 H0 Z" fill="hsl(var(--muted-foreground)/0.3)"></path></svg></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap w-8 h-8 text-primary-foreground"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Lightning Performance</h3><p class="text-muted-foreground leading-relaxed">Optimized for speed with advanced caching and minimal resource usage.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:url(&quot;data:image/svg+xml,%3Csvg width=&#x27;60&#x27; height=&#x27;60&#x27; viewBox=&#x27;0 0 60 60&#x27; xmlns=&#x27;http://www.w3.org/2000/svg&#x27;%3E%3Cg fill=&#x27;none&#x27; fillRule=&#x27;evenodd&#x27;%3E%3Cg fill=&#x27;hsl(var(--muted-foreground))&#x27; fillOpacity=&#x27;0.3&#x27;%3E%3Cpath d=&#x27;M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z&#x27;/%3E%3C/g%3E%3C/g%3E%3C/svg%3E&quot;)"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield w-8 h-8 text-primary-foreground"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Enterprise Security</h3><p class="text-muted-foreground leading-relaxed">Bank-level security protocols protecting your data and user privacy.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle at 50% 50%, hsl(var(--muted-foreground)/0.3) 2px, transparent 2px), radial-gradient(circle at 25% 75%, hsl(var(--muted-foreground)/0.2) 1px, transparent 1px);background-size:30px 30px, 15px 15px"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-globe w-8 h-8 text-primary-foreground"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Global Accessibility</h3><p class="text-muted-foreground leading-relaxed">WCAG compliant design ensuring inclusive experiences for all users.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:repeating-linear-gradient(45deg, transparent, transparent 10px, hsl(var(--muted-foreground)/0.3) 10px, hsl(var(--muted-foreground)/0.3) 11px)"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smartphone w-8 h-8 text-primary-foreground"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Mobile-First Approach</h3><p class="text-muted-foreground leading-relaxed">Responsive design that delivers exceptional experiences across all devices.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div></div></div></section></div><div id="services"><section class="py-32 px-4 relative bg-background text-foreground"><div class="absolute inset-0 overflow-hidden"><div class="absolute top-20 left-10 w-64 h-64 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-3xl opacity-50 dark:opacity-30"></div><div class="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-tl from-secondary/10 to-primary/10 rounded-full blur-3xl opacity-50 dark:opacity-30"></div><div class="absolute inset-0 opacity-5 dark:opacity-3"><div class="w-full h-full" style="background-image:conic-gradient(from 0deg at 50% 50%, transparent 0deg, hsl(var(--muted-foreground)/0.1) 90deg, transparent 180deg, hsl(var(--muted-foreground)/0.05) 270deg, transparent 360deg);background-size:200px 200px"></div></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="text-center mb-20" style="opacity:0;transform:translateY(30px)"><h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">Our Services</h2><p class="text-xl text-muted-foreground max-w-3xl mx-auto">Comprehensive solutions tailored to elevate your digital presence</p></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-12"><div class="group" style="opacity:0;transform:translateX(-30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle, hsl(var(--muted-foreground)/0.5) 2px, transparent 2px);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code w-8 h-8 text-primary-foreground"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></div><h3 class="text-3xl font-bold text-card-foreground">Development</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Custom web applications built with cutting-edge technologies and best practices.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">React &amp; Next.js</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">TypeScript</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">API Integration</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Performance Optimization</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateX(30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:linear-gradient(45deg, hsl(var(--muted-foreground)/0.5) 25%, transparent 25%);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-paintbrush w-8 h-8 text-primary-foreground"><path d="m14.622 17.897-10.68-2.913"></path><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"></path><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"></path></svg></div><h3 class="text-3xl font-bold text-card-foreground">Design</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Beautiful, user-centered designs that convert visitors into customers.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">UI/UX Design</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Brand Identity</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Prototyping</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Design Systems</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateX(-30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle, hsl(var(--muted-foreground)/0.5) 2px, transparent 2px);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rocket w-8 h-8 text-primary-foreground"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg></div><h3 class="text-3xl font-bold text-card-foreground">Strategy</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Data-driven strategies to accelerate your digital transformation journey.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Digital Strategy</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Market Analysis</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Growth Planning</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">ROI Optimization</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateX(30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:linear-gradient(45deg, hsl(var(--muted-foreground)/0.5) 25%, transparent 25%);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users w-8 h-8 text-primary-foreground"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div><h3 class="text-3xl font-bold text-card-foreground">Consulting</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Expert guidance to navigate complex technical challenges and decisions.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Technical Audit</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Architecture Review</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Team Training</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Best Practices</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div></div></div></section></div><div id="pricing"><section class="py-16 px-4 text-foreground"> <div class="max-w-6xl mx-auto text-center"> <p>Loading plans...</p></div></section></div><div id="testimonials"><section class="py-32 px-4 relative bg-background text-foreground"><div class="absolute inset-0"><div class="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background"></div><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle at 20% 80%, hsl(var(--primary)/0.1) 0%, transparent 50%),
-2025-07-03T12:07:25.1230571Z                              radial-gradient(circle at 80% 20%, hsl(var(--secondary)/0.1) 0%, transparent 50%),
-2025-07-03T12:07:25.1299259Z                              radial-gradient(circle at 40% 40%, hsl(var(--muted)/0.05) 0%, transparent 50%)"></div></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="text-center mb-20" style="opacity:0;transform:translateY(30px)"><h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">Client Success Stories</h2><p class="text-xl text-muted-foreground max-w-3xl mx-auto">Discover how we&#x27;ve helped businesses transform their digital presence</p></div><div class="grid grid-cols-1 md:grid-cols-3 gap-8"><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote w-full h-full text-muted-foreground"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></svg></div><div class="p-8 relative z-10"><div class="flex items-center gap-1 mb-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg></div><blockquote class="text-foreground/90 text-lg leading-relaxed mb-8 italic">&quot;<!-- -->The attention to detail and innovative approach exceeded our expectations. Our conversion rate increased by 340% within the first month.<!-- -->&quot;</blockquote><div class="flex items-center gap-4"><div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center"><span class="text-primary-foreground font-semibold text-lg">SC</span></div><div><div class="font-semibold text-card-foreground">Sarah Chen</div><div class="text-muted-foreground text-sm">CEO, TechFlow</div></div></div></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote w-full h-full text-muted-foreground"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></svg></div><div class="p-8 relative z-10"><div class="flex items-center gap-1 mb-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg></div><blockquote class="text-foreground/90 text-lg leading-relaxed mb-8 italic">&quot;<!-- -->Exceptional technical expertise combined with creative vision. The team delivered a solution that perfectly aligned with our complex requirements.<!-- -->&quot;</blockquote><div class="flex items-center gap-4"><div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center"><span class="text-primary-foreground font-semibold text-lg">MR</span></div><div><div class="font-semibold text-card-foreground">Marcus Rodriguez</div><div class="text-muted-foreground text-sm">CTO, InnovateLab</div></div></div></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote w-full h-full text-muted-foreground"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></svg></div><div class="p-8 relative z-10"><div class="flex items-center gap-1 mb-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg></div><blockquote class="text-foreground/90 text-lg leading-relaxed mb-8 italic">&quot;<!-- -->Working with this team was transformative. They didn&#x27;t just build our platform—they elevated our entire brand experience.<!-- -->&quot;</blockquote><div class="flex items-center gap-4"><div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center"><span class="text-primary-foreground font-semibold text-lg">EW</span></div><div><div class="font-semibold text-card-foreground">Emily Watson</div><div class="text-muted-foreground text-sm">Founder, DesignCo</div></div></div></div></div></div></div></div></section></div><div id="cta"><section class="py-32 px-4 relative overflow-hidden bg-background text-foreground"><div class="absolute inset-0"><div class="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background"></div><div class="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"></div><div class="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-l from-secondary/20 to-primary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"></div><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, hsl(var(--muted-foreground)/0.2) 60deg, transparent 120deg);background-size:100px 100px"></div></div></div><div class="max-w-4xl mx-auto text-center relative z-10"><div class="mb-8" style="opacity:0;transform:translateY(30px)"><div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm mb-8"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-4 h-4 text-primary"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></svg><span class="text-sm text-muted-foreground">Ready to Transform?</span></div></div><h2 class="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight" style="opacity:0;transform:translateY(30px)">Let&#x27;s Build Something<br/><span class="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">Extraordinary</span></h2><p class="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed" style="opacity:0;transform:translateY(30px)">Join hundreds of forward-thinking companies who trust us to bring their vision to life with cutting-edge design and development.</p><div class="flex flex-col sm:flex-row gap-4 justify-center items-center" style="opacity:0;transform:translateY(30px)"><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-11 rounded-md px-12 py-6 text-xl font-semibold group">Get Started with Property Management<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 h-11 rounded-md px-12 py-6 text-xl font-semibold text-foreground hover:text-accent-foreground">Schedule Consultation</button></div></div></section></div><footer class="relative py-20 px-4 border-t border-border bg-background text-foreground"><div class="absolute inset-0 opacity-5 dark:opacity-3"><div class="w-full h-full" style="background-image:linear-gradient(0deg, transparent 24%, hsl(var(--muted-foreground)/0.1) 25%, hsl(var(--muted-foreground)/0.1) 26%, transparent 27%, transparent 74%, hsl(var(--muted-foreground)/0.05) 75%, hsl(var(--muted-foreground)/0.05) 76%, transparent 77%, transparent),
-2025-07-03T12:07:25.1391421Z                            linear-gradient(90deg, transparent 24%, hsl(var(--muted-foreground)/0.1) 25%, hsl(var(--muted-foreground)/0.1) 26%, transparent 27%, transparent 74%, hsl(var(--muted-foreground)/0.05) 75%, hsl(var(--muted-foreground)/0.05) 76%, transparent 77%, transparent);background-size:50px 50px"></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 mb-16"><div class="lg:col-span-2"><div style="opacity:0;transform:translateY(20px)"><h3 class="text-2xl font-bold text-foreground mb-4">Design<span class="text-primary">Studio</span></h3><p class="text-muted-foreground leading-relaxed mb-6">Crafting exceptional digital experiences with cutting-edge technology and innovative design patterns.</p><div class="flex gap-4"><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="GitHub" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-github w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path><path d="M9 18c-4.51 2-5-2-7-2"></path></svg></a><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="Twitter" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-twitter w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg></a><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="LinkedIn" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-linkedin w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect width="4" height="12" x="2" y="9"></rect><circle cx="4" cy="4" r="2"></circle></svg></a><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="Email" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mail w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg></a></div></div></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Company</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">About</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Careers</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Press</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">News</a></li></ul></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Services</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Design</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Development</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Consulting</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Support</a></li></ul></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Resources</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Blog</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Documentation</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Help Center</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Community</a></li></ul></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Legal</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Privacy</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Terms</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Security</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Cookies</a></li></ul></div></div><div class="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4" style="opacity:0;transform:translateY(20px)"><p class="text-muted-foreground text-sm">© 2024 DesignStudio. All rights reserved.</p><p class="text-muted-foreground/70 text-sm">Built with passion and cutting-edge technology</p></div></div></footer></main><!--$--><!--/$--><!--$--><!--/$--><div role="region" aria-label="Notifications (F8)" tabindex="-1" style="pointer-events:none"><ol tabindex="-1" class="sm:flex-col fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col p-4 sm:top-0 sm:right-0 sm:bottom-auto md:max-w-[420px]"></ol></div><!--$!--><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template><!--/$--><script src="/_next/static/chunks/webpack-ca9acd3851de0c1b.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0])</script><script>self.__next_f.push([1,"1:\"$Sreact.fragment\"\n2:I[47780,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"ThemeProvider\"]\n3:I[87555,[],\"\"]\n4:I[31295,[],\"\"]\n5:I[65038,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"Toaster\"]\n6:I[31828,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"Analytics\"]\n7:I[48031,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"SpeedInsights\"]\n8:I[2729,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9696\",\"static/chunks/9696-135e09501a621d21.js\",\"9591\",\"static/chunks/9591-ef7e06ea0468694a.js\",\"6874\",\"static/chunks/6874-179161e2a141c8e0.js\",\"6073\",\"static/chunks/6073-10422efccbdef0ab.js\",\"5887\",\"static/chunks/5887-f2be0e4ed0da62ad.js\",\"8911\",\"static/chunks/8911-d3c510c708d07156.js\",\"2729\",\"static/chunks/2729-174c1028499685be.js\",\"8974\",\"static/chunks/app/page-e90106d2a4799220.js\"],\"default\"]\n9:I[59665,[],\"MetadataBoundary\"]\nb:I[59665,[],\"OutletBoundary\"]\ne:I[74911,[],\"AsyncMetadataOutlet\"]\n10:I[59665,[],\"ViewportBoundary\"]\n12:I[26614,[],\"\"]\n:HL[\"/_next/static/media/e4af272ccee01ff0-s.p.woff2\",\"font\",{\"crossOrigin\":\"\",\"type\":\"font/woff2\"}]\n:HL[\"/_next/static/css/931b179cff3131dc.css\",\"style\"]\n:HL[\"/_next/static/css/00b150651e02fe92.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"0:{\"P\":null,\"b\":\"6ftxlMhBCqVfPmawHMkhK\",\"p\":\"\",\"c\":[\"\",\"\"],\"i\":false,\"f\":[[[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],[\"\",[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/931b179cff3131dc.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}],[\"$\",\"link\",\"1\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/00b150651e02fe92.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]],[\"$\",\"html\",null,{\"lang\":\"en\",\"suppressHydrationWarning\":true,\"className\":\"light\",\"children\":[\"$\",\"body\",null,{\"className\":\"__className_e8ce0c\",\"children\":[\"$\",\"$L2\",null,{\"attribute\":\"class\",\"defaultTheme\":\"light\",\"enableSystem\":false,\"children\":[[\"$\",\"$L3\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L4\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":404}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],[]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}],[\"$\",\"$L5\",null,{}],[\"$\",\"$L6\",null,{}],[\"$\",\"$L7\",null,{}]]}]}]}]]}],{\"children\":[\"__PAGE__\",[\"$\",\"$1\",\"c\",{\"children\":[[\"$\",\"$L8\",null,{}],[\"$\",\"$L9\",null,{\"children\":\"$La\"}],null,[\"$\",\"$Lb\",null,{\"children\":[\"$Lc\",\"$Ld\",[\"$\",\"$Le\",null,{\"promise\":\"$@f\"}]]}]]}],{},null,false]},null,false],[\"$\",\"$1\",\"h\",{\"children\":[null,[\"$\",\"$1\",\"Sq6Q_cTiCJ4WVAtOchWnZ\",{\"children\":[[\"$\",\"$L10\",null,{\"children\":\"$L11\"}],[\"$\",\"meta\",null,{\"name\":\"next-size-adjust\",\"content\":\"\"}]]}],null]}],false]],\"m\":\"$undefined\",\"G\":[\"$12\",\"$undefined\"],\"s\":false,\"S\":true}\n"])</script><script>self.__next_f.push([1,"13:\"$Sreact.suspense\"\n14:I[74911,[],\"AsyncMetadata\"]\na:[\"$\",\"$13\",null,{\"fallback\":null,\"children\":[\"$\",\"$L14\",null,{\"promise\":\"$@15\"}]}]\n"])</script><script>self.__next_f.push([1,"d:null\n"])</script><script>self.__next_f.push([1,"11:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}]]\nc:null\n"])</script><script>self.__next_f.push([1,"15:{\"metadata\":[[\"$\",\"title\",\"0\",{\"children\":\"Property Management Dashboard\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"Modern dashboard for property management\"}],[\"$\",\"meta\",\"2\",{\"name\":\"generator\",\"content\":\"v0.dev\"}]],\"error\":null,\"digest\":\"$undefined\"}\nf:{\"metadata\":\"$15:metadata\",\"error\":null,\"digest\":\"$undefined\"}\n"])</script></body></html>
-2025-07-03T12:07:25.1445298Z ##[group]Run npm install -g @lhci/cli@0.13.0
-2025-07-03T12:07:25.1445620Z [36;1mnpm install -g @lhci/cli@0.13.0[0m
-2025-07-03T12:07:25.1446179Z [36;1mlhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/mobile --settings.emulatedFormFactor=mobile --no-upload[0m
-2025-07-03T12:07:25.1447026Z [36;1mlhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/desktop --settings.emulatedFormFactor=desktop --no-upload[0m
-2025-07-03T12:07:25.1502137Z shell: /usr/bin/bash -e {0}
-2025-07-03T12:07:25.1502372Z ##[endgroup]
-2025-07-03T12:07:40.8162948Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
-2025-07-03T12:07:40.9407004Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
-2025-07-03T12:07:42.0602892Z npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
-2025-07-03T12:07:42.0807889Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
-2025-07-03T12:07:43.8293658Z 
-2025-07-03T12:07:43.8294113Z added 345 packages in 19s
-2025-07-03T12:07:43.8295135Z 
-2025-07-03T12:07:43.8295401Z 30 packages are looking for funding
-2025-07-03T12:07:43.8295870Z   run `npm fund` for details
-2025-07-03T12:07:44.1726301Z Running Lighthouse 3 time(s) on http://localhost:3000
-2025-07-03T12:07:57.7494364Z Run #1...done.
-2025-07-03T12:08:09.9966236Z Run #2...done.
-2025-07-03T12:08:22.1289605Z Run #3...done.
-2025-07-03T12:08:22.1290473Z Done running Lighthouse!
-2025-07-03T12:08:22.4494911Z Running Lighthouse 3 time(s) on http://localhost:3000
-2025-07-03T12:08:35.1062840Z Run #1...done.
-2025-07-03T12:08:47.3073188Z Run #2...done.
-2025-07-03T12:08:59.5659806Z Run #3...done.
-2025-07-03T12:08:59.5660709Z Done running Lighthouse!
-2025-07-03T12:08:59.5787057Z ##[group]Run ls -la ./.lighthouseci
-2025-07-03T12:08:59.5787572Z [36;1mls -la ./.lighthouseci[0m
-2025-07-03T12:08:59.5853945Z shell: /usr/bin/bash -e {0}
-2025-07-03T12:08:59.5854231Z ##[endgroup]
-2025-07-03T12:08:59.5953858Z total 3204
-2025-07-03T12:08:59.5954903Z drwxr-xr-x  2 runner docker   4096 Jul  3 12:08 .
-2025-07-03T12:08:59.5956131Z drwxr-xr-x 16 runner docker   4096 Jul  3 12:07 ..
-2025-07-03T12:08:59.5957147Z -rw-r--r--  1 runner docker 590445 Jul  3 12:08 lhr-1751544514561.html
-2025-07-03T12:08:59.5958656Z -rw-r--r--  1 runner docker 496057 Jul  3 12:08 lhr-1751544514561.json
-2025-07-03T12:08:59.5960895Z -rw-r--r--  1 runner docker 589596 Jul  3 12:08 lhr-1751544527297.html
-2025-07-03T12:08:59.5961777Z -rw-r--r--  1 runner docker 495295 Jul  3 12:08 lhr-1751544527297.json
-2025-07-03T12:08:59.5962643Z -rw-r--r--  1 runner docker 590505 Jul  3 12:08 lhr-1751544539556.html
-2025-07-03T12:08:59.5963557Z -rw-r--r--  1 runner docker 496232 Jul  3 12:08 lhr-1751544539556.json
-2025-07-03T12:08:59.6072965Z ##[group]Run actions/upload-artifact@v4
-2025-07-03T12:08:59.6073417Z with:
-2025-07-03T12:08:59.6073726Z   name: lighthouse-reports
-2025-07-03T12:08:59.6074095Z   path: ./.lighthouseci/
-2025-07-03T12:08:59.6074463Z   if-no-files-found: warn
-2025-07-03T12:08:59.6074821Z   compression-level: 6
-2025-07-03T12:08:59.6075166Z   overwrite: false
-2025-07-03T12:08:59.6075494Z   include-hidden-files: false
-2025-07-03T12:08:59.6075854Z ##[endgroup]
-2025-07-03T12:08:59.8374253Z ##[warning]No files were found with the provided path: ./.lighthouseci/. No artifacts will be uploaded.
-2025-07-03T12:08:59.8480000Z Post job cleanup.
-2025-07-03T12:09:00.0167633Z Post job cleanup.
-2025-07-03T12:09:00.1127868Z [command]/usr/bin/git version
-2025-07-03T12:09:00.1169780Z git version 2.49.0
-2025-07-03T12:09:00.1218912Z Temporarily overriding HOME='/home/runner/work/_temp/30ba86a4-3903-4a3a-bc34-9b3def922387' before making global git config changes
-2025-07-03T12:09:00.1221424Z Adding repository directory to the temporary git global config as a safe directory
-2025-07-03T12:09:00.1236104Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RMS/RMS
-2025-07-03T12:09:00.1273112Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
-2025-07-03T12:09:00.1308854Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
-2025-07-03T12:09:00.1623214Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
-2025-07-03T12:09:00.1667906Z http.https://github.com/.extraheader
-2025-07-03T12:09:00.1695407Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
-2025-07-03T12:09:00.1760744Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
-2025-07-03T12:09:00.2258413Z Cleaning up orphan processes
-2025-07-03T12:09:00.2502299Z Terminate orphan process: pid (2080) (npm run start)
-2025-07-03T12:09:00.2534871Z Terminate orphan process: pid (2102) (sh)
-2025-07-03T12:09:00.2569250Z Terminate orphan process: pid (2103) (next-server (v15.3.1))
+2025-07-03T12:18:44.0890658Z ##[debug]Starting: build-and-lighthouse
+2025-07-03T12:18:44.0917973Z ##[debug]Cleaning runner temp folder: /home/runner/work/_temp
+2025-07-03T12:18:44.1060123Z ##[debug]Starting: Set up job
+2025-07-03T12:18:44.1061786Z Current runner version: '2.325.0'
+2025-07-03T12:18:44.1092238Z ##[group]Runner Image Provisioner
+2025-07-03T12:18:44.1093428Z Hosted Compute Agent
+2025-07-03T12:18:44.1094550Z Version: 20250701.355
+2025-07-03T12:18:44.1095528Z Commit: 27f92e4f1798a901b7712d341e6f04a2ff90d227
+2025-07-03T12:18:44.1096812Z Build Date: 2025-07-01T18:23:27Z
+2025-07-03T12:18:44.1097749Z ##[endgroup]
+2025-07-03T12:18:44.1098549Z ##[group]Operating System
+2025-07-03T12:18:44.1099612Z Ubuntu
+2025-07-03T12:18:44.1100313Z 24.04.2
+2025-07-03T12:18:44.1101007Z LTS
+2025-07-03T12:18:44.1101808Z ##[endgroup]
+2025-07-03T12:18:44.1102679Z ##[group]Runner Image
+2025-07-03T12:18:44.1103694Z Image: ubuntu-24.04
+2025-07-03T12:18:44.1104819Z Version: 20250622.1.0
+2025-07-03T12:18:44.1106622Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20250622.1/images/ubuntu/Ubuntu2404-Readme.md
+2025-07-03T12:18:44.1109522Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20250622.1
+2025-07-03T12:18:44.1111005Z ##[endgroup]
+2025-07-03T12:18:44.1112858Z ##[group]GITHUB_TOKEN Permissions
+2025-07-03T12:18:44.1115691Z Contents: read
+2025-07-03T12:18:44.1116528Z Metadata: read
+2025-07-03T12:18:44.1117419Z Packages: read
+2025-07-03T12:18:44.1118239Z ##[endgroup]
+2025-07-03T12:18:44.1122648Z Secret source: Actions
+2025-07-03T12:18:44.1124412Z ##[debug]Primary repository: NtFelix/RMS
+2025-07-03T12:18:44.1125523Z Prepare workflow directory
+2025-07-03T12:18:44.1217403Z ##[debug]Creating pipeline directory: '/home/runner/work/RMS'
+2025-07-03T12:18:44.1222295Z ##[debug]Creating workspace directory: '/home/runner/work/RMS/RMS'
+2025-07-03T12:18:44.1225041Z ##[debug]Update context data
+2025-07-03T12:18:44.1230217Z ##[debug]Evaluating job-level environment variables
+2025-07-03T12:18:44.1560051Z ##[debug]Evaluating job container
+2025-07-03T12:18:44.1564946Z ##[debug]Evaluating job service containers
+2025-07-03T12:18:44.1568517Z ##[debug]Evaluating job defaults
+2025-07-03T12:18:44.1606349Z Prepare all required actions
+2025-07-03T12:18:44.1661220Z Getting action download info
+2025-07-03T12:18:44.4619777Z ##[group]Download immutable action package 'actions/checkout@v4'
+2025-07-03T12:18:44.4620822Z Version: 4.2.2
+2025-07-03T12:18:44.4621798Z Digest: sha256:ccb2698953eaebd21c7bf6268a94f9c26518a7e38e27e0b83c1fe1ad049819b1
+2025-07-03T12:18:44.4623239Z Source commit SHA: 11bd71901bbe5b1630ceea73d27597364c9af683
+2025-07-03T12:18:44.4623957Z ##[endgroup]
+2025-07-03T12:18:44.4645127Z ##[debug]Copied action archive '/opt/actionarchivecache/actions_checkout/11bd71901bbe5b1630ceea73d27597364c9af683.tar.gz' to '/home/runner/work/_actions/_temp_7d830c06-3f0f-4ddb-b72e-5037433a117c/68cabeb4-7439-4386-bff7-e05e38a8cb09.tar.gz'
+2025-07-03T12:18:44.5196925Z ##[debug]Unwrap 'actions-checkout-11bd719' to '/home/runner/work/_actions/actions/checkout/v4'
+2025-07-03T12:18:44.5346262Z ##[debug]Archive '/home/runner/work/_actions/_temp_7d830c06-3f0f-4ddb-b72e-5037433a117c/68cabeb4-7439-4386-bff7-e05e38a8cb09.tar.gz' has been unzipped into '/home/runner/work/_actions/actions/checkout/v4'.
+2025-07-03T12:18:44.5449641Z ##[group]Download immutable action package 'actions/setup-node@v4'
+2025-07-03T12:18:44.5450437Z Version: 4.4.0
+2025-07-03T12:18:44.5451252Z Digest: sha256:9427cefe82346e992fb5b949e3569b39d537ae41aa3086483b14eceebfc16bc1
+2025-07-03T12:18:44.5452274Z Source commit SHA: 49933ea5288caeca8642d1e84afbd3f7d6820020
+2025-07-03T12:18:44.5452960Z ##[endgroup]
+2025-07-03T12:18:44.5481953Z ##[debug]Copied action archive '/opt/actionarchivecache/actions_setup-node/49933ea5288caeca8642d1e84afbd3f7d6820020.tar.gz' to '/home/runner/work/_actions/_temp_0cf0e82d-d7bd-4f53-8408-c37f44adab4a/b6875cd1-e839-4d4a-a6e2-cac136337aba.tar.gz'
+2025-07-03T12:18:44.6188283Z ##[debug]Unwrap 'actions-setup-node-49933ea' to '/home/runner/work/_actions/actions/setup-node/v4'
+2025-07-03T12:18:44.6454664Z ##[debug]Archive '/home/runner/work/_actions/_temp_0cf0e82d-d7bd-4f53-8408-c37f44adab4a/b6875cd1-e839-4d4a-a6e2-cac136337aba.tar.gz' has been unzipped into '/home/runner/work/_actions/actions/setup-node/v4'.
+2025-07-03T12:18:44.6604981Z ##[group]Download immutable action package 'actions/upload-artifact@v4'
+2025-07-03T12:18:44.6606254Z Version: 4.6.2
+2025-07-03T12:18:44.6607400Z Digest: sha256:290722aa3281d5caf23d0acdc3dbeb3424786a1a01a9cc97e72f147225e37c38
+2025-07-03T12:18:44.6609062Z Source commit SHA: ea165f8d65b6e75b540449e92b4886f43607fa02
+2025-07-03T12:18:44.6610218Z ##[endgroup]
+2025-07-03T12:18:44.6649987Z ##[debug]Copied action archive '/opt/actionarchivecache/actions_upload-artifact/ea165f8d65b6e75b540449e92b4886f43607fa02.tar.gz' to '/home/runner/work/_actions/_temp_df83ceaa-438e-4fde-8a82-be235aa58d97/5acfebba-fca1-4b1a-bc4c-2cb373710e28.tar.gz'
+2025-07-03T12:18:44.7410008Z ##[debug]Unwrap 'actions-upload-artifact-ea165f8' to '/home/runner/work/_actions/actions/upload-artifact/v4'
+2025-07-03T12:18:44.7753048Z ##[debug]Archive '/home/runner/work/_actions/_temp_df83ceaa-438e-4fde-8a82-be235aa58d97/5acfebba-fca1-4b1a-bc4c-2cb373710e28.tar.gz' has been unzipped into '/home/runner/work/_actions/actions/upload-artifact/v4'.
+2025-07-03T12:18:44.7837676Z ##[debug]action.yml for action: '/home/runner/work/_actions/actions/checkout/v4/action.yml'.
+2025-07-03T12:18:44.8420222Z ##[debug]action.yml for action: '/home/runner/work/_actions/actions/setup-node/v4/action.yml'.
+2025-07-03T12:18:44.8479225Z ##[debug]action.yml for action: '/home/runner/work/_actions/actions/upload-artifact/v4/action.yml'.
+2025-07-03T12:18:44.8593529Z ##[debug]Set step '__actions_checkout' display name to: 'Checkout Repository'
+2025-07-03T12:18:44.8597073Z ##[debug]Set step '__actions_setup-node' display name to: 'Setup Node.js'
+2025-07-03T12:18:44.8598815Z ##[debug]Set step '__run' display name to: 'Install Dependencies'
+2025-07-03T12:18:44.8600364Z ##[debug]Set step '__run_2' display name to: 'Build Next.js'
+2025-07-03T12:18:44.8602003Z ##[debug]Set step '__run_3' display name to: 'Serve Built Next.js Application'
+2025-07-03T12:18:44.8603672Z ##[debug]Set step '__run_4' display name to: 'Check Application Availability'
+2025-07-03T12:18:44.8605528Z ##[debug]Set step '__run_5' display name to: 'Run Lighthouse CI'
+2025-07-03T12:18:44.8607054Z ##[debug]Set step '__run_6' display name to: 'List Lighthouse reports'
+2025-07-03T12:18:44.8608732Z ##[debug]Set step '__actions_upload-artifact' display name to: 'Upload Lighthouse reports'
+2025-07-03T12:18:44.8609625Z Complete job name: build-and-lighthouse
+2025-07-03T12:18:44.8651967Z ##[debug]Collect running processes for tracking orphan processes.
+2025-07-03T12:18:44.8838374Z ##[debug]Finishing: Set up job
+2025-07-03T12:18:44.8952951Z ##[debug]Evaluating condition for step: 'Checkout Repository'
+2025-07-03T12:18:44.8990608Z ##[debug]Evaluating: success()
+2025-07-03T12:18:44.8996189Z ##[debug]Evaluating success:
+2025-07-03T12:18:44.9011567Z ##[debug]=> true
+2025-07-03T12:18:44.9017728Z ##[debug]Result: true
+2025-07-03T12:18:44.9040420Z ##[debug]Starting: Checkout Repository
+2025-07-03T12:18:44.9108684Z ##[debug]Register post job cleanup for action: actions/checkout@v4
+2025-07-03T12:18:44.9190101Z ##[debug]Loading inputs
+2025-07-03T12:18:44.9198187Z ##[debug]Evaluating: github.repository
+2025-07-03T12:18:44.9199337Z ##[debug]Evaluating Index:
+2025-07-03T12:18:44.9201200Z ##[debug]..Evaluating github:
+2025-07-03T12:18:44.9202528Z ##[debug]..=> Object
+2025-07-03T12:18:44.9208193Z ##[debug]..Evaluating String:
+2025-07-03T12:18:44.9209140Z ##[debug]..=> 'repository'
+2025-07-03T12:18:44.9213063Z ##[debug]=> 'NtFelix/RMS'
+2025-07-03T12:18:44.9214720Z ##[debug]Result: 'NtFelix/RMS'
+2025-07-03T12:18:44.9217826Z ##[debug]Evaluating: github.token
+2025-07-03T12:18:44.9218358Z ##[debug]Evaluating Index:
+2025-07-03T12:18:44.9218832Z ##[debug]..Evaluating github:
+2025-07-03T12:18:44.9219329Z ##[debug]..=> Object
+2025-07-03T12:18:44.9219779Z ##[debug]..Evaluating String:
+2025-07-03T12:18:44.9220473Z ##[debug]..=> 'token'
+2025-07-03T12:18:44.9221237Z ##[debug]=> '***'
+2025-07-03T12:18:44.9221816Z ##[debug]Result: '***'
+2025-07-03T12:18:44.9237413Z ##[debug]Loading env
+2025-07-03T12:18:44.9296161Z ##[group]Run actions/checkout@v4
+2025-07-03T12:18:44.9296864Z with:
+2025-07-03T12:18:44.9297255Z   repository: NtFelix/RMS
+2025-07-03T12:18:44.9297875Z   token: ***
+2025-07-03T12:18:44.9298254Z   ssh-strict: true
+2025-07-03T12:18:44.9298647Z   ssh-user: git
+2025-07-03T12:18:44.9299040Z   persist-credentials: true
+2025-07-03T12:18:44.9299495Z   clean: true
+2025-07-03T12:18:44.9299903Z   sparse-checkout-cone-mode: true
+2025-07-03T12:18:44.9300388Z   fetch-depth: 1
+2025-07-03T12:18:44.9300789Z   fetch-tags: false
+2025-07-03T12:18:44.9301208Z   show-progress: true
+2025-07-03T12:18:44.9301621Z   lfs: false
+2025-07-03T12:18:44.9301984Z   submodules: false
+2025-07-03T12:18:44.9302395Z   set-safe-directory: true
+2025-07-03T12:18:44.9303032Z ##[endgroup]
+2025-07-03T12:18:45.0311301Z ##[debug]GITHUB_WORKSPACE = '/home/runner/work/RMS/RMS'
+2025-07-03T12:18:45.0323425Z ##[debug]qualified repository = 'NtFelix/RMS'
+2025-07-03T12:18:45.0325422Z ##[debug]ref = 'refs/pull/247/merge'
+2025-07-03T12:18:45.0327113Z ##[debug]commit = 'a8b0fff17c09c8108ac1a823817b9e01830f6054'
+2025-07-03T12:18:45.0328863Z ##[debug]clean = true
+2025-07-03T12:18:45.0330177Z ##[debug]filter = undefined
+2025-07-03T12:18:45.0331565Z ##[debug]fetch depth = 1
+2025-07-03T12:18:45.0332974Z ##[debug]fetch tags = false
+2025-07-03T12:18:45.0334628Z ##[debug]show progress = true
+2025-07-03T12:18:45.0336067Z ##[debug]lfs = false
+2025-07-03T12:18:45.0337432Z ##[debug]submodules = false
+2025-07-03T12:18:45.0339188Z ##[debug]recursive submodules = false
+2025-07-03T12:18:45.0340768Z ##[debug]GitHub Host URL = 
+2025-07-03T12:18:45.0343280Z ::add-matcher::/home/runner/work/_actions/actions/checkout/v4/dist/problem-matcher.json
+2025-07-03T12:18:45.0460453Z ##[debug]Added matchers: 'checkout-git'. Problem matchers scan action output for known warning or error strings and report these inline.
+2025-07-03T12:18:45.0467503Z Syncing repository: NtFelix/RMS
+2025-07-03T12:18:45.0469175Z ::group::Getting Git version info
+2025-07-03T12:18:45.0470904Z ##[group]Getting Git version info
+2025-07-03T12:18:45.0471531Z Working directory is '/home/runner/work/RMS/RMS'
+2025-07-03T12:18:45.0473856Z ##[debug]Getting git version
+2025-07-03T12:18:45.0475360Z [command]/usr/bin/git version
+2025-07-03T12:18:45.0485957Z git version 2.49.0
+2025-07-03T12:18:45.0509205Z ##[debug]0
+2025-07-03T12:18:45.0512269Z ##[debug]git version 2.49.0
+2025-07-03T12:18:45.0513113Z ##[debug]
+2025-07-03T12:18:45.0514975Z ##[debug]Set git useragent to: git/2.49.0 (github-actions-checkout)
+2025-07-03T12:18:45.0516830Z ::endgroup::
+2025-07-03T12:18:45.0518070Z ##[endgroup]
+2025-07-03T12:18:45.0523779Z ::add-mask::***
+2025-07-03T12:18:45.0530488Z Temporarily overriding HOME='/home/runner/work/_temp/22ef19e3-f968-499e-817b-61d6a0035332' before making global git config changes
+2025-07-03T12:18:45.0534373Z Adding repository directory to the temporary git global config as a safe directory
+2025-07-03T12:18:45.0538114Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RMS/RMS
+2025-07-03T12:18:45.0567481Z ##[debug]0
+2025-07-03T12:18:45.0569394Z ##[debug]
+2025-07-03T12:18:45.0573308Z Deleting the contents of '/home/runner/work/RMS/RMS'
+2025-07-03T12:18:45.0578265Z ::group::Initializing the repository
+2025-07-03T12:18:45.0579268Z ##[group]Initializing the repository
+2025-07-03T12:18:45.0583033Z [command]/usr/bin/git init /home/runner/work/RMS/RMS
+2025-07-03T12:18:45.0648594Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-07-03T12:18:45.0650637Z hint: is subject to change. To configure the initial branch name to use in all
+2025-07-03T12:18:45.0653699Z hint: of your new repositories, which will suppress this warning, call:
+2025-07-03T12:18:45.0655881Z hint:
+2025-07-03T12:18:45.0656868Z hint: 	git config --global init.defaultBranch <name>
+2025-07-03T12:18:45.0658332Z hint:
+2025-07-03T12:18:45.0659388Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-07-03T12:18:45.0661206Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-07-03T12:18:45.0662566Z hint:
+2025-07-03T12:18:45.0663246Z hint: 	git branch -m <name>
+2025-07-03T12:18:45.0818436Z Initialized empty Git repository in /home/runner/work/RMS/RMS/.git/
+2025-07-03T12:18:45.0821605Z ##[debug]0
+2025-07-03T12:18:45.0825230Z ##[debug]Initialized empty Git repository in /home/runner/work/RMS/RMS/.git/
+2025-07-03T12:18:45.0826610Z ##[debug]
+2025-07-03T12:18:45.0828294Z [command]/usr/bin/git remote add origin https://github.com/NtFelix/RMS
+2025-07-03T12:18:45.0830169Z ##[debug]0
+2025-07-03T12:18:45.0831274Z ##[debug]
+2025-07-03T12:18:45.0832785Z ::endgroup::
+2025-07-03T12:18:45.0833423Z ##[endgroup]
+2025-07-03T12:18:45.0834806Z ::group::Disabling automatic garbage collection
+2025-07-03T12:18:45.0835891Z ##[group]Disabling automatic garbage collection
+2025-07-03T12:18:45.0837044Z [command]/usr/bin/git config --local gc.auto 0
+2025-07-03T12:18:45.0838413Z ##[debug]0
+2025-07-03T12:18:45.0839380Z ##[debug]
+2025-07-03T12:18:45.0840372Z ::endgroup::
+2025-07-03T12:18:45.0841006Z ##[endgroup]
+2025-07-03T12:18:45.0842225Z ::group::Setting up auth
+2025-07-03T12:18:45.0842995Z ##[group]Setting up auth
+2025-07-03T12:18:45.0845038Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-07-03T12:18:45.0846860Z ##[debug]1
+2025-07-03T12:18:45.0847934Z ##[debug]
+2025-07-03T12:18:45.0850810Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-07-03T12:18:45.1918694Z ##[debug]0
+2025-07-03T12:18:45.1919813Z ##[debug]
+2025-07-03T12:18:45.1921193Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-07-03T12:18:45.1923192Z ##[debug]1
+2025-07-03T12:18:45.1924406Z ##[debug]
+2025-07-03T12:18:45.1926982Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-07-03T12:18:45.1930232Z ##[debug]0
+2025-07-03T12:18:45.1931338Z ##[debug]
+2025-07-03T12:18:45.1932596Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-07-03T12:18:45.1934807Z ##[debug]0
+2025-07-03T12:18:45.1935937Z ##[debug]
+2025-07-03T12:18:45.1937068Z ::endgroup::
+2025-07-03T12:18:45.1937708Z ##[endgroup]
+2025-07-03T12:18:45.1938827Z ::group::Fetching the repository
+2025-07-03T12:18:45.1939687Z ##[group]Fetching the repository
+2025-07-03T12:18:45.1942360Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a8b0fff17c09c8108ac1a823817b9e01830f6054:refs/remotes/pull/247/merge
+2025-07-03T12:18:45.6326892Z From https://github.com/NtFelix/RMS
+2025-07-03T12:18:45.6329875Z  * [new ref]         a8b0fff17c09c8108ac1a823817b9e01830f6054 -> pull/247/merge
+2025-07-03T12:18:45.6354056Z ##[debug]0
+2025-07-03T12:18:45.6357753Z ##[debug]
+2025-07-03T12:18:45.6359135Z ::endgroup::
+2025-07-03T12:18:45.6359950Z ##[endgroup]
+2025-07-03T12:18:45.6361324Z ::group::Determining the checkout info
+2025-07-03T12:18:45.6362720Z ##[group]Determining the checkout info
+2025-07-03T12:18:45.6365408Z ::endgroup::
+2025-07-03T12:18:45.6366279Z ##[endgroup]
+2025-07-03T12:18:45.6367214Z [command]/usr/bin/git sparse-checkout disable
+2025-07-03T12:18:45.6401508Z ##[debug]0
+2025-07-03T12:18:45.6404075Z ##[debug]
+2025-07-03T12:18:45.6407833Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-07-03T12:18:45.6436103Z ##[debug]0
+2025-07-03T12:18:45.6438710Z ##[debug]
+2025-07-03T12:18:45.6441619Z ::group::Checking out the ref
+2025-07-03T12:18:45.6442749Z ##[group]Checking out the ref
+2025-07-03T12:18:45.6446149Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/247/merge
+2025-07-03T12:18:45.6626737Z Note: switching to 'refs/remotes/pull/247/merge'.
+2025-07-03T12:18:45.6628922Z 
+2025-07-03T12:18:45.6630201Z You are in 'detached HEAD' state. You can look around, make experimental
+2025-07-03T12:18:45.6633642Z changes and commit them, and you can discard any commits you make in this
+2025-07-03T12:18:45.6635997Z state without impacting any branches by switching back to a branch.
+2025-07-03T12:18:45.6637461Z 
+2025-07-03T12:18:45.6638368Z If you want to create a new branch to retain commits you create, you may
+2025-07-03T12:18:45.6640314Z do so (now or later) by using -c with the switch command. Example:
+2025-07-03T12:18:45.6641354Z 
+2025-07-03T12:18:45.6641948Z   git switch -c <new-branch-name>
+2025-07-03T12:18:45.6642857Z 
+2025-07-03T12:18:45.6643465Z Or undo this operation with:
+2025-07-03T12:18:45.6644533Z 
+2025-07-03T12:18:45.6645110Z   git switch -
+2025-07-03T12:18:45.6645818Z 
+2025-07-03T12:18:45.6646706Z Turn off this advice by setting config variable advice.detachedHead to false
+2025-07-03T12:18:45.6647900Z 
+2025-07-03T12:18:45.6649169Z HEAD is now at a8b0fff Merge 2c2a6bd59f78c35c09026cb65f5f062e80c1190e into 7d95cb47c526dc38811778a0145d370107811599
+2025-07-03T12:18:45.6653487Z ##[debug]0
+2025-07-03T12:18:45.6655474Z ##[debug]
+2025-07-03T12:18:45.6657181Z ::endgroup::
+2025-07-03T12:18:45.6658274Z ##[endgroup]
+2025-07-03T12:18:45.6679369Z ##[debug]0
+2025-07-03T12:18:45.6683659Z ##[debug]commit a8b0fff17c09c8108ac1a823817b9e01830f6054
+2025-07-03T12:18:45.6685518Z ##[debug]Author: Felix <felix.plant@hotmail.com>
+2025-07-03T12:18:45.6686999Z ##[debug]Date:   Thu Jul 3 12:12:41 2025 +0000
+2025-07-03T12:18:45.6688301Z ##[debug]
+2025-07-03T12:18:45.6690014Z ##[debug]    Merge 2c2a6bd59f78c35c09026cb65f5f062e80c1190e into 7d95cb47c526dc38811778a0145d370107811599
+2025-07-03T12:18:45.6691962Z ##[debug]
+2025-07-03T12:18:45.6693970Z [command]/usr/bin/git log -1 --format=%H
+2025-07-03T12:18:45.6711247Z a8b0fff17c09c8108ac1a823817b9e01830f6054
+2025-07-03T12:18:45.6726868Z ##[debug]0
+2025-07-03T12:18:45.6730538Z ##[debug]a8b0fff17c09c8108ac1a823817b9e01830f6054
+2025-07-03T12:18:45.6731953Z ##[debug]
+2025-07-03T12:18:45.6735582Z ##[debug]Unsetting HOME override
+2025-07-03T12:18:45.6741821Z ::remove-matcher owner=checkout-git::
+2025-07-03T12:18:45.6756984Z ##[debug]Removed matchers: 'checkout-git'
+2025-07-03T12:18:45.6803433Z ##[debug]Node Action run completed with exit code 0
+2025-07-03T12:18:45.6839194Z ##[debug]Save intra-action state isPost = true
+2025-07-03T12:18:45.6840275Z ##[debug]Save intra-action state setSafeDirectory = true
+2025-07-03T12:18:45.6841338Z ##[debug]Save intra-action state repositoryPath = /home/runner/work/RMS/RMS
+2025-07-03T12:18:45.6846011Z ##[debug]Set output commit = a8b0fff17c09c8108ac1a823817b9e01830f6054
+2025-07-03T12:18:45.6847128Z ##[debug]Set output ref = refs/pull/247/merge
+2025-07-03T12:18:45.6852759Z ##[debug]Finishing: Checkout Repository
+2025-07-03T12:18:45.6869769Z ##[debug]Evaluating condition for step: 'Setup Node.js'
+2025-07-03T12:18:45.6874027Z ##[debug]Evaluating: success()
+2025-07-03T12:18:45.6875558Z ##[debug]Evaluating success:
+2025-07-03T12:18:45.6876756Z ##[debug]=> true
+2025-07-03T12:18:45.6878012Z ##[debug]Result: true
+2025-07-03T12:18:45.6879422Z ##[debug]Starting: Setup Node.js
+2025-07-03T12:18:45.6981522Z ##[debug]Register post job cleanup for action: actions/setup-node@v4
+2025-07-03T12:18:45.7013125Z ##[debug]Loading inputs
+2025-07-03T12:18:45.7042885Z ##[debug]Evaluating: (((github.server_url == 'https://github.com') && github.token) || '')
+2025-07-03T12:18:45.7044674Z ##[debug]Evaluating Or:
+2025-07-03T12:18:45.7047608Z ##[debug]..Evaluating And:
+2025-07-03T12:18:45.7050209Z ##[debug]....Evaluating Equal:
+2025-07-03T12:18:45.7051828Z ##[debug]......Evaluating Index:
+2025-07-03T12:18:45.7052618Z ##[debug]........Evaluating github:
+2025-07-03T12:18:45.7053404Z ##[debug]........=> Object
+2025-07-03T12:18:45.7055056Z ##[debug]........Evaluating String:
+2025-07-03T12:18:45.7055939Z ##[debug]........=> 'server_url'
+2025-07-03T12:18:45.7056999Z ##[debug]......=> 'https://github.com'
+2025-07-03T12:18:45.7057820Z ##[debug]......Evaluating String:
+2025-07-03T12:18:45.7058578Z ##[debug]......=> 'https://github.com'
+2025-07-03T12:18:45.7062733Z ##[debug]....=> true
+2025-07-03T12:18:45.7063687Z ##[debug]....Evaluating Index:
+2025-07-03T12:18:45.7064682Z ##[debug]......Evaluating github:
+2025-07-03T12:18:45.7065696Z ##[debug]......=> Object
+2025-07-03T12:18:45.7066529Z ##[debug]......Evaluating String:
+2025-07-03T12:18:45.7067258Z ##[debug]......=> 'token'
+2025-07-03T12:18:45.7068313Z ##[debug]....=> '***'
+2025-07-03T12:18:45.7069175Z ##[debug]..=> '***'
+2025-07-03T12:18:45.7070274Z ##[debug]=> '***'
+2025-07-03T12:18:45.7075877Z ##[debug]Expanded: ((('https://github.com' == 'https://github.com') && '***') || '')
+2025-07-03T12:18:45.7077028Z ##[debug]Result: '***'
+2025-07-03T12:18:45.7081684Z ##[debug]Loading env
+2025-07-03T12:18:45.7092385Z ##[group]Run actions/setup-node@v4
+2025-07-03T12:18:45.7093118Z with:
+2025-07-03T12:18:45.7093714Z   node-version: 20
+2025-07-03T12:18:45.7094592Z   always-auth: false
+2025-07-03T12:18:45.7095249Z   check-latest: false
+2025-07-03T12:18:45.7096037Z   token: ***
+2025-07-03T12:18:45.7096648Z ##[endgroup]
+2025-07-03T12:18:45.8855480Z ##[debug]isExplicit: 
+2025-07-03T12:18:45.8857818Z ##[debug]explicit? false
+2025-07-03T12:18:45.8859700Z ##[debug]isExplicit: 18.20.8
+2025-07-03T12:18:45.8862222Z ##[debug]explicit? true
+2025-07-03T12:18:45.8864595Z ##[debug]isExplicit: 20.19.2
+2025-07-03T12:18:45.8866840Z ##[debug]explicit? true
+2025-07-03T12:18:45.8869541Z ##[debug]isExplicit: 22.16.0
+2025-07-03T12:18:45.8872713Z ##[debug]explicit? true
+2025-07-03T12:18:45.8874731Z ##[debug]evaluating 3 versions
+2025-07-03T12:18:45.8893667Z ##[debug]matched: 20.19.2
+2025-07-03T12:18:45.8897688Z ##[debug]checking cache: /opt/hostedtoolcache/node/20.19.2/x64
+2025-07-03T12:18:45.8899916Z ##[debug]Found tool in cache node 20.19.2 x64
+2025-07-03T12:18:45.8901461Z Found in cache @ /opt/hostedtoolcache/node/20.19.2/x64
+2025-07-03T12:18:45.8904927Z ::group::Environment details
+2025-07-03T12:18:45.8906168Z ##[group]Environment details
+2025-07-03T12:18:46.4608831Z node: v20.19.2
+2025-07-03T12:18:46.4629493Z npm: 10.8.2
+2025-07-03T12:18:46.4630875Z yarn: 1.22.22
+2025-07-03T12:18:46.4632988Z ::endgroup::
+2025-07-03T12:18:46.4634044Z ##[endgroup]
+2025-07-03T12:18:46.4642080Z ##[add-matcher]/home/runner/work/_actions/actions/setup-node/v4/.github/tsc.json
+2025-07-03T12:18:46.4669855Z ##[debug]Added matchers: 'tsc'. Problem matchers scan action output for known warning or error strings and report these inline.
+2025-07-03T12:18:46.4674630Z ##[add-matcher]/home/runner/work/_actions/actions/setup-node/v4/.github/eslint-stylish.json
+2025-07-03T12:18:46.4687230Z ##[debug]Added matchers: 'eslint-stylish'. Problem matchers scan action output for known warning or error strings and report these inline.
+2025-07-03T12:18:46.4693180Z ##[add-matcher]/home/runner/work/_actions/actions/setup-node/v4/.github/eslint-compact.json
+2025-07-03T12:18:46.4700639Z ##[debug]Added matchers: 'eslint-compact'. Problem matchers scan action output for known warning or error strings and report these inline.
+2025-07-03T12:18:46.4706788Z ##[debug]Node Action run completed with exit code 0
+2025-07-03T12:18:46.4712943Z ##[debug]Set output node-version = v20.19.2
+2025-07-03T12:18:46.4715893Z ##[debug]Finishing: Setup Node.js
+2025-07-03T12:18:46.4747521Z ##[debug]Evaluating condition for step: 'Install Dependencies'
+2025-07-03T12:18:46.4750649Z ##[debug]Evaluating: success()
+2025-07-03T12:18:46.4751964Z ##[debug]Evaluating success:
+2025-07-03T12:18:46.4753437Z ##[debug]=> true
+2025-07-03T12:18:46.4755183Z ##[debug]Result: true
+2025-07-03T12:18:46.4757016Z ##[debug]Starting: Install Dependencies
+2025-07-03T12:18:46.4781479Z ##[debug]Loading inputs
+2025-07-03T12:18:46.4783803Z ##[debug]Loading env
+2025-07-03T12:18:46.4809605Z ##[group]Run if [ -f yarn.lock ]; then
+2025-07-03T12:18:46.4810809Z [36;1mif [ -f yarn.lock ]; then[0m
+2025-07-03T12:18:46.4811948Z [36;1m  yarn install --frozen-lockfile[0m
+2025-07-03T12:18:46.4813266Z [36;1melse[0m
+2025-07-03T12:18:46.4814029Z [36;1m  npm ci[0m
+2025-07-03T12:18:46.4815087Z [36;1mfi[0m
+2025-07-03T12:18:46.4917573Z shell: /usr/bin/bash -e {0}
+2025-07-03T12:18:46.4918593Z ##[endgroup]
+2025-07-03T12:18:46.5019901Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/a3055a84-3b60-491b-89f3-f5bf6f608da6.sh
+2025-07-03T12:18:53.0668653Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2025-07-03T12:18:54.9955296Z npm warn deprecated critters@0.0.25: Ownership of Critters has moved to the Nuxt team, who will be maintaining the project going forward. If you'd like to keep using Critters, please switch to the actively-maintained fork at https://github.com/danielroe/beasties
+2025-07-03T12:18:55.1127189Z npm warn deprecated @supabase/auth-helpers-shared@0.7.0: This package is now deprecated - please use the @supabase/ssr package instead.
+2025-07-03T12:18:56.0028035Z npm warn deprecated @supabase/auth-helpers-nextjs@0.10.0: This package is now deprecated - please use the @supabase/ssr package instead.
+2025-07-03T12:18:56.2403849Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2025-07-03T12:18:56.3005745Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2025-07-03T12:18:56.4302573Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2025-07-03T12:18:56.5149793Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2025-07-03T12:19:10.1455457Z 
+2025-07-03T12:19:10.1457944Z added 783 packages, and audited 784 packages in 24s
+2025-07-03T12:19:10.1458416Z 
+2025-07-03T12:19:10.1458748Z 103 packages are looking for funding
+2025-07-03T12:19:10.1459567Z   run `npm fund` for details
+2025-07-03T12:19:10.1459912Z 
+2025-07-03T12:19:10.1464098Z 1 low severity vulnerability
+2025-07-03T12:19:10.1473639Z 
+2025-07-03T12:19:10.1474965Z To address all issues, run:
+2025-07-03T12:19:10.1475653Z   npm audit fix
+2025-07-03T12:19:10.1476054Z 
+2025-07-03T12:19:10.1476381Z Run `npm audit` for details.
+2025-07-03T12:19:10.1909191Z ##[debug]Finishing: Install Dependencies
+2025-07-03T12:19:10.1920420Z ##[debug]Evaluating condition for step: 'Build Next.js'
+2025-07-03T12:19:10.1922894Z ##[debug]Evaluating: success()
+2025-07-03T12:19:10.1923430Z ##[debug]Evaluating success:
+2025-07-03T12:19:10.1923852Z ##[debug]=> true
+2025-07-03T12:19:10.1924416Z ##[debug]Result: true
+2025-07-03T12:19:10.1925215Z ##[debug]Starting: Build Next.js
+2025-07-03T12:19:10.1942791Z ##[debug]Loading inputs
+2025-07-03T12:19:10.1943848Z ##[debug]Loading env
+2025-07-03T12:19:10.1948691Z ##[group]Run npm run build
+2025-07-03T12:19:10.1948945Z [36;1mnpm run build[0m
+2025-07-03T12:19:10.2006165Z shell: /usr/bin/bash -e {0}
+2025-07-03T12:19:10.2006411Z ##[endgroup]
+2025-07-03T12:19:10.2061254Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/5b0ca423-7b00-43c6-b0a0-38c890f2dad9.sh
+2025-07-03T12:19:10.3210790Z 
+2025-07-03T12:19:10.3216013Z > my-v0-project@0.1.0 build
+2025-07-03T12:19:10.3220452Z > next build
+2025-07-03T12:19:10.3224689Z 
+2025-07-03T12:19:10.9361456Z ⚠ No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache
+2025-07-03T12:19:10.9534877Z Attention: Next.js now collects completely anonymous telemetry regarding usage.
+2025-07-03T12:19:10.9543747Z This information is used to shape Next.js' roadmap and prioritize features.
+2025-07-03T12:19:10.9545560Z You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+2025-07-03T12:19:10.9546589Z https://nextjs.org/telemetry
+2025-07-03T12:19:10.9546975Z 
+2025-07-03T12:19:11.0078127Z    ▲ Next.js 15.3.1
+2025-07-03T12:19:11.0080341Z    - Environments: .env
+2025-07-03T12:19:11.0081385Z    - Experiments (use with caution):
+2025-07-03T12:19:11.0083150Z      ✓ optimizeCss
+2025-07-03T12:19:11.0084759Z      ✓ scrollRestoration
+2025-07-03T12:19:11.0085395Z 
+2025-07-03T12:19:11.0870487Z    Creating an optimized production build ...
+2025-07-03T12:19:47.2817064Z 
+2025-07-03T12:19:47.2854614Z 
+2025-07-03T12:19:47.2858551Z Retrying 1/3...
+2025-07-03T12:19:47.2864771Z 
+2025-07-03T12:19:47.2864783Z 
+2025-07-03T12:19:47.2864997Z Retrying 1/3...
+2025-07-03T12:19:47.2865394Z 
+2025-07-03T12:19:47.2867919Z 
+2025-07-03T12:19:47.2868169Z Retrying 1/3...
+2025-07-03T12:19:47.2868389Z 
+2025-07-03T12:19:47.2868400Z 
+2025-07-03T12:19:47.2868682Z Retrying 1/3...
+2025-07-03T12:19:47.2868892Z 
+2025-07-03T12:19:47.2868997Z 
+2025-07-03T12:19:47.2869201Z Retrying 1/3...
+2025-07-03T12:19:47.2869423Z 
+2025-07-03T12:19:47.2869432Z 
+2025-07-03T12:19:47.2869576Z Retrying 1/3...
+2025-07-03T12:19:47.2875377Z 
+2025-07-03T12:19:47.2875502Z 
+2025-07-03T12:19:47.2875711Z Retrying 1/3...
+2025-07-03T12:19:48.6043054Z 
+2025-07-03T12:19:48.6065003Z 
+2025-07-03T12:19:48.6065907Z Retrying 2/3...
+2025-07-03T12:20:00.2363322Z  ✓ Compiled successfully in 48s
+2025-07-03T12:20:00.2436827Z    Linting and checking validity of types ...
+2025-07-03T12:20:14.2520984Z    Collecting page data ...
+2025-07-03T12:20:14.9566394Z  ⚠ Using edge runtime on a page currently disables static generation for that page
+2025-07-03T12:20:17.8232639Z    Generating static pages (0/14) ...
+2025-07-03T12:20:18.9995804Z    Generating static pages (3/14) 
+2025-07-03T12:20:18.9996770Z    Generating static pages (6/14) 
+2025-07-03T12:20:19.1727003Z    Generating static pages (10/14) 
+2025-07-03T12:20:19.1732702Z  ✓ Generating static pages (14/14)
+2025-07-03T12:20:19.5203926Z    Finalizing page optimization ...
+2025-07-03T12:20:19.5208095Z    Collecting build traces ...
+2025-07-03T12:20:27.9828824Z 
+2025-07-03T12:20:27.9947136Z Route (app)                                 Size  First Load JS
+2025-07-03T12:20:27.9948712Z ┌ ○ /                                      201 B         241 kB
+2025-07-03T12:20:27.9951123Z ├ ○ /_not-found                            990 B         103 kB
+2025-07-03T12:20:27.9960059Z ├ ƒ /api/export                            210 B         102 kB
+2025-07-03T12:20:27.9963297Z ├ ƒ /api/finanzen                          210 B         102 kB
+2025-07-03T12:20:27.9964544Z ├ ƒ /api/finanzen/[id]                     210 B         102 kB
+2025-07-03T12:20:27.9965272Z ├ ƒ /api/haeuser                           210 B         102 kB
+2025-07-03T12:20:27.9965924Z ├ ƒ /api/mieter                            210 B         102 kB
+2025-07-03T12:20:27.9966719Z ├ ƒ /api/stripe/cancel-subscription        210 B         102 kB
+2025-07-03T12:20:27.9967617Z ├ ƒ /api/stripe/checkout-session           210 B         102 kB
+2025-07-03T12:20:27.9968519Z ├ ƒ /api/stripe/customer-portal            210 B         102 kB
+2025-07-03T12:20:27.9969210Z ├ ƒ /api/stripe/plans                      210 B         102 kB
+2025-07-03T12:20:27.9969877Z ├ ƒ /api/stripe/verify-session             210 B         102 kB
+2025-07-03T12:20:27.9970542Z ├ ƒ /api/stripe/webhook                    210 B         102 kB
+2025-07-03T12:20:27.9971189Z ├ ƒ /api/todos                             210 B         102 kB
+2025-07-03T12:20:27.9971797Z ├ ƒ /api/todos/[id]                        210 B         102 kB
+2025-07-03T12:20:27.9972435Z ├ ƒ /api/user/profile                      210 B         102 kB
+2025-07-03T12:20:27.9973244Z ├ ƒ /api/wohnungen                         210 B         102 kB
+2025-07-03T12:20:27.9974093Z ├ ƒ /auth/callback                         210 B         102 kB
+2025-07-03T12:20:27.9975121Z ├ ○ /auth/login                          4.21 kB         156 kB
+2025-07-03T12:20:27.9975906Z ├ ○ /auth/register                        4.3 kB         156 kB
+2025-07-03T12:20:27.9976732Z ├ ○ /auth/reset-password                 4.09 kB         155 kB
+2025-07-03T12:20:27.9977570Z ├ ○ /auth/update-password                4.07 kB         152 kB
+2025-07-03T12:20:27.9978353Z ├ ƒ /betriebskosten                      19.8 kB         208 kB
+2025-07-03T12:20:27.9979115Z ├ ○ /checkout/cancel                     1.91 kB         114 kB
+2025-07-03T12:20:27.9980204Z ├ ○ /checkout/success                    3.41 kB         116 kB
+2025-07-03T12:20:27.9980997Z ├ ƒ /finanzen                            17.7 kB         273 kB
+2025-07-03T12:20:27.9981715Z ├ ƒ /haeuser                             8.99 kB         148 kB
+2025-07-03T12:20:27.9982439Z ├ ƒ /home                                5.24 kB         292 kB
+2025-07-03T12:20:27.9983137Z ├ ○ /landing                               202 B         241 kB
+2025-07-03T12:20:27.9983830Z ├ ƒ /mieter                              5.94 kB         231 kB
+2025-07-03T12:20:27.9985086Z ├ ○ /modern/documentation                4.98 kB         231 kB
+2025-07-03T12:20:27.9985989Z ├ ○ /subscription                        6.93 kB         116 kB
+2025-07-03T12:20:27.9986824Z ├ ○ /subscription-locked                 3.54 kB         117 kB
+2025-07-03T12:20:27.9987564Z ├ ƒ /todos                                9.9 kB         161 kB
+2025-07-03T12:20:27.9988279Z └ ƒ /wohnungen                           8.03 kB         186 kB
+2025-07-03T12:20:27.9988944Z + First Load JS shared by all             102 kB
+2025-07-03T12:20:27.9989596Z   ├ chunks/1317-4be7c8f2dda6a784.js      46.4 kB
+2025-07-03T12:20:27.9990204Z   ├ chunks/4bd1b696-86b7f7b384ded616.js  53.2 kB
+2025-07-03T12:20:27.9990814Z   └ other shared chunks (total)          2.24 kB
+2025-07-03T12:20:27.9991138Z 
+2025-07-03T12:20:27.9991147Z 
+2025-07-03T12:20:27.9991496Z ƒ Middleware                             66.2 kB
+2025-07-03T12:20:27.9991809Z 
+2025-07-03T12:20:27.9992075Z ○  (Static)   prerendered as static content
+2025-07-03T12:20:27.9992563Z ƒ  (Dynamic)  server-rendered on demand
+2025-07-03T12:20:27.9992807Z 
+2025-07-03T12:20:28.0955396Z ##[debug]Finishing: Build Next.js
+2025-07-03T12:20:28.0967821Z ##[debug]Evaluating condition for step: 'Serve Built Next.js Application'
+2025-07-03T12:20:28.0969520Z ##[debug]Evaluating: success()
+2025-07-03T12:20:28.0969879Z ##[debug]Evaluating success:
+2025-07-03T12:20:28.0970278Z ##[debug]=> true
+2025-07-03T12:20:28.0970596Z ##[debug]Result: true
+2025-07-03T12:20:28.0971190Z ##[debug]Starting: Serve Built Next.js Application
+2025-07-03T12:20:28.0980789Z ##[debug]Loading inputs
+2025-07-03T12:20:28.0981773Z ##[debug]Loading env
+2025-07-03T12:20:28.0985924Z ##[group]Run npm run start &
+2025-07-03T12:20:28.0986192Z [36;1mnpm run start &[0m
+2025-07-03T12:20:28.0986476Z [36;1mnpx wait-on http://localhost:3000[0m
+2025-07-03T12:20:28.1042970Z shell: /usr/bin/bash -e {0}
+2025-07-03T12:20:28.1043210Z ##[endgroup]
+2025-07-03T12:20:28.1103975Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/c37d0dc1-cd69-45c3-9e20-c9939a17b02d.sh
+2025-07-03T12:20:28.2935114Z 
+2025-07-03T12:20:28.2939841Z > my-v0-project@0.1.0 start
+2025-07-03T12:20:28.2940842Z > next start
+2025-07-03T12:20:28.2941760Z 
+2025-07-03T12:20:28.8156659Z    ▲ Next.js 15.3.1
+2025-07-03T12:20:28.8157660Z    - Local:        http://localhost:3000
+2025-07-03T12:20:28.8158416Z    - Network:      http://10.1.0.13:3000
+2025-07-03T12:20:28.8158926Z 
+2025-07-03T12:20:28.8159284Z  ✓ Starting...
+2025-07-03T12:20:29.2069923Z  ✓ Ready in 737ms
+2025-07-03T12:20:34.6533692Z ##[debug]Finishing: Serve Built Next.js Application
+2025-07-03T12:20:34.6547565Z ##[debug]Evaluating condition for step: 'Check Application Availability'
+2025-07-03T12:20:34.6549781Z ##[debug]Evaluating: success()
+2025-07-03T12:20:34.6550370Z ##[debug]Evaluating success:
+2025-07-03T12:20:34.6551002Z ##[debug]=> true
+2025-07-03T12:20:34.6551648Z ##[debug]Result: true
+2025-07-03T12:20:34.6552633Z ##[debug]Starting: Check Application Availability
+2025-07-03T12:20:34.6566809Z ##[debug]Loading inputs
+2025-07-03T12:20:34.6568137Z ##[debug]Loading env
+2025-07-03T12:20:34.6574438Z ##[group]Run curl -v http://localhost:3000
+2025-07-03T12:20:34.6575013Z [36;1mcurl -v http://localhost:3000[0m
+2025-07-03T12:20:34.6656674Z shell: /usr/bin/bash -e {0}
+2025-07-03T12:20:34.6657144Z ##[endgroup]
+2025-07-03T12:20:34.6718076Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/a9d549ab-d85f-41fa-bdda-06ea54c8dec8.sh
+2025-07-03T12:20:34.6790459Z * Host localhost:3000 was resolved.
+2025-07-03T12:20:34.6791804Z * IPv6: ::1
+2025-07-03T12:20:34.6792141Z * IPv4: 127.0.0.1
+2025-07-03T12:20:34.6792776Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2025-07-03T12:20:34.6797449Z                                  Dload  Upload   Total   Spent    Left  Speed
+2025-07-03T12:20:34.6806412Z 
+2025-07-03T12:20:34.6806866Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0*   Trying [::1]:3000...
+2025-07-03T12:20:34.6807568Z * Connected to localhost (::1) port 3000
+2025-07-03T12:20:34.6808032Z > GET / HTTP/1.1
+2025-07-03T12:20:34.6808384Z > Host: localhost:3000
+2025-07-03T12:20:34.6810105Z > User-Agent: curl/8.5.0
+2025-07-03T12:20:34.6817408Z > Accept: */*
+2025-07-03T12:20:34.6817745Z > 
+2025-07-03T12:20:34.6865270Z < HTTP/1.1 200 OK
+2025-07-03T12:20:34.6866025Z < x-nextjs-cache: HIT
+2025-07-03T12:20:34.6869333Z < x-nextjs-prerender: 1
+2025-07-03T12:20:34.6869863Z < x-nextjs-stale-time: 4294967294
+2025-07-03T12:20:34.6870327Z < X-Powered-By: Next.js
+2025-07-03T12:20:34.6870759Z < Cache-Control: s-maxage=31536000
+2025-07-03T12:20:34.6871160Z < ETag: "j6kacsllf41jes"
+2025-07-03T12:20:34.6871603Z < Content-Type: text/html; charset=utf-8
+2025-07-03T12:20:34.6872062Z < Content-Length: 71815
+2025-07-03T12:20:34.6872421Z < Vary: Accept-Encoding
+2025-07-03T12:20:34.6872855Z < Date: Thu, 03 Jul 2025 12:20:34 GMT
+2025-07-03T12:20:34.6873283Z < Connection: keep-alive
+2025-07-03T12:20:34.6873661Z < Keep-Alive: timeout=5
+2025-07-03T12:20:34.6873985Z < 
+2025-07-03T12:20:34.6874477Z { [65189 bytes data]
+2025-07-03T12:20:34.6874672Z 
+2025-07-03T12:20:34.6875096Z 100 71815  100 71815    0     0  8824k      0 --:--:-- --:--:-- --:--:--  9.7M
+2025-07-03T12:20:34.6875760Z * Connection #0 to host localhost left intact
+2025-07-03T12:20:34.6919686Z <!DOCTYPE html><html lang="en" class="light"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="preload" href="/_next/static/media/e4af272ccee01ff0-s.p.woff2" as="font" crossorigin="" type="font/woff2"/><link rel="stylesheet" href="/_next/static/css/931b179cff3131dc.css" data-precedence="next"/><link rel="stylesheet" href="/_next/static/css/00b150651e02fe92.css" data-precedence="next"/><link rel="preload" as="script" fetchPriority="low" href="/_next/static/chunks/webpack-ca9acd3851de0c1b.js"/><script src="/_next/static/chunks/4bd1b696-86b7f7b384ded616.js" async=""></script><script src="/_next/static/chunks/1317-4be7c8f2dda6a784.js" async=""></script><script src="/_next/static/chunks/main-app-f4cd7c1a45bda5de.js" async=""></script><script src="/_next/static/chunks/5003-eb6688ed92ae5649.js" async=""></script><script src="/_next/static/chunks/7656-5fbc13fcafab7e1b.js" async=""></script><script src="/_next/static/chunks/9008-1899bf1833fa1f85.js" async=""></script><script src="/_next/static/chunks/app/layout-7acbe93f72d9b19e.js" async=""></script><script src="/_next/static/chunks/9696-135e09501a621d21.js" async=""></script><script src="/_next/static/chunks/9591-ef7e06ea0468694a.js" async=""></script><script src="/_next/static/chunks/6874-179161e2a141c8e0.js" async=""></script><script src="/_next/static/chunks/6073-10422efccbdef0ab.js" async=""></script><script src="/_next/static/chunks/5887-f2be0e4ed0da62ad.js" async=""></script><script src="/_next/static/chunks/8911-d3c510c708d07156.js" async=""></script><script src="/_next/static/chunks/2729-174c1028499685be.js" async=""></script><script src="/_next/static/chunks/app/page-e90106d2a4799220.js" async=""></script><meta name="next-size-adjust" content=""/><title>Property Management Dashboard</title><meta name="description" content="Modern dashboard for property management"/><meta name="generator" content="v0.dev"/><script>document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))</script><script src="/_next/static/chunks/polyfills-42372ed130431b0a.js" noModule=""></script></head><body class="__className_e8ce0c"><script>((e,t,r,n,o,a,i,s)=>{let u=document.documentElement,l=["light","dark"];function c(t){var r;(Array.isArray(e)?e:[e]).forEach(e=>{let r="class"===e,n=r&&a?o.map(e=>a[e]||e):o;r?(u.classList.remove(...n),u.classList.add(a&&a[t]?a[t]:t)):u.setAttribute(e,t)}),r=t,s&&l.includes(r)&&(u.style.colorScheme=r)}if(n)c(n);else try{let e=localStorage.getItem(t)||r,n=i&&"system"===e?window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light":e;c(n)}catch(e){}})("class","theme","light",null,["light","dark"],null,false,true)</script><!--$!--><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template><!--/$--><nav class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent" style="transform:translateY(-100px)"><div class="max-w-7xl mx-auto px-4"><div class="flex items-center justify-between h-16"><a class="flex items-center space-x-2 group" href="/"><div class="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform"><span class="text-primary-foreground font-bold text-sm">DS</span></div><span class="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">Design<span class="text-primary">Studio</span></span></a><div class="hidden md:flex items-center space-x-8"><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Home<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Features<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Services<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Testimonials<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><button class="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">Contact<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></button><a class="flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group " href="/modern/documentation"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text w-4 h-4"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>Documentation<span class="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300"></span></a><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-9 rounded-md px-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-in w-4 h-4 mr-2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" x2="3" y1="12" y2="12"></line></svg>Login</button></div><button class="md:hidden text-foreground hover:text-foreground/80 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu w-6 h-6"><line x1="4" x2="20" y1="12" y2="12"></line><line x1="4" x2="20" y1="6" y2="6"></line><line x1="4" x2="20" y1="18" y2="18"></line></svg></button></div></div></nav><main class="min-h-screen overflow-x-hidden"><div id="hero"><section class="jsx-23b26afbf4771c3e relative min-h-screen flex items-center justify-center overflow-hidden bg-background text-foreground"><div class="jsx-23b26afbf4771c3e absolute inset-0 opacity-20 dark:opacity-10"><div class="jsx-23b26afbf4771c3e absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-background"></div><div style="background-image:radial-gradient(circle at 25% 25%, hsl(var(--primary-foreground)/0.05) 0%, transparent 50%),
+2025-07-03T12:20:34.6941537Z                            radial-gradient(circle at 75% 75%, hsl(var(--secondary-foreground)/0.05) 0%, transparent 50%),
+2025-07-03T12:20:34.6965861Z                            linear-gradient(45deg, transparent 40%, hsl(var(--muted-foreground)/0.03) 50%, transparent 60%)" class="jsx-23b26afbf4771c3e absolute inset-0"></div></div><div class="absolute top-20 left-20 w-4 h-4 bg-primary/50 rounded-full"></div><div class="absolute top-40 right-32 w-6 h-6 border-2 border-secondary/50 rotate-45"></div><div class="absolute bottom-32 left-32 w-8 h-8 bg-gradient-to-r from-primary/60 to-secondary/60 rounded-full"></div><div class="jsx-23b26afbf4771c3e relative z-10 text-center max-w-6xl mx-auto px-4"><div class="mb-6" style="opacity:0;transform:translateY(30px)"><div class="jsx-23b26afbf4771c3e inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-4 h-4 text-primary"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></svg><span class="jsx-23b26afbf4771c3e text-sm text-muted-foreground">Welcome to RMS</span></div></div><h1 class="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight" style="opacity:0;transform:translateY(30px)">Design Beyond<br class="jsx-23b26afbf4771c3e"/><span class="jsx-23b26afbf4771c3e bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">Imagination</span></h1><p class="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed" style="opacity:0;transform:translateY(30px)">Manage your properties with our comprehensive real estate management system. Track finances, manage tenants, and organize tasks all in one place.</p><div class="flex flex-col sm:flex-row gap-4 justify-center items-center" style="opacity:0;transform:translateY(30px)"><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 h-11 rounded-md relative bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-4 text-lg font-semibold group overflow-hidden"><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md p-[2px] bg-gradient-to-r from-primary via-secondary to-primary animate-pulse"><div class="jsx-23b26afbf4771c3e absolute inset-[2px] bg-primary rounded-md group-hover:bg-primary/90 transition-all duration-300"></div></div><div class="jsx-23b26afbf4771c3e absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out"></div><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md overflow-hidden"><div style="background:conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)));animation:spin 2s linear infinite" class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div><div style="background:conic-gradient(from 180deg, hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)));animation:spin 3s linear infinite reverse" class="jsx-23b26afbf4771c3e absolute inset-[1px] rounded-md opacity-0 group-hover:opacity-80 transition-opacity duration-700 delay-200"></div><div class="jsx-23b26afbf4771c3e absolute inset-[2px] rounded-md bg-primary group-hover:bg-primary/90 transition-all duration-300"><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md bg-gradient-to-r from-primary-foreground/20 via-transparent to-secondary-foreground/20 opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-500"></div></div><div class="jsx-23b26afbf4771c3e absolute inset-0 rounded-md opacity-0 group-hover:opacity-60 transition-opacity duration-800"><div style="animation-delay:0s" class="jsx-23b26afbf4771c3e absolute top-1 left-1 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"></div><div style="animation-delay:0.5s" class="jsx-23b26afbf4771c3e absolute top-3 right-2 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"></div><div style="animation-delay:1s" class="jsx-23b26afbf4771c3e absolute bottom-2 left-3 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"></div><div style="animation-delay:1.5s" class="jsx-23b26afbf4771c3e absolute bottom-1 right-1 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"></div></div></div><span class="jsx-23b26afbf4771c3e relative z-10 flex items-center">Get Started<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></span></button><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 h-11 rounded-md px-8 py-4 text-lg font-semibold group text-foreground hover:text-accent-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap mr-2 w-5 h-5 group-hover:scale-110 transition-transform"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></svg>Watch Demo</button></div></div><div class="jsx-23b26afbf4771c3e absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent"></div></section></div><div id="features"><section class="py-32 px-4 relative bg-background text-foreground"><div class="absolute inset-0 opacity-5 dark:opacity-3"><div class="w-full h-full" style="background-image:linear-gradient(30deg, transparent 40%, hsl(var(--primary)/0.05) 50%, transparent 60%),
+2025-07-03T12:20:34.7070962Z                            linear-gradient(-30deg, transparent 40%, hsl(var(--secondary)/0.05) 50%, transparent 60%);background-size:100px 100px"></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="text-center mb-20" style="opacity:0;transform:translateY(30px)"><h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">Powerful Features</h2><p class="text-xl text-muted-foreground max-w-3xl mx-auto">Discover the advanced capabilities that make our platform the choice of industry leaders</p></div><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle, hsl(var(--muted-foreground)/0.3) 1px, transparent 1px);background-size:20px 20px"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-palette w-8 h-8 text-primary-foreground"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"></circle><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"></circle><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"></circle><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"></circle><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Advanced Design System</h3><p class="text-muted-foreground leading-relaxed">Comprehensive design tokens and components for consistent, scalable interfaces.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:linear-gradient(hsl(var(--muted-foreground)/0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--muted-foreground)/0.3) 1px, transparent 1px);background-size:20px 20px"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers w-8 h-8 text-primary-foreground"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Modular Architecture</h3><p class="text-muted-foreground leading-relaxed">Flexible, component-based structure that adapts to any project requirement.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><svg class="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,50 Q25,30 50,50 T100,50 V100 H0 Z" fill="hsl(var(--muted-foreground)/0.3)"></path></svg></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-zap w-8 h-8 text-primary-foreground"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Lightning Performance</h3><p class="text-muted-foreground leading-relaxed">Optimized for speed with advanced caching and minimal resource usage.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:url(&quot;data:image/svg+xml,%3Csvg width=&#x27;60&#x27; height=&#x27;60&#x27; viewBox=&#x27;0 0 60 60&#x27; xmlns=&#x27;http://www.w3.org/2000/svg&#x27;%3E%3Cg fill=&#x27;none&#x27; fillRule=&#x27;evenodd&#x27;%3E%3Cg fill=&#x27;hsl(var(--muted-foreground))&#x27; fillOpacity=&#x27;0.3&#x27;%3E%3Cpath d=&#x27;M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z&#x27;/%3E%3C/g%3E%3C/g%3E%3C/svg%3E&quot;)"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield w-8 h-8 text-primary-foreground"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Enterprise Security</h3><p class="text-muted-foreground leading-relaxed">Bank-level security protocols protecting your data and user privacy.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle at 50% 50%, hsl(var(--muted-foreground)/0.3) 2px, transparent 2px), radial-gradient(circle at 25% 75%, hsl(var(--muted-foreground)/0.2) 1px, transparent 1px);background-size:30px 30px, 15px 15px"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-globe w-8 h-8 text-primary-foreground"><circle cx="12" cy="12" r="10"></circle><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path><path d="M2 12h20"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Global Accessibility</h3><p class="text-muted-foreground leading-relaxed">WCAG compliant design ensuring inclusive experiences for all users.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:repeating-linear-gradient(45deg, transparent, transparent 10px, hsl(var(--muted-foreground)/0.3) 10px, hsl(var(--muted-foreground)/0.3) 11px)"></div></div><div class="p-8 relative z-10"><div class="mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smartphone w-8 h-8 text-primary-foreground"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg></div></div><h3 class="text-2xl font-bold text-card-foreground mb-4 transition-colors">Mobile-First Approach</h3><p class="text-muted-foreground leading-relaxed">Responsive design that delivers exceptional experiences across all devices.</p><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 mt-6 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div></div></div></section></div><div id="services"><section class="py-32 px-4 relative bg-background text-foreground"><div class="absolute inset-0 overflow-hidden"><div class="absolute top-20 left-10 w-64 h-64 bg-gradient-to-br from-primary/10 to-secondary/10 rounded-full blur-3xl opacity-50 dark:opacity-30"></div><div class="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-tl from-secondary/10 to-primary/10 rounded-full blur-3xl opacity-50 dark:opacity-30"></div><div class="absolute inset-0 opacity-5 dark:opacity-3"><div class="w-full h-full" style="background-image:conic-gradient(from 0deg at 50% 50%, transparent 0deg, hsl(var(--muted-foreground)/0.1) 90deg, transparent 180deg, hsl(var(--muted-foreground)/0.05) 270deg, transparent 360deg);background-size:200px 200px"></div></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="text-center mb-20" style="opacity:0;transform:translateY(30px)"><h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">Our Services</h2><p class="text-xl text-muted-foreground max-w-3xl mx-auto">Comprehensive solutions tailored to elevate your digital presence</p></div><div class="grid grid-cols-1 lg:grid-cols-2 gap-12"><div class="group" style="opacity:0;transform:translateX(-30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle, hsl(var(--muted-foreground)/0.5) 2px, transparent 2px);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-code w-8 h-8 text-primary-foreground"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg></div><h3 class="text-3xl font-bold text-card-foreground">Development</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Custom web applications built with cutting-edge technologies and best practices.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">React &amp; Next.js</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">TypeScript</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">API Integration</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Performance Optimization</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateX(30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:linear-gradient(45deg, hsl(var(--muted-foreground)/0.5) 25%, transparent 25%);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-paintbrush w-8 h-8 text-primary-foreground"><path d="m14.622 17.897-10.68-2.913"></path><path d="M18.376 2.622a1 1 0 1 1 3.002 3.002L17.36 9.643a.5.5 0 0 0 0 .707l.944.944a2.41 2.41 0 0 1 0 3.408l-.944.944a.5.5 0 0 1-.707 0L8.354 7.348a.5.5 0 0 1 0-.707l.944-.944a2.41 2.41 0 0 1 3.408 0l.944.944a.5.5 0 0 0 .707 0z"></path><path d="M9 8c-1.804 2.71-3.97 3.46-6.583 3.948a.507.507 0 0 0-.302.819l7.32 8.883a1 1 0 0 0 1.185.204C12.735 20.405 16 16.792 16 15"></path></svg></div><h3 class="text-3xl font-bold text-card-foreground">Design</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Beautiful, user-centered designs that convert visitors into customers.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">UI/UX Design</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Brand Identity</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Prototyping</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Design Systems</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateX(-30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle, hsl(var(--muted-foreground)/0.5) 2px, transparent 2px);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rocket w-8 h-8 text-primary-foreground"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path></svg></div><h3 class="text-3xl font-bold text-card-foreground">Strategy</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Data-driven strategies to accelerate your digital transformation journey.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Digital Strategy</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Market Analysis</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Growth Planning</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">ROI Optimization</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div><div class="group" style="opacity:0;transform:translateX(30px)"><div class="bg-gradient-to-br from-card/70 to-accent/20 backdrop-blur-sm border border-border rounded-3xl p-8 hover:border-primary/50 transition-all duration-300 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:linear-gradient(45deg, hsl(var(--muted-foreground)/0.5) 25%, transparent 25%);background-size:20px 20px"></div></div><div class="relative z-10"><div class="flex items-center gap-4 mb-6"><div class="w-16 h-16 bg-gradient-to-br from-primary to-secondary rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users w-8 h-8 text-primary-foreground"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div><h3 class="text-3xl font-bold text-card-foreground">Consulting</h3></div><p class="text-muted-foreground text-lg mb-8 leading-relaxed">Expert guidance to navigate complex technical challenges and decisions.</p><div class="grid grid-cols-2 gap-3 mb-8"><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Technical Audit</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Architecture Review</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Team Training</span></div><div class="flex items-center gap-2 text-foreground/80"><div class="w-2 h-2 bg-primary/70 rounded-full"></div><span class="text-sm">Best Practices</span></div></div><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 hover:text-foreground h-10 px-4 py-2 group-hover:border-primary group-hover:text-primary transition-colors">Learn More</button></div></div></div></div></div></section></div><div id="pricing"><section class="py-16 px-4 text-foreground"> <div class="max-w-6xl mx-auto text-center"> <p>Loading plans...</p></div></section></div><div id="testimonials"><section class="py-32 px-4 relative bg-background text-foreground"><div class="absolute inset-0"><div class="absolute inset-0 bg-gradient-to-b from-background via-background/90 to-background"></div><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:radial-gradient(circle at 20% 80%, hsl(var(--primary)/0.1) 0%, transparent 50%),
+2025-07-03T12:20:34.7142188Z                              radial-gradient(circle at 80% 20%, hsl(var(--secondary)/0.1) 0%, transparent 50%),
+2025-07-03T12:20:34.7221804Z                              radial-gradient(circle at 40% 40%, hsl(var(--muted)/0.05) 0%, transparent 50%)"></div></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="text-center mb-20" style="opacity:0;transform:translateY(30px)"><h2 class="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">Client Success Stories</h2><p class="text-xl text-muted-foreground max-w-3xl mx-auto">Discover how we&#x27;ve helped businesses transform their digital presence</p></div><div class="grid grid-cols-1 md:grid-cols-3 gap-8"><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote w-full h-full text-muted-foreground"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></svg></div><div class="p-8 relative z-10"><div class="flex items-center gap-1 mb-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg></div><blockquote class="text-foreground/90 text-lg leading-relaxed mb-8 italic">&quot;<!-- -->The attention to detail and innovative approach exceeded our expectations. Our conversion rate increased by 340% within the first month.<!-- -->&quot;</blockquote><div class="flex items-center gap-4"><div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center"><span class="text-primary-foreground font-semibold text-lg">SC</span></div><div><div class="font-semibold text-card-foreground">Sarah Chen</div><div class="text-muted-foreground text-sm">CEO, TechFlow</div></div></div></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote w-full h-full text-muted-foreground"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></svg></div><div class="p-8 relative z-10"><div class="flex items-center gap-1 mb-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg></div><blockquote class="text-foreground/90 text-lg leading-relaxed mb-8 italic">&quot;<!-- -->Exceptional technical expertise combined with creative vision. The team delivered a solution that perfectly aligned with our complex requirements.<!-- -->&quot;</blockquote><div class="flex items-center gap-4"><div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center"><span class="text-primary-foreground font-semibold text-lg">MR</span></div><div><div class="font-semibold text-card-foreground">Marcus Rodriguez</div><div class="text-muted-foreground text-sm">CTO, InnovateLab</div></div></div></div></div></div><div class="group" style="opacity:0;transform:translateY(30px)"><div class="rounded-lg border text-card-foreground shadow-sm bg-card/80 border-border backdrop-blur-sm hover:bg-gray-100 transition-all duration-300 h-full relative overflow-hidden"><div class="absolute top-0 right-0 w-24 h-24 opacity-5 dark:opacity-3"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-quote w-full h-full text-muted-foreground"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"></path></svg></div><div class="p-8 relative z-10"><div class="flex items-center gap-1 mb-6"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-star w-5 h-5 fill-primary text-primary"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"></path></svg></div><blockquote class="text-foreground/90 text-lg leading-relaxed mb-8 italic">&quot;<!-- -->Working with this team was transformative. They didn&#x27;t just build our platform—they elevated our entire brand experience.<!-- -->&quot;</blockquote><div class="flex items-center gap-4"><div class="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center"><span class="text-primary-foreground font-semibold text-lg">EW</span></div><div><div class="font-semibold text-card-foreground">Emily Watson</div><div class="text-muted-foreground text-sm">Founder, DesignCo</div></div></div></div></div></div></div></div></section></div><div id="cta"><section class="py-32 px-4 relative overflow-hidden bg-background text-foreground"><div class="absolute inset-0"><div class="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background"></div><div class="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-primary/20 to-secondary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"></div><div class="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-l from-secondary/20 to-primary/20 rounded-full blur-3xl opacity-70 dark:opacity-50"></div><div class="absolute inset-0 opacity-10 dark:opacity-5"><div class="w-full h-full" style="background-image:repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, hsl(var(--muted-foreground)/0.2) 60deg, transparent 120deg);background-size:100px 100px"></div></div></div><div class="max-w-4xl mx-auto text-center relative z-10"><div class="mb-8" style="opacity:0;transform:translateY(30px)"><div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm mb-8"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sparkles w-4 h-4 text-primary"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"></path><path d="M20 3v4"></path><path d="M22 5h-4"></path><path d="M4 17v2"></path><path d="M5 18H3"></path></svg><span class="text-sm text-muted-foreground">Ready to Transform?</span></div></div><h2 class="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight" style="opacity:0;transform:translateY(30px)">Let&#x27;s Build Something<br/><span class="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">Extraordinary</span></h2><p class="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed" style="opacity:0;transform:translateY(30px)">Join hundreds of forward-thinking companies who trust us to bring their vision to life with cutting-edge design and development.</p><div class="flex flex-col sm:flex-row gap-4 justify-center items-center" style="opacity:0;transform:translateY(30px)"><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 bg-primary text-primary-foreground hover:bg-primary/90 h-11 rounded-md px-12 py-6 text-xl font-semibold group">Get Started with Property Management<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></button><button class="inline-flex items-center justify-center gap-2 whitespace-nowrap ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&amp;_svg]:pointer-events-none [&amp;_svg]:size-4 [&amp;_svg]:shrink-0 border border-input bg-background hover:bg-gray-200 h-11 rounded-md px-12 py-6 text-xl font-semibold text-foreground hover:text-accent-foreground">Schedule Consultation</button></div></div></section></div><footer class="relative py-20 px-4 border-t border-border bg-background text-foreground"><div class="absolute inset-0 opacity-5 dark:opacity-3"><div class="w-full h-full" style="background-image:linear-gradient(0deg, transparent 24%, hsl(var(--muted-foreground)/0.1) 25%, hsl(var(--muted-foreground)/0.1) 26%, transparent 27%, transparent 74%, hsl(var(--muted-foreground)/0.05) 75%, hsl(var(--muted-foreground)/0.05) 76%, transparent 77%, transparent),
+2025-07-03T12:20:34.7316230Z                            linear-gradient(90deg, transparent 24%, hsl(var(--muted-foreground)/0.1) 25%, hsl(var(--muted-foreground)/0.1) 26%, transparent 27%, transparent 74%, hsl(var(--muted-foreground)/0.05) 75%, hsl(var(--muted-foreground)/0.05) 76%, transparent 77%, transparent);background-size:50px 50px"></div></div><div class="max-w-7xl mx-auto relative z-10"><div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-12 mb-16"><div class="lg:col-span-2"><div style="opacity:0;transform:translateY(20px)"><h3 class="text-2xl font-bold text-foreground mb-4">Design<span class="text-primary">Studio</span></h3><p class="text-muted-foreground leading-relaxed mb-6">Crafting exceptional digital experiences with cutting-edge technology and innovative design patterns.</p><div class="flex gap-4"><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="GitHub" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-github w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"></path><path d="M9 18c-4.51 2-5-2-7-2"></path></svg></a><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="Twitter" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-twitter w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path></svg></a><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="LinkedIn" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-linkedin w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path><rect width="4" height="12" x="2" y="9"></rect><circle cx="4" cy="4" r="2"></circle></svg></a><a href="#" class="w-10 h-10 bg-card hover:bg-accent rounded-lg flex items-center justify-center transition-colors border border-border" aria-label="Email" tabindex="0"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mail w-5 h-5 text-muted-foreground group-hover:text-accent-foreground"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg></a></div></div></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Company</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">About</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Careers</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Press</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">News</a></li></ul></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Services</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Design</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Development</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Consulting</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Support</a></li></ul></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Resources</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Blog</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Documentation</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Help Center</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Community</a></li></ul></div><div style="opacity:0;transform:translateY(20px)"><h4 class="text-foreground font-semibold mb-4">Legal</h4><ul class="space-y-3"><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Privacy</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Terms</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Security</a></li><li><a href="#" class="text-muted-foreground hover:text-foreground transition-colors">Cookies</a></li></ul></div></div><div class="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4" style="opacity:0;transform:translateY(20px)"><p class="text-muted-foreground text-sm">© 2024 DesignStudio. All rights reserved.</p><p class="text-muted-foreground/70 text-sm">Built with passion and cutting-edge technology</p></div></div></footer></main><!--$--><!--/$--><!--$--><!--/$--><div role="region" aria-label="Notifications (F8)" tabindex="-1" style="pointer-events:none"><ol tabindex="-1" class="sm:flex-col fixed top-0 right-0 z-[100] flex max-h-screen w-full flex-col p-4 sm:top-0 sm:right-0 sm:bottom-auto md:max-w-[420px]"></ol></div><!--$!--><template data-dgst="BAILOUT_TO_CLIENT_SIDE_RENDERING"></template><!--/$--><script src="/_next/static/chunks/webpack-ca9acd3851de0c1b.js" async=""></script><script>(self.__next_f=self.__next_f||[]).push([0])</script><script>self.__next_f.push([1,"1:\"$Sreact.fragment\"\n2:I[47780,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"ThemeProvider\"]\n3:I[87555,[],\"\"]\n4:I[31295,[],\"\"]\n5:I[65038,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"Toaster\"]\n6:I[31828,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"Analytics\"]\n7:I[48031,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9008\",\"static/chunks/9008-1899bf1833fa1f85.js\",\"7177\",\"static/chunks/app/layout-7acbe93f72d9b19e.js\"],\"SpeedInsights\"]\n8:I[2729,[\"5003\",\"static/chunks/5003-eb6688ed92ae5649.js\",\"7656\",\"static/chunks/7656-5fbc13fcafab7e1b.js\",\"9696\",\"static/chunks/9696-135e09501a621d21.js\",\"9591\",\"static/chunks/9591-ef7e06ea0468694a.js\",\"6874\",\"static/chunks/6874-179161e2a141c8e0.js\",\"6073\",\"static/chunks/6073-10422efccbdef0ab.js\",\"5887\",\"static/chunks/5887-f2be0e4ed0da62ad.js\",\"8911\",\"static/chunks/8911-d3c510c708d07156.js\",\"2729\",\"static/chunks/2729-174c1028499685be.js\",\"8974\",\"static/chunks/app/page-e90106d2a4799220.js\"],\"default\"]\n9:I[59665,[],\"MetadataBoundary\"]\nb:I[59665,[],\"OutletBoundary\"]\ne:I[74911,[],\"AsyncMetadataOutlet\"]\n10:I[59665,[],\"ViewportBoundary\"]\n12:I[26614,[],\"\"]\n:HL[\"/_next/static/media/e4af272ccee01ff0-s.p.woff2\",\"font\",{\"crossOrigin\":\"\",\"type\":\"font/woff2\"}]\n:HL[\"/_next/static/css/931b179cff3131dc.css\",\"style\"]\n:HL[\"/_next/static/css/00b150651e02fe92.css\",\"style\"]\n"])</script><script>self.__next_f.push([1,"0:{\"P\":null,\"b\":\"-e3OE3_-N5k8L39NmdE-N\",\"p\":\"\",\"c\":[\"\",\"\"],\"i\":false,\"f\":[[[\"\",{\"children\":[\"__PAGE__\",{}]},\"$undefined\",\"$undefined\",true],[\"\",[\"$\",\"$1\",\"c\",{\"children\":[[[\"$\",\"link\",\"0\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/931b179cff3131dc.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}],[\"$\",\"link\",\"1\",{\"rel\":\"stylesheet\",\"href\":\"/_next/static/css/00b150651e02fe92.css\",\"precedence\":\"next\",\"crossOrigin\":\"$undefined\",\"nonce\":\"$undefined\"}]],[\"$\",\"html\",null,{\"lang\":\"en\",\"suppressHydrationWarning\":true,\"className\":\"light\",\"children\":[\"$\",\"body\",null,{\"className\":\"__className_e8ce0c\",\"children\":[\"$\",\"$L2\",null,{\"attribute\":\"class\",\"defaultTheme\":\"light\",\"enableSystem\":false,\"children\":[[\"$\",\"$L3\",null,{\"parallelRouterKey\":\"children\",\"error\":\"$undefined\",\"errorStyles\":\"$undefined\",\"errorScripts\":\"$undefined\",\"template\":[\"$\",\"$L4\",null,{}],\"templateStyles\":\"$undefined\",\"templateScripts\":\"$undefined\",\"notFound\":[[[\"$\",\"title\",null,{\"children\":\"404: This page could not be found.\"}],[\"$\",\"div\",null,{\"style\":{\"fontFamily\":\"system-ui,\\\"Segoe UI\\\",Roboto,Helvetica,Arial,sans-serif,\\\"Apple Color Emoji\\\",\\\"Segoe UI Emoji\\\"\",\"height\":\"100vh\",\"textAlign\":\"center\",\"display\":\"flex\",\"flexDirection\":\"column\",\"alignItems\":\"center\",\"justifyContent\":\"center\"},\"children\":[\"$\",\"div\",null,{\"children\":[[\"$\",\"style\",null,{\"dangerouslySetInnerHTML\":{\"__html\":\"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}\"}}],[\"$\",\"h1\",null,{\"className\":\"next-error-h1\",\"style\":{\"display\":\"inline-block\",\"margin\":\"0 20px 0 0\",\"padding\":\"0 23px 0 0\",\"fontSize\":24,\"fontWeight\":500,\"verticalAlign\":\"top\",\"lineHeight\":\"49px\"},\"children\":404}],[\"$\",\"div\",null,{\"style\":{\"display\":\"inline-block\"},\"children\":[\"$\",\"h2\",null,{\"style\":{\"fontSize\":14,\"fontWeight\":400,\"lineHeight\":\"49px\",\"margin\":0},\"children\":\"This page could not be found.\"}]}]]}]}]],[]],\"forbidden\":\"$undefined\",\"unauthorized\":\"$undefined\"}],[\"$\",\"$L5\",null,{}],[\"$\",\"$L6\",null,{}],[\"$\",\"$L7\",null,{}]]}]}]}]]}],{\"children\":[\"__PAGE__\",[\"$\",\"$1\",\"c\",{\"children\":[[\"$\",\"$L8\",null,{}],[\"$\",\"$L9\",null,{\"children\":\"$La\"}],null,[\"$\",\"$Lb\",null,{\"children\":[\"$Lc\",\"$Ld\",[\"$\",\"$Le\",null,{\"promise\":\"$@f\"}]]}]]}],{},null,false]},null,false],[\"$\",\"$1\",\"h\",{\"children\":[null,[\"$\",\"$1\",\"1Khc9CiO42LQ5nf5gH2qS\",{\"children\":[[\"$\",\"$L10\",null,{\"children\":\"$L11\"}],[\"$\",\"meta\",null,{\"name\":\"next-size-adjust\",\"content\":\"\"}]]}],null]}],false]],\"m\":\"$undefined\",\"G\":[\"$12\",\"$undefined\"],\"s\":false,\"S\":true}\n"])</script><script>self.__next_f.push([1,"13:\"$Sreact.suspense\"\n14:I[74911,[],\"AsyncMetadata\"]\na:[\"$\",\"$13\",null,{\"fallback\":null,\"children\":[\"$\",\"$L14\",null,{\"promise\":\"$@15\"}]}]\n"])</script><script>self.__next_f.push([1,"d:null\n"])</script><script>self.__next_f.push([1,"11:[[\"$\",\"meta\",\"0\",{\"charSet\":\"utf-8\"}],[\"$\",\"meta\",\"1\",{\"name\":\"viewport\",\"content\":\"width=device-width, initial-scale=1\"}]]\nc:null\n"])</script><script>self.__next_f.push([1,"15:{\"metadata\":[[\"$\",\"title\",\"0\",{\"children\":\"Property Management Dashboard\"}],[\"$\",\"meta\",\"1\",{\"name\":\"description\",\"content\":\"Modern dashboard for property management\"}],[\"$\",\"meta\",\"2\",{\"name\":\"generator\",\"content\":\"v0.dev\"}]],\"error\":null,\"digest\":\"$undefined\"}\nf:{\"metadata\":\"$15:metadata\",\"error\":null,\"digest\":\"$undefined\"}\n"])</script></body></html>
+2025-07-03T12:20:34.7371797Z ##[debug]Finishing: Check Application Availability
+2025-07-03T12:20:34.7380864Z ##[debug]Evaluating condition for step: 'Run Lighthouse CI'
+2025-07-03T12:20:34.7382557Z ##[debug]Evaluating: success()
+2025-07-03T12:20:34.7382937Z ##[debug]Evaluating success:
+2025-07-03T12:20:34.7383367Z ##[debug]=> true
+2025-07-03T12:20:34.7383671Z ##[debug]Result: true
+2025-07-03T12:20:34.7384525Z ##[debug]Starting: Run Lighthouse CI
+2025-07-03T12:20:34.7393316Z ##[debug]Loading inputs
+2025-07-03T12:20:34.7394472Z ##[debug]Loading env
+2025-07-03T12:20:34.7397980Z ##[group]Run npm install -g @lhci/cli@0.13.0
+2025-07-03T12:20:34.7398289Z [36;1mnpm install -g @lhci/cli@0.13.0[0m
+2025-07-03T12:20:34.7398561Z [36;1mmkdir -p ./.lighthouseci/mobile[0m
+2025-07-03T12:20:34.7398833Z [36;1mmkdir -p ./.lighthouseci/desktop[0m
+2025-07-03T12:20:34.7399427Z [36;1mlhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/mobile --settings.emulatedFormFactor=mobile --no-upload[0m
+2025-07-03T12:20:34.7400267Z [36;1mlhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/desktop --settings.emulatedFormFactor=desktop --no-upload[0m
+2025-07-03T12:20:34.7456545Z shell: /usr/bin/bash -e {0}
+2025-07-03T12:20:34.7456788Z ##[endgroup]
+2025-07-03T12:20:34.7509690Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/1b98d7e0-73d7-431a-b1c6-df75574da622.sh
+2025-07-03T12:20:46.0710399Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2025-07-03T12:20:46.2694453Z npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+2025-07-03T12:20:47.2987058Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2025-07-03T12:20:47.2994367Z npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+2025-07-03T12:20:49.1865140Z 
+2025-07-03T12:20:49.1865945Z added 345 packages in 14s
+2025-07-03T12:20:49.1866388Z 
+2025-07-03T12:20:49.1866821Z 30 packages are looking for funding
+2025-07-03T12:20:49.1867282Z   run `npm fund` for details
+2025-07-03T12:20:49.5514842Z Running Lighthouse 3 time(s) on http://localhost:3000
+2025-07-03T12:21:03.1827215Z Run #1...done.
+2025-07-03T12:21:15.4602752Z Run #2...done.
+2025-07-03T12:21:27.6416888Z Run #3...done.
+2025-07-03T12:21:27.6417870Z Done running Lighthouse!
+2025-07-03T12:21:27.9656824Z Running Lighthouse 3 time(s) on http://localhost:3000
+2025-07-03T12:21:40.7416222Z Run #1...done.
+2025-07-03T12:21:53.7454525Z Run #2...done.
+2025-07-03T12:22:05.9690365Z Run #3...done.
+2025-07-03T12:22:05.9691251Z Done running Lighthouse!
+2025-07-03T12:22:05.9786933Z ##[debug]Finishing: Run Lighthouse CI
+2025-07-03T12:22:05.9797078Z ##[debug]Evaluating condition for step: 'List Lighthouse reports'
+2025-07-03T12:22:05.9799712Z ##[debug]Evaluating: success()
+2025-07-03T12:22:05.9800316Z ##[debug]Evaluating success:
+2025-07-03T12:22:05.9800953Z ##[debug]=> true
+2025-07-03T12:22:05.9801546Z ##[debug]Result: true
+2025-07-03T12:22:05.9802538Z ##[debug]Starting: List Lighthouse reports
+2025-07-03T12:22:05.9815778Z ##[debug]Loading inputs
+2025-07-03T12:22:05.9817101Z ##[debug]Loading env
+2025-07-03T12:22:05.9822989Z ##[group]Run ls -la ./.lighthouseci
+2025-07-03T12:22:05.9823466Z [36;1mls -la ./.lighthouseci[0m
+2025-07-03T12:22:05.9893154Z shell: /usr/bin/bash -e {0}
+2025-07-03T12:22:05.9893401Z ##[endgroup]
+2025-07-03T12:22:05.9951584Z ##[debug]/usr/bin/bash -e /home/runner/work/_temp/8a17acf6-9702-4fb5-aefe-a22fb1ce44bd.sh
+2025-07-03T12:22:05.9999603Z total 3212
+2025-07-03T12:22:06.0000140Z drwxr-xr-x  4 runner docker   4096 Jul  3 12:22 .
+2025-07-03T12:22:06.0000860Z drwxr-xr-x 16 runner docker   4096 Jul  3 12:20 ..
+2025-07-03T12:22:06.0001563Z drwxr-xr-x  2 runner docker   4096 Jul  3 12:20 desktop
+2025-07-03T12:22:06.0002713Z -rw-r--r--  1 runner docker 588857 Jul  3 12:21 lhr-1751545300201.html
+2025-07-03T12:22:06.0003565Z -rw-r--r--  1 runner docker 494142 Jul  3 12:21 lhr-1751545300201.json
+2025-07-03T12:22:06.0009305Z -rw-r--r--  1 runner docker 595315 Jul  3 12:21 lhr-1751545313738.html
+2025-07-03T12:22:06.0010226Z -rw-r--r--  1 runner docker 500451 Jul  3 12:21 lhr-1751545313738.json
+2025-07-03T12:22:06.0011090Z -rw-r--r--  1 runner docker 589404 Jul  3 12:22 lhr-1751545325958.html
+2025-07-03T12:22:06.0011909Z -rw-r--r--  1 runner docker 495059 Jul  3 12:22 lhr-1751545325958.json
+2025-07-03T12:22:06.0012353Z drwxr-xr-x  2 runner docker   4096 Jul  3 12:20 mobile
+2025-07-03T12:22:06.0015305Z ##[debug]Finishing: List Lighthouse reports
+2025-07-03T12:22:06.0020886Z ##[debug]Evaluating condition for step: 'Upload Lighthouse reports'
+2025-07-03T12:22:06.0022095Z ##[debug]Evaluating: success()
+2025-07-03T12:22:06.0022433Z ##[debug]Evaluating success:
+2025-07-03T12:22:06.0022789Z ##[debug]=> true
+2025-07-03T12:22:06.0023091Z ##[debug]Result: true
+2025-07-03T12:22:06.0023615Z ##[debug]Starting: Upload Lighthouse reports
+2025-07-03T12:22:06.0056320Z ##[debug]Loading inputs
+2025-07-03T12:22:06.0059380Z ##[debug]Loading env
+2025-07-03T12:22:06.0062941Z ##[group]Run actions/upload-artifact@v4
+2025-07-03T12:22:06.0063183Z with:
+2025-07-03T12:22:06.0063362Z   name: lighthouse-reports
+2025-07-03T12:22:06.0063645Z   path: ./.lighthouseci/mobile
+./.lighthouseci/desktop
+
+2025-07-03T12:22:06.0063941Z   if-no-files-found: warn
+2025-07-03T12:22:06.0064494Z   compression-level: 6
+2025-07-03T12:22:06.0064761Z   overwrite: false
+2025-07-03T12:22:06.0064965Z   include-hidden-files: false
+2025-07-03T12:22:06.0065192Z ##[endgroup]
+2025-07-03T12:22:06.2306875Z ##[debug]followSymbolicLinks 'true'
+2025-07-03T12:22:06.2307954Z ##[debug]implicitDescendants 'true'
+2025-07-03T12:22:06.2308819Z ##[debug]omitBrokenSymbolicLinks 'true'
+2025-07-03T12:22:06.2309686Z ##[debug]excludeHiddenFiles 'true'
+2025-07-03T12:22:06.2329189Z ##[debug]followSymbolicLinks 'true'
+2025-07-03T12:22:06.2330144Z ##[debug]implicitDescendants 'true'
+2025-07-03T12:22:06.2331180Z ##[debug]matchDirectories 'true'
+2025-07-03T12:22:06.2332097Z ##[debug]omitBrokenSymbolicLinks 'true'
+2025-07-03T12:22:06.2333002Z ##[debug]excludeHiddenFiles 'true'
+2025-07-03T12:22:06.2341388Z ##[debug]Search path '/home/runner/work/RMS/RMS/.lighthouseci/mobile'
+2025-07-03T12:22:06.2349752Z ##[debug]Search path '/home/runner/work/RMS/RMS/.lighthouseci/desktop'
+2025-07-03T12:22:06.2414828Z ##[debug]Removing /home/runner/work/RMS/RMS/.lighthouseci/mobile from rawSearchResults because it is a directory
+2025-07-03T12:22:06.2421981Z ##[debug]Removing /home/runner/work/RMS/RMS/.lighthouseci/desktop from rawSearchResults because it is a directory
+2025-07-03T12:22:06.2429335Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2025-07-03T12:22:06.2435015Z ##[debug]Using search path /home/runner/work/RMS/RMS/.lighthouseci/mobile
+2025-07-03T12:22:06.2445296Z ##[debug]Using search path /home/runner/work/RMS/RMS/.lighthouseci/desktop
+2025-07-03T12:22:06.2446730Z The least common ancestor is /home/runner/work/RMS/RMS/.lighthouseci. This will be the root directory of the artifact
+2025-07-03T12:22:06.2471523Z ##[warning]No files were found with the provided path: ./.lighthouseci/mobile
+./.lighthouseci/desktop. No artifacts will be uploaded.
+2025-07-03T12:22:06.2571769Z ##[debug]Node Action run completed with exit code 0
+2025-07-03T12:22:06.2574383Z ##[debug]Finishing: Upload Lighthouse reports
+2025-07-03T12:22:06.2592003Z ##[debug]Evaluating condition for step: 'Post Setup Node.js'
+2025-07-03T12:22:06.2593548Z ##[debug]Evaluating: success()
+2025-07-03T12:22:06.2593899Z ##[debug]Evaluating success:
+2025-07-03T12:22:06.2594584Z ##[debug]=> true
+2025-07-03T12:22:06.2594944Z ##[debug]Result: true
+2025-07-03T12:22:06.2595571Z ##[debug]Starting: Post Setup Node.js
+2025-07-03T12:22:06.2618961Z ##[debug]Loading inputs
+2025-07-03T12:22:06.2622921Z ##[debug]Evaluating: (((github.server_url == 'https://github.com') && github.token) || '')
+2025-07-03T12:22:06.2623624Z ##[debug]Evaluating Or:
+2025-07-03T12:22:06.2623871Z ##[debug]..Evaluating And:
+2025-07-03T12:22:06.2624289Z ##[debug]....Evaluating Equal:
+2025-07-03T12:22:06.2624596Z ##[debug]......Evaluating Index:
+2025-07-03T12:22:06.2624845Z ##[debug]........Evaluating github:
+2025-07-03T12:22:06.2625131Z ##[debug]........=> Object
+2025-07-03T12:22:06.2625367Z ##[debug]........Evaluating String:
+2025-07-03T12:22:06.2625636Z ##[debug]........=> 'server_url'
+2025-07-03T12:22:06.2625997Z ##[debug]......=> 'https://github.com'
+2025-07-03T12:22:06.2626271Z ##[debug]......Evaluating String:
+2025-07-03T12:22:06.2626520Z ##[debug]......=> 'https://github.com'
+2025-07-03T12:22:06.2626773Z ##[debug]....=> true
+2025-07-03T12:22:06.2626978Z ##[debug]....Evaluating Index:
+2025-07-03T12:22:06.2627209Z ##[debug]......Evaluating github:
+2025-07-03T12:22:06.2627442Z ##[debug]......=> Object
+2025-07-03T12:22:06.2627897Z ##[debug]......Evaluating String:
+2025-07-03T12:22:06.2628151Z ##[debug]......=> 'token'
+2025-07-03T12:22:06.2628764Z ##[debug]....=> '***'
+2025-07-03T12:22:06.2629104Z ##[debug]..=> '***'
+2025-07-03T12:22:06.2629375Z ##[debug]=> '***'
+2025-07-03T12:22:06.2629895Z ##[debug]Expanded: ((('https://github.com' == 'https://github.com') && '***') || '')
+2025-07-03T12:22:06.2630344Z ##[debug]Result: '***'
+2025-07-03T12:22:06.2632278Z ##[debug]Loading env
+2025-07-03T12:22:06.2636221Z Post job cleanup.
+2025-07-03T12:22:06.4175640Z ##[debug]Caching for '' is not supported
+2025-07-03T12:22:06.4250419Z ##[debug]Node Action run completed with exit code 0
+2025-07-03T12:22:06.4252946Z ##[debug]Finishing: Post Setup Node.js
+2025-07-03T12:22:06.4260331Z ##[debug]Evaluating condition for step: 'Post Checkout Repository'
+2025-07-03T12:22:06.4263361Z ##[debug]Evaluating: always()
+2025-07-03T12:22:06.4263742Z ##[debug]Evaluating always:
+2025-07-03T12:22:06.4265074Z ##[debug]=> true
+2025-07-03T12:22:06.4265678Z ##[debug]Result: true
+2025-07-03T12:22:06.4266465Z ##[debug]Starting: Post Checkout Repository
+2025-07-03T12:22:06.4296079Z ##[debug]Loading inputs
+2025-07-03T12:22:06.4296967Z ##[debug]Evaluating: github.repository
+2025-07-03T12:22:06.4297250Z ##[debug]Evaluating Index:
+2025-07-03T12:22:06.4297475Z ##[debug]..Evaluating github:
+2025-07-03T12:22:06.4297740Z ##[debug]..=> Object
+2025-07-03T12:22:06.4297958Z ##[debug]..Evaluating String:
+2025-07-03T12:22:06.4298192Z ##[debug]..=> 'repository'
+2025-07-03T12:22:06.4298466Z ##[debug]=> 'NtFelix/RMS'
+2025-07-03T12:22:06.4298689Z ##[debug]Result: 'NtFelix/RMS'
+2025-07-03T12:22:06.4299956Z ##[debug]Evaluating: github.token
+2025-07-03T12:22:06.4300212Z ##[debug]Evaluating Index:
+2025-07-03T12:22:06.4300462Z ##[debug]..Evaluating github:
+2025-07-03T12:22:06.4300695Z ##[debug]..=> Object
+2025-07-03T12:22:06.4300903Z ##[debug]..Evaluating String:
+2025-07-03T12:22:06.4301115Z ##[debug]..=> 'token'
+2025-07-03T12:22:06.4301507Z ##[debug]=> '***'
+2025-07-03T12:22:06.4301821Z ##[debug]Result: '***'
+2025-07-03T12:22:06.4308968Z ##[debug]Loading env
+2025-07-03T12:22:06.4312306Z Post job cleanup.
+2025-07-03T12:22:06.5257836Z ##[debug]Getting git version
+2025-07-03T12:22:06.5274600Z [command]/usr/bin/git version
+2025-07-03T12:22:06.5316619Z git version 2.49.0
+2025-07-03T12:22:06.5342549Z ##[debug]0
+2025-07-03T12:22:06.5343832Z ##[debug]git version 2.49.0
+2025-07-03T12:22:06.5345097Z ##[debug]
+2025-07-03T12:22:06.5345888Z ##[debug]Set git useragent to: git/2.49.0 (github-actions-checkout)
+2025-07-03T12:22:06.5350178Z ::add-mask::***
+2025-07-03T12:22:06.5367906Z Temporarily overriding HOME='/home/runner/work/_temp/306e7584-f001-46f4-a30b-55799184bee9' before making global git config changes
+2025-07-03T12:22:06.5371197Z Adding repository directory to the temporary git global config as a safe directory
+2025-07-03T12:22:06.5389011Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RMS/RMS
+2025-07-03T12:22:06.5418448Z ##[debug]0
+2025-07-03T12:22:06.5421102Z ##[debug]
+2025-07-03T12:22:06.5427444Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-07-03T12:22:06.5463419Z ##[debug]1
+2025-07-03T12:22:06.5463951Z ##[debug]
+2025-07-03T12:22:06.5468890Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-07-03T12:22:06.5740251Z ##[debug]0
+2025-07-03T12:22:06.5742780Z ##[debug]
+2025-07-03T12:22:06.5749957Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-07-03T12:22:06.5778025Z http.https://github.com/.extraheader
+2025-07-03T12:22:06.5782791Z ##[debug]0
+2025-07-03T12:22:06.5783998Z ##[debug]http.https://github.com/.extraheader
+2025-07-03T12:22:06.5784854Z ##[debug]
+2025-07-03T12:22:06.5791598Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-07-03T12:22:06.5820610Z ##[debug]0
+2025-07-03T12:22:06.5822031Z ##[debug]
+2025-07-03T12:22:06.5828067Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-07-03T12:22:06.6056901Z ##[debug]0
+2025-07-03T12:22:06.6061003Z ##[debug]
+2025-07-03T12:22:06.6061804Z ##[debug]Unsetting HOME override
+2025-07-03T12:22:06.6128888Z ##[debug]Node Action run completed with exit code 0
+2025-07-03T12:22:06.6131627Z ##[debug]Finishing: Post Checkout Repository
+2025-07-03T12:22:06.6175265Z ##[debug]Starting: Complete job
+2025-07-03T12:22:06.6177198Z Uploading runner diagnostic logs
+2025-07-03T12:22:06.6189236Z ##[debug]Starting diagnostic file upload.
+2025-07-03T12:22:06.6189672Z ##[debug]Setting up diagnostic log folders.
+2025-07-03T12:22:06.6191724Z ##[debug]Creating diagnostic log files folder.
+2025-07-03T12:22:06.6214799Z ##[debug]Copying 1 worker diagnostic logs.
+2025-07-03T12:22:06.6225653Z ##[debug]Copying 1 runner diagnostic logs.
+2025-07-03T12:22:06.6226843Z ##[debug]Zipping diagnostic files.
+2025-07-03T12:22:06.6316651Z ##[debug]Uploading diagnostic metadata file.
+2025-07-03T12:22:06.6346724Z ##[debug]Diagnostic file upload complete.
+2025-07-03T12:22:06.6347247Z Completed runner diagnostic log upload
+2025-07-03T12:22:06.6347520Z Cleaning up orphan processes
+2025-07-03T12:22:06.6607401Z Terminate orphan process: pid (2081) (npm run start)
+2025-07-03T12:22:06.6642315Z Terminate orphan process: pid (2103) (sh)
+2025-07-03T12:22:06.6669464Z Terminate orphan process: pid (2104) (next-server (v15.3.1))
+2025-07-03T12:22:06.6670730Z ##[debug]Finishing: Complete job
+2025-07-03T12:22:06.6710262Z ##[debug]Finishing: build-and-lighthouse

@@ -51,8 +51,12 @@ jobs:
           npm install -g @lhci/cli@0.13.0
           mkdir -p ./.lighthouseci/mobile
           mkdir -p ./.lighthouseci/desktop
-          lhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/mobile --settings.emulatedFormFactor=mobile --no-upload
-          lhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/desktop --settings.emulatedFormFactor=desktop --no-upload
+          lhci collect --url=http://localhost:3000 --settings.emulatedFormFactor=mobile --no-upload
+          mv ./.lighthouseci/lhr-*.html ./.lighthouseci/mobile/
+          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
+          lhci collect --url=http://localhost:3000 --settings.emulatedFormFactor=desktop --no-upload
+          mv ./.lighthouseci/lhr-*.html ./.lighthouseci/desktop/
+          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
 
       - name: List Lighthouse reports
         run: ls -la ./.lighthouseci
