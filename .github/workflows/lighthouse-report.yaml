@@ -52,6 +52,9 @@ jobs:
           lhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/mobile --settings.emulatedFormFactor=mobile
           lhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/desktop --settings.emulatedFormFactor=desktop
 
+      - name: List Lighthouse reports
+        run: ls -la ./.lighthouseci
+
       - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         with:
