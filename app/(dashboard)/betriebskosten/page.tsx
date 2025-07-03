@@ -12,12 +12,24 @@ export default async function BetriebskostenPage() {
   
   const nebenkostenData = await fetchNebenkostenList();
   const haeuserData = await fetchHaeuser();
-  const userProfile = userId ? await fetchUserProfile() : null;
+  // const userProfile = userId ? await fetchUserProfile() : null; // User profile from 'profiles' table might not be needed if display name is from auth.users
 
-  // Use a more specific field for owner name if available, e.g., userProfile.full_name
-  // For now, using email as a placeholder if a more suitable field isn't present
-  // Also, providing a default fallback if userProfile or email is null.
-  const ownerName = userProfile?.email || "Vermieter Name";
+  let ownerName = "Vermieter Name"; // Default fallback
+  if (user) {
+    const firstName = user.user_metadata?.first_name;
+    const lastName = user.user_metadata?.last_name;
+    let constructedName = "";
+
+    if (firstName && lastName) {
+      constructedName = `${firstName} ${lastName}`;
+    } else if (firstName) {
+      constructedName = firstName;
+    } else if (lastName) {
+      constructedName = lastName;
+    }
+
+    ownerName = constructedName || user.email || "Vermieter Name";
+  }
 
   return (
     <div className="flex flex-col gap-8 p-8">
