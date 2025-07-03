@@ -51,7 +51,6 @@ jobs:
         with:
           urls: |
             http://localhost:3000
-          staticDistDir: './out'
           uploadArtifacts: true
 
       # 7) Artefakte hochladen (Reports)
