@@ -37,6 +37,7 @@ const nextConfig = {
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
     return config;
   },
+  output: 'export',
 }
 
 export default nextConfig
