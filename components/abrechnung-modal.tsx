@@ -133,6 +133,8 @@ interface AbrechnungModalProps {
   tenants: Mieter[];
   rechnungen: Rechnung[]; // Assumed new prop
   wasserzaehlerReadings?: Wasserzaehler[];
+  ownerName: string;
+  ownerAddress: string;
   // wohnungen prop is removed as Mieter type now includes Wohnungen directly with name and groesse
 }
 
@@ -143,6 +145,8 @@ export function AbrechnungModal({
   tenants,
   rechnungen, // Destructured assumed new prop
   wasserzaehlerReadings,
+  ownerName,
+  ownerAddress,
 }: AbrechnungModalProps) {
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
@@ -338,8 +342,8 @@ export function AbrechnungModal({
   const generateSettlementPDF = async ( // Changed to async
     tenantData: TenantCostDetails | TenantCostDetails[],
     nebenkostenItem: Nebenkosten,
-    ownerName: string = "[Name Owner]",
-    ownerAddress: string = "[Adresse Owner]"
+    ownerName: string, // Now a required parameter
+    ownerAddress: string // Now a required parameter
   ) => {
     const { default: jsPDF } = await import('jspdf');
     const autoTableModule = await import('jspdf-autotable');
@@ -403,28 +407,33 @@ export function AbrechnungModal({
       startY += 10;
 
       // 4. Costs Table
-      const tableColumn = ["Leistungsart", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
+      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler Einheit /qm etc.", "Kosten Pro qm", "Kostenanteil In €"];
       const tableRows: any[][] = [];
 
       singleTenantData.costItems.forEach(item => {
         const row = [
           item.costName,
-          item.calculationType,
-          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-',
-          formatCurrency(item.tenantShare)
+          formatCurrency(item.totalCostForItem), // Gesamtkosten in €
+          item.calculationType, // Verteiler Einheit /qm etc.
+          item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-', // Kosten Pro qm
+          formatCurrency(item.tenantShare) // Kostenanteil In €
         ];
         tableRows.push(row);
       });
 
-      // Add water cost row
-      tableRows.push([
-        "Wasserkosten",
-        singleTenantData.waterCost.calculationType,
-        "-",
-        formatCurrency(singleTenantData.waterCost.tenantShare)
-      ]);
+      // Note: The separate "Wasserkosten" row that was here has been removed.
+      // If "Digitaler Wasserzähler" or similar is a cost item, it will be included above.
+      // Specific tenant water consumption costs will be detailed separately below this table.
 
-      (doc as any).autoTable({ // Changed to (doc as any).autoTable
+      // Calculate sums for the footer row
+      const sumOfTotalCostForItem = singleTenantData.costItems.reduce((sum, item) => sum + item.totalCostForItem, 0);
+      // This sum represents the tenant's share of the general operating costs listed in costItems.
+      // It does NOT yet include their specific water consumption costs, which are handled by singleTenantData.waterCost.tenantShare
+      const sumOfTenantSharesFromCostItems = singleTenantData.costItems.reduce((sum, item) => sum + item.tenantShare, 0);
+
+      // "Betriebskosten gesamt" row is removed from here and will be drawn manually after the table.
+
+      (doc as any).autoTable({
         head: [tableColumn],
         body: tableRows,
         startY: startY,
@@ -432,27 +441,123 @@ export function AbrechnungModal({
         headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
         styles: { fontSize: 9, cellPadding: 1.5 },
         columnStyles: {
-          3: { halign: 'right' } // Align "Kostenanteil In €" to the right
-        }
+          1: { halign: 'right' }, // Gesamtkosten in €
+          3: { halign: 'right' }, // Kosten Pro qm
+          4: { halign: 'right' }  // Kostenanteil In €
+        },
+        margin: { left: 20 } // Set left margin for the table
       });
 
-      const finalY = (doc as any).lastAutoTable?.finalY; // Changed to (doc as any) and optional chaining
-      if (typeof finalY === 'number') {
-        startY = finalY + 10;
+      let tableFinalY = (doc as any).lastAutoTable?.finalY;
+      if (typeof tableFinalY === 'number') {
+        startY = tableFinalY + 6; // Space after table
       } else {
-        // Fallback logic: if finalY is not available (which shouldn't happen after a successful autoTable call),
-        // increment startY by a default value to prevent overlap and log an error.
-        startY += 10; // Default spacing
+        startY += 10; // Fallback spacing
         console.error("Error: doc.lastAutoTable.finalY was not available after autoTable call. Using default spacing.");
       }
 
-      // Table Footer (Betriebskosten gesamt) - displayed as a line of text for simplicity
-      doc.setFontSize(10);
+      // Draw "Betriebskosten gesamt" sums manually below the table
+      const lastTable = (doc as any).lastAutoTable;
+      // Draw "Betriebskosten gesamt" sums manually below the table, aligned with columns
+      let sumsDrawnSuccessfully = false;
+
+      if (lastTable && Array.isArray(lastTable.columns) && lastTable.settings?.margin) {
+        const col0 = lastTable.columns[0];
+        const col1 = lastTable.columns[1];
+        const col4 = lastTable.columns[4];
+
+        if (col0 && typeof col0.x === 'number' &&
+            col1 && typeof col1.x === 'number' && typeof col1.width === 'number' &&
+            col4 && typeof col4.x === 'number' && typeof col4.width === 'number') {
+
+          const leistungsartX = col0.x;
+          const gesamtkostenX = col1.x;
+          const gesamtkostenWidth = col1.width;
+          const kostenanteilX = col4.x;
+          const kostenanteilWidth = col4.width;
+
+          doc.setFontSize(9); // Match table body font size
+          doc.setFont("helvetica", "bold");
+
+          const labelText = "Betriebskosten gesamt: ";
+          const sum1Text = formatCurrency(sumOfTotalCostForItem);
+          const labelX = col0.x; // Start of first column for the label
+
+          // Draw label and first sum together
+          doc.text(labelText + sum1Text, labelX, startY, { align: 'left' });
+
+          // Draw sum for "Kostenanteil In €" column (sum2) aligned to its column
+          doc.text(
+            formatCurrency(sumOfTenantSharesFromCostItems),
+            kostenanteilX + kostenanteilWidth,
+            startY,
+            { align: 'right' }
+          );
+
+          startY += 8; // Space after the sum line
+          doc.setFont("helvetica", "normal");
+          sumsDrawnSuccessfully = true;
+        }
+      }
+
+      if (!sumsDrawnSuccessfully) {
+        // Fallback if table column data isn't available or valid
+        console.error("Could not retrieve valid column data to draw 'Betriebskosten gesamt' sums accurately. Using improved fallback.");
+        doc.setFontSize(9); // Consistent font size with primary attempt
+        doc.setFont("helvetica", "bold");
+
+        // Fallback: Label and first sum together, second sum on far right
+        const fallbackLabelX = 20;
+        const fallbackSum2X = doc.internal.pageSize.getWidth() - 20; // Right margin
+
+        const labelAndSum1Text = `Betriebskosten gesamt: ${formatCurrency(sumOfTotalCostForItem)}`;
+        doc.text(labelAndSum1Text, fallbackLabelX, startY, {align: 'left'});
+
+        doc.text(
+          formatCurrency(sumOfTenantSharesFromCostItems),
+          fallbackSum2X,
+          startY,
+          { align: 'right' }
+        );
+
+        startY += 8;
+        doc.setFont("helvetica", "normal");
+      }
+
+      // Unused finalY block and vestigial font changes removed.
+      // startY is now correctly managed by tableFinalY and the subsequent drawing of "Betriebskosten gesamt" sums.
+
+      // 4.5. Wasserzähler Data Section
+      // startY was updated after drawing "Betriebskosten gesamt" sums (startY += 8).
+      // Add a consistent small space before this new section.
+      startY += 5;
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
-      doc.text("Betriebskosten gesamt:", 20, startY);
-      doc.text(formatCurrency(singleTenantData.totalTenantCost), doc.internal.pageSize.getWidth() - 20, startY, { align: "right" });
-      startY += 8;
+      doc.text("Wasserverbrauch", 20, startY);
+      startY += 7;
+
+      doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
+
+      const totalBuildingWaterCost = nebenkostenItem.wasserkosten || 0;
+      const totalBuildingWaterConsumption = nebenkostenItem.wasserverbrauch || 0;
+      const pricePerCubicMeter = totalBuildingWaterConsumption > 0 ? totalBuildingWaterCost / totalBuildingWaterConsumption : 0;
+
+      // Display tenant's water consumption details
+      // TODO: For future enhancement, if data for old/new meters (Verbrauch alter WZ / neuer WZ) is available,
+      // it should be presented here as per the user's original example image.
+      // Current data provides total consumption for the period.
+      doc.text(`Gesamter Wasserverbrauch Mieter:`, 20, startY);
+      doc.text(`${singleTenantData.waterCost.consumption?.toFixed(2) || '0.00'} m³`, 100, startY);
+      startY += 6;
+
+      doc.text(`Kosten pro m³:`, 20, startY);
+      doc.text(formatCurrency(pricePerCubicMeter), 100, startY);
+      startY += 6;
+
+      doc.text(`Kostenanteil Wasserverbrauch Mieter:`, 20, startY);
+      doc.text(formatCurrency(singleTenantData.waterCost.tenantShare), 100, startY, { align: "left" }); // Explicitly left, though default
+      startY += 10;
 
 
       // 5. Final Summary
@@ -731,7 +836,7 @@ export function AbrechnungModal({
           <Button variant="outline" onClick={onClose}>
             Schließen
           </Button>
-          <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!); }}>
+          <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress); }}>
             <FileDown className="mr-2 h-4 w-4" />
             Als PDF exportieren
           </Button>

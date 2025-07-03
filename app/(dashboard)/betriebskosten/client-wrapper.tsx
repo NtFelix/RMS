@@ -16,12 +16,14 @@ interface BetriebskostenClientWrapperProps {
   initialNebenkosten: Nebenkosten[]; // Using Nebenkosten type
   initialHaeuser: Haus[];       // Using Haus type
   userId?: string;
+  ownerName: string;
 }
 
 export default function BetriebskostenClientWrapper({ 
   initialNebenkosten, 
   initialHaeuser, 
-  userId 
+  userId,
+  ownerName
 }: BetriebskostenClientWrapperProps) {
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -135,6 +137,8 @@ export default function BetriebskostenClientWrapper({
             nebenkosten={filteredNebenkosten} 
             onEdit={handleOpenEditModal} 
             onDeleteItem={openDeleteAlert}
+            ownerName={ownerName}
+            allHaeuser={initialHaeuser}
           />
         </CardContent>
       </Card>
