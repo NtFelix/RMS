@@ -46,21 +46,38 @@ jobs:
         run: curl -v http://localhost:3000
 
       # 6) Lighthouse Performance Audit
-      - name: Run Lighthouse Performance Audit
+      - name: Run Lighthouse Performance Audit (Mobile)
         uses: treosh/lighthouse-ci-action@v11
         with:
           urls: |
             http://localhost:3000
           uploadArtifacts: true
+          preset: "mobile"
+          artifactName: lighthouse-results-mobile
+
+      - name: Run Lighthouse Performance Audit (Desktop)
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            http://localhost:3000
+          uploadArtifacts: true
+          preset: "desktop"
+          artifactName: lighthouse-results-desktop
 
       - name: List files in workspace
         run: ls -la
 
       # 7) Artefakte hochladen (Reports)
-      - name: Upload Lighthouse Reports
+      - name: Upload Lighthouse Mobile Reports
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouse-report
-          path: ./.lighthouseci
+          name: lighthouse-report-mobile
+          path: ${{ github.workspace }}/.lighthouseci/lighthouse-results-mobile
+
+      - name: Upload Lighthouse Desktop Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-report-desktop
+          path: ${{ github.workspace }}/.lighthouseci/lighthouse-results-desktop
 
       
