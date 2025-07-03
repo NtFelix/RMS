@@ -52,10 +52,13 @@ jobs:
           urls: |
             http://localhost:3000
           staticDistDir: './out'
+          uploadArtifacts: true
 
       # 7) Artefakte hochladen (Reports)
       - name: Upload Lighthouse Reports
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report
-          path: ./.lighthouseci
+          path: ${{ github.workspace }}/.lighthouseci
+
+      
