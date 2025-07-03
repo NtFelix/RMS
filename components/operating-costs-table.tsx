@@ -312,7 +312,14 @@ export function OperatingCostsTable({
           rechnungen={rechnungenForAbrechnungModal}
           wasserzaehlerReadings={wasserzaehlerReadingsForAbrechnungModal}
           ownerName={ownerName}
-          ownerAddress={allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id) ? `${allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id)?.strasse || ''}, ${allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id)?.ort || ''}` : "Platzhalter Adresse"}
+          ownerAddress={(() => {
+            const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);
+            if (!selectedHaus) {
+              return "Platzhalter Adresse";
+            }
+            const addressParts = [selectedHaus.strasse, selectedHaus.ort].filter(Boolean);
+            return addressParts.length > 0 ? addressParts.join(', ') : "Platzhalter Adresse";
+          })()}
         />
       )}
     </div>
