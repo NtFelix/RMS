@@ -53,11 +53,14 @@ jobs:
             http://localhost:3000
           uploadArtifacts: true
 
+      - name: List files in workspace
+        run: ls -la
+
       # 7) Artefakte hochladen (Reports)
       - name: Upload Lighthouse Reports
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-report
-          path: ${{ github.workspace }}/.lighthouseci
+          path: ./.lighthouseci
 
       
