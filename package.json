@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "NODE_ENV=test jest",
-    "export": "next export"
+    "test": "NODE_ENV=test jest"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -94,6 +93,7 @@
     "ts-jest": "^29.3.4",
     "ts-node": "^10.9.2",
     "typescript": "^5",
-    "whatwg-fetch": "^3.6.20"
+    "whatwg-fetch": "^3.6.20",
+    "wait-on": "^7.2.0"
   }
 }

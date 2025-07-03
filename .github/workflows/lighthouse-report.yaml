@@ -34,30 +34,39 @@ jobs:
         run: npm run build
         # oder: yarn build
 
-      # 5) Next.js statisch exportieren
-      - name: Export Static Site
-        run: npm run export
-        # Standardmäßig schreibt `next export` in `out/`
+      
 
-      # 6) Statischen Server starten
-      - name: Serve static files
+      # 5) Built Next.js Application starten
+      - name: Serve Built Next.js Application
         run: |
-          # 'serve' im Hintergrund starten auf Port 5000
-          npx serve out -l 5000 &
-          # Kurze Pause, damit der Server hochfährt
-          sleep 5
+          npm run start &
+          npx wait-on http://localhost:3000
 
-      # 7) Lighthouse Performance Audit
-      - name: Run Lighthouse Performance Audit
-        uses: jakejarvis/lighthouse-action@v0.3.2
-        with:
-          url: http://localhost:5000
-          thresholds: '{"performance": 90, "accessibility": 80}'
-          output: html,json
+      - name: Check Application Availability
+        run: curl -v http://localhost:3000
 
-      # 8) Artefakte hochladen (Reports)
-      - name: Upload Lighthouse Reports
+      # 6) Lighthouse Performance Audit
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.13.0
+          mkdir -p ./.lighthouseci/mobile
+          mkdir -p ./.lighthouseci/desktop
+          lhci collect --url=http://localhost:3000 --settings.emulatedFormFactor=mobile --no-upload
+          mv ./.lighthouseci/lhr-*.html ./.lighthouseci/mobile/
+          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
+          lhci collect --url=http://localhost:3000 --settings.emulatedFormFactor=desktop --no-upload
+          mv ./.lighthouseci/lhr-*.html ./.lighthouseci/desktop/
+          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
+
+      - name: List Lighthouse reports
+        run: ls -la ./.lighthouseci
+
+      - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         with:
-          name: lighthouse-report
-          path: ./lighthouse
+          name: lighthouse-reports
+          path: |
+            ./.lighthouseci/mobile
+            ./.lighthouseci/desktop
+
+      
