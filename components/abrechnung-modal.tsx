@@ -133,6 +133,8 @@ interface AbrechnungModalProps {
   tenants: Mieter[];
   rechnungen: Rechnung[]; // Assumed new prop
   wasserzaehlerReadings?: Wasserzaehler[];
+  ownerName: string;
+  ownerAddress: string;
   // wohnungen prop is removed as Mieter type now includes Wohnungen directly with name and groesse
 }
 
@@ -143,6 +145,8 @@ export function AbrechnungModal({
   tenants,
   rechnungen, // Destructured assumed new prop
   wasserzaehlerReadings,
+  ownerName,
+  ownerAddress,
 }: AbrechnungModalProps) {
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
@@ -338,8 +342,8 @@ export function AbrechnungModal({
   const generateSettlementPDF = async ( // Changed to async
     tenantData: TenantCostDetails | TenantCostDetails[],
     nebenkostenItem: Nebenkosten,
-    ownerName: string = "[Name Owner]",
-    ownerAddress: string = "[Adresse Owner]"
+    ownerName: string, // Now a required parameter
+    ownerAddress: string // Now a required parameter
   ) => {
     const { default: jsPDF } = await import('jspdf');
     const autoTableModule = await import('jspdf-autotable');
@@ -850,7 +854,7 @@ export function AbrechnungModal({
           <Button variant="outline" onClick={onClose}>
             Schließen
           </Button>
-          <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!); }}>
+          <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress); }}>
             <FileDown className="mr-2 h-4 w-4" />
             Als PDF exportieren
           </Button>
