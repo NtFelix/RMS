@@ -49,20 +49,13 @@ jobs:
       - name: Run Lighthouse CI
         run: |
           npm install -g @lhci/cli@0.13.0
-          mkdir -p ./.lighthouseci/mobile
-          mkdir -p ./.lighthouseci/desktop
-          lhci collect --url=http://localhost:3000 --output-dir=./.lighthouseci/mobile --settings.emulatedFormFactor=mobile
-          lhci collect --url=http://localhost:3000 --output-dir=./.lighthouseci/desktop --settings.emulatedFormFactor=desktop
-
-      - name: List Lighthouse reports
-        run: ls -la ./.lighthouseci
+          lhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/mobile --settings.emulatedFormFactor=mobile
+          lhci collect --url=http://localhost:3000 --outputDir=./.lighthouseci/desktop --settings.emulatedFormFactor=desktop
 
       - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          path: |
-            ./.lighthouseci/mobile
-            ./.lighthouseci/desktop
+          path: ./.lighthouseci/
 
       
