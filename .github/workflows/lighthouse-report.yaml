@@ -34,15 +34,24 @@ jobs:
         run: npm run build
         # oder: yarn build
 
+      
+
+      # 5) Built Next.js Application starten
+      - name: Serve Built Next.js Application
+        run: |
+          npm run start &
+          npx wait-on http://localhost:3000
+
+      - name: Check Application Availability
+        run: curl -v http://localhost:3000
+
       # 6) Lighthouse Performance Audit
       - name: Run Lighthouse Performance Audit
         uses: treosh/lighthouse-ci-action@v11
         with:
           urls: |
             http://localhost:3000
-          uploadArtifacts: true
-          temporaryPublicStorage: false
-          budgetPath: './.github/lighthouse-budget.json' # Optional: Pfad zu einer Leistungsbudget-Datei
+          staticDistDir: './out'
 
       # 7) Artefakte hochladen (Reports)
       - name: Upload Lighthouse Reports

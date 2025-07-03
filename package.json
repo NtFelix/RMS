@@ -93,6 +93,7 @@
     "ts-jest": "^29.3.4",
     "ts-node": "^10.9.2",
     "typescript": "^5",
-    "whatwg-fetch": "^3.6.20"
+    "whatwg-fetch": "^3.6.20",
+    "wait-on": "^7.2.0"
   }
 }
