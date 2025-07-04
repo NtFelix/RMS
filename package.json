@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
+    "@notionhq/client": "^4.0.0",
     "@radix-ui/react-accordion": "1.2.2",
     "@radix-ui/react-alert-dialog": "1.1.4",
     "@radix-ui/react-aspect-ratio": "1.1.1",
@@ -56,9 +57,11 @@
     "input-otp": "1.4.1",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.454.0",
     "next": "^15.3.1",
     "next-themes": "^0.4.4",
+    "papaparse": "^5.4.1",
     "react": "^18.3.1",
     "react-day-picker": "8.10.1",
     "react-dom": "^18.3.1",
@@ -73,9 +76,7 @@
     "vaul": "^0.9.6",
     "ws": "^8.18.2",
     "zod": "^3.24.1",
-    "zustand": "latest",
-    "jszip": "^3.10.1",
-    "papaparse": "^5.4.1"
+    "zustand": "latest"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
@@ -93,7 +94,7 @@
     "ts-jest": "^29.3.4",
     "ts-node": "^10.9.2",
     "typescript": "^5",
-    "whatwg-fetch": "^3.6.20",
-    "wait-on": "^7.2.0"
+    "wait-on": "^7.2.0",
+    "whatwg-fetch": "^3.6.20"
   }
 }

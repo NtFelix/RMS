@@ -1,118 +1,98 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { ChevronDown, ChevronRight, Search, Book, Code, Zap, Settings, HelpCircle } from "lucide-react"
-import { Input } from "../../../components/ui/input"
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { ChevronDown, ChevronRight, Search, BookOpen } from "lucide-react"; // Replaced Book with BookOpen for variety
+import { Input } from "../../../components/ui/input";
+import { NotionPageData } from "../../../lib/notion-service"; // Adjusted path
 
-const sidebarSections = [
-  {
-    title: "Getting Started",
-    icon: Book,
-    items: [
-      { title: "Introduction", href: "#introduction" },
-      { title: "Installation", href: "#installation" },
-      { title: "Quick Start", href: "#quick-start" },
-      { title: "Configuration", href: "#configuration" },
-    ],
-  },
-  {
-    title: "API Reference",
-    icon: Code,
-    items: [
-      { title: "Authentication", href: "#authentication" },
-      { title: "Endpoints", href: "#endpoints" },
-      { title: "Response Format", href: "#response-format" },
-      { title: "Error Handling", href: "#error-handling" },
-    ],
-  },
-  {
-    title: "Components",
-    icon: Zap,
-    items: [
-      { title: "Buttons", href: "#buttons" },
-      { title: "Forms", href: "#forms" },
-      { title: "Navigation", href: "#navigation" },
-      { title: "Cards", href: "#cards" },
-    ],
-  },
-  {
-    title: "Advanced",
-    icon: Settings,
-    items: [
-      { title: "Custom Themes", href: "#custom-themes" },
-      { title: "Performance", href: "#performance" },
-      { title: "Best Practices", href: "#best-practices" },
-      { title: "Troubleshooting", href: "#troubleshooting" },
-    ],
-  },
-  {
-    title: "Support",
-    icon: HelpCircle,
-    items: [
-      { title: "FAQ", href: "#faq" },
-      { title: "Community", href: "#community" },
-      { title: "Contact", href: "#contact" },
-    ],
-  },
-]
+interface DocumentationSidebarProps {
+  pages: NotionPageData[];
+}
 
-export default function DocumentationSidebar() {
-  const [expandedSections, setExpandedSections] = useState<string[]>(["Getting Started"])
-  const [searchQuery, setSearchQuery] = useState("")
+// Helper to generate a slug from a title
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .replace(/\s+/g, "-") // Replace spaces with -
+    .replace(/[^\w-]+/g, "") // Remove all non-word chars
+    .replace(/--+/g, "-") // Replace multiple - with single -
+    .replace(/^-+/, "") // Trim - from start of text
+    .replace(/-+$/, ""); // Trim - from end of text
+};
+
+export default function DocumentationSidebar({ pages }: DocumentationSidebarProps) {
+  // For dynamic content, we might not need predefined expanded sections,
+  // or we can default to expanding the first available section if pages exist.
+  const [expandedSections, setExpandedSections] = useState<string[]>(
+    pages.length > 0 ? ["All Documents"] : []
+  );
+  const [searchQuery, setSearchQuery] = useState("");
 
   const toggleSection = (sectionTitle: string) => {
     setExpandedSections((prev) =>
-      prev.includes(sectionTitle) ? prev.filter((title) => title !== sectionTitle) : [...prev, sectionTitle],
-    )
-  }
+      prev.includes(sectionTitle) ? prev.filter((title) => title !== sectionTitle) : [...prev, sectionTitle]
+    );
+  };
 
-  const handleNavClick = (href: string) => {
-    const element = document.querySelector(href)
+  const handleNavClick = (pageId: string) => {
+    const element = document.getElementById(`doc-page-${pageId}`);
     if (element) {
-      element.scrollIntoView({ behavior: "smooth" })
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }
+  };
 
-  const filteredSections = sidebarSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => item.title.toLowerCase().includes(searchQuery.toLowerCase())),
-    }))
-    .filter((section) => section.items.length > 0 || searchQuery === "")
+  const dynamicSidebarSections = useMemo(() => {
+    if (!pages || pages.length === 0) return [];
+
+    const items = pages
+      .map((page) => ({
+        id: page.id,
+        title: page.title || "Untitled Page",
+        href: `#doc-page-${page.id}`, // Use page ID for unique href
+        slug: slugify(page.title || "Untitled Page"), // Use slug for cleaner URLs if needed later or for IDs
+      }))
+      .filter(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    if (items.length === 0 && searchQuery === "") return []; // No items and no search query means nothing to show (or all filtered out)
+    if (items.length === 0 && searchQuery !== "") return []; // All items filtered out by search
+
+    return [
+      {
+        title: "All Documents", // A single section for all Notion pages
+        icon: BookOpen,
+        items: items,
+      },
+    ];
+  }, [pages, searchQuery]);
+
 
   return (
     <div className="sticky top-20 h-fit">
-      {/* Changed to use theme-aware card styles */}
       <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-sm">
-        {/* Search */}
         <div className="relative mb-6">
-          {/* Changed icon color */}
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search documentation..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            // Removed dark-theme specific classes, relies on default Input styling + pl-10
             className="pl-10"
           />
         </div>
 
-        {/* Navigation */}
         <nav className="space-y-2">
-          {filteredSections.map((section) => (
+          {dynamicSidebarSections.map((section) => (
             <div key={section.title}>
               <button
                 onClick={() => toggleSection(section.title)}
-                // Changed text and background colors for light theme
                 className="flex items-center justify-between w-full p-2 text-left text-foreground/80 hover:text-foreground hover:bg-muted rounded-lg transition-colors group"
               >
                 <div className="flex items-center gap-2">
-                  <section.icon className="w-4 h-4" /> {/* Icon color should adapt or be text-muted-foreground if needed */}
+                  <section.icon className="w-4 h-4" />
                   <span className="font-medium">{section.title}</span>
                 </div>
                 {expandedSections.includes(section.title) ? (
-                  // Changed chevron hover color
                   <ChevronDown className="w-4 h-4 group-hover:text-foreground" />
                 ) : (
                   <ChevronRight className="w-4 h-4 group-hover:text-foreground" />
@@ -131,9 +111,8 @@ export default function DocumentationSidebar() {
                 <div className="ml-6 mt-2 space-y-1">
                   {section.items.map((item) => (
                     <button
-                      key={item.title}
-                      onClick={() => handleNavClick(item.href)}
-                      // Changed text and background colors for light theme
+                      key={item.id}
+                      onClick={() => handleNavClick(item.id)}
                       className="block w-full text-left p-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-md transition-colors"
                     >
                       {item.title}
@@ -143,8 +122,14 @@ export default function DocumentationSidebar() {
               </motion.div>
             </div>
           ))}
+          {pages && pages.length === 0 && !searchQuery && (
+             <p className="p-2 text-sm text-muted-foreground">No documents found.</p>
+          )}
+          {searchQuery && dynamicSidebarSections.every(sec => sec.items.length === 0) && (
+             <p className="p-2 text-sm text-muted-foreground">No documents match your search.</p>
+          )}
         </nav>
       </div>
     </div>
-  )
+  );
 }
