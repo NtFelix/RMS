@@ -7,13 +7,28 @@ export default async function DocumentationPage() {
   const pagesWithoutContent = await getDatabasePages();
 
   // Fetch content for each page
-  // Note: This makes sequential requests. For many pages, consider parallelizing.
-  const pages: NotionPageData[] = await Promise.all(
+  let pages: NotionPageData[] = await Promise.all(
     pagesWithoutContent.map(async (page) => {
       const content = await getPageContent(page.id);
       return { ...page, content };
     })
   );
+
+  // Sort pages: by category (alphabetically), then by title (alphabetically)
+  // Pages without a category (or 'General') will be handled by giving them a consistent category name for sorting.
+  pages.sort((a, b) => {
+    const categoryA = a.category || "General"; // Treat null/undefined category as "General" for sorting
+    const categoryB = b.category || "General";
+
+    if (categoryA < categoryB) return -1;
+    if (categoryA > categoryB) return 1;
+
+    // If categories are the same, sort by title
+    if (a.title < b.title) return -1;
+    if (a.title > b.title) return 1;
+
+    return 0;
+  });
 
   return (
     <>
