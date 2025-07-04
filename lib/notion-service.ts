@@ -1,5 +1,5 @@
 import { Client } from "@notionhq/client";
-import { BlockObjectResponse, PageObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import { BlockObjectResponse, PageObjectResponse, SelectPropertyItemObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 const NOTION_API_KEY = process.env.NOTION_API_KEY;
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
@@ -17,8 +17,10 @@ const notion = new Client({ auth: NOTION_API_KEY });
 export interface NotionPageData {
   id: string;
   title: string;
+  category?: string | null; // Added category
+  version?: string | null; // Added version
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  properties: Record<string, any>; // Adjust as per your needs
+  properties: Record<string, any>;
   content?: BlockObjectResponse[];
 }
 
@@ -31,40 +33,65 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
   try {
     const response = await notion.databases.query({
       database_id: NOTION_DATABASE_ID,
-      // Add any filters or sorts if needed
-      // filter: { property: "Status", select: { equals: "Published" } },
-      // sorts: [{ property: "Last edited time", direction: "descending" }],
+      filter: {
+        property: "Version", // Filter by the "Version" property
+        select: {
+          equals: "Version 2.0", // Only include pages where Version is "Version 2.0"
+        },
+      },
+      // sorts: [{ property: "Last edited time", direction: "descending" }], // Optional: add sorting if needed
     });
 
     return response.results.map((page) => {
-      const typedPage = page as PageObjectResponse; // Type assertion
-      let title = "Untitled"; // Default title
+      const typedPage = page as PageObjectResponse;
+      let title = "Untitled";
+      let category: string | null = null;
+      let version: string | null = null;
 
-      // Check if 'Name' property exists and is of title type
-      const titleProperty = typedPage.properties.Name; // Common default property name for title
+      // Get Title (from "Name" property)
+      const titleProperty = typedPage.properties.Name;
       if (titleProperty && titleProperty.type === "title" && titleProperty.title.length > 0) {
         title = titleProperty.title[0].plain_text;
       } else {
-        // Fallback: try to find any title property, or use ID if no title property
+        // Fallback for title (as before)
         const firstTitleProp = Object.values(typedPage.properties).find(prop => prop.type === 'title');
         if (firstTitleProp && firstTitleProp.type === 'title' && firstTitleProp.title.length > 0) {
           title = firstTitleProp.title[0].plain_text;
         } else {
-          console.warn(`Page with ID ${typedPage.id} has no recognizable title property. Using 'Untitled'.`);
+          console.warn(`Page with ID ${typedPage.id} has no recognizable 'Name' title property. Using 'Untitled'.`);
         }
       }
 
+      // Get Kategorie
+      const kategorieProperty = typedPage.properties.Kategorie; // Assuming the property name is "Kategorie"
+      if (kategorieProperty && kategorieProperty.type === "select" && kategorieProperty.select) {
+        category = kategorieProperty.select.name;
+      } else if (kategorieProperty && kategorieProperty.type === "rich_text" && kategorieProperty.rich_text.length > 0) {
+        // Fallback if Kategorie is a rich_text property, take plain text of first segment
+        category = kategorieProperty.rich_text[0].plain_text;
+      } else if (kategorieProperty && kategorieProperty.type === "title" && kategorieProperty.title.length > 0) {
+        // Fallback if Kategorie is a title property (less likely but possible)
+        category = kategorieProperty.title[0].plain_text;
+      }
+
+
+      // Get Version (already filtered, but good to extract if needed elsewhere)
+      const versionProperty = typedPage.properties.Version;
+      if (versionProperty && versionProperty.type === "select" && versionProperty.select) {
+        version = versionProperty.select.name;
+      }
+      // Add other fallbacks for version property type if necessary
 
       return {
         id: typedPage.id,
         title: title,
+        category: category,
+        version: version,
         properties: typedPage.properties,
       };
     });
   } catch (error) {
     console.error("Failed to fetch database pages from Notion:", error);
-    // It's good practice to return an empty array or throw the error
-    // depending on how you want to handle this in the calling code.
     return [];
   }
 }
