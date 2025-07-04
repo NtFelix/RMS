@@ -98,11 +98,25 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
 
 export async function getPageContent(pageId: string): Promise<BlockObjectResponse[]> {
   try {
-    const response = await notion.blocks.children.list({
-      block_id: pageId,
-      page_size: 100, // Adjust as needed, Notion API max is 100
-    });
-    return response.results as BlockObjectResponse[];
+    const blocks: BlockObjectResponse[] = [];
+    let cursor: string | undefined;
+
+    while (true) {
+      const { results, next_cursor } = await notion.blocks.children.list({
+        block_id: pageId,
+        start_cursor: cursor,
+        page_size: 100,
+      });
+
+      blocks.push(...(results as BlockObjectResponse[]));
+
+      if (!next_cursor) {
+        break;
+      }
+
+      cursor = next_cursor;
+    }
+    return blocks;
   } catch (error) {
     console.error(`Failed to fetch content for page ${pageId} from Notion:`, error);
     return [];
