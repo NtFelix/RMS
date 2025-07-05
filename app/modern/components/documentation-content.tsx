@@ -36,69 +36,76 @@ const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
 // Component to render a single Notion block
 const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
   const { type } = block;
-  // @ts-ignore - Notion API types can be broad, access type-specific data
-  const value = block[type];
 
   switch (type) {
     case "paragraph":
+      const paragraph = block.paragraph;
       return (
         <p className="mb-4 text-muted-foreground leading-relaxed">
-          <NotionRichText richTextArray={value.rich_text} />
+          <NotionRichText richTextArray={paragraph.rich_text} />
         </p>
       );
     case "heading_1":
+      const heading1 = block.heading_1;
       return (
         <h1 className="text-4xl font-bold text-foreground mt-8 mb-6">
-          <NotionRichText richTextArray={value.rich_text} />
+          <NotionRichText richTextArray={heading1.rich_text} />
         </h1>
       );
     case "heading_2":
+      const heading2 = block.heading_2;
       return (
         <h2 className="text-3xl font-bold text-foreground mt-6 mb-4">
-          <NotionRichText richTextArray={value.rich_text} />
+          <NotionRichText richTextArray={heading2.rich_text} />
         </h2>
       );
     case "heading_3":
+      const heading3 = block.heading_3;
       return (
         <h3 className="text-2xl font-semibold text-foreground mt-4 mb-3">
-          <NotionRichText richTextArray={value.rich_text} />
+          <NotionRichText richTextArray={heading3.rich_text} />
         </h3>
       );
     case "bulleted_list_item":
+      const bulletedListItem = block.bulleted_list_item;
       return (
         <li className="ml-6 list-disc text-muted-foreground">
-          <NotionRichText richTextArray={value.rich_text} />
+          <NotionRichText richTextArray={bulletedListItem.rich_text} />
           {/* Note: Nested lists would require recursive rendering if `value.children` exists and is fetched */}
         </li>
       );
     case "numbered_list_item":
+      const numberedListItem = block.numbered_list_item;
       return (
         <li className="ml-6 list-decimal text-muted-foreground">
-          <NotionRichText richTextArray={value.rich_text} />
+          <NotionRichText richTextArray={numberedListItem.rich_text} />
            {/* Note: Nested lists would require recursive rendering if `value.children` exists and is fetched */}
         </li>
       );
     case "to_do":
+      const toDo = block.to_do;
       return (
         <div className="flex items-center gap-2 mb-2">
-          <input type="checkbox" checked={value.checked} readOnly className="form-checkbox rounded text-primary" />
-          <span className={value.checked ? "line-through text-muted-foreground" : "text-foreground"}>
-            <NotionRichText richTextArray={value.rich_text} />
+          <input type="checkbox" checked={toDo.checked} readOnly className="form-checkbox rounded text-primary" />
+          <span className={toDo.checked ? "line-through text-muted-foreground" : "text-foreground"}>
+            <NotionRichText richTextArray={toDo.rich_text} />
           </span>
         </div>
       );
     case "code":
+      const code = block.code;
       // Basic code block rendering. For syntax highlighting, a library like react-syntax-highlighter would be needed.
       return (
         <pre className="bg-muted border border-border rounded-lg p-4 my-4 overflow-x-auto">
-          <code className={`language-${value.language} text-sm text-foreground/90`}>
-            <NotionRichText richTextArray={value.rich_text} />
+          <code className={`language-${code.language} text-sm text-foreground/90`}>
+            <NotionRichText richTextArray={code.rich_text} />
           </code>
         </pre>
       );
     case "image":
-      const src = value.type === "external" ? value.external.url : value.file.url;
-      const caption = value.caption?.length > 0 ? <NotionRichText richTextArray={value.caption} /> : null;
+      const image = block.image;
+      const src = image.type === "external" ? image.external.url : image.file.url;
+      const caption = image.caption?.length > 0 ? <NotionRichText richTextArray={image.caption} /> : null;
       return (
         <figure className="my-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
