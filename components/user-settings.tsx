@@ -39,13 +39,15 @@ export function UserSettings() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <div
+          {/* Using a Button component, styled to appear as a simple div container */}
+          <Button
+            variant="ghost" // Use ghost variant to remove default button styling
             className={cn(
-              "flex items-center p-2 rounded-md cursor-pointer transition-colors hover:bg-muted",
-              // Add any other classes for layout or spacing if needed, e.g., space-x-2 if there's text next to the circle
+              "flex items-center p-2 rounded-md cursor-pointer transition-colors hover:bg-muted h-auto w-auto justify-start"
+              // Add any other classes for layout or spacing if needed
             )}
           >
-            {/* This is the circular button part */}
+            {/* This is the circular icon part */}
             <div
               className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
             >
@@ -53,7 +55,7 @@ export function UserSettings() {
             </div>
             {/* Optionally, add user name or other info here, which will also be part of the clickable trigger */}
             {/* <span className="ml-2 text-sm font-medium">User Name</span> */}
-          </div>
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
