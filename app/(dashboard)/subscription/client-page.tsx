@@ -29,8 +29,8 @@ export interface UserSubscriptionProfile extends SupabaseProfile {
   isTrialActive?: boolean;
   // stripe_subscription_status is used by multiple views
   stripe_subscription_status?: string | null;
-  // stripe_current_period_end is used for currentPeriodEnd calculation
-  stripe_current_period_end?: string | number | null;
+  // stripe_current_period_end is used for currentPeriodEnd calculation, matching SupabaseProfile
+  stripe_current_period_end?: string | null;
 }
 
 const stripePromise = loadStripe(
