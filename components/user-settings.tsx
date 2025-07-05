@@ -95,14 +95,15 @@ export function UserSettings() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <div
-            className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150"
+            className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors duration-150"
             aria-label="User menu"
           >
             <Avatar className="h-10 w-10">
               {/* Actual user image can be added if available in profile */}
               {/* <AvatarImage src={profile?.avatar_url || "/placeholder-user.jpg"} alt={userName} /> */}
               <AvatarImage src={"/placeholder-user.jpg"} alt={userName} /> {/* Keeping placeholder for now */}
-              <AvatarFallback>{isLoadingUser ? "" : userInitials}</AvatarFallback>
+              {/* Added blue background and white text for fallback */}
+              <AvatarFallback className="bg-blue-500 text-white">{isLoadingUser ? "" : userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left">
               <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
