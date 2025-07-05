@@ -1,12 +1,17 @@
 "use client";
 
-import React from "react"; // Changed from "import type React"
+import React from "react";
 import { motion } from "framer-motion";
-import { NotionPageData } from "../../../lib/notion-service"; // Adjusted path
+import { NotionPageData } from "../../../lib/notion-service";
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
+// Define a type for the page that includes content, matching the one in page.tsx
+interface PageWithContent extends NotionPageData {
+  content: BlockObjectResponse[];
+}
+
 interface DocumentationContentProps {
-  pages: NotionPageData[];
+  page: PageWithContent | null; // Expects a single page object or null
 }
 
 // Helper function to render Notion rich text arrays
@@ -121,52 +126,51 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
   }
 };
 
-
-export default function DocumentationContent({ pages }: DocumentationContentProps) {
-  if (!pages || pages.length === 0) {
+export default function DocumentationContent({ page }: DocumentationContentProps) {
+  // Case: No page is selected or passed (e.g. initial state before first page loads, or error)
+  // The parent component (DocumentationPage) already handles loading and error messages.
+  // This component now just needs to render the passed 'page' or a "select a page" message if null.
+  if (!page) {
+    // This message might not be shown if parent handles loading/error states comprehensively.
+    // Or it could be a fallback if parent logic allows page to be null without an active error/loading state.
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h1 className="text-4xl font-bold text-foreground mb-6">Documentation</h1>
-          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            No documentation pages found or failed to load content from Notion.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Please ensure your Notion integration is set up correctly and pages exist in the database.
+          <h2 className="text-2xl font-semibold text-foreground mb-4">Select a Document</h2>
+          <p className="text-muted-foreground">
+            Choose a document from the sidebar to view its content.
           </p>
         </motion.div>
       </div>
     );
   }
 
+  // Case: A page is provided, render its content
   return (
-    <div className="space-y-12">
-      {pages.map((page, index) => (
-        <motion.section
-          key={page.id}
-          id={`doc-page-${page.id}`} // ID for sidebar navigation
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: index * 0.1 }} // Stagger animation
-          className="scroll-mt-20" // Offset for fixed header when scrolling
-        >
-          <h1 className="text-4xl font-bold text-foreground mb-6 border-b pb-4">
-            {page.title || "Untitled Page"}
-          </h1>
+    // Use a key on the motion.section to ensure remount and animation when the page.id changes
+    <motion.section
+      key={page.id}
+      id={`doc-page-content-${page.id}`} // Unique ID for the content area if needed, though scrolling is handled by window now
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }} // Slightly faster transition for content swapping
+      className="scroll-mt-20" // Offset for fixed header if any part of this component itself becomes scrollable (less likely now)
+    >
+      <h1 className="text-4xl font-bold text-foreground mb-6 border-b pb-4">
+        {page.title || "Untitled Page"}
+      </h1>
 
-          {page.content && page.content.length > 0 ? (
-            page.content.map((block) => (
-              <NotionBlock key={block.id} block={block} />
-            ))
-          ) : (
-            <p className="text-muted-foreground">This page has no content.</p>
-          )}
-        </motion.section>
-      ))}
-    </div>
+      {page.content && page.content.length > 0 ? (
+        page.content.map((block) => (
+          <NotionBlock key={block.id} block={block} />
+        ))
+      ) : (
+        <p className="text-muted-foreground">This page has no content.</p>
+      )}
+    </motion.section>
   );
 }

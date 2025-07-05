@@ -2,38 +2,44 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronRight, Search, Folder, FileText } from "lucide-react"; // Using Folder for categories
+import { ChevronDown, ChevronRight, Search, Folder } from "lucide-react"; // Removed FileText as Folder is used more generally
 import { Input } from "../../../components/ui/input";
 import { NotionPageData } from "../../../lib/notion-service";
+import { cn } from "../../../lib/utils"; // For conditional class names
 
 interface DocumentationSidebarProps {
   pages: NotionPageData[];
+  onSelectPage: (pageId: string) => void;
+  selectedPageId?: string | null;
+}
+
+interface SidebarItem {
+  id: string;
+  title: string;
+  // href is no longer needed as we use onSelectPage
 }
 
 interface SidebarSection {
   title: string;
   icon: React.ElementType;
   isCategory: boolean;
-  items: {
-    id: string;
-    title: string;
-    href: string;
-  }[];
+  items: SidebarItem[];
 }
 
-export default function DocumentationSidebar({ pages }: DocumentationSidebarProps) {
+export default function DocumentationSidebar({ pages, onSelectPage, selectedPageId }: DocumentationSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Group pages by category
   const groupedPages = useMemo(() => {
     const groups: Record<string, NotionPageData[]> = {};
     const ungrouped: NotionPageData[] = [];
 
     pages.forEach(page => {
-      const category = page.category || "General"; // Default category if none
-      if (searchQuery && !page.title.toLowerCase().includes(searchQuery.toLowerCase()) && !(page.category || "General").toLowerCase().includes(searchQuery.toLowerCase())) {
-        return; // Skip if page title and category don't match search query
+      const category = page.category || "General";
+      if (searchQuery &&
+          !page.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(page.category || "General").toLowerCase().includes(searchQuery.toLowerCase())) {
+        return;
       }
       if (page.category) {
         if (!groups[page.category]) {
@@ -47,7 +53,6 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
     return { groups, ungrouped };
   }, [pages, searchQuery]);
 
-  // Automatically expand categories that have search results within them or if the category title matches
   useEffect(() => {
     if (searchQuery) {
       const newExpanded: string[] = [];
@@ -63,7 +68,6 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
           }
         }
       });
-       // Also expand "General" if it has search results and search is active
       if (groupedPages.ungrouped.some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
         if (!newExpanded.includes("General")) {
           newExpanded.push("General");
@@ -71,13 +75,32 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
       }
       setExpandedSections(newExpanded);
     } else {
-      // Optionally, collapse all or restore previous state when search is cleared
-      // For now, let's default to expanding categories that have pages
+      // Default expansion: expand categories with pages, and "General" if it has pages.
+      // Also, ensure the category of the selectedPageId is expanded.
       const defaultExpanded = Object.keys(groupedPages.groups).filter(cat => groupedPages.groups[cat].length > 0);
       if (groupedPages.ungrouped.length > 0) defaultExpanded.push("General");
+
+      if (selectedPageId) {
+        const selectedPageMeta = pages.find(p => p.id === selectedPageId);
+        const selectedCategory = selectedPageMeta?.category || "General";
+        if (!defaultExpanded.includes(selectedCategory)) {
+          defaultExpanded.push(selectedCategory);
+        }
+      }
       setExpandedSections(defaultExpanded);
     }
-  }, [searchQuery, groupedPages]);
+  }, [searchQuery, groupedPages, pages, selectedPageId]);
+
+  // Effect to expand the category of the selected page when selectedPageId changes
+  useEffect(() => {
+    if (selectedPageId) {
+      const selectedPageMeta = pages.find(p => p.id === selectedPageId);
+      const categoryToExpand = selectedPageMeta?.category || "General";
+      if (!expandedSections.includes(categoryToExpand)) {
+        setExpandedSections(prev => [...prev, categoryToExpand]);
+      }
+    }
+  }, [selectedPageId, pages, expandedSections]);
 
 
   const toggleSection = (sectionTitle: string) => {
@@ -86,19 +109,16 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
     );
   };
 
-  const handleNavClick = (pageId: string) => {
-    const element = document.getElementById(`doc-page-${pageId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
+  // handleNavClick is now effectively replaced by onSelectPage, called directly
+  // const handleNavClick = (pageId: string) => {
+  //   onSelectPage(pageId);
+  // };
 
   const dynamicSidebarSections: SidebarSection[] = useMemo(() => {
     const sections: SidebarSection[] = [];
 
-    // Add categorized pages
     Object.entries(groupedPages.groups)
-      .sort(([catA], [catB]) => catA.localeCompare(catB)) // Sort categories alphabetically
+      .sort(([catA], [catB]) => catA.localeCompare(catB))
       .forEach(([categoryTitle, categoryPages]) => {
         sections.push({
           title: categoryTitle,
@@ -108,28 +128,24 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
             .map(page => ({
               id: page.id,
               title: page.title || "Untitled Page",
-              href: `#doc-page-${page.id}`,
             }))
-            .sort((a,b) => a.title.localeCompare(b.title)), // Sort pages within category
+            .sort((a,b) => a.title.localeCompare(b.title)),
         });
       });
 
-    // Add ungrouped pages under a "General" category, or list them if no other categories exist
     if (groupedPages.ungrouped.length > 0) {
       const generalItems = groupedPages.ungrouped
         .map(page => ({
             id: page.id,
             title: page.title || "Untitled Page",
-            href: `#doc-page-${page.id}`,
         }))
         .sort((a,b) => a.title.localeCompare(b.title));
 
-      // If there are other categories, or if "General" is the only one with items.
       if (sections.length > 0 || generalItems.length > 0) {
          sections.push({
-          title: "General", // Section for pages without a category
-          icon: Folder, // Or use FileText if it's meant to be a collection of loose files
-          isCategory: true, // Treat "General" as a collapsible category
+          title: "General",
+          icon: Folder,
+          isCategory: true,
           items: generalItems,
         });
       }
@@ -140,8 +156,9 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
   const hasResults = dynamicSidebarSections.some(section => section.items.length > 0);
 
   return (
-    <div className="sticky top-20 h-fit">
-      <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-sm">
+    <div className="sticky top-20 h-fit"> {/* Ensure this class matches your header height if fixed */}
+      {/* The line above was re-created */}
+      <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-sm max-h-[calc(100vh-5rem-2rem)] overflow-y-auto"> {/* Adjust max-h based on sticky top and padding */}
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -154,7 +171,7 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
 
         <nav className="space-y-1">
           {dynamicSidebarSections.map((section) => (
-            section.items.length > 0 && ( // Only render section if it has items after filtering
+            section.items.length > 0 && (
             <div key={section.title}>
               <button
                 onClick={() => toggleSection(section.title)}
@@ -184,8 +201,13 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
                   {section.items.map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => handleNavClick(item.id)}
-                      className="block w-full text-left p-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-md transition-colors"
+                      onClick={() => onSelectPage(item.id)}
+                      className={cn(
+                        "block w-full text-left p-2 text-sm rounded-md transition-colors",
+                        item.id === selectedPageId
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                      )}
                     >
                       {item.title}
                     </button>
@@ -196,10 +218,10 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
             )
           ))}
           {pages && pages.length > 0 && !hasResults && searchQuery && (
-             <p className="p-2 text-sm text-muted-foreground">No documents match your search for &quot;{searchQuery}&quot;.</p>
+             <p className="p-2 text-sm text-muted-foreground">No documents match &quot;{searchQuery}&quot;.</p>
           )}
           {(!pages || pages.length === 0) && !searchQuery && (
-             <p className="p-2 text-sm text-muted-foreground">No documents found for Version 2.0.</p>
+             <p className="p-2 text-sm text-muted-foreground">No documents available.</p>
           )}
         </nav>
       </div>

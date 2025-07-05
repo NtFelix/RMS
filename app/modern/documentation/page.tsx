@@ -1,45 +1,115 @@
+"use client"; // This page now needs to be a client component for useState and useEffect
+
+import { useState, useEffect } from "react";
 import Navigation from "../components/navigation";
 import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
 import { getDatabasePages, NotionPageData, getPageContent } from "../../../lib/notion-service"; // Adjusted path
+import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
-export default async function DocumentationPage() {
-  const pagesWithoutContent = await getDatabasePages();
+// Define a type for the page that includes content
+interface PageWithContent extends NotionPageData {
+  content: BlockObjectResponse[];
+}
 
-  // Fetch content for each page
-  let pages: NotionPageData[] = await Promise.all(
-    pagesWithoutContent.map(async (page) => {
-      const content = await getPageContent(page.id);
-      return { ...page, content };
-    })
-  );
+export default function DocumentationPage() {
+  const [allPagesMeta, setAllPagesMeta] = useState<NotionPageData[]>([]);
+  const [selectedPage, setSelectedPage] = useState<PageWithContent | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sort pages: by category (alphabetically), then by title (alphabetically)
-  // Pages without a category (or 'General') will be handled by giving them a consistent category name for sorting.
-  pages.sort((a, b) => {
-    const categoryA = a.category || "General"; // Treat null/undefined category as "General" for sorting
-    const categoryB = b.category || "General";
+  useEffect(() => {
+    async function fetchInitialPages() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const pagesWithoutContent = await getDatabasePages();
 
-    if (categoryA < categoryB) return -1;
-    if (categoryA > categoryB) return 1;
+        // Sort pages: by category (alphabetically), then by title (alphabetically)
+        pagesWithoutContent.sort((a, b) => {
+          const categoryA = a.category || "General";
+          const categoryB = b.category || "General";
+          if (categoryA < categoryB) return -1;
+          if (categoryA > categoryB) return 1;
+          if (a.title < b.title) return -1;
+          if (a.title > b.title) return 1;
+          return 0;
+        });
 
-    // If categories are the same, sort by title
-    if (a.title < b.title) return -1;
-    if (a.title > b.title) return 1;
+        setAllPagesMeta(pagesWithoutContent);
 
-    return 0;
-  });
+        // Automatically load the first page's content if pages are available
+        if (pagesWithoutContent.length > 0) {
+          await fetchAndSetSelectedPage(pagesWithoutContent[0].id);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (e) {
+        console.error("Failed to fetch documentation pages list:", e);
+        setError("Failed to load documentation index. Please try again later.");
+        setIsLoading(false);
+      }
+    }
+    fetchInitialPages();
+  }, []);
+
+  const fetchAndSetSelectedPage = async (pageId: string) => {
+    setIsLoading(true);
+    setError(null);
+    const pageMeta = allPagesMeta.find(p => p.id === pageId);
+    if (!pageMeta) {
+      setError("Selected page not found in metadata.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const content = await getPageContent(pageId);
+      setSelectedPage({ ...pageMeta, content });
+    } catch (e) {
+      console.error(`Failed to fetch content for page ${pageId}:`, e);
+      setError(`Failed to load content for ${pageMeta.title}. Please try again.`);
+      setSelectedPage(null); // Clear selected page on error
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectPage = (pageId: string) => {
+    // Find the page meta to ensure it exists before fetching
+    const pageExists = allPagesMeta.some(p => p.id === pageId);
+    if (pageExists) {
+      fetchAndSetSelectedPage(pageId);
+    } else {
+      console.warn(`Attempted to select non-existent page ID: ${pageId}`);
+      setError("The selected page could not be found.");
+      setSelectedPage(null);
+    }
+  };
 
   return (
     <>
       <Navigation />
-      {/* Theming will be handled by ThemeProvider and globals.css */}
       <div className="min-h-screen pt-16">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DocumentationSidebar pages={pages} />
+            <DocumentationSidebar
+              pages={allPagesMeta}
+              onSelectPage={handleSelectPage}
+              selectedPageId={selectedPage?.id}
+            />
             <div className="lg:col-span-3">
-              <DocumentationContent pages={pages} />
+              {isLoading && <p>Loading documentation...</p>}
+              {error && <p className="text-red-500">{error}</p>}
+              {!isLoading && !error && selectedPage && (
+                <DocumentationContent page={selectedPage} />
+              )}
+              {!isLoading && !error && !selectedPage && allPagesMeta.length > 0 && (
+                <p>Select a page from the sidebar to view its content.</p>
+              )}
+               {!isLoading && !error && allPagesMeta.length === 0 && (
+                <p>No documentation pages available.</p>
+              )}
             </div>
           </div>
         </div>
