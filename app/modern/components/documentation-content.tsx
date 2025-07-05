@@ -1,12 +1,12 @@
 "use client";
 
-import React from "react"; // Changed from "import type React"
+import React from "react";
 import { motion } from "framer-motion";
-import { NotionPageData } from "../../../lib/notion-service"; // Adjusted path
+import { NotionPageData } from "../../../lib/notion-service";
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 interface DocumentationContentProps {
-  pages: NotionPageData[];
+  page: NotionPageData | null; // Changed from pages: NotionPageData[] to page: NotionPageData | null
 }
 
 // Helper function to render Notion rich text arrays
@@ -23,7 +23,6 @@ const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
         if (annotations.strikethrough) element = <s>{element}</s>;
         if (annotations.underline) element = <u>{element}</u>;
         if (annotations.code) element = <code className="text-sm bg-muted p-1 rounded">{element}</code>;
-        // Note: color annotations would require more complex mapping to Tailwind/CSS classes
 
         if (href) element = <a href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{element}</a>;
 
@@ -71,7 +70,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
       return (
         <li className="ml-6 list-disc text-muted-foreground">
           <NotionRichText richTextArray={bulletedListItem.rich_text} />
-          {/* Note: Nested lists would require recursive rendering if `value.children` exists and is fetched */}
         </li>
       );
     case "numbered_list_item":
@@ -79,7 +77,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
       return (
         <li className="ml-6 list-decimal text-muted-foreground">
           <NotionRichText richTextArray={numberedListItem.rich_text} />
-           {/* Note: Nested lists would require recursive rendering if `value.children` exists and is fetched */}
         </li>
       );
     case "to_do":
@@ -94,7 +91,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
       );
     case "code":
       const code = block.code;
-      // Basic code block rendering. For syntax highlighting, a library like react-syntax-highlighter would be needed.
       return (
         <pre className="bg-muted border border-border rounded-lg p-4 my-4 overflow-x-auto">
           <code className={`language-${code.language} text-sm text-foreground/90`}>
@@ -103,9 +99,9 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </pre>
       );
     case "image":
-      const image = block.image;
-      const src = image.type === "external" ? image.external.url : image.file.url;
-      const caption = image.caption?.length > 0 ? <NotionRichText richTextArray={image.caption} /> : null;
+      const imageBlock = block.image; // Renamed to avoid conflict with HTMLImageElement
+      const src = imageBlock.type === "external" ? imageBlock.external.url : imageBlock.file.url;
+      const caption = imageBlock.caption?.length > 0 ? <NotionRichText richTextArray={imageBlock.caption} /> : null;
       return (
         <figure className="my-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -113,8 +109,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
           {caption && <figcaption className="text-sm text-center text-muted-foreground mt-2">{caption}</figcaption>}
         </figure>
       );
-    // Add more cases for other block types as needed (e.g., quote, callout, divider, table, etc.)
-    // For unsupported blocks, you might want to log a warning or render a placeholder
     default:
       console.warn(`Unsupported block type: ${type}`, block);
       return <p className="text-red-500 my-2">[Unsupported block type: {type}]</p>;
@@ -122,51 +116,42 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
 };
 
 
-export default function DocumentationContent({ pages }: DocumentationContentProps) {
-  if (!pages || pages.length === 0) {
+export default function DocumentationContent({ page }: DocumentationContentProps) {
+  // The parent component (DocumentationPage) now handles loading states and
+  // will only pass a valid 'page' object when it's ready to be displayed.
+  // So, we might not need the extensive loading/empty state here as before,
+  // but a check for 'page' is still good practice.
+  if (!page) {
+    // This case should ideally be handled by the parent,
+    // e.g. by showing a "Select a page" message or loading indicator.
+    // If it still reaches here, it means something unexpected happened or no page is active.
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h1 className="text-4xl font-bold text-foreground mb-6">Documentation</h1>
-          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            No documentation pages found or failed to load content from Notion.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Please ensure your Notion integration is set up correctly and pages exist in the database.
-          </p>
-        </motion.div>
-      </div>
+        <div className="flex flex-col items-center justify-center h-full text-center py-10">
+            {/* This message might not be seen if parent handles it, but good fallback */}
+        </div>
     );
   }
 
   return (
-    <div className="space-y-12">
-      {pages.map((page, index) => (
-        <motion.section
-          key={page.id}
-          id={`doc-page-${page.id}`} // ID for sidebar navigation
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: index * 0.1 }} // Stagger animation
-          className="scroll-mt-20" // Offset for fixed header when scrolling
-        >
-          <h1 className="text-4xl font-bold text-foreground mb-6 border-b pb-4">
-            {page.title || "Untitled Page"}
-          </h1>
+    // Removed outer space-y-12 and map, now rendering a single page
+    <motion.section
+      key={page.id} // Use page.id as key for motion component if page can change
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }} // Adjusted duration
+      className="scroll-mt-20" // Still useful if there's an internal scroll anchor
+    >
+      <h1 className="text-4xl font-bold text-foreground mb-6 border-b pb-4">
+        {page.title || "Untitled Page"}
+      </h1>
 
-          {page.content && page.content.length > 0 ? (
-            page.content.map((block) => (
-              <NotionBlock key={block.id} block={block} />
-            ))
-          ) : (
-            <p className="text-muted-foreground">This page has no content.</p>
-          )}
-        </motion.section>
-      ))}
-    </div>
+      {page.content && page.content.length > 0 ? (
+        page.content.map((block) => (
+          <NotionBlock key={block.id} block={block} />
+        ))
+      ) : (
+        <p className="text-muted-foreground">This page has no content.</p>
+      )}
+    </motion.section>
   );
 }
