@@ -41,7 +41,7 @@ export function DirectSettingsTrigger() {
     });
 
     return () => {
-      authListener?.unsubscribe();
+      authListener?.subscription?.unsubscribe(); // Correctly access unsubscribe
     };
   }, [supabase]);
 

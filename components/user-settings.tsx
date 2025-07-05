@@ -60,7 +60,7 @@ export function UserSettings() {
           <DropdownMenuSeparator />
           {/* Settings DropdownMenuItem and its Separator are removed */}
           {/* The SettingsModal instance is also removed from here as it's now handled by DirectSettingsTrigger */}
-          <DropdownMenuItem onClick={handleLogout} disabled={isLoading}>
+          <DropdownMenuItem onClick={() => handleLogout()} disabled={isLoading}> {/* Wrap handleLogout in an arrow function */}
             <LogOut className="mr-2 h-4 w-4" />
             <span>{isLoading ? "Wird abgemeldet..." : "Abmelden"}</span>
           </DropdownMenuItem>
