@@ -1,6 +1,8 @@
 "use client"
 
-// useState, useRouter, createClient removed as they are now in useLogout
+"use client"
+
+import { useState } from "react" // Re-add useState for modal state
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,63 +12,45 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { LogOut } from "lucide-react" // Settings import removed
+import { LogOut, Settings } from "lucide-react" // Re-add Settings icon
 import { cn } from "@/lib/utils"
-import { useLogout } from "@/hooks/use-logout" // Import the new hook
+import { useLogout } from "@/hooks/use-logout"
+import { SettingsModal } from "@/components/settings-modal" // Re-add SettingsModal import
 
 export function UserSettings() {
-  const { handleLogout, isLoading } = useLogout();
-  // const router = useRouter() // Handled by useLogout
-  // const [isLoading, setIsLoading] = useState(false) // Handled by useLogout
-
-  // const handleLogout = () => { // This logic is now in useLogout
-  //   setIsLoading(true)
-  //   const supabase = createClient()
-  //   supabase.auth.signOut().then(() => {
-  //     router.push("/auth/login")
-  //   }).catch((error) => {
-  //     console.error("Error signing out:", error)
-  //     setIsLoading(false)
-  //   })
-  // }
+  const { handleLogout, isLoading: isLogoutLoading } = useLogout(); // Renamed isLoading to avoid conflict
+  const [openSettingsModal, setOpenSettingsModal] = useState(false); // State for SettingsModal
 
   // TODO: Replace "PM" with dynamic user initials or a generic user icon if available
   const userInitials = "PM";
 
+  // This component will now expect to be part of a larger clickable area
+  // defined in the parent (DashboardSidebar). The Button here can be simplified
+  // or DashboardSidebar can pass down props to style this specific part.
+  // For now, let's assume the trigger itself will be handled by the parent,
+  // and this component just defines the dropdown content and the visual "PM" circle.
+  // The actual <DropdownMenuTrigger> will be in DashboardSidebar.
+
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {/* Using a Button component, styled to appear as a simple div container */}
-          <Button
-            variant="ghost" // Use ghost variant to remove default button styling
-            className={cn(
-              "flex items-center p-2 rounded-md cursor-pointer transition-colors hover:bg-muted h-auto w-auto justify-start"
-              // Add any other classes for layout or spacing if needed
-            )}
-          >
-            {/* This is the circular icon part */}
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
-            >
-              <span className="text-xs font-medium">{userInitials}</span>
-            </div>
-            {/* Optionally, add user name or other info here, which will also be part of the clickable trigger */}
-            {/* <span className="ml-2 text-sm font-medium">User Name</span> */}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 ml-4">
-          <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {/* Settings DropdownMenuItem and its Separator are removed */}
-          {/* The SettingsModal instance is also removed from here as it's now handled by DirectSettingsTrigger */}
-          <DropdownMenuItem onClick={() => handleLogout()} disabled={isLoading}> {/* Wrap handleLogout in an arrow function */}
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>{isLoading ? "Wird abgemeldet..." : "Abmelden"}</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {/* <SettingsModal open={openModal} onOpenChange={setOpenModal} /> Modal removed from here */}
+      {/* The visual avatar part is now rendered by DashboardSidebar within the trigger. */}
+      {/* UserSettings now only provides the DropdownMenuContent and SettingsModal. */}
+      <DropdownMenuContent align="end" className="w-56 ml-4">
+        <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => setOpenSettingsModal(true)}>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Einstellungen</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => handleLogout()} disabled={isLogoutLoading}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>{isLogoutLoading ? "Wird abgemeldet..." : "Abmelden"}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+
+      {/* SettingsModal is now controlled here again */}
+      <SettingsModal open={openSettingsModal} onOpenChange={setOpenSettingsModal} />
     </>
   )
 }

@@ -9,8 +9,9 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
-import { DirectSettingsTrigger } from "@/components/direct-settings-trigger" // Import the new component
-// createClient and userEmail state/useEffect will be removed as DirectSettingsTrigger handles its own email fetching.
+// DirectSettingsTrigger import removed
+import { createClient } from "@/utils/supabase/client" // Re-add for fetching user email
+import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu" // For wrapping trigger
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -54,16 +55,17 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  // const supabase = createClient() // No longer needed here
-  // const [userEmail, setUserEmail] = useState<string | null>(null) // No longer needed here
+  const supabase = createClient() // Re-add
+  const [userEmail, setUserEmail] = useState<string | null>(null) // Re-add
+  const version = "1.0.0"; // Hardcoded version
 
-  // useEffect(() => { // This useEffect is no longer needed
-  //   supabase.auth.getUser().then((res) => {
-  //     if (res.data.user?.email) {
-  //       setUserEmail(res.data.user.email)
-  //     }
-  //   })
-  // }, [supabase])
+  useEffect(() => { // Re-add
+    supabase.auth.getUser().then((res) => {
+      if (res.data.user?.email) {
+        setUserEmail(res.data.user.email)
+      }
+    })
+  }, [supabase]) // Dependency array is correct
 
   return (
     <>
@@ -114,14 +116,30 @@ export function DashboardSidebar() {
               ))}
             </nav>
           </ScrollArea>
-          <div className="mt-auto border-t p-4 space-y-2"> {/* Added space-y-2 for spacing between items */}
-            {/* UserSettings (profile image dropdown) remains for logout */}
-            <div className="flex items-center gap-2 px-1 py-1"> {/* Minimal padding for UserSettings itself */}
+          <div className="mt-auto border-t p-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full flex items-center justify-start gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-muted h-auto"
+                >
+                  {/* Visual avatar part, previously in UserSettings, now directly here */}
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                    <span className="text-xs font-medium">PM</span> {/* Placeholder initials */}
+                  </div>
+                  <div className="grid gap-0.5 text-left">
+                    <p className="text-xs font-medium truncate" title={userEmail || "Property Manager"}>
+                      {userEmail ?? "Property Manager"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">v{version}</p>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              {/* UserSettings now provides only the DropdownMenuContent and SettingsModal,
+                  which will be correctly positioned by Radix UI relative to this trigger,
+                  within the DropdownMenu context. */}
               <UserSettings />
-            </div>
-            {/* New DirectSettingsTrigger for email/version and opening settings modal */}
-            {/* It will be displayed below UserSettings */}
-            <DirectSettingsTrigger />
+            </DropdownMenu>
           </div>
         </div>
       </aside>
