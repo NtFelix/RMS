@@ -53,16 +53,7 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const supabase = createClient()
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-
-  useEffect(() => {
-    supabase.auth.getUser().then((res) => {
-      if (res.data.user?.email) {
-        setUserEmail(res.data.user.email)
-      }
-    })
-  }, [supabase])
+  // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
 
   return (
     <>
@@ -114,13 +105,8 @@ export function DashboardSidebar() {
             </nav>
           </ScrollArea>
           <div className="mt-auto border-t p-4">
-            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
-              <UserSettings />
-              <div className="grid gap-0.5">
-                <p className="text-xs font-medium">{userEmail ?? "Property Manager"}</p>
-                <p className="text-xs text-muted-foreground">v2.0.0</p>
-              </div>
-            </div>
+            {/* The UserSettings component itself is now the sole display for user info in this area */}
+            <UserSettings />
           </div>
         </div>
       </aside>
