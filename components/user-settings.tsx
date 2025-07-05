@@ -102,8 +102,8 @@ export function UserSettings() {
               {/* Actual user image can be added if available in profile */}
               {/* <AvatarImage src={profile?.avatar_url || "/placeholder-user.jpg"} alt={userName} /> */}
               <AvatarImage src={"/placeholder-user.jpg"} alt={userName} /> {/* Keeping placeholder for now */}
-              {/* Added blue background and white text for fallback */}
-              <AvatarFallback className="bg-blue-500 text-white">{isLoadingUser ? "" : userInitials}</AvatarFallback>
+              {/* Changed to accent blue background and white text for fallback */}
+              <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left">
               <span className="text-sm font-medium text-gray-900 dark:text-gray-100">

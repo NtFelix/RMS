@@ -62,7 +62,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
-  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("0.1.0"); // Initialize with hardcoded version
+  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0"); // Initialize with updated hardcoded version
   const [email, setEmail] = useState<string>("")
   const [confirmEmail, setConfirmEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
@@ -562,7 +562,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     // Since it's hardcoded, we can set it directly.
     // The initial state already sets it, but this ensures it if logic changes.
     if (activeTab === 'information') {
-      setPackageJsonVersion("0.1.0"); // Hardcoded version
+      setPackageJsonVersion("v2.0.0"); // Updated Hardcoded version
     }
     // If you want it to always be set regardless of tab, you can remove the condition,
     // but initializing the state is usually sufficient for hardcoded values.
