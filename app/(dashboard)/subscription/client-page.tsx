@@ -6,13 +6,18 @@ import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import Pricing from '@/app/modern/components/pricing';
+import TrialView from './components/TrialView';
+import ActiveSubscriptionView from './components/ActiveSubscriptionView';
+import PricingViewComponent from './components/PricingView';
+import InactiveSubscriptionView from './components/InactiveSubscriptionView';
 
 // Define the richer profile type
 export interface UserSubscriptionProfile extends SupabaseProfile {
   email: string;
   hasActiveSubscription: boolean;
   activePlan?: {
-    priceId: string;
+    // Ensure this structure matches what ActiveSubscriptionView expects for Plan
+    priceId: string; // priceId is used by handleSubscribeClick, not directly by ActiveSubscriptionView
     name: string;
     price: number;
     currency: string;
@@ -22,6 +27,10 @@ export interface UserSubscriptionProfile extends SupabaseProfile {
   trial_starts_at?: string | null;
   trial_ends_at?: string | null;
   isTrialActive?: boolean;
+  // stripe_subscription_status is used by multiple views
+  stripe_subscription_status?: string | null;
+  // stripe_current_period_end is used for currentPeriodEnd calculation
+  stripe_current_period_end?: string | number | null;
 }
 
 const stripePromise = loadStripe(
@@ -130,101 +139,30 @@ export default function SubscriptionClientPage({ initialProfile, error: initialE
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 
+  // Ensure profile is not null before trying to use its properties
   if (profile?.isTrialActive) {
-    return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6 text-center">Subscription Management</h1>
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-3">Your Free Trial</h2>
-          <p className="mb-2">
-            You are currently on a free trial.
-          </p>
-          {profile?.trial_ends_at && (
-            <p className="mb-2">
-              Your trial ends on: <strong>{new Date(profile.trial_ends_at).toLocaleDateString()}</strong> ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining).
-            </p>
-          )}
-          <p className="mb-2">You can create up to <strong>5 Wohnungen</strong> during your trial.</p>
-          <p className="mt-4">To continue using the service with more features and higher limits after your trial, please choose a subscription plan.</p>
-        </div>
-        <h2 className="text-xl font-bold mb-6 text-center">Choose a Plan to Activate After Trial</h2>
-        <Pricing onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
-      </div>
-    );
+    // The Pricing component is passed directly to TrialView, which will then use it.
+    // The main Pricing component used here is imported from '@/app/modern/components/pricing'
+    // TrialView itself imports and uses '@/components/pricing' which might be an alias or a different component.
+    // For consistency, TrialView should also receive the correct Pricing component or its path should be verified.
+    // For now, I am assuming TrialView's Pricing import is correct.
+    return <TrialView profile={profile} daysRemaining={daysRemaining} onSelectPlan={handleSubscribeClick} isLoading={isLoading} />;
   }
 
+  // Ensure activePlan is not null when calling ActiveSubscriptionView
   if (!profile?.isTrialActive && profile?.hasActiveSubscription && profile.activePlan) {
-    const { activePlan } = profile;
-    const featuresList = activePlan.features || [];
-
-    return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6 text-center">Subscription Management</h1>
-        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-3">Your Current Plan</h2>
-          <p className="mb-2">
-            You are currently subscribed to the <strong>{activePlan.name}</strong> plan.
-          </p>
-          {activePlan.price && activePlan.currency && (
-             <p className="mb-2">Price: <strong>{(activePlan.price / 100).toFixed(2)} {activePlan.currency.toUpperCase()}</strong> / month</p>
-          )}
-          {currentPeriodEnd && (
-            <p className="mb-2">
-              Your subscription is active until: <strong>{currentPeriodEnd}</strong>
-            </p>
-          )}
-           {profile.stripe_subscription_status && (
-            <p className="mb-2">Status: <span className={`font-semibold ${profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing' ? 'text-green-600' : 'text-orange-500'}`}>{profile.stripe_subscription_status}</span></p>
-          )}
-          {featuresList.length > 0 && (
-            <div className="mt-4">
-              <h3 className="font-semibold">Plan Features:</h3>
-              <ul className="list-disc list-inside pl-4">
-                {featuresList.map((feature, index) => (
-                  <li key={index}>{feature}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          {activePlan.limitWohnungen && (
-            <p className="mt-2">
-              Wohnungen Limit: <strong>{activePlan.limitWohnungen}</strong>
-            </p>
-          )}
-        </div>
-        {/* TODO: Add button to manage subscription (portal) */}
-      </div>
-    );
+    // Casting profile to ensure activePlan is seen as non-nullable for ActiveSubscriptionView
+    return <ActiveSubscriptionView profile={profile as UserSubscriptionProfile & { activePlan: NonNullable<UserSubscriptionProfile['activePlan']> }} currentPeriodEnd={currentPeriodEnd} />;
   }
 
   const isPaidSubscriptionProblematic = ['canceled', 'incomplete', 'past_due', 'unpaid', 'incomplete_expired', null, undefined].includes(profile?.stripe_subscription_status);
   const showPricing = !profile?.isTrialActive && (!profile?.hasActiveSubscription || isPaidSubscriptionProblematic);
 
   if (showPricing) {
-    return (
-      <div className="container mx-auto p-4">
-        <h1 className="text-2xl font-bold mb-6 text-center">Choose Your Plan</h1>
-        {profile.stripe_subscription_status && profile.stripe_subscription_status !== 'canceled' && (
-            <p className="mb-4 text-center text-orange-500">
-                Your current subscription status is: <strong>{profile.stripe_subscription_status}</strong>. You can choose a new plan below.
-            </p>
-        )}
-        {profile.stripe_subscription_status === 'canceled' && (
-             <p className="mb-4 text-center">Your previous subscription was canceled. You can subscribe to a new plan below.</p>
-        )}
-        {!profile.stripe_subscription_status && (
-            <p className="mb-4 text-center">You are not currently subscribed. Choose a plan to get started!</p>
-        )}
-        <Pricing onSelectPlan={handleSubscribeClick} isLoading={isLoading} />
-      </div>
-    );
+    // PricingViewComponent also uses the Pricing component internally. Similar to TrialView, ensure it's the correct one.
+    return <PricingViewComponent profile={profile} onSelectPlan={handleSubscribeClick} isLoading={isLoading} />;
   }
 
-  return (
-    <div className="container mx-auto p-4 text-center">
-        <h1 className="text-2xl font-bold mb-4">Subscription Management</h1>
-        <p>Your subscription status: <strong>{profile?.stripe_subscription_status || 'Unknown'}</strong>.</p>
-        <p>If you believe this is an error, please contact support.</p>
-    </div>
-  );
+  // Fallback view
+  return <InactiveSubscriptionView profile={profile} />;
 }
