@@ -1,12 +1,13 @@
-"use client"; // Required for useState, useEffect
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import Navigation from "../components/navigation";
 import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
-import { getDatabasePages, NotionPageData, getPageContent } from "../../../lib/notion-service";
+// Remove direct import of getDatabasePages and getPageContent from notion-service
+import { NotionPageData } from "../../../lib/notion-service";
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
-import { Skeleton } from "../../../components/ui/skeleton"; // For loading state
+import { Skeleton } from "../../../components/ui/skeleton";
 
 export default function DocumentationPage() {
   const [allPagesMeta, setAllPagesMeta] = useState<NotionPageData[]>([]);
@@ -15,26 +16,38 @@ export default function DocumentationPage() {
   const [fetchedPageContents, setFetchedPageContents] = useState<Record<string, BlockObjectResponse[]>>({});
   const [isLoadingContent, setIsLoadingContent] = useState<boolean>(false);
   const [isLoadingMeta, setIsLoadingMeta] = useState<boolean>(true);
+  const [errorMeta, setErrorMeta] = useState<string | null>(null);
+  const [errorContent, setErrorContent] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchInitialPages() {
       setIsLoadingMeta(true);
-      const pagesData = await getDatabasePages();
-      // Sort pages: by category (alphabetically), then by title (alphabetically)
-      pagesData.sort((a, b) => {
-        const categoryA = a.category || "General";
-        const categoryB = b.category || "General";
-        if (categoryA < categoryB) return -1;
-        if (categoryA > categoryB) return 1;
-        if (a.title < b.title) return -1;
-        if (a.title > b.title) return 1;
-        return 0;
-      });
-      setAllPagesMeta(pagesData);
-      setIsLoadingMeta(false);
-      // Set the first page as active by default, if pages exist
-      if (pagesData.length > 0) {
-        setActivePageId(pagesData[0].id);
+      setErrorMeta(null);
+      try {
+        const response = await fetch('/api/documentation/pages');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch page metadata: ${response.statusText}`);
+        }
+        const pagesData: NotionPageData[] = await response.json();
+
+        pagesData.sort((a, b) => {
+          const categoryA = a.category || "General";
+          const categoryB = b.category || "General";
+          if (categoryA < categoryB) return -1;
+          if (categoryA > categoryB) return 1;
+          if (a.title < b.title) return -1;
+          if (a.title > b.title) return 1;
+          return 0;
+        });
+        setAllPagesMeta(pagesData);
+        if (pagesData.length > 0) {
+          setActivePageId(pagesData[0].id);
+        }
+      } catch (err) {
+        console.error("Error fetching initial pages:", err);
+        setErrorMeta((err as Error).message || "An unknown error occurred while fetching page list.");
+      } finally {
+        setIsLoadingMeta(false);
       }
     }
     fetchInitialPages();
@@ -42,6 +55,7 @@ export default function DocumentationPage() {
 
   const handleSelectPage = useCallback((pageId: string) => {
     setActivePageId(pageId);
+    setErrorContent(null); // Clear previous content errors when selecting a new page
   }, []);
 
   useEffect(() => {
@@ -51,20 +65,26 @@ export default function DocumentationPage() {
         return;
       }
 
-      // Check if content is already fetched
       if (fetchedPageContents[activePageId]) {
         setActivePageContent(fetchedPageContents[activePageId]);
+        setErrorContent(null); // Clear error if content is found in cache
         return;
       }
 
       setIsLoadingContent(true);
+      setErrorContent(null);
       try {
-        const content = await getPageContent(activePageId);
+        const response = await fetch(`/api/documentation/pages/${activePageId}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch page content: ${response.statusText}`);
+        }
+        const content: BlockObjectResponse[] = await response.json();
         setFetchedPageContents(prev => ({ ...prev, [activePageId]: content }));
         setActivePageContent(content);
-      } catch (error) {
-        console.error(`Failed to fetch content for page ${activePageId}:`, error);
-        setActivePageContent([]); // Set to empty array or some error state representation
+      } catch (err) {
+        console.error(`Failed to fetch content for page ${activePageId}:`, err);
+        setErrorContent((err as Error).message || `An unknown error occurred while fetching content for page ${activePageId}.`);
+        setActivePageContent([]); // Set to empty or null to indicate error
       } finally {
         setIsLoadingContent(false);
       }
