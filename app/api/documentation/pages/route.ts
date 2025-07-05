@@ -7,11 +7,11 @@ export async function GET() {
   try {
     const pages = await getDatabasePages();
     return NextResponse.json(pages);
-  } catch (error) {
-    console.error('Failed to fetch documentation pages:', error);
-    // It's important to check the type of error if you want to return specific details
-    // For now, a generic error message.
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: 'Failed to fetch documentation pages', details: errorMessage }, { status: 500 });
+  } catch (error: any) { // Changed to any to inspect error properties
+    console.error('[API /api/documentation/pages] Error calling getDatabasePages:', error);
+    const status = error.status || 500;
+    const message = error.message || 'An internal server error occurred while fetching page list.';
+    // If the error came from our re-thrown Notion error, it might have a more specific message.
+    return NextResponse.json({ error: "Failed to fetch page list from Notion.", details: message, notion_code: error.code }, { status });
   }
 }

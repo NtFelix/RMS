@@ -15,13 +15,14 @@ export async function GET(
 
   try {
     const content = await getPageContent(pageId);
-    if (content === null) {
-        return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    if (content === null) { // This case is handled if getPageContent returns null for 404
+        return NextResponse.json({ error: 'Page not found in Notion.' }, { status: 404 });
     }
     return NextResponse.json(content);
-  } catch (error) {
-    console.error(`Failed to fetch content for page ${pageId}:`, error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-    return NextResponse.json({ error: `Failed to fetch content for page ${pageId}`, details: errorMessage }, { status: 500 });
+  } catch (error: any) { // Changed to any to inspect error properties
+    console.error(`[API /api/documentation/page/${pageId}] Error calling getPageContent:`, error);
+    const status = error.status || 500;
+    const message = error.message || `An internal server error occurred while fetching content for page ${pageId}.`;
+    return NextResponse.json({ error: `Failed to fetch content for page ${pageId} from Notion.`, details: message, notion_code: error.code }, { status });
   }
 }

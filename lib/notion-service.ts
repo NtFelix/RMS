@@ -90,13 +90,17 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
         properties: typedPage.properties,
       };
     });
-  } catch (error) {
-    console.error("Failed to fetch database pages from Notion:", error);
-    return [];
+  } catch (error: any) { // Changed to any to inspect error properties
+    console.error("[getDatabasePages] Error fetching from Notion. Status:", error?.status, "Code:", error?.code, "Message:", error?.message, "Full error:", JSON.stringify(error, null, 2));
+    // Create a new error with potentially more info or a specific status code
+    const newError = new Error(`Notion API Error: ${error?.message || 'Unknown error'}`);
+    (newError as any).status = error?.status || 500; // Attach status if available
+    (newError as any).code = error?.code;
+    throw newError; // Re-throw to be caught by the API route
   }
 }
 
-export async function getPageContent(pageId: string): Promise<BlockObjectResponse[]> {
+export async function getPageContent(pageId: string): Promise<BlockObjectResponse[] | null> { // Allow null for not found
   try {
     const blocks: BlockObjectResponse[] = [];
     let cursor: string | undefined;
@@ -117,8 +121,15 @@ export async function getPageContent(pageId: string): Promise<BlockObjectRespons
       cursor = next_cursor;
     }
     return blocks;
-  } catch (error) {
-    console.error(`Failed to fetch content for page ${pageId} from Notion:`, error);
-    return [];
+  } catch (error: any) { // Changed to any to inspect error properties
+    console.error(`[getPageContent] Error fetching content for page ${pageId}. Status:`, error?.status, "Code:", error?.code, "Message:", error?.message, "Full error:", JSON.stringify(error, null, 2));
+    // If Notion API returns 404 for a page ID that doesn't exist
+    if (error?.status === 404) {
+      return null; // Indicate page not found by returning null
+    }
+    const newError = new Error(`Notion API Error for page ${pageId}: ${error?.message || 'Unknown error'}`);
+    (newError as any).status = error?.status || 500;
+    (newError as any).code = error?.code;
+    throw newError; // Re-throw other errors
   }
 }
