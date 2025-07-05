@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import Navigation from "../components/navigation";
 import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
-import { getDatabasePages, NotionPageData, getPageContent } from "../../../lib/notion-service"; // Adjusted path
+// Removed direct imports from notion-service: getDatabasePages, getPageContent
+import { NotionPageData } from "../../../lib/notion-service"; // Keep NotionPageData for type info if needed by child components directly
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 // Define a type for the page that includes content
@@ -15,7 +16,7 @@ interface PageWithContent extends NotionPageData {
 export default function DocumentationPage() {
   const [allPagesMeta, setAllPagesMeta] = useState<NotionPageData[]>([]);
   const [selectedPage, setSelectedPage] = useState<PageWithContent | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Combined loading state
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,7 +24,12 @@ export default function DocumentationPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const pagesWithoutContent = await getDatabasePages();
+        const response = await fetch('/api/documentation/pages');
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty object
+          throw new Error(errorData.details || `Failed to fetch page list: ${response.statusText}`);
+        }
+        let pagesWithoutContent: NotionPageData[] = await response.json();
 
         // Sort pages: by category (alphabetically), then by title (alphabetically)
         pagesWithoutContent.sort((a, b) => {
@@ -38,37 +44,47 @@ export default function DocumentationPage() {
 
         setAllPagesMeta(pagesWithoutContent);
 
-        // Automatically load the first page's content if pages are available
         if (pagesWithoutContent.length > 0) {
-          await fetchAndSetSelectedPage(pagesWithoutContent[0].id);
+          // Fetch content for the first page
+          await fetchAndSetSelectedPage(pagesWithoutContent[0].id, pagesWithoutContent);
         } else {
-          setIsLoading(false);
+          setIsLoading(false); // No pages to load content for
         }
       } catch (e) {
         console.error("Failed to fetch documentation pages list:", e);
-        setError("Failed to load documentation index. Please try again later.");
+        setError(e instanceof Error ? e.message : "Failed to load documentation index. Please try again later.");
         setIsLoading(false);
       }
     }
     fetchInitialPages();
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
 
-  const fetchAndSetSelectedPage = async (pageId: string) => {
+  const fetchAndSetSelectedPage = async (pageId: string, currentMeta?: NotionPageData[]) => {
     setIsLoading(true);
-    setError(null);
-    const pageMeta = allPagesMeta.find(p => p.id === pageId);
+    // setError(null); // Keep previous error until new data/error comes
+
+    const metaList = currentMeta || allPagesMeta;
+    const pageMeta = metaList.find(p => p.id === pageId);
+
     if (!pageMeta) {
-      setError("Selected page not found in metadata.");
+      setError("Selected page metadata not found.");
       setIsLoading(false);
+      setSelectedPage(null);
       return;
     }
 
     try {
-      const content = await getPageContent(pageId);
+      const response = await fetch(`/api/documentation/page/${pageId}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || `Failed to fetch page content for ${pageMeta.title}: ${response.statusText}`);
+      }
+      const content: BlockObjectResponse[] = await response.json();
       setSelectedPage({ ...pageMeta, content });
+      setError(null); // Clear error on successful content load
     } catch (e) {
       console.error(`Failed to fetch content for page ${pageId}:`, e);
-      setError(`Failed to load content for ${pageMeta.title}. Please try again.`);
+      setError(e instanceof Error ? e.message : `Failed to load content for ${pageMeta.title}. Please try again.`);
       setSelectedPage(null); // Clear selected page on error
     } finally {
       setIsLoading(false);
