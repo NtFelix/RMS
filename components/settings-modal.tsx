@@ -9,7 +9,8 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud } from "lucide-react" // Added DownloadCloud
+// Consolidated lucide-react import to include Info
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -50,6 +51,8 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
+// No separate import for lucide-react here as it's handled above
+
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
@@ -59,6 +62,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
+  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("0.1.0"); // Initialize with hardcoded version
   const [email, setEmail] = useState<string>("")
   const [confirmEmail, setConfirmEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
@@ -88,8 +92,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setEmail(user.email || "")
         setConfirmEmail(user.email || "")
       }
-    })
-  }, [supabase])
+    });
+    // Fetch package.json version
+    // In a real app, you might fetch this from a server endpoint or build-time variable
+    // For this example, simulating a fetch or direct import if possible (not directly in client component for package.json)
+    // For now, we'll use a placeholder and update it in the next step if a package.json read is feasible.
+    // As per user instruction, it will be hardcoded in the next step.
+    // For now, just setting a loading state.
+    // setPackageJsonVersion("0.1.0"); // Placeholder, will be properly set in the "Informationen" tab content step
+  }, [supabase]);
 
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
@@ -526,8 +537,36 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           )}
         </div>
       ),
+    },
+    {
+      value: "information",
+      label: "Informationen",
+      icon: Info, // Using the imported Info icon
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">App Informationen</h2>
+          {/* Version number will be displayed here in the next step */}
+          <p className="text-sm">Version: <span id="app-version">{packageJsonVersion}</span></p>
+          <p className="text-sm text-muted-foreground">
+            Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
+          </p>
+        </div>
+      ),
     }
   ]
+
+  // Effect to set the version number when the information tab is selected,
+  // or when the modal opens if it's the default tab.
+  useEffect(() => {
+    // Set the hardcoded version if the tab is active or upon component initialization.
+    // Since it's hardcoded, we can set it directly.
+    // The initial state already sets it, but this ensures it if logic changes.
+    if (activeTab === 'information') {
+      setPackageJsonVersion("0.1.0"); // Hardcoded version
+    }
+    // If you want it to always be set regardless of tab, you can remove the condition,
+    // but initializing the state is usually sufficient for hardcoded values.
+  }, [activeTab]); // Dependency on activeTab ensures it updates if tab changes, though less critical for hardcoded.
 
   return (
     <>

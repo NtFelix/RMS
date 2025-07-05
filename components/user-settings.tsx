@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react" // Added useEffect
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
+import type { User } from "@supabase/supabase-js"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,35 +15,78 @@ import {
 import { Button } from "@/components/ui/button"; // Keep this if other buttons are styled with it, or remove if not.
 import { LogOut, Settings } from "lucide-react"; // Removed User icon as it's not used.
 import { SettingsModal } from "@/components/settings-modal";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // For user avatar
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+interface Profile {
+  full_name?: string;
+  // Add other profile fields if needed
+}
 
 export function UserSettings() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingLogout, setIsLoadingLogout] = useState(false);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const [openModal, setOpenModal] = useState(false);
-  // TODO: Replace with actual user data fetching if available
-  const [userName, setUserName] = useState("Max Mustermann"); // Placeholder name
-  const [userEmail, setUserEmail] = useState("max.mustermann@example.com"); // Placeholder email
-  const [userInitials, setUserInitials] = useState("MM"); // Placeholder initials
+  const [userName, setUserName] = useState("Lade...");
+  const [userEmail, setUserEmail] = useState("");
+  const [userInitials, setUserInitials] = useState("");
+  const supabase = createClient();
 
-  // Effect to get user initials from name (example)
   useEffect(() => {
-    if (userName) {
-      const nameParts = userName.split(" ");
-      const initials = nameParts.map(part => part.charAt(0).toUpperCase()).join("");
-      setUserInitials(initials);
-    }
-  }, [userName]);
+    const fetchUser = async () => {
+      setIsLoadingUser(true);
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        console.error("Error fetching user:", authError?.message);
+        setUserName("Nutzer");
+        setUserEmail("Nicht angemeldet");
+        setUserInitials("N");
+        setIsLoadingUser(false);
+        return;
+      }
+
+      setUserEmail(user.email || "Keine E-Mail");
+
+      // Fetch profile details (e.g., full_name)
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single<Profile>();
+
+      if (profileError || !profile) {
+        console.warn("Error fetching profile or profile empty:", profileError?.message);
+        // Use email part as name if full_name is not available
+        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
+        setUserName(emailNamePart);
+        setUserInitials(emailNamePart.charAt(0).toUpperCase());
+      } else if (profile.full_name) {
+        setUserName(profile.full_name);
+        const nameParts = profile.full_name.split(" ");
+        const initials = nameParts.map(part => part.charAt(0).toUpperCase()).join("").substring(0, 2);
+        setUserInitials(initials);
+      } else {
+        // Fallback if full_name is null/empty but profile was fetched
+        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
+        setUserName(emailNamePart);
+        setUserInitials(emailNamePart.charAt(0).toUpperCase());
+      }
+      setIsLoadingUser(false);
+    };
+
+    fetchUser();
+  }, [supabase]);
 
 
   const handleLogout = () => {
-    setIsLoading(true);
-    const supabase = createClient();
+    setIsLoadingLogout(true);
     supabase.auth.signOut().then(() => {
       router.push("/auth/login");
+      // No need to setIsLoadingLogout(false) here as the component will likely unmount or redirect.
     }).catch((error) => {
       console.error("Error signing out:", error);
-      setIsLoading(false); // Reset loading state on error
+      setIsLoadingLogout(false); // Reset loading state on error
     });
   };
 
@@ -50,34 +94,37 @@ export function UserSettings() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          {/* Entire container is now the trigger */}
-          <div className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150">
+          <div
+            className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer transition-colors duration-150"
+            aria-label="User menu"
+          >
             <Avatar className="h-10 w-10">
-              <AvatarImage src="/placeholder-user.jpg" alt={userName} /> {/* Placeholder image */}
-              <AvatarFallback>{userInitials}</AvatarFallback>
+              {/* Actual user image can be added if available in profile */}
+              {/* <AvatarImage src={profile?.avatar_url || "/placeholder-user.jpg"} alt={userName} /> */}
+              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} /> {/* Keeping placeholder for now */}
+              <AvatarFallback>{isLoadingUser ? "" : userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left">
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{userName}</span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{userEmail}</span>
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {isLoadingUser ? "Lade..." : userName}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {isLoadingUser ? "" : userEmail}
+              </span>
             </div>
           </div>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 ml-4"> {/* Consider adjusting width if content changes */}
+        <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          {/* Optional: Link to a dedicated profile page if it exists */}
-          {/* <DropdownMenuItem onClick={() => router.push('/profile')}>
-            <User className="mr-2 h-4 w-4" />
-            <span>Profil</span>
-          </DropdownMenuItem> */}
           <DropdownMenuItem onClick={() => setOpenModal(true)}>
             <Settings className="mr-2 h-4 w-4" />
             <span>Einstellungen</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} disabled={isLoading}>
+          <DropdownMenuItem onClick={handleLogout} disabled={isLoadingLogout}>
             <LogOut className="mr-2 h-4 w-4" />
-            <span>{isLoading ? "Wird abgemeldet..." : "Abmelden"}</span>
+            <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
