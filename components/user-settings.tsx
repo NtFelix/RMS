@@ -57,10 +57,11 @@ export function UserSettings() {
 
       if (profileError || !profile) {
         console.warn("Error fetching profile or profile empty:", profileError?.message);
-        // Use email part as name if full_name is not available
-        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
-        setUserName(emailNamePart);
-        setUserInitials(emailNamePart.charAt(0).toUpperCase());
+        setUserName("Fehler");
+        setUserEmail("Profil konnte nicht geladen werden");
+        setUserInitials("N/A");
+        setIsLoadingUser(false); // Ensure loading is stopped on error
+        return; // Exit early if profile fetch failed
       } else if (profile.full_name) {
         setUserName(profile.full_name);
         const nameParts = profile.full_name.split(" ");
