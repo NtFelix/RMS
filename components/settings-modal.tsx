@@ -2,20 +2,21 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog" // DialogOverlay removed as it's part of Dialog in new shadcn
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
-import { createClient } from "@/utils/supabase/client"
+import { createClient } from "@/utils/supabase/client" // Keep for other Supabase interactions if any, or remove if useLogout is the only user
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud } from "lucide-react" // Added DownloadCloud
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, SlidersHorizontal, LogOut as LogOutIcon } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
-import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
-import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
-import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
+import type { Profile as SupabaseProfile } from '@/types/supabase';
+import { getUserProfileForSettings } from '@/app/user-profile-actions';
+import Pricing from "@/app/modern/components/pricing";
+import { useDataExport } from '@/hooks/useDataExport';
+import { useLogout } from "@/hooks/use-logout"; // Import the new hook
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -64,6 +65,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+  // const [isLogoutLoading, setIsLogoutLoading] = useState<boolean>(false) // Handled by useLogout
+  const { handleLogout: performModalLogout, isLoading: isLogoutLoading } = useLogout();
+
 
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
@@ -72,12 +76,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
 
   // State for subscription tab
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
-  // isLoadingSub removed as Pricing component is removed
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
-  // isCancellingSubscription removed
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null);
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true);
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
-  const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
+  const { isExporting, handleDataExport: performDataExport } = useDataExport();
+
+  const version = "1.0.0"; // Hardcoded version number as requested
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -207,8 +211,25 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
   }
 
-  // handlePlanSelected removed as Pricing component is removed
-  // handleCancelSubscription removed
+  // const handleLogout = async () => { // This logic is now in useLogout
+  //   setIsLogoutLoading(true);
+  //   const supabaseClient = createClient();
+  //   try {
+  //     await supabaseClient.auth.signOut();
+  //     router.push("/auth/login");
+  //     if (onOpenChange) onOpenChange(false); // Close modal on logout
+  //     toast.success("Erfolgreich abgemeldet");
+  //   } catch (error) {
+  //     console.error("Error signing out:", error);
+  //     toast.error("Fehler beim Abmelden");
+  //   } finally {
+  //     setIsLogoutLoading(false);
+  //   }
+  // };
+
+  const modalLogoutHandler = () => {
+    performModalLogout(() => onOpenChange(false)); // Pass onOpenChange(false) as the onSuccess callback
+  };
 
   const handleManageSubscription = async () => {
     if (!profile || !profile.stripe_customer_id) {
@@ -276,7 +297,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const subscriptionStatus = profile?.stripe_subscription_status;
   const currentPeriodEnd = profile?.stripe_current_period_end
-    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE') // Apply de-DE locale for DD.MM.YYYY
+    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')
     : null;
 
   const tabs: Tab[] = [
@@ -526,8 +547,46 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           )}
         </div>
       ),
+    },
+    {
+      value: "information",
+      label: "Informationen",
+      icon: Info,
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">App Informationen</h2>
+          <p className="text-sm">Version: {version}</p>
+          {/* Add any other relevant app information here */}
+        </div>
+      ),
+    },
+    {
+      value: "more_settings",
+      label: "Weitere Einstellungen",
+      icon: SlidersHorizontal,
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">Kontoaktionen</h2>
+          <Button onClick={modalLogoutHandler} disabled={isLogoutLoading} variant="outline" className="w-full sm:w-auto">
+            <LogOutIcon className="mr-2 h-4 w-4" />
+            {isLogoutLoading ? "Wird abgemeldet..." : "Abmelden"}
+          </Button>
+          {/* Add other actions like theme switcher etc. here if needed in future */}
+        </div>
+      ),
     }
-  ]
+  ];
+
+  // Ensure the tabs are ordered as desired, e.g. Profile, Security, Abo, Export, Info, More Settings
+  const orderedTabs = [
+    tabs.find(t => t.value === "profile"),
+    tabs.find(t => t.value === "security"),
+    tabs.find(t => t.value === "subscription"),
+    tabs.find(t => t.value === "export"),
+    tabs.find(t => t.value === "information"),
+    tabs.find(t => t.value === "more_settings"),
+  ].filter(Boolean) as Tab[];
+
 
   return (
     <>
@@ -535,28 +594,28 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
             <DialogTitle className="sr-only">Einstellungen</DialogTitle>
           <div className="flex h-full overflow-hidden">
-            <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
-            {tabs.map(tab => (
+            <nav className="w-48 min-w-[12rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0"> {/* Increased width for longer labels */}
+            {orderedTabs.map(tab => (
               <button
                 key={tab.value}
                 onClick={() => setActiveTab(tab.value)}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-md transition-colors outline-none',
+                  'flex items-center gap-2 px-3 py-2 rounded-md transition-colors outline-none text-sm', // ensure text-sm for consistency
                   activeTab === tab.value
                     ? 'bg-accent text-accent-foreground shadow-sm font-medium'
                     : 'text-muted-foreground hover:bg-muted focus:bg-accent/60 focus:text-accent-foreground',
                 )}
               >
-                <tab.icon className="h-4 w-4" />
-                <span>{tab.label}</span>
+                <tab.icon className="h-4 w-4 shrink-0" /> {/* Added shrink-0 */}
+                <span className="truncate">{tab.label}</span> {/* Added truncate for long labels */}
               </button>
             ))}
           </nav>
           <div className="flex-1 flex flex-col">
             <section className="flex-1 overflow-y-auto p-3">
-              {tabs.find(tab => tab.value === activeTab)?.content}
+              {orderedTabs.find(tab => tab.value === activeTab)?.content}
             </section>
-            </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

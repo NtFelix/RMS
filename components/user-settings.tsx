@@ -1,8 +1,6 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { createClient } from "@/utils/supabase/client"
+// useState, useRouter, createClient removed as they are now in useLogout
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,26 +9,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Button } from "@/components/ui/button" // Keep Button if used for styling the trigger area
-import { LogOut, Settings } from "lucide-react" // User icon removed as PM is used
-import { SettingsModal } from "@/components/settings-modal"
-import { cn } from "@/lib/utils" // For conditional classnames
+import { Button } from "@/components/ui/button"
+import { LogOut } from "lucide-react" // Settings import removed
+import { cn } from "@/lib/utils"
+import { useLogout } from "@/hooks/use-logout" // Import the new hook
 
 export function UserSettings() {
-  const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [openModal, setOpenModal] = useState(false)
+  const { handleLogout, isLoading } = useLogout();
+  // const router = useRouter() // Handled by useLogout
+  // const [isLoading, setIsLoading] = useState(false) // Handled by useLogout
 
-  const handleLogout = () => {
-    setIsLoading(true)
-    const supabase = createClient()
-    supabase.auth.signOut().then(() => {
-      router.push("/auth/login")
-    }).catch((error) => {
-      console.error("Error signing out:", error)
-      setIsLoading(false) // Reset loading state on error
-    })
-  }
+  // const handleLogout = () => { // This logic is now in useLogout
+  //   setIsLoading(true)
+  //   const supabase = createClient()
+  //   supabase.auth.signOut().then(() => {
+  //     router.push("/auth/login")
+  //   }).catch((error) => {
+  //     console.error("Error signing out:", error)
+  //     setIsLoading(false)
+  //   })
+  // }
 
   // TODO: Replace "PM" with dynamic user initials or a generic user icon if available
   const userInitials = "PM";
@@ -60,18 +58,15 @@ export function UserSettings() {
         <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setOpenModal(true)}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Einstellungen</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          {/* Settings DropdownMenuItem and its Separator are removed */}
+          {/* The SettingsModal instance is also removed from here as it's now handled by DirectSettingsTrigger */}
           <DropdownMenuItem onClick={handleLogout} disabled={isLoading}>
             <LogOut className="mr-2 h-4 w-4" />
             <span>{isLoading ? "Wird abgemeldet..." : "Abmelden"}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <SettingsModal open={openModal} onOpenChange={setOpenModal} />
+      {/* <SettingsModal open={openModal} onOpenChange={setOpenModal} /> Modal removed from here */}
     </>
   )
 }

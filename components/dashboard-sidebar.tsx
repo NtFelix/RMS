@@ -9,7 +9,8 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
-import { createClient } from "@/utils/supabase/client"
+import { DirectSettingsTrigger } from "@/components/direct-settings-trigger" // Import the new component
+// createClient and userEmail state/useEffect will be removed as DirectSettingsTrigger handles its own email fetching.
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -53,16 +54,16 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const supabase = createClient()
-  const [userEmail, setUserEmail] = useState<string | null>(null)
+  // const supabase = createClient() // No longer needed here
+  // const [userEmail, setUserEmail] = useState<string | null>(null) // No longer needed here
 
-  useEffect(() => {
-    supabase.auth.getUser().then((res) => {
-      if (res.data.user?.email) {
-        setUserEmail(res.data.user.email)
-      }
-    })
-  }, [supabase])
+  // useEffect(() => { // This useEffect is no longer needed
+  //   supabase.auth.getUser().then((res) => {
+  //     if (res.data.user?.email) {
+  //       setUserEmail(res.data.user.email)
+  //     }
+  //   })
+  // }, [supabase])
 
   return (
     <>
@@ -113,14 +114,14 @@ export function DashboardSidebar() {
               ))}
             </nav>
           </ScrollArea>
-          <div className="mt-auto border-t p-4">
-            <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
+          <div className="mt-auto border-t p-4 space-y-2"> {/* Added space-y-2 for spacing between items */}
+            {/* UserSettings (profile image dropdown) remains for logout */}
+            <div className="flex items-center gap-2 px-1 py-1"> {/* Minimal padding for UserSettings itself */}
               <UserSettings />
-              <div className="grid gap-0.5">
-                <p className="text-xs font-medium">{userEmail ?? "Property Manager"}</p>
-                <p className="text-xs text-muted-foreground">v2.0.0</p>
-              </div>
             </div>
+            {/* New DirectSettingsTrigger for email/version and opening settings modal */}
+            {/* It will be displayed below UserSettings */}
+            <DirectSettingsTrigger />
           </div>
         </div>
       </aside>
