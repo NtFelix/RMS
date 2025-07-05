@@ -39,7 +39,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
 
   switch (type) {
     case "paragraph":
-      // Type assertion to access paragraph specific data
       const paragraph = block.paragraph;
       return (
         <p className="mb-4 text-muted-foreground leading-relaxed">
@@ -47,7 +46,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </p>
       );
     case "heading_1":
-      // Type assertion to access heading_1 specific data
       const heading1 = block.heading_1;
       return (
         <h1 className="text-4xl font-bold text-foreground mt-8 mb-6">
@@ -55,7 +53,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </h1>
       );
     case "heading_2":
-      // Type assertion to access heading_2 specific data
       const heading2 = block.heading_2;
       return (
         <h2 className="text-3xl font-bold text-foreground mt-6 mb-4">
@@ -63,7 +60,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </h2>
       );
     case "heading_3":
-      // Type assertion to access heading_3 specific data
       const heading3 = block.heading_3;
       return (
         <h3 className="text-2xl font-semibold text-foreground mt-4 mb-3">
@@ -71,7 +67,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </h3>
       );
     case "bulleted_list_item":
-      // Type assertion to access bulleted_list_item specific data
       const bulletedListItem = block.bulleted_list_item;
       return (
         <li className="ml-6 list-disc text-muted-foreground">
@@ -80,7 +75,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </li>
       );
     case "numbered_list_item":
-      // Type assertion to access numbered_list_item specific data
       const numberedListItem = block.numbered_list_item;
       return (
         <li className="ml-6 list-decimal text-muted-foreground">
@@ -89,7 +83,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </li>
       );
     case "to_do":
-      // Type assertion to access to_do specific data
       const toDo = block.to_do;
       return (
         <div className="flex items-center gap-2 mb-2">
@@ -100,7 +93,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </div>
       );
     case "code":
-      // Type assertion to access code specific data
       const code = block.code;
       // Basic code block rendering. For syntax highlighting, a library like react-syntax-highlighter would be needed.
       return (
@@ -111,7 +103,6 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
         </pre>
       );
     case "image":
-      // Type assertion to access image specific data
       const image = block.image;
       const src = image.type === "external" ? image.external.url : image.file.url;
       const caption = image.caption?.length > 0 ? <NotionRichText richTextArray={image.caption} /> : null;
