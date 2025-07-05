@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { getPageContent } from '../../../../../lib/notion-service'; // Adjusted path based on nesting
 
+interface RouteContext {
+  params: {
+    pageId: string;
+  };
+}
+
 export async function GET(
   request: Request,
-  { params }: { params: { pageId: string } }
+  context: RouteContext
 ) {
-  const pageId = params.pageId;
+  const pageId = context.params.pageId;
 
   if (!pageId) {
     return NextResponse.json({ message: 'Page ID is required' }, { status: 400 });
