@@ -312,6 +312,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               onChange={e => setLastName(e.target.value)}
               className="mt-1 w-full"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Dieser Name wird für die Betriebskostenabrechnung verwendet.
+            </p>
           </div>
           <Button onClick={handleProfileSave} disabled={loading}>
             {loading ? "Speichern..." : "Profil speichern"}

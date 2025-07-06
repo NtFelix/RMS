@@ -17,11 +17,6 @@ import { LogOut, Settings } from "lucide-react"; // Removed User icon as it's no
 import { SettingsModal } from "@/components/settings-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-interface Profile {
-  full_name?: string;
-  // Add other profile fields if needed
-}
-
 export function UserSettings() {
   const router = useRouter();
   const [isLoadingLogout, setIsLoadingLogout] = useState(false);
@@ -48,29 +43,22 @@ export function UserSettings() {
 
       setUserEmail(user.email || "Keine E-Mail");
 
-      // Fetch profile details (e.g., full_name)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single<Profile>();
+      const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {};
 
-      if (profileError || !profile) {
-        console.warn("Error fetching profile or profile empty:", profileError?.message);
-        // Use email part as name if full_name is not available
-        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
-        setUserName(emailNamePart);
-        setUserInitials(emailNamePart.charAt(0).toUpperCase());
-      } else if (profile.full_name) {
-        setUserName(profile.full_name);
-        const nameParts = profile.full_name.split(" ");
-        const initials = nameParts.map(part => part.charAt(0).toUpperCase()).join("").substring(0, 2);
+      const firstName = (typeof rawFirstName === 'string' ? rawFirstName.trim() : '');
+      const lastName = (typeof rawLastName === 'string' ? rawLastName.trim() : '');
+
+      if (firstName && lastName) {
+        const fullName = `${firstName} ${lastName}`;
+        setUserName(fullName);
+        const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
         setUserInitials(initials);
+      } else if (firstName) {
+        setUserName(firstName);
+        setUserInitials(firstName.charAt(0).toUpperCase());
       } else {
-        // Fallback if full_name is null/empty but profile was fetched
-        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
-        setUserName(emailNamePart);
-        setUserInitials(emailNamePart.charAt(0).toUpperCase());
+        setUserName("Namen in Einstellungen festlegen");
+        setUserInitials("?");
       }
       setIsLoadingUser(false);
     };
