@@ -257,6 +257,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         description: `Hallo ${savedFirstName} ${savedLastName}, Ihr Profil wurde erfolgreich gespeichert.`,
         variant: "success",
       })
+    } else {
+      // Fallback for when user data is not returned but no error occurred
+      toast({
+        title: "Erfolg",
+        description: "Profil gespeichert",
+        variant: "success",
+      })
     }
   }
   const handleEmailSave = async () => {
