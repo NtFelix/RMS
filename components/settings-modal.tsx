@@ -249,10 +249,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         description: "Fehler beim Profil speichern",
         variant: "destructive",
       })
-    } else {
+    } else if (data.user) {
+      const savedFirstName = data.user.user_metadata.first_name ?? '';
+      const savedLastName = data.user.user_metadata.last_name ?? '';
       toast({
         title: "Erfolg",
-        description: `Hallo ${firstName} ${lastName}, Ihr Profil wurde erfolgreich gespeichert.`,
+        description: `Hallo ${savedFirstName} ${savedLastName}, Ihr Profil wurde erfolgreich gespeichert.`,
         variant: "success",
       })
     }
