@@ -227,7 +227,7 @@ export default function DocumentationContent({ isLoading, pageContent, pageFiles
 
       {pageFiles && pageFiles.length > 0 && (
         <div className="mt-12 pt-8 border-t border-border">
-          <h3 className="text-2xl font-semibold text-foreground mb-6">Attached Files & Media</h3>
+          <h3 className="text-2xl font-semibold text-foreground mb-6">Dateien und Medien</h3>
           <Carousel
             opts={{
               align: "start",
