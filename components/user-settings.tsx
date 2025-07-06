@@ -43,7 +43,10 @@ export function UserSettings() {
 
       setUserEmail(user.email || "Keine E-Mail");
 
-      const { first_name: firstName, last_name: lastName } = user.user_metadata;
+      const { first_name: rawFirstName, last_name: rawLastName } = user.user_metadata || {};
+
+      const firstName = (typeof rawFirstName === 'string' ? rawFirstName.trim() : '');
+      const lastName = (typeof rawLastName === 'string' ? rawLastName.trim() : '');
 
       if (firstName && lastName) {
         const fullName = `${firstName} ${lastName}`;
@@ -51,10 +54,9 @@ export function UserSettings() {
         const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
         setUserInitials(initials);
       } else if (firstName) {
-        setUserName(firstName); // Show only first name if last name is missing
+        setUserName(firstName);
         setUserInitials(firstName.charAt(0).toUpperCase());
       } else {
-        // Fallback if names are not in metadata
         setUserName("Namen in Einstellungen festlegen");
         setUserInitials("?");
       }
