@@ -57,8 +57,8 @@ export function UserSettings() {
 
       if (profileError || !profile) {
         console.warn("Error fetching profile or profile empty:", profileError?.message);
-        setUserName("Fehler");
-        setUserEmail("Profil konnte nicht geladen werden");
+        setUserName("Profil nicht geladen");
+        // Keep userEmail as it was successfully fetched
         setUserInitials("N/A");
         setIsLoadingUser(false); // Ensure loading is stopped on error
         return; // Exit early if profile fetch failed
