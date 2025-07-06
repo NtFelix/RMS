@@ -1,18 +1,34 @@
 import { Client } from "@notionhq/client";
 import { BlockObjectResponse, PageObjectResponse, SelectPropertyItemObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
+// Changed to NEXT_PUBLIC_NOTION_API_KEY
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 
-if (!NOTION_API_KEY) {
-  throw new Error("Missing NOTION_API_KEY environment variable. Please set it in your .env file or deployment environment.");
+let notionClientInstance: Client | null = null;
+
+function getNotionClient(): Client {
+  if (!notionClientInstance) {
+    const apiKey = process.env.NEXT_PUBLIC_NOTION_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing NEXT_PUBLIC_NOTION_API_KEY environment variable. Please set it in your .env file or deployment environment.");
+    }
+    if (!NOTION_DATABASE_ID) {
+      // Though this is checked at module scope too, good to have it here if getNotionClient was ever called before that check
+      throw new Error("Missing NOTION_DATABASE_ID environment variable. Please set it in your .env file or deployment environment.");
+    }
+    notionClientInstance = new Client({ auth: apiKey });
+  }
+  return notionClientInstance;
 }
 
+// Initial check for NOTION_DATABASE_ID at module scope for early failure if it's fundamentally missing
 if (!NOTION_DATABASE_ID) {
+  console.error("CRITICAL: Missing NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
+  // We throw here to make it obvious during server startup or build if this essential ID is missing.
+  // The API key check is deferred to when the client is first needed.
   throw new Error("Missing NOTION_DATABASE_ID environment variable. Please set it in your .env file or deployment environment.");
 }
 
-const notion = new Client({ auth: NOTION_API_KEY });
 
 export interface NotionFileData {
   name: string;
@@ -37,10 +53,11 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
     console.error("NOTION_DATABASE_ID is not defined.");
     return [];
   }
+  const client = getNotionClient();
 
   try {
-    const response = await notion.databases.query({
-      database_id: NOTION_DATABASE_ID,
+    const response = await client.databases.query({
+      database_id: NOTION_DATABASE_ID!, // We've checked NOTION_DATABASE_ID is defined
       filter: {
         property: "Version", // Filter by the "Version" property
         select: {
@@ -145,9 +162,10 @@ export async function getPageContent(pageId: string): Promise<BlockObjectRespons
   try {
     const blocks: BlockObjectResponse[] = [];
     let cursor: string | undefined;
+    const client = getNotionClient();
 
     while (true) {
-      const { results, next_cursor } = await notion.blocks.children.list({
+      const { results, next_cursor } = await client.blocks.children.list({
         block_id: pageId,
         start_cursor: cursor,
         page_size: 100,
