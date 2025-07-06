@@ -17,11 +17,6 @@ import { LogOut, Settings } from "lucide-react"; // Removed User icon as it's no
 import { SettingsModal } from "@/components/settings-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
-interface Profile {
-  full_name?: string;
-  // Add other profile fields if needed
-}
-
 export function UserSettings() {
   const router = useRouter();
   const [isLoadingLogout, setIsLoadingLogout] = useState(false);
@@ -48,35 +43,22 @@ export function UserSettings() {
 
       setUserEmail(user.email || "Keine E-Mail");
 
-      // Fetch profile details (e.g., full_name)
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single<Profile>();
+      const metaData = user.user_metadata as any; // Cast to any to access dynamic properties
+      const firstName = metaData?.first_name;
+      const lastName = metaData?.last_name;
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError.message);
-        setUserName("Fehler beim Laden");
-        // userEmail is already set
-        setUserInitials("ERR");
-      } else if (!profile) {
-        console.warn("Profile not found for user:", user.id);
-        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
-        setUserName(emailNamePart);
-        // userEmail is already set
-        setUserInitials((user.email?.charAt(0) || "N").toUpperCase());
-      } else if (profile.full_name) {
-        setUserName(profile.full_name);
-        const nameParts = profile.full_name.split(" ");
-        const initials = nameParts.map(part => part.charAt(0).toUpperCase()).join("").substring(0, 2);
+      if (firstName && lastName) {
+        const fullName = `${firstName} ${lastName}`;
+        setUserName(fullName);
+        const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
         setUserInitials(initials);
+      } else if (firstName) {
+        setUserName(firstName);
+        setUserInitials(firstName.charAt(0).toUpperCase());
       } else {
-        // Profile exists but full_name is null or empty
-        console.warn("Profile found but full_name is empty for user:", user.id);
+        // Fallback if names are not in metadata
         const emailNamePart = user.email?.split('@')[0] || "Nutzer";
         setUserName(emailNamePart);
-        // userEmail is already set
         setUserInitials((user.email?.charAt(0) || "N").toUpperCase());
       }
       setIsLoadingUser(false);
