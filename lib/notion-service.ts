@@ -2,7 +2,8 @@ import { Client } from "@notionhq/client";
 import { BlockObjectResponse, PageObjectResponse, SelectPropertyItemObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 let notionClientInstance: Client | null = null;
-let currentNotionDatabaseId: string | null | undefined = null;
+// This variable is no longer needed at this scope, as NEXT_PUBLIC_NOTION_DATABASE_ID will be read directly inside getNotionClient
+// let currentNotionDatabaseId: string | null | undefined = null;
 
 function getNotionClient(): Client {
   if (!notionClientInstance) {
@@ -11,22 +12,20 @@ function getNotionClient(): Client {
       throw new Error("Missing NEXT_PUBLIC_NOTION_API_KEY environment variable. Please set it in your .env file or deployment environment.");
     }
 
-    // Check for NOTION_DATABASE_ID only when the client is first requested
-    // Add debug log here
-    console.log("DEBUG: Inside getNotionClient, attempting to access process.env.NOTION_DATABASE_ID. Value:", process.env.NOTION_DATABASE_ID);
-    currentNotionDatabaseId = process.env.NOTION_DATABASE_ID;
-    if (!currentNotionDatabaseId) {
-      console.error("CRITICAL: Missing NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
-      throw new Error("Missing NOTION_DATABASE_ID environment variable. Please set it in your .env file or deployment environment.");
+    // Read and check for NEXT_PUBLIC_NOTION_DATABASE_ID when the client is first requested
+    const databaseId = process.env.NEXT_PUBLIC_NOTION_DATABASE_ID;
+    if (!databaseId) {
+      // Updated error message to reflect the new variable name
+      console.error("CRITICAL: Missing NEXT_PUBLIC_NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
+      throw new Error("Missing NEXT_PUBLIC_NOTION_DATABASE_ID environment variable. Please set it in your .env file or deployment environment.");
     }
+    // Storing it on the client instance or a module variable if needed elsewhere, but for now, just use it for initialization
+    // currentNotionDatabaseId = databaseId; // Not strictly needed if only used here for client init and in functions directly
 
     notionClientInstance = new Client({ auth: apiKey });
   }
   return notionClientInstance;
 }
-
-// No initial check for NOTION_DATABASE_ID at module scope anymore.
-// It will be checked inside getNotionClient when it's first called.
 
 export interface NotionFileData {
   name: string;
@@ -47,16 +46,20 @@ export interface NotionPageData {
 }
 
 export async function getDatabasePages(): Promise<NotionPageData[]> {
-  const client = getNotionClient(); // This will also ensure currentNotionDatabaseId is checked and set
-  if (!currentNotionDatabaseId) {
-    // This case should ideally not be hit if getNotionClient throws, but as a safeguard:
-    console.error("Notion Database ID is not available after client initialization attempt.");
-    return [];
+  const client = getNotionClient();
+  const databaseId = process.env.NEXT_PUBLIC_NOTION_DATABASE_ID;
+
+  if (!databaseId) {
+    // This check is redundant if getNotionClient throws, but good for belt-and-suspenders
+    // or if getNotionClient logic changes.
+    console.error("NEXT_PUBLIC_NOTION_DATABASE_ID is not available when trying to fetch database pages.");
+    throw new Error("NEXT_PUBLIC_NOTION_DATABASE_ID is not defined. Critical for fetching pages.");
+    // return []; // Unreachable if we throw
   }
 
   try {
     const response = await client.databases.query({
-      database_id: currentNotionDatabaseId, // Use the checked and stored ID
+      database_id: databaseId, // Use the directly accessed NEXT_PUBLIC_NOTION_DATABASE_ID
       filter: {
         property: "Version", // Filter by the "Version" property
         select: {
