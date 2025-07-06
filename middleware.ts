@@ -29,6 +29,7 @@ export async function middleware(request: NextRequest) {
     '/favicon.ico', // Allow favicon
     '/subscription-locked', // Allow subscription locked page
     '/api/stripe/plans', // Public API route for fetching plans
+    '/api/documentation/.*', // Allow all documentation API routes
   ]
 
   // If we're already on the login page, don't redirect
