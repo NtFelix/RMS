@@ -22,7 +22,10 @@ function getNotionClient(): Client {
     // Storing it on the client instance or a module variable if needed elsewhere, but for now, just use it for initialization
     // currentNotionDatabaseId = databaseId; // Not strictly needed if only used here for client init and in functions directly
 
-    notionClientInstance = new Client({ auth: apiKey });
+    notionClientInstance = new Client({
+      auth: apiKey,
+      fetch: typeof window !== 'undefined' ? window.fetch.bind(window) : undefined,
+    });
   }
   return notionClientInstance;
 }
