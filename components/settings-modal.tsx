@@ -171,7 +171,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           description: "Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.",
           variant: "success",
         });
-        await localSupabase.auth.signOut();
+        const { error: signOutError } = await localSupabase.auth.signOut();
+        if (signOutError) {
+          // Log the error, but proceed with redirect as the account is deleted.
+          // The redirect to login should resolve any client-side session inconsistencies.
+          console.error("Error signing out after account deletion:", signOutError);
+        }
         router.push("/auth/login"); // Redirect to login page
         if (onOpenChange) onOpenChange(false); // Close modal
       }
