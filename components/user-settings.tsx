@@ -67,15 +67,18 @@ export function UserSettings() {
   }, [supabase]);
 
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsLoadingLogout(true);
-    supabase.auth.signOut().then(() => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        throw error;
+      }
       router.push("/auth/login");
-      // No need to setIsLoadingLogout(false) here as the component will likely unmount or redirect.
-    }).catch((error) => {
+    } catch (error) {
       console.error("Error signing out:", error);
       setIsLoadingLogout(false); // Reset loading state on error
-    });
+    }
   };
 
   return (

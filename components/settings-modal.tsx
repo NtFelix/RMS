@@ -534,7 +534,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           {isFetchingStatus ? (
             <div className="space-y-3">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></p>
+                <div className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></div>
                 <Skeleton className="h-4 w-48" /> {/* For status message */}
               </div>
               <div className="space-y-1">
