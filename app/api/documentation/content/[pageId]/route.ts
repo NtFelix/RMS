@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPageContent } from '../../../../../lib/notion-service'; // Adjust path as necessary
 
+export const runtime = 'edge';
+
 export async function GET(
   request: NextRequest,
   context: any // Type context as any for diagnostic purposes

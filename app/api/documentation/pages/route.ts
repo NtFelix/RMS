@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDatabasePages } from '../../../../lib/notion-service'; // Adjust path as necessary
 
+export const runtime = 'edge';
+
 export async function GET() {
   try {
     const pages = await getDatabasePages();
