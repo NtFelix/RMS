@@ -55,23 +55,29 @@ export function UserSettings() {
         .eq('id', user.id)
         .single<Profile>();
 
-      if (profileError || !profile) {
-        console.warn("Error fetching profile or profile empty:", profileError?.message);
-        setUserName("Profil nicht geladen");
-        // Keep userEmail as it was successfully fetched
-        setUserInitials("N/A");
-        setIsLoadingUser(false); // Ensure loading is stopped on error
-        return; // Exit early if profile fetch failed
+      if (profileError) {
+        console.error("Error fetching profile:", profileError.message);
+        setUserName("Fehler beim Laden");
+        // userEmail is already set
+        setUserInitials("ERR");
+      } else if (!profile) {
+        console.warn("Profile not found for user:", user.id);
+        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
+        setUserName(emailNamePart);
+        // userEmail is already set
+        setUserInitials((user.email?.charAt(0) || "N").toUpperCase());
       } else if (profile.full_name) {
         setUserName(profile.full_name);
         const nameParts = profile.full_name.split(" ");
         const initials = nameParts.map(part => part.charAt(0).toUpperCase()).join("").substring(0, 2);
         setUserInitials(initials);
       } else {
-        // Fallback if full_name is null/empty but profile was fetched
+        // Profile exists but full_name is null or empty
+        console.warn("Profile found but full_name is empty for user:", user.id);
         const emailNamePart = user.email?.split('@')[0] || "Nutzer";
         setUserName(emailNamePart);
-        setUserInitials(emailNamePart.charAt(0).toUpperCase());
+        // userEmail is already set
+        setUserInitials((user.email?.charAt(0) || "N").toUpperCase());
       }
       setIsLoadingUser(false);
     };
