@@ -135,8 +135,11 @@ export default function SubscriptionClientPage({ initialProfile, error: initialE
   if (profile?.isTrialActive && profile?.trial_ends_at) {
     const trialEndsDate = new Date(profile.trial_ends_at);
     const now = new Date();
-    const diffTime = Math.abs(trialEndsDate.getTime() - now.getTime());
+    const diffTime = trialEndsDate.getTime() - now.getTime();
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (daysRemaining < 0) {
+      daysRemaining = 0;
+    }
   }
 
   // Ensure profile is not null before trying to use its properties
