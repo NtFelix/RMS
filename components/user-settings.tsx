@@ -53,13 +53,12 @@ export function UserSettings() {
         const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
         setUserInitials(initials);
       } else if (firstName) {
-        setUserName(firstName);
+        setUserName(firstName); // Show only first name if last name is missing
         setUserInitials(firstName.charAt(0).toUpperCase());
       } else {
         // Fallback if names are not in metadata
-        const emailNamePart = user.email?.split('@')[0] || "Nutzer";
-        setUserName(emailNamePart);
-        setUserInitials((user.email?.charAt(0) || "N").toUpperCase());
+        setUserName("Namen in Einstellungen festlegen");
+        setUserInitials("?");
       }
       setIsLoadingUser(false);
     };
