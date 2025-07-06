@@ -7,24 +7,23 @@ let notionClientInstance: Client | null = null;
 
 function getNotionClient(): Client {
   if (!notionClientInstance) {
-    const apiKey = process.env.NEXT_PUBLIC_NOTION_API_KEY;
+    const apiKey = process.env.NOTION_API_KEY; // Reverted to NOTION_API_KEY
     if (!apiKey) {
-      throw new Error("Missing NEXT_PUBLIC_NOTION_API_KEY environment variable. Please set it in your .env file or deployment environment.");
+      throw new Error("Missing NOTION_API_KEY environment variable. Please set it for server-side execution.");
     }
 
-    // Read and check for NEXT_PUBLIC_NOTION_DATABASE_ID when the client is first requested
-    const databaseId = process.env.NEXT_PUBLIC_NOTION_DATABASE_ID;
+    const databaseId = process.env.NOTION_DATABASE_ID; // Reverted to NOTION_DATABASE_ID
     if (!databaseId) {
-      // Updated error message to reflect the new variable name
-      console.error("CRITICAL: Missing NEXT_PUBLIC_NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
-      throw new Error("Missing NEXT_PUBLIC_NOTION_DATABASE_ID environment variable. Please set it in your .env file or deployment environment.");
+      console.error("CRITICAL: Missing NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
+      throw new Error("Missing NOTION_DATABASE_ID environment variable. Please set it for server-side execution.");
     }
-    // Storing it on the client instance or a module variable if needed elsewhere, but for now, just use it for initialization
-    // currentNotionDatabaseId = databaseId; // Not strictly needed if only used here for client init and in functions directly
 
+    // When running server-side, the global fetch or Node's fetch should be fine.
+    // The explicit fetch was for client-side specific issues.
+    // We can remove it or keep it; Notion SDK should handle Node.js environment correctly.
+    // Let's remove it for now to simplify, as these calls will originate from API routes (Node.js context).
     notionClientInstance = new Client({
       auth: apiKey,
-      fetch: typeof window !== 'undefined' ? window.fetch.bind(window) : undefined,
     });
   }
   return notionClientInstance;
@@ -50,19 +49,17 @@ export interface NotionPageData {
 
 export async function getDatabasePages(): Promise<NotionPageData[]> {
   const client = getNotionClient();
-  const databaseId = process.env.NEXT_PUBLIC_NOTION_DATABASE_ID;
+  const databaseId = process.env.NOTION_DATABASE_ID; // Use server-side variable
 
   if (!databaseId) {
     // This check is redundant if getNotionClient throws, but good for belt-and-suspenders
-    // or if getNotionClient logic changes.
-    console.error("NEXT_PUBLIC_NOTION_DATABASE_ID is not available when trying to fetch database pages.");
-    throw new Error("NEXT_PUBLIC_NOTION_DATABASE_ID is not defined. Critical for fetching pages.");
-    // return []; // Unreachable if we throw
+    console.error("NOTION_DATABASE_ID is not available when trying to fetch database pages.");
+    throw new Error("NOTION_DATABASE_ID is not defined. Critical for fetching pages.");
   }
 
   try {
     const response = await client.databases.query({
-      database_id: databaseId, // Use the directly accessed NEXT_PUBLIC_NOTION_DATABASE_ID
+      database_id: databaseId, // Use the server-side NOTION_DATABASE_ID
       filter: {
         property: "Version", // Filter by the "Version" property
         select: {

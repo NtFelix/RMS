@@ -15,6 +15,7 @@ interface DocumentationContentProps {
   pageContent: BlockObjectResponse[] | null;
   pageFiles: NotionFileData[] | null;
   pages: NotionPageData[]; // Retained for potential fallback messages or if needed by NotionBlock for context
+  error?: string | null; // Added error prop
 }
 
 // Helper function to render Notion rich text arrays
@@ -141,14 +142,38 @@ const LoadingSkeleton = () => (
   </div>
 );
 
-export default function DocumentationContent({ isLoading, pageContent, pageFiles, pages }: DocumentationContentProps) {
+export default function DocumentationContent({ isLoading, pageContent, pageFiles, pages, error }: DocumentationContentProps) {
   if (isLoading) {
     return <LoadingSkeleton />;
   }
 
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center py-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="bg-destructive/10 border border-destructive text-destructive rounded-xl p-8 shadow-lg max-w-md"
+        >
+          <FileTextIcon className="h-16 w-16 mx-auto mb-6" /> {/* Consider an error icon here */}
+          <h2 className="text-2xl font-semibold mb-3">Error Loading Documentation</h2>
+          <p className="leading-relaxed">
+            Sorry, we encountered an error while trying to load the documentation content.
+          </p>
+          <p className="text-sm mt-2">
+            Details: {error}
+          </p>
+          <p className="text-xs text-muted-foreground mt-4">
+            Please try again later or contact support if the issue persists.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
   if (!pageContent) {
-    // This case handles when a page might not be selected yet, or an error occurred during fetch.
-    // The `pages` prop is from `allPagesMetadata` passed from the parent.
+    // This case handles when a page might not be selected yet (and no error has occurred yet).
     const noPagesAvailable = !pages || pages.length === 0;
     return (
       <div className="flex flex-col items-center justify-center h-full text-center py-10">

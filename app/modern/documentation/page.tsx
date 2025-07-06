@@ -4,7 +4,9 @@ import { useState, useEffect } from "react";
 import Navigation from "../components/navigation";
 import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
-import { getDatabasePages, NotionPageData, getPageContent, NotionFileData } from "../../../lib/notion-service";
+// NotionPageData and NotionFileData are still needed for typing state.
+// getDatabasePages and getPageContent are no longer directly called from here.
+import { NotionPageData, NotionFileData } from "../../../lib/notion-service";
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 export default function DocumentationPage() {
@@ -12,76 +14,94 @@ export default function DocumentationPage() {
   const [selectedPageId, setSelectedPageId] = useState<string | null>(null);
   const [currentPageContent, setCurrentPageContent] = useState<BlockObjectResponse[] | null>(null);
   const [currentPageFiles, setCurrentPageFiles] = useState<NotionFileData[] | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Start with loading true for initial metadata fetch
-  const [initialLoadComplete, setInitialLoadComplete] = useState<boolean>(false);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState<boolean>(true);
+  const [isLoadingContent, setIsLoadingContent] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch all page metadata (titles, categories, filesAndMedia) on initial load
+
+  // Fetch all page metadata (titles, categories, filesAndMedia) on initial load via API route
   useEffect(() => {
     async function fetchInitialData() {
-      setIsLoading(true);
-      const metadata = await getDatabasePages();
-      // Sort pages: by category (alphabetically), then by title (alphabetically)
-      metadata.sort((a, b) => {
-        const categoryA = a.category || "General";
-        const categoryB = b.category || "General";
-        if (categoryA < categoryB) return -1;
-        if (categoryA > categoryB) return 1;
-        if (a.title < b.title) return -1;
-        if (a.title > b.title) return 1;
-        return 0;
-      });
-      setAllPagesMetadata(metadata);
-      setInitialLoadComplete(true);
-      // Don't set isLoading to false here yet, content loading will handle it
+      setIsLoadingMetadata(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/documentation/pages');
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.details || `Failed to fetch page metadata: ${response.statusText}`);
+        }
+        let metadata: NotionPageData[] = await response.json();
+
+        // Sort pages: by category (alphabetically), then by title (alphabetically)
+        metadata.sort((a, b) => {
+          const categoryA = a.category || "General";
+          const categoryB = b.category || "General";
+          if (categoryA < categoryB) return -1;
+          if (categoryA > categoryB) return 1;
+          if (a.title < b.title) return -1;
+          if (a.title > b.title) return 1;
+          return 0;
+        });
+        setAllPagesMetadata(metadata);
+        if (metadata.length > 0 && !selectedPageId) {
+          setSelectedPageId(metadata[0].id); // Select first page by default
+        }
+      } catch (err) {
+        console.error("Error fetching initial page metadata:", err);
+        setError(err instanceof Error ? err.message : String(err));
+        setAllPagesMetadata([]); // Clear metadata on error
+      } finally {
+        setIsLoadingMetadata(false);
+      }
     }
     fetchInitialData();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // selectedPageId removed from deps to avoid re-fetching metadata on selection change
 
-  // Effect to select the first page by default once metadata is loaded
-  useEffect(() => {
-    if (initialLoadComplete && allPagesMetadata.length > 0 && !selectedPageId) {
-      setSelectedPageId(allPagesMetadata[0].id);
-    } else if (initialLoadComplete && allPagesMetadata.length === 0) {
-      // No pages found, stop loading
-      setIsLoading(false);
-    }
-  }, [initialLoadComplete, allPagesMetadata, selectedPageId]);
 
-  // Fetch content for the selected page
+  // Fetch content for the selected page via API route
   useEffect(() => {
     if (!selectedPageId) {
-      // If no page is selected (e.g. initial state before default selection, or if allPagesMetadata is empty)
-      // and metadata load is complete, ensure loading is false.
-      if (initialLoadComplete) setIsLoading(false);
+      setCurrentPageContent(null);
+      setCurrentPageFiles(null);
+      setIsLoadingContent(false); // Not loading if no page selected
       return;
     }
 
     async function fetchPageData() {
-      setIsLoading(true);
+      setIsLoadingContent(true);
+      setError(null);
       setCurrentPageContent(null); // Clear previous content
       setCurrentPageFiles(null);   // Clear previous files
 
       try {
-        const content = await getPageContent(selectedPageId!);
+        const response = await fetch(`/api/documentation/content/${selectedPageId}`);
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.details || `Failed to fetch page content: ${response.statusText}`);
+        }
+        const content: BlockObjectResponse[] = await response.json();
         setCurrentPageContent(content);
 
+        // Files are part of metadata, so retrieve from allPagesMetadata
         const selectedPageMetadata = allPagesMetadata.find(p => p.id === selectedPageId);
         if (selectedPageMetadata && selectedPageMetadata.filesAndMedia) {
           setCurrentPageFiles(selectedPageMetadata.filesAndMedia);
         } else {
           setCurrentPageFiles(null);
         }
-      } catch (error) {
-        console.error("Error fetching page content:", error);
+      } catch (err) {
+        console.error("Error fetching page content:", err);
+        setError(err instanceof Error ? err.message : String(err));
         setCurrentPageContent([]); // Set to empty array on error to avoid stale content
         setCurrentPageFiles(null);
       } finally {
-        setIsLoading(false);
+        setIsLoadingContent(false);
       }
     }
 
     fetchPageData();
-  }, [selectedPageId, allPagesMetadata, initialLoadComplete]); // Add initialLoadComplete to dependencies
+  }, [selectedPageId, allPagesMetadata]);
 
   const handleSelectPage = (pageId: string) => {
     setSelectedPageId(pageId);
@@ -99,12 +119,13 @@ export default function DocumentationPage() {
               activePageId={selectedPageId}
             />
             <div className="lg:col-span-3">
+              {/* Pass combined loading state: true if either metadata or content is loading */}
               <DocumentationContent
-                isLoading={isLoading && !currentPageContent} // Show loading only if content isn't there yet
+                isLoading={isLoadingMetadata || isLoadingContent}
                 pageContent={currentPageContent}
                 pageFiles={currentPageFiles}
-                pages={allPagesMetadata} // Keep this prop if DocumentationContent expects it for some fallback/message
-                                         // or modify DocumentationContent to not require it if only showing one page's details
+                pages={allPagesMetadata} // For fallback messages if allPagesMetadata is empty
+                error={error} // Pass error state to content for display
               />
             </div>
           </div>
