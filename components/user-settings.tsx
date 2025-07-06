@@ -43,9 +43,7 @@ export function UserSettings() {
 
       setUserEmail(user.email || "Keine E-Mail");
 
-      const metaData = user.user_metadata as any; // Cast to any to access dynamic properties
-      const firstName = metaData?.first_name;
-      const lastName = metaData?.last_name;
+      const { first_name: firstName, last_name: lastName } = user.user_metadata;
 
       if (firstName && lastName) {
         const fullName = `${firstName} ${lastName}`;
