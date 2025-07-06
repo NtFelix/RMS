@@ -7,15 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud } from "lucide-react" // Added DownloadCloud
+// Consolidated lucide-react import to include Info
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
+import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -50,15 +51,19 @@ const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
+// No separate import for lucide-react here as it's handled above
+
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
+  const { toast } = useToast()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
+  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0"); // Initialize with updated hardcoded version
   const [email, setEmail] = useState<string>("")
   const [confirmEmail, setConfirmEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
@@ -88,8 +93,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setEmail(user.email || "")
         setConfirmEmail(user.email || "")
       }
-    })
-  }, [supabase])
+    });
+    // Fetch package.json version
+    // In a real app, you might fetch this from a server endpoint or build-time variable
+    // For this example, simulating a fetch or direct import if possible (not directly in client component for package.json)
+    // For now, we'll use a placeholder and update it in the next step if a package.json read is feasible.
+    // As per user instruction, it will be hardcoded in the next step.
+    // For now, just setting a loading state.
+    // setPackageJsonVersion("0.1.0"); // Placeholder, will be properly set in the "Informationen" tab content step
+  }, [supabase]);
 
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
@@ -97,7 +109,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const userProfileData = await getUserProfileForSettings();
       if ('error' in userProfileData && userProfileData.error) {
         console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
-        toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
+        toast({
+          title: "Fehler",
+          description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+          variant: "destructive",
+        });
         const currentEmail = profile?.email || '';
         setProfile({
           id: profile?.id || '',
@@ -111,7 +127,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     } catch (error) {
       console.error("Exception when calling getUserProfileForSettings:", error);
-      toast.error(`Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`);
+      toast({
+        title: "Fehler",
+        description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
+        variant: "destructive",
+      });
       const currentEmail = profile?.email || '';
       setProfile({
         id: profile?.id || '',
@@ -127,7 +147,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleConfirmDeleteAccount = async () => {
     if (!reauthCode) {
-      toast.error("Bestätigungscode ist erforderlich.");
+      toast({
+        title: "Fehler",
+        description: "Bestätigungscode ist erforderlich.",
+        variant: "destructive",
+      });
       return;
     }
     setIsDeleting(true);
@@ -136,16 +160,33 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
 
       if (functionError) {
-        toast.error(`Fehler beim Löschen des Kontos: ${functionError.message}`);
+        toast({
+          title: "Fehler",
+          description: `Fehler beim Löschen des Kontos: ${functionError.message}`,
+          variant: "destructive",
+        });
       } else {
-        toast.success("Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.");
-        await localSupabase.auth.signOut();
+        toast({
+          title: "Erfolg",
+          description: "Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.",
+          variant: "success",
+        });
+        const { error: signOutError } = await localSupabase.auth.signOut();
+        if (signOutError) {
+          // Log the error, but proceed with redirect as the account is deleted.
+          // The redirect to login should resolve any client-side session inconsistencies.
+          console.error("Error signing out after account deletion:", signOutError);
+        }
         router.push("/auth/login"); // Redirect to login page
         if (onOpenChange) onOpenChange(false); // Close modal
       }
     } catch (error) {
       console.error("Delete account exception:", error);
-      toast.error("Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.",
+        variant: "destructive",
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -159,16 +200,28 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       // For sensitive operations, Supabase might send a confirmation email even without explicit MFA.
       const { error } = await supabase.auth.reauthenticate();
       if (error) {
-        toast.error(`Fehler bei der erneuten Authentifizierung: ${error.message}`);
+        toast({
+          title: "Fehler",
+          description: `Fehler bei der erneuten Authentifizierung: ${error.message}`,
+          variant: "destructive",
+        });
         setShowDeleteConfirmation(false);
       } else {
         setShowDeleteConfirmation(true);
-        toast.success("Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.");
+        toast({
+          title: "Erfolg",
+          description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
+          variant: "success",
+        });
         // The UI for code input is already part of showDeleteConfirmation logic
       }
     } catch (error) {
       console.error("Reauthentication exception:", error);
-      toast.error("Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.",
+        variant: "destructive",
+      });
       setShowDeleteConfirmation(false);
     } finally {
       setIsDeleting(false);
@@ -188,23 +241,82 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleProfileSave = async () => {
     setLoading(true)
-    const { error } = await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } })
+    const { data, error } = await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } })
     setLoading(false)
-    error ? toast.error("Fehler beim Profil speichern") : toast.success("Profil gespeichert")
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Profil speichern",
+        variant: "destructive",
+      })
+    } else if (data.user) {
+      const savedFirstName = data.user.user_metadata.first_name ?? '';
+      const savedLastName = data.user.user_metadata.last_name ?? '';
+      toast({
+        title: "Erfolg",
+        description: `Hallo ${savedFirstName} ${savedLastName}, Ihr Profil wurde erfolgreich gespeichert.`,
+        variant: "success",
+      })
+    } else {
+      // Fallback for when user data is not returned but no error occurred
+      toast({
+        title: "Erfolg",
+        description: "Profil gespeichert",
+        variant: "success",
+      })
+    }
   }
   const handleEmailSave = async () => {
-    if (email !== confirmEmail) return toast.error("E-Mail stimmt nicht überein")
+    if (email !== confirmEmail) {
+      toast({
+        title: "Fehler",
+        description: "E-Mail stimmt nicht überein",
+        variant: "destructive",
+      })
+      return
+    }
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ email })
     setLoading(false)
-    error ? toast.error("Fehler beim E-Mail speichern") : toast.success("E-Mail gespeichert")
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim E-Mail speichern",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Erfolg",
+        description: "E-Mail erfolgreich gespeichert",
+        variant: "success",
+      })
+    }
   }
   const handlePasswordSave = async () => {
-    if (password !== confirmPassword) return toast.error("Passwörter stimmen nicht überein")
+    if (password !== confirmPassword) {
+      toast({
+        title: "Fehler",
+        description: "Passwörter stimmen nicht überein",
+        variant: "destructive",
+      })
+      return
+    }
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
-    error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Passwort speichern",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Erfolg",
+        description: "Passwort erfolgreich gespeichert",
+        variant: "success",
+      })
+    }
   }
 
   // handlePlanSelected removed as Pricing component is removed
@@ -212,7 +324,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleManageSubscription = async () => {
     if (!profile || !profile.stripe_customer_id) {
-      toast.error("Kunden-ID nicht gefunden. Verwaltung nicht möglich.");
+      toast({
+        title: "Fehler",
+        description: "Kunden-ID nicht gefunden. Verwaltung nicht möglich.",
+        variant: "destructive",
+      });
       return;
     }
     setIsManagingSubscription(true);
@@ -236,7 +352,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     } catch (error) {
       console.error("Manage subscription error:", error);
-      toast.error((error as Error).message || "Kundenportal konnte nicht geöffnet werden.");
+      toast({
+        title: "Fehler",
+        description: (error as Error).message || "Kundenportal konnte nicht geöffnet werden.",
+        variant: "destructive",
+      });
     } finally {
       setIsManagingSubscription(false);
     }
@@ -301,6 +421,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               onChange={e => setLastName(e.target.value)}
               className="mt-1 w-full"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Dieser Name wird für die Betriebskostenabrechnung verwendet.
+            </p>
           </div>
           <Button onClick={handleProfileSave} disabled={loading}>
             {loading ? "Speichern..." : "Profil speichern"}
@@ -411,7 +534,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           {isFetchingStatus ? (
             <div className="space-y-3">
               <div className="space-y-1">
-                <p className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></p>
+                <div className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></div>
                 <Skeleton className="h-4 w-48" /> {/* For status message */}
               </div>
               <div className="space-y-1">
@@ -526,8 +649,36 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           )}
         </div>
       ),
+    },
+    {
+      value: "information",
+      label: "Informationen",
+      icon: Info, // Using the imported Info icon
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">App Informationen</h2>
+          {/* Version number will be displayed here in the next step */}
+          <p className="text-sm">Version: <span id="app-version">{packageJsonVersion}</span></p>
+          <p className="text-sm text-muted-foreground">
+            Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
+          </p>
+        </div>
+      ),
     }
   ]
+
+  // Effect to set the version number when the information tab is selected,
+  // or when the modal opens if it's the default tab.
+  useEffect(() => {
+    // Set the hardcoded version if the tab is active or upon component initialization.
+    // Since it's hardcoded, we can set it directly.
+    // The initial state already sets it, but this ensures it if logic changes.
+    if (activeTab === 'information') {
+      setPackageJsonVersion("v2.0.0"); // Updated Hardcoded version
+    }
+    // If you want it to always be set regardless of tab, you can remove the condition,
+    // but initializing the state is usually sufficient for hardcoded values.
+  }, [activeTab]); // Dependency on activeTab ensures it updates if tab changes, though less critical for hardcoded.
 
   return (
     <>
