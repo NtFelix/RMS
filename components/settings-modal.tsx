@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
-import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 // Consolidated lucide-react import to include Info
 import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info } from "lucide-react";
@@ -17,6 +16,7 @@ import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import an
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
+import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -58,6 +58,7 @@ type Tab = { value: string; label: string; icon: React.ElementType; content: Rea
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
+  const { toast } = useToast()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
@@ -108,7 +109,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const userProfileData = await getUserProfileForSettings();
       if ('error' in userProfileData && userProfileData.error) {
         console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
-        toast.error(`Abo-Details konnten nicht geladen werden: ${userProfileData.error}`);
+        toast({
+          title: "Fehler",
+          description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
+          variant: "destructive",
+        });
         const currentEmail = profile?.email || '';
         setProfile({
           id: profile?.id || '',
@@ -122,7 +127,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     } catch (error) {
       console.error("Exception when calling getUserProfileForSettings:", error);
-      toast.error(`Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`);
+      toast({
+        title: "Fehler",
+        description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
+        variant: "destructive",
+      });
       const currentEmail = profile?.email || '';
       setProfile({
         id: profile?.id || '',
@@ -138,7 +147,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleConfirmDeleteAccount = async () => {
     if (!reauthCode) {
-      toast.error("Bestätigungscode ist erforderlich.");
+      toast({
+        title: "Fehler",
+        description: "Bestätigungscode ist erforderlich.",
+        variant: "destructive",
+      });
       return;
     }
     setIsDeleting(true);
@@ -147,16 +160,28 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
 
       if (functionError) {
-        toast.error(`Fehler beim Löschen des Kontos: ${functionError.message}`);
+        toast({
+          title: "Fehler",
+          description: `Fehler beim Löschen des Kontos: ${functionError.message}`,
+          variant: "destructive",
+        });
       } else {
-        toast.success("Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.");
+        toast({
+          title: "Erfolg",
+          description: "Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.",
+          variant: "success",
+        });
         await localSupabase.auth.signOut();
         router.push("/auth/login"); // Redirect to login page
         if (onOpenChange) onOpenChange(false); // Close modal
       }
     } catch (error) {
       console.error("Delete account exception:", error);
-      toast.error("Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.",
+        variant: "destructive",
+      });
     } finally {
       setIsDeleting(false);
     }
@@ -170,16 +195,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       // For sensitive operations, Supabase might send a confirmation email even without explicit MFA.
       const { error } = await supabase.auth.reauthenticate();
       if (error) {
-        toast.error(`Fehler bei der erneuten Authentifizierung: ${error.message}`);
+        toast({
+          title: "Fehler",
+          description: `Fehler bei der erneuten Authentifizierung: ${error.message}`,
+          variant: "destructive",
+        });
         setShowDeleteConfirmation(false);
       } else {
-        setShowDeleteConfirmation(true);
-        toast.success("Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.");
+        toast({
+          title: "Erfolg",
+          description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
+          variant: "success",
+        });
         // The UI for code input is already part of showDeleteConfirmation logic
       }
     } catch (error) {
       console.error("Reauthentication exception:", error);
-      toast.error("Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.");
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.",
+        variant: "destructive",
+      });
       setShowDeleteConfirmation(false);
     } finally {
       setIsDeleting(false);
@@ -199,23 +235,73 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleProfileSave = async () => {
     setLoading(true)
-    const { error } = await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } })
+    const { data, error } = await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } })
     setLoading(false)
-    error ? toast.error("Fehler beim Profil speichern") : toast.success("Profil gespeichert")
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Profil speichern",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Erfolg",
+        description: `Hallo ${firstName} ${lastName}, Ihr Profil wurde erfolgreich gespeichert.`,
+        variant: "success",
+      })
+    }
   }
   const handleEmailSave = async () => {
-    if (email !== confirmEmail) return toast.error("E-Mail stimmt nicht überein")
+    if (email !== confirmEmail) {
+      toast({
+        title: "Fehler",
+        description: "E-Mail stimmt nicht überein",
+        variant: "destructive",
+      })
+      return
+    }
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ email })
     setLoading(false)
-    error ? toast.error("Fehler beim E-Mail speichern") : toast.success("E-Mail gespeichert")
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim E-Mail speichern",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Erfolg",
+        description: "E-Mail erfolgreich gespeichert",
+        variant: "success",
+      })
+    }
   }
   const handlePasswordSave = async () => {
-    if (password !== confirmPassword) return toast.error("Passwörter stimmen nicht überein")
+    if (password !== confirmPassword) {
+      toast({
+        title: "Fehler",
+        description: "Passwörter stimmen nicht überein",
+        variant: "destructive",
+      })
+      return
+    }
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
-    error ? toast.error("Fehler beim Passwort speichern") : toast.success("Passwort gespeichert")
+    if (error) {
+      toast({
+        title: "Fehler",
+        description: "Fehler beim Passwort speichern",
+        variant: "destructive",
+      })
+    } else {
+      toast({
+        title: "Erfolg",
+        description: "Passwort erfolgreich gespeichert",
+        variant: "success",
+      })
+    }
   }
 
   // handlePlanSelected removed as Pricing component is removed
@@ -223,7 +309,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleManageSubscription = async () => {
     if (!profile || !profile.stripe_customer_id) {
-      toast.error("Kunden-ID nicht gefunden. Verwaltung nicht möglich.");
+      toast({
+        title: "Fehler",
+        description: "Kunden-ID nicht gefunden. Verwaltung nicht möglich.",
+        variant: "destructive",
+      });
       return;
     }
     setIsManagingSubscription(true);
@@ -247,7 +337,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       }
     } catch (error) {
       console.error("Manage subscription error:", error);
-      toast.error((error as Error).message || "Kundenportal konnte nicht geöffnet werden.");
+      toast({
+        title: "Fehler",
+        description: (error as Error).message || "Kundenportal konnte nicht geöffnet werden.",
+        variant: "destructive",
+      });
     } finally {
       setIsManagingSubscription(false);
     }
