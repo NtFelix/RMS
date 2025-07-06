@@ -202,6 +202,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         });
         setShowDeleteConfirmation(false);
       } else {
+        setShowDeleteConfirmation(true);
         toast({
           title: "Erfolg",
           description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
