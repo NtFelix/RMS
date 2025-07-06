@@ -14,14 +14,22 @@ if (!NOTION_DATABASE_ID) {
 
 const notion = new Client({ auth: NOTION_API_KEY });
 
+export interface NotionFileData {
+  name: string;
+  url: string;
+  type: "file" | "external" | undefined; // More specific and allows undefined
+  fileTypeFromNotion: string; // This will be the actual mime type or a descriptive type
+}
+
 export interface NotionPageData {
   id: string;
   title: string;
-  category?: string | null; // Added category
-  version?: string | null; // Added version
+  category?: string | null;
+  version?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  properties: Record<string, any>;
-  content?: BlockObjectResponse[];
+  properties: Record<string, any>; // Keeping this for now, might be removed if not strictly needed by consumers
+  filesAndMedia?: NotionFileData[];
+  // content?: BlockObjectResponse[]; // Content will be fetched on demand
 }
 
 export async function getDatabasePages(): Promise<NotionPageData[]> {
@@ -82,12 +90,49 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
       }
       // Add other fallbacks for version property type if necessary
 
+      // Get Dateien und Medien
+      // Assuming the property name in Notion is "Dateien und Medien" and it's a "files" property type
+      const filesAndMediaProperty = typedPage.properties["Dateien und Medien"];
+      let filesAndMedia: NotionFileData[] = [];
+
+      if (filesAndMediaProperty && filesAndMediaProperty.type === "files") {
+        filesAndMedia = filesAndMediaProperty.files.map(file => {
+          let url = "";
+          let fileType = "unknown"; // Default type
+          if (file.type === "external") {
+            url = file.external.url;
+            // For external files, we might not have a specific mime type from Notion directly.
+            // We can try to infer from URL extension or default to a generic type.
+            // For simplicity, let's use a generic type or the name itself if it has an extension.
+            const nameParts = file.name.split('.');
+            fileType = nameParts.length > 1 ? nameParts.pop()! : 'external link';
+          } else if (file.type === "file") {
+            url = file.file.url;
+            // Notion API for page properties of type "file" doesn't directly provide mime type.
+            // It's usually part of the signed URL or one has to infer from the name.
+            // We'll use the file extension from the name as a proxy for fileTypeFromNotion.
+            const nameParts = file.name.split('.');
+            fileType = nameParts.length > 1 ? nameParts.pop()! : 'file';
+          }
+          return {
+            name: file.name,
+            url: url,
+            type: file.type, // 'file' or 'external'
+            fileTypeFromNotion: fileType, // Store inferred type (e.g., 'pdf', 'png', 'link')
+          };
+        });
+      } else if (filesAndMediaProperty) {
+        console.warn(`Page with ID ${typedPage.id} has "Dateien und Medien" property, but it's not of type "files". Type is: ${filesAndMediaProperty.type}`);
+      }
+
+
       return {
         id: typedPage.id,
         title: title,
         category: category,
         version: version,
-        properties: typedPage.properties,
+        properties: typedPage.properties, // Retaining original properties for now
+        filesAndMedia: filesAndMedia.length > 0 ? filesAndMedia : undefined,
       };
     });
   } catch (error) {

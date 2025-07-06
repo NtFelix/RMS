@@ -1,15 +1,24 @@
 "use client";
 
-import React from "react"; // Changed from "import type React"
+import React from "react";
 import { motion } from "framer-motion";
-import { NotionPageData } from "../../../lib/notion-service"; // Adjusted path
+import { NotionPageData, NotionFileData } from "../../../lib/notion-service"; // Adjusted path, added NotionFileData
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"; // For styling carousel items
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
+import { Button } from "@/components/ui/button"; // For download button
+import { Download, FileText as FileTextIcon, ImageIcon } from "lucide-react"; // Icons for files
+import { Skeleton } from "@/components/ui/skeleton"; // For loading state
 
 interface DocumentationContentProps {
-  pages: NotionPageData[];
+  isLoading: boolean;
+  pageContent: BlockObjectResponse[] | null;
+  pageFiles: NotionFileData[] | null;
+  pages: NotionPageData[]; // Retained for potential fallback messages or if needed by NotionBlock for context
 }
 
 // Helper function to render Notion rich text arrays
+// (This function remains unchanged)
 const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
   if (!richTextArray) return null;
   return (
@@ -121,52 +130,137 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
   }
 };
 
+const LoadingSkeleton = () => (
+  <div className="space-y-6">
+    <Skeleton className="h-10 w-3/4" />
+    <Skeleton className="h-4 w-full" />
+    <Skeleton className="h-4 w-5/6" />
+    <Skeleton className="h-4 w-full" />
+    <Skeleton className="h-32 w-full" />
+    <Skeleton className="h-4 w-4/5" />
+  </div>
+);
 
-export default function DocumentationContent({ pages }: DocumentationContentProps) {
-  if (!pages || pages.length === 0) {
+export default function DocumentationContent({ isLoading, pageContent, pageFiles, pages }: DocumentationContentProps) {
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (!pageContent) {
+    // This case handles when a page might not be selected yet, or an error occurred during fetch.
+    // The `pages` prop is from `allPagesMetadata` passed from the parent.
+    const noPagesAvailable = !pages || pages.length === 0;
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
+      <div className="flex flex-col items-center justify-center h-full text-center py-10">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
+          className="bg-card border border-border rounded-xl p-8 shadow-lg max-w-md"
         >
-          <h1 className="text-4xl font-bold text-foreground mb-6">Documentation</h1>
-          <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
-            No documentation pages found or failed to load content from Notion.
+          <FileTextIcon className="h-16 w-16 text-primary mx-auto mb-6" />
+          <h2 className="text-2xl font-semibold text-foreground mb-3">
+            {noPagesAvailable ? "No Documentation Available" : "Select a Page"}
+          </h2>
+          <p className="text-muted-foreground leading-relaxed">
+            {noPagesAvailable
+              ? "It seems there are no documentation pages available at the moment. Please check back later or contact support if you believe this is an error."
+              : "Please select a page from the sidebar to view its content."}
           </p>
-          <p className="text-sm text-muted-foreground">
-            Please ensure your Notion integration is set up correctly and pages exist in the database.
-          </p>
+          {noPagesAvailable && (
+             <p className="text-xs text-muted-foreground mt-4">
+                Ensure Notion integration is correctly set up and pages exist in the database.
+             </p>
+          )}
         </motion.div>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-12">
-      {pages.map((page, index) => (
-        <motion.section
-          key={page.id}
-          id={`doc-page-${page.id}`} // ID for sidebar navigation
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: index * 0.1 }} // Stagger animation
-          className="scroll-mt-20" // Offset for fixed header when scrolling
-        >
-          <h1 className="text-4xl font-bold text-foreground mb-6 border-b pb-4">
-            {page.title || "Untitled Page"}
-          </h1>
+  // pageContent is guaranteed to be an array here (even if empty) if not loading and not null
+  // The parent DocumentationPage component sets selectedPageId to the first page by default if pages exist.
 
-          {page.content && page.content.length > 0 ? (
-            page.content.map((block) => (
-              <NotionBlock key={block.id} block={block} />
-            ))
-          ) : (
-            <p className="text-muted-foreground">This page has no content.</p>
-          )}
-        </motion.section>
-      ))}
-    </div>
+  return (
+    <motion.section
+      key={pageContent[0]?.id || "content-section"} // Use a key to ensure re-render on page change
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="scroll-mt-20" // Offset for fixed header when scrolling (if ever needed again)
+    >
+      {pageContent.length > 0 ? (
+        pageContent.map((block) => (
+          <NotionBlock key={block.id} block={block} />
+        ))
+      ) : (
+        <div className="text-center py-10">
+            <FileTextIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg text-muted-foreground">This page has no content.</p>
+            <p className="text-sm text-muted-foreground">The selected documentation page is currently empty.</p>
+        </div>
+      )}
+
+      {pageFiles && pageFiles.length > 0 && (
+        <div className="mt-12 pt-8 border-t border-border">
+          <h3 className="text-2xl font-semibold text-foreground mb-6">Attached Files & Media</h3>
+          <Carousel
+            opts={{
+              align: "start",
+              loop: pageFiles.length > 3, // Loop only if more than 3 items, for example
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-4">
+              {pageFiles.map((file, index) => (
+                <CarouselItem key={index} className="pl-4 md:basis-1/2 lg:basis-1/3">
+                  <div className="p-1 h-full">
+                    <Card className="flex flex-col h-full overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                      <CardHeader className="p-4">
+                        <CardTitle className="text-base font-medium truncate flex items-center">
+                          {file.fileTypeFromNotion.startsWith("image/") ?
+                           <ImageIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" /> :
+                           <FileTextIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
+                          }
+                          <span className="truncate" title={file.name}>{file.name}</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 flex-grow flex items-center justify-center bg-muted/30 min-h-[120px]">
+                        {file.fileTypeFromNotion.startsWith("image/") ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={file.url} alt={file.name} className="max-h-36 max-w-full object-contain rounded" />
+                        ) : (
+                          <div className="text-center">
+                            <FileTextIcon className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">.{file.fileTypeFromNotion || "file"}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                      <CardFooter className="p-4 bg-transparent border-t">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => window.open(file.url, "_blank")}
+                          title={`Download ${file.name}`}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download / View
+                        </Button>
+                      </CardFooter>
+                    </Card>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            {pageFiles.length > 1 && ( // Show nav only if multiple items
+              <>
+                <CarouselPrevious className="absolute left-[-15px] top-1/2 -translate-y-1/2 text-foreground bg-background/80 hover:bg-background border-border shadow-md disabled:opacity-30" />
+                <CarouselNext className="absolute right-[-15px] top-1/2 -translate-y-1/2 text-foreground bg-background/80 hover:bg-background border-border shadow-md disabled:opacity-30" />
+              </>
+            )}
+          </Carousel>
+        </div>
+      )}
+    </motion.section>
   );
 }
