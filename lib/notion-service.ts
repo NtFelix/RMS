@@ -12,6 +12,8 @@ function getNotionClient(): Client {
     }
 
     // Check for NOTION_DATABASE_ID only when the client is first requested
+    // Add debug log here
+    console.log("DEBUG: Inside getNotionClient, attempting to access process.env.NOTION_DATABASE_ID. Value:", process.env.NOTION_DATABASE_ID);
     currentNotionDatabaseId = process.env.NOTION_DATABASE_ID;
     if (!currentNotionDatabaseId) {
       console.error("CRITICAL: Missing NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
