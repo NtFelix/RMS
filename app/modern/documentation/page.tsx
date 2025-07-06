@@ -24,7 +24,7 @@ export default function DocumentationPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/documentation/pages');
+        const response = await fetch('/api/doclisting'); // Updated path
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({})); // Try to parse error, default to empty object
           throw new Error(errorData.details || `Failed to fetch page list: ${response.statusText}`);
