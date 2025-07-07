@@ -5,8 +5,9 @@ export const runtime = 'edge';
 
 export async function GET(
   request: NextRequest,
+  { params }: { params: Promise<{ pageId: string }> }
 ) {
-  const pageId = new URL(request.url).pathname.split('/').filter(Boolean).pop();
+  const { pageId } = await params;
 
   if (!pageId) {
     return NextResponse.json({ error: 'Page ID is required' }, { status: 400 });
