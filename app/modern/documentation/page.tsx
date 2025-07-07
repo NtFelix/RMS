@@ -33,14 +33,11 @@ export default function DocumentationPage() {
         let metadata: NotionPageData[] = await response.json();
 
         // Sort pages: by category (alphabetically), then by title (alphabetically)
+        // Use String.prototype.localeCompare() for more concise and readable sorting logic.
         metadata.sort((a, b) => {
           const categoryA = a.category || "General";
           const categoryB = b.category || "General";
-          if (categoryA < categoryB) return -1;
-          if (categoryA > categoryB) return 1;
-          if (a.title < b.title) return -1;
-          if (a.title > b.title) return 1;
-          return 0;
+          return categoryA.localeCompare(categoryB) || a.title.localeCompare(b.title);
         });
         setAllPagesMetadata(metadata);
         if (metadata.length > 0 && !selectedPageId) {
