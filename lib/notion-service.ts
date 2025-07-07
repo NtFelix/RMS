@@ -116,9 +116,18 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
 
       if (filesAndMediaProperty && filesAndMediaProperty.type === "files") {
         filesAndMedia = filesAndMediaProperty.files.map(file => {
-          const url = file.type === 'external' ? file.external.url : file.file.url;
-          const defaultType = file.type === 'external' ? 'external link' : 'file';
+          let url: string;
+          if (file.type === 'external') {
+            url = file.external.url;
+          } else if (file.type === 'file') {
+            url = file.file.url;
+          } else {
+            // Fallback for unexpected types, though Notion API usually provides 'file' or 'external'
+            url = '';
+            console.warn(`Unexpected file type from Notion: ${file.type}`);
+          }
 
+          const defaultType = file.type === 'external' ? 'external link' : 'file';
           const lastDotIndex = file.name.lastIndexOf('.');
           // Ensure dot is present and not the first character.
           const fileType = (lastDotIndex > 0)
