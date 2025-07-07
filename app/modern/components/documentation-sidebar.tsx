@@ -1,118 +1,176 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { motion } from "framer-motion"
-import { ChevronDown, ChevronRight, Search, Book, Code, Zap, Settings, HelpCircle } from "lucide-react"
-import { Input } from "../../../components/ui/input"
+import { useState, useMemo, useEffect } from "react";
+import { motion } from "framer-motion";
+import { ChevronDown, ChevronRight, Search, Folder, FileText } from "lucide-react"; // Using Folder for categories
+import { Input } from "../../../components/ui/input";
+import { NotionPageData } from "../../../lib/notion-service"; // NotionPageData now refers to metadata only
 
-const sidebarSections = [
-  {
-    title: "Getting Started",
-    icon: Book,
-    items: [
-      { title: "Introduction", href: "#introduction" },
-      { title: "Installation", href: "#installation" },
-      { title: "Quick Start", href: "#quick-start" },
-      { title: "Configuration", href: "#configuration" },
-    ],
-  },
-  {
-    title: "API Reference",
-    icon: Code,
-    items: [
-      { title: "Authentication", href: "#authentication" },
-      { title: "Endpoints", href: "#endpoints" },
-      { title: "Response Format", href: "#response-format" },
-      { title: "Error Handling", href: "#error-handling" },
-    ],
-  },
-  {
-    title: "Components",
-    icon: Zap,
-    items: [
-      { title: "Buttons", href: "#buttons" },
-      { title: "Forms", href: "#forms" },
-      { title: "Navigation", href: "#navigation" },
-      { title: "Cards", href: "#cards" },
-    ],
-  },
-  {
-    title: "Advanced",
-    icon: Settings,
-    items: [
-      { title: "Custom Themes", href: "#custom-themes" },
-      { title: "Performance", href: "#performance" },
-      { title: "Best Practices", href: "#best-practices" },
-      { title: "Troubleshooting", href: "#troubleshooting" },
-    ],
-  },
-  {
-    title: "Support",
-    icon: HelpCircle,
-    items: [
-      { title: "FAQ", href: "#faq" },
-      { title: "Community", href: "#community" },
-      { title: "Contact", href: "#contact" },
-    ],
-  },
-]
+interface DocumentationSidebarProps {
+  pages: NotionPageData[]; // This is now allPagesMetadata
+  onSelectPage: (pageId: string) => void;
+  activePageId: string | null;
+}
 
-export default function DocumentationSidebar() {
-  const [expandedSections, setExpandedSections] = useState<string[]>(["Getting Started"])
-  const [searchQuery, setSearchQuery] = useState("")
+interface SidebarItem {
+  id: string;
+  title: string;
+  // href is no longer needed as we use onSelectPage
+}
+
+interface SidebarSection {
+  title: string;
+  icon: React.ElementType;
+  isCategory: boolean;
+  items: SidebarItem[];
+}
+
+export default function DocumentationSidebar({ pages, onSelectPage, activePageId }: DocumentationSidebarProps) {
+  const [expandedSections, setExpandedSections] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Group pages by category (using 'pages' prop which contains metadata)
+  const groupedPages = useMemo(() => {
+    const groups: Record<string, NotionPageData[]> = {};
+    const ungrouped: NotionPageData[] = [];
+
+    pages.forEach(page => {
+      const category = page.category || "General";
+      // Apply search filter
+      if (searchQuery &&
+          !page.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(page.category || "General").toLowerCase().includes(searchQuery.toLowerCase())) {
+        return;
+      }
+
+      if (page.category) {
+        if (!groups[page.category]) {
+          groups[page.category] = [];
+        }
+        groups[page.category].push(page);
+      } else {
+        ungrouped.push(page);
+      }
+    });
+    return { groups, ungrouped };
+  }, [pages, searchQuery]);
+
+  // Automatically expand categories based on search or default state
+  useEffect(() => {
+    let newExpanded: string[] = [];
+    if (searchQuery) {
+      Object.keys(groupedPages.groups).forEach(categoryTitle => {
+        if (categoryTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            groupedPages.groups[categoryTitle].some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
+          newExpanded.push(categoryTitle);
+        }
+      });
+      if (groupedPages.ungrouped.some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
+        if (!newExpanded.includes("General")) { // Ensure "General" is added if not already
+             newExpanded.push("General");
+        }
+      }
+    } else {
+      // Default expansion: expand all categories that have items
+      newExpanded = Object.keys(groupedPages.groups).filter(cat => groupedPages.groups[cat].length > 0);
+      if (groupedPages.ungrouped.length > 0) {
+        newExpanded.push("General");
+      }
+    }
+    setExpandedSections(newExpanded);
+  }, [searchQuery, groupedPages]);
+
 
   const toggleSection = (sectionTitle: string) => {
     setExpandedSections((prev) =>
-      prev.includes(sectionTitle) ? prev.filter((title) => title !== sectionTitle) : [...prev, sectionTitle],
-    )
-  }
+      prev.includes(sectionTitle) ? prev.filter((title) => title !== sectionTitle) : [...prev, sectionTitle]
+    );
+  };
 
-  const handleNavClick = (href: string) => {
-    const element = document.querySelector(href)
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth" })
+  // handleNavClick is now simplified to just call onSelectPage
+  const handleNavClick = (pageId: string) => {
+    onSelectPage(pageId);
+  };
+
+  const dynamicSidebarSections: SidebarSection[] = useMemo(() => {
+    const sections: SidebarSection[] = [];
+
+    Object.entries(groupedPages.groups)
+      .sort(([catA], [catB]) => catA.localeCompare(catB))
+      .forEach(([categoryTitle, categoryPages]) => {
+        sections.push({
+          title: categoryTitle,
+          icon: Folder,
+          isCategory: true,
+          items: categoryPages
+            .map(page => ({
+              id: page.id,
+              title: page.title || "Untitled Page",
+            }))
+            .sort((a,b) => a.title.localeCompare(b.title)),
+        });
+      });
+
+    if (groupedPages.ungrouped.length > 0) {
+      const generalItems = groupedPages.ungrouped
+        .map(page => ({
+            id: page.id,
+            title: page.title || "Untitled Page",
+        }))
+        .sort((a,b) => a.title.localeCompare(b.title));
+
+      // Add "General" section if it has items, regardless of other categories
+      // This ensures "General" appears if it's the only category or alongside others.
+      if (generalItems.length > 0) {
+        sections.push({
+          title: "General",
+          icon: Folder,
+          isCategory: true,
+          items: generalItems,
+        });
+      }
     }
-  }
+    // Ensure "General" section (if added) is also sorted relative to other categories if needed,
+    // or decide on its fixed position (e.g., always last or first).
+    // For now, it's added after categorized sections. If specific order is needed, adjust here.
+    // Example: if "General" should be first: sections.unshift(...) and handle duplicates if necessary.
+    // Or, if sorting all sections by title (including "General"):
+    // sections.sort((a, b) => a.title.localeCompare(b.title));
+    // Current logic keeps General last if other categories exist.
 
-  const filteredSections = sidebarSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => item.title.toLowerCase().includes(searchQuery.toLowerCase())),
-    }))
-    .filter((section) => section.items.length > 0 || searchQuery === "")
+    return sections;
+  }, [groupedPages]);
+
+  const hasResults = dynamicSidebarSections.some(section => section.items.length > 0);
+  const noPagesAvailable = pages.length === 0;
+
 
   return (
-    <div className="sticky top-20 h-fit">
-      {/* Changed to use theme-aware card styles */}
+    <div className="sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto pb-6"> {/* Adjusted height and overflow */}
       <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-sm">
-        {/* Search */}
         <div className="relative mb-6">
-          {/* Changed icon color */}
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search documentation..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            // Removed dark-theme specific classes, relies on default Input styling + pl-10
             className="pl-10"
           />
         </div>
 
-        {/* Navigation */}
-        <nav className="space-y-2">
-          {filteredSections.map((section) => (
+        <nav className="space-y-1">
+          {dynamicSidebarSections.map((section) => (
+            section.items.length > 0 && ( // Only render section if it has items after filtering
             <div key={section.title}>
               <button
                 onClick={() => toggleSection(section.title)}
-                // Changed text and background colors for light theme
                 className="flex items-center justify-between w-full p-2 text-left text-foreground/80 hover:text-foreground hover:bg-muted rounded-lg transition-colors group"
               >
                 <div className="flex items-center gap-2">
-                  <section.icon className="w-4 h-4" /> {/* Icon color should adapt or be text-muted-foreground if needed */}
+                  <section.icon className="w-4 h-4" />
                   <span className="font-medium">{section.title}</span>
                 </div>
                 {expandedSections.includes(section.title) ? (
-                  // Changed chevron hover color
                   <ChevronDown className="w-4 h-4 group-hover:text-foreground" />
                 ) : (
                   <ChevronRight className="w-4 h-4 group-hover:text-foreground" />
@@ -128,23 +186,36 @@ export default function DocumentationSidebar() {
                 transition={{ duration: 0.2 }}
                 className="overflow-hidden"
               >
-                <div className="ml-6 mt-2 space-y-1">
-                  {section.items.map((item) => (
-                    <button
-                      key={item.title}
-                      onClick={() => handleNavClick(item.href)}
-                      // Changed text and background colors for light theme
-                      className="block w-full text-left p-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-md transition-colors"
-                    >
-                      {item.title}
-                    </button>
-                  ))}
+                <div className="ml-4 mt-1 pl-2 border-l border-border/50 space-y-1">
+                  {section.items.map((item) => {
+                    const isActive = item.id === activePageId;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNavClick(item.id)}
+                        className={`block w-full text-left p-2 text-sm rounded-md transition-colors ${
+                          isActive
+                            ? "font-semibold text-primary bg-primary/10"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                        }`}
+                      >
+                        {item.title}
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.div>
             </div>
+            )
           ))}
+          {!noPagesAvailable && !hasResults && searchQuery && (
+             <p className="p-2 text-sm text-muted-foreground">No documents match your search for &quot;{searchQuery}&quot;.</p>
+          )}
+          {noPagesAvailable && !searchQuery && ( // Show this only if pages array is truly empty and no search
+             <p className="p-2 text-sm text-muted-foreground">No documents found for Version 2.0.</p>
+          )}
         </nav>
       </div>
     </div>
-  )
+  );
 }

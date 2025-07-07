@@ -29,6 +29,7 @@ export async function middleware(request: NextRequest) {
     '/favicon.ico', // Allow favicon
     '/subscription-locked', // Allow subscription locked page
     '/api/stripe/plans', // Public API route for fetching plans
+    '/api/documentation/.*', // Allow all documentation API routes
   ]
 
   // If we're already on the login page, don't redirect
@@ -140,7 +141,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - _vercel (Vercel specific files)
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|_vercel|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 }
