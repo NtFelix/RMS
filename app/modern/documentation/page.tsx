@@ -68,7 +68,8 @@ export default function DocumentationPage() {
       return;
     }
 
-    let isCancelled = false;
+    const controller = new AbortController();
+    const { signal } = controller;
 
     async function fetchPageData() {
       setIsLoadingContent(true);
@@ -77,14 +78,12 @@ export default function DocumentationPage() {
       setCurrentPageFiles(null);   // Clear previous files
 
       try {
-        const response = await fetch(`/api/documentation/content/${selectedPageId}`);
-        if (isCancelled) return;
+        const response = await fetch(`/api/documentation/content/${selectedPageId}`, { signal });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.details || `Failed to fetch page content: ${response.statusText}`);
         }
         const content: BlockObjectResponse[] = await response.json();
-        if (isCancelled) return;
         setCurrentPageContent(content);
 
         // Files are part of metadata, so retrieve from allPagesMetadata
@@ -95,13 +94,17 @@ export default function DocumentationPage() {
           setCurrentPageFiles(null);
         }
       } catch (err) {
-        if (isCancelled) return;
-        console.error("Error fetching page content:", err);
-        setError(err instanceof Error ? err.message : String(err));
-        setCurrentPageContent([]); // Set to empty array on error to avoid stale content
-        setCurrentPageFiles(null);
+        if (err instanceof Error && err.name === 'AbortError') {
+          // Fetch was aborted, this is expected on cleanup, so we can ignore.
+          console.log('Fetch aborted');
+        } else {
+          console.error("Error fetching page content:", err);
+          setError(err instanceof Error ? err.message : String(err));
+          setCurrentPageContent([]); // Set to empty array on error to avoid stale content
+          setCurrentPageFiles(null);
+        }
       } finally {
-        if (!isCancelled) {
+        if (!signal.aborted) {
           setIsLoadingContent(false);
         }
       }
@@ -110,7 +113,7 @@ export default function DocumentationPage() {
     fetchPageData();
 
     return () => {
-      isCancelled = true;
+      controller.abort();
     };
   }, [selectedPageId, allPagesMetadata]);
 
