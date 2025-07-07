@@ -5,10 +5,10 @@ export const runtime = 'edge';
 
 export async function GET(
   request: NextRequest,
-  context: any // Reverting to 'any' as standard typings fail in this project build
 ) {
-  // Manually extract pageId and assert its type if using 'any' for context
-  const pageId = context?.params?.pageId as string | undefined;
+  const url = new URL(request.url);
+  const pathSegments = url.pathname.split('/');
+  const pageId = pathSegments[pathSegments.length - 1];
 
   if (!pageId) {
     return NextResponse.json({ error: 'Page ID is required' }, { status: 400 });
