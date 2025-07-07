@@ -184,6 +184,6 @@ export async function getPageContent(pageId: string): Promise<BlockObjectRespons
     return blocks;
   } catch (error) {
     console.error(`Failed to fetch content for page ${pageId} from Notion:`, error);
-    return [];
+    throw error; // Re-throw the error
   }
 }
