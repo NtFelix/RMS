@@ -6,9 +6,7 @@ export const runtime = 'edge';
 export async function GET(
   request: NextRequest,
 ) {
-  const url = new URL(request.url);
-  const pathSegments = url.pathname.split('/');
-  const pageId = pathSegments[pathSegments.length - 1];
+  const pageId = new URL(request.url).pathname.split('/').filter(Boolean).pop();
 
   if (!pageId) {
     return NextResponse.json({ error: 'Page ID is required' }, { status: 400 });
