@@ -4,37 +4,45 @@ import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, ChevronRight, Search, Folder, FileText } from "lucide-react"; // Using Folder for categories
 import { Input } from "../../../components/ui/input";
-import { NotionPageData } from "../../../lib/notion-service";
+import { NotionPageData } from "../../../lib/notion-service"; // NotionPageData now refers to metadata only
 
 interface DocumentationSidebarProps {
-  pages: NotionPageData[];
+  pages: NotionPageData[]; // This is now allPagesMetadata
+  onSelectPage: (pageId: string) => void;
+  activePageId: string | null;
+}
+
+interface SidebarItem {
+  id: string;
+  title: string;
+  // href is no longer needed as we use onSelectPage
 }
 
 interface SidebarSection {
   title: string;
   icon: React.ElementType;
   isCategory: boolean;
-  items: {
-    id: string;
-    title: string;
-    href: string;
-  }[];
+  items: SidebarItem[];
 }
 
-export default function DocumentationSidebar({ pages }: DocumentationSidebarProps) {
+export default function DocumentationSidebar({ pages, onSelectPage, activePageId }: DocumentationSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Group pages by category
+  // Group pages by category (using 'pages' prop which contains metadata)
   const groupedPages = useMemo(() => {
     const groups: Record<string, NotionPageData[]> = {};
     const ungrouped: NotionPageData[] = [];
 
     pages.forEach(page => {
-      const category = page.category || "General"; // Default category if none
-      if (searchQuery && !page.title.toLowerCase().includes(searchQuery.toLowerCase()) && !(page.category || "General").toLowerCase().includes(searchQuery.toLowerCase())) {
-        return; // Skip if page title and category don't match search query
+      const category = page.category || "General";
+      // Apply search filter
+      if (searchQuery &&
+          !page.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(page.category || "General").toLowerCase().includes(searchQuery.toLowerCase())) {
+        return;
       }
+
       if (page.category) {
         if (!groups[page.category]) {
           groups[page.category] = [];
@@ -47,36 +55,29 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
     return { groups, ungrouped };
   }, [pages, searchQuery]);
 
-  // Automatically expand categories that have search results within them or if the category title matches
+  // Automatically expand categories based on search or default state
   useEffect(() => {
+    let newExpanded: string[] = [];
     if (searchQuery) {
-      const newExpanded: string[] = [];
       Object.keys(groupedPages.groups).forEach(categoryTitle => {
-        if (categoryTitle.toLowerCase().includes(searchQuery.toLowerCase())) {
+        if (categoryTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            groupedPages.groups[categoryTitle].some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
           newExpanded.push(categoryTitle);
-        } else {
-          const hasMatchingItem = groupedPages.groups[categoryTitle].some(item =>
-            item.title.toLowerCase().includes(searchQuery.toLowerCase())
-          );
-          if (hasMatchingItem) {
-            newExpanded.push(categoryTitle);
-          }
         }
       });
-       // Also expand "General" if it has search results and search is active
       if (groupedPages.ungrouped.some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
-        if (!newExpanded.includes("General")) {
-          newExpanded.push("General");
+        if (!newExpanded.includes("General")) { // Ensure "General" is added if not already
+             newExpanded.push("General");
         }
       }
-      setExpandedSections(newExpanded);
     } else {
-      // Optionally, collapse all or restore previous state when search is cleared
-      // For now, let's default to expanding categories that have pages
-      const defaultExpanded = Object.keys(groupedPages.groups).filter(cat => groupedPages.groups[cat].length > 0);
-      if (groupedPages.ungrouped.length > 0) defaultExpanded.push("General");
-      setExpandedSections(defaultExpanded);
+      // Default expansion: expand all categories that have items
+      newExpanded = Object.keys(groupedPages.groups).filter(cat => groupedPages.groups[cat].length > 0);
+      if (groupedPages.ungrouped.length > 0) {
+        newExpanded.push("General");
+      }
     }
+    setExpandedSections(newExpanded);
   }, [searchQuery, groupedPages]);
 
 
@@ -86,19 +87,16 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
     );
   };
 
+  // handleNavClick is now simplified to just call onSelectPage
   const handleNavClick = (pageId: string) => {
-    const element = document.getElementById(`doc-page-${pageId}`);
-    if (element) {
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    onSelectPage(pageId);
   };
 
   const dynamicSidebarSections: SidebarSection[] = useMemo(() => {
     const sections: SidebarSection[] = [];
 
-    // Add categorized pages
     Object.entries(groupedPages.groups)
-      .sort(([catA], [catB]) => catA.localeCompare(catB)) // Sort categories alphabetically
+      .sort(([catA], [catB]) => catA.localeCompare(catB))
       .forEach(([categoryTitle, categoryPages]) => {
         sections.push({
           title: categoryTitle,
@@ -108,39 +106,47 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
             .map(page => ({
               id: page.id,
               title: page.title || "Untitled Page",
-              href: `#doc-page-${page.id}`,
             }))
-            .sort((a,b) => a.title.localeCompare(b.title)), // Sort pages within category
+            .sort((a,b) => a.title.localeCompare(b.title)),
         });
       });
 
-    // Add ungrouped pages under a "General" category, or list them if no other categories exist
     if (groupedPages.ungrouped.length > 0) {
       const generalItems = groupedPages.ungrouped
         .map(page => ({
             id: page.id,
             title: page.title || "Untitled Page",
-            href: `#doc-page-${page.id}`,
         }))
         .sort((a,b) => a.title.localeCompare(b.title));
 
-      // If there are other categories, or if "General" is the only one with items.
-      if (sections.length > 0 || generalItems.length > 0) {
-         sections.push({
-          title: "General", // Section for pages without a category
-          icon: Folder, // Or use FileText if it's meant to be a collection of loose files
-          isCategory: true, // Treat "General" as a collapsible category
+      // Add "General" section if it has items, regardless of other categories
+      // This ensures "General" appears if it's the only category or alongside others.
+      if (generalItems.length > 0) {
+        sections.push({
+          title: "General",
+          icon: Folder,
+          isCategory: true,
           items: generalItems,
         });
       }
     }
+    // Ensure "General" section (if added) is also sorted relative to other categories if needed,
+    // or decide on its fixed position (e.g., always last or first).
+    // For now, it's added after categorized sections. If specific order is needed, adjust here.
+    // Example: if "General" should be first: sections.unshift(...) and handle duplicates if necessary.
+    // Or, if sorting all sections by title (including "General"):
+    // sections.sort((a, b) => a.title.localeCompare(b.title));
+    // Current logic keeps General last if other categories exist.
+
     return sections;
   }, [groupedPages]);
 
   const hasResults = dynamicSidebarSections.some(section => section.items.length > 0);
+  const noPagesAvailable = pages.length === 0;
+
 
   return (
-    <div className="sticky top-20 h-fit">
+    <div className="sticky top-20 h-[calc(100vh-5rem)] overflow-y-auto pb-6"> {/* Adjusted height and overflow */}
       <div className="bg-card border border-border rounded-2xl p-6 backdrop-blur-sm">
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -181,24 +187,31 @@ export default function DocumentationSidebar({ pages }: DocumentationSidebarProp
                 className="overflow-hidden"
               >
                 <div className="ml-4 mt-1 pl-2 border-l border-border/50 space-y-1">
-                  {section.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNavClick(item.id)}
-                      className="block w-full text-left p-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-md transition-colors"
-                    >
-                      {item.title}
-                    </button>
-                  ))}
+                  {section.items.map((item) => {
+                    const isActive = item.id === activePageId;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => handleNavClick(item.id)}
+                        className={`block w-full text-left p-2 text-sm rounded-md transition-colors ${
+                          isActive
+                            ? "font-semibold text-primary bg-primary/10"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/70"
+                        }`}
+                      >
+                        {item.title}
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.div>
             </div>
             )
           ))}
-          {pages && pages.length > 0 && !hasResults && searchQuery && (
+          {!noPagesAvailable && !hasResults && searchQuery && (
              <p className="p-2 text-sm text-muted-foreground">No documents match your search for &quot;{searchQuery}&quot;.</p>
           )}
-          {(!pages || pages.length === 0) && !searchQuery && (
+          {noPagesAvailable && !searchQuery && ( // Show this only if pages array is truly empty and no search
              <p className="p-2 text-sm text-muted-foreground">No documents found for Version 2.0.</p>
           )}
         </nav>

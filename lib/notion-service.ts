@@ -1,38 +1,65 @@
 import { Client } from "@notionhq/client";
 import { BlockObjectResponse, PageObjectResponse, SelectPropertyItemObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
-const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
+let notionClientInstance: Client | null = null;
+// This variable is no longer needed at this scope, as NEXT_PUBLIC_NOTION_DATABASE_ID will be read directly inside getNotionClient
+// let currentNotionDatabaseId: string | null | undefined = null;
 
-if (!NOTION_API_KEY) {
-  throw new Error("Missing NOTION_API_KEY environment variable. Please set it in your .env file or deployment environment.");
+function getNotionClient(): Client {
+  if (!notionClientInstance) {
+    const apiKey = process.env.NOTION_API_KEY; // Reverted to NOTION_API_KEY
+    if (!apiKey) {
+      throw new Error("Missing NOTION_API_KEY environment variable. Please set it for server-side execution.");
+    }
+
+    const databaseId = process.env.NOTION_DATABASE_ID; // Reverted to NOTION_DATABASE_ID
+    if (!databaseId) {
+      console.error("CRITICAL: Missing NOTION_DATABASE_ID environment variable. This is required for notion-service to function.");
+      throw new Error("Missing NOTION_DATABASE_ID environment variable. Please set it for server-side execution.");
+    }
+
+    // When running server-side, the global fetch or Node's fetch should be fine.
+    // The explicit fetch was for client-side specific issues.
+    // We can remove it or keep it; Notion SDK should handle Node.js environment correctly.
+    // Let's remove it for now to simplify, as these calls will originate from API routes (Node.js context).
+    notionClientInstance = new Client({
+      auth: apiKey,
+    });
+  }
+  return notionClientInstance;
 }
 
-if (!NOTION_DATABASE_ID) {
-  throw new Error("Missing NOTION_DATABASE_ID environment variable. Please set it in your .env file or deployment environment.");
+export interface NotionFileData {
+  name: string;
+  url: string;
+  type: "file" | "external" | undefined; // More specific and allows undefined
+  fileTypeFromNotion: string; // This will be the actual mime type or a descriptive type
 }
-
-const notion = new Client({ auth: NOTION_API_KEY });
 
 export interface NotionPageData {
   id: string;
   title: string;
-  category?: string | null; // Added category
-  version?: string | null; // Added version
+  category?: string | null;
+  version?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  properties: Record<string, any>;
-  content?: BlockObjectResponse[];
+  properties: Record<string, any>; // Keeping this for now, might be removed if not strictly needed by consumers
+  filesAndMedia?: NotionFileData[];
+  // content?: BlockObjectResponse[]; // Content will be fetched on demand
 }
 
 export async function getDatabasePages(): Promise<NotionPageData[]> {
-  if (!NOTION_DATABASE_ID) {
-    console.error("NOTION_DATABASE_ID is not defined.");
-    return [];
+  const client = getNotionClient();
+  const databaseId = process.env.NOTION_DATABASE_ID; // Use server-side variable
+
+  if (!databaseId) {
+    // This check is redundant if getNotionClient throws, but good for belt-and-suspenders
+    console.error("NOTION_DATABASE_ID is not available when trying to fetch database pages.");
+    throw new Error("NOTION_DATABASE_ID is not defined. Critical for fetching pages.");
   }
 
   try {
-    const response = await notion.databases.query({
-      database_id: NOTION_DATABASE_ID,
+    const response = await client.databases.query({
+      database_id: databaseId, // Use the server-side NOTION_DATABASE_ID
       filter: {
         property: "Version", // Filter by the "Version" property
         select: {
@@ -82,12 +109,49 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
       }
       // Add other fallbacks for version property type if necessary
 
+      // Get Dateien und Medien
+      // Assuming the property name in Notion is "Dateien und Medien" and it's a "files" property type
+      const filesAndMediaProperty = typedPage.properties["Dateien und Medien"];
+      let filesAndMedia: NotionFileData[] = [];
+
+      if (filesAndMediaProperty && filesAndMediaProperty.type === "files") {
+        filesAndMedia = filesAndMediaProperty.files.map(file => {
+          let url: string;
+          if (file.type === 'external') {
+            url = file.external.url;
+          } else if (file.type === 'file') {
+            url = file.file.url;
+          } else {
+            // Fallback for unexpected types, though Notion API usually provides 'file' or 'external'
+            url = '';
+            console.warn(`Unexpected file type from Notion: ${file.type}`);
+          }
+
+          const defaultType = file.type === 'external' ? 'external link' : 'file';
+          const lastDotIndex = file.name.lastIndexOf('.');
+          // Ensure dot is present and not the first character.
+          const fileType = (lastDotIndex > 0)
+            ? file.name.substring(lastDotIndex + 1)
+            : defaultType;
+          return {
+            name: file.name,
+            url: url,
+            type: file.type, // 'file' or 'external'
+            fileTypeFromNotion: fileType, // Store inferred type (e.g., 'pdf', 'png', 'link')
+          };
+        });
+      } else if (filesAndMediaProperty) {
+        console.warn(`Page with ID ${typedPage.id} has "Dateien und Medien" property, but it's not of type "files". Type is: ${filesAndMediaProperty.type}`);
+      }
+
+
       return {
         id: typedPage.id,
         title: title,
         category: category,
         version: version,
-        properties: typedPage.properties,
+        properties: typedPage.properties, // Retaining original properties for now
+        filesAndMedia: filesAndMedia.length > 0 ? filesAndMedia : undefined,
       };
     });
   } catch (error) {
@@ -100,9 +164,10 @@ export async function getPageContent(pageId: string): Promise<BlockObjectRespons
   try {
     const blocks: BlockObjectResponse[] = [];
     let cursor: string | undefined;
+    const client = getNotionClient();
 
     while (true) {
-      const { results, next_cursor } = await notion.blocks.children.list({
+      const { results, next_cursor } = await client.blocks.children.list({
         block_id: pageId,
         start_cursor: cursor,
         page_size: 100,
