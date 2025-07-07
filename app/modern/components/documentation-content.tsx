@@ -242,7 +242,7 @@ export default function DocumentationContent({ isLoading, pageContent, pageFiles
                     <Card className="flex flex-col h-full overflow-hidden shadow-md hover:shadow-lg transition-shadow">
                       <CardHeader className="p-4">
                         <CardTitle className="text-base font-medium truncate flex items-center">
-                          {file.fileTypeFromNotion.startsWith("image/") ?
+                          {['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(file.fileTypeFromNotion.toLowerCase()) ?
                            <ImageIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" /> :
                            <FileTextIcon className="w-5 h-5 mr-2 text-primary flex-shrink-0" />
                           }
@@ -250,7 +250,7 @@ export default function DocumentationContent({ isLoading, pageContent, pageFiles
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-4 flex-grow flex items-center justify-center bg-muted/30 min-h-[120px]">
-                        {file.fileTypeFromNotion.startsWith("image/") ? (
+                        {['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(file.fileTypeFromNotion.toLowerCase()) ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={file.url} alt={file.name} className="max-h-36 max-w-full object-contain rounded" />
                         ) : (
