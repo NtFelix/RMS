@@ -156,7 +156,7 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
     });
   } catch (error) {
     console.error("Failed to fetch database pages from Notion:", error);
-    return [];
+    throw error; // Re-throw the error to be handled by the caller
   }
 }
 
