@@ -181,7 +181,30 @@ export async function getPageContent(pageId: string): Promise<BlockObjectRespons
 
       cursor = next_cursor;
     }
-    return blocks;
+
+    // Iterate through blocks to fetch children of 'table' blocks
+    const blocksWithChildren = await Promise.all(
+      blocks.map(async (block) => {
+        if (block.type === "table" && block.has_children) {
+          try {
+            const childrenResponse = await client.blocks.children.list({
+              block_id: block.id,
+              page_size: 100, // Assuming tables won't have more than 100 rows for now
+            });
+            // Add children to the block object.
+            // Need to cast block to any or define a new interface that includes children.
+            // For simplicity, let's cast to any for now, but a proper interface is better.
+            (block as any).children = childrenResponse.results as BlockObjectResponse[];
+          } catch (e) {
+            console.error(`Failed to fetch children for table block ${block.id}:`, e);
+            // Keep the block without children if fetching fails
+          }
+        }
+        return block;
+      })
+    );
+
+    return blocksWithChildren;
   } catch (error) {
     console.error(`Failed to fetch content for page ${pageId} from Notion:`, error);
     throw error; // Re-throw the error

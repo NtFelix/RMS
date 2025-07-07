@@ -123,7 +123,87 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
           {caption && <figcaption className="text-sm text-center text-muted-foreground mt-2">{caption}</figcaption>}
         </figure>
       );
-    // Add more cases for other block types as needed (e.g., quote, callout, divider, table, etc.)
+    case "callout":
+      const callout = block.callout;
+      const calloutIcon = callout.icon;
+      let iconElement = null;
+      if (calloutIcon) {
+        if (calloutIcon.type === "emoji") {
+          iconElement = <span className="mr-2">{calloutIcon.emoji}</span>;
+        } else if (calloutIcon.type === "external") {
+          // eslint-disable-next-line @next/next/no-img-element
+          iconElement = <img src={calloutIcon.external.url} alt="callout icon" className="w-6 h-6 mr-2 inline-block" />;
+        } else if (calloutIcon.type === "file") {
+           // eslint-disable-next-line @next/next/no-img-element
+          iconElement = <img src={calloutIcon.file.url} alt="callout icon" className="w-6 h-6 mr-2 inline-block" />;
+        }
+      }
+      // Basic styling for callout. Notion colors (e.g., "gray_background") would need mapping to Tailwind.
+      return (
+        <div className="my-4 p-4 bg-muted/70 border border-border rounded-lg flex items-start">
+          {iconElement}
+          <div className="text-muted-foreground">
+            <NotionRichText richTextArray={callout.rich_text} />
+          </div>
+        </div>
+      );
+    case "table":
+      // const table = block.table; // table specific data like table_width, has_column_header
+      // For now, the 'table' block type itself won't render a <table> tag directly
+      // because its children (table_row) are processed as separate blocks by NotionBlock.
+      // Instead, we can render a wrapper or a title for the table.
+      // A true table structure would require DocumentationContent to handle nesting
+      // or for block data to be pre-processed with children.
+      // This approach avoids invalid HTML (<table> followed by sibling <tr>).
+      // We'll use ARIA roles for accessibility if using divs for table structure.
+      // Updated to render actual table structure now that children are fetched.
+      const tableData = block as any; // Cast to any to access potential 'children' property
+      const tableBlockInfo = block.table; // Contains table_width, has_column_header, has_row_header
+
+      return (
+        <div className="my-4 overflow-x-auto">
+          <table className="min-w-full border-collapse border border-border shadow-sm rounded-lg">
+            {/* Optionally render <thead> based on tableBlockInfo.has_column_header */}
+            {tableBlockInfo.has_column_header && tableData.children && tableData.children.length > 0 && (
+              <thead className="bg-muted/50">
+                {/* Render the first child (row) as header */}
+                <NotionBlock key={tableData.children[0].id} block={tableData.children[0]} />
+              </thead>
+            )}
+            <tbody>
+              {(tableData.children && tableData.children.length > 0) ? (
+                // If has_column_header, skip the first child as it's rendered in thead
+                tableData.children.slice(tableBlockInfo.has_column_header ? 1 : 0).map((childBlock: BlockObjectResponse) => (
+                  <NotionBlock key={childBlock.id} block={childBlock} />
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={tableBlockInfo.table_width || 1} className="p-3 text-center text-muted-foreground">
+                    This table is empty.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      );
+    case "table_row":
+      const tableRow = block.table_row;
+      // Now renders as a proper <tr> since it will be a child of <table>
+      return (
+        <tr className="border-b border-border last:border-b-0 hover:bg-muted/60 transition-colors duration-150">
+          {tableRow.cells.map((cellContent, cellIndex) => (
+            <td
+              key={cellIndex}
+              className="p-3 border-r border-border last:border-r-0 text-foreground/90"
+              // TODO: Apply has_row_header styling to first cell if applicable
+            >
+              <NotionRichText richTextArray={cellContent} />
+            </td>
+          ))}
+        </tr>
+      );
+    // Add more cases for other block types as needed (e.g., quote, divider, etc.)
     // For unsupported blocks, you might want to log a warning or render a placeholder
     default:
       console.warn(`Unsupported block type: ${type}`, block);
