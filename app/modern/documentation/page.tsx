@@ -68,6 +68,9 @@ export default function DocumentationPage() {
       return;
     }
 
+    const controller = new AbortController();
+    const { signal } = controller;
+
     async function fetchPageData() {
       setIsLoadingContent(true);
       setError(null);
@@ -75,7 +78,7 @@ export default function DocumentationPage() {
       setCurrentPageFiles(null);   // Clear previous files
 
       try {
-        const response = await fetch(`/api/documentation/content/${selectedPageId}`);
+        const response = await fetch(`/api/documentation/content/${selectedPageId}`, { signal });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.details || `Failed to fetch page content: ${response.statusText}`);
@@ -91,16 +94,27 @@ export default function DocumentationPage() {
           setCurrentPageFiles(null);
         }
       } catch (err) {
-        console.error("Error fetching page content:", err);
-        setError(err instanceof Error ? err.message : String(err));
-        setCurrentPageContent([]); // Set to empty array on error to avoid stale content
-        setCurrentPageFiles(null);
+        if (err instanceof Error && err.name === 'AbortError') {
+          // Fetch was aborted, this is expected on cleanup, so we can ignore.
+          console.log('Fetch aborted');
+        } else {
+          console.error("Error fetching page content:", err);
+          setError(err instanceof Error ? err.message : String(err));
+          setCurrentPageContent([]); // Set to empty array on error to avoid stale content
+          setCurrentPageFiles(null);
+        }
       } finally {
-        setIsLoadingContent(false);
+        if (!signal.aborted) {
+          setIsLoadingContent(false);
+        }
       }
     }
 
     fetchPageData();
+
+    return () => {
+      controller.abort();
+    };
   }, [selectedPageId, allPagesMetadata]);
 
   const handleSelectPage = (pageId: string) => {

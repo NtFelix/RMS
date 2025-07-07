@@ -5,10 +5,9 @@ export const runtime = 'edge';
 
 export async function GET(
   request: NextRequest,
-  context: any // Reverting to 'any' as standard typings fail in this project build
+  { params }: { params: Promise<{ pageId: string }> }
 ) {
-  // Manually extract pageId and assert its type if using 'any' for context
-  const pageId = context?.params?.pageId as string | undefined;
+  const { pageId } = await params;
 
   if (!pageId) {
     return NextResponse.json({ error: 'Page ID is required' }, { status: 400 });
