@@ -68,6 +68,8 @@ export default function DocumentationPage() {
       return;
     }
 
+    let isCancelled = false;
+
     async function fetchPageData() {
       setIsLoadingContent(true);
       setError(null);
@@ -76,11 +78,13 @@ export default function DocumentationPage() {
 
       try {
         const response = await fetch(`/api/documentation/content/${selectedPageId}`);
+        if (isCancelled) return;
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.details || `Failed to fetch page content: ${response.statusText}`);
         }
         const content: BlockObjectResponse[] = await response.json();
+        if (isCancelled) return;
         setCurrentPageContent(content);
 
         // Files are part of metadata, so retrieve from allPagesMetadata
@@ -91,16 +95,23 @@ export default function DocumentationPage() {
           setCurrentPageFiles(null);
         }
       } catch (err) {
+        if (isCancelled) return;
         console.error("Error fetching page content:", err);
         setError(err instanceof Error ? err.message : String(err));
         setCurrentPageContent([]); // Set to empty array on error to avoid stale content
         setCurrentPageFiles(null);
       } finally {
-        setIsLoadingContent(false);
+        if (!isCancelled) {
+          setIsLoadingContent(false);
+        }
       }
     }
 
     fetchPageData();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedPageId, allPagesMetadata]);
 
   const handleSelectPage = (pageId: string) => {
