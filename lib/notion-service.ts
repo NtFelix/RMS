@@ -116,23 +116,14 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
 
       if (filesAndMediaProperty && filesAndMediaProperty.type === "files") {
         filesAndMedia = filesAndMediaProperty.files.map(file => {
-          let url = "";
-          let fileType = "unknown"; // Default type
-          if (file.type === "external") {
-            url = file.external.url;
-            // For external files, we might not have a specific mime type from Notion directly.
-            // We can try to infer from URL extension or default to a generic type.
-            // For simplicity, let's use a generic type or the name itself if it has an extension.
-            const nameParts = file.name.split('.');
-            fileType = nameParts.length > 1 ? nameParts.pop()! : 'external link';
-          } else if (file.type === "file") {
-            url = file.file.url;
-            // Notion API for page properties of type "file" doesn't directly provide mime type.
-            // It's usually part of the signed URL or one has to infer from the name.
-            // We'll use the file extension from the name as a proxy for fileTypeFromNotion.
-            const nameParts = file.name.split('.');
-            fileType = nameParts.length > 1 ? nameParts.pop()! : 'file';
-          }
+          const url = file.type === 'external' ? file.external.url : file.file.url;
+          const defaultType = file.type === 'external' ? 'external link' : 'file';
+
+          const lastDotIndex = file.name.lastIndexOf('.');
+          // Ensure dot is present and not the first character.
+          const fileType = (lastDotIndex > 0)
+            ? file.name.substring(lastDotIndex + 1)
+            : defaultType;
           return {
             name: file.name,
             url: url,
