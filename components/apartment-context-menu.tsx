@@ -21,19 +21,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
+import type { Apartment } from "./apartment-table"; // Import the shared type
 
-interface Apartment {
-  id: string
-  name: string
-  groesse: number
-  miete: number
-  haus_id?: string
-  Haeuser?: { name: string }
-}
+// Remove local Apartment interface definition
 
 interface ApartmentContextMenuProps {
   children: React.ReactNode
-  apartment: Apartment
+  apartment: Apartment // Now uses the imported Apartment type
   onEdit: () => void
   onRefresh: () => void
 }

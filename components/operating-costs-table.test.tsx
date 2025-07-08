@@ -99,7 +99,12 @@ describe('OperatingCostsTable', () => {
     expect(screen.getAllByText('pauschal')).toHaveLength(2); // 'pauschal' appears twice on the page now for two different entries
 
     // Check wasserrkosten for Haus B
-     expect(screen.getByText('100,00 €')).toBeInTheDocument();
+    const hausBRow = screen.getByText('Haus B').closest('tr');
+    expect(hausBRow).toBeInTheDocument();
+    if (hausBRow) {
+      const cells = within(hausBRow).getAllByRole('cell');
+      expect(cells[5]).toHaveTextContent(/100,00\s*€/); // Wasserkosten is 6th cell (index 5)
+    }
 
     // Check a part of the second entry to ensure it's also rendered
     expect(screen.getByText('Haus C')).toBeInTheDocument();

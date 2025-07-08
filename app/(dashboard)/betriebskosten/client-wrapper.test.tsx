@@ -27,22 +27,26 @@ jest.mock('@/components/betriebskosten-edit-modal', () => ({
 }));
 
 // Mock ConfirmationAlertDialog
-const mockDialogOnConfirm = jest.fn();
-const mockDialogOnOpenChange = jest.fn();
+const mockDialogOnConfirmActual = jest.fn(); // To store the actual onConfirm prop
+const mockDialogOnOpenChangeActual = jest.fn(); // To store the actual onOpenChange prop
+
 jest.mock('@/components/ui/confirmation-alert-dialog', () => ({
   __esModule: true,
   default: jest.fn(({ isOpen, onConfirm, onOpenChange, title, description }) => {
-    // Update local mock functions to be callable from tests
-    mockDialogOnConfirm.mockImplementation(onConfirm);
-    mockDialogOnOpenChange.mockImplementation(onOpenChange);
+    // Store the actual functions passed as props
+    mockDialogOnConfirmActual.mockImplementation(onConfirm);
+    mockDialogOnOpenChangeActual.mockImplementation(onOpenChange);
 
     if (!isOpen) return null;
     return (
       <div data-testid="confirmation-dialog">
         <span>{title}</span>
         <span>{description}</span>
-        <button onClick={mockDialogOnConfirm}>ConfirmDelete</button>
-        <button onClick={() => mockDialogOnOpenChange(false)}>CancelDelete</button>
+        <button onClick={async () => { // Make it async if onConfirm is async
+          await mockDialogOnConfirmActual(); // Call the actual onConfirm
+          mockDialogOnOpenChangeActual(false); // Then simulate dialog closing
+        }}>ConfirmDelete</button>
+        <button onClick={() => mockDialogOnOpenChangeActual(false)}>CancelDelete</button>
       </div>
     );
   }),

@@ -1,57 +1,47 @@
+// "use client" directive removed - this is now a Server Component file.
+
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { PlusCircle } from "lucide-react"
-import { TenantFilters } from "@/components/tenant-filters"
-import { TenantTable } from "@/components/tenant-table"
-import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper"
-import TenantClientWrapper from "./client-wrapper"
-// createClient and revalidatePath are no longer needed here as handleSubmit is imported
-import { handleSubmit } from "../../../app/mieter-actions" // Adjusted import path
+import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
+import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
+import MieterClientView from "./client-wrapper"; // Import the default export
 
-interface Mieter {
-  id: string
-  wohnung_id?: string
-  name: string
-  einzug?: string
-  auszug?: string
-  email?: string
-  telefonnummer?: string
-  notiz?: string
-  nebenkosten?: number[]
-  nebenkosten_datum?: string[]
-}
-
-interface Wohnung {
-  id: string
-  name: string
-}
-
-// Original handleSubmit function is now removed from here and imported from mieter-actions.ts
+import type { Tenant } from "@/types/Tenant";
+import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
-  // Lade Daten serverseitig
-  // createClient is still needed for fetching initial page data
-  const { createClient } = await import("@/utils/supabase/server");
-  const supabase = await createClient(); // Added await here
-  const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
-  const wohnungen: Wohnung[] = wohnungenData ?? [];
-  const { data: mieterData } = await supabase.from('Mieter').select('*');
-  const mieter: Mieter[] = mieterData ?? [];
+  const supabase = await createSupabaseServerClient();
+  const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
 
-  // SSR-optimiertes Dialog-Handling
+  const { data: rawMieter, error: mieterError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
+  if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
+
+  const today = new Date();
+  const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
+    const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
+    let status: 'frei' | 'vermietet' = 'frei';
+    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+      status = 'vermietet';
+    }
+    return {
+      ...apt,
+      Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
+      status,
+      tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
+    } as Wohnung;
+  }) : [];
+
+  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({...m})) : [];
+  
+
+
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mieter</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Mieter und Mietverhältnisse</p>
-        </div>
-      </div>
-
-      <TenantClientWrapper tenants={mieter} wohnungen={wohnungen} serverAction={handleSubmit} />
-    </div>
+    <MieterClientView
+      initialTenants={mieter}
+      initialWohnungen={wohnungen}
+      serverAction={mieterServerAction}
+    />
   );
 }

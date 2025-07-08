@@ -1,4 +1,4 @@
-import { speichereWohnung } from './actions'; // Adjust path as necessary
+import { speichereWohnung, aktualisiereWohnung } from './actions'; // Adjust path as necessary
 import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { fetchUserProfile } from '@/lib/data-fetching'; // This is a new mock dependency
@@ -31,21 +31,44 @@ describe('Server Action: speichereWohnung', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // More robust Supabase client mock
+    const mockEq = jest.fn(); // This will be configured per test or with a default
+    const mockUpdateEq = jest.fn(); // Separate eq for update chains
+
+    const mockSelect = jest.fn().mockImplementation((columns, options) => {
+      // Default behavior for select, can be overridden in tests
+      if (options && options.count === 'exact') {
+        return { eq: mockEq.mockResolvedValueOnce({ count: 0, error: null }) }; // Default count
+      }
+      return { eq: mockEq.mockResolvedValueOnce({ data: [], error: null }) }; // Default for data selection
+    });
+
+    const mockInsert = jest.fn().mockResolvedValue({ data: [{ id: 'new-id' }], error: null }); // Return some data on insert
+
+    const mockUpdate = jest.fn().mockReturnValue({
+        eq: mockUpdateEq.mockResolvedValueOnce({ data: [{id: mockWohnungId}], error: null}) // Default for update().eq()
+    });
+
+
     mockSupabaseClient = {
       auth: {
         getUser: jest.fn().mockResolvedValue({ data: { user: mockUser }, error: null }),
       },
-      from: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      insert: jest.fn().mockResolvedValue({ error: null }), // Default to successful insert
-      // For count:
-      // select('*', { count: 'exact', head: true }) can be tricky.
-      // Let's assume eq after select for count returns an object with a count property or an error.
-      // This might need adjustment based on how Supabase client mock behaves.
-      // A simpler way for count mocks: have .select() return an object that then has .eq() which returns the count.
+      from: jest.fn().mockReturnValue({
+        select: mockSelect,
+        insert: mockInsert,
+        update: mockUpdate,
+        // eq: mockEq, // eq is typically part of a chain from select/update
+      }),
+      // Individual mocks for easier access in tests if needed
+      mockEq, // Expose mockEq for specific test configurations
+      mockSelect,
+      mockInsert,
+      mockUpdate,
+      mockUpdateEq,
     };
-    (createClient as jest.Mock).mockReturnValue(mockSupabaseClient); // Use mockReturnValue for non-async functions
+    (createClient as jest.Mock).mockReturnValue(mockSupabaseClient);
   });
 
   it('should return error if user is not authenticated', async () => {
@@ -73,38 +96,30 @@ describe('Server Action: speichereWohnung', () => {
   it('should allow creation if plan limit is not reached', async () => {
     (fetchUserProfile as jest.Mock).mockResolvedValueOnce({
       id: mockUserId,
-      email: 'test@example.com', // Added email as per prompt
+      email: 'test@example.com',
       stripe_subscription_status: 'active',
-      stripe_price_id: 'price_10_limit' // Specific price_id from prompt
+      stripe_price_id: 'price_10_limit'
     });
-    (getPlanDetails as jest.Mock).mockResolvedValueOnce({ limitWohnungen: 10, name: 'Test Plan', price: 1000, currency: 'usd', features: [] }); // Specific plan details
-    // Mock count of existing Wohnungen
-    // For this case, we need to ensure the mock for `select().eq()` returns the count
-    // The existing mock `mockSupabaseClient.select.mockResolvedValueOnce({ count: 5, error: null });` will be used.
-    // We need to ensure `eq` is also part of the chain if the actual implementation uses it before getting the count.
-    // The current mock structure is: from(...).select(...).eq(...), where select returns the count object.
-    // So, from('Wohnungen').select({ count: 'exact', head: true }).eq('user_id', mockUserId)
-    // The .select() part should be mocked to return the count object.
-    mockSupabaseClient.from.mockReturnThis(); // ensure 'from' is chainable
-    mockSupabaseClient.select.mockImplementationOnce((query, options) => {
-      if (options && options.count === 'exact' && options.head === true) {
-        return {
-          eq: jest.fn().mockResolvedValueOnce({ count: 5, error: null }) // count for this test case
-        };
-      }
-      return mockSupabaseClient; // Default to returning the client for other selects
-    });
+    (getPlanDetails as jest.Mock).mockResolvedValueOnce({ limitWohnungen: 10, name: 'Test Plan', price: 1000, currency: 'usd', features: [] });
 
+    // Configure the specific mockEq instance for the count call in this test
+    // The from('Wohnungen').select('*', {count:'exact', head:true}) chain will use mockSelect,
+    // which then by default returns an object with mockEq. We ensure mockEq resolves to the count.
+    // Note: The beforeEach already sets up mockSelect to return { eq: mockEq.mockResolvedValueOnce({ count: 0, error: null }) } for count queries.
+    // We need to ensure THIS specific call to mockEq (for this test's count) resolves to 5.
+    // The mockSelect implementation in beforeEach needs to be flexible or we override mockEq here directly.
+    // Let's refine beforeEach's mockSelect slightly if it's too rigid or override mockEq here.
+    // For now, assuming mockSupabaseClient.mockEq can be chained for specific resolutions:
+    mockSupabaseClient.mockEq.mockResolvedValueOnce({ count: 5, error: null }); // For the count query
 
     const result = await speichereWohnung(mockFormData);
 
     expect(getPlanDetails).toHaveBeenCalledWith('price_10_limit');
     expect(mockSupabaseClient.from).toHaveBeenCalledWith('Wohnungen');
-    // Ensure the select call for counting was made correctly
-    expect(mockSupabaseClient.select).toHaveBeenCalledWith({ count: 'exact', head: true });
-    expect(mockSupabaseClient.select().eq).toHaveBeenCalledWith('user_id', mockUserId);
+    expect(mockSupabaseClient.mockSelect).toHaveBeenCalledWith('*', { count: 'exact', head: true });
+    expect(mockSupabaseClient.mockEq).toHaveBeenCalledWith('user_id', mockUserId); // Assert on the shared mockEq
 
-    expect(mockSupabaseClient.insert).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockSupabaseClient.mockInsert).toHaveBeenCalledWith(expect.objectContaining({
       name: mockFormData.name,
       user_id: mockUserId,
       haus_id: mockFormData.haus_id, // ensure all form data is passed
