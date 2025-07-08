@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { NotionPageData, NotionFileData } from "../../../lib/notion-service"; // Adjusted path, added NotionFileData
+import { NotionPageData, NotionFileData, BlockWithChildren } from "../../../lib/notion-service"; // Adjusted path, added NotionFileData
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"; // For styling carousel items
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"; // For loading state
 
 interface DocumentationContentProps {
   isLoading: boolean;
-  pageContent: BlockObjectResponse[] | null;
+  pageContent: BlockWithChildren[] | null;
   pageFiles: NotionFileData[] | null;
   pages: NotionPageData[]; // Retained for potential fallback messages or if needed by NotionBlock for context
   error?: string | null; // Added error prop
@@ -44,7 +44,7 @@ const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
 };
 
 // Component to render a single Notion block
-const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
+const NotionBlock = ({ block }: { block: BlockWithChildren }) => {
   const { type } = block;
 
   switch (type) {
@@ -157,7 +157,7 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
       // This approach avoids invalid HTML (<table> followed by sibling <tr>).
       // We'll use ARIA roles for accessibility if using divs for table structure.
       // Updated to render actual table structure now that children are fetched.
-      const tableData = block as any; // Cast to any to access potential 'children' property
+      const tableData = block; // Now correctly typed with BlockWithChildren
       const tableBlockInfo = block.table; // Contains table_width, has_column_header, has_row_header
 
       return (
