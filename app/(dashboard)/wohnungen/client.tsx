@@ -89,8 +89,19 @@ export default function WohnungenClientView({
     openWohnungModal(undefined, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
-  const handleEditWohnung = useCallback((apartment: ApartmentTableType) => {
-    openWohnungModal(apartment as Wohnung, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+  const handleEditWohnung = useCallback(async (apartment: ApartmentTableType) => {
+    try {
+      const supabase = createBrowserClient();
+      const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartment.id).single();
+      if (error || !aptToEdit) {
+        console.error('Wohnung nicht gefunden oder Fehler:', error?.message);
+        return;
+      }
+      const transformedApt = { ...aptToEdit, Haeuser: Array.isArray(aptToEdit.Haeuser) ? aptToEdit.Haeuser[0] : aptToEdit.Haeuser } as Wohnung;
+      openWohnungModal(transformedApt, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+    } catch (error) {
+      console.error('Fehler beim Laden der Wohnung für Bearbeitung:', error);
+    }
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
   useEffect(() => {
