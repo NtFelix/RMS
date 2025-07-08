@@ -27,7 +27,7 @@ const TrialView: React.FC<TrialViewProps> = ({ profile, daysRemaining, onSelectP
         <p className="mt-4">To continue using the service with more features and higher limits after your trial, please choose a subscription plan.</p>
       </div>
       <h2 className="text-xl font-bold mb-6 text-center">Choose a Plan to Activate After Trial</h2>
-      <Pricing onSelectPlan={onSelectPlan} isLoading={isLoading} />
+      <Pricing userProfile={profile} onSelectPlan={onSelectPlan} isLoading={isLoading} />
     </div>
   );
 };

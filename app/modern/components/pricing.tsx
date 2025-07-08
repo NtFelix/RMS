@@ -41,10 +41,22 @@ const formatDisplayPrice = (amount: number, currency: string, interval: string |
 };
 
 
+// Define UserProfile interface matching the one in LandingPage
+interface UserProfile {
+  id: string;
+  trial_starts_at?: string | null;
+  // trial_ends_at is not directly used in pricing logic here, but good to have if fetched
+  stripe_customer_id?: string | null; // Not directly used here but part of profile
+  stripe_subscription_id?: string | null; // Not directly used here but part of profile
+  stripe_subscription_status?: string | null;
+  stripe_price_id?: string | null;
+}
+
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
-  isLoading?: boolean;
-  currentPlanId?: string | null;
+  userProfile: UserProfile | null;
+  isLoading?: boolean; // This is isProcessingCheckout from LandingPage
+  // currentPlanId is now derived from userProfile.stripe_price_id
 }
 
 interface GroupedPlan {
@@ -57,7 +69,7 @@ interface GroupedPlan {
   popular?: boolean; // Added popular flag
 }
 
-export default function Pricing({ onSelectPlan, isLoading: isSubmitting, currentPlanId }: PricingProps) {
+export default function Pricing({ onSelectPlan, userProfile, isLoading: isCheckoutProcessing }: PricingProps) {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -131,10 +143,52 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
     return sortedGroups;
   }, [allPlans]);
 
+  // Determine trial eligibility and button text/state based on userProfile
+  const isTrialEligible = useMemo(() => {
+    if (!userProfile) return true; // Logged out users see trial message
+    const hasActiveSub = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
+    return !userProfile.trial_starts_at && !hasActiveSub;
+  }, [userProfile]);
+
+  const getButtonTextAndState = (planPriceId: string) => {
+    let text = 'Get Started';
+    let disabled = false;
+
+    if (userProfile) {
+      const isCurrentPlan = planPriceId === userProfile.stripe_price_id &&
+                           (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing');
+      const hasActiveSubDifferentPlan = (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing') && !isCurrentPlan;
+      const hasUsedTrial = !!userProfile.trial_starts_at;
+
+      if (isCurrentPlan) {
+        text = 'Current Plan';
+        disabled = true;
+      } else if (hasActiveSubDifferentPlan) {
+        text = 'Switch Plan';
+      } else if (hasUsedTrial) { // No active sub, but trial used
+        text = 'Subscribe';
+      } else { // Eligible for trial (no active sub, no trial used)
+        text = 'Start Free Trial';
+      }
+    } else {
+      // Default for logged-out users, could also be "Start Free Trial"
+      // but "Get Started" encourages login first which is required by onSelectPlan.
+      text = 'Get Started';
+    }
+
+    if (isCheckoutProcessing) { // isLoading prop from LandingPage
+      text = 'Processing...';
+      disabled = true;
+    }
+
+    return { text, disabled };
+  };
+
+
   if (isLoadingPlans) {
     return (
-      <section className="py-16 px-4 text-foreground"> {/* Adjusted padding and removed bg-background if not needed by theme */}
-        <div className="max-w-6xl mx-auto text-center"> {/* Adjusted container to match main layout */}
+      <section className="py-16 px-4 text-foreground">
+        <div className="max-w-6xl mx-auto text-center">
           <p>Loading plans...</p>
         </div>
       </section>
@@ -143,18 +197,18 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
   if (error) {
     return (
-      <section className="py-16 px-4 text-foreground"> {/* Adjusted padding */}
-        <div className="max-w-6xl mx-auto text-center text-destructive"> {/* Adjusted container */}
+      <section className="py-16 px-4 text-foreground">
+        <div className="max-w-6xl mx-auto text-center text-destructive">
           <p>Error loading plans: {error}</p>
         </div>
       </section>
     );
   }
 
-  if (groupedPlans.length === 0) {
+  if (groupedPlans.length === 0 && !isLoadingPlans) {
     return (
-      <section className="py-16 px-4 text-foreground"> {/* Adjusted padding */}
-        <div className="max-w-6xl mx-auto text-center"> {/* Adjusted container */}
+      <section className="py-16 px-4 text-foreground">
+        <div className="max-w-6xl mx-auto text-center">
           <p>No subscription plans are currently available. Please check back later.</p>
         </div>
       </section>
@@ -243,14 +297,12 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
                 <CardFooter className="mt-auto py-6">
                   <Button
                     onClick={() => onSelectPlan(planToDisplay.priceId)}
-                    className="w-full rounded-xl" // h-[] was in example, assuming default height is fine or adjust later
-                    variant={group.popular ? "default" : "outline"} // Popular plan gets default button style
+                    className="w-full rounded-xl"
+                    variant={group.popular ? "default" : "outline"}
                     size="lg"
-                    disabled={isSubmitting || planToDisplay.priceId === currentPlanId}
+                    disabled={getButtonTextAndState(planToDisplay.priceId).disabled}
                   >
-                    {planToDisplay.priceId === currentPlanId
-                      ? 'Current Plan'
-                      : (isSubmitting ? 'Processing...' : 'Get Started')}
+                    {getButtonTextAndState(planToDisplay.priceId).text}
                   </Button>
                 </CardFooter>
               </Card>
@@ -258,9 +310,11 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
           })}
         </div>
 
-        <div className="text-center mt-12">
-          <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
-        </div>
+        {isTrialEligible && (
+          <div className="text-center mt-12">
+            <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
+          </div>
+        )}
       </div>
     </section>
   );
