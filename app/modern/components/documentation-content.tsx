@@ -161,11 +161,11 @@ const NotionBlock = ({ block }: { block: BlockObjectResponse }) => {
       const tableBlockInfo = block.table; // Contains table_width, has_column_header, has_row_header
 
       return (
-        <div className="my-4 overflow-x-auto">
-          <table className="min-w-full border-collapse border border-border shadow-sm rounded-lg">
+        <div className="my-4 overflow-x-auto rounded-md border border-border shadow-sm">
+          <table className="min-w-full border-collapse">
             {/* Optionally render <thead> based on tableBlockInfo.has_column_header */}
             {tableBlockInfo.has_column_header && tableData.children && tableData.children.length > 0 && (
-              <thead className="bg-muted/50">
+              <thead className="bg-primary/10 font-semibold">
                 {/* Render the first child (row) as header */}
                 <NotionBlock key={tableData.children[0].id} block={tableData.children[0]} />
               </thead>
