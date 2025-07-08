@@ -10,22 +10,7 @@ import { fetchUserProfile } from '@/lib/data-fetching';
 import { isUserInActiveTrial } from '@/lib/utils';
 import { getPlanDetails } from '@/lib/stripe-server';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table"; // For local Wohnung type
-
-// Define Wohnung type (can be moved to a shared types file if used elsewhere globally)
-// This type is used for data transformation on the server before passing to client component.
-export interface Wohnung extends ApartmentTableType {
-  status: 'frei' | 'vermietet'; // Made status required
-  tenant?: {
-    id: string;
-    name: string;
-    einzug: string;
-    auszug: string;
-  };
-  Haeuser: {
-    name: string;
-  } | null;
-}
+import type { Wohnung } from "@/types/Wohnung";
 
 // Server Component: Fetches data and passes it to the Client Component
 export default async function WohnungenPage() {

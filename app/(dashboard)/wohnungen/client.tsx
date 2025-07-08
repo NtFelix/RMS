@@ -6,21 +6,9 @@ import { PlusCircle } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentTable } from "@/components/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table"; // Renamed to avoid conflict with local Wohnung
+import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
-
-// Match the Wohnung type defined in (the old) page.tsx
-export interface Wohnung extends ApartmentTableType {
-  status: 'frei' | 'vermietet'; // Made status required
-  tenant?: {
-    id: string;
-    name: string;
-    einzug: string;
-    auszug: string;
-  };
-  Haeuser: { name: string; } | null;
-}
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
