@@ -43,8 +43,14 @@ const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
   );
 };
 
+interface NotionBlockProps {
+  block: BlockWithChildren;
+  isHeaderRow?: boolean;
+  hasRowHeader?: boolean;
+}
+
 // Component to render a single Notion block
-const NotionBlock = ({ block }: { block: BlockWithChildren }) => {
+const NotionBlock = ({ block, isHeaderRow = false, hasRowHeader = false }: NotionBlockProps) => {
   const { type } = block;
 
   switch (type) {
@@ -167,14 +173,14 @@ const NotionBlock = ({ block }: { block: BlockWithChildren }) => {
             {tableBlockInfo.has_column_header && tableData.children && tableData.children.length > 0 && (
               <thead className="bg-primary/10 font-semibold">
                 {/* Render the first child (row) as header */}
-                <NotionBlock key={tableData.children[0].id} block={tableData.children[0]} />
+                <NotionBlock key={tableData.children[0].id} block={tableData.children[0]} isHeaderRow={true} />
               </thead>
             )}
             <tbody>
               {(tableData.children && tableData.children.length > 0) ? (
                 // If has_column_header, skip the first child as it's rendered in thead
                 tableData.children.slice(tableBlockInfo.has_column_header ? 1 : 0).map((childBlock: BlockObjectResponse) => (
-                  <NotionBlock key={childBlock.id} block={childBlock} />
+                  <NotionBlock key={childBlock.id} block={childBlock} hasRowHeader={tableBlockInfo.has_row_header} />
                 ))
               ) : (
                 <tr>
@@ -192,15 +198,20 @@ const NotionBlock = ({ block }: { block: BlockWithChildren }) => {
       // Now renders as a proper <tr> since it will be a child of <table>
       return (
         <tr className="border-b border-border last:border-b-0 hover:bg-muted/60 transition-colors duration-150">
-          {tableRow.cells.map((cellContent, cellIndex) => (
-            <td
-              key={cellIndex}
-              className="p-3 border-r border-border last:border-r-0 text-foreground/90"
-              // TODO: Apply has_row_header styling to first cell if applicable
-            >
-              <NotionRichText richTextArray={cellContent} />
-            </td>
-          ))}
+          {tableRow.cells.map((cellContent, cellIndex) => {
+            const CellComponent = (isHeaderRow || (hasRowHeader && cellIndex === 0)) ? 'th' : 'td';
+            const scope = isHeaderRow ? 'col' : (hasRowHeader && cellIndex === 0) ? 'row' : undefined;
+
+            return (
+              <CellComponent
+                key={cellIndex}
+                scope={scope}
+                className="p-3 border-r border-border last:border-r-0 text-foreground/90"
+              >
+                <NotionRichText richTextArray={cellContent} />
+              </CellComponent>
+            );
+          })}
         </tr>
       );
     // Add more cases for other block types as needed (e.g., quote, divider, etc.)
