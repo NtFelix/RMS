@@ -12,6 +12,7 @@ import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
 import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { isUserInActiveTrial, calculateOverallSubscriptionActivity } from '@/lib/utils';
 import { loadStripe } from '@stripe/stripe-js';
 
 // Stripe Promise for client-side redirection
@@ -54,9 +55,61 @@ export default function LandingPage() {
 
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [stripeSubscriptionStatus, setStripeSubscriptionStatus] = useState<string | null>(null);
+  const [activeTrial, setActiveTrial] = useState<boolean>(false);
+  const [overallSubscriptionActive, setOverallSubscriptionActive] = useState<boolean>(false);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+  const [isProcessingPortalRedirect, setIsProcessingPortalRedirect] = useState(false);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('stripe_subscription_status, trial_starts_at, trial_ends_at, stripe_price_id')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          // Set to default non-active values
+          setStripeSubscriptionStatus(null);
+          setActiveTrial(false);
+          setOverallSubscriptionActive(false);
+          setCurrentPlanId(null);
+        } else if (profile) {
+          setStripeSubscriptionStatus(profile.stripe_subscription_status);
+          setActiveTrial(isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at));
+          setOverallSubscriptionActive(calculateOverallSubscriptionActivity(profile));
+          setCurrentPlanId(profile.stripe_price_id);
+        } else {
+          // No profile found, set to default non-active values
+          console.log('No profile found for the user.');
+          setStripeSubscriptionStatus(null);
+          setActiveTrial(false);
+          setOverallSubscriptionActive(false);
+          setCurrentPlanId(null);
+        }
+      } else {
+        // No user logged in, set to default non-active values
+        setStripeSubscriptionStatus(null);
+        setActiveTrial(false);
+        setOverallSubscriptionActive(false);
+        setCurrentPlanId(null);
+      }
+    };
+
+    fetchUserProfile();
+  }, [supabase]);
 
   const proceedToCheckout = async (priceId: string) => {
     setIsProcessingCheckout(true);
+
+    // REMOVED: overallSubscriptionActive check - This is now handled by Pricing component logic
+    // which should call onManageSubscription instead of onSelectPlan (leading to this function)
+    // if the user has an active subscription.
+
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -169,6 +222,48 @@ export default function LandingPage() {
     await handleAuthFlow(priceId);
   };
 
+  const redirectToCustomerPortal = async () => {
+    setIsProcessingPortalRedirect(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Authentication Required', description: 'Please log in to manage your subscription.', variant: 'default' });
+        setIsProcessingPortalRedirect(false);
+        return;
+      }
+
+      const response = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // Include user details if your backend needs them to identify the Stripe customer
+        body: JSON.stringify({ userId: user.id, email: user.email }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create customer portal session.');
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Customer portal URL not found in response.');
+      }
+    } catch (error) {
+      console.error('Customer portal redirect error:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message || 'Could not redirect to customer portal. Please try again or contact support.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingPortalRedirect(false);
+    }
+  };
+
   return (
     <>
       <Suspense fallback={null}>
@@ -186,7 +281,16 @@ export default function LandingPage() {
           <Services />
         </div>
         <div id="pricing">
-          <Pricing onSelectPlan={handleSelectPlan} />
+          <Pricing
+            onSelectPlan={handleSelectPlan}
+            stripeSubscriptionStatus={stripeSubscriptionStatus}
+            activeTrial={activeTrial}
+            overallSubscriptionActive={overallSubscriptionActive}
+            currentPlanId={currentPlanId}
+            onManageSubscription={redirectToCustomerPortal}
+            isProcessingCheckout={isProcessingCheckout} // Pass this for disabling buttons during portal redirect too
+            isProcessingPortalRedirect={isProcessingPortalRedirect} // Pass this new state
+          />
         </div>
         <div id="testimonials">
           <Testimonials />

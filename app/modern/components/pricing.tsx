@@ -43,8 +43,13 @@ const formatDisplayPrice = (amount: number, currency: string, interval: string |
 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
-  isLoading?: boolean;
+  onManageSubscription: () => Promise<void>; // Or appropriate signature
+  isProcessingCheckout?: boolean;
+  isProcessingPortalRedirect?: boolean;
   currentPlanId?: string | null;
+  stripeSubscriptionStatus?: string | null;
+  activeTrial?: boolean;
+  overallSubscriptionActive?: boolean;
 }
 
 interface GroupedPlan {
@@ -57,7 +62,16 @@ interface GroupedPlan {
   popular?: boolean; // Added popular flag
 }
 
-export default function Pricing({ onSelectPlan, isLoading: isSubmitting, currentPlanId }: PricingProps) {
+export default function Pricing({
+  onSelectPlan,
+  onManageSubscription,
+  isProcessingCheckout,
+  isProcessingPortalRedirect,
+  currentPlanId,
+  stripeSubscriptionStatus,
+  activeTrial,
+  overallSubscriptionActive,
+}: PricingProps) {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -242,15 +256,27 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
 
                 <CardFooter className="mt-auto py-6">
                   <Button
-                    onClick={() => onSelectPlan(planToDisplay.priceId)}
-                    className="w-full rounded-xl" // h-[] was in example, assuming default height is fine or adjust later
-                    variant={group.popular ? "default" : "outline"} // Popular plan gets default button style
+                    onClick={
+                      overallSubscriptionActive
+                        ? onManageSubscription
+                        : () => onSelectPlan(planToDisplay.priceId)
+                    }
+                    className="w-full rounded-xl"
+                    variant={group.popular ? "default" : "outline"}
                     size="lg"
-                    disabled={isSubmitting || planToDisplay.priceId === currentPlanId}
+                    disabled={
+                      isProcessingCheckout ||
+                      isProcessingPortalRedirect ||
+                      (overallSubscriptionActive && planToDisplay.priceId === currentPlanId)
+                    }
                   >
-                    {planToDisplay.priceId === currentPlanId
-                      ? 'Current Plan'
-                      : (isSubmitting ? 'Processing...' : 'Get Started')}
+                    {overallSubscriptionActive
+                      ? planToDisplay.priceId === currentPlanId
+                        ? 'Current Plan'
+                        : 'Manage Subscription'
+                      : isProcessingCheckout
+                      ? 'Processing...'
+                      : 'Get Started'}
                   </Button>
                 </CardFooter>
               </Card>
@@ -258,9 +284,11 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
           })}
         </div>
 
-        <div className="text-center mt-12">
-          <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
-        </div>
+        {!overallSubscriptionActive && (
+          <div className="text-center mt-12">
+            <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
+          </div>
+        )}
       </div>
     </section>
   );
