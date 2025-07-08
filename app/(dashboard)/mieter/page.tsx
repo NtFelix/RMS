@@ -12,11 +12,29 @@ import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
   const supabase = await createSupabaseServerClient();
-  const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
-  const wohnungen: Wohnung[] = wohnungenData ?? [];
-  const { data: mieterData } = await supabase.from('Mieter').select('*');
-  // Ensure mieterData conforms to Tenant[] type, especially if DB schema differs slightly
-  const mieter: Tenant[] = mieterData ? mieterData.map(m => ({...m})) : [];
+  const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
+  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+
+  const { data: rawMieter, error: mieterError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
+  if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
+
+  const today = new Date();
+  const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
+    const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
+    let status: 'frei' | 'vermietet' = 'frei';
+    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
+      status = 'vermietet';
+    }
+    return {
+      ...apt,
+      Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
+      status,
+      tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
+    } as Wohnung;
+  }) : [];
+
+  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({...m})) : [];
+  
 
 
   return (
