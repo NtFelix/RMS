@@ -73,7 +73,7 @@ export default async function WohnungenPage() {
   if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
 
   const today = new Date();
-  const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt: any) => {
+  const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
     const tenant = tenants?.find((t: any) => t.wohnung_id === apt.id);
     let status: 'frei' | 'vermietet' = 'frei';
     if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
