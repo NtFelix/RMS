@@ -191,12 +191,18 @@ export async function getPageContent(pageId: string): Promise<BlockWithChildren[
     const blocksWithChildren: Promise<BlockWithChildren>[] = blocks.map(async (block) => {
         if (block.type === "table" && block.has_children) {
           try {
-            const childrenResponse = await client.blocks.children.list({
-              block_id: block.id,
-              page_size: 100, // Assuming tables won't have more than 100 rows for now
-            });
-            // Add children to the block object using the extended type.
-            (block as BlockWithChildren).children = childrenResponse.results as BlockObjectResponse[];
+            const tableChildren: BlockObjectResponse[] = [];
+            let childrenCursor: string | undefined;
+            do {
+              const childrenResponse = await client.blocks.children.list({
+                block_id: block.id,
+                start_cursor: childrenCursor,
+                page_size: 100, // Max page size for Notion API
+              });
+              tableChildren.push(...(childrenResponse.results as BlockObjectResponse[]));
+              childrenCursor = childrenResponse.next_cursor ?? undefined;
+            } while (childrenCursor);
+            (block as BlockWithChildren).children = tableChildren;
           } catch (e) {
             console.error(`Failed to fetch children for table block ${block.id}:`, e);
             // Keep the block without children if fetching fails
