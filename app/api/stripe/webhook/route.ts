@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { Profile } from '@/types/supabase';
 
 // Module-level constants that are safe to initialize here
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   );
 
   // Define helper functions within POST to access supabaseAdmin
-  async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
+  async function updateProfileInSupabase(userId: string, dataToUpdate: Partial<Profile>) {
     console.log(`Updating profile for user ${userId} with data:`, dataToUpdate);
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     return data;
   }
 
-  async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: any) {
+  async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: Partial<Profile>) {
     console.log(`Updating profile for customer ${customerId} with data:`, dataToUpdate);
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
             break;
         }
 
-        const profileUpdateData: any = {
+        const profileUpdateData: Partial<Profile> = {
           stripe_customer_id: customerId,
           stripe_subscription_id: retrievedSubscription.id,
           stripe_subscription_status: retrievedSubscription.status,
@@ -184,7 +185,7 @@ export async function POST(req: Request) {
             break;
         }
 
-        const profileUpdateData: any = {
+        const profileUpdateData: Partial<Profile> = {
             stripe_subscription_id: subscriptionFromEvent.id,
             stripe_subscription_status: subscriptionFromEvent.status,
             stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
