@@ -197,15 +197,6 @@ export async function POST(req: Request) {
         // or its trial period details change.
         if (subscriptionFromEvent.trial_start) {
             profileUpdateData.trial_starts_at = new Date(subscriptionFromEvent.trial_start * 1000).toISOString();
-        } else {
-            // If trial_start is null, it means no active trial on this version of the subscription.
-            // We might want to nullify trial_starts_at if the subscription is updated and loses its trial.
-            // However, for the purpose of "ever had a trial", we should be careful.
-            // Let's assume if it was set once by checkout.session.completed, it remains.
-            // If the subscription is updated to NOT have a trial anymore, these fields from Stripe will be null.
-            // The current logic will effectively update to null if Stripe sends null.
-            // This is consistent with keeping the profile reflecting the *current* subscription state.
-            profileUpdateData.trial_starts_at = null;
         }
 
         if (subscriptionFromEvent.trial_end) {
