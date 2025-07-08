@@ -9,6 +9,7 @@ import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
+import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
