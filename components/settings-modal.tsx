@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog" // DialogOverlay removed as it's part of Dialog in new shadcn
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // DialogOverlay removed, DialogDescription added
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
@@ -684,7 +684,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
-            <DialogTitle className="sr-only">Einstellungen</DialogTitle>
+            <DialogHeader className="sr-only"> {/* Wrap Title and Description, make Header sr-only if Title is already sr-only */}
+              <DialogTitle>Einstellungen</DialogTitle>
+              <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
+            </DialogHeader>
           <div className="flex h-full overflow-hidden">
             <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
             {tabs.map(tab => (

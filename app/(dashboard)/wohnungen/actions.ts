@@ -85,15 +85,16 @@ export async function speichereWohnung(formData: WohnungFormData) {
                 return { error: 'Details zu Ihrem Abonnementplan konnten nicht gefunden werden. Bitte überprüfen Sie Ihr Abonnement oder kontaktieren Sie den Support.' };
             }
 
-            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
-                currentApartmentLimit = planDetails.limitWohnungen;
-            } else if (planDetails.limitWohnungen === null) {
+            // Updated logic to treat 0 or negative as Infinity (unlimited)
+            if (planDetails.limitWohnungen === null || (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen <= 0) ) {
                 currentApartmentLimit = Infinity;
+            } else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) {
+                currentApartmentLimit = planDetails.limitWohnungen;
             } else {
                 console.error('Invalid limitWohnungen configuration:', planDetails.limitWohnungen);
                 return { error: 'Ungültige Konfiguration für Wohnungslimit in Ihrem Plan. Bitte kontaktieren Sie den Support.' };
             }
-            limitReasonIsTrial = false;
+            limitReasonIsTrial = false; // If it's a paid active sub, limit reason is not trial
         } catch (planError) {
             console.error("Error fetching plan details for limit enforcement:", planError);
             return { error: 'Fehler beim Abrufen der Plandetails für Ihr Abonnement. Bitte versuchen Sie es später erneut.' };

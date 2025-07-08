@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'; // Added within
 import { SettingsModal } from './settings-modal'; // Adjust path as needed
 import { toast } from 'sonner';
 import { createClient } from '@/utils/supabase/client'; // Actual path to supabase client
@@ -94,7 +94,9 @@ describe('Account Deletion in SettingsModal', () => {
 
   // Helper to switch to profile tab - though it's default
   const switchToProfileTab = async () => {
-    const profileTabButton = await screen.findByRole('button', { name: /Profil/i });
+    // The navigation buttons are within a <nav> element.
+    const navElement = screen.getByRole('navigation');
+    const profileTabButton = await within(navElement).findByRole('button', { name: /Profil/i });
     fireEvent.click(profileTabButton);
   };
 

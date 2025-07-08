@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useModalStore } from "@/hooks/use-modal-store"; // Added
+import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle } from "lucide-react";
 import { TenantFilters } from "@/components/tenant-filters";
 import { TenantTable } from "@/components/tenant-table";
 import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper";
 
+// Types matching those in page.tsx
 interface Tenant {
   id: string;
   wohnung_id?: string;
@@ -26,68 +27,83 @@ interface Wohnung {
   name: string;
 }
 
-interface TenantClientWrapperProps {
-  tenants: Tenant[];
-  wohnungen: Wohnung[];
+// Props for the main client view component
+interface MieterClientViewProps {
+  initialTenants: Tenant[];
+  initialWohnungen: Wohnung[];
   serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
 }
 
-export default function TenantClientWrapper({ tenants, wohnungen, serverAction }: TenantClientWrapperProps) {
+// Internal AddTenantButton (could be kept from previous step if preferred)
+function AddTenantButton({ onAdd }: { onAdd: () => void }) {
+  return (
+    <Button onClick={onAdd} className="sm:w-auto">
+      <PlusCircle className="mr-2 h-4 w-4" />
+      Mieter hinzufügen
+    </Button>
+  );
+}
+
+// This is the new main client component, previously MieterPageClientComponent in page.tsx
+export default function MieterClientView({
+  initialTenants,
+  initialWohnungen,
+  serverAction,
+}: MieterClientViewProps) {
   const [filter, setFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const { openTenantModal } = useModalStore();
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Callback für Tabelle
-  const handleEdit = (tenant: Tenant) => {
-    setEditingId(tenant.id);
-    setDialogOpen(true);
-  };
-  // Callback für Hinzufügen
-  const handleAdd = () => {
-    // Use modal store to open tenant modal for adding, pass wohnungen
-    useModalStore.getState().openTenantModal(undefined, wohnungen);
-  };
+  const handleAddTenant = useCallback(() => {
+    openTenantModal(undefined, initialWohnungen); // Removed serverAction
+  }, [openTenantModal, initialWohnungen]);
 
-  // Callback für Tabelle (Edit-Funktion) - bleibt gleich, nutzt weiterhin TenantDialogWrapper
-  const handleEditTenantInTable = (tenant: Tenant) => {
+  const handleEditTenantInTable = useCallback((tenant: Tenant) => {
     setEditingId(tenant.id);
     setDialogOpen(true);
-  };
+  }, []);
 
   return (
-    <>
-      {/* TenantDialogWrapper is still used for editing via the table's onEdit prop */}
+    <div className="flex flex-col gap-8 p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Mieter</h1>
+          <p className="text-muted-foreground">Verwalten Sie Ihre Mieter und Mietverhältnisse</p>
+        </div>
+        <AddTenantButton onAdd={handleAddTenant} />
+      </div>
+
+      {/* TenantDialogWrapper for editing from table */}
       <TenantDialogWrapper
-        wohnungen={wohnungen}
-        mieter={tenants} // Pass all tenants for editing lookup
+        wohnungen={initialWohnungen}
+        mieter={initialTenants}
         serverAction={serverAction}
-        // onEditExternal and onAddExternal are primarily for the dialog's internal logic
-        // or if it were used stand-alone.
-        // For editing via table, we directly control its open state and editingId.
-        open={dialogOpen} // Controls visibility for editing
-        editingId={editingId} // Sets the tenant to edit
-        setOpen={setDialogOpen} // Allows TenantDialogWrapper to close itself
-        setEditingId={setEditingId} // Allows TenantDialogWrapper to clear editingId on close
+        open={dialogOpen}
+        editingId={editingId}
+        setOpen={setDialogOpen}
+        setEditingId={setEditingId}
       />
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader>
           <div>
             <CardTitle>Mieterverwaltung</CardTitle>
             <CardDescription>Hier können Sie Ihre Mieter verwalten und filtern</CardDescription>
           </div>
-          {/* This button now uses the global modal store */}
-          <Button onClick={handleAdd} className="sm:w-auto">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Mieter hinzufügen
-          </Button>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <TenantFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          {/* Ensure TenantTable's onEdit calls handleEditTenantInTable */}
-          <TenantTable tenants={tenants} wohnungen={wohnungen} filter={filter} searchQuery={searchQuery} onEdit={handleEditTenantInTable} />
+          <TenantTable
+            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
+            wohnungen={initialWohnungen}
+            filter={filter}
+            searchQuery={searchQuery}
+            onEdit={handleEditTenantInTable}
+          />
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

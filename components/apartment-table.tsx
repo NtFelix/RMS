@@ -22,7 +22,7 @@ export interface Apartment {
   groesse: number
   miete: number
   haus_id?: string
-  Haeuser?: { name: string }
+  Haeuser?: { name: string } | null; // Allow null here
   status: 'frei' | 'vermietet'
   tenant?: {
     id: string

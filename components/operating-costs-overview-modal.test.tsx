@@ -117,11 +117,15 @@ describe('OperatingCostsOverviewModal', () => {
     expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
     expect(within(wasserkostenSection).getByText('50 m³')).toBeInTheDocument();
 
-    expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
-    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserkosten is null
+    const gesamtkostenDiv = within(wasserkostenSection).getByText('Gesamtkosten').parentElement;
+    expect(gesamtkostenDiv).not.toBeNull();
+    if (gesamtkostenDiv) expect(within(gesamtkostenDiv).getByText('-')).toBeInTheDocument();
 
-    expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
-    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserkosten is null
+
+    const kostenProM3Div = within(wasserkostenSection).getByText('Kosten pro m³').parentElement;
+    expect(kostenProM3Div).not.toBeNull();
+    if (kostenProM3Div) expect(within(kostenProM3Div).getByText('-')).toBeInTheDocument();
+
 
     expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
   });
@@ -168,14 +172,18 @@ describe('OperatingCostsOverviewModal', () => {
     expect(wasserkostenSection).toBeInTheDocument();
     if (!wasserkostenSection) return;
 
-    expect(within(wasserkostenSection).getByText('Gesamtverbrauch')).toBeInTheDocument();
-    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserverbrauch is null
+    const gesamtverbrauchDiv = within(wasserkostenSection).getByText('Gesamtverbrauch').parentElement;
+    expect(gesamtverbrauchDiv).not.toBeNull();
+    if (gesamtverbrauchDiv) expect(within(gesamtverbrauchDiv).getByText('-')).toBeInTheDocument();
+
 
     expect(within(wasserkostenSection).getByText('Gesamtkosten')).toBeInTheDocument();
     expect(within(wasserkostenSection).getByText(/100,00\s*€/)).toBeInTheDocument();
 
-    expect(within(wasserkostenSection).getByText('Kosten pro m³')).toBeInTheDocument();
-    expect(within(wasserkostenSection).getByText('-')).toBeInTheDocument(); // Wasserverbrauch is null
+    const kostenProM3Div = within(wasserkostenSection).getByText('Kosten pro m³').parentElement;
+    expect(kostenProM3Div).not.toBeNull();
+    if (kostenProM3Div) expect(within(kostenProM3Div).getByText('-')).toBeInTheDocument();
+
 
     expect(within(wasserkostenSection).queryByText('Keine Wasserdaten erfasst.')).not.toBeInTheDocument();
   });

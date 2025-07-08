@@ -630,7 +630,12 @@ export function BetriebskostenEditModal({
                 ) : (
                   // Actual Cost Items
                   costItems.map((item, index) => (
-                    <div key={item.id} className="flex flex-col gap-3 py-2 border-b last:border-b-0">
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-3 py-2 border-b last:border-b-0"
+                      role="group" // Added role
+                      aria-label={`Kostenposition ${index + 1}`} // Added aria-label
+                    >
                       <div className="flex flex-col sm:flex-row items-start gap-3">
                         <div className="w-full sm:flex-[4_1_0%]">
                           <Input 

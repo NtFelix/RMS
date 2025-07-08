@@ -5,8 +5,8 @@ import { createServerClient } from '@supabase/ssr';
 
 // Mock a minimal NextRequest
 const mockRequest = (pathname: string, cookies: Record<string, string> = {}): NextRequest => {
-  const url = new URL(`http://localhost:3000${pathname}`);
-  const request = new NextRequest(url);
+  const stringUrl = `http://localhost:3000${pathname}`;
+  const request = new NextRequest(stringUrl); // Use string URL directly
   for (const key in cookies) {
     request.cookies.set(key, cookies[key]);
   }
