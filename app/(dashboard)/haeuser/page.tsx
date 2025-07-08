@@ -52,9 +52,6 @@ export default async function HaeuserPage() {
 
     return {
       ...house,
-      id: house.id, // Ensure id is explicitly included if House type requires it
-      name: house.name, // Ensure name is explicitly included
-      ort: house.ort, // Ensure ort is explicitly included
       totalApartments,
       freeApartments,
       size: displaySize,
