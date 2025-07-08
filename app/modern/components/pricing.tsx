@@ -41,20 +41,11 @@ const formatDisplayPrice = (amount: number, currency: string, interval: string |
 };
 
 
-// Define UserProfile interface matching the one in LandingPage
-interface UserProfile {
-  id: string;
-  trial_starts_at?: string | null;
-  // trial_ends_at is not directly used in pricing logic here, but good to have if fetched
-  stripe_customer_id?: string | null; // Not directly used here but part of profile
-  stripe_subscription_id?: string | null; // Not directly used here but part of profile
-  stripe_subscription_status?: string | null;
-  stripe_price_id?: string | null;
-}
+import { Profile } from '@/types/supabase';
 
 interface PricingProps {
   onSelectPlan: (priceId: string) => void;
-  userProfile: UserProfile | null;
+  userProfile: Profile | null;
   isLoading?: boolean; // This is isProcessingCheckout from LandingPage
   // currentPlanId is now derived from userProfile.stripe_price_id
 }
