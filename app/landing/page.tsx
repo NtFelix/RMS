@@ -12,6 +12,7 @@ import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
 import { createClient } from '@/utils/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { isUserInActiveTrial, calculateOverallSubscriptionActivity } from '@/lib/utils';
 import { loadStripe } from '@stripe/stripe-js';
 
 // Stripe Promise for client-side redirection
@@ -54,9 +55,66 @@ export default function LandingPage() {
 
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [stripeSubscriptionStatus, setStripeSubscriptionStatus] = useState<string | null>(null);
+  const [activeTrial, setActiveTrial] = useState<boolean>(false);
+  const [overallSubscriptionActive, setOverallSubscriptionActive] = useState<boolean>(false);
+  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('stripe_subscription_status, trial_starts_at, trial_ends_at, stripe_price_id')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          // Set to default non-active values
+          setStripeSubscriptionStatus(null);
+          setActiveTrial(false);
+          setOverallSubscriptionActive(false);
+          setCurrentPlanId(null);
+        } else if (profile) {
+          setStripeSubscriptionStatus(profile.stripe_subscription_status);
+          setActiveTrial(isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at));
+          setOverallSubscriptionActive(calculateOverallSubscriptionActivity(profile));
+          setCurrentPlanId(profile.stripe_price_id);
+        } else {
+          // No profile found, set to default non-active values
+          console.log('No profile found for the user.');
+          setStripeSubscriptionStatus(null);
+          setActiveTrial(false);
+          setOverallSubscriptionActive(false);
+          setCurrentPlanId(null);
+        }
+      } else {
+        // No user logged in, set to default non-active values
+        setStripeSubscriptionStatus(null);
+        setActiveTrial(false);
+        setOverallSubscriptionActive(false);
+        setCurrentPlanId(null);
+      }
+    };
+
+    fetchUserProfile();
+  }, [supabase]);
 
   const proceedToCheckout = async (priceId: string) => {
     setIsProcessingCheckout(true);
+
+    if (overallSubscriptionActive) {
+      toast({
+        title: 'Information',
+        description: 'You already have an active subscription or trial.',
+        variant: 'default',
+      });
+      setIsProcessingCheckout(false);
+      return;
+    }
+
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
@@ -186,7 +244,13 @@ export default function LandingPage() {
           <Services />
         </div>
         <div id="pricing">
-          <Pricing onSelectPlan={handleSelectPlan} />
+          <Pricing
+            onSelectPlan={handleSelectPlan}
+            stripeSubscriptionStatus={stripeSubscriptionStatus}
+            activeTrial={activeTrial}
+            overallSubscriptionActive={overallSubscriptionActive}
+            currentPlanId={currentPlanId}
+          />
         </div>
         <div id="testimonials">
           <Testimonials />

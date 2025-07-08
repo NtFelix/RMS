@@ -45,6 +45,9 @@ interface PricingProps {
   onSelectPlan: (priceId: string) => void;
   isLoading?: boolean;
   currentPlanId?: string | null;
+  stripeSubscriptionStatus?: string | null;
+  activeTrial?: boolean;
+  overallSubscriptionActive?: boolean;
 }
 
 interface GroupedPlan {
@@ -57,7 +60,14 @@ interface GroupedPlan {
   popular?: boolean; // Added popular flag
 }
 
-export default function Pricing({ onSelectPlan, isLoading: isSubmitting, currentPlanId }: PricingProps) {
+export default function Pricing({
+  onSelectPlan,
+  isLoading: isSubmitting,
+  currentPlanId,
+  stripeSubscriptionStatus,
+  activeTrial,
+  overallSubscriptionActive,
+}: PricingProps) {
   const [allPlans, setAllPlans] = useState<Plan[]>([]);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -246,11 +256,17 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
                     className="w-full rounded-xl" // h-[] was in example, assuming default height is fine or adjust later
                     variant={group.popular ? "default" : "outline"} // Popular plan gets default button style
                     size="lg"
-                    disabled={isSubmitting || planToDisplay.priceId === currentPlanId}
+                    disabled={
+                      isSubmitting ||
+                      (overallSubscriptionActive && planToDisplay.priceId === currentPlanId) || // Disabled if current plan
+                      (overallSubscriptionActive && planToDisplay.priceId !== currentPlanId) // Also disabled if other plan and already active sub/trial
+                    }
                   >
-                    {planToDisplay.priceId === currentPlanId
+                    {overallSubscriptionActive && planToDisplay.priceId === currentPlanId
                       ? 'Current Plan'
-                      : (isSubmitting ? 'Processing...' : 'Get Started')}
+                      : isSubmitting
+                      ? 'Processing...'
+                      : 'Get Started'}
                   </Button>
                 </CardFooter>
               </Card>
@@ -258,9 +274,11 @@ export default function Pricing({ onSelectPlan, isLoading: isSubmitting, current
           })}
         </div>
 
-        <div className="text-center mt-12">
-          <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
-        </div>
+        {!overallSubscriptionActive && (
+          <div className="text-center mt-12">
+            <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
+          </div>
+        )}
       </div>
     </section>
   );
