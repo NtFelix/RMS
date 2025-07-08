@@ -160,7 +160,12 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
   }
 }
 
-export async function getPageContent(pageId: string): Promise<BlockObjectResponse[]> {
+// This is an extended type that allows us to add children to blocks, especially for tables.
+export type BlockWithChildren = BlockObjectResponse & {
+  children?: BlockObjectResponse[];
+};
+
+export async function getPageContent(pageId: string): Promise<BlockWithChildren[]> {
   try {
     const blocks: BlockObjectResponse[] = [];
     let cursor: string | undefined;
@@ -181,7 +186,32 @@ export async function getPageContent(pageId: string): Promise<BlockObjectRespons
 
       cursor = next_cursor;
     }
-    return blocks;
+
+    // Iterate through blocks to fetch children of 'table' blocks
+    const blocksWithChildren: Promise<BlockWithChildren>[] = blocks.map(async (block) => {
+        if (block.type === "table" && block.has_children) {
+          try {
+            const tableChildren: BlockObjectResponse[] = [];
+            let childrenCursor: string | undefined;
+            do {
+              const childrenResponse = await client.blocks.children.list({
+                block_id: block.id,
+                start_cursor: childrenCursor,
+                page_size: 100, // Max page size for Notion API
+              });
+              tableChildren.push(...(childrenResponse.results as BlockObjectResponse[]));
+              childrenCursor = childrenResponse.next_cursor ?? undefined;
+            } while (childrenCursor);
+            (block as BlockWithChildren).children = tableChildren;
+          } catch (e) {
+            console.error(`Failed to fetch children for table block ${block.id}:`, e);
+            // Keep the block without children if fetching fails
+          }
+        }
+        return block;
+      });
+
+    return Promise.all(blocksWithChildren);
   } catch (error) {
     console.error(`Failed to fetch content for page ${pageId} from Notion:`, error);
     throw error; // Re-throw the error
