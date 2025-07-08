@@ -9,23 +9,8 @@ import { TenantFilters } from "@/components/tenant-filters";
 import { TenantTable } from "@/components/tenant-table";
 import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper";
 
-// Types matching those in page.tsx
-interface Tenant {
-  id: string;
-  wohnung_id?: string;
-  name: string;
-  einzug?: string;
-  auszug?: string;
-  email?: string;
-  telefonnummer?: string;
-  notiz?: string;
-  nebenkosten?: number[];
-}
-
-interface Wohnung {
-  id: string;
-  name: string;
-}
+import type { Tenant } from "@/types/Tenant";
+import type { Wohnung } from "@/types/Wohnung";
 
 // Props for the main client view component
 interface MieterClientViewProps {
