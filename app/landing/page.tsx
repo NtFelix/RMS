@@ -12,6 +12,7 @@ import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js'; // Import User type
+import { Profile } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -53,18 +54,9 @@ export default function LandingPage() {
   const supabase = createClient(); // Rely on type inference for supabase client
 
   // Define UserProfile interface based on expected fields
-  interface UserProfile {
-    id: string;
-    trial_starts_at?: string | null;
-    trial_ends_at?: string | null;
-    stripe_customer_id?: string | null;
-    stripe_subscription_id?: string | null;
-    stripe_subscription_status?: string | null;
-    stripe_price_id?: string | null;
-    // Add other fields if needed by Pricing or other components
-  }
+  
 
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null); // To store the auth user object
@@ -107,7 +99,7 @@ export default function LandingPage() {
       if (error && error.code !== 'PGRST116') { // PGRST116 means no row found, which is fine (profile might not exist)
         throw error;
       }
-      setUserProfile(data as UserProfile | null);
+      setUserProfile(data as Profile | null);
     } catch (error) {
       console.error('Error fetching user profile:', error);
       // Optionally show a toast error, but avoid if it's just profile not found for a new user
