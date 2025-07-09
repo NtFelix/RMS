@@ -1,6 +1,6 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createRouteHandlerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
 import { Profile } from '@/types/supabase'; // Import the Profile type

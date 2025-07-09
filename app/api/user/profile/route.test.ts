@@ -1,10 +1,10 @@
 import { GET } from './route'; // Assuming route.ts is in the same directory for testing
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
+import { createRouteHandlerClient } from '@supabase/ssr';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { NextResponse } from 'next/server';
 
 // Mock dependencies
-jest.mock('@supabase/auth-helpers-nextjs', () => ({
+jest.mock('@supabase/ssr', () => ({
   createRouteHandlerClient: jest.fn(),
 }));
 jest.mock('@/lib/stripe-server', () => ({
