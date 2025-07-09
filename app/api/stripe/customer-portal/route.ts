@@ -32,16 +32,28 @@ export async function POST(req: Request) {
     apiVersion: '2025-05-28.basil',
   })
 
-  const { return_url } = await req.json()
-
   try {
+    const { return_url: returnUrlFromRequest } = await req.json();
+    let return_url = returnUrlFromRequest;
+
+    if (!return_url) {
+      const origin = req.headers.get('origin');
+      if (origin) {
+        return_url = `${origin}/`;
+      } else {
+        console.error('Request origin could not be determined.');
+        return NextResponse.json({ error: 'Could not determine request origin for return URL.' }, { status: 500 });
+      }
+    }
+
     const { url } = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: return_url,
-    })
-    return NextResponse.json({ url })
+      return_url,
+    });
+
+    return NextResponse.json({ url });
   } catch (error) {
-    console.error('Error creating customer portal session:', error)
-    return NextResponse.json({ error: 'Error creating customer portal session' }, { status: 500 })
+    console.error('Error creating customer portal session:', error);
+    return NextResponse.json({ error: 'Error creating customer portal session' }, { status: 500 });
   }
 }
