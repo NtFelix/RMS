@@ -195,20 +195,75 @@ export default function LandingPage() {
   };
 
   const handleAuthFlow = async (priceId: string) => {
-    setSelectedPriceId(priceId);
+    setSelectedPriceId(priceId); // Keep track of which plan button was clicked, though not strictly needed for manage flow
 
     if (isProcessingCheckout) return;
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // sessionUser is already available in the component's state
+    // const { data: { user } } = await supabase.auth.getUser(); // Not needed, use sessionUser
 
-    if (user) {
-      await proceedToCheckout(priceId);
-    } else {
+    if (sessionUser && userProfile) { // Check both sessionUser and that userProfile is loaded
+      const hasActiveSubscription = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
+      if (hasActiveSubscription) {
+        await redirectToCustomerPortal();
+      } else {
+        await proceedToCheckout(priceId);
+      }
+    } else if (sessionUser && !userProfile) {
+      // Profile is still loading or failed to load, user is logged in.
+      // Potentially show a loading state or a message if profile fetch failed earlier.
+      // For now, let's assume profile will eventually load or an error toast is shown by fetchUserProfile/ProfileErrorToastHandler
+      toast({
+        title: 'Please wait',
+        description: 'User details are still loading. Please try again shortly.',
+        variant: 'default',
+      });
+    }
+     else { // No sessionUser (user not logged in)
       toast({
         title: 'Login Required',
         description: 'Please log in via the navigation bar to select a plan.',
         variant: 'default',
       });
+    }
+  };
+
+  const redirectToCustomerPortal = async () => {
+    setIsProcessingCheckout(true); // Use the same loading state
+    if (!sessionUser || !sessionUser.id) {
+      toast({ title: 'Error', description: 'User not found. Please log in again.', variant: 'destructive' });
+      setIsProcessingCheckout(false);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: sessionUser.id,
+          // customerEmail: sessionUser.email // Email might not be needed if backend uses userId to get stripe_customer_id
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create customer portal session.');
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Customer portal URL not found in response.');
+      }
+    } catch (error) {
+      console.error('Error redirecting to customer portal:', error);
+      toast({ title: 'Error', description: (error as Error).message || 'Could not redirect to customer portal.', variant: 'destructive' });
+    } finally {
+      setIsProcessingCheckout(false);
     }
   };
   

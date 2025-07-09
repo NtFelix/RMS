@@ -145,31 +145,38 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
     let text = 'Get Started';
     let disabled = false;
 
-    if (userProfile) {
-      const isCurrentPlan = planPriceId === userProfile.stripe_price_id &&
-                           (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing');
-      const hasActiveSubDifferentPlan = (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing') && !isCurrentPlan;
-      const hasUsedTrial = !!userProfile.trial_starts_at;
-
-      if (isCurrentPlan) {
-        text = 'Current Plan';
-        disabled = true;
-      } else if (hasActiveSubDifferentPlan) {
-        text = 'Switch Plan';
-      } else if (hasUsedTrial) { // No active sub, but trial used
-        text = 'Subscribe';
-      } else { // Eligible for trial (no active sub, no trial used)
-        text = 'Start Free Trial';
-      }
-    } else {
-      // Default for logged-out users, could also be "Start Free Trial"
-      // but "Get Started" encourages login first which is required by onSelectPlan.
-      text = 'Get Started';
-    }
-
     if (isCheckoutProcessing) { // isLoading prop from LandingPage
       text = 'Processing...';
       disabled = true;
+      return { text, disabled };
+    }
+
+    if (userProfile) {
+      const hasActiveSubscription = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
+      const isCurrentPlan = planPriceId === userProfile.stripe_price_id;
+
+      if (hasActiveSubscription) {
+        if (isCurrentPlan) {
+          text = 'Manage Subscription';
+        } else {
+          text = 'Switch Plan';
+        }
+        // Keep button enabled for both cases to allow navigation to customer portal
+        disabled = false;
+      } else {
+        // Logic for users without an active subscription (no changes here from previous correct state)
+        const hasUsedTrial = !!userProfile.trial_starts_at;
+        // Note: isCurrentPlan here would be false if hasActiveSubscription is false.
+        // The original logic for non-subscribed users is preserved.
+        if (hasUsedTrial) { // No active sub, but trial used
+          text = 'Subscribe';
+        } else { // Eligible for trial (no active sub, no trial used)
+          text = 'Start Free Trial';
+        }
+      }
+    } else {
+      // Default for logged-out users
+      text = 'Get Started';
     }
 
     return { text, disabled };
