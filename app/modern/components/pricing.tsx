@@ -153,25 +153,22 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
 
     if (userProfile) {
       const hasActiveSubscription = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
+      const isCurrentPlan = planPriceId === userProfile.stripe_price_id;
 
       if (hasActiveSubscription) {
-        text = 'Manage Subscription';
-        // Keep button enabled to allow navigation to customer portal
+        if (isCurrentPlan) {
+          text = 'Manage Subscription';
+        } else {
+          text = 'Switch Plan';
+        }
+        // Keep button enabled for both cases to allow navigation to customer portal
         disabled = false;
       } else {
-        // Logic for users without an active subscription
-        const isCurrentPlan = planPriceId === userProfile.stripe_price_id &&
-                             (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing');
-        // This condition (hasActiveSubDifferentPlan) is effectively covered by the main hasActiveSubscription check now.
-        // const hasActiveSubDifferentPlan = (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing') && !isCurrentPlan;
+        // Logic for users without an active subscription (no changes here from previous correct state)
         const hasUsedTrial = !!userProfile.trial_starts_at;
-
-        if (isCurrentPlan) { // Should not be reached if hasActiveSubscription is true, but as a fallback
-          text = 'Current Plan';
-          disabled = true;
-        // } else if (hasActiveSubDifferentPlan) { // Covered by the main check
-        //   text = 'Switch Plan'; // This will now be "Manage Subscription"
-        } else if (hasUsedTrial) { // No active sub, but trial used
+        // Note: isCurrentPlan here would be false if hasActiveSubscription is false.
+        // The original logic for non-subscribed users is preserved.
+        if (hasUsedTrial) { // No active sub, but trial used
           text = 'Subscribe';
         } else { // Eligible for trial (no active sub, no trial used)
           text = 'Start Free Trial';
