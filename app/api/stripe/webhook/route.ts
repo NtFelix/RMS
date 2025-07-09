@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
+import { Profile } from '@/types/supabase';
 
 // Module-level constants that are safe to initialize here
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
   );
 
   // Define helper functions within POST to access supabaseAdmin
-  async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
+  async function updateProfileInSupabase(userId: string, dataToUpdate: Partial<Profile>) {
     console.log(`Updating profile for user ${userId} with data:`, dataToUpdate);
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     return data;
   }
 
-  async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: any) {
+  async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: Partial<Profile>) {
     console.log(`Updating profile for customer ${customerId} with data:`, dataToUpdate);
     const { data, error } = await supabaseAdmin
       .from('profiles')
@@ -97,19 +98,29 @@ export async function POST(req: Request) {
             break;
         }
 
-        await updateProfileInSupabase(userId, {
+        const profileUpdateData: Partial<Profile> = {
           stripe_customer_id: customerId,
-          stripe_subscription_id: retrievedSubscription.id, // Use ID from retrieved object
+          stripe_subscription_id: retrievedSubscription.id,
           stripe_subscription_status: retrievedSubscription.status,
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
           stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
-        });
-        console.log(`Profile updated for user ${userId} after checkout.`);
+        };
+
+        // Check and add trial data if present on the subscription
+        if (retrievedSubscription.trial_start) {
+          profileUpdateData.trial_starts_at = new Date(retrievedSubscription.trial_start * 1000).toISOString();
+        }
+        if (retrievedSubscription.trial_end) {
+          profileUpdateData.trial_ends_at = new Date(retrievedSubscription.trial_end * 1000).toISOString();
+        }
+
+        await updateProfileInSupabase(userId, profileUpdateData);
+        console.log(`Profile updated for user ${userId} after checkout. Update data:`, profileUpdateData);
         break;
       }
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        console.log('Invoice Object (invoice.paid):', JSON.stringify(invoice, null, 2));
+        // console.log('Invoice Object (invoice.paid):', JSON.stringify(invoice, null, 2)); // Less verbose logging
         console.log('Invoice paid:', invoice.id);
         const customerId = invoice.customer as string;
         const subscriptionId = (invoice as any).subscription as string;
@@ -173,13 +184,34 @@ export async function POST(req: Request) {
             console.error('Customer ID not found in subscription (updated):', subscriptionFromEvent.id);
             break;
         }
-        await updateProfileByCustomerIdInSupabase(customerId, {
+
+        const profileUpdateData: Partial<Profile> = {
             stripe_subscription_id: subscriptionFromEvent.id,
             stripe_subscription_status: subscriptionFromEvent.status,
             stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
             stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
-        });
-        console.log(`Profile updated for customer ${customerId} after subscription update.`);
+        };
+
+        // Check and add trial data if present on the subscription
+        // This handles cases where a subscription is updated and might enter a trial period,
+        // or its trial period details change.
+        if (subscriptionFromEvent.trial_start) {
+            profileUpdateData.trial_starts_at = new Date(subscriptionFromEvent.trial_start * 1000).toISOString();
+        }
+
+        if (subscriptionFromEvent.trial_end) {
+            profileUpdateData.trial_ends_at = new Date(subscriptionFromEvent.trial_end * 1000).toISOString();
+        } else {
+            profileUpdateData.trial_ends_at = null;
+        }
+
+        // Safety check for current_period_end which might be an issue if not handled by `(subscriptionFromEvent as any)`
+        // Modern Stripe typings should have current_period_end as number (Unix timestamp)
+        // If `subscriptionFromEvent.current_period_end` is indeed a number, `(subscriptionFromEvent as any)` is not needed.
+        // Let's assume it's correctly typed or handled by the existing `(as any)` if it was an issue before.
+
+        await updateProfileByCustomerIdInSupabase(customerId, profileUpdateData);
+        console.log(`Profile updated for customer ${customerId} after subscription update. Update data:`, profileUpdateData);
         break;
       }
       case 'customer.subscription.deleted': {

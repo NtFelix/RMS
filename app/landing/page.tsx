@@ -11,6 +11,8 @@ import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
 import { createClient } from '@/utils/supabase/client';
+import { User } from '@supabase/supabase-js'; // Import User type
+import { Profile } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 
@@ -49,32 +51,83 @@ export default function LandingPage() {
   // router and toast are still needed here for other functionalities
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
-  // searchParams and the useEffect for profile_fetch_failed are moved to ProfileErrorToastHandler
+  const supabase = createClient(); // Rely on type inference for supabase client
 
+  // Define UserProfile interface based on expected fields
+  
+
+  const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [sessionUser, setSessionUser] = useState<User | null>(null); // To store the auth user object
+
+  useEffect(() => {
+    const fetchInitialUserAndProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setSessionUser(user);
+      if (user) {
+        fetchUserProfile(user.id);
+      } else {
+        setUserProfile(null);
+      }
+    };
+
+    fetchInitialUserAndProfile();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSessionUser(session?.user ?? null);
+      if (event === 'SIGNED_IN' && session?.user) {
+        fetchUserProfile(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setUserProfile(null);
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, trial_starts_at, trial_ends_at, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_price_id')
+        .eq('id', userId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 means no row found, which is fine (profile might not exist)
+        throw error;
+      }
+      setUserProfile(data as Profile | null);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Optionally show a toast error, but avoid if it's just profile not found for a new user
+      // toast({ title: 'Error', description: 'Could not fetch your profile details.', variant: 'destructive' });
+      setUserProfile(null); // Ensure profile is null on error
+    }
+  };
 
   const proceedToCheckout = async (priceId: string) => {
     setIsProcessingCheckout(true);
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      console.error('Error fetching user or user not logged in:', userError);
+    // sessionUser is now derived from onAuthStateChange and initial load
+    if (!sessionUser) {
+      console.error('User not logged in for proceedToCheckout');
       toast({ title: 'Authentication Required', description: 'Please log in to proceed with checkout.', variant: 'default' });
       setIsProcessingCheckout(false);
       return;
     }
 
-    if (!user.email || !user.id) {
+    if (!sessionUser.email || !sessionUser.id) {
       console.error('User details missing in proceedToCheckout');
       toast({ title: 'Error', description: 'User information not fully available. Please try logging in again.', variant: 'destructive' });
       setIsProcessingCheckout(false);
       return;
     }
-    setIsProcessingCheckout(true);
-    const customerEmail = user.email;
-    const userId = user.id;
+
+    // User is available from sessionUser state
+    const customerEmail = sessionUser.email;
+    const userId = sessionUser.id;
 
     try {
       const response = await fetch('/api/stripe/checkout-session', {
@@ -186,7 +239,13 @@ export default function LandingPage() {
           <Services />
         </div>
         <div id="pricing">
-          <Pricing onSelectPlan={handleSelectPlan} />
+          <Pricing
+            onSelectPlan={handleSelectPlan}
+            userProfile={userProfile}
+            isLoading={isProcessingCheckout}
+            // currentPlanId is implicitly handled by userProfile.stripe_price_id if needed by Pricing
+            // For button state like "Current Plan", Pricing will use userProfile.stripe_price_id
+          />
         </div>
         <div id="testimonials">
           <Testimonials />
