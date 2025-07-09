@@ -1,6 +1,6 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
 import { Profile } from '@/types/supabase'; // Import the Profile type
@@ -8,8 +8,8 @@ import { getCurrentWohnungenCount } from '@/lib/data-fetching';
 import { isUserInActiveTrial, calculateOverallSubscriptionActivity } from '@/lib/utils';
 
 export async function GET() {
-  const cookieStore = cookies();
-  const supabase = createRouteHandlerClient({ cookies: () => cookieStore });
+  const cookieStore = await cookies();
+  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, { cookies: { get: async (name) => { const cookie = cookieStore.get(name); return cookie?.value; }, set: () => {}, remove: () => {} } });
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
