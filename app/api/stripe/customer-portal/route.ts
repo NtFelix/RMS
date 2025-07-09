@@ -1,16 +1,17 @@
 export const runtime = 'edge';
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { createSupabaseServerClient } from '@/lib/supabase-server'; // Adjusted path if necessary
+import Stripe from 'stripe'; // Import Stripe directly
+import { createSupabaseServerClient } from '@/lib/supabase-server';
 
 export async function POST(req: Request) {
-  // Ensure STRIPE_SECRET_KEY is defined
+  const supabase = createSupabaseServerClient();
+
+  // Ensure STRIPE_SECRET_KEY is defined, as it was in the original file
   if (!process.env.STRIPE_SECRET_KEY) {
     console.error('STRIPE_SECRET_KEY is not set');
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
   }
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  const supabase = createSupabaseServerClient();
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY); // Create Stripe instance
 
   try {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -19,9 +20,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized: Could not get user.' }, { status: 401 });
     }
 
-    // Fetch the user's profile to get their actual stripe_customer_id for security.
-    // This prevents a user from attempting to access another customer's portal
-    // by providing an arbitrary stripe_customer_id in the request body.
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('stripe_customer_id')
@@ -29,7 +27,7 @@ export async function POST(req: Request) {
       .single();
 
     if (profileError) {
-      console.error('Error fetching profile for user:', user.id, profileError.message);
+      console.error('Error fetching profile for user:', user.id, profileError?.message);
       return NextResponse.json({ error: 'Could not retrieve user profile.' }, { status: 500 });
     }
     if (!profile || !profile.stripe_customer_id) {
@@ -42,14 +40,10 @@ export async function POST(req: Request) {
     // Determine the base URL from the request origin
     const requestOrigin = req.headers.get('origin');
     if (!requestOrigin) {
-        console.error('Request origin could not be determined.');
-        return NextResponse.json({ error: 'Could not determine request origin for return URL.' }, { status: 500 });
+        console.error('Request origin could not be determined for return URL.');
+        return NextResponse.json({ error: 'Could not determine request origin.' }, { status: 500 });
     }
-
-    // Define the return URL. This should be where users land after leaving the portal.
-    // Example: redirect to a general dashboard page or a specific subscription management page.
-    // The path `/(dashboard)/home` is a placeholder and might need adjustment based on your app's routes.
-    const returnUrl = `${requestOrigin}/(dashboard)/home`;
+    const returnUrl = `${requestOrigin}/landing#pricing`;
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
@@ -61,8 +55,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error('Error creating Stripe Customer Portal session:', error);
     const errorMessage = error instanceof Error ? error.message : 'Internal Server Error';
-    // Handle Stripe-specific errors more gracefully if needed
-    if (error instanceof Stripe.errors.StripeError) {
+    if (error instanceof Stripe.errors.StripeError) { // Use direct StripeError type
         return NextResponse.json({ error: `Stripe error: ${errorMessage}` }, { status: 500 });
     }
     return NextResponse.json({ error: `Failed to create Customer Portal session: ${errorMessage}` }, { status: 500 });
