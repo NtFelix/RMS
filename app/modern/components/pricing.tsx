@@ -146,14 +146,14 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
     let disabled = false;
 
     if (userProfile) {
-      const isCurrentPlan = planPriceId === userProfile.stripe_price_id &&
-                           (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing');
-      const hasActiveSubDifferentPlan = (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing') && !isCurrentPlan;
+      const isSubscribedToThisPlan = planPriceId === userProfile.stripe_price_id &&
+                                   (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing');
+      const hasActiveSubDifferentPlan = (userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing') && !isSubscribedToThisPlan;
       const hasUsedTrial = !!userProfile.trial_starts_at;
 
-      if (isCurrentPlan) {
-        text = 'Current Plan';
-        disabled = true;
+      if (isSubscribedToThisPlan) {
+        text = 'Manage Subscription';
+        disabled = false; // Explicitly false, as per requirement
       } else if (hasActiveSubDifferentPlan) {
         text = 'Switch Plan';
       } else if (hasUsedTrial) { // No active sub, but trial used
@@ -162,12 +162,12 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
         text = 'Start Free Trial';
       }
     } else {
-      // Default for logged-out users, could also be "Start Free Trial"
-      // but "Get Started" encourages login first which is required by onSelectPlan.
+      // Default for logged-out users
       text = 'Get Started';
     }
 
-    if (isCheckoutProcessing) { // isLoading prop from LandingPage
+    // Checkout processing state should always override other states
+    if (isCheckoutProcessing) {
       text = 'Processing...';
       disabled = true;
     }

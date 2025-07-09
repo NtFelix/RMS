@@ -197,11 +197,14 @@ export default function LandingPage() {
   const handleAuthFlow = async (priceId: string) => {
     setSelectedPriceId(priceId);
 
-    if (isProcessingCheckout) return;
+    // isProcessingCheckout is set by the caller (handleSelectPlan)
+    // or directly if proceedToCheckout is called from elsewhere.
+    // proceedToCheckout itself also sets it true/false.
 
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
+      // proceedToCheckout will manage isProcessingCheckout internally
       await proceedToCheckout(priceId);
     } else {
       toast({
@@ -209,6 +212,47 @@ export default function LandingPage() {
         description: 'Please log in via the navigation bar to select a plan.',
         variant: 'default',
       });
+      setIsProcessingCheckout(false); // Ensure it's reset if we don't proceed
+    }
+  };
+
+  const redirectToCustomerPortal = async () => {
+    setIsProcessingCheckout(true);
+    try {
+      const response = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error ${response.status}`;
+        try {
+          const errorBody = await response.json();
+          errorMessage = errorBody.error || errorBody.message || JSON.stringify(errorBody);
+        } catch (e) {
+          // If parsing JSON fails, use the status text or a generic message
+          errorMessage = response.statusText || 'Failed to redirect to customer portal.';
+        }
+        throw new Error(errorMessage);
+      }
+
+      const { url } = await response.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Customer portal URL not found in response.');
+      }
+    } catch (error) {
+      console.error('Error redirecting to customer portal:', error);
+      toast({
+        title: 'Error',
+        description: (error as Error).message || 'Could not redirect to your subscription management page.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingCheckout(false);
     }
   };
   
@@ -219,7 +263,24 @@ export default function LandingPage() {
   };
 
   const handleSelectPlan = async (priceId: string) => {
-    await handleAuthFlow(priceId);
+    if (isProcessingCheckout) return; // Prevent multiple clicks
+
+    if (
+      userProfile &&
+      (userProfile.stripe_subscription_status === 'active' ||
+        userProfile.stripe_subscription_status === 'trialing') &&
+      userProfile.stripe_price_id === priceId
+    ) {
+      // User is subscribed to this plan, redirect to customer portal
+      await redirectToCustomerPortal();
+    } else {
+      // User is not subscribed to this plan or not logged in / no active sub
+      // Set processing true here as handleAuthFlow might not proceed to checkout if user is not logged in
+      setIsProcessingCheckout(true);
+      await handleAuthFlow(priceId);
+      // handleAuthFlow (or proceedToCheckout within it) will set isProcessingCheckout to false
+      // If handleAuthFlow doesn't proceed (e.g. user not logged in), it now also sets it to false.
+    }
   };
 
   return (
