@@ -1,5 +1,5 @@
 import { GET } from './route'; // Assuming route.ts is in the same directory for testing
-import { createServerClient } from ' @supabase/ssr';
+import { createServerClient } from '@supabase/ssr';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { NextResponse } from 'next/server';
 
