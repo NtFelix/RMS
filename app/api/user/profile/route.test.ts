@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 
 // Mock dependencies
 jest.mock('@supabase/ssr', () => ({
-  createRouteHandlerClient: jest.fn(),
+  createServerClient: jest.fn(),
 }));
 jest.mock('@/lib/stripe-server', () => ({
   getPlanDetails: jest.fn(),
