@@ -1,38 +1,61 @@
+export const runtime = 'edge';
 
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
-import stripe from '@/lib/stripe'
+import Stripe from 'stripe'
 
 export async function POST(req: Request) {
-  const supabase = createRouteHandlerClient({ cookies })
-
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData?.user) {
-    return new NextResponse('Unauthorized', { status: 401 })
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('STRIPE_SECRET_KEY is not set')
+    return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 })
   }
 
-  const { data: profileData, error: profileError } = await supabase
+  const supabase = createSupabaseServerClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 })
+  }
+
+  const { data: profile } = await supabase
     .from('profiles')
     .select('stripe_customer_id')
-    .eq('id', userData.user.id)
+    .eq('id', user.id)
     .single()
 
-  if (profileError || !profileData?.stripe_customer_id) {
-    return new NextResponse('Stripe customer ID not found', { status: 400 })
+  if (!profile || !profile.stripe_customer_id) {
+    return NextResponse.json({ error: 'Stripe customer not found' }, { status: 404 })
   }
 
-  const stripeCustomerId = profileData.stripe_customer_id
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-05-28.basil',
+  })
 
   try {
-    const session = await stripe.billingPortal.sessions.create({
-      customer: stripeCustomerId,
-      return_url: `${req.headers.get('origin')}/dashboard/settings/billing`,
-    })
+    const { return_url: returnUrlFromRequest } = await req.json();
+    let return_url = returnUrlFromRequest;
 
-    return NextResponse.json({ url: session.url })
-  } catch (error: any) {
-    console.error('Stripe customer portal error:', error)
-    return new NextResponse(`Webhook Error: ${error.message}`, { status: 400 })
+    if (!return_url) {
+      const origin = req.headers.get('origin');
+      if (origin) {
+        return_url = `${origin}/`;
+      } else {
+        console.error('Request origin could not be determined.');
+        return NextResponse.json({ error: 'Could not determine request origin for return URL.' }, { status: 500 });
+      }
+    }
+
+    const { url } = await stripe.billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url,
+    });
+
+    return NextResponse.json({ url });
+  } catch (error) {
+    console.error('Error creating customer portal session:', error);
+    return NextResponse.json({ error: 'Error creating customer portal session' }, { status: 500 });
   }
 }
