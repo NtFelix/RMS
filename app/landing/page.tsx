@@ -250,7 +250,7 @@ export default function LandingPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || `Failed to create customer portal session: ${response.statusText}`);
+        throw new Error(errorData.error || 'Failed to create customer portal session.');
       }
 
       const { url } = await response.json();
