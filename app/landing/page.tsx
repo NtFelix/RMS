@@ -3,8 +3,8 @@
 import { useState, useEffect, Suspense } from 'react'; // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams will be used by the new component
 import Hero from '../modern/components/hero';
-import Features from '../modern/components/features';
-import Services from '../modern/components/services';
+import FeatureSections from '../modern/components/feature-sections';
+import MoreFeatures from '../modern/components/more-features';
 import Testimonials from '../modern/components/testimonials';
 import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
@@ -288,10 +288,10 @@ export default function LandingPage() {
           <Hero onGetStarted={handleGetStarted} />
         </div>
         <div id="features">
-          <Features />
+          <FeatureSections />
         </div>
-        <div id="services">
-          <Services />
+        <div id="more-features">
+          <MoreFeatures />
         </div>
         <div id="pricing">
           <Pricing

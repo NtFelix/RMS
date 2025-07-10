@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { ArrowRight, Sparkles, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button" // Corrected import path
+import Link from "next/link"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -177,16 +178,18 @@ export default function Hero({ onGetStarted }: HeroProps) {
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </span>
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-8 py-4 text-lg font-semibold group"
-            // Uses standard outline variant which respects theme. Added explicit text color for better contrast in some themes if needed.
-            className="px-8 py-4 text-lg font-semibold group text-foreground hover:text-accent-foreground"
-          >
-            <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
-            Mehr erfahren
-          </Button>
+          <Link href="/modern/documentation">
+            <Button
+              size="lg"
+              variant="outline"
+              // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-8 py-4 text-lg font-semibold group"
+              // Uses standard outline variant which respects theme. Added explicit text color for better contrast in some themes if needed.
+              className="px-8 py-4 text-lg font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+            >
+              <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+              Mehr erfahren
+            </Button>
+          </Link>
         </motion.div>
       </div>
 

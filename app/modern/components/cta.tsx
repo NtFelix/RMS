@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { ArrowRight, Sparkles } from "lucide-react"
 import { Button } from '@/components/ui/button' // Corrected import path
+import Link from "next/link"
 
 interface CTAProps {
   onGetStarted: () => void;
@@ -108,15 +109,17 @@ export default function CTA({ onGetStarted }: CTAProps) {
             Jetzt loslegen
             <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
           </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-12 py-6 text-xl font-semibold"
-            // Uses standard outline which respects theme
-            className="px-12 py-6 text-xl font-semibold text-foreground hover:text-accent-foreground"
-          >
-            Demo anfordern
-          </Button>
+          <Link href="/modern/documentation">
+            <Button
+              size="lg"
+              variant="outline"
+              // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-12 py-6 text-xl font-semibold"
+              // Uses standard outline which respects theme
+              className="px-12 py-6 text-xl font-semibold text-foreground hover:bg-gray-800 hover:text-white transition-colors duration-300"
+            >
+              Demo anfordern
+            </Button>
+          </Link>
         </motion.div>
       </div>
     </section>

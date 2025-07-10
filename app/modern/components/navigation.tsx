@@ -21,7 +21,6 @@ import {
 const navItems = [
   { name: "Startseite", href: "#hero", icon: Home },
   { name: "Funktionen", href: "#features" },
-  { name: "Dienste", href: "#services" },
   { name: "Preise", href: "#pricing" },
   { name: "Referenzen", href: "#testimonials" },
 ]
