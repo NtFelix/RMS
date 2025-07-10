@@ -10,7 +10,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +20,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { toast } from "@/hooks/use-toast"; // Changed import path
@@ -53,33 +53,6 @@ interface FinanceEditModalProps {
   // loading prop can be added if server action is slow
 }
 
-const isFormDataDirtyFinance = (currentData: any, initialDataState: any): boolean => {
-  // Normalize boolean 'ist_einnahmen' for comparison if it's stored differently or comes as string from form
-  const currentIstEinnahmen = typeof currentData.ist_einnahmen === 'boolean' ? currentData.ist_einnahmen : String(currentData.ist_einnahmen).toLowerCase() === 'true';
-  const initialIstEinnahmen = typeof initialDataState?.ist_einnahmen === 'boolean' ? initialDataState.ist_einnahmen : String(initialDataState?.ist_einnahmen).toLowerCase() === 'true';
-
-  if (currentIstEinnahmen !== initialIstEinnahmen) return true;
-
-  return Object.keys(currentData).some(key => {
-    if (key === 'ist_einnahmen') return false; // Already checked
-
-    const currentValue = currentData[key] === null || currentData[key] === undefined ? "" : String(currentData[key]);
-    const initialValue = initialDataState?.[key] === null || initialDataState?.[key] === undefined ? "" : String(initialDataState?.[key]);
-
-    // Special handling for betrag to compare numeric values if they are strings
-    if (key === "betrag") {
-      const currentBetrag = parseFloat(currentValue) || 0;
-      const initialBetrag = parseFloat(initialValue) || 0;
-      // Using a small epsilon for float comparison might be robust, but direct string comparison after toString() from number is usually fine for this UI purpose.
-      // For now, direct string comparison is used as they are stored as strings in state.
-      return currentValue !== initialValue;
-    }
-
-    return currentValue !== initialValue;
-  });
-};
-
-
 export function FinanceEditModal(props: FinanceEditModalProps) {
   const {
     open,
@@ -90,30 +63,24 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     onSuccess
   } = props;
   const router = useRouter();
-
-  const [initialFormState, setInitialFormState] = useState<any>({});
-  const [formData, setFormData] = useState(() => {
-    const data = {
-      wohnung_id: initialData?.wohnung_id || "",
-      name: initialData?.name || "",
-      datum: initialData?.datum ? format(parseISO(initialData.datum), "yyyy-MM-dd") : "",
-      betrag: initialData?.betrag?.toString() || "",
-      ist_einnahmen: initialData?.ist_einnahmen || false, // Store as boolean
-      notiz: initialData?.notiz || "",
-    };
-    // setInitialFormState(JSON.parse(JSON.stringify(data))); // Set in useEffect
-    return data;
+  // Form state
+  const [formData, setFormData] = useState({
+    wohnung_id: "", name: "", datum: "", betrag: "", ist_einnahmen: false, notiz: ""
   });
+
+  // For dirty checking
+  const [initialFormStateForDirtyCheck, setInitialFormStateForDirtyCheck] = useState<any>({});
+  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
   const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
   const apartmentOptions: ComboboxOption[] = internalWohnungen.map(w => ({ value: w.id, label: w.name }));
 
+  // Initialize form state and dirty check states
   useEffect(() => {
-    const newFormData = {
+    const currentFormData = {
       wohnung_id: initialData?.wohnung_id || "",
       name: initialData?.name || "",
       datum: initialData?.datum ? format(parseISO(initialData.datum), "yyyy-MM-dd") : "",
@@ -121,13 +88,23 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       ist_einnahmen: initialData?.ist_einnahmen || false,
       notiz: initialData?.notiz || "",
     };
-    setFormData(newFormData);
-    setInitialFormState(JSON.parse(JSON.stringify(newFormData)));
+    setFormData(currentFormData);
+    setInitialFormStateForDirtyCheck(JSON.parse(JSON.stringify(currentFormData)));
 
-    if (!open) {
+    if (!open) { // Reset confirmation modal when main modal closes
       setShowConfirmDiscardModal(false);
     }
   }, [initialData, open]);
+
+  const isFormDataDirty = useCallback(() => {
+    if (formData.name !== initialFormStateForDirtyCheck.name) return true;
+    if (formData.betrag !== initialFormStateForDirtyCheck.betrag) return true;
+    if (formData.datum !== initialFormStateForDirtyCheck.datum) return true;
+    if (formData.wohnung_id !== initialFormStateForDirtyCheck.wohnung_id) return true;
+    if (formData.ist_einnahmen !== initialFormStateForDirtyCheck.ist_einnahmen) return true;
+    if (formData.notiz !== initialFormStateForDirtyCheck.notiz) return true;
+    return false;
+  }, [formData, initialFormStateForDirtyCheck]);
 
   useEffect(() => {
     if (open && (!initialWohnungen || initialWohnungen.length === 0)) {
@@ -156,32 +133,6 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   const handleDateChange = (date: Date | undefined) => {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
     setFormData({ ...formData, datum: formattedDate });
-  };
-
-  const checkDirtyStateFinance = useCallback(() => {
-    return isFormDataDirtyFinance(formData, initialFormState);
-  }, [formData, initialFormState]);
-
-  const handleAttemptCloseFinance = useCallback((event?: Event) => {
-    if (checkDirtyStateFinance()) {
-      if (event) event.preventDefault();
-      setShowConfirmDiscardModal(true);
-    } else {
-      onOpenChange(false);
-    }
-  }, [checkDirtyStateFinance, onOpenChange]);
-
-  const handleMainModalOpenChangeFinance = (isOpen: boolean) => {
-    if (!isOpen && checkDirtyStateFinance()) {
-      setShowConfirmDiscardModal(true);
-    } else {
-      onOpenChange(isOpen);
-    }
-  };
-
-  const handleConfirmDiscardFinance = () => {
-    onOpenChange(false); // Triggers useEffect to reset form
-    setShowConfirmDiscardModal(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -213,12 +164,14 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           variant: "success",
         });
         
+        // Call the onSuccess callback with the result data
         if (onSuccess) {
           const successData = result.data || { ...payload, id: initialData?.id || '' };
           onSuccess(successData);
         }
         
-        onOpenChange(false); // Close the modal
+        // Close the modal
+        onOpenChange(false);
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -233,13 +186,35 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     }
   };
 
+  const handleAttemptClose = useCallback((event?: Event) => {
+    if (isFormDataDirty()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [isFormDataDirty, onOpenChange]);
+
+  const handleMainModalOpenChange = (isOpen: boolean) => {
+    if (!isOpen && isFormDataDirty()) {
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(isOpen);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    onOpenChange(false); // This will trigger useEffect to reset form
+    setShowConfirmDiscardModal(false);
+  };
+
   return (
     <>
-    <Dialog open={open} onOpenChange={handleMainModalOpenChangeFinance}>
+    <Dialog open={open} onOpenChange={handleMainModalOpenChange}>
       <DialogContent
         className="sm:max-w-[500px]"
         onInteractOutsideOptional={(e) => {
-          if (open && checkDirtyStateFinance()) {
+          if (open && isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else if (open) {
@@ -247,7 +222,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
           }
         }}
         onEscapeKeyDown={(e) => {
-          if (checkDirtyStateFinance()) {
+          if (isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else {
@@ -315,7 +290,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleAttemptCloseFinance()} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => handleAttemptClose()} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>
@@ -326,15 +301,15 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
       </DialogContent>
     </Dialog>
     <ConfirmationAlertDialog
-        isOpen={showConfirmDiscardModal}
-        onOpenChange={setShowConfirmDiscardModal}
-        onConfirm={handleConfirmDiscardFinance}
-        title="Änderungen verwerfen?"
-        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
-        confirmButtonText="Verwerfen"
-        cancelButtonText="Weiter bearbeiten"
-        confirmButtonVariant="destructive"
-      />
-    </>
+      isOpen={showConfirmDiscardModal}
+      onOpenChange={setShowConfirmDiscardModal}
+      onConfirm={handleConfirmDiscard}
+      title="Änderungen verwerfen?"
+      description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+      confirmButtonText="Verwerfen"
+      cancelButtonText="Weiter bearbeiten"
+      confirmButtonVariant="destructive"
+    />
+  </>
   );
 }

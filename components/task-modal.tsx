@@ -23,61 +23,56 @@ interface TaskModalProps {
 }
 
 export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
-  const [name, setName] = useState("")
-  const [beschreibung, setBeschreibung] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [name, setName] = useState("");
+  const [beschreibung, setBeschreibung] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // For dirty checking
+  const [initialName, setInitialName] = useState("");
+  const [initialBeschreibung, setInitialBeschreibung] = useState("");
   const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
-  // For dirty checking, since it's an "add" modal, initial state is always empty.
-  const isFormDirtyTask = () => {
-    return name.trim() !== "" || beschreibung.trim() !== "";
-  };
-
-  // Reset form when modal is closed (either by successful submit or cancel)
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      // Capture initial state when modal opens (for a new task, it's empty)
+      setInitialName("");
+      setInitialBeschreibung("");
+      // Reset form fields (though they should be empty for a new task modal already)
       setName("");
       setBeschreibung("");
-      setShowConfirmDiscardModal(false); // Ensure confirmation is also closed
+    } else {
+      // Reset confirmation modal when main modal closes
+      setShowConfirmDiscardModal(false);
     }
   }, [isOpen]);
 
-  const handleAttemptCloseTask = useCallback((event?: Event) => {
-    if (isFormDirtyTask()) {
-      if (event) event.preventDefault();
-      setShowConfirmDiscardModal(true);
-    } else {
-      onClose();
-    }
-  }, [name, beschreibung, onClose]); // Dependencies: name, beschreibung, onClose
+  const isFormDataDirty = useCallback(() => {
+    return name.trim() !== initialName || beschreibung.trim() !== initialBeschreibung;
+    // Since initial is always empty for this "add new" modal,
+    // this simplifies to checking if name or beschreibung have any content.
+  }, [name, beschreibung, initialName, initialBeschreibung]);
 
-  const handleMainModalOpenChangeTask = (isDialogOpen: boolean) => {
-    if (!isDialogOpen && isFormDirtyTask()) {
-      setShowConfirmDiscardModal(true);
-    } else {
-      onClose(); // This will also trigger the useEffect to reset form if !isDialogOpen
-    }
-  };
-
-  const handleConfirmDiscardTask = () => {
-    onClose(); // This will trigger the useEffect to reset form
-    setShowConfirmDiscardModal(false);
+  const resetForm = () => {
+    setName("");
+    setBeschreibung("");
+    setInitialName("");
+    setInitialBeschreibung("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     
     if (!name.trim() || !beschreibung.trim()) {
       toast({
         title: "Fehler",
         description: "Bitte füllen Sie alle Pflichtfelder aus.",
         variant: "destructive",
-      })
-      return
+      });
+      return;
     }
 
     try {
-      setIsSubmitting(true)
+      setIsSubmitting(true);
       const response = await fetch("/api/todos", {
         method: "POST",
         headers: {
@@ -88,52 +83,77 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
           beschreibung,
           ist_erledigt: false,
         }),
-      })
+      });
 
       if (!response.ok) {
-        throw new Error("Fehler beim Speichern der Aufgabe")
+        throw new Error("Fehler beim Speichern der Aufgabe");
       }
 
       toast({
         title: "Erfolg",
         description: "Die Aufgabe wurde erfolgreich hinzugefügt.",
         variant: "success",
-      })
+      });
       
-      // onTaskAdded and onClose will trigger form reset via useEffect
-      onTaskAdded()
-      onClose()
+      resetForm();
+      onTaskAdded();
+      onClose(); // Close main modal
     } catch (error) {
-      console.error("Fehler beim Erstellen der Aufgabe:", error)
+      console.error("Fehler beim Erstellen der Aufgabe:", error);
       toast({
         title: "Fehler",
         description: "Die Aufgabe konnte nicht gespeichert werden. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const handleAttemptClose = useCallback((event?: Event) => {
+    if (isFormDataDirty()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onClose();
+    }
+  }, [isFormDataDirty, onClose]);
+
+  const handleMainModalOpenChange = (openStatus: boolean) => {
+    if (!openStatus && isFormDataDirty()) {
+      setShowConfirmDiscardModal(true);
+    } else if (!openStatus) { // Closing and not dirty
+      resetForm(); // Ensure form is reset if closed without saving (e.g. via X or ESC on clean form)
+      onClose();
+    }
+    // If openStatus is true, Dialog handles it.
+  };
+
+  const handleConfirmDiscard = () => {
+    resetForm();
+    onClose(); // Close main modal
+    setShowConfirmDiscardModal(false);
+  };
 
   return (
     <>
-    <Dialog open={isOpen} onOpenChange={handleMainModalOpenChangeTask}>
+    <Dialog open={isOpen} onOpenChange={handleMainModalOpenChange}>
       <DialogContent
         className="sm:max-w-[500px]"
         onInteractOutsideOptional={(e) => {
-          if (isOpen && isFormDirtyTask()) {
+          if (isOpen && isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else if (isOpen) {
-            onClose();
+            handleMainModalOpenChange(false); // Trigger reset and close
           }
         }}
         onEscapeKeyDown={(e) => {
-          if (isFormDirtyTask()) {
+          if (isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else {
-            onClose();
+            handleMainModalOpenChange(false); // Trigger reset and close
           }
         }}
       >
@@ -172,7 +192,7 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => handleAttemptCloseTask()}>
+            <Button variant="outline" type="button" onClick={() => handleAttemptClose()}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -185,13 +205,13 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
     <ConfirmationAlertDialog
         isOpen={showConfirmDiscardModal}
         onOpenChange={setShowConfirmDiscardModal}
-        onConfirm={handleConfirmDiscardTask}
+        onConfirm={handleConfirmDiscard}
         title="Änderungen verwerfen?"
         description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
         confirmButtonText="Verwerfen"
         cancelButtonText="Weiter bearbeiten"
         confirmButtonVariant="destructive"
       />
-    </>
+  </>
   )
 }

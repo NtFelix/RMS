@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // Added useCallback
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 // Removed fetchWasserzaehlerModalData, kept types
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,42 +42,54 @@ export function WasserzaehlerModal({
   const [formData, setFormData] = useState<WasserzaehlerFormEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Effect for populating formData based on fetched data
+  // For dirty checking
+  const [initialFormDataForDirtyCheck, setInitialFormDataForDirtyCheck] = useState<WasserzaehlerFormEntry[]>([]);
+  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
+
+  // Effect for populating formData and initial state for dirty check
   useEffect(() => {
-    // Only populate formData if modal is open, not fetching, and data is available
     if (isOpen && nebenkosten && mieterList) {
-      const initialFormData = mieterList.map(mieter => {
+      const initialEntries = mieterList.map(mieter => {
         const existingReadingForMieter = existingReadings?.find(
           reading => reading.mieter_id === mieter.id
         );
-
-        if (existingReadingForMieter) {
-          return {
-            mieter_id: mieter.id,
-            mieter_name: mieter.name,
-            ablese_datum: existingReadingForMieter.ablese_datum || null,
-            zaehlerstand: existingReadingForMieter.zaehlerstand !== null && existingReadingForMieter.zaehlerstand !== undefined
-                          ? String(existingReadingForMieter.zaehlerstand)
-                          : "",
-            verbrauch: existingReadingForMieter.verbrauch !== null && existingReadingForMieter.verbrauch !== undefined
-                       ? String(existingReadingForMieter.verbrauch)
-                       : "",
-          };
-        } else {
-          return {
-            mieter_id: mieter.id,
-            mieter_name: mieter.name,
-            ablese_datum: null,
-            zaehlerstand: "",
-            verbrauch: "",
-          };
-        }
+        return {
+          mieter_id: mieter.id,
+          mieter_name: mieter.name,
+          ablese_datum: existingReadingForMieter?.ablese_datum || null,
+          zaehlerstand: existingReadingForMieter?.zaehlerstand != null ? String(existingReadingForMieter.zaehlerstand) : "",
+          verbrauch: existingReadingForMieter?.verbrauch != null ? String(existingReadingForMieter.verbrauch) : "",
+        };
       });
-      setFormData(initialFormData);
+      setFormData(initialEntries);
+      setInitialFormDataForDirtyCheck(JSON.parse(JSON.stringify(initialEntries)));
     } else if (!isOpen) {
-      setFormData([]); // Reset formData when modal is closed
+      setFormData([]);
+      setInitialFormDataForDirtyCheck([]);
+      setShowConfirmDiscardModal(false);
     }
   }, [isOpen, nebenkosten, mieterList, existingReadings]);
+
+  const isFormDataDirty = useCallback(() => {
+    return JSON.stringify(formData) !== JSON.stringify(initialFormDataForDirtyCheck);
+  }, [formData, initialFormDataForDirtyCheck]);
+
+  const resetFormAndState = () => {
+    const initialEntries = mieterList.map(mieter => {
+        const existingReadingForMieter = existingReadings?.find(
+          reading => reading.mieter_id === mieter.id
+        );
+        return {
+          mieter_id: mieter.id,
+          mieter_name: mieter.name,
+          ablese_datum: existingReadingForMieter?.ablese_datum || null,
+          zaehlerstand: existingReadingForMieter?.zaehlerstand != null ? String(existingReadingForMieter.zaehlerstand) : "",
+          verbrauch: existingReadingForMieter?.verbrauch != null ? String(existingReadingForMieter.verbrauch) : "",
+        };
+      });
+    setFormData(initialEntries);
+    setInitialFormDataForDirtyCheck(JSON.parse(JSON.stringify(initialEntries)));
+  }
 
   const handleInputChange = (index: number, field: keyof WasserzaehlerFormEntry, value: any) => {
     const updatedFormData = [...formData];
@@ -121,11 +134,55 @@ export function WasserzaehlerModal({
 
   if (!nebenkosten) {
     return null;
+  };
+
+  const handleAttemptClose = useCallback((event?: Event) => {
+    if (isFormDataDirty()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onClose();
+    }
+  }, [isFormDataDirty, onClose]);
+
+  const handleMainModalOpenChange = (openStatus: boolean) => {
+    if (!openStatus && isFormDataDirty()) {
+      setShowConfirmDiscardModal(true);
+    } else if (!openStatus) { // Closing and not dirty
+      // resetFormAndState(); // Reset if closed without saving (e.g. X or ESC on clean form)
+      onClose();
+    }
+    // If openStatus is true, Dialog handles it.
+  };
+
+  const handleConfirmDiscard = () => {
+    // resetFormAndState(); // Reset form to initial state from props
+    onClose();
+    setShowConfirmDiscardModal(false);
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]">
+    <>
+    <Dialog open={isOpen} onOpenChange={handleMainModalOpenChange}>
+      <DialogContent
+        className="sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]"
+        onInteractOutsideOptional={(e) => {
+          if (isOpen && isFormDataDirty()) {
+            e.preventDefault();
+            setShowConfirmDiscardModal(true);
+          } else if (isOpen) {
+            onClose(); // Or handleMainModalOpenChange(false) if reset is desired
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isFormDataDirty()) {
+            e.preventDefault();
+            setShowConfirmDiscardModal(true);
+          } else {
+            onClose(); // Or handleMainModalOpenChange(false)
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             Wasserzählerstände für {nebenkosten.Haeuser?.name || "Unbekanntes Haus"} - {nebenkosten.jahr}
@@ -187,16 +244,26 @@ export function WasserzaehlerModal({
         </div>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-              Abbrechen
-            </Button>
-          </DialogClose>
+          {/* DialogClose removed as its default behavior is to call onOpenChange(false) which is now handleMainModalOpenChange */}
+          <Button type="button" variant="outline" onClick={() => handleAttemptClose()} disabled={isLoading}>
+            Abbrechen
+          </Button>
           <Button type="button" onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? "Speichern..." : "Speichern"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ConfirmationAlertDialog
+        isOpen={showConfirmDiscardModal}
+        onOpenChange={setShowConfirmDiscardModal}
+        onConfirm={handleConfirmDiscard}
+        title="Änderungen verwerfen?"
+        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+        confirmButtonText="Verwerfen"
+        cancelButtonText="Weiter bearbeiten"
+        confirmButtonVariant="destructive"
+      />
+  </>
   );
 }

@@ -10,7 +10,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { toast } from "@/hooks/use-toast"; // Changed import
 import { createClient } from "@/utils/supabase/client";
@@ -63,17 +63,6 @@ interface WohnungEditModalProps {
   currentApartmentCountFromProps?: number | undefined; // Added new prop
 }
 
-const isFormDataDirtyWohnung = (currentData: any, initialDataState: any): boolean => {
-  return Object.keys(currentData).some(key => {
-    const currentValue = currentData[key] === null ? "" : String(currentData[key]);
-    const initialValue = initialDataState?.[key] === null ? "" : String(initialDataState?.[key]);
-    // For groesse and miete, ensure comparison is consistent (e.g., "50" vs "50.00")
-    // This basic string comparison might need refinement if numeric precision issues arise.
-    // However, since we store them as strings in formData and initial state from strings, it should be okay for dirty check.
-    return currentValue !== (initialValue || "");
-  });
-};
-
 export function WohnungEditModal(props: WohnungEditModalProps) {
   const {
     open,
@@ -84,26 +73,19 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     onSuccess,
     currentApartmentLimitFromProps,
     isActiveSubscriptionFromProps,
-    currentApartmentCountFromProps,
+    currentApartmentCountFromProps, // Added
   } = props;
   const router = useRouter();
+  // Form state
+  const [formData, setFormData] = useState({ name: "", groesse: "", miete: "", haus_id: "" });
 
-  const [initialFormState, setInitialFormState] = useState<any>({});
-  const [formData, setFormData] = useState(() => {
-    const data = {
-      name: initialData?.name || "",
-      groesse: initialData?.groesse?.toString() || "",
-      miete: initialData?.miete?.toString() || "",
-      haus_id: initialData?.haus_id || "",
-    };
-    // setInitialFormState(JSON.parse(JSON.stringify(data))); // Will be set in useEffect
-    return data;
-  });
+  // For dirty checking
+  const [initialFormStateForDirtyCheck, setInitialFormStateForDirtyCheck] = useState<any>({});
+  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
   const [internalHaeuser, setInternalHaeuser] = useState<Haus[]>(initialHaeuser);
   const [isLoadingHaeuser, setIsLoadingHaeuser] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
   // New state variables for context fetching
   const [isLoadingContext, setIsLoadingContext] = useState(false);
@@ -112,24 +94,30 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
 
   const houseOptions: ComboboxOption[] = internalHaeuser.map(h => ({ value: h.id, label: h.name }));
 
+  // Initialize form state and dirty check states
   useEffect(() => {
-    const newFormData = {
+    const currentFormData = {
       name: initialData?.name || "",
       groesse: initialData?.groesse?.toString() || "",
       miete: initialData?.miete?.toString() || "",
       haus_id: initialData?.haus_id || "",
     };
-    setFormData(newFormData);
-    setInitialFormState(JSON.parse(JSON.stringify(newFormData)));
+    setFormData(currentFormData);
+    setInitialFormStateForDirtyCheck(JSON.parse(JSON.stringify(currentFormData)));
 
-    if (!open) {
+    if (!open) { // Reset confirmation modal when main modal closes
       setShowConfirmDiscardModal(false);
-      // Reset other states if necessary when modal closes
-      setContextualSaveMessage("");
-      setIsSaveDisabledByLimitsOrSubscriptionState(false);
-      setIsLoadingContext(false);
     }
   }, [initialData, open]);
+
+  const isFormDataDirty = useCallback(() => {
+    if (formData.name !== initialFormStateForDirtyCheck.name) return true;
+    if (formData.groesse !== initialFormStateForDirtyCheck.groesse) return true;
+    if (formData.miete !== initialFormStateForDirtyCheck.miete) return true;
+    if (formData.haus_id !== initialFormStateForDirtyCheck.haus_id) return true;
+    return false;
+  }, [formData, initialFormStateForDirtyCheck]);
+
 
   useEffect(() => {
     if (open && (!initialHaeuser || initialHaeuser.length === 0)) {
@@ -226,32 +214,6 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     setFormData({ ...formData, [name]: value });
   };
 
-  const checkDirtyStateWohnung = useCallback(() => {
-    return isFormDataDirtyWohnung(formData, initialFormState);
-  }, [formData, initialFormState]);
-
-  const handleAttemptCloseWohnung = useCallback((event?: Event) => {
-    if (checkDirtyStateWohnung()) {
-      if (event) event.preventDefault();
-      setShowConfirmDiscardModal(true);
-    } else {
-      onOpenChange(false);
-    }
-  }, [checkDirtyStateWohnung, onOpenChange]);
-
-  const handleMainModalOpenChangeWohnung = (isOpen: boolean) => {
-    if (!isOpen && checkDirtyStateWohnung()) {
-      setShowConfirmDiscardModal(true);
-    } else {
-      onOpenChange(isOpen);
-    }
-  };
-
-  const handleConfirmDiscardWohnung = () => {
-    onOpenChange(false); // This will trigger useEffect to reset form
-    setShowConfirmDiscardModal(false);
-  };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -266,6 +228,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       return;
     }
 
+    // Convert string inputs to numbers
     const groesseNum = parseFloat(formData.groesse);
     const mieteNum = parseFloat(formData.miete);
 
@@ -306,6 +269,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           variant: "success",
         });
 
+        // Call the onSuccess callback with the result data
         if (onSuccess) {
           const successData = result.data || {
             ...payload,
@@ -330,13 +294,35 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
     }
   };
 
+  const handleAttemptClose = useCallback((event?: Event) => {
+    if (isFormDataDirty()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [isFormDataDirty, onOpenChange]);
+
+  const handleMainModalOpenChange = (isOpen: boolean) => {
+    if (!isOpen && isFormDataDirty()) {
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(isOpen);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    onOpenChange(false); // This will trigger useEffect to reset form
+    setShowConfirmDiscardModal(false);
+  };
+
   return (
     <>
-    <Dialog open={open} onOpenChange={handleMainModalOpenChangeWohnung}>
+    <Dialog open={open} onOpenChange={handleMainModalOpenChange}>
       <DialogContent
         className="sm:max-w-[500px]"
         onInteractOutsideOptional={(e) => {
-          if (open && checkDirtyStateWohnung()) {
+          if (open && isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else if (open) {
@@ -344,7 +330,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           }
         }}
         onEscapeKeyDown={(e) => {
-          if (checkDirtyStateWohnung()) {
+          if (isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else {
@@ -419,7 +405,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             <p className="text-sm text-red-500 mb-2 text-center">{contextualSaveMessage}</p>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleAttemptCloseWohnung()} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => handleAttemptClose()} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button
@@ -433,15 +419,15 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
       </DialogContent>
     </Dialog>
     <ConfirmationAlertDialog
-        isOpen={showConfirmDiscardModal}
-        onOpenChange={setShowConfirmDiscardModal}
-        onConfirm={handleConfirmDiscardWohnung}
-        title="Änderungen verwerfen?"
-        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
-        confirmButtonText="Verwerfen"
-        cancelButtonText="Weiter bearbeiten"
-        confirmButtonVariant="destructive"
-      />
-    </>
+      isOpen={showConfirmDiscardModal}
+      onOpenChange={setShowConfirmDiscardModal}
+      onConfirm={handleConfirmDiscard}
+      title="Änderungen verwerfen?"
+      description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+      confirmButtonText="Verwerfen"
+      cancelButtonText="Weiter bearbeiten"
+      confirmButtonVariant="destructive"
+    />
+  </>
   );
 }

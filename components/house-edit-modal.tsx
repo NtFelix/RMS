@@ -39,25 +39,6 @@ interface HouseEditModalProps {
   onSuccess?: (data: any) => void;
 }
 
-const isFormDataDirtyHouse = (
-  currentData: any,
-  initialDataState: any,
-  currentManualGroesse: string,
-  initialManualGroesseState: string,
-  currentAutomaticSize: boolean,
-  initialAutomaticSizeState: boolean
-): boolean => {
-  if (currentAutomaticSize !== initialAutomaticSizeState) return true;
-  if (currentManualGroesse !== initialManualGroesseState) return true;
-
-  // Check main form fields
-  return Object.keys(currentData).some(key => {
-    const currentValue = currentData[key] === null ? "" : String(currentData[key]);
-    const initialValue = initialDataState?.[key] === null ? "" : String(initialDataState?.[key]);
-    return currentValue !== (initialValue || "");
-  });
-};
-
 export function HouseEditModal(props: HouseEditModalProps) {
   const {
     open,
@@ -69,109 +50,77 @@ export function HouseEditModal(props: HouseEditModalProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State for dirty checking
-  const [initialFormState, setInitialFormState] = useState<any>({});
-  const [initialManualGroesseState, setInitialManualGroesseState] = useState<string>('');
-  const [initialAutomaticSizeState, setInitialAutomaticSizeState] = useState<boolean>(true);
-
+  // Form state
+  const [formData, setFormData] = useState({
+    name: "",
+    strasse: "",
+    ort: "",
+    // groesse is handled by manualGroesse and automaticSize
+  });
   const [automaticSize, setAutomaticSize] = useState(true);
   const [manualGroesse, setManualGroesse] = useState<string>('');
-  const [formData, setFormData] = useState(() => {
-    const data = {
-      name: initialData?.name || "",
-      strasse: initialData?.strasse || "",
-      ort: initialData?.ort || "",
-      // groesse is handled by manualGroesse and automaticSize
-    };
-    // setInitialFormState(JSON.parse(JSON.stringify(data))); // Set during useEffect based on initialData
-    return data;
-  });
+
+  // For dirty checking
+  const [initialFormStateForDirtyCheck, setInitialFormStateForDirtyCheck] = useState<any>({});
+  const [initialAutomaticSizeForDirtyCheck, setInitialAutomaticSizeForDirtyCheck] = useState(true);
+  const [initialManualGroesseForDirtyCheck, setInitialManualGroesseForDirtyCheck] = useState('');
 
   const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
+  // Initialize form state and dirty check states
   useEffect(() => {
-    const newFormData = {
+    const currentFormData = {
       name: initialData?.name || "",
       strasse: initialData?.strasse || "",
       ort: initialData?.ort || "",
     };
-    setFormData(newFormData);
-    setInitialFormState(JSON.parse(JSON.stringify(newFormData)));
+    setFormData(currentFormData);
+    setInitialFormStateForDirtyCheck(JSON.parse(JSON.stringify(currentFormData)));
 
-    if (initialData?.groesse != null) {
-      const initialGroesseStr = String(initialData.groesse);
-      setManualGroesse(initialGroesseStr);
-      setInitialManualGroesseState(initialGroesseStr);
-      setAutomaticSize(false);
-      setInitialAutomaticSizeState(false);
-    } else {
-      setManualGroesse('');
-      setInitialManualGroesseState('');
-      setAutomaticSize(true);
-      setInitialAutomaticSizeState(true);
-    }
+    const currentAutomaticSize = initialData?.groesse == null; // true if groesse is null/undefined
+    setAutomaticSize(currentAutomaticSize);
+    setInitialAutomaticSizeForDirtyCheck(currentAutomaticSize);
 
-    if (!open) {
+    const currentManualGroesse = initialData?.groesse != null ? String(initialData.groesse) : '';
+    setManualGroesse(currentManualGroesse);
+    setInitialManualGroesseForDirtyCheck(currentManualGroesse);
+
+    if (!open) { // Reset confirmation modal when main modal closes
       setShowConfirmDiscardModal(false);
     }
   }, [initialData, open]);
+
+  const isFormDataDirty = useCallback(() => {
+    if (formData.name !== initialFormStateForDirtyCheck.name) return true;
+    if (formData.strasse !== initialFormStateForDirtyCheck.strasse) return true;
+    if (formData.ort !== initialFormStateForDirtyCheck.ort) return true;
+    if (automaticSize !== initialAutomaticSizeForDirtyCheck) return true;
+    if (!automaticSize && manualGroesse !== initialManualGroesseForDirtyCheck) return true; // Only check manualGroesse if not automatic
+    return false;
+  }, [formData, automaticSize, manualGroesse, initialFormStateForDirtyCheck, initialAutomaticSizeForDirtyCheck, initialManualGroesseForDirtyCheck]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const checkDirtyStateHouse = useCallback(() => {
-    return isFormDataDirtyHouse(
-      formData,
-      initialFormState,
-      manualGroesse,
-      initialManualGroesseState,
-      automaticSize,
-      initialAutomaticSizeState
-    );
-  }, [formData, initialFormState, manualGroesse, initialManualGroesseState, automaticSize, initialAutomaticSizeState]);
-
-  const handleAttemptCloseHouse = useCallback((event?: Event) => {
-    if (checkDirtyStateHouse()) {
-      if (event) event.preventDefault();
-      setShowConfirmDiscardModal(true);
-    } else {
-      onOpenChange(false);
-    }
-  }, [checkDirtyStateHouse, onOpenChange]);
-
-  const handleMainModalOpenChangeHouse = (isOpen: boolean) => {
-    if (!isOpen && checkDirtyStateHouse()) {
-      setShowConfirmDiscardModal(true);
-    } else {
-      onOpenChange(isOpen);
-    }
-  };
-
-  const handleConfirmDiscardHouse = () => {
-    onOpenChange(false); // Triggers useEffect to reset state
-    setShowConfirmDiscardModal(false);
-  };
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const formPayload = new FormData(); // Renamed to avoid conflict with component's formData state
-    formPayload.append("name", formData.name);
-    formPayload.append("strasse", formData.strasse);
-    formPayload.append("ort", formData.ort);
+    const form = new FormData();
+    form.append("name", formData.name);
+    form.append("strasse", formData.strasse);
+    form.append("ort", formData.ort);
 
     if (automaticSize) {
-      formPayload.append("groesse", ""); // Send empty string for NULL
+      form.append("groesse", ""); // Send empty string for NULL
     } else {
-      formPayload.append("groesse", manualGroesse);
+      form.append("groesse", manualGroesse);
     }
 
     try {
-      const result = await serverAction(initialData?.id || null, formPayload);
+      const result = await serverAction(initialData?.id || null, form);
       
       if (result.success) {
         toast({
@@ -180,16 +129,17 @@ export function HouseEditModal(props: HouseEditModalProps) {
           variant: "success",
         });
         
+        // Call the onSuccess callback with the result data
         if (onSuccess) {
           const successData = result.data || { 
             ...formData, 
-            id: initialData?.id || '',
-            groesse: automaticSize ? null : parseFloat(manualGroesse) || null
+            id: initialData?.id || ''
           };
           onSuccess(successData);
         }
         
-        onOpenChange(false); // Close the modal
+        // Close the modal
+        onOpenChange(false);
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -204,13 +154,35 @@ export function HouseEditModal(props: HouseEditModalProps) {
     }
   };
 
+  const handleAttemptClose = useCallback((event?: Event) => {
+    if (isFormDataDirty()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [isFormDataDirty, onOpenChange]);
+
+  const handleMainModalOpenChange = (isOpen: boolean) => {
+    if (!isOpen && isFormDataDirty()) {
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(isOpen);
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    onOpenChange(false); // This will trigger useEffect to reset form
+    setShowConfirmDiscardModal(false);
+  };
+
   return (
     <>
-    <Dialog open={open} onOpenChange={handleMainModalOpenChangeHouse}>
+    <Dialog open={open} onOpenChange={handleMainModalOpenChange}>
       <DialogContent
         className="sm:max-w-[425px]"
         onInteractOutsideOptional={(e) => {
-          if (open && checkDirtyStateHouse()) {
+          if (open && isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else if (open) {
@@ -218,7 +190,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           }
         }}
         onEscapeKeyDown={(e) => {
-          if (checkDirtyStateHouse()) {
+          if (isFormDataDirty()) {
             e.preventDefault();
             setShowConfirmDiscardModal(true);
           } else {
@@ -291,7 +263,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => handleAttemptCloseHouse()} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => handleAttemptClose()} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -302,15 +274,15 @@ export function HouseEditModal(props: HouseEditModalProps) {
       </DialogContent>
     </Dialog>
     <ConfirmationAlertDialog
-        isOpen={showConfirmDiscardModal}
-        onOpenChange={setShowConfirmDiscardModal}
-        onConfirm={handleConfirmDiscardHouse}
-        title="Änderungen verwerfen?"
-        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
-        confirmButtonText="Verwerfen"
-        cancelButtonText="Weiter bearbeiten"
-        confirmButtonVariant="destructive"
-      />
-    </>
+      isOpen={showConfirmDiscardModal}
+      onOpenChange={setShowConfirmDiscardModal}
+      onConfirm={handleConfirmDiscard}
+      title="Änderungen verwerfen?"
+      description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+      confirmButtonText="Verwerfen"
+      cancelButtonText="Weiter bearbeiten"
+      confirmButtonVariant="destructive"
+    />
+  </>
   );
 }
