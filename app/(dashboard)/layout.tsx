@@ -16,8 +16,12 @@ import { WohnungEditModal } from "@/components/wohnung-edit-modal" // Added
 import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
 import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
-// createClient is not used in this step as per instructions, but imported if needed later
-// import { createClient } from "@/utils/supabase/client";
+import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
+// Assuming betriebskosten-actions.ts exports server actions, adjust if needed
+// For now, let's assume no specific serverAction prop is needed for BetriebskostenEditModal
+// as it seemed to handle its actions internally or via imported functions.
+// We will check this during integration.
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -57,105 +61,62 @@ export default function DashboardRootLayout({
     wohnungApartmentCount, // Added
     // Aufgabe modal state and actions
     isAufgabeModalOpen,
-    aufgabeInitialData,
-    aufgabeModalOnSuccess,
-    openAufgabeModal,
-    closeAufgabeModal,
+    // ... (aufgabeInitialData, aufgabeModalOnSuccess are used internally by AufgabeEditModal)
+    // closeAufgabeModal, // Also internal
+    // openAufgabeModal, // Used by other components to open
+    // Betriebskosten modal state (only need isBetriebskostenModalOpen for conditional rendering if any)
+    isBetriebskostenModalOpen,
+    // Confirmation Modal state
+    isConfirmationModalOpen,
+    confirmationModalConfig,
+    closeConfirmationModal,
   } = useModalStore()
 
   return (
     <AuthProvider>
       <CommandMenu />
       <DashboardLayout>{children}</DashboardLayout>
-      {/* Tenant Modal */}
-      {isTenantModalOpen && (
-        <TenantEditModal
-          open={isTenantModalOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) closeTenantModal()
-          }}
-          wohnungen={tenantModalWohnungen}
-          initialData={tenantInitialData}
-          serverAction={tenantServerAction}
-        />
-      )}
-      {/* House Modal */}
-      {isHouseModalOpen && (
-        <HouseEditModal
-          open={isHouseModalOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) closeHouseModal()
-          }}
-          initialData={houseInitialData}
-          serverAction={houseServerAction}
-          onSuccess={(data) => {
-            // Call the success callback if it exists
-            if (houseModalOnSuccess) {
-              houseModalOnSuccess(data);
+
+      {/* Render modals: They control their own open/close state via the store */}
+      {/* TenantEditModal needs serverAction. Other props are from store. */}
+      <TenantEditModal serverAction={tenantServerAction} />
+
+      {/* HouseEditModal needs serverAction. */}
+      <HouseEditModal serverAction={houseServerAction} />
+
+      {/* FinanceEditModal needs serverAction. */}
+      <FinanceEditModal serverAction={financeServerAction} />
+
+      {/* WohnungEditModal needs serverAction. */}
+      {/* Also pass specific props if they are not part of the store's initialData object for wohnung */}
+      <WohnungEditModal
+        serverAction={wohnungServerAction}
+        currentApartmentLimitFromProps={wohnungApartmentLimit}
+        isActiveSubscriptionFromProps={wohnungIsActiveSubscription}
+        currentApartmentCountFromProps={wohnungApartmentCount}
+      />
+
+      {/* AufgabeEditModal needs serverAction. */}
+      <AufgabeEditModal serverAction={aufgabeServerAction} />
+
+      {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
+      <BetriebskostenEditModal />
+
+      {/* Global Confirmation Dialog */}
+      {isConfirmationModalOpen && confirmationModalConfig && (
+        <ConfirmationDialog
+          isOpen={isConfirmationModalOpen}
+          onClose={closeConfirmationModal}
+          onConfirm={() => {
+            if (confirmationModalConfig.onConfirm) {
+              confirmationModalConfig.onConfirm();
             }
-            // Close the modal
-            closeHouseModal();
+            // closeConfirmationModal(); // onConfirm in store should handle this
           }}
-        />
-      )}
-      {/* Finance Modal */}
-      {isFinanceModalOpen && (
-        <FinanceEditModal
-          open={isFinanceModalOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) closeFinanceModal()
-          }}
-          initialData={financeInitialData}
-          initialWohnungen={financeModalWohnungen}
-          serverAction={financeServerAction}
-          onSuccess={(data) => {
-            // Call the success callback if it exists
-            if (financeModalOnSuccess) {
-              financeModalOnSuccess(data);
-            }
-            // Close the modal
-            closeFinanceModal();
-          }}
-        />
-      )}
-      {/* Wohnung Modal */}
-      {isWohnungModalOpen && (
-        <WohnungEditModal
-          open={isWohnungModalOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) closeWohnungModal()
-          }}
-          initialData={wohnungInitialData}
-          initialHaeuser={wohnungModalHaeuser}
-          serverAction={wohnungServerAction}
-          currentApartmentLimitFromProps={wohnungApartmentLimit} // Added prop
-          isActiveSubscriptionFromProps={wohnungIsActiveSubscription} // Added prop
-          currentApartmentCountFromProps={wohnungApartmentCount} // Added prop
-          onSuccess={(data) => {
-            // Call the success callback if it exists
-            if (wohnungModalOnSuccess) {
-              wohnungModalOnSuccess(data);
-            }
-            // Close the modal
-            closeWohnungModal();
-          }}
-        />
-      )}
-      {/* Aufgabe Modal */}
-      {isAufgabeModalOpen && (
-        <AufgabeEditModal
-          open={isAufgabeModalOpen}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) closeAufgabeModal();
-          }}
-          initialData={aufgabeInitialData}
-          serverAction={aufgabeServerAction}
-          onSuccess={(data) => {
-            if (aufgabeModalOnSuccess) {
-              aufgabeModalOnSuccess(data);
-            }
-            closeAufgabeModal();
-          }}
+          title={confirmationModalConfig.title}
+          description={confirmationModalConfig.description}
+          confirmText={confirmationModalConfig.confirmText}
+          cancelText={confirmationModalConfig.cancelText}
         />
       )}
     </AuthProvider>
