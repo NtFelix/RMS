@@ -6,28 +6,28 @@ import { Card, CardContent } from '@/components/ui/card' // Corrected import pat
 
 const testimonials = [
   {
-    name: "Sarah Chen",
-    role: "CEO, TechFlow",
+    name: "Max Mustermann",
+    role: "Immobilieneigentümer",
     content:
-      "The attention to detail and innovative approach exceeded our expectations. Our conversion rate increased by 340% within the first month.",
+      "Seit ich diese Plattform nutze, ist die Verwaltung meiner Immobilien ein Kinderspiel. Die Funktionen zur Finanzverfolgung und Mieterverwaltung sind unglaublich leistungsstark.",
     rating: 5,
-    avatar: "/placeholder.svg?height=60&width=60",
+    avatar: "/placeholder-user.jpg",
   },
   {
-    name: "Marcus Rodriguez",
-    role: "CTO, InnovateLab",
+    name: "Erika Mustermann",
+    role: "Mieterin",
     content:
-      "Exceptional technical expertise combined with creative vision. The team delivered a solution that perfectly aligned with our complex requirements.",
+      "Die Kommunikationszentrale macht es so einfach, mit meinem Hausverwalter in Kontakt zu treten. Wartungsanfragen werden schnell und effizient bearbeitet.",
     rating: 5,
-    avatar: "/placeholder.svg?height=60&width=60",
+    avatar: "/placeholder-user.jpg",
   },
   {
-    name: "Emily Watson",
-    role: "Founder, DesignCo",
+    name: "Peter Müller",
+    role: "Hausverwalter",
     content:
-      "Working with this team was transformative. They didn't just build our platform—they elevated our entire brand experience.",
+      "Diese All-in-One-Lösung hat unsere Abläufe optimiert und uns unzählige Stunden gespart. Die Berichts- und Analysefunktionen sind ein entscheidender Vorteil.",
     rating: 5,
-    avatar: "/placeholder.svg?height=60&width=60",
+    avatar: "/placeholder-user.jpg",
   },
 ]
 
@@ -58,10 +58,10 @@ export default function Testimonials() {
           className="text-center mb-20"
         >
           <h2 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">
-            Client Success Stories
+            Was unsere Kunden sagen
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Discover how we've helped businesses transform their digital presence
+            Hören Sie von Immobilieneigentümern, Mietern und Verwaltern, die unserer Plattform vertrauen.
           </p>
         </motion.div>
 

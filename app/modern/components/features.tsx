@@ -1,45 +1,45 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Palette, Layers, Zap, Shield, Globe, Smartphone } from "lucide-react"
+import { Users, DollarSign, ClipboardList, FileText, BarChart2, MessageSquare } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card" // Corrected import path
 import { Button } from "@/components/ui/button" // Corrected import path
 
 const features = [
   {
-    icon: Palette,
-    title: "Advanced Design System",
-    description: "Comprehensive design tokens and components for consistent, scalable interfaces.",
+    icon: Users,
+    title: "Mieterverwaltung",
+    description: "Behalten Sie den Überblick über alle Ihre Mieter, deren Mietverträge und Zahlungshistorien an einem zentralen Ort.",
     pattern: "dots",
   },
   {
-    icon: Layers,
-    title: "Modular Architecture",
-    description: "Flexible, component-based structure that adapts to any project requirement.",
+    icon: DollarSign,
+    title: "Finanzverfolgung",
+    description: "Überwachen Sie Einnahmen und Ausgaben, erstellen Sie Finanzberichte und optimieren Sie Ihre Buchhaltung.",
     pattern: "grid",
   },
   {
-    icon: Zap,
-    title: "Lightning Performance",
-    description: "Optimized for speed with advanced caching and minimal resource usage.",
+    icon: ClipboardList,
+    title: "Aufgaben & Wartung",
+    description: "Erstellen, Zuweisen und Verfolgen von Wartungsanfragen und anderen Aufgaben, um eine rechtzeitige Erledigung sicherzustellen.",
     pattern: "waves",
   },
   {
-    icon: Shield,
-    title: "Enterprise Security",
-    description: "Bank-level security protocols protecting your data and user privacy.",
+    icon: FileText,
+    title: "Dokumentenverwaltung",
+    description: "Speichern und greifen Sie sicher auf wichtige Dokumente wie Mietverträge, Rechnungen und Berichte zu.",
     pattern: "hexagon",
   },
   {
-    icon: Globe,
-    title: "Global Accessibility",
-    description: "WCAG compliant design ensuring inclusive experiences for all users.",
+    icon: BarChart2,
+    title: "Berichte & Analysen",
+    description: "Gewinnen Sie wertvolle Einblicke in die Leistung Ihrer Immobilie mit unseren umfassenden Berichtstools.",
     pattern: "circles",
   },
   {
-    icon: Smartphone,
-    title: "Mobile-First Approach",
-    description: "Responsive design that delivers exceptional experiences across all devices.",
+    icon: MessageSquare,
+    title: "Kommunikationszentrale",
+    description: "Erleichtern Sie die Kommunikation zwischen Mietern, Vermietern und Hausverwaltern mit unserem integrierten Nachrichtensystem.",
     pattern: "diagonal",
   },
 ]
@@ -142,10 +142,10 @@ export default function Features() {
           className="text-center mb-20"
         >
           <h2 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">
-            Powerful Features
+            Alles, was Sie zur Verwaltung Ihrer Immobilien benötigen
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Discover the advanced capabilities that make our platform the choice of industry leaders
+            Unsere Plattform bietet eine umfassende Suite von Tools zur Optimierung Ihres Immobilienverwaltungs-Workflows.
           </p>
         </motion.div>
 
@@ -176,7 +176,7 @@ export default function Features() {
                     variant="outline"
                     className="mt-6 group-hover:border-primary group-hover:text-primary transition-colors"
                   >
-                    Learn More
+                    Mehr erfahren
                   </Button>
                 </CardContent>
               </Card>

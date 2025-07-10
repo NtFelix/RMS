@@ -1,33 +1,33 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Code, Paintbrush, Rocket, Users } from "lucide-react"
+import { Home, Building2, Banknote, Wrench } from "lucide-react"
 import { Button } from '@/components/ui/button' // Corrected import path
 
 const services = [
   {
-    icon: Code,
-    title: "Development",
-    description: "Custom web applications built with cutting-edge technologies and best practices.",
-    features: ["React & Next.js", "TypeScript", "API Integration", "Performance Optimization"],
+    icon: Home,
+    title: "Wohnungsverwaltung",
+    description: "Umfassende Verwaltungsdienstleistungen für Wohnimmobilien, einschließlich Mieterprüfung, Mietvertragsverwaltung und Mieteintreibung.",
+    features: ["Mieterprüfung", "Mietvertragsverwaltung", "Mieteintreibung", "Eigentümerportal"],
   },
   {
-    icon: Paintbrush,
-    title: "Design",
-    description: "Beautiful, user-centered designs that convert visitors into customers.",
-    features: ["UI/UX Design", "Brand Identity", "Prototyping", "Design Systems"],
+    icon: Building2,
+    title: "Gewerbeverwaltung",
+    description: "Spezialisierte Verwaltung für Gewerbeimmobilien mit Fokus auf Maximierung der Auslastung und Mieterzufriedenheit.",
+    features: ["Mietvertragsverhandlung", "Mieterbeziehungen", "Gebäudemanagement", "Anbietermanagement"],
   },
   {
-    icon: Rocket,
-    title: "Strategy",
-    description: "Data-driven strategies to accelerate your digital transformation journey.",
-    features: ["Digital Strategy", "Market Analysis", "Growth Planning", "ROI Optimization"],
+    icon: Banknote,
+    title: "Finanzdienstleistungen",
+    description: "Vollständige finanzielle Aufsicht über Ihre Immobilien, von der Budgetierung und Berichterstattung bis zur Kostenverwaltung.",
+    features: ["Budgetierung & Prognose", "Kostenverfolgung", "Finanzberichterstattung", "Mietverarbeitung"],
   },
   {
-    icon: Users,
-    title: "Consulting",
-    description: "Expert guidance to navigate complex technical challenges and decisions.",
-    features: ["Technical Audit", "Architecture Review", "Team Training", "Best Practices"],
+    icon: Wrench,
+    title: "Wartungskoordination",
+    description: "Optimierte Koordination aller Wartungs- und Reparaturbedürfnisse, um Ihre Immobilien in Top-Zustand zu halten.",
+    features: ["Arbeitsauftragsmanagement", "Anbieterdisposition", "Vorbeugende Wartung", "24/7 Notfallreaktion"],
   },
 ]
 
@@ -60,10 +60,10 @@ export default function Services() {
           className="text-center mb-20"
         >
           <h2 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent">
-            Our Services
+            Immobilienverwaltungsdienste
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            Comprehensive solutions tailored to elevate your digital presence
+            Wir bieten eine umfassende Palette von Dienstleistungen, um den Bedürfnissen von Immobilieneigentümern und Investoren gerecht zu werden.
           </p>
         </motion.div>
 
@@ -115,7 +115,7 @@ export default function Services() {
                     variant="outline"
                     className="group-hover:border-primary group-hover:text-primary transition-colors"
                   >
-                    Learn More
+                    Mehr erfahren
                   </Button>
                 </div>
               </div>

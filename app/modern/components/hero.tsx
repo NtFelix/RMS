@@ -77,7 +77,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Welcome to RMS</span>
+            <span className="text-sm text-muted-foreground">Mühelose Immobilienverwaltung</span>
           </div>
         </motion.div>
 
@@ -87,10 +87,10 @@ export default function Hero({ onGetStarted }: HeroProps) {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
-          Design Beyond
+          Optimieren Sie Ihre
           <br />
           <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-            Imagination
+            Immobilien
           </span>
         </motion.h1>
 
@@ -100,7 +100,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
         >
-          Manage your properties with our comprehensive real estate management system. Track finances, manage tenants, and organize tasks all in one place.
+          Verwalten Sie Ihre Immobilien mit unserem umfassenden Immobilienverwaltungssystem. Verfolgen Sie Finanzen, verwalten Sie Mieter und organisieren Sie Aufgaben – alles an einem Ort.
         </motion.p>
 
         <motion.div
@@ -173,7 +173,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             </div>
 
             <span className="relative z-10 flex items-center">
-              Get Started
+              Jetzt loslegen
               <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </span>
           </Button>
@@ -185,7 +185,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
             className="px-8 py-4 text-lg font-semibold group text-foreground hover:text-accent-foreground"
           >
             <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
-            Watch Demo
+            Mehr erfahren
           </Button>
         </motion.div>
       </div>

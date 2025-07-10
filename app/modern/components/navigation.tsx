@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, FileText, Home, User as UserIcon, LogIn, LogOut } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut } from "lucide-react"
 import { Button } from '@/components/ui/button' // Corrected import path
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -19,11 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { name: "Home", href: "#hero", icon: Home },
-  { name: "Features", href: "#features" },
-  { name: "Services", href: "#services" },
-  { name: "Testimonials", href: "#testimonials" },
-  { name: "Contact", href: "#cta" },
+  { name: "Startseite", href: "#hero", icon: Home },
+  { name: "Funktionen", href: "#features" },
+  { name: "Dienste", href: "#services" },
+  { name: "Preise", href: "#pricing" },
+  { name: "Referenzen", href: "#testimonials" },
 ]
 
 export default function Navigation() {
@@ -118,10 +118,10 @@ export default function Navigation() {
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2 group">
             <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-primary-foreground font-bold text-sm">DS</span>
+              <span className="text-primary-foreground font-bold text-sm">IV</span>
             </div>
             <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              Design<span className="text-primary">Studio</span>
+              Immobilien<span className="text-primary">Verwalter</span>
             </span>
           </Link>
 
@@ -144,21 +144,10 @@ export default function Navigation() {
             ) : (
               // Other pages navigation
               <Link href="/" className="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">
-                Home
+                Startseite
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
               </Link>
             )}
-
-            <Link
-              href="/modern/documentation"
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group ${
-                pathname?.startsWith("/modern/documentation") ? "text-foreground bg-muted" : ""
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Documentation
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
-            </Link>
 
             {currentUser ? (
               <DropdownMenu>
@@ -178,7 +167,7 @@ export default function Navigation() {
                     className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
                   >
                     <LogOut className="w-4 h-4 mr-2" />
-                    Logout
+                    Abmelden
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -190,7 +179,7 @@ export default function Navigation() {
                 onClick={handleOpenLoginModal}
               >
                 <LogIn className="w-4 h-4 mr-2" />
-                Login
+                Anmelden
               </Button>
             )}
           </div>
@@ -234,20 +223,9 @@ export default function Navigation() {
                   onClick={() => setIsOpen(false)}
                   className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 >
-                  Home
+                  Startseite
                 </Link>
               )}
-
-              <Link
-                href="/modern/documentation"
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ${
-                  pathname?.startsWith("/modern/documentation") ? "text-foreground bg-muted" : ""
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                Documentation
-              </Link>
 
               {currentUser ? (
                 <DropdownMenu>
@@ -259,7 +237,7 @@ export default function Navigation() {
                           <UserIcon className="w-4 h-4 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-muted-foreground">Profile</span>
+                      <span className="text-muted-foreground">Profil</span>
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground w-[calc(100vw-2rem)]">
@@ -268,7 +246,7 @@ export default function Navigation() {
                       className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      Logout
+                      Abmelden
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -280,7 +258,7 @@ export default function Navigation() {
                   onClick={handleOpenLoginModal}
                 >
                   <LogIn className="w-4 h-4 mr-2" />
-                  Login
+                  Anmelden
                 </Button>
               )}
             </div>

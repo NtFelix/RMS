@@ -63,7 +63,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm mb-8">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Ready to Transform?</span>
+            <span className="text-sm text-muted-foreground">Bereit zur Vereinfachung?</span>
           </div>
         </motion.div>
 
@@ -74,10 +74,10 @@ export default function CTA({ onGetStarted }: CTAProps) {
           viewport={{ once: true }}
           className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
-          Let's Build Something
+          Übernehmen Sie die Kontrolle über Ihre
           <br />
           <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-            Extraordinary
+            Immobilien noch heute
           </span>
         </motion.h2>
 
@@ -88,8 +88,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           viewport={{ once: true }}
           className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed"
         >
-          Join hundreds of forward-thinking companies who trust us to bring their vision to life with cutting-edge
-          design and development.
+          Schließen Sie sich Hunderten von Immobilieneigentümern und -verwaltern an, die unserer Plattform vertrauen, um ihren Arbeitsablauf zu optimieren und ihren Gewinn zu steigern.
         </motion.p>
 
         <motion.div
@@ -106,7 +105,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
             className="px-12 py-6 text-xl font-semibold group"
             onClick={onGetStarted}
           >
-            Get Started with Property Management
+            Jetzt loslegen
             <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
           </Button>
           <Button
@@ -116,7 +115,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
             // Uses standard outline which respects theme
             className="px-12 py-6 text-xl font-semibold text-foreground hover:text-accent-foreground"
           >
-            Schedule Consultation
+            Demo anfordern
           </Button>
         </motion.div>
       </div>

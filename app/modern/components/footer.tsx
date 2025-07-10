@@ -4,10 +4,10 @@ import { motion } from "framer-motion"
 import { Github, Twitter, Linkedin, Mail } from "lucide-react"
 
 const footerLinks = {
-  Company: ["About", "Careers", "Press", "News"],
-  Services: ["Design", "Development", "Consulting", "Support"],
-  Resources: ["Blog", "Documentation", "Help Center", "Community"],
-  Legal: ["Privacy", "Terms", "Security", "Cookies"],
+  Unternehmen: ["Über uns", "Kontakt", "Karriere", "Blog"],
+  Plattform: ["Funktionen", "Preise", "Integrationen", "API"],
+  Ressourcen: ["Hilfezentrum", "Anleitungen", "Webinare", "Community"],
+  Rechtliches: ["Datenschutz", "AGB", "Sicherheit", "Lizenzen"],
 }
 
 const socialLinks = [
@@ -43,10 +43,10 @@ export default function Footer() {
               viewport={{ once: true }}
             >
               <h3 className="text-2xl font-bold text-foreground mb-4">
-                Design<span className="text-primary">Studio</span>
+                Immobilien<span className="text-primary">Verwalter</span>
               </h3>
               <p className="text-muted-foreground leading-relaxed mb-6">
-                Crafting exceptional digital experiences with cutting-edge technology and innovative design patterns.
+                Die All-in-One-Plattform zur Optimierung Ihres Immobilienverwaltungs-Workflows.
               </p>
               <div className="flex gap-4">
                 {socialLinks.map((social, index) => (
@@ -96,8 +96,8 @@ export default function Footer() {
           viewport={{ once: true }}
           className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4"
         >
-          <p className="text-muted-foreground text-sm">© 2024 DesignStudio. All rights reserved.</p>
-          <p className="text-muted-foreground/70 text-sm">Built with passion and cutting-edge technology</p>
+          <p className="text-muted-foreground text-sm">© 2024 ImmobilienVerwalter. Alle Rechte vorbehalten.</p>
+          <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Immobilienverwaltung für alle zu vereinfachen.</p>
         </motion.div>
       </div>
     </footer>
