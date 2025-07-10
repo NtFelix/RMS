@@ -615,19 +615,19 @@ export function BetriebskostenEditModal({
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
               <div className="rounded-md border p-4 space-y-0 shadow-sm">
-                {/* {isLoadingDetails && (nebenkostenToEdit?.id || modalNebenkostenData?.id) ? (
+                {isLoadingDetails && (nebenkostenToEdit?.id || modalNebenkostenData?.id) ? (
                   // Skeleton for Cost Items when editing and loading
-                  // Array.from({ length: 3 }).map((_, idx) => (
-                  //   <div key={`skel-cost-${idx}`} className="flex flex-col gap-3 py-2 border-b last:border-b-0">
-                  //     <div className="flex flex-col sm:flex-row items-start gap-3">
-                  //       <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                  //       <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
-                  //       <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                  //       <Skeleton className="h-10 w-10 flex-none self-center sm:self-start" />
-                  //     </div>
-                  //   </div>
-                  // ))
-                // ) : ( */}
+                  Array.from({ length: 3 }).map((_, idx) => (
+                    <div key={`skel-cost-${idx}`} className="flex flex-col gap-3 py-2 border-b last:border-b-0">
+                      <div className="flex flex-col sm:flex-row items-start gap-3">
+                        <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
+                        <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
+                        <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
+                        <Skeleton className="h-10 w-10 flex-none self-center sm:self-start" />
+                      </div>
+                    </div>
+                  ))
+                ) : (
                   // Actual Cost Items
                   costItems.map((item, index) => (
                     <div
@@ -695,15 +695,15 @@ export function BetriebskostenEditModal({
                           <h4 className="text-md font-semibold text-gray-700">
                             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
                           </h4>
-                          {/* {(isLoadingDetails || isFetchingTenants) && (!selectedHausMieter || selectedHausMieter.length === 0) ? (
+                          {(isLoadingDetails || isFetchingTenants) && (!selectedHausMieter || selectedHausMieter.length === 0) ? (
                               // Show skeletons if overall modal is loading OR tenants are fetching AND no tenants yet displayed
-                              // Array.from({ length: 3 }).map((_, skelIdx) => (
-                              //   <div key={`skel-tenant-${skelIdx}`} className="grid grid-cols-10 gap-2 items-center py-1">
-                              //     <Skeleton className="h-8 w-full col-span-6 sm:col-span-7" />
-                              //     <Skeleton className="h-8 w-full col-span-4 sm:col-span-3" />
-                              //   </div>
-                              // ))
-                          // ) : ( */}
+                              Array.from({ length: 3 }).map((_, skelIdx) => (
+                                <div key={`skel-tenant-${skelIdx}`} className="grid grid-cols-10 gap-2 items-center py-1">
+                                  <Skeleton className="h-8 w-full col-span-6 sm:col-span-7" />
+                                  <Skeleton className="h-8 w-full col-span-4 sm:col-span-3" />
+                                </div>
+                              ))
+                          ) : (
                             <>
                               {!isFetchingTenants && !haeuserId && (
                                 <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">Bitte wählen Sie zuerst ein Haus aus, um Mieter zu laden.</p>
