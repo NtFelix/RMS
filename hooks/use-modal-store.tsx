@@ -84,10 +84,10 @@ interface ModalState {
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
-  title: "Discard unsaved changes?",
-  description: "If you close this form, your changes will be lost. Are you sure you want to discard them?",
-  confirmText: "Discard",
-  cancelText: "Cancel",
+  title: "Ungespeicherte Änderungen verwerfen?",
+  description: "Wenn Sie dieses Formular schließen, gehen Ihre Änderungen verloren. Möchten Sie sie wirklich verwerfen?",
+  confirmText: "Verwerfen",
+  cancelText: "Abbrechen",
 };
 
 export const useModalStore = create<ModalState>((set, get) => ({

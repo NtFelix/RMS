@@ -27,8 +27,8 @@ export const ConfirmationDialog: React.FC<ConfirmationDialogProps> = ({
   onConfirm,
   title,
   description,
-  confirmText = "Confirm",
-  cancelText = "Cancel",
+  confirmText = "Bestätigen",
+  cancelText = "Abbrechen",
 }) => {
   if (!isOpen) {
     return null
