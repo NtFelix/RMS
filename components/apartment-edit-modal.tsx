@@ -99,36 +99,33 @@ export function ApartmentEditModal({
     
     // Determine if it's an update or create based on wohnungInitialData
     const currentApartmentId = wohnungInitialData?.id || null;
-    const url = currentApartmentId ? `/api/wohnungen?id=${currentApartmentId}` : "/api/wohnungen"
-    const method = currentApartmentId ? "PUT" : "POST"
+    
     
     try {
       // Assuming a generic serverAction prop for now, or replace with direct fetch
-      const res = await fetch(url, { 
-        method, 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(formData) 
-      });
+      if (!serverAction) {
+        throw new Error("serverAction prop is not provided.");
+      }
+      const payload = { ...formData };
+      const result = await serverAction(currentApartmentId, payload);
       
-      if (res.ok) {
-        toast({ 
+      if (result && result.success) {
+        toast({
           title: currentApartmentId ? "Aktualisiert" : "Gespeichert",
           description: currentApartmentId ? "Wohnung aktualisiert." : "Wohnung hinzugefügt.",
           variant: "success",
-        })
+        });
         setWohnungModalDirty(false); // Reset dirty state
         if (wohnungModalOnSuccess) {
-          const resultData = await res.json(); // Or construct data if API doesn't return it
-          wohnungModalOnSuccess(resultData.wohnung || { ...formData, id: currentApartmentId || resultData.id });
+          wohnungModalOnSuccess(result.data || { ...formData, id: currentApartmentId || result.id });
         }
         closeWohnungModal(); // Will close directly as dirty is false
       } else {
-        const err = await res.json()
-        toast({ 
-          title: "Fehler", 
-          description: err.error || "Ein Fehler ist aufgetreten.",
-          variant: "destructive" 
-        })
+        toast({
+          title: "Fehler",
+          description: result?.error || "Ein Fehler ist aufgetreten.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       toast({ 
