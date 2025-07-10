@@ -164,7 +164,7 @@ export function AufgabeEditModal({
               <Input
                 id="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={handleNameChange} // Use handler
                 placeholder="Aufgabentitel eingeben"
                 required
                 disabled={isSubmitting}
@@ -176,7 +176,7 @@ export function AufgabeEditModal({
                   <Checkbox
                     id="ist_erledigt"
                     checked={istErledigt}
-                    onCheckedChange={(checked) => setIstErledigt(!!checked)}
+                    onCheckedChange={handleErledigtChange} // Use handler
                     disabled={isSubmitting}
                     className="h-5 w-5"
                   />
@@ -191,7 +191,7 @@ export function AufgabeEditModal({
               <Textarea
                 id="beschreibung"
                 value={beschreibung}
-                onChange={(e) => setBeschreibung(e.target.value)}
+                onChange={handleBeschreibungChange} // Use handler
                 placeholder="Detaillierte Beschreibung der Aufgabe..."
                 className="min-h-[100px]"
                 disabled={isSubmitting}

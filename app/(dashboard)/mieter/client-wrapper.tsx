@@ -39,17 +39,38 @@ export default function MieterClientView({
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { openTenantModal } = useModalStore();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // Remove local state for dialogOpen and editingId, as store will manage modal state
+  // const [dialogOpen, setDialogOpen] = useState(false);
+  // const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleAddTenant = useCallback(() => {
-    openTenantModal(undefined, initialWohnungen); // Removed serverAction
+    // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
+    openTenantModal(undefined, initialWohnungen);
   }, [openTenantModal, initialWohnungen]);
 
   const handleEditTenantInTable = useCallback((tenant: Tenant) => {
-    setEditingId(tenant.id);
-    setDialogOpen(true);
-  }, []);
+    // Find the full tenant data if only partial data is passed by the table event
+    const tenantToEdit = initialTenants.find(t => t.id === tenant.id);
+    if (tenantToEdit) {
+      // Format data as expected by TenantEditModal's useEffect for parsing Nebenkosten
+      const formattedInitialData = {
+        id: tenantToEdit.id,
+        wohnung_id: tenantToEdit.wohnung_id || "",
+        name: tenantToEdit.name,
+        einzug: tenantToEdit.einzug || "",
+        auszug: tenantToEdit.auszug || "",
+        email: tenantToEdit.email || "",
+        telefonnummer: tenantToEdit.telefonnummer || "",
+        notiz: tenantToEdit.notiz || "",
+        nebenkosten: Array.isArray(tenantToEdit.nebenkosten) ? tenantToEdit.nebenkosten.join(",") : (tenantToEdit.nebenkosten || ""),
+        nebenkosten_datum: Array.isArray(tenantToEdit.nebenkosten_datum) ? tenantToEdit.nebenkosten_datum.join(",") : (tenantToEdit.nebenkosten_datum || ""),
+      };
+      openTenantModal(formattedInitialData, initialWohnungen);
+    } else {
+      console.error("Tenant not found for editing:", tenant.id);
+      // Optionally, show a toast message
+    }
+  }, [initialTenants, initialWohnungen, openTenantModal]);
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -61,16 +82,20 @@ export default function MieterClientView({
         <AddTenantButton onAdd={handleAddTenant} />
       </div>
 
-      {/* TenantDialogWrapper for editing from table */}
+      {/* TenantDialogWrapper is no longer needed here as TenantEditModal is global
+          and opened directly via useModalStore actions.
+      */}
+      {/*
       <TenantDialogWrapper
         wohnungen={initialWohnungen}
         mieter={initialTenants}
-        serverAction={serverAction}
+        serverAction={serverAction} // This prop is for TenantEditModal, not wrapper
         open={dialogOpen}
         editingId={editingId}
         setOpen={setDialogOpen}
         setEditingId={setEditingId}
       />
+      */}
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
           <div>

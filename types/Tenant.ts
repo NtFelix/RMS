@@ -8,4 +8,5 @@ export interface Tenant {
   telefonnummer?: string;
   notiz?: string;
   nebenkosten?: number[];
+  nebenkosten_datum?: string[]; // Added for consistency with modal data prep
 }
