@@ -13,7 +13,7 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+// import { Textarea } from "@/components/ui/textarea"; // Unused import
 import {
   Select,
   SelectContent,
@@ -742,130 +742,8 @@ export function BetriebskostenEditModal({
                 ) : (
                   // Actual Cost Items
                   costItems.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="flex flex-col gap-3 py-2 border-b last:border-b-0"
-                      role="group" // Added role
-                      aria-label={`Kostenposition ${index + 1}`} // Added aria-label
-                    >
-                      <div className="flex flex-col sm:flex-row items-start gap-3">
-                        <div className="w-full sm:flex-[4_1_0%]">
-                          <Input 
-                            id={`art-${item.id}`}
-                            placeholder="Kostenart"
-                            value={item.art}
-                            onChange={(e) => handleCostItemChange(index, 'art', e.target.value)}
-                          />
-                        </div>
-                        <div className="w-full sm:flex-[3_1_0%]">
-                          {item.berechnungsart === 'nach Rechnung' ? (
-                            <div className="flex items-center justify-center h-10 px-3 py-2 text-sm text-muted-foreground bg-gray-50 border rounded-md">
-                              Beträge pro Mieter unten
-                            </div>
-                          ) : (
-                            <Input
-                              id={`betrag-${item.id}`}
-                              type="number"
-                              placeholder="Betrag (€)"
-                              value={item.betrag}
-                              onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
-                              step="0.01"
-                            />
-                          )}
-                        </div>
-                        <div className="w-full sm:flex-[4_1_0%]">
-                          <Select
-                            value={item.berechnungsart}
-                            onValueChange={(value) => handleCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
-                          >
-                            <SelectTrigger id={`berechnungsart-${item.id}`}>
-                              <SelectValue placeholder="Berechnungsart..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {BERECHNUNGSART_OPTIONS.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeCostItem(index)}
-                            disabled={costItems.length <= 1 || isLoadingDetails}
-                            aria-label="Kostenposition entfernen"
-                          >
-                            <Trash2 className="h-5 w-5 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Einzelbeträge Section with Skeletons */}
-                      {item.berechnungsart === 'nach Rechnung' && (
-                        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md space-y-3 shadow-sm">
-                          <h4 className="text-md font-semibold text-gray-700">
-                            Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
-                          </h4>
-                          {(isLoadingDetails || isFetchingTenants) && (!selectedHausMieter || selectedHausMieter.length === 0) ? (
-                              // Show skeletons if overall modal is loading OR tenants are fetching AND no tenants yet displayed
-                              Array.from({ length: 3 }).map((_, skelIdx) => (
-                                <div key={`skel-tenant-${skelIdx}`} className="grid grid-cols-10 gap-2 items-center py-1">
-                                  <Skeleton className="h-8 w-full col-span-6 sm:col-span-7" />
-                                  <Skeleton className="h-8 w-full col-span-4 sm:col-span-3" />
-                                </div>
-                              ))
-                          ) : (
-                            <>
-                              {!isFetchingTenants && !haeuserId && (
-                                <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">Bitte wählen Sie zuerst ein Haus aus, um Mieter zu laden.</p>
-                              )}
-                              {!isFetchingTenants && haeuserId && selectedHausMieter.length === 0 && !isLoadingDetails && (
-                                <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">Für das ausgewählte Haus wurden keine Mieter gefunden oder es sind keine Mieter dem Haus direkt zugeordnet.</p>
-                              )}
-                              {!isFetchingTenants && haeuserId && selectedHausMieter.length > 0 && (
-                                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                                  {selectedHausMieter.map(mieter => {
-                                    const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
-                                    return (
-                                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-1 border-b border-gray-100 last:border-b-0">
-                                        <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="col-span-6 sm:col-span-7 truncate text-sm" title={mieter.name}>
-                                          {mieter.name}
-                                        </Label>
-                                        <div className="col-span-4 sm:col-span-3">
-                                          <Input
-                                            id={`rechnung-${item.id}-${mieter.id}`}
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="Betrag (€)"
-                                            value={rechnungForMieter?.betrag || ''}
-                                            onChange={(e) => handleRechnungChange(item.id, mieter.id, e.target.value)}
-                                            className="w-full text-sm"
-                                            disabled={isLoadingDetails} // Disable input while main details load
-                                          />
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                              {/* Display sum of individual invoices */}
-                              {item.berechnungsart === 'nach Rechnung' && rechnungen[item.id] && selectedHausMieter.length > 0 && !isLoadingDetails && (
-                                  <div className="pt-2 mt-2 border-t border-gray-300 flex justify-end">
-                                      <p className="text-sm font-semibold text-gray-700">
-                                          Summe Einzelbeträge: {
-                                              (rechnungen[item.id] || [])
-                                                  .reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0)
-                                                  .toFixed(2)
-                                          } €
-                                      </p>
-                                  </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    // Simplified rendering for debugging
+                    <div key={item.id}>Art: {item.art}</div>
                   ))
                 )}
                 <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isLoadingDetails}>
