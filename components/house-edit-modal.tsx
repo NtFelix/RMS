@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react"; // Added useCallback
 import {
   Dialog,
   DialogContent,
@@ -9,6 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,25 @@ interface HouseEditModalProps {
   onSuccess?: (data: any) => void;
 }
 
+const isFormDataDirtyHouse = (
+  currentData: any,
+  initialDataState: any,
+  currentManualGroesse: string,
+  initialManualGroesseState: string,
+  currentAutomaticSize: boolean,
+  initialAutomaticSizeState: boolean
+): boolean => {
+  if (currentAutomaticSize !== initialAutomaticSizeState) return true;
+  if (currentManualGroesse !== initialManualGroesseState) return true;
+
+  // Check main form fields
+  return Object.keys(currentData).some(key => {
+    const currentValue = currentData[key] === null ? "" : String(currentData[key]);
+    const initialValue = initialDataState?.[key] === null ? "" : String(initialDataState?.[key]);
+    return currentValue !== (initialValue || "");
+  });
+};
+
 export function HouseEditModal(props: HouseEditModalProps) {
   const {
     open,
@@ -48,35 +68,51 @@ export function HouseEditModal(props: HouseEditModalProps) {
   } = props;
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State for dirty checking
+  const [initialFormState, setInitialFormState] = useState<any>({});
+  const [initialManualGroesseState, setInitialManualGroesseState] = useState<string>('');
+  const [initialAutomaticSizeState, setInitialAutomaticSizeState] = useState<boolean>(true);
+
   const [automaticSize, setAutomaticSize] = useState(true);
   const [manualGroesse, setManualGroesse] = useState<string>('');
-  const [formData, setFormData] = useState({
-    name: initialData?.name || "",
-    strasse: initialData?.strasse || "",
-    ort: initialData?.ort || "",
-    groesse: initialData?.groesse ?? null, // Reflects House interface
+  const [formData, setFormData] = useState(() => {
+    const data = {
+      name: initialData?.name || "",
+      strasse: initialData?.strasse || "",
+      ort: initialData?.ort || "",
+      // groesse is handled by manualGroesse and automaticSize
+    };
+    // setInitialFormState(JSON.parse(JSON.stringify(data))); // Set during useEffect based on initialData
+    return data;
   });
 
+  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
+
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        name: initialData.name,
-        strasse: initialData.strasse || "",
-        ort: initialData.ort,
-        groesse: initialData.groesse ?? null,
-      });
-      if (initialData.groesse != null) {
-        setAutomaticSize(false);
-        setManualGroesse(String(initialData.groesse));
-      } else {
-        setAutomaticSize(true);
-        setManualGroesse('');
-      }
+    const newFormData = {
+      name: initialData?.name || "",
+      strasse: initialData?.strasse || "",
+      ort: initialData?.ort || "",
+    };
+    setFormData(newFormData);
+    setInitialFormState(JSON.parse(JSON.stringify(newFormData)));
+
+    if (initialData?.groesse != null) {
+      const initialGroesseStr = String(initialData.groesse);
+      setManualGroesse(initialGroesseStr);
+      setInitialManualGroesseState(initialGroesseStr);
+      setAutomaticSize(false);
+      setInitialAutomaticSizeState(false);
     } else {
-      // Reset for adding new
-      setFormData({ name: "", strasse: "", ort: "", groesse: null });
-      setAutomaticSize(true);
       setManualGroesse('');
+      setInitialManualGroesseState('');
+      setAutomaticSize(true);
+      setInitialAutomaticSizeState(true);
+    }
+
+    if (!open) {
+      setShowConfirmDiscardModal(false);
     }
   }, [initialData, open]);
 
@@ -85,23 +121,57 @@ export function HouseEditModal(props: HouseEditModalProps) {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const checkDirtyStateHouse = useCallback(() => {
+    return isFormDataDirtyHouse(
+      formData,
+      initialFormState,
+      manualGroesse,
+      initialManualGroesseState,
+      automaticSize,
+      initialAutomaticSizeState
+    );
+  }, [formData, initialFormState, manualGroesse, initialManualGroesseState, automaticSize, initialAutomaticSizeState]);
+
+  const handleAttemptCloseHouse = useCallback((event?: Event) => {
+    if (checkDirtyStateHouse()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(false);
+    }
+  }, [checkDirtyStateHouse, onOpenChange]);
+
+  const handleMainModalOpenChangeHouse = (isOpen: boolean) => {
+    if (!isOpen && checkDirtyStateHouse()) {
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(isOpen);
+    }
+  };
+
+  const handleConfirmDiscardHouse = () => {
+    onOpenChange(false); // Triggers useEffect to reset state
+    setShowConfirmDiscardModal(false);
+  };
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const form = new FormData();
-    form.append("name", formData.name);
-    form.append("strasse", formData.strasse);
-    form.append("ort", formData.ort);
+    const formPayload = new FormData(); // Renamed to avoid conflict with component's formData state
+    formPayload.append("name", formData.name);
+    formPayload.append("strasse", formData.strasse);
+    formPayload.append("ort", formData.ort);
 
     if (automaticSize) {
-      form.append("groesse", ""); // Send empty string for NULL
+      formPayload.append("groesse", ""); // Send empty string for NULL
     } else {
-      form.append("groesse", manualGroesse);
+      formPayload.append("groesse", manualGroesse);
     }
 
     try {
-      const result = await serverAction(initialData?.id || null, form);
+      const result = await serverAction(initialData?.id || null, formPayload);
       
       if (result.success) {
         toast({
@@ -110,17 +180,16 @@ export function HouseEditModal(props: HouseEditModalProps) {
           variant: "success",
         });
         
-        // Call the onSuccess callback with the result data
         if (onSuccess) {
           const successData = result.data || { 
             ...formData, 
-            id: initialData?.id || '' 
+            id: initialData?.id || '',
+            groesse: automaticSize ? null : parseFloat(manualGroesse) || null
           };
           onSuccess(successData);
         }
         
-        // Close the modal
-        onOpenChange(false);
+        onOpenChange(false); // Close the modal
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -136,8 +205,27 @@ export function HouseEditModal(props: HouseEditModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <>
+    <Dialog open={open} onOpenChange={handleMainModalOpenChangeHouse}>
+      <DialogContent
+        className="sm:max-w-[425px]"
+        onInteractOutsideOptional={(e) => {
+          if (open && checkDirtyStateHouse()) {
+            e.preventDefault();
+            setShowConfirmDiscardModal(true);
+          } else if (open) {
+            onOpenChange(false);
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (checkDirtyStateHouse()) {
+            e.preventDefault();
+            setShowConfirmDiscardModal(true);
+          } else {
+            onOpenChange(false);
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{initialData ? "Haus bearbeiten" : "Haus hinzufügen"}</DialogTitle>
           <DialogDescription>
@@ -203,7 +291,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => handleAttemptCloseHouse()} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -213,5 +301,16 @@ export function HouseEditModal(props: HouseEditModalProps) {
         </form>
       </DialogContent>
     </Dialog>
+    <ConfirmationAlertDialog
+        isOpen={showConfirmDiscardModal}
+        onOpenChange={setShowConfirmDiscardModal}
+        onConfirm={handleConfirmDiscardHouse}
+        title="Änderungen verwerfen?"
+        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+        confirmButtonText="Verwerfen"
+        cancelButtonText="Weiter bearbeiten"
+        confirmButtonVariant="destructive"
+      />
+    </>
   );
 }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react" // Added useEffect, useCallback
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,6 +26,43 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
   const [name, setName] = useState("")
   const [beschreibung, setBeschreibung] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
+
+  // For dirty checking, since it's an "add" modal, initial state is always empty.
+  const isFormDirtyTask = () => {
+    return name.trim() !== "" || beschreibung.trim() !== "";
+  };
+
+  // Reset form when modal is closed (either by successful submit or cancel)
+  useEffect(() => {
+    if (!isOpen) {
+      setName("");
+      setBeschreibung("");
+      setShowConfirmDiscardModal(false); // Ensure confirmation is also closed
+    }
+  }, [isOpen]);
+
+  const handleAttemptCloseTask = useCallback((event?: Event) => {
+    if (isFormDirtyTask()) {
+      if (event) event.preventDefault();
+      setShowConfirmDiscardModal(true);
+    } else {
+      onClose();
+    }
+  }, [name, beschreibung, onClose]); // Dependencies: name, beschreibung, onClose
+
+  const handleMainModalOpenChangeTask = (isDialogOpen: boolean) => {
+    if (!isDialogOpen && isFormDirtyTask()) {
+      setShowConfirmDiscardModal(true);
+    } else {
+      onClose(); // This will also trigger the useEffect to reset form if !isDialogOpen
+    }
+  };
+
+  const handleConfirmDiscardTask = () => {
+    onClose(); // This will trigger the useEffect to reset form
+    setShowConfirmDiscardModal(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,9 +100,7 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
         variant: "success",
       })
       
-      // Reset form and close modal
-      setName("")
-      setBeschreibung("")
+      // onTaskAdded and onClose will trigger form reset via useEffect
       onTaskAdded()
       onClose()
     } catch (error) {
@@ -80,8 +116,27 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <>
+    <Dialog open={isOpen} onOpenChange={handleMainModalOpenChangeTask}>
+      <DialogContent
+        className="sm:max-w-[500px]"
+        onInteractOutsideOptional={(e) => {
+          if (isOpen && isFormDirtyTask()) {
+            e.preventDefault();
+            setShowConfirmDiscardModal(true);
+          } else if (isOpen) {
+            onClose();
+          }
+        }}
+        onEscapeKeyDown={(e) => {
+          if (isFormDirtyTask()) {
+            e.preventDefault();
+            setShowConfirmDiscardModal(true);
+          } else {
+            onClose();
+          }
+        }}
+      >
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Neue Aufgabe hinzufügen</DialogTitle>
@@ -117,7 +172,7 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={onClose}>
+            <Button variant="outline" type="button" onClick={() => handleAttemptCloseTask()}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
@@ -127,5 +182,16 @@ export function TaskModal({ isOpen, onClose, onTaskAdded }: TaskModalProps) {
         </form>
       </DialogContent>
     </Dialog>
+    <ConfirmationAlertDialog
+        isOpen={showConfirmDiscardModal}
+        onOpenChange={setShowConfirmDiscardModal}
+        onConfirm={handleConfirmDiscardTask}
+        title="Änderungen verwerfen?"
+        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+        confirmButtonText="Verwerfen"
+        cancelButtonText="Weiter bearbeiten"
+        confirmButtonVariant="destructive"
+      />
+    </>
   )
 }

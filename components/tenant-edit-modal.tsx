@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react" // Added useCallback
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
 import { Trash2 } from "lucide-react"; // Added
 import { createClient } from "@/utils/supabase/client" // Added
 import { toast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog" // Added DialogClose
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"; // Added
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -59,22 +60,65 @@ interface TenantEditModalProps {
   loading?: boolean // This might be replaced by local isSubmitting state
 }
 
+const emptyNebenkostenEntry = { id: "", amount: "", date: "" }; // Helper for empty entries
+
+// Helper function to check if form data is dirty
+const isFormDataDirty = (currentData: any, initialData: any, initialNebenkosten: NebenkostenEntry[], currentNebenkosten: NebenkostenEntry[]): boolean => {
+  // Check main form fields
+  const mainFieldsChanged = Object.keys(currentData).some(key => {
+    const currentValue = currentData[key] === null ? "" : currentData[key]; // Treat null as empty string for comparison
+    const initialValue = initialData?.[key] === null ? "" : initialData?.[key];
+    return currentValue !== (initialValue || ""); // Compare with initial or empty string if initialData is undefined
+  });
+  if (mainFieldsChanged) return true;
+
+  // Check Nebenkosten entries
+  // Normalize and compare Nebenkosten entries
+  const normalizeEntry = (entry: NebenkostenEntry) => ({
+    amount: entry.amount.trim(),
+    date: entry.date.trim(),
+  });
+
+  const initialNormalized = initialNebenkosten.map(normalizeEntry).filter(e => e.amount || e.date);
+  const currentNormalized = currentNebenkosten.map(normalizeEntry).filter(e => e.amount || e.date);
+
+
+  if (initialNormalized.length !== currentNormalized.length) return true;
+
+  for (let i = 0; i < currentNormalized.length; i++) {
+    if (currentNormalized[i].amount !== initialNormalized[i]?.amount || currentNormalized[i].date !== initialNormalized[i]?.date) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+
 export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnungen = [], initialData, serverAction }: TenantEditModalProps) {
   const router = useRouter();
-  const [isSubmitting, setIsSubmitting] = useState(false); // Added submitting state
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [nebenkostenEntries, setNebenkostenEntries] = useState<NebenkostenEntry[]>([]);
   const [nebenkostenValidationErrors, setNebenkostenValidationErrors] = useState<Record<string, { amount?: string; date?: string }>>({});
-  const [formData, setFormData] = useState({
-    // Ensure all form fields are initialized, possibly from initialData
-    wohnung_id: initialData?.wohnung_id || "",
-    name: initialData?.name || "",
-    einzug: initialData?.einzug || "",
-    auszug: initialData?.auszug || "",
-    email: initialData?.email || "",
-    telefonnummer: initialData?.telefonnummer || "",
-    notiz: initialData?.notiz || "",
-    // Nebenkosten fields removed from here, will be handled by nebenkostenEntries
+
+  const [initialFormStateForDirtyCheck, setInitialFormStateForDirtyCheck] = useState<any>({});
+  const [initialNebenkostenForDirtyCheck, setInitialNebenkostenForDirtyCheck] = useState<NebenkostenEntry[]>([]);
+
+  const [formData, setFormData] = useState(() => {
+    const data = {
+      wohnung_id: initialData?.wohnung_id || "",
+      name: initialData?.name || "",
+      einzug: initialData?.einzug || "",
+      auszug: initialData?.auszug || "",
+      email: initialData?.email || "",
+      telefonnummer: initialData?.telefonnummer || "",
+      notiz: initialData?.notiz || "",
+    };
+    setInitialFormStateForDirtyCheck(JSON.parse(JSON.stringify(data))); // Deep copy for initial state
+    return data;
   });
+
+  const [showConfirmDiscardModal, setShowConfirmDiscardModal] = useState(false);
 
   // Helper function to sort Nebenkosten entries
   const getSortedNebenkostenEntries = (entries: NebenkostenEntry[]): NebenkostenEntry[] => {
@@ -91,8 +135,7 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
   };
 
   useEffect(() => {
-    // Initialize formData (without nebenkosten)
-    setFormData({
+    const newFormData = {
       wohnung_id: initialData?.wohnung_id || "",
       name: initialData?.name || "",
       einzug: initialData?.einzug || "",
@@ -100,25 +143,32 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
       email: initialData?.email || "",
       telefonnummer: initialData?.telefonnummer || "",
       notiz: initialData?.notiz || "",
-    });
+    };
+    setFormData(newFormData);
+    setInitialFormStateForDirtyCheck(JSON.parse(JSON.stringify(newFormData))); // Deep copy
 
-    // Initialize nebenkostenEntries
-    if (open && initialData) {
+    let initialNkEntries: NebenkostenEntry[] = [];
+    if (initialData) {
       const amounts = initialData.nebenkosten ? initialData.nebenkosten.split(',').map(s => s.trim()) : [];
       const dates = initialData.nebenkosten_datum ? initialData.nebenkosten_datum.split(',').map(s => s.trim()) : [];
-      let newEntries = amounts.map((amount, index) => ({
-        id: Math.random().toString(36).substr(2, 9), // Generate unique ID
+      initialNkEntries = amounts.map((amount, index) => ({
+        id: Math.random().toString(36).substr(2, 9),
         amount: amount,
-        date: dates[index] || "" // Handle potential mismatch in lengths
+        date: dates[index] || ""
       }));
-
-      setNebenkostenEntries(getSortedNebenkostenEntries(newEntries));
-    } else if (open && !initialData) {
-      setNebenkostenEntries([]); // Or [{ id: generateUniqueId(), amount: "", date: "" }] for a default empty entry
     }
-    // Reset validation errors when modal opens/closes or initialData changes
-    setNebenkostenValidationErrors({});
-  }, [initialData, open]);
+
+    const sortedInitialNkEntries = getSortedNebenkostenEntries(initialNkEntries);
+    setNebenkostenEntries(sortedInitialNkEntries);
+    setInitialNebenkostenForDirtyCheck(JSON.parse(JSON.stringify(sortedInitialNkEntries.map(e => ({amount: e.amount, date: e.date}))))); // Store normalized for dirty check
+
+
+    if (!open) { // Reset everything when modal closes
+        setNebenkostenValidationErrors({});
+        setShowConfirmDiscardModal(false); // Ensure confirmation is also closed
+    }
+
+  }, [initialData, open]); // Removed `open` from dependencies to avoid resetting form on every open if not intended. Re-added for resetting on close.
 
   const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
   const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
@@ -227,9 +277,68 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
     setFormData({ ...formData, [name]: formattedDate });
   };
 
+  const checkDirtyState = useCallback(() => {
+    return isFormDataDirty(formData, initialFormStateForDirtyCheck, initialNebenkostenForDirtyCheck, nebenkostenEntries);
+  }, [formData, initialFormStateForDirtyCheck, initialNebenkostenForDirtyCheck, nebenkostenEntries]);
+
+  const handleAttemptClose = useCallback((event?: Event) => {
+    if (checkDirtyState()) {
+      if (event) event.preventDefault(); // Prevent Radix from closing dialog
+      setShowConfirmDiscardModal(true);
+    } else {
+      onOpenChange(false); // Close if not dirty
+    }
+  }, [checkDirtyState, onOpenChange]);
+
+  // This is for the main Dialog's onOpenChange, specifically for X button and Escape key
+  const handleMainModalOpenChange = (isOpen: boolean) => {
+    if (!isOpen && checkDirtyState()) {
+      // If trying to close (isOpen is false) and form is dirty
+      setShowConfirmDiscardModal(true);
+      // Do not call onOpenChange(false) here, let confirmation handle it
+    } else {
+      onOpenChange(isOpen); // Default behavior
+    }
+  };
+
+  const handleConfirmDiscard = () => {
+    onOpenChange(false); // This will trigger the useEffect to reset form state
+    setShowConfirmDiscardModal(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+    <>
+    <Dialog open={open} onOpenChange={handleMainModalOpenChange}>
+      <DialogContent
+        className="sm:max-w-[600px]"
+        onInteractOutsideOptional={(e) => {
+          // Radix calls onInteractOutside for any interaction.
+          // We only care about it if the dialog is currently open.
+          // And if the interaction would normally close it (i.e., it's an outside click).
+          // The default behavior of Radix is to close on outside click.
+          // So, if this handler is called, it means an outside click happened.
+          // We then check if the form is dirty.
+          if (open && checkDirtyState()) {
+            e.preventDefault(); // Prevent default closing behavior
+            setShowConfirmDiscardModal(true);
+          } else if (open) {
+            // If not dirty, but open, let it close via Radix's default
+            // by not calling e.preventDefault() and letting onOpenChange handle it (or not, if no onOpenChange provided to DialogContent directly)
+            // However, our main Dialog's onOpenChange will be called by Radix.
+            // So, we can simply call onOpenChange(false) here if not dirty.
+            onOpenChange(false);
+          }
+          // If !open, do nothing, the dialog is already closing or closed.
+        }}
+        onEscapeKeyDown={(e) => { // Radix specific prop for escape key
+          if (checkDirtyState()) {
+            e.preventDefault(); // Prevent default closing behavior
+            setShowConfirmDiscardModal(true);
+          } else {
+            onOpenChange(false); // Close if not dirty
+          }
+        }}
+        >
         <DialogHeader>
           <DialogTitle>{initialData ? "Mieter bearbeiten" : "Mieter hinzufügen"}</DialogTitle>
           <DialogDescription>Füllen Sie alle Pflichtfelder aus.</DialogDescription>
@@ -435,7 +544,8 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            {/* Updated Abbrechen button */}
+            <Button type="button" variant="outline" onClick={() => handleAttemptClose()} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button
@@ -446,7 +556,27 @@ export function TenantEditModal({ open, onOpenChange, wohnungen: initialWohnunge
             </Button>
           </DialogFooter>
         </form>
+        {/* Override the DialogPrimitive.Close part of DialogContent to use our logic */}
+        {/* This is a bit of a hack, ideally Radix would allow more control over the close button's behavior directly */}
+        {/* For now, we can replace the default close button or add our logic to its onClick if we could access it */}
+        {/* Since DialogClose is just a button, we can try to style our own that calls handleAttemptClose */}
+        {/* Or, ensure the handleMainModalOpenChange covers the X button clicks if DialogPrimitive.Close triggers the Dialog's onOpenChange */}
+        {/* Radix UI's DialogClose component will trigger the Dialog's onOpenChange(false).
+            So, handleMainModalOpenChange should correctly intercept the X button click.
+            No need to override DialogClose here if that's the case.
+         */}
       </DialogContent>
     </Dialog>
+    <ConfirmationAlertDialog
+        isOpen={showConfirmDiscardModal}
+        onOpenChange={setShowConfirmDiscardModal}
+        onConfirm={handleConfirmDiscard}
+        title="Änderungen verwerfen?"
+        description="Sie haben ungespeicherte Änderungen. Möchten Sie diese wirklich verwerfen?"
+        confirmButtonText="Verwerfen"
+        cancelButtonText="Weiter bearbeiten"
+        confirmButtonVariant="destructive"
+      />
+    </>
   )
 }
