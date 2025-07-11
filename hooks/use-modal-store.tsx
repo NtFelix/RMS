@@ -94,73 +94,65 @@ const CONFIRMATION_MODAL_DEFAULTS = {
   cancelText: "Abbrechen",
 };
 
+const initialTenantModalState = {
+  isTenantModalOpen: false,
+  tenantInitialData: undefined,
+  tenantModalWohnungen: [],
+  isTenantModalDirty: false,
+};
+
+const initialHouseModalState = {
+  isHouseModalOpen: false,
+  houseInitialData: undefined,
+  houseModalOnSuccess: undefined,
+  isHouseModalDirty: false,
+};
+
+const initialFinanceModalState = {
+  isFinanceModalOpen: false,
+  financeInitialData: undefined,
+  financeModalWohnungen: [],
+  financeModalOnSuccess: undefined,
+  isFinanceModalDirty: false,
+};
+
+const initialWohnungModalState = {
+  isWohnungModalOpen: false,
+  wohnungInitialData: undefined,
+  wohnungModalHaeuser: [],
+  wohnungModalOnSuccess: undefined,
+  wohnungApartmentCount: undefined,
+  wohnungApartmentLimit: undefined,
+  wohnungIsActiveSubscription: undefined,
+  isWohnungModalDirty: false,
+};
+
+const initialAufgabeModalState = {
+  isAufgabeModalOpen: false,
+  aufgabeInitialData: undefined,
+  aufgabeModalOnSuccess: undefined,
+  isAufgabeModalDirty: false,
+};
+
+const initialBetriebskostenModalState = {
+  isBetriebskostenModalOpen: false,
+  betriebskostenInitialData: undefined,
+  betriebskostenModalHaeuser: [],
+  betriebskostenModalOnSuccess: undefined,
+  isBetriebskostenModalDirty: false,
+};
+
 export const useModalStore = create<ModalState>((set, get) => {
-  const resetTenantModal = () => {
-    set({
-      isTenantModalOpen: false,
-      tenantInitialData: undefined,
-      tenantModalWohnungen: [],
-      isTenantModalDirty: false,
-    });
-  };
-
-  const resetHouseModal = () => {
-    set({
-      isHouseModalOpen: false,
-      houseInitialData: undefined,
-      houseModalOnSuccess: undefined,
-      isHouseModalDirty: false,
-    });
-  };
-
-  const resetFinanceModal = () => {
-    set({
-      isFinanceModalOpen: false,
-      financeInitialData: undefined,
-      financeModalWohnungen: [],
-      financeModalOnSuccess: undefined,
-      isFinanceModalDirty: false,
-    });
-  };
-
-  const resetWohnungModal = () => {
-    set({
-      isWohnungModalOpen: false,
-      wohnungInitialData: undefined,
-      wohnungModalHaeuser: [],
-      wohnungModalOnSuccess: undefined,
-      wohnungApartmentCount: undefined,
-      wohnungApartmentLimit: undefined,
-      wohnungIsActiveSubscription: undefined,
-      isWohnungModalDirty: false,
-    });
-  };
-
-  const resetAufgabeModal = () => {
-    set({
-      isAufgabeModalOpen: false,
-      aufgabeInitialData: undefined,
-      aufgabeModalOnSuccess: undefined,
-      isAufgabeModalDirty: false,
-    });
-  };
-
-  const resetBetriebskostenModal = () => {
-    set({
-      isBetriebskostenModalOpen: false,
-      betriebskostenInitialData: undefined,
-      betriebskostenModalHaeuser: [],
-      betriebskostenModalOnSuccess: undefined,
-      isBetriebskostenModalDirty: false,
-    });
-  };
+  const resetTenantModal = () => set(initialTenantModalState);
+  const resetHouseModal = () => set(initialHouseModalState);
+  const resetFinanceModal = () => set(initialFinanceModalState);
+  const resetWohnungModal = () => set(initialWohnungModalState);
+  const resetAufgabeModal = () => set(initialAufgabeModalState);
+  const resetBetriebskostenModal = () => set(initialBetriebskostenModalState);
 
   return {
     // Tenant Modal
-    isTenantModalOpen: false,
-    tenantInitialData: undefined,
-    tenantModalWohnungen: [],
-    isTenantModalDirty: false,
+    ...initialTenantModalState,
     openTenantModal: (initialData, wohnungen) => set({ 
       isTenantModalOpen: true, 
       tenantInitialData: initialData, 
