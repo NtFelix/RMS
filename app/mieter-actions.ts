@@ -23,7 +23,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
             return JSON.parse(nebenkostenRaw);
           } catch (error) {
             console.error("Failed to parse nebenkosten JSON:", error);
-            return null;
+            throw new Error("Ungültiges JSON-Format für Nebenkosten. Bitte überprüfen Sie die Eingabe.");
           }
         }
         return null;
