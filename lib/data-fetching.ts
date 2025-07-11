@@ -144,7 +144,6 @@ export async function fetchMieter() {
     return [];
   }
   
-  console.log("Fetched Mieter data:", data);
   return data as Mieter[];
 }
 

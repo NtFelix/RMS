@@ -22,7 +22,6 @@ interface TenantTableProps {
 
 
 export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
-  console.log("Tenants data in TenantTable.tsx:", tenants);
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)

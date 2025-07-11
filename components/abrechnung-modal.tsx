@@ -148,8 +148,6 @@ export function AbrechnungModal({
   ownerName,
   ownerAddress,
 }: AbrechnungModalProps) {
-  console.log("AbrechnungModal - tenants:", tenants);
-  console.log("AbrechnungModal - nebenkostenItem:", nebenkostenItem);
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
