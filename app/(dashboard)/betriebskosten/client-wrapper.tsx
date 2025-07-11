@@ -80,14 +80,12 @@ export default function BetriebskostenClientView({
       // Trigger data refresh here, e.g., by re-fetching or using router.refresh()
       // For now, let's assume the modal itself or a global mechanism handles refresh.
       // If not, this is where you'd add `router.refresh()` or similar.
-      console.log("Betriebskosten modal (create) closed successfully, refresh if needed.");
       router.refresh(); // Example refresh
     });
   }, [openBetriebskostenModal, initialHaeuser, router]);
 
   const handleOpenEditModal = useCallback((item: Nebenkosten) => {
     openBetriebskostenModal(item, initialHaeuser, () => {
-      console.log("Betriebskosten modal (edit) closed successfully, refresh if needed.");
       router.refresh(); // Example refresh
     });
   }, [openBetriebskostenModal, initialHaeuser, router]);
