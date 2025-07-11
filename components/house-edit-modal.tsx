@@ -125,6 +125,9 @@ export function HouseEditModal(props: HouseEditModalProps) {
     closeHouseModal();
   };
 
+  const handleCancelClick = () => {
+    closeHouseModal({ force: true }); // Force close for "Abbrechen" button
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -252,7 +255,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={attemptClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>

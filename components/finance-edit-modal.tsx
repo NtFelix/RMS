@@ -127,7 +127,11 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
   };
 
   const attemptClose = () => {
-    closeFinanceModal(); // Store handles confirmation logic
+    closeFinanceModal(); // Store handles confirmation logic for outside clicks/X button
+  };
+
+  const handleCancelClick = () => {
+    closeFinanceModal({ force: true }); // Force close for "Abbrechen" button
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -251,7 +255,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={attemptClose} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>

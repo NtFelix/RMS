@@ -15,7 +15,7 @@ interface ModalState {
   tenantModalWohnungen: any[];
   isTenantModalDirty: boolean;
   openTenantModal: (initialData?: any, wohnungen?: any[]) => void;
-  closeTenantModal: () => void;
+  closeTenantModal: (options?: { force?: boolean }) => void;
   setTenantModalDirty: (isDirty: boolean) => void;
 
   // House Modal State
@@ -24,7 +24,7 @@ interface ModalState {
   houseModalOnSuccess?: (data: any) => void;
   isHouseModalDirty: boolean;
   openHouseModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
-  closeHouseModal: () => void;
+  closeHouseModal: (options?: { force?: boolean }) => void;
   setHouseModalDirty: (isDirty: boolean) => void;
 
   // Finance Modal State
@@ -34,7 +34,7 @@ interface ModalState {
   financeModalOnSuccess?: (data: any) => void;
   isFinanceModalDirty: boolean;
   openFinanceModal: (initialData?: any, wohnungen?: any[], onSuccess?: (data: any) => void) => void;
-  closeFinanceModal: () => void;
+  closeFinanceModal: (options?: { force?: boolean }) => void;
   setFinanceModalDirty: (isDirty: boolean) => void;
 
   // Wohnung Modal State
@@ -54,7 +54,7 @@ interface ModalState {
     apartmentLimit?: number,
     isActiveSubscription?: boolean
   ) => void;
-  closeWohnungModal: () => void;
+  closeWohnungModal: (options?: { force?: boolean }) => void;
   setWohnungModalDirty: (isDirty: boolean) => void;
 
   // Aufgabe Modal State
@@ -63,7 +63,7 @@ interface ModalState {
   aufgabeModalOnSuccess?: (data: any) => void;
   isAufgabeModalDirty: boolean;
   openAufgabeModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
-  closeAufgabeModal: () => void;
+  closeAufgabeModal: (options?: { force?: boolean }) => void;
   setAufgabeModalDirty: (isDirty: boolean) => void;
 
   // Betriebskosten Modal State
@@ -73,7 +73,7 @@ interface ModalState {
   betriebskostenModalOnSuccess?: () => void; // Adjust if it needs to pass data
   isBetriebskostenModalDirty: boolean;
   openBetriebskostenModal: (initialData?: any, haeuser?: any[], onSuccess?: () => void) => void;
-  closeBetriebskostenModal: () => void;
+  closeBetriebskostenModal: (options?: { force?: boolean }) => void;
   setBetriebskostenModalDirty: (isDirty: boolean) => void;
 
   // Confirmation Modal State
@@ -102,8 +102,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
     tenantModalWohnungen: wohnungen || [],
     isTenantModalDirty: false, // Reset dirty state on open
   }),
-  closeTenantModal: () => {
-    if (get().isTenantModalDirty) {
+  closeTenantModal: (options) => {
+    if (get().isTenantModalDirty && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {
@@ -138,8 +138,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
     houseModalOnSuccess: onSuccess,
     isHouseModalDirty: false,
   }),
-  closeHouseModal: () => {
-    if (get().isHouseModalDirty) {
+  closeHouseModal: (options) => {
+    if (get().isHouseModalDirty && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {
@@ -176,8 +176,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
     financeModalOnSuccess: onSuccess,
     isFinanceModalDirty: false,
   }),
-  closeFinanceModal: () => {
-    if (get().isFinanceModalDirty) {
+  closeFinanceModal: (options) => {
+    if (get().isFinanceModalDirty && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {
@@ -229,8 +229,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
     wohnungIsActiveSubscription: isActiveSubscription,
     isWohnungModalDirty: false,
   }),
-  closeWohnungModal: () => {
-    if (get().isWohnungModalDirty) {
+  closeWohnungModal: (options) => {
+    if (get().isWohnungModalDirty && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {
@@ -273,8 +273,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
     aufgabeModalOnSuccess: onSuccess,
     isAufgabeModalDirty: false,
   }),
-  closeAufgabeModal: () => {
-    if (get().isAufgabeModalDirty) {
+  closeAufgabeModal: (options) => {
+    if (get().isAufgabeModalDirty && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {
@@ -311,8 +311,8 @@ export const useModalStore = create<ModalState>((set, get) => ({
     betriebskostenModalOnSuccess: onSuccess,
     isBetriebskostenModalDirty: false,
   }),
-  closeBetriebskostenModal: () => {
-    if (get().isBetriebskostenModalDirty) {
+  closeBetriebskostenModal: (options) => {
+    if (get().isBetriebskostenModalDirty && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {

@@ -86,7 +86,11 @@ export function AufgabeEditModal({
   };
 
   const attemptClose = () => {
-    closeAufgabeModal(); // Store handles confirmation
+    closeAufgabeModal(); // Store handles confirmation for outside click/X
+  };
+
+  const handleCancelClick = () => {
+    closeAufgabeModal({ force: true }); // Force close for "Abbrechen" button
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -199,7 +203,7 @@ export function AufgabeEditModal({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={attemptClose} disabled={isSubmitting}>
+            <Button variant="outline" type="button" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>

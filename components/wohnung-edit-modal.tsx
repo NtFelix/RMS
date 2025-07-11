@@ -199,7 +199,11 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
   };
 
   const attemptClose = () => {
-    closeWohnungModal();
+    closeWohnungModal(); // For outside clicks / X button
+  };
+
+  const handleCancelClick = () => {
+    closeWohnungModal({ force: true }); // For "Abbrechen" button
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -338,7 +342,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             <p className="text-sm text-red-500 mb-2 text-center">{contextualSaveMessage}</p>
           )}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={attemptClose} disabled={isSubmitting}>
+             <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button
