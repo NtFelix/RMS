@@ -103,11 +103,11 @@ export default function CTA({ onGetStarted }: CTAProps) {
             size="lg"
             // className="bg-white text-zinc-900 hover:bg-slate-100 px-12 py-6 text-xl font-semibold group"
             // Using primary variant
-            className="px-12 py-6 text-xl font-semibold group"
+            className="px-12 py-6 text-xl font-semibold"
             onClick={onGetStarted}
           >
             Jetzt loslegen
-            <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="ml-3 w-6 h-6" />
           </Button>
           <Link href="/modern/documentation">
             <Button

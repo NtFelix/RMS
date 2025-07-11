@@ -148,29 +148,10 @@ export default function Hero({ onGetStarted }: HeroProps) {
               />
 
               {/* Pulsing inner glow - Using primary and background */}
-              <div className="absolute inset-[2px] rounded-md bg-primary group-hover:bg-primary/90 transition-all duration-300">
-                <div className="absolute inset-0 rounded-md bg-gradient-to-r from-primary-foreground/20 via-transparent to-secondary-foreground/20 opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-500" />
-              </div>
+              <div className="absolute inset-[2px] rounded-md bg-primary group-hover:bg-primary/90 transition-all duration-300" />
 
               {/* Flowing particles effect - Using primary/secondary foreground */}
-              <div className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-60 transition-opacity duration-800">
-                <div
-                  className="absolute top-1 left-1 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "0s" }}
-                />
-                <div
-                  className="absolute top-3 right-2 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "0.5s" }}
-                />
-                <div
-                  className="absolute bottom-2 left-3 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "1s" }}
-                />
-                <div
-                  className="absolute bottom-1 right-1 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "1.5s" }}
-                />
-              </div>
+
             </div>
 
             <span className="relative z-10 flex items-center">
