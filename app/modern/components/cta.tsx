@@ -1,9 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Sparkles } from "lucide-react"
-import { Button } from '@/components/ui/button' // Corrected import path
-import Link from "next/link"
+import { Sparkles } from "lucide-react"
+import { CallToAction } from "./call-to-action"
 
 interface CTAProps {
   onGetStarted: () => void;
@@ -97,29 +96,8 @@ export default function CTA({ onGetStarted }: CTAProps) {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
           viewport={{ once: true }}
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
-          <Button
-            size="lg"
-            // className="bg-white text-zinc-900 hover:bg-slate-100 px-12 py-6 text-xl font-semibold group"
-            // Using primary variant
-            className="px-12 py-6 text-xl font-semibold"
-            onClick={onGetStarted}
-          >
-            Jetzt loslegen
-            <ArrowRight className="ml-3 w-6 h-6" />
-          </Button>
-          <Link href="/modern/documentation">
-            <Button
-              size="lg"
-              variant="outline"
-              // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-12 py-6 text-xl font-semibold"
-              // Uses standard outline which respects theme
-              className="px-12 py-6 text-xl font-semibold text-foreground hover:bg-gray-800 hover:text-white transition-colors duration-300"
-            >
-              Demo anfordern
-            </Button>
-          </Link>
+          <CallToAction variant="cta" onGetStarted={onGetStarted} />
         </motion.div>
       </div>
     </section>

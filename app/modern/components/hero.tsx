@@ -1,9 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Sparkles, Zap } from "lucide-react"
-import { Button } from "@/components/ui/button" // Corrected import path
-import Link from "next/link"
+import { Sparkles } from "lucide-react"
+import { CallToAction } from "./call-to-action"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -108,69 +107,8 @@ export default function Hero({ onGetStarted }: HeroProps) {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
-          <Button
-            size="lg"
-            onClick={onGetStarted}
-            // className="relative bg-gradient-to-r from-zinc-800 to-slate-800 text-white hover:from-zinc-700 hover:to-slate-700 px-8 py-4 text-lg font-semibold group overflow-hidden border-0"
-            // Using primary button variant and adjusting animation to use theme colors
-            className="relative bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-4 text-lg font-semibold group overflow-hidden"
-          >
-            {/* Animated border gradient - Using primary and secondary theme colors */}
-            <div className="absolute inset-0 rounded-md p-[2px] bg-gradient-to-r from-primary via-secondary to-primary animate-pulse">
-              <div className="absolute inset-[2px] bg-primary rounded-md group-hover:bg-primary/90 transition-all duration-300" />
-            </div>
-
-            {/* Moving gradient overlay - Using foreground with opacity */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-
-            {/* Animated border that flows like water */}
-            <div className="absolute inset-0 rounded-md overflow-hidden">
-              {/* Primary rotating gradient border - Using theme colors */}
-              <div
-                className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{
-                  background:
-                    "conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)))",
-                  animation: "spin 2s linear infinite",
-                }}
-              />
-
-              {/* Secondary counter-rotating gradient - Using theme colors */}
-              <div
-                className="absolute inset-[1px] rounded-md opacity-0 group-hover:opacity-80 transition-opacity duration-700 delay-200"
-                style={{
-                  background:
-                    "conic-gradient(from 180deg, hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)))",
-                  animation: "spin 3s linear infinite reverse",
-                }}
-              />
-
-              {/* Pulsing inner glow - Using primary and background */}
-              <div className="absolute inset-[2px] rounded-md bg-primary group-hover:bg-primary/90 transition-all duration-300" />
-
-              {/* Flowing particles effect - Using primary/secondary foreground */}
-
-            </div>
-
-            <span className="relative z-10 flex items-center">
-              Jetzt loslegen
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </span>
-          </Button>
-          <Link href="/modern/documentation">
-            <Button
-              size="lg"
-              variant="outline"
-              // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-8 py-4 text-lg font-semibold group"
-              // Uses standard outline variant which respects theme. Added explicit text color for better contrast in some themes if needed.
-              className="px-8 py-4 text-lg font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
-            >
-              <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
-              Mehr erfahren
-            </Button>
-          </Link>
+          <CallToAction variant="hero" onGetStarted={onGetStarted} />
         </motion.div>
       </div>
 
