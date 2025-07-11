@@ -19,7 +19,12 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
       nebenkosten: (() => {
         const nebenkostenRaw = formData.get('nebenkosten');
         if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
-          return JSON.parse(nebenkostenRaw);
+          try {
+            return JSON.parse(nebenkostenRaw);
+          } catch (error) {
+            console.error("Failed to parse nebenkosten JSON:", error);
+            return null;
+          }
         }
         return null;
       })(),
