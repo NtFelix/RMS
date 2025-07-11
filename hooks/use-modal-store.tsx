@@ -94,266 +94,256 @@ const CONFIRMATION_MODAL_DEFAULTS = {
   cancelText: "Abbrechen",
 };
 
-export const useModalStore = create<ModalState>((set, get) => ({
-  // Tenant Modal
-  isTenantModalOpen: false,
-  tenantInitialData: undefined,
-  tenantModalWohnungen: [],
-  isTenantModalDirty: false,
-  openTenantModal: (initialData, wohnungen) => set({ 
-    isTenantModalOpen: true, 
-    tenantInitialData: initialData, 
-    tenantModalWohnungen: wohnungen || [],
-    isTenantModalDirty: false, // Reset dirty state on open
-  }),
-  closeTenantModal: (options) => {
-    if (get().isTenantModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isTenantModalOpen: false,
-            tenantInitialData: undefined,
-            tenantModalWohnungen: [],
-            isTenantModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isTenantModalOpen: false,
-        tenantInitialData: undefined,
-        tenantModalWohnungen: [],
-        isTenantModalDirty: false,
-      });
-    }
-  },
-  setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
+export const useModalStore = create<ModalState>((set, get) => {
+  const resetTenantModal = () => {
+    set({
+      isTenantModalOpen: false,
+      tenantInitialData: undefined,
+      tenantModalWohnungen: [],
+      isTenantModalDirty: false,
+    });
+  };
 
-  // House Modal
-  isHouseModalOpen: false,
-  houseInitialData: undefined,
-  houseModalOnSuccess: undefined,
-  isHouseModalDirty: false,
-  openHouseModal: (initialData, onSuccess) => set({
-    isHouseModalOpen: true,
-    houseInitialData: initialData,
-    houseModalOnSuccess: onSuccess,
+  const resetHouseModal = () => {
+    set({
+      isHouseModalOpen: false,
+      houseInitialData: undefined,
+      houseModalOnSuccess: undefined,
+      isHouseModalDirty: false,
+    });
+  };
+
+  const resetFinanceModal = () => {
+    set({
+      isFinanceModalOpen: false,
+      financeInitialData: undefined,
+      financeModalWohnungen: [],
+      financeModalOnSuccess: undefined,
+      isFinanceModalDirty: false,
+    });
+  };
+
+  const resetWohnungModal = () => {
+    set({
+      isWohnungModalOpen: false,
+      wohnungInitialData: undefined,
+      wohnungModalHaeuser: [],
+      wohnungModalOnSuccess: undefined,
+      wohnungApartmentCount: undefined,
+      wohnungApartmentLimit: undefined,
+      wohnungIsActiveSubscription: undefined,
+      isWohnungModalDirty: false,
+    });
+  };
+
+  const resetAufgabeModal = () => {
+    set({
+      isAufgabeModalOpen: false,
+      aufgabeInitialData: undefined,
+      aufgabeModalOnSuccess: undefined,
+      isAufgabeModalDirty: false,
+    });
+  };
+
+  const resetBetriebskostenModal = () => {
+    set({
+      isBetriebskostenModalOpen: false,
+      betriebskostenInitialData: undefined,
+      betriebskostenModalHaeuser: [],
+      betriebskostenModalOnSuccess: undefined,
+      isBetriebskostenModalDirty: false,
+    });
+  };
+
+  return {
+    // Tenant Modal
+    isTenantModalOpen: false,
+    tenantInitialData: undefined,
+    tenantModalWohnungen: [],
+    isTenantModalDirty: false,
+    openTenantModal: (initialData, wohnungen) => set({ 
+      isTenantModalOpen: true, 
+      tenantInitialData: initialData, 
+      tenantModalWohnungen: wohnungen || [],
+      isTenantModalDirty: false, // Reset dirty state on open
+    }),
+    closeTenantModal: (options) => {
+      if (get().isTenantModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetTenantModal();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetTenantModal();
+      }
+    },
+    setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
+
+    // House Modal
+    isHouseModalOpen: false,
+    houseInitialData: undefined,
+    houseModalOnSuccess: undefined,
     isHouseModalDirty: false,
-  }),
-  closeHouseModal: (options) => {
-    if (get().isHouseModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isHouseModalOpen: false,
-            houseInitialData: undefined,
-            houseModalOnSuccess: undefined,
-            isHouseModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isHouseModalOpen: false,
-        houseInitialData: undefined,
-        houseModalOnSuccess: undefined,
-        isHouseModalDirty: false,
-      });
-    }
-  },
-  setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
+    openHouseModal: (initialData, onSuccess) => set({
+      isHouseModalOpen: true,
+      houseInitialData: initialData,
+      houseModalOnSuccess: onSuccess,
+      isHouseModalDirty: false,
+    }),
+    closeHouseModal: (options) => {
+      if (get().isHouseModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetHouseModal();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetHouseModal();
+      }
+    },
+    setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
 
-  // Finance Modal
-  isFinanceModalOpen: false,
-  financeInitialData: undefined,
-  financeModalWohnungen: [],
-  financeModalOnSuccess: undefined,
-  isFinanceModalDirty: false,
-  openFinanceModal: (initialData, wohnungen, onSuccess) => set({
-    isFinanceModalOpen: true,
-    financeInitialData: initialData,
-    financeModalWohnungen: wohnungen || [],
-    financeModalOnSuccess: onSuccess,
+    // Finance Modal
+    isFinanceModalOpen: false,
+    financeInitialData: undefined,
+    financeModalWohnungen: [],
+    financeModalOnSuccess: undefined,
     isFinanceModalDirty: false,
-  }),
-  closeFinanceModal: (options) => {
-    if (get().isFinanceModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isFinanceModalOpen: false,
-            financeInitialData: undefined,
-            financeModalWohnungen: [],
-            financeModalOnSuccess: undefined,
-            isFinanceModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isFinanceModalOpen: false,
-        financeInitialData: undefined,
-        financeModalWohnungen: [],
-        financeModalOnSuccess: undefined,
-        isFinanceModalDirty: false,
-      });
-    }
-  },
-  setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
+    openFinanceModal: (initialData, wohnungen, onSuccess) => set({
+      isFinanceModalOpen: true,
+      financeInitialData: initialData,
+      financeModalWohnungen: wohnungen || [],
+      financeModalOnSuccess: onSuccess,
+      isFinanceModalDirty: false,
+    }),
+    closeFinanceModal: (options) => {
+      if (get().isFinanceModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetFinanceModal();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetFinanceModal();
+      }
+    },
+    setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
 
-  // Wohnung Modal
-  isWohnungModalOpen: false,
-  wohnungInitialData: undefined,
-  wohnungModalHaeuser: [],
-  wohnungModalOnSuccess: undefined,
-  wohnungApartmentCount: undefined,
-  wohnungApartmentLimit: undefined,
-  wohnungIsActiveSubscription: undefined,
-  isWohnungModalDirty: false,
-  openWohnungModal: (
-    initialData,
-    haeuser,
-    onSuccess,
-    apartmentCount,
-    apartmentLimit,
-    isActiveSubscription
-  ) => set({
-    isWohnungModalOpen: true,
-    wohnungInitialData: initialData,
-    wohnungModalHaeuser: haeuser || [],
-    wohnungModalOnSuccess: onSuccess,
-    wohnungApartmentCount: apartmentCount,
-    wohnungApartmentLimit: apartmentLimit,
-    wohnungIsActiveSubscription: isActiveSubscription,
+    // Wohnung Modal
+    isWohnungModalOpen: false,
+    wohnungInitialData: undefined,
+    wohnungModalHaeuser: [],
+    wohnungModalOnSuccess: undefined,
+    wohnungApartmentCount: undefined,
+    wohnungApartmentLimit: undefined,
+    wohnungIsActiveSubscription: undefined,
     isWohnungModalDirty: false,
-  }),
-  closeWohnungModal: (options) => {
-    if (get().isWohnungModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isWohnungModalOpen: false,
-            wohnungInitialData: undefined,
-            wohnungModalHaeuser: [],
-            wohnungModalOnSuccess: undefined,
-            wohnungApartmentCount: undefined,
-            wohnungApartmentLimit: undefined,
-            wohnungIsActiveSubscription: undefined,
-            isWohnungModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isWohnungModalOpen: false,
-        wohnungInitialData: undefined,
-        wohnungModalHaeuser: [],
-        wohnungModalOnSuccess: undefined,
-        wohnungApartmentCount: undefined,
-        wohnungApartmentLimit: undefined,
-        wohnungIsActiveSubscription: undefined,
-        isWohnungModalDirty: false,
-      });
-    }
-  },
-  setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
+    openWohnungModal: (
+      initialData,
+      haeuser,
+      onSuccess,
+      apartmentCount,
+      apartmentLimit,
+      isActiveSubscription
+    ) => set({
+      isWohnungModalOpen: true,
+      wohnungInitialData: initialData,
+      wohnungModalHaeuser: haeuser || [],
+      wohnungModalOnSuccess: onSuccess,
+      wohnungApartmentCount: apartmentCount,
+      wohnungApartmentLimit: apartmentLimit,
+      wohnungIsActiveSubscription: isActiveSubscription,
+      isWohnungModalDirty: false,
+    }),
+    closeWohnungModal: (options) => {
+      if (get().isWohnungModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetWohnungModal();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetWohnungModal();
+      }
+    },
+    setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
 
-  // Aufgabe Modal
-  isAufgabeModalOpen: false,
-  aufgabeInitialData: undefined,
-  aufgabeModalOnSuccess: undefined,
-  isAufgabeModalDirty: false,
-  openAufgabeModal: (initialData, onSuccess) => set({
-    isAufgabeModalOpen: true,
-    aufgabeInitialData: initialData,
-    aufgabeModalOnSuccess: onSuccess,
+    // Aufgabe Modal
+    isAufgabeModalOpen: false,
+    aufgabeInitialData: undefined,
+    aufgabeModalOnSuccess: undefined,
     isAufgabeModalDirty: false,
-  }),
-  closeAufgabeModal: (options) => {
-    if (get().isAufgabeModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isAufgabeModalOpen: false,
-            aufgabeInitialData: undefined,
-            aufgabeModalOnSuccess: undefined,
-            isAufgabeModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isAufgabeModalOpen: false,
-        aufgabeInitialData: undefined,
-        aufgabeModalOnSuccess: undefined,
-        isAufgabeModalDirty: false,
-      });
-    }
-  },
-  setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
+    openAufgabeModal: (initialData, onSuccess) => set({
+      isAufgabeModalOpen: true,
+      aufgabeInitialData: initialData,
+      aufgabeModalOnSuccess: onSuccess,
+      isAufgabeModalDirty: false,
+    }),
+    closeAufgabeModal: (options) => {
+      if (get().isAufgabeModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAufgabeModal();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAufgabeModal();
+      }
+    },
+    setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
-  // Betriebskosten Modal
-  isBetriebskostenModalOpen: false,
-  betriebskostenInitialData: undefined,
-  betriebskostenModalHaeuser: [],
-  betriebskostenModalOnSuccess: undefined,
-  isBetriebskostenModalDirty: false,
-  openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
-    isBetriebskostenModalOpen: true,
-    betriebskostenInitialData: initialData,
-    betriebskostenModalHaeuser: haeuser || [],
-    betriebskostenModalOnSuccess: onSuccess,
+    // Betriebskosten Modal
+    isBetriebskostenModalOpen: false,
+    betriebskostenInitialData: undefined,
+    betriebskostenModalHaeuser: [],
+    betriebskostenModalOnSuccess: undefined,
     isBetriebskostenModalDirty: false,
-  }),
-  closeBetriebskostenModal: (options) => {
-    if (get().isBetriebskostenModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isBetriebskostenModalOpen: false,
-            betriebskostenInitialData: undefined,
-            betriebskostenModalHaeuser: [],
-            betriebskostenModalOnSuccess: undefined,
-            isBetriebskostenModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isBetriebskostenModalOpen: false,
-        betriebskostenInitialData: undefined,
-        betriebskostenModalHaeuser: [],
-        betriebskostenModalOnSuccess: undefined,
-        isBetriebskostenModalDirty: false,
-      });
-    }
-  },
-  setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+    openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
+      isBetriebskostenModalOpen: true,
+      betriebskostenInitialData: initialData,
+      betriebskostenModalHaeuser: haeuser || [],
+      betriebskostenModalOnSuccess: onSuccess,
+      isBetriebskostenModalDirty: false,
+    }),
+    closeBetriebskostenModal: (options) => {
+      if (get().isBetriebskostenModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetBetriebskostenModal();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetBetriebskostenModal();
+      }
+    },
+    setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
 
-  // Confirmation Modal
-  isConfirmationModalOpen: false,
-  confirmationModalConfig: null,
-  openConfirmationModal: (config) => set({
-    isConfirmationModalOpen: true,
-    confirmationModalConfig: config,
-  }),
-  closeConfirmationModal: () => set({
+    // Confirmation Modal
     isConfirmationModalOpen: false,
-    // Keep config around for a moment to avoid flicker if content relies on it during closing animation
-    // It will be overwritten on next open. Or set to null after a timeout if needed.
-    // For now, simply setting to null.
     confirmationModalConfig: null,
-  }),
-}));
+    openConfirmationModal: (config) => set({
+      isConfirmationModalOpen: true,
+      confirmationModalConfig: config,
+    }),
+    closeConfirmationModal: () => set({
+      isConfirmationModalOpen: false,
+      // Keep config around for a moment to avoid flicker if content relies on it during closing animation
+      // It will be overwritten on next open. Or set to null after a timeout if needed.
+      // For now, simply setting to null.
+      confirmationModalConfig: null,
+    }),
+  };
+});
