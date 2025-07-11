@@ -35,6 +35,7 @@ import { getMieterByHausIdAction } from "../app/mieter-actions";
 import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
+import { useModalStore } from "@/hooks/use-modal-store"; // Added import
 
 interface CostItem {
   id: string; // For React key, temporary client-side ID
@@ -56,13 +57,26 @@ interface BetriebskostenEditModalProps {
   userId: string; // userId might not be needed if RLS is fully relied upon for mutations
 }
 
-export function BetriebskostenEditModal({
-  isOpen,
-  onClose,
-  nebenkostenToEdit,
-  haeuser,
-  // userId, // userId removed from props if not directly used for mutations here
-}: BetriebskostenEditModalProps) {
+interface BetriebskostenEditModalPropsRefactored {
+  // All props like isOpen, onClose, nebenkostenToEdit, haeuser will be removed
+  // and sourced from the useModalStore.
+  // We might keep `userId` if it's truly essential and not derivable elsewhere,
+  // but the comment suggests it might be removed. For now, let's assume it's not needed.
+}
+
+
+export function BetriebskostenEditModal({/* Props are now from store */ }: BetriebskostenEditModalPropsRefactored) {
+  const {
+    isBetriebskostenModalOpen,
+    closeBetriebskostenModal,
+    betriebskostenInitialData,
+    betriebskostenModalHaeuser,
+    betriebskostenModalOnSuccess,
+    isBetriebskostenModalDirty,
+    setBetriebskostenModalDirty,
+    openConfirmationModal,
+  } = useModalStore();
+
   const [jahr, setJahr] = useState("");
   const [wasserkosten, setWasserkosten] = useState("");
   const [haeuserId, setHaeuserId] = useState("");
@@ -73,7 +87,7 @@ export function BetriebskostenEditModal({
   const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
   const [isFetchingTenants, setIsFetchingTenants] = useState(false);
 
-  const houseOptions: ComboboxOption[] = haeuser.map(h => ({ value: h.id, label: h.name }));
+  const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
 
   // New states for details loading
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
@@ -98,7 +112,7 @@ export function BetriebskostenEditModal({
         return r;
       });
 
-      if (!mieterEntryExists) { // Should ideally not happen if initialized correctly
+      if (!mieterEntryExists) {
         updatedRechnungenForCostItem.push({ mieterId, betrag: newBetrag });
       }
       
@@ -107,6 +121,7 @@ export function BetriebskostenEditModal({
         [costItemId]: updatedRechnungenForCostItem,
       };
     });
+    setBetriebskostenModalDirty(true);
   };
 
   const handleCostItemChange = (
@@ -121,20 +136,17 @@ export function BetriebskostenEditModal({
 
     (newCostItems[index] as any)[field] = value;
 
-    // Part 3.7: Adjust rechnungen state when berechnungsart changes
     if (field === 'berechnungsart') {
       if (value === 'nach Rechnung') {
-        newCostItems[index].betrag = ''; // Clear main betrag
-        // Initialize rechnungen for this costItem if tenants are loaded
+        newCostItems[index].betrag = '';
         setRechnungen(prevRechnungen => ({
           ...prevRechnungen,
           [costItemId]: selectedHausMieter.map(m => ({
             mieterId: m.id,
-            betrag: prevRechnungen[costItemId]?.find(r => r.mieterId === m.id)?.betrag || '', // Preserve if already existed
+            betrag: prevRechnungen[costItemId]?.find(r => r.mieterId === m.id)?.betrag || '',
           })),
         }));
       } else if (oldBerechnungsart === 'nach Rechnung' && value !== 'nach Rechnung') {
-        // Clear rechnungen for this costItem if switching away from 'nach Rechnung'
         setRechnungen(prevRechnungen => {
           const updatedRechnungen = { ...prevRechnungen };
           delete updatedRechnungen[costItemId];
@@ -143,25 +155,16 @@ export function BetriebskostenEditModal({
       }
     }
     setCostItems(newCostItems);
+    setBetriebskostenModalDirty(true);
   };
   
   const addCostItem = () => {
     const newId = generateId();
-    // Default to the first option, or '' if no options
     const newBerechnungsart = BERECHNUNGSART_OPTIONS[0]?.value || ''; 
     const newCostItem: CostItem = { id: newId, art: '', betrag: '', berechnungsart: newBerechnungsart };
     
     setCostItems(prevCostItems => [...prevCostItems, newCostItem]);
-
-    // The following block was removed as per instruction,
-    // as the main useEffect hook [haeuserId, isOpen, toast, costItems]
-    // is responsible for synchronizing the rechnungen state when costItems change.
-    // if (newBerechnungsart === 'nach Rechnung') {
-    //   setRechnungen(prevRechnungen => ({
-    //     ...prevRechnungen,
-    //     [newId]: selectedHausMieter.map(m => ({ mieterId: m.id, betrag: '' })),
-    //   }));
-    // }
+    setBetriebskostenModalDirty(true);
   };
 
   const removeCostItem = (index: number) => {
@@ -170,7 +173,6 @@ export function BetriebskostenEditModal({
     
     setCostItems(prevCostItems => prevCostItems.filter((_, i) => i !== index));
 
-    // Part 3.8: Remove rechnungen entry if the removed item was 'nach Rechnung'
     if (itemToRemove.berechnungsart === 'nach Rechnung') {
       setRechnungen(prevRechnungen => {
         const updatedRechnungen = { ...prevRechnungen };
@@ -178,65 +180,65 @@ export function BetriebskostenEditModal({
         return updatedRechnungen;
       });
     }
+    setBetriebskostenModalDirty(true);
+  };
+
+  const attemptClose = () => {
+    closeBetriebskostenModal(); // Store handles confirmation
   };
 
   // Main useEffect for Data Fetching and Initialization
   useEffect(() => {
-    const resetAllStates = () => {
-      setJahr("");
+    const resetAllStates = (forNewEntry: boolean = true) => {
+      setJahr(forNewEntry ? new Date().getFullYear().toString() : "");
       setWasserkosten("");
-      setHaeuserId("");
+      setHaeuserId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
       setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
       setSelectedHausMieter([]);
       setRechnungen({});
       setIsSaving(false);
       setIsFetchingTenants(false);
-      setIsLoadingDetails(false);
+      // Do not reset isLoadingDetails here as it's controlled by the fetch logic
       setModalNebenkostenData(null);
       currentlyLoadedNebenkostenId.current = null;
+      if (isBetriebskostenModalOpen) setBetriebskostenModalDirty(false); // Reset dirty state when modal opens/data loads
     };
 
-    if (isOpen) {
-      const editId = nebenkostenToEdit?.id;
+    if (isBetriebskostenModalOpen) {
+      const editId = betriebskostenInitialData?.id;
 
       if (editId && editId !== currentlyLoadedNebenkostenId.current) {
-        // Editing an existing item, and it's different from what's loaded
         setIsLoadingDetails(true);
-        setModalNebenkostenData(null); // Clear previous data
-        // Clear form fields to show skeletons or prevent stale data display
-        setJahr("");
-        setWasserkosten("");
-        setHaeuserId(""); // This will trigger tenant refetch if it changes
-        setCostItems([]); // Will show skeleton for cost items
+        resetAllStates(false); // Reset states, but not to "new entry" defaults yet
+        setModalNebenkostenData(null);
+        setCostItems([]); // Show skeleton for cost items
         setRechnungen({});
 
         getNebenkostenDetailsAction(editId)
           .then(response => {
             if (response.success && response.data) {
-              const fetchedData = response.data; // Use a non-null variable
+              const fetchedData = response.data;
               setModalNebenkostenData(fetchedData);
               setJahr(fetchedData.jahr || "");
-              setHaeuserId(fetchedData.haeuser_id || (haeuser.length > 0 ? haeuser[0].id : ""));
+              setHaeuserId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               setWasserkosten(fetchedData.wasserkosten?.toString() || "");
 
               const newCostItems: CostItem[] = (fetchedData.nebenkostenart || []).map((art, idx) => ({
-                id: generateId(), // Generate new client-side ID
+                id: generateId(),
                 art: art,
                 betrag: fetchedData.berechnungsart?.[idx] === 'nach Rechnung' ? '' : fetchedData.betrag?.[idx]?.toString() || "",
                 berechnungsart: (BERECHNUNGSART_OPTIONS.find(opt => opt.value === fetchedData.berechnungsart?.[idx])?.value as BerechnungsartValue) || '',
               }));
               setCostItems(newCostItems.length > 0 ? newCostItems : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
-              // Rechnungen state will be synced by its own effect, using modalNebenkostenData.Rechnungen
+              setBetriebskostenModalDirty(false); // Data loaded, not dirty yet
             } else {
-              // Handle failure or no data from action when an editId was present
               toast({
                 title: "Fehler beim Laden der Details",
                 description: response.message || "Die Nebenkostendetails konnten nicht geladen werden. Das Fenster wird geschlossen.",
                 variant: "destructive",
               });
-              setModalNebenkostenData(null); // Clear any potentially stale data
-              onClose(); // Close the modal automatically on fetch failure for existing item
-              // Do NOT reset form fields to "new entry" defaults here, as the modal is closing.
+              setModalNebenkostenData(null);
+              attemptClose();
             }
           })
           .catch(error => {
@@ -246,11 +248,8 @@ export function BetriebskostenEditModal({
               variant: "destructive",
             });
             setModalNebenkostenData(null);
-            // Only call onClose if we were attempting to load an existing item.
-            // If editId was not set, it might be an error during a different phase,
-            // though this catch is specific to the getNebenkostenDetailsAction promise chain.
             if (editId) {
-              onClose();
+              attemptClose();
             }
           })
           .finally(() => {
@@ -258,78 +257,60 @@ export function BetriebskostenEditModal({
             currentlyLoadedNebenkostenId.current = editId;
           });
       } else if (!editId) {
-        // Creating a new entry
-        resetAllStates(); // Reset all states first
-        setJahr(new Date().getFullYear().toString());
-        setHaeuserId(haeuser && haeuser.length > 0 ? haeuser[0].id : "");
-        setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
-        setIsLoadingDetails(false); // Not loading details for new entry
+        resetAllStates(true); // Creating a new entry
+        setIsLoadingDetails(false);
         currentlyLoadedNebenkostenId.current = null;
-      } else {
-        // isOpen is true, editId exists, and it's the same as currentlyLoadedNebenkostenId.
-        // This means the modal was likely closed and reopened for the *same* item,
-        // or some other prop in the dependency array changed.
-        // We generally want to preserve the state if modalNebenkostenData is already populated.
-        // However, if `haeuser` list changes, we might need to adjust `haeuserId`.
-        if (modalNebenkostenData && haeuserId && !haeuser.find(h => h.id === haeuserId)) {
-           setHaeuserId(haeuser.length > 0 ? haeuser[0].id : "");
+        setBetriebskostenModalDirty(false);
+      } else { // Modal reopened for the same item
+        if (modalNebenkostenData && haeuserId && !(betriebskostenModalHaeuser || []).find(h => h.id === haeuserId)) {
+           setHaeuserId(betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
+           setBetriebskostenModalDirty(true); // Haus selection changed due to available list, consider dirty
         }
-        // If `nebenkostenToEdit` itself (the prop) has been updated externally for the *same ID*
-        // while the modal was closed, this logic might need to be more sophisticated
-        // to force a refresh. For now, we assume `getNebenkostenDetailsAction` is the source of truth once loaded.
+        // Reset dirty state if modal is just reopened without data change
+        if (!isBetriebskostenModalDirty) setBetriebskostenModalDirty(false);
       }
     } else {
-      // Modal is closed, reset all relevant states
-      resetAllStates();
+      resetAllStates(false); // Modal is closed
     }
-  }, [isOpen, nebenkostenToEdit, haeuser, toast]); // Added toast
+  }, [isBetriebskostenModalOpen, betriebskostenInitialData, betriebskostenModalHaeuser, toast, setBetriebskostenModalDirty]);
 
 
   // New useEffect for Tenant Fetching
   useEffect(() => {
-    if (isOpen && haeuserId) {
+    if (isBetriebskostenModalOpen && haeuserId && jahr) { // Ensure jahr is also present
       const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
-          // Pass the selected year to filter tenants who lived in the house during that year
           const actionResponse = await getMieterByHausIdAction(haeuserId, jahr);
           if (actionResponse.success && actionResponse.data) {
             setSelectedHausMieter(actionResponse.data);
+            // Potentially set dirty if tenant list change affects calculations for "nach Rechnung"
+            // This is complex, for now, direct user changes to amounts will set dirty flag.
           } else {
             const errorMessage = actionResponse.error || "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.";
-            toast({
-              title: "Fehler beim Laden der Mieter",
-              description: errorMessage,
-              variant: "destructive",
-            });
+            toast({ title: "Fehler beim Laden der Mieter", description: errorMessage, variant: "destructive" });
             setSelectedHausMieter([]);
           }
         } catch (error: any) { 
           console.error("Error calling getMieterByHausIdAction:", error);
-          toast({
-            title: "Systemfehler",
-            description: "Ein unerwarteter Fehler ist beim Laden der Mieter aufgetreten.",
-            variant: "destructive",
-          });
+          toast({ title: "Systemfehler", description: "Ein unerwarteter Fehler ist beim Laden der Mieter aufgetreten.", variant: "destructive" });
           setSelectedHausMieter([]);
         } finally {
           setIsFetchingTenants(false);
         }
       };
       fetchTenants();
-    } else if (!isOpen || !haeuserId) {
-      // Clear tenants if modal is closed or no house is selected
+    } else if (!isBetriebskostenModalOpen || !haeuserId) {
       setSelectedHausMieter([]);
       setIsFetchingTenants(false); 
     }
-  }, [haeuserId, isOpen, toast, jahr]); // Added jahr to dependency array to refetch when year changes
+  }, [haeuserId, isBetriebskostenModalOpen, toast, jahr, setBetriebskostenModalDirty]); // Added setBetriebskostenModalDirty
 
 
   // Modified useEffect for Rechnungen Synchronization
   const syncRechnungenState = (
     currentTenants: Mieter[], 
     currentCostItems: CostItem[],
-    // dbRechnungen source is now modalNebenkostenData
   ) => {
     setRechnungen(prevRechnungen => {
       const newRechnungenState: Record<string, RechnungEinzel[]> = {};
@@ -338,70 +319,55 @@ export function BetriebskostenEditModal({
       currentCostItems.forEach(costItem => {
         if (costItem.berechnungsart === 'nach Rechnung') {
           newRechnungenState[costItem.id] = currentTenants.map(tenant => {
-            // Try to find a matching Rechnung from the fetched DB data
             const dbRechnungForTenant = dbRechnungenSource?.find(
               dbR => dbR.mieter_id === tenant.id && dbR.name === costItem.art
             );
-
-            // Check if there's an existing entry in the current rechnungen state (e.g. from user input before tenants loaded)
             const existingEntryInState = (prevRechnungen[costItem.id] || []).find(r => r.mieterId === tenant.id);
             
-            let betragToSet = ''; // Default to empty
+            let betragToSet = '';
             if (dbRechnungForTenant) {
               betragToSet = dbRechnungForTenant.betrag.toString();
             } else if (existingEntryInState) {
-              // If no DB entry, but there was something in state (e.g. user started typing then tenants loaded), preserve it.
-              // This case might be less common if tenants load quickly.
               betragToSet = existingEntryInState.betrag;
             }
-
-            return {
-              mieterId: tenant.id,
-              betrag: betragToSet,
-            };
+            return { mieterId: tenant.id, betrag: betragToSet };
           });
         }
       });
       return newRechnungenState;
     });
+    // Do not set dirty here, this is data sync. User actions will set dirty.
   };
 
   useEffect(() => {
-    if (isOpen && !isLoadingDetails) { // Only sync if modal is open and main details are not loading
-      // Use modalNebenkostenData.Rechnungen as the source of truth for DB rechnungen
+    if (isBetriebskostenModalOpen && !isLoadingDetails) {
       syncRechnungenState(selectedHausMieter, costItems);
     }
-    // If isOpen is false, the main useEffect handles resetting rechnungen.
-  }, [selectedHausMieter, costItems, modalNebenkostenData, isOpen, isLoadingDetails]);
+  }, [selectedHausMieter, costItems, modalNebenkostenData, isBetriebskostenModalOpen, isLoadingDetails]);
 
 
   const handleSubmit = async () => {
     setIsSaving(true);
+    setBetriebskostenModalDirty(false); // Assume save will succeed or fail, reset dirty state preemptively
 
-    // Use modalNebenkostenData?.id for checking if editing, instead of nebenkostenToEdit prop directly after initial load
-    const currentEditId = modalNebenkostenData?.id || (nebenkostenToEdit as Nebenkosten)?.id;
-
+    const currentEditId = modalNebenkostenData?.id || betriebskostenInitialData?.id;
 
     if (!jahr || !haeuserId) {
-      toast({
-        title: "Fehlende Eingaben",
-        description: "Jahr und Haus sind Pflichtfelder.",
-        variant: "destructive",
-      });
-      setIsSaving(false);
+      toast({ title: "Fehlende Eingaben", description: "Jahr und Haus sind Pflichtfelder.", variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true); // Save failed, it's dirty again
       return;
     }
     
     const parsedWasserkosten = wasserkosten ? parseFloat(wasserkosten) : null;
     if (wasserkosten.trim() !== '' && isNaN(parsedWasserkosten as number)) {
       toast({ title: "Ungültige Eingabe", description: "Wasserkosten müssen eine gültige Zahl sein.", variant: "destructive" });
-      setIsSaving(false);
+      setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
 
     if (costItems.length === 0) {
         toast({ title: "Validierungsfehler", description: "Mindestens ein Kostenpunkt muss hinzugefügt werden.", variant: "destructive" });
-        setIsSaving(false);
+        setIsSaving(false); setBetriebskostenModalDirty(true);
         return;
     }
 
@@ -416,72 +382,56 @@ export function BetriebskostenEditModal({
 
       if (!art) {
         toast({ title: "Validierungsfehler", description: `Art der Kosten darf nicht leer sein. Bitte überprüfen Sie Posten ${costItems.indexOf(item) + 1}.`, variant: "destructive" });
-        setIsSaving(false);
+        setIsSaving(false); setBetriebskostenModalDirty(true);
         return;
       }
       if (!berechnungsart) { 
         toast({ title: "Validierungsfehler", description: `Berechnungsart muss für Kostenart "${art}" ausgewählt werden.`, variant: "destructive" });
-        setIsSaving(false);
+        setIsSaving(false); setBetriebskostenModalDirty(true);
         return;
       }
 
       if (item.berechnungsart === 'nach Rechnung') {
         const individualRechnungen = rechnungen[item.id] || [];
         currentBetragValue = individualRechnungen.reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0);
-        // Additional validation for individual rechnungen amounts (e.g. all must be valid numbers) can be added here if needed
-        // For now, we rely on parseFloat turning invalid numbers to 0 or NaN (which || 0 handles)
       } else {
         currentBetragValue = parseFloat(item.betrag);
         if (item.betrag.trim() === '' || isNaN(currentBetragValue)) {
           toast({ title: "Validierungsfehler", description: `Betrag "${item.betrag}" ist keine gültige Zahl für Kostenart "${art}".`, variant: "destructive" });
-          setIsSaving(false);
+          setIsSaving(false); setBetriebskostenModalDirty(true);
           return;
         }
       }
-
       nebenkostenartArray.push(art);
-      betragArray.push(currentBetragValue); // Push the determined betrag value
+      betragArray.push(currentBetragValue);
       berechnungsartArray.push(berechnungsart);
     }
 
-    const formData = {
+    const submissionData = {
       jahr: jahr.trim(),
       nebenkostenart: nebenkostenartArray,
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
       wasserkosten: parsedWasserkosten,
       haeuser_id: haeuserId,
-      // user_id: userId, // This line is removed
     };
 
     let response;
-    // Use currentEditId to determine if updating or creating
     if (currentEditId) {
-      response = await updateNebenkosten(currentEditId, formData);
+      response = await updateNebenkosten(currentEditId, submissionData);
     } else {
-      response = await createNebenkosten(formData);
+      response = await createNebenkosten(submissionData);
     }
 
     if (response.success) {
       const nebenkosten_id = currentEditId || response.data?.id;
-
       if (nebenkosten_id) {
-        console.log('Nebenkosten ID:', nebenkosten_id); 
-        
-        // If editing (currentEditId was present), first delete existing Rechnungen
         if (currentEditId) {
-          console.log('[Edit Mode] Deleting existing Rechnungen for Nebenkosten ID:', nebenkosten_id);
           const deleteResponse = await deleteRechnungenByNebenkostenId(nebenkosten_id);
           if (!deleteResponse.success) {
-            toast({
-              title: "Fehler beim Aktualisieren der Einzelrechnungen",
-              description: `Die alten Einzelrechnungen konnten nicht gelöscht werden. Neue Rechnungen wurden nicht erstellt. Fehler: ${deleteResponse.message || "Unbekannter Fehler."}`,
-              variant: "destructive",
-            });
-            setIsSaving(false);
-            return; // Stop processing to prevent inconsistent data
+            toast({ title: "Fehler beim Aktualisieren der Einzelrechnungen", description: `Die alten Einzelrechnungen konnten nicht gelöscht werden. Neue Rechnungen wurden nicht erstellt. Fehler: ${deleteResponse.message || "Unbekannter Fehler."}`, variant: "destructive" });
+            setIsSaving(false); /* Don't set dirty here, main save was ok */ return;
           }
-          console.log('[Edit Mode] Successfully deleted old Rechnungen.');
         }
 
         const rechnungenToSave: RechnungData[] = [];
@@ -490,80 +440,68 @@ export function BetriebskostenEditModal({
             const individualRechnungen = rechnungen[item.id] || [];
             individualRechnungen.forEach(rechnungEinzel => {
               const parsedAmount = parseFloat(rechnungEinzel.betrag);
-              if (!isNaN(parsedAmount)) { // Changed condition to include 0 amounts
-                // Find mieter name (optional, can be done in server action too if preferred)
-                const mieterName = selectedHausMieter.find(m => m.id === rechnungEinzel.mieterId)?.name || rechnungEinzel.mieterId;
-                
+              if (!isNaN(parsedAmount)) {
                 rechnungenToSave.push({
                   nebenkosten_id: nebenkosten_id,
                   mieter_id: rechnungEinzel.mieterId,
                   betrag: parsedAmount,
-                  name: item.art, // Changed name assignment to item.art
+                  name: item.art,
                 });
               }
             });
           }
         });
 
-        console.log('Rechnungen to Save:', JSON.stringify(rechnungenToSave, null, 2)); // Added console.log
-
         if (rechnungenToSave.length > 0) {
-          console.log('Calling createRechnungenBatch with rechnungenToSave'); // Added console.log
           const rechnungenSaveResponse = await createRechnungenBatch(rechnungenToSave);
           if (!rechnungenSaveResponse.success) {
-            toast({ 
-              title: "Fehler beim Speichern der Einzelrechnungen", 
-              description: rechnungenSaveResponse.message || "Ein unbekannter Fehler ist aufgetreten.", 
-              variant: "destructive" 
-            });
-            // Main data was saved, but individual invoices failed. User is informed.
-            // onClose() will still be called.
+            toast({ title: "Fehler beim Speichern der Einzelrechnungen", description: rechnungenSaveResponse.message || "Ein unbekannter Fehler ist aufgetreten.", variant: "destructive" });
           } else {
-            // Both main data and individual invoices were saved successfully.
-            toast({
-              title: "Erfolgreich gespeichert",
-              description: "Die Betriebskosten und alle zugehörigen Einzelrechnungen wurden erfolgreich gespeichert.",
-            });
-            onClose();
-            return; // Exit early as we've shown the comprehensive success toast
+            toast({ title: "Erfolgreich gespeichert", description: "Die Betriebskosten und alle zugehörigen Einzelrechnungen wurden erfolgreich gespeichert." });
+            if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
+            closeBetriebskostenModal(); // Will close directly as dirty is false
+            setIsSaving(false);
+            return;
           }
-        } else {
-          console.log('No Rechnungen to save.'); // Added console.log for else case
         }
       }
-
-      // This toast is shown if no individual rechnungen needed saving, or if they failed (user already informed by specific error toast)
-      toast({
-        title: "Betriebskosten erfolgreich gespeichert",
-        description: "Die Hauptdaten der Betriebskosten wurden gespeichert.",
-      });
-      onClose();
+      toast({ title: "Betriebskosten erfolgreich gespeichert", description: "Die Hauptdaten der Betriebskosten wurden gespeichert." });
+      if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
+      closeBetriebskostenModal(); // Will close directly as dirty is false
     } else {
-      toast({
-        title: "Fehler beim Speichern",
-        description: response.message || "Ein unbekannter Fehler ist aufgetreten.",
-        variant: "destructive",
-      });
+      toast({ title: "Fehler beim Speichern", description: response.message || "Ein unbekannter Fehler ist aufgetreten.", variant: "destructive" });
+      setBetriebskostenModalDirty(true); // Save failed, mark as dirty
     }
-
     setIsSaving(false);
   };
 
+  // Handle input changes to set dirty flag
+  const handleJahrChange = (e: React.ChangeEvent<HTMLInputElement>) => { setJahr(e.target.value); setBetriebskostenModalDirty(true); };
+  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { setWasserkosten(e.target.value); setBetriebskostenModalDirty(true); };
+  const handleHausChange = (value: string | null) => { setHaeuserId(value || ""); setBetriebskostenModalDirty(true); };
+
+
+  if (!isBetriebskostenModalOpen) {
+    return null;
+  }
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl"> {/* Changed max-w-3xl to max-w-4xl */}
+    <Dialog open={isBetriebskostenModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+      <DialogContent
+        className="max-w-4xl"
+        isDirty={isBetriebskostenModalDirty}
+        onAttemptClose={attemptClose}
+      >
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
           <DialogHeader>
             <DialogTitle>
-              {/* Adjust title based on whether there's an ID (editing) or not (creating) */}
-              {nebenkostenToEdit?.id || modalNebenkostenData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
+              {betriebskostenInitialData?.id || modalNebenkostenData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
             </DialogTitle>
             <DialogDescription>
               {isLoadingDetails ? "Lade Details..." : "Füllen Sie die Details für die Betriebskostenabrechnung aus."}
             </DialogDescription>
           </DialogHeader>
           
-          {/* Adjusted padding from pr-2 py-1 to p-4 for better spacing around focus rings */}
           <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4"> 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -572,9 +510,10 @@ export function BetriebskostenEditModal({
                   <Input
                     id="formJahr"
                     value={jahr}
-                    onChange={(e) => setJahr(e.target.value)}
+                    onChange={handleJahrChange}
                     placeholder="z.B. 2023"
                     required
+                    disabled={isSaving}
                   />
                 )}
               </div>
@@ -585,13 +524,11 @@ export function BetriebskostenEditModal({
                     width="w-full"
                     options={houseOptions}
                     value={haeuserId}
-                    onChange={(value) => setHaeuserId(value || "")}
+                    onChange={handleHausChange}
                     placeholder="Haus auswählen..."
                     searchPlaceholder="Haus suchen..."
                     emptyText="Kein Haus gefunden."
-                    // The ID "formHausId" is for the Label's htmlFor.
-                    // CustomCombobox doesn't directly use an input with this ID for its trigger in the same way Select does.
-                    // However, keeping the Label's htmlFor pointing to an ID that can be conceptually associated with the combobox is fine.
+                    disabled={isSaving}
                   />
                 )}
               </div>
@@ -604,9 +541,10 @@ export function BetriebskostenEditModal({
                   id="formWasserkosten"
                   type="number"
                   value={wasserkosten}
-                  onChange={(e) => setWasserkosten(e.target.value)}
+                  onChange={handleWasserkostenChange}
                   placeholder="z.B. 500.00"
                   step="0.01"
+                  disabled={isSaving}
                 />
               )}
             </div>
@@ -615,8 +553,7 @@ export function BetriebskostenEditModal({
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
               <div className="rounded-md border p-4 space-y-0 shadow-sm">
-                {isLoadingDetails && (nebenkostenToEdit?.id || modalNebenkostenData?.id) ? (
-                  // Skeleton for Cost Items when editing and loading
+                {isLoadingDetails && (betriebskostenInitialData?.id || modalNebenkostenData?.id) ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-3 py-2 border-b last:border-b-0">
                       <div className="flex flex-col sm:flex-row items-start gap-3">
@@ -628,13 +565,12 @@ export function BetriebskostenEditModal({
                     </div>
                   ))
                 ) : (
-                  // Actual Cost Items
                   costItems.map((item, index) => (
                     <div
                       key={item.id}
                       className="flex flex-col gap-3 py-2 border-b last:border-b-0"
-                      role="group" // Added role
-                      aria-label={`Kostenposition ${index + 1}`} // Added aria-label
+                      role="group"
+                      aria-label={`Kostenposition ${index + 1}`}
                     >
                       <div className="flex flex-col sm:flex-row items-start gap-3">
                         <div className="w-full sm:flex-[4_1_0%]">
@@ -643,6 +579,7 @@ export function BetriebskostenEditModal({
                             placeholder="Kostenart"
                             value={item.art}
                             onChange={(e) => handleCostItemChange(index, 'art', e.target.value)}
+                            disabled={isSaving}
                           />
                         </div>
                         <div className="w-full sm:flex-[3_1_0%]">
@@ -658,6 +595,7 @@ export function BetriebskostenEditModal({
                               value={item.betrag}
                               onChange={(e) => handleCostItemChange(index, 'betrag', e.target.value)}
                               step="0.01"
+                              disabled={isSaving}
                             />
                           )}
                         </div>
@@ -665,6 +603,7 @@ export function BetriebskostenEditModal({
                           <Select
                             value={item.berechnungsart}
                             onValueChange={(value) => handleCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
+                            disabled={isSaving}
                           >
                             <SelectTrigger id={`berechnungsart-${item.id}`}>
                               <SelectValue placeholder="Berechnungsart..." />
@@ -678,10 +617,11 @@ export function BetriebskostenEditModal({
                         </div>
                         <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
                           <Button
+                            type="button"
                             variant="ghost"
                             size="icon"
                             onClick={() => removeCostItem(index)}
-                            disabled={costItems.length <= 1 || isLoadingDetails}
+                            disabled={costItems.length <= 1 || isLoadingDetails || isSaving}
                             aria-label="Kostenposition entfernen"
                           >
                             <Trash2 className="h-5 w-5 text-destructive" />
@@ -689,14 +629,12 @@ export function BetriebskostenEditModal({
                         </div>
                       </div>
 
-                      {/* Einzelbeträge Section with Skeletons */}
                       {item.berechnungsart === 'nach Rechnung' && (
                         <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md space-y-3 shadow-sm">
                           <h4 className="text-md font-semibold text-gray-700">
                             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
                           </h4>
                           {(isLoadingDetails || isFetchingTenants) && (!selectedHausMieter || selectedHausMieter.length === 0) ? (
-                              // Show skeletons if overall modal is loading OR tenants are fetching AND no tenants yet displayed
                               Array.from({ length: 3 }).map((_, skelIdx) => (
                                 <div key={`skel-tenant-${skelIdx}`} className="grid grid-cols-10 gap-2 items-center py-1">
                                   <Skeleton className="h-8 w-full col-span-6 sm:col-span-7" />
@@ -729,7 +667,7 @@ export function BetriebskostenEditModal({
                                             value={rechnungForMieter?.betrag || ''}
                                             onChange={(e) => handleRechnungChange(item.id, mieter.id, e.target.value)}
                                             className="w-full text-sm"
-                                            disabled={isLoadingDetails} // Disable input while main details load
+                                            disabled={isLoadingDetails || isSaving}
                                           />
                                         </div>
                                       </div>
@@ -737,7 +675,6 @@ export function BetriebskostenEditModal({
                                   })}
                                 </div>
                               )}
-                              {/* Display sum of individual invoices */}
                               {item.berechnungsart === 'nach Rechnung' && rechnungen[item.id] && selectedHausMieter.length > 0 && !isLoadingDetails && (
                                   <div className="pt-2 mt-2 border-t border-gray-300 flex justify-end">
                                       <p className="text-sm font-semibold text-gray-700">
@@ -756,7 +693,14 @@ export function BetriebskostenEditModal({
                     </div>
                   ))
                 )}
-                <Button type="button" onClick={addCostItem} variant="outline" size="sm" className="mt-2" disabled={isLoadingDetails}>
+                <Button
+                  type="button"
+                  onClick={addCostItem}
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  disabled={isLoadingDetails || isSaving}
+                >
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Kostenposition hinzufügen
                 </Button>
@@ -765,7 +709,7 @@ export function BetriebskostenEditModal({
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving || isLoadingDetails}>
+            <Button type="button" variant="outline" onClick={attemptClose} disabled={isSaving || isLoadingDetails}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSaving || isLoadingDetails}>

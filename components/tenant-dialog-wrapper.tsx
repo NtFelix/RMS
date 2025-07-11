@@ -3,18 +3,9 @@
 import { useState, useEffect } from "react"
 import { TenantEditModal } from "@/components/tenant-edit-modal"
 
-interface Mieter {
-  id: string
-  wohnung_id?: string
-  name: string
-  einzug?: string
-  auszug?: string
-  email?: string
-  telefonnummer?: string
-  notiz?: string
-  nebenkosten?: number[]
-  nebenkosten_datum?: string[]
-}
+import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
+
+interface Mieter extends Tenant {} // Extend the Tenant interface
 
 interface TenantDialogWrapperProps {
   wohnungen: { id: string; name: string }[]
@@ -23,72 +14,83 @@ interface TenantDialogWrapperProps {
   onEditExternal?: (id: string) => void
   onAddExternal?: () => void
   open: boolean
-  editingId: string | null
-  setOpen: (open: boolean) => void
-  setEditingId: (id: string | null) => void
+  editingId: string | null // This might become internal or managed by parent if wrapper still needed
+  setOpen: (open: boolean) => void // This will be removed
+  setEditingId: (id: string | null) => void // This might become internal or managed by parent
 }
 
-export function TenantDialogWrapper({ wohnungen, mieter, serverAction, onEditExternal, onAddExternal, open, editingId, setOpen, setEditingId }: TenantDialogWrapperProps) {
-  useEffect(() => {
-    const handleOpenAddMieterModal = () => {
-      setEditingId(null)
-      setOpen(true)
-    }
+// Import useModalStore
+import { useModalStore } from "@/hooks/use-modal-store";
 
-    window.addEventListener("open-add-mieter-modal", handleOpenAddMieterModal)
+export function TenantDialogWrapper({
+  wohnungen,
+  mieter,
+  serverAction, // serverAction is passed to TenantEditModal via layout, not needed here if this wrapper doesn't render it.
+                // However, TenantEditModal is already globally rendered.
+  onEditExternal,
+  onAddExternal,
+  open, // Prop 'open' will be removed
+  editingId, // Prop 'editingId' might be passed by parent to decide what data to load
+  setOpen, // Prop 'setOpen' will be removed
+  setEditingId // Prop 'setEditingId' might be used by parent
+}: TenantDialogWrapperProps) {
+
+  const { openTenantModal } = useModalStore();
+
+  useEffect(() => {
+    const handleOpenAddMieterModalEvent = () => { // Renamed to avoid conflict if `handleAdd` is kept
+      // This event listener now directly opens the modal via store for a new tenant
+      openTenantModal(undefined, wohnungen); // Pass undefined for initialData, and current wohnungen
+      if (onAddExternal) onAddExternal(); // Call external callback if provided
+    };
+
+    window.addEventListener("open-add-mieter-modal", handleOpenAddMieterModalEvent);
 
     return () => {
-      window.removeEventListener("open-add-mieter-modal", handleOpenAddMieterModal)
-    }
-  }, [setEditingId, setOpen])
+      window.removeEventListener("open-add-mieter-modal", handleOpenAddMieterModalEvent);
+    };
+  }, [openTenantModal, wohnungen, onAddExternal]);
 
-  // Findet initiale Daten für Edit, falls editId gesetzt ist
-  const initialData = editingId
-    ? (() => {
-        const m = mieter.find(m => m.id === editingId)
-        return m
-          ? {
-              id: m.id,
-              wohnung_id: m.wohnung_id || "",
-              name: m.name,
-              einzug: m.einzug || "",
-              auszug: m.auszug || "",
-              email: m.email || "",
-              telefonnummer: m.telefonnummer || "",
-              notiz: m.notiz || "",
-              nebenkosten: m.nebenkosten ? m.nebenkosten.join(",") : "",
-              nebenkosten_datum: m.nebenkosten_datum ? m.nebenkosten_datum.join(",") : ""
-            }
-          : undefined
-      })()
-    : undefined
 
-  // Callback für Tabelle, um Edit zu starten
+  // This function might be called by parent components that use this wrapper
   function handleEdit(id: string) {
-    setEditingId(id)
-    setOpen(true)
-    if (onEditExternal) onEditExternal(id)
+    const tenantToEdit = mieter.find(m => m.id === id);
+    if (tenantToEdit) {
+      const formattedInitialData = {
+        id: tenantToEdit.id,
+        wohnung_id: tenantToEdit.wohnung_id || "",
+        name: tenantToEdit.name,
+        einzug: tenantToEdit.einzug || "",
+        auszug: tenantToEdit.auszug || "",
+        email: tenantToEdit.email || "",
+        telefonnummer: tenantToEdit.telefonnummer || "",
+        notiz: tenantToEdit.notiz || "",
+        nebenkosten: tenantToEdit.nebenkosten || [],
+      };
+      openTenantModal(formattedInitialData, wohnungen);
+    }
+    if (onEditExternal) onEditExternal(id);
   }
 
-  // Callback für "Hinzufügen"
+  // This function might be called by parent components
   function handleAdd() {
-    setEditingId(null)
-    setOpen(true)
-    if (onAddExternal) onAddExternal()
+    openTenantModal(undefined, wohnungen); // Open for new tenant
+    if (onAddExternal) onAddExternal();
   }
 
-  return (
-    <>
-      {/* TenantEditModal für Hinzufügen/Bearbeiten */}
-      <TenantEditModal
-        open={open}
-        onOpenChange={setOpen}
-        wohnungen={wohnungen}
-        initialData={initialData}
-        serverAction={serverAction}
-      />
-      {/* Die Tabelle und der Add-Button müssen handleEdit und handleAdd als Props bekommen */}
-      {/* Diese Logik wird in der Hauptseite verknüpft. */}
-    </>
-  )
+  // The TenantEditModal is globally rendered via layout.tsx.
+  // This wrapper's responsibility is now primarily to provide methods (handleEdit, handleAdd)
+  // that can be called by its parent to trigger the modal via the store.
+  // It no longer renders TenantEditModal directly.
+  // If this wrapper was only for rendering the modal, it might be entirely removable,
+  // and its parent would call useModalStore().openTenantModal directly.
+  // For now, we'll assume it still serves a purpose for its parent, exposing handleEdit/handleAdd.
+
+  // This component might not need to return any JSX if its only purpose was to encapsulate
+  // the modal triggering logic, which is now shifted to store calls.
+  // However, its parent component might still expect it to be part of the tree.
+  // Returning null if it's purely logical now.
+  return null;
+  // If it was also rendering UI elements that trigger these actions, that UI would remain.
+  // Based on the provided snippet, it only rendered the modal.
 }

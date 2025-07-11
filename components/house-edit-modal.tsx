@@ -12,9 +12,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox"; // Added Checkbox
-import { useRouter } from "next/navigation"; // Added for router.refresh()
-import { toast } from "@/hooks/use-toast"; // Added for toast notifications
+import { Checkbox } from "@/components/ui/checkbox";
+import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
+import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
 
 // Basic House interface - replace with actual type if available elsewhere
 interface House {
@@ -27,63 +28,103 @@ interface House {
 }
 
 interface HouseEditModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialData?: House;
+  // open: boolean; // Controlled by useModalStore.isHouseModalOpen
+  // onOpenChange: (open: boolean) => void; // Now useModalStore.closeHouseModal
+  // initialData?: House; // Now useModalStore.houseInitialData
   serverAction: (id: string | null, formData: FormData) => Promise<{ 
     success: boolean; 
     error?: { message: string };
     data?: any;
   }>;
-  onSuccess?: (data: any) => void;
+  // onSuccess?: (data: any) => void; // Now useModalStore.houseModalOnSuccess
 }
+
+// Note: The props `open`, `onOpenChange`, `initialData`, `onSuccess` are now
+// managed via `useModalStore`. This component might be simplified if it directly
+// consumes from the store, or the parent component using this modal will pass these
+// props from the store. For this step, we'll assume the props are still passed
+// but we'll also use the store for dirty checking and close confirmation.
 
 export function HouseEditModal(props: HouseEditModalProps) {
   const {
-    open,
-    onOpenChange,
-    initialData,
+    // open, // Now from store
+    // onOpenChange, // Now from store's closeHouseModal
+    // initialData, // Now from store
     serverAction,
-    onSuccess
+    // onSuccess // Now from store
   } = props;
+
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [automaticSize, setAutomaticSize] = useState(true);
   const [manualGroesse, setManualGroesse] = useState<string>('');
+
+  const {
+    isHouseModalOpen,
+    closeHouseModal,
+    houseInitialData,
+    houseModalOnSuccess,
+    isHouseModalDirty,
+    setHouseModalDirty,
+    openConfirmationModal,
+    confirmationModalConfig // Added to avoid direct call to CONFIRMATION_MODAL_DEFAULTS from component
+  } = useModalStore();
+
   const [formData, setFormData] = useState({
-    name: initialData?.name || "",
-    strasse: initialData?.strasse || "",
-    ort: initialData?.ort || "",
-    groesse: initialData?.groesse ?? null, // Reflects House interface
+    name: houseInitialData?.name || "",
+    strasse: houseInitialData?.strasse || "",
+    ort: houseInitialData?.ort || "",
+    groesse: houseInitialData?.groesse ?? null,
   });
 
   useEffect(() => {
-    if (initialData) {
+    if (houseInitialData) {
       setFormData({
-        name: initialData.name,
-        strasse: initialData.strasse || "",
-        ort: initialData.ort,
-        groesse: initialData.groesse ?? null,
+        name: houseInitialData.name,
+        strasse: houseInitialData.strasse || "",
+        ort: houseInitialData.ort,
+        groesse: houseInitialData.groesse ?? null,
       });
-      if (initialData.groesse != null) {
+      if (houseInitialData.groesse != null) {
         setAutomaticSize(false);
-        setManualGroesse(String(initialData.groesse));
+        setManualGroesse(String(houseInitialData.groesse));
       } else {
         setAutomaticSize(true);
         setManualGroesse('');
       }
     } else {
-      // Reset for adding new
       setFormData({ name: "", strasse: "", ort: "", groesse: null });
       setAutomaticSize(true);
       setManualGroesse('');
     }
-  }, [initialData, open]);
+    // When modal opens or initialData changes, reset dirty state
+    setHouseModalDirty(false);
+  }, [houseInitialData, isHouseModalOpen, setHouseModalDirty]); // Added isHouseModalOpen to reset on open
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setHouseModalDirty(true); // Set dirty on any input change
   };
+
+  const handleCheckboxChange = (checked: boolean) => {
+    setAutomaticSize(checked);
+    setHouseModalDirty(true); // Set dirty on checkbox change
+  };
+
+  const handleManualGroesseChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setManualGroesse(e.target.value);
+    setHouseModalDirty(true); // Set dirty on manual size change
+  };
+
+  const attemptClose = () => {
+    // This function is called by DialogContent's onAttemptClose
+    // or by the cancel button if dirty.
+    // The store's closeHouseModal() already has the logic to check isHouseModalDirty
+    // and open confirmation if needed.
+    closeHouseModal();
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,32 +136,31 @@ export function HouseEditModal(props: HouseEditModalProps) {
     form.append("ort", formData.ort);
 
     if (automaticSize) {
-      form.append("groesse", ""); // Send empty string for NULL
+      form.append("groesse", "");
     } else {
       form.append("groesse", manualGroesse);
     }
 
     try {
-      const result = await serverAction(initialData?.id || null, form);
+      const result = await serverAction(houseInitialData?.id || null, form);
       
       if (result.success) {
         toast({
-          title: initialData ? "Haus aktualisiert" : "Haus erstellt",
-          description: `Das Haus "${formData.name}" wurde erfolgreich ${initialData ? 'aktualisiert' : 'erstellt'}.`,
+          title: houseInitialData ? "Haus aktualisiert" : "Haus erstellt",
+          description: `Das Haus "${formData.name}" wurde erfolgreich ${houseInitialData ? 'aktualisiert' : 'erstellt'}.`,
           variant: "success",
         });
         
-        // Call the onSuccess callback with the result data
-        if (onSuccess) {
+        if (houseModalOnSuccess) {
           const successData = result.data || { 
             ...formData, 
-            id: initialData?.id || '' 
+            id: houseInitialData?.id || ''
           };
-          onSuccess(successData);
+          houseModalOnSuccess(successData);
         }
         
-        // Close the modal
-        onOpenChange(false);
+        setHouseModalDirty(false); // Reset dirty state on successful save
+        closeHouseModal(); // This will now close directly as dirty is false
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -135,13 +175,22 @@ export function HouseEditModal(props: HouseEditModalProps) {
     }
   };
 
+  // If the modal is not open (controlled by store), don't render anything
+  if (!isHouseModalOpen) {
+    return null;
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={isHouseModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+      <DialogContent
+        className="sm:max-w-[425px]"
+        isDirty={isHouseModalDirty}
+        onAttemptClose={attemptClose} // Use the new prop
+      >
         <DialogHeader>
-          <DialogTitle>{initialData ? "Haus bearbeiten" : "Haus hinzufügen"}</DialogTitle>
+          <DialogTitle>{houseInitialData ? "Haus bearbeiten" : "Haus hinzufügen"}</DialogTitle>
           <DialogDescription>
-            {initialData ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
+            {houseInitialData ? "Aktualisiere die Hausinformationen." : "Gib die Hausinformationen ein."}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
@@ -185,7 +234,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             <Checkbox
               id="automaticSize"
               checked={automaticSize}
-              onCheckedChange={(checked) => setAutomaticSize(Boolean(checked))}
+              onCheckedChange={(checked) => handleCheckboxChange(Boolean(checked))}
               disabled={isSubmitting}
             />
             <Label htmlFor="automaticSize">Automatische Größe</Label>
@@ -197,17 +246,17 @@ export function HouseEditModal(props: HouseEditModalProps) {
               id="manualGroesse"
               name="manualGroesse"
               value={manualGroesse}
-              onChange={(e) => setManualGroesse(e.target.value)}
+              onChange={handleManualGroesseChange}
               disabled={automaticSize || isSubmitting}
               placeholder={automaticSize ? "Automatisch berechnet" : "Manuell eingeben"}
             />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={attemptClose} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
+              {isSubmitting ? "Wird gespeichert..." : (houseInitialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>
         </form>
