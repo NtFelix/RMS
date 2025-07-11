@@ -3,18 +3,9 @@
 import { useState, useEffect } from "react"
 import { TenantEditModal } from "@/components/tenant-edit-modal"
 
-interface Mieter {
-  id: string
-  wohnung_id?: string
-  name: string
-  einzug?: string
-  auszug?: string
-  email?: string
-  telefonnummer?: string
-  notiz?: string
-  nebenkosten?: number[]
-  nebenkosten_datum?: string[]
-}
+import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
+
+interface Mieter extends Tenant {} // Extend the Tenant interface
 
 interface TenantDialogWrapperProps {
   wohnungen: { id: string; name: string }[]
@@ -74,9 +65,7 @@ export function TenantDialogWrapper({
         email: tenantToEdit.email || "",
         telefonnummer: tenantToEdit.telefonnummer || "",
         notiz: tenantToEdit.notiz || "",
-        // Convert arrays to comma-separated strings as expected by TenantEditModal's useEffect
-        nebenkosten: tenantToEdit.nebenkosten ? tenantToEdit.nebenkosten.join(",") : "",
-        nebenkosten_datum: tenantToEdit.nebenkosten_datum ? tenantToEdit.nebenkosten_datum.join(",") : ""
+        nebenkosten: tenantToEdit.nebenkosten || [],
       };
       openTenantModal(formattedInitialData, wohnungen);
     }

@@ -14,25 +14,10 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
 
-interface Mieter {
-  id: string
-  wohnung_id?: string
-  name: string
-  einzug?: string
-  auszug?: string
-  email?: string
-  telefonnummer?: string
-  notiz?: string
-}
-
+import { Tenant, NebenkostenEntry } from "@/types/Tenant"; // Import Tenant and NebenkostenEntry
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
-// nebenkosten and nebenkosten_datum are now handled by nebenkostenEntries
 
-interface NebenkostenEntry {
-  id: string; // Keep client-side ID for list rendering
-  amount: string;
-  date: string;
-}
+interface Mieter extends Tenant {}
 
 interface Wohnung {
   id: string;
@@ -98,15 +83,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         notiz: tenantInitialData?.notiz || "",
       });
 
-      if (tenantInitialData) {
-        const amounts = tenantInitialData.nebenkosten ? tenantInitialData.nebenkosten.split(',').map((s: string) => s.trim()) : [];
-        const dates = tenantInitialData.nebenkosten_datum ? tenantInitialData.nebenkosten_datum.split(',').map((s: string) => s.trim()) : [];
-        let newEntries = amounts.map((amount: string, index: number) => ({
-          id: Math.random().toString(36).substr(2, 9),
-          amount: amount,
-          date: dates[index] || ""
-        }));
-        setNebenkostenEntries(getSortedNebenkostenEntries(newEntries));
+      if (tenantInitialData?.nebenkosten) {
+        setNebenkostenEntries(getSortedNebenkostenEntries(tenantInitialData.nebenkosten));
       } else {
         setNebenkostenEntries([]);
       }
@@ -246,10 +224,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           try {
             const currentFormData = new FormData(e.currentTarget as HTMLFormElement); // Cast to HTMLFormElement
             const finalNebenkostenEntries = nebenkostenEntries.filter(entry => entry.amount.trim() !== "");
-            const nkAmounts = finalNebenkostenEntries.map(entry => entry.amount.trim());
-            const nkDates = finalNebenkostenEntries.map(entry => entry.date.trim());
-            currentFormData.set('nebenkosten', nkAmounts.join(','));
-            currentFormData.set('nebenkosten_datum', nkDates.join(','));
+            currentFormData.set('nebenkosten', JSON.stringify(finalNebenkostenEntries));
             if (formData.wohnung_id) currentFormData.set('wohnung_id', formData.wohnung_id);
             else currentFormData.set('wohnung_id', '');
 

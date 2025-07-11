@@ -62,8 +62,7 @@ export default function MieterClientView({
         email: tenantToEdit.email || "",
         telefonnummer: tenantToEdit.telefonnummer || "",
         notiz: tenantToEdit.notiz || "",
-        nebenkosten: Array.isArray(tenantToEdit.nebenkosten) ? tenantToEdit.nebenkosten.join(",") : (tenantToEdit.nebenkosten || ""),
-        nebenkosten_datum: Array.isArray(tenantToEdit.nebenkosten_datum) ? tenantToEdit.nebenkosten_datum.join(",") : (tenantToEdit.nebenkosten_datum || ""),
+        nebenkosten: tenantToEdit.nebenkosten || [],
       };
       openTenantModal(formattedInitialData, initialWohnungen);
     } else {

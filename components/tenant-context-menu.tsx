@@ -22,17 +22,7 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
 
-interface Tenant {
-  id: string
-  wohnung_id?: string
-  name: string
-  einzug?: string
-  auszug?: string
-  email?: string
-  telefonnummer?: string
-  notiz?: string
-  nebenkosten?: number[]
-}
+import { Tenant } from "@/types/Tenant";
 
 interface TenantContextMenuProps {
   children: React.ReactNode
