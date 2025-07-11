@@ -8,6 +8,10 @@ interface ConfirmationModalConfig {
   cancelText?: string;
 }
 
+interface CloseModalOptions {
+  force?: boolean;
+}
+
 interface ModalState {
   // Tenant Modal State
   isTenantModalOpen: boolean;
@@ -15,7 +19,7 @@ interface ModalState {
   tenantModalWohnungen: any[];
   isTenantModalDirty: boolean;
   openTenantModal: (initialData?: any, wohnungen?: any[]) => void;
-  closeTenantModal: (options?: { force?: boolean }) => void;
+  closeTenantModal: (options?: CloseModalOptions) => void;
   setTenantModalDirty: (isDirty: boolean) => void;
 
   // House Modal State
@@ -24,7 +28,7 @@ interface ModalState {
   houseModalOnSuccess?: (data: any) => void;
   isHouseModalDirty: boolean;
   openHouseModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
-  closeHouseModal: (options?: { force?: boolean }) => void;
+  closeHouseModal: (options?: CloseModalOptions) => void;
   setHouseModalDirty: (isDirty: boolean) => void;
 
   // Finance Modal State
@@ -34,7 +38,7 @@ interface ModalState {
   financeModalOnSuccess?: (data: any) => void;
   isFinanceModalDirty: boolean;
   openFinanceModal: (initialData?: any, wohnungen?: any[], onSuccess?: (data: any) => void) => void;
-  closeFinanceModal: (options?: { force?: boolean }) => void;
+  closeFinanceModal: (options?: CloseModalOptions) => void;
   setFinanceModalDirty: (isDirty: boolean) => void;
 
   // Wohnung Modal State
@@ -54,7 +58,7 @@ interface ModalState {
     apartmentLimit?: number,
     isActiveSubscription?: boolean
   ) => void;
-  closeWohnungModal: (options?: { force?: boolean }) => void;
+  closeWohnungModal: (options?: CloseModalOptions) => void;
   setWohnungModalDirty: (isDirty: boolean) => void;
 
   // Aufgabe Modal State
@@ -63,7 +67,7 @@ interface ModalState {
   aufgabeModalOnSuccess?: (data: any) => void;
   isAufgabeModalDirty: boolean;
   openAufgabeModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
-  closeAufgabeModal: (options?: { force?: boolean }) => void;
+  closeAufgabeModal: (options?: CloseModalOptions) => void;
   setAufgabeModalDirty: (isDirty: boolean) => void;
 
   // Betriebskosten Modal State
@@ -73,7 +77,7 @@ interface ModalState {
   betriebskostenModalOnSuccess?: () => void; // Adjust if it needs to pass data
   isBetriebskostenModalDirty: boolean;
   openBetriebskostenModal: (initialData?: any, haeuser?: any[], onSuccess?: () => void) => void;
-  closeBetriebskostenModal: (options?: { force?: boolean }) => void;
+  closeBetriebskostenModal: (options?: CloseModalOptions) => void;
   setBetriebskostenModalDirty: (isDirty: boolean) => void;
 
   // Confirmation Modal State
