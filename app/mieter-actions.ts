@@ -6,31 +6,26 @@ import { Mieter } from "../lib/data-fetching"; // Added import for Mieter type
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
-  const payload: any = {
-    wohnung_id: formData.get('wohnung_id') || null,
-    name: formData.get('name'),
-    einzug: formData.get('einzug') || null,
-    auszug: formData.get('auszug') || null,
-    email: formData.get('email') || null,
-    telefonnummer: formData.get('telefonnummer') || null,
-    notiz: formData.get('notiz') || null,
-    nebenkosten: (() => {
-      let nebenkosten = null;
-      const nebenkostenRaw = formData.get('nebenkosten');
-      if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
-        try {
-          nebenkosten = JSON.parse(nebenkostenRaw);
-        } catch (e) {
-          console.error('Failed to parse nebenkosten JSON:', e);
-          return { success: false, error: { message: 'Invalid nebenkosten data format.' } };
-        }
-      }
-      return nebenkosten;
-    })(),
-  };
-  const id = formData.get('id');
 
   try {
+    const payload: any = {
+      wohnung_id: formData.get('wohnung_id') || null,
+      name: formData.get('name'),
+      einzug: formData.get('einzug') || null,
+      auszug: formData.get('auszug') || null,
+      email: formData.get('email') || null,
+      telefonnummer: formData.get('telefonnummer') || null,
+      notiz: formData.get('notiz') || null,
+      nebenkosten: (() => {
+        const nebenkostenRaw = formData.get('nebenkosten');
+        if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
+          return JSON.parse(nebenkostenRaw);
+        }
+        return null;
+      })(),
+    };
+    const id = formData.get('id');
+
     if (id) {
       const { error } = await supabase.from('Mieter').update(payload).eq('id', id as string);
       if (error) {
