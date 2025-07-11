@@ -22,6 +22,7 @@ interface TenantTableProps {
 
 
 export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
+  console.log("Tenants data in TenantTable.tsx:", tenants);
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
@@ -83,7 +84,14 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                   <TableCell>{tenant.email}</TableCell>
                   <TableCell>{tenant.telefonnummer}</TableCell>
                   <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell>{tenant.nebenkosten?.map(n => `${n.amount} € (${n.date})`).join(', ') || '-'}</TableCell>
+                  <TableCell>
+                    {tenant.nebenkosten && tenant.nebenkosten.length > 0
+                      ? tenant.nebenkosten
+                          .slice(0, 3)
+                          .map(n => `${n.amount} €`)
+                          .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
+                      : '-'}
+                  </TableCell>
                 </TableRow>
               </TenantContextMenu>
             ))

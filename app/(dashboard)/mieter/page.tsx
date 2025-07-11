@@ -15,7 +15,8 @@ export default async function MieterPage() {
   const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
   if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
 
-  const { data: rawMieter, error: mieterError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
+  const { data: rawMieter, error: mieterError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name,nebenkosten');
+  console.log("Raw Mieter data from Supabase in page.tsx:", rawMieter);
   if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
 
   const today = new Date();

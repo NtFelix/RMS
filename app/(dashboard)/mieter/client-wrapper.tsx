@@ -35,6 +35,7 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
 }: MieterClientViewProps) {
+  console.log("Initial Tenants data in client-wrapper.tsx:", initialTenants);
   const [filter, setFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { openTenantModal } = useModalStore();
