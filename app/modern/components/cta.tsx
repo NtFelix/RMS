@@ -89,7 +89,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           viewport={{ once: true }}
           className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed"
         >
-          Schließen Sie sich Hunderten von Immobilieneigentümern und -verwaltern an, die unserer Plattform vertrauen, um ihren Arbeitsablauf zu optimieren und ihren Gewinn zu steigern.
+          Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform.
         </motion.p>
 
         <motion.div
