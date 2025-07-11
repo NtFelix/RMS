@@ -18,6 +18,8 @@ export type Haus = {
   groesse?: number | null;
 };
 
+import { NebenkostenEntry } from "../types/Tenant";
+
 export type Mieter = {
   id: string;
   wohnung_id: string | null;
@@ -27,8 +29,7 @@ export type Mieter = {
   email: string | null;
   telefonnummer: string | null;
   notiz: string | null;
-  nebenkosten: number[] | null;
-  nebenkosten_datum: string[] | null;
+  nebenkosten: NebenkostenEntry[] | null;
   user_id: string;
   Wohnungen?: { // Make it optional as not all Mieter queries might join this
     name: string;

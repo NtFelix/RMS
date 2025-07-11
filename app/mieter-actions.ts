@@ -14,8 +14,7 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     email: formData.get('email') || null,
     telefonnummer: formData.get('telefonnummer') || null,
     notiz: formData.get('notiz') || null,
-    nebenkosten: formData.get('nebenkosten') ? String(formData.get('nebenkosten')).split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : null,
-    nebenkosten_datum: formData.get('nebenkosten_datum') ? String(formData.get('nebenkosten_datum')).split(',').map(s => s.trim()).filter(Boolean) : null
+    nebenkosten: formData.get('nebenkosten') ? JSON.parse(String(formData.get('nebenkosten'))) : null
   };
   const id = formData.get('id');
 

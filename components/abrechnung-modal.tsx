@@ -184,13 +184,13 @@ export function AbrechnungModal({
       let totalVorauszahlungen = 0;
       const monthlyVorauszahlungenDetails: MonthlyVorauszahlung[] = [];
       const prepaymentSchedule: Array<{ date: Date; amount: number }> = [];
-      if (Array.isArray(tenant.nebenkosten) && Array.isArray(tenant.nebenkosten_datum) && tenant.nebenkosten.length === tenant.nebenkosten_datum.length) {
-        tenant.nebenkosten.forEach((amount, index) => {
-          const dateStr = tenant.nebenkosten_datum![index];
-          if (typeof dateStr === 'string' && typeof amount === 'number') {
-            const dateObj = new Date(dateStr);
-            if (!isNaN(dateObj.getTime())) {
-              prepaymentSchedule.push({ date: dateObj, amount });
+      if (Array.isArray(tenant.nebenkosten)) {
+        tenant.nebenkosten.forEach((entry) => {
+          if (typeof entry.date === 'string' && typeof entry.amount === 'string') {
+            const amountNum = parseFloat(entry.amount);
+            const dateObj = new Date(entry.date);
+            if (!isNaN(dateObj.getTime()) && !isNaN(amountNum)) {
+              prepaymentSchedule.push({ date: dateObj, amount: amountNum });
             }
           }
         });

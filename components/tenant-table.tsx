@@ -8,26 +8,18 @@ import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 
-interface Tenant {
-  id: string
-  wohnung_id?: string
-  name: string
-  einzug?: string
-  auszug?: string
-  email?: string
-  telefonnummer?: string
-  notiz?: string
-  nebenkosten?: number[]
-}
+import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 
 interface TenantTableProps {
-  tenants: Tenant[]
-  wohnungen: { id: string; name: string }[]
-  filter: string
-  searchQuery: string
-  onEdit?: (t: Tenant) => void
-  onDelete?: (id: string) => void
+  tenants: Tenant[];
+  wohnungen: { id: string; name: string }[];
+  filter: string;
+  searchQuery: string;
+  onEdit?: (t: Tenant) => void;
+  onDelete?: (id: string) => void;
 }
+
+
 
 export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
   const router = useRouter()
@@ -91,7 +83,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
                   <TableCell>{tenant.email}</TableCell>
                   <TableCell>{tenant.telefonnummer}</TableCell>
                   <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell>{tenant.nebenkosten?.map(n => `${n} €`).join(', ') || '-'}</TableCell>
+                  <TableCell>{tenant.nebenkosten?.map(n => `${n.amount} € (${n.date})`).join(', ') || '-'}</TableCell>
                 </TableRow>
               </TenantContextMenu>
             ))

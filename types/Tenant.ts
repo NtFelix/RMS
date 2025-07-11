@@ -1,3 +1,9 @@
+export interface NebenkostenEntry {
+  id: string; // Client-side ID for list rendering
+  amount: string;
+  date: string;
+}
+
 export interface Tenant {
   id: string;
   wohnung_id?: string;
@@ -7,6 +13,5 @@ export interface Tenant {
   email?: string;
   telefonnummer?: string;
   notiz?: string;
-  nebenkosten?: number[];
-  nebenkosten_datum?: string[]; // Added for consistency with modal data prep
+  nebenkosten?: NebenkostenEntry[];
 }
