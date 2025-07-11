@@ -14,7 +14,19 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
     email: formData.get('email') || null,
     telefonnummer: formData.get('telefonnummer') || null,
     notiz: formData.get('notiz') || null,
-    nebenkosten: formData.get('nebenkosten') ? JSON.parse(String(formData.get('nebenkosten'))) : null
+    nebenkosten: (() => {
+      let nebenkosten = null;
+      const nebenkostenRaw = formData.get('nebenkosten');
+      if (nebenkostenRaw && typeof nebenkostenRaw === 'string' && nebenkostenRaw.length > 0) {
+        try {
+          nebenkosten = JSON.parse(nebenkostenRaw);
+        } catch (e) {
+          console.error('Failed to parse nebenkosten JSON:', e);
+          return { success: false, error: { message: 'Invalid nebenkosten data format.' } };
+        }
+      }
+      return nebenkosten;
+    })(),
   };
   const id = formData.get('id');
 
