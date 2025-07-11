@@ -22,7 +22,7 @@ const navItems = [
   { name: "Startseite", href: "#hero", icon: Home },
   { name: "Funktionen", href: "#features" },
   { name: "Preise", href: "#pricing" },
-  { name: "Referenzen", href: "#testimonials" },
+  
 ]
 
 export default function Navigation() {

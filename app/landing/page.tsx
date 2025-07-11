@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams
 import Hero from '../modern/components/hero';
 import FeatureSections from '../modern/components/feature-sections';
 import MoreFeatures from '../modern/components/more-features';
-import Testimonials from '../modern/components/testimonials';
+
 import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
@@ -302,9 +302,7 @@ export default function LandingPage() {
             // For button state like "Current Plan", Pricing will use userProfile.stripe_price_id
           />
         </div>
-        <div id="testimonials">
-          <Testimonials />
-        </div>
+        
         <div id="cta">
           <CTA onGetStarted={handleGetStarted} />
         </div>
