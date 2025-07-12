@@ -158,7 +158,6 @@ type DirtyFlagKey = {
   [K in keyof ModalState]: K extends `${string}ModalDirty` ? K : never;
 }[keyof ModalState];
 
-
 const MODAL_ANIMATION_DURATION = 300; // ms
 
 export const useModalStore = create<ModalState>((set, get) => {
