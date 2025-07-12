@@ -158,17 +158,20 @@ type DirtyFlagKey = {
 }[keyof ModalState];
 
 export const useModalStore = create<ModalState>((set, get) => {
-  const resetAllModals = () => set(createInitialModalState());
-
-  const createCloseHandler = (isDirtyFlag: DirtyFlagKey) => (options?: CloseModalOptions) => {
+  const createCloseHandler = (
+    isDirtyFlag: DirtyFlagKey,
+    initialState: Partial<ModalState>
+  ) => (options?: CloseModalOptions) => {
     const state = get();
+    const resetModal = () => set(initialState);
+
     if (isDirtyFlag && state[isDirtyFlag] && !options?.force) {
       state.openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: resetAllModals,
+        onConfirm: resetModal,
       });
     } else {
-      resetAllModals();
+      resetModal();
     }
   };
 
@@ -180,7 +183,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       tenantModalWohnungen: wohnungen || [],
       isTenantModalDirty: false, // Reset dirty state on open
     }),
-    closeTenantModal: createCloseHandler('isTenantModalDirty'),
+    closeTenantModal: createCloseHandler('isTenantModalDirty', initialTenantModalState),
     setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
 
     // House Modal
@@ -190,7 +193,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       houseModalOnSuccess: onSuccess,
       isHouseModalDirty: false
     }),
-    closeHouseModal: createCloseHandler('isHouseModalDirty'),
+    closeHouseModal: createCloseHandler('isHouseModalDirty', initialHouseModalState),
     setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
 
     // Finance Modal
@@ -201,7 +204,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       financeModalOnSuccess: onSuccess,
       isFinanceModalDirty: false
     }),
-    closeFinanceModal: createCloseHandler('isFinanceModalDirty'),
+    closeFinanceModal: createCloseHandler('isFinanceModalDirty', initialFinanceModalState),
     setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
 
     // Wohnung Modal
@@ -222,7 +225,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       wohnungIsActiveSubscription: isActiveSubscription,
       isWohnungModalDirty: false
     }),
-    closeWohnungModal: createCloseHandler('isWohnungModalDirty'),
+    closeWohnungModal: createCloseHandler('isWohnungModalDirty', initialWohnungModalState),
     setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
 
     // Aufgabe Modal
@@ -232,7 +235,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       aufgabeModalOnSuccess: onSuccess,
       isAufgabeModalDirty: false
     }),
-    closeAufgabeModal: createCloseHandler('isAufgabeModalDirty'),
+    closeAufgabeModal: createCloseHandler('isAufgabeModalDirty', initialAufgabeModalState),
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
     // Betriebskosten Modal
@@ -243,7 +246,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       betriebskostenModalOnSuccess: onSuccess,
       isBetriebskostenModalDirty: false
     }),
-    closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty'),
+    closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
 
     // Confirmation Modal
