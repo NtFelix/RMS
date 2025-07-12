@@ -156,7 +156,7 @@ const createInitialModalState = () => ({
 export const useModalStore = create<ModalState>((set, get) => {
   const resetAllModals = () => set(createInitialModalState());
 
-  const createCloseHandler = (isDirtyFlag: keyof ModalState) => (options?: CloseModalOptions) => {
+  const createCloseHandler = (isDirtyFlag: 'isTenantModalDirty' | 'isHouseModalDirty' | 'isFinanceModalDirty' | 'isWohnungModalDirty' | 'isAufgabeModalDirty' | 'isBetriebskostenModalDirty') => (options?: CloseModalOptions) => {
     if (get()[isDirtyFlag] && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
