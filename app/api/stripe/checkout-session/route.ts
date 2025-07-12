@@ -88,30 +88,26 @@ export async function POST(req: Request) {
       cancel_url: `${req.headers.get('origin')}/checkout/cancel`,
     };
 
-    // Determine trial eligibility
+    // Determine trial eligibility more strictly
     // Eligible for trial IF:
-    // 1. They have never had a trial (profile.trial_starts_at is null)
-    // 2. AND they do not currently have an active or trialing subscription.
+    // 1. They have never had a trial (profile.trial_starts_at is null).
+    // 2. AND they have never had a subscription (profile.stripe_subscription_id is null).
+    // This prevents users from getting another free trial if they've subscribed in the past.
     const hasActiveSubscription = profile && profile.stripe_subscription_id &&
                                  (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing');
     const hasHadTrial = profile && profile.trial_starts_at;
+    const hasHadSubscription = profile && profile.stripe_subscription_id; // Added this check
 
-    if (!hasHadTrial && !hasActiveSubscription) {
-      console.log("Applying 14-day trial for new user or new subscription without prior trial.");
-      sessionParams.subscription_data = { trial_period_days: 14 };
-    } else if (hasActiveSubscription) {
-      console.log("User has an active subscription. Not applying trial for plan change.");
-      // If they have an active subscription and are changing plans, no new trial.
-      // Stripe will handle proration/etc. for the plan change.
-      // Ensure no trial_period_days is set, or explicitly set it to 'now' if needed,
-      // but typically not setting it is sufficient for Stripe to not add a trial.
-      // sessionParams.subscription_data = { trial_end: 'now' }; // This might be for updating existing subs, not checkout.
-                                                              // For checkout, simply not adding trial_period_days is correct.
-    } else if (hasHadTrial && !hasActiveSubscription) {
-      console.log("User has previously had a trial and no active subscription. Not applying a new trial.");
-      // User has had a trial before and is now subscribing (not changing plans, as no active sub). No new trial.
+    if (!hasHadTrial && !hasHadSubscription) {
+        console.log("Applying 14-day trial for a new user.");
+        sessionParams.subscription_data = { trial_period_days: 14 };
     } else {
-      console.log("Not applying a trial period (default case or other unhandled condition).");
+        // This block now covers all other cases:
+        // - User has an active subscription.
+        // - User has had a trial before.
+        // - User has had a subscription before.
+        // In all these cases, no new trial will be applied.
+        console.log("Not applying a trial period. User may have an active subscription, or has had a trial or subscription before.");
     }
 
     if (profile && profile.stripe_customer_id) {
