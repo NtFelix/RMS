@@ -153,10 +153,14 @@ const createInitialModalState = () => ({
   confirmationModalConfig: null,
 });
 
+type DirtyFlagKey = {
+  [K in keyof ModalState]: K extends `${string}ModalDirty` ? K : never;
+}[keyof ModalState] & keyof ModalState;
+
 export const useModalStore = create<ModalState>((set, get) => {
   const resetAllModals = () => set(createInitialModalState());
 
-  const createCloseHandler = (isDirtyFlag: keyof Pick<ModalState, 'isTenantModalDirty' | 'isHouseModalDirty' | 'isFinanceModalDirty' | 'isWohnungModalDirty' | 'isAufgabeModalDirty' | 'isBetriebskostenModalDirty'>) => (options?: CloseModalOptions) => {
+  const createCloseHandler = (isDirtyFlag: DirtyFlagKey) => (options?: CloseModalOptions) => {
     if (get()[isDirtyFlag] && !options?.force) {
       get().openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
