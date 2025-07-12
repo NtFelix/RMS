@@ -4,6 +4,7 @@ interface ConfirmationModalConfig {
   title: string;
   description: string;
   onConfirm: () => void;
+  onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
 }
@@ -172,6 +173,9 @@ export const useModalStore = create<ModalState>((set, get) => {
           resetModal();
           get().closeConfirmationModal();
         },
+        onCancel: () => {
+          get().closeConfirmationModal();
+        }
       });
     } else {
       resetModal();
