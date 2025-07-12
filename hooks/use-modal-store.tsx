@@ -155,14 +155,14 @@ const createInitialModalState = () => ({
 
 type DirtyFlagKey = {
   [K in keyof ModalState]: K extends `${string}ModalDirty` ? K : never;
-}[keyof ModalState] & keyof ModalState;
+}[keyof ModalState];
 
 export const useModalStore = create<ModalState>((set, get) => {
   const resetAllModals = () => set(createInitialModalState());
 
   const createCloseHandler = (isDirtyFlag: DirtyFlagKey) => (options?: CloseModalOptions) => {
     const state = get();
-    if (state[isDirtyFlag] && !options?.force) {
+    if (isDirtyFlag && state[isDirtyFlag] && !options?.force) {
       state.openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: resetAllModals,
