@@ -309,9 +309,10 @@ export const useModalStore = create<ModalState>((set, get) => {
       isConfirmationModalOpen: true,
       confirmationModalConfig: config,
     }),
-    closeConfirmationModal: () => set({
-      isConfirmationModalOpen: false,
-      confirmationModalConfig: null,
-    }),
+    closeConfirmationModal: () => {
+      set({ isConfirmationModalOpen: false });
+      // Delay nullifying the config to allow for closing animations to complete
+      setTimeout(() => set({ confirmationModalConfig: null }), 300); 
+    },
   };
 });
