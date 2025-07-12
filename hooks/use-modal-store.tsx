@@ -156,6 +156,17 @@ const createInitialModalState = () => ({
 export const useModalStore = create<ModalState>((set, get) => {
   const resetAllModals = () => set(createInitialModalState());
 
+  const createCloseHandler = (isDirtyFlag: keyof ModalState) => (options?: CloseModalOptions) => {
+    if (get()[isDirtyFlag] && !options?.force) {
+      get().openConfirmationModal({
+        ...CONFIRMATION_MODAL_DEFAULTS,
+        onConfirm: resetAllModals,
+      });
+    } else {
+      resetAllModals();
+    }
+  };
+
   return {
     ...createInitialModalState(),
     openTenantModal: (initialData, wohnungen) => set({ 
@@ -164,16 +175,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       tenantModalWohnungen: wohnungen || [],
       isTenantModalDirty: false, // Reset dirty state on open
     }),
-    closeTenantModal: (options) => {
-      if (get().isTenantModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeTenantModal: createCloseHandler('isTenantModalDirty'),
     setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
 
     // House Modal
@@ -183,16 +185,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       houseModalOnSuccess: onSuccess,
       isHouseModalDirty: false
     }),
-    closeHouseModal: (options) => {
-      if (get().isHouseModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeHouseModal: createCloseHandler('isHouseModalDirty'),
     setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
 
     // Finance Modal
@@ -203,16 +196,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       financeModalOnSuccess: onSuccess,
       isFinanceModalDirty: false
     }),
-    closeFinanceModal: (options) => {
-      if (get().isFinanceModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeFinanceModal: createCloseHandler('isFinanceModalDirty'),
     setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
 
     // Wohnung Modal
@@ -233,16 +217,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       wohnungIsActiveSubscription: isActiveSubscription,
       isWohnungModalDirty: false
     }),
-    closeWohnungModal: (options) => {
-      if (get().isWohnungModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeWohnungModal: createCloseHandler('isWohnungModalDirty'),
     setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
 
     // Aufgabe Modal
@@ -252,16 +227,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       aufgabeModalOnSuccess: onSuccess,
       isAufgabeModalDirty: false
     }),
-    closeAufgabeModal: (options) => {
-      if (get().isAufgabeModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeAufgabeModal: createCloseHandler('isAufgabeModalDirty'),
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
     // Betriebskosten Modal
@@ -272,16 +238,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       betriebskostenModalOnSuccess: onSuccess,
       isBetriebskostenModalDirty: false
     }),
-    closeBetriebskostenModal: (options) => {
-      if (get().isBetriebskostenModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty'),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
 
     // Confirmation Modal
