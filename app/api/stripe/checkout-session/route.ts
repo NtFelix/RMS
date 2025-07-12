@@ -93,8 +93,6 @@ export async function POST(req: Request) {
     // 1. They have never had a trial (profile.trial_starts_at is null).
     // 2. AND they have never had a subscription (profile.stripe_subscription_id is null).
     // This prevents users from getting another free trial if they've subscribed in the past.
-    const hasActiveSubscription = profile && profile.stripe_subscription_id &&
-                                 (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing');
     const hasHadTrial = profile && profile.trial_starts_at;
     const hasHadSubscription = profile && profile.stripe_subscription_id; // Added this check
 
