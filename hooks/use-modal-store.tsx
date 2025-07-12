@@ -153,7 +153,11 @@ const createInitialModalState = () => ({
   confirmationModalConfig: null,
 });
 
+const MODAL_ANIMATION_DURATION = 300; // ms
+
 export const useModalStore = create<ModalState>((set, get) => {
+  let confirmationModalTimeoutId: NodeJS.Timeout | null = null;
+
   const resetAllModals = () => set(createInitialModalState());
 
   return {
@@ -305,14 +309,23 @@ export const useModalStore = create<ModalState>((set, get) => {
     // Confirmation Modal
     isConfirmationModalOpen: false,
     confirmationModalConfig: null,
-    openConfirmationModal: (config) => set({
-      isConfirmationModalOpen: true,
-      confirmationModalConfig: config,
-    }),
+    openConfirmationModal: (config) => {
+      if (confirmationModalTimeoutId) {
+        clearTimeout(confirmationModalTimeoutId);
+        confirmationModalTimeoutId = null;
+      }
+      set({
+        isConfirmationModalOpen: true,
+        confirmationModalConfig: config,
+      });
+    },
     closeConfirmationModal: () => {
       set({ isConfirmationModalOpen: false });
       // Delay nullifying the config to allow for closing animations to complete
-      setTimeout(() => set({ confirmationModalConfig: null }), 300); 
+      confirmationModalTimeoutId = setTimeout(() => {
+        set({ confirmationModalConfig: null });
+        confirmationModalTimeoutId = null;
+      }, MODAL_ANIMATION_DURATION); 
     },
   };
 });
