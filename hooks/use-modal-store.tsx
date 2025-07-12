@@ -94,120 +94,29 @@ const CONFIRMATION_MODAL_DEFAULTS = {
   cancelText: "Abbrechen",
 };
 
-export const useModalStore = create<ModalState>((set, get) => ({
-  // Tenant Modal
+const initialTenantModalState = {
   isTenantModalOpen: false,
   tenantInitialData: undefined,
   tenantModalWohnungen: [],
   isTenantModalDirty: false,
-  openTenantModal: (initialData, wohnungen) => set({ 
-    isTenantModalOpen: true, 
-    tenantInitialData: initialData, 
-    tenantModalWohnungen: wohnungen || [],
-    isTenantModalDirty: false, // Reset dirty state on open
-  }),
-  closeTenantModal: (options) => {
-    if (get().isTenantModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isTenantModalOpen: false,
-            tenantInitialData: undefined,
-            tenantModalWohnungen: [],
-            isTenantModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isTenantModalOpen: false,
-        tenantInitialData: undefined,
-        tenantModalWohnungen: [],
-        isTenantModalDirty: false,
-      });
-    }
-  },
-  setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
+};
 
-  // House Modal
+const initialHouseModalState = {
   isHouseModalOpen: false,
   houseInitialData: undefined,
   houseModalOnSuccess: undefined,
   isHouseModalDirty: false,
-  openHouseModal: (initialData, onSuccess) => set({
-    isHouseModalOpen: true,
-    houseInitialData: initialData,
-    houseModalOnSuccess: onSuccess,
-    isHouseModalDirty: false,
-  }),
-  closeHouseModal: (options) => {
-    if (get().isHouseModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isHouseModalOpen: false,
-            houseInitialData: undefined,
-            houseModalOnSuccess: undefined,
-            isHouseModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isHouseModalOpen: false,
-        houseInitialData: undefined,
-        houseModalOnSuccess: undefined,
-        isHouseModalDirty: false,
-      });
-    }
-  },
-  setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
+};
 
-  // Finance Modal
+const initialFinanceModalState = {
   isFinanceModalOpen: false,
   financeInitialData: undefined,
   financeModalWohnungen: [],
   financeModalOnSuccess: undefined,
   isFinanceModalDirty: false,
-  openFinanceModal: (initialData, wohnungen, onSuccess) => set({
-    isFinanceModalOpen: true,
-    financeInitialData: initialData,
-    financeModalWohnungen: wohnungen || [],
-    financeModalOnSuccess: onSuccess,
-    isFinanceModalDirty: false,
-  }),
-  closeFinanceModal: (options) => {
-    if (get().isFinanceModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isFinanceModalOpen: false,
-            financeInitialData: undefined,
-            financeModalWohnungen: [],
-            financeModalOnSuccess: undefined,
-            isFinanceModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isFinanceModalOpen: false,
-        financeInitialData: undefined,
-        financeModalWohnungen: [],
-        financeModalOnSuccess: undefined,
-        isFinanceModalDirty: false,
-      });
-    }
-  },
-  setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
+};
 
-  // Wohnung Modal
+const initialWohnungModalState = {
   isWohnungModalOpen: false,
   wohnungInitialData: undefined,
   wohnungModalHaeuser: [],
@@ -216,144 +125,196 @@ export const useModalStore = create<ModalState>((set, get) => ({
   wohnungApartmentLimit: undefined,
   wohnungIsActiveSubscription: undefined,
   isWohnungModalDirty: false,
-  openWohnungModal: (
-    initialData,
-    haeuser,
-    onSuccess,
-    apartmentCount,
-    apartmentLimit,
-    isActiveSubscription
-  ) => set({
-    isWohnungModalOpen: true,
-    wohnungInitialData: initialData,
-    wohnungModalHaeuser: haeuser || [],
-    wohnungModalOnSuccess: onSuccess,
-    wohnungApartmentCount: apartmentCount,
-    wohnungApartmentLimit: apartmentLimit,
-    wohnungIsActiveSubscription: isActiveSubscription,
-    isWohnungModalDirty: false,
-  }),
-  closeWohnungModal: (options) => {
-    if (get().isWohnungModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isWohnungModalOpen: false,
-            wohnungInitialData: undefined,
-            wohnungModalHaeuser: [],
-            wohnungModalOnSuccess: undefined,
-            wohnungApartmentCount: undefined,
-            wohnungApartmentLimit: undefined,
-            wohnungIsActiveSubscription: undefined,
-            isWohnungModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isWohnungModalOpen: false,
-        wohnungInitialData: undefined,
-        wohnungModalHaeuser: [],
-        wohnungModalOnSuccess: undefined,
-        wohnungApartmentCount: undefined,
-        wohnungApartmentLimit: undefined,
-        wohnungIsActiveSubscription: undefined,
-        isWohnungModalDirty: false,
-      });
-    }
-  },
-  setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
+};
 
-  // Aufgabe Modal
+const initialAufgabeModalState = {
   isAufgabeModalOpen: false,
   aufgabeInitialData: undefined,
   aufgabeModalOnSuccess: undefined,
   isAufgabeModalDirty: false,
-  openAufgabeModal: (initialData, onSuccess) => set({
-    isAufgabeModalOpen: true,
-    aufgabeInitialData: initialData,
-    aufgabeModalOnSuccess: onSuccess,
-    isAufgabeModalDirty: false,
-  }),
-  closeAufgabeModal: (options) => {
-    if (get().isAufgabeModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isAufgabeModalOpen: false,
-            aufgabeInitialData: undefined,
-            aufgabeModalOnSuccess: undefined,
-            isAufgabeModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isAufgabeModalOpen: false,
-        aufgabeInitialData: undefined,
-        aufgabeModalOnSuccess: undefined,
-        isAufgabeModalDirty: false,
-      });
-    }
-  },
-  setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
+};
 
-  // Betriebskosten Modal
+const initialBetriebskostenModalState = {
   isBetriebskostenModalOpen: false,
   betriebskostenInitialData: undefined,
   betriebskostenModalHaeuser: [],
   betriebskostenModalOnSuccess: undefined,
   isBetriebskostenModalDirty: false,
-  openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
-    isBetriebskostenModalOpen: true,
-    betriebskostenInitialData: initialData,
-    betriebskostenModalHaeuser: haeuser || [],
-    betriebskostenModalOnSuccess: onSuccess,
-    isBetriebskostenModalDirty: false,
-  }),
-  closeBetriebskostenModal: (options) => {
-    if (get().isBetriebskostenModalDirty && !options?.force) {
-      get().openConfirmationModal({
-        ...CONFIRMATION_MODAL_DEFAULTS,
-        onConfirm: () => {
-          set({
-            isBetriebskostenModalOpen: false,
-            betriebskostenInitialData: undefined,
-            betriebskostenModalHaeuser: [],
-            betriebskostenModalOnSuccess: undefined,
-            isBetriebskostenModalDirty: false,
-          });
-          get().closeConfirmationModal();
-        },
-      });
-    } else {
-      set({
-        isBetriebskostenModalOpen: false,
-        betriebskostenInitialData: undefined,
-        betriebskostenModalHaeuser: [],
-        betriebskostenModalOnSuccess: undefined,
-        isBetriebskostenModalDirty: false,
-      });
-    }
-  },
-  setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+};
 
-  // Confirmation Modal
+const createInitialModalState = () => ({
+  ...initialTenantModalState,
+  ...initialHouseModalState,
+  ...initialFinanceModalState,
+  ...initialWohnungModalState,
+  ...initialAufgabeModalState,
+  ...initialBetriebskostenModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
-  openConfirmationModal: (config) => set({
-    isConfirmationModalOpen: true,
-    confirmationModalConfig: config,
-  }),
-  closeConfirmationModal: () => set({
+});
+
+export const useModalStore = create<ModalState>((set, get) => {
+  const resetAllModals = () => set(createInitialModalState());
+
+  return {
+    ...createInitialModalState(),
+    openTenantModal: (initialData, wohnungen) => set({ 
+      isTenantModalOpen: true, 
+      tenantInitialData: initialData, 
+      tenantModalWohnungen: wohnungen || [],
+      isTenantModalDirty: false, // Reset dirty state on open
+    }),
+    closeTenantModal: (options) => {
+      if (get().isTenantModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAllModals();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAllModals();
+      }
+    },
+    setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
+
+    // House Modal
+    openHouseModal: (initialData, onSuccess) => set({
+      isHouseModalOpen: true,
+      houseInitialData: initialData,
+      houseModalOnSuccess: onSuccess,
+      isHouseModalDirty: false
+    }),
+    closeHouseModal: (options) => {
+      if (get().isHouseModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAllModals();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAllModals();
+      }
+    },
+    setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
+
+    // Finance Modal
+    openFinanceModal: (initialData, wohnungen, onSuccess) => set({
+      isFinanceModalOpen: true,
+      financeInitialData: initialData,
+      financeModalWohnungen: wohnungen || [],
+      financeModalOnSuccess: onSuccess,
+      isFinanceModalDirty: false
+    }),
+    closeFinanceModal: (options) => {
+      if (get().isFinanceModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAllModals();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAllModals();
+      }
+    },
+    setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
+
+    // Wohnung Modal
+    openWohnungModal: (
+      initialData,
+      haeuser,
+      onSuccess,
+      apartmentCount,
+      apartmentLimit,
+      isActiveSubscription
+    ) => set({
+      isWohnungModalOpen: true,
+      wohnungInitialData: initialData,
+      wohnungModalHaeuser: haeuser || [],
+      wohnungModalOnSuccess: onSuccess,
+      wohnungApartmentCount: apartmentCount,
+      wohnungApartmentLimit: apartmentLimit,
+      wohnungIsActiveSubscription: isActiveSubscription,
+      isWohnungModalDirty: false
+    }),
+    closeWohnungModal: (options) => {
+      if (get().isWohnungModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAllModals();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAllModals();
+      }
+    },
+    setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
+
+    // Aufgabe Modal
+    openAufgabeModal: (initialData, onSuccess) => set({
+      isAufgabeModalOpen: true,
+      aufgabeInitialData: initialData,
+      aufgabeModalOnSuccess: onSuccess,
+      isAufgabeModalDirty: false
+    }),
+    closeAufgabeModal: (options) => {
+      if (get().isAufgabeModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAllModals();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAllModals();
+      }
+    },
+    setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
+
+    // Betriebskosten Modal
+    openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
+      isBetriebskostenModalOpen: true,
+      betriebskostenInitialData: initialData,
+      betriebskostenModalHaeuser: haeuser || [],
+      betriebskostenModalOnSuccess: onSuccess,
+      isBetriebskostenModalDirty: false
+    }),
+    closeBetriebskostenModal: (options) => {
+      if (get().isBetriebskostenModalDirty && !options?.force) {
+        get().openConfirmationModal({
+          ...CONFIRMATION_MODAL_DEFAULTS,
+          onConfirm: () => {
+            resetAllModals();
+            get().closeConfirmationModal();
+          },
+        });
+      } else {
+        resetAllModals();
+      }
+    },
+    setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+
+    // Confirmation Modal
     isConfirmationModalOpen: false,
-    // Keep config around for a moment to avoid flicker if content relies on it during closing animation
-    // It will be overwritten on next open. Or set to null after a timeout if needed.
-    // For now, simply setting to null.
     confirmationModalConfig: null,
-  }),
-}));
+    openConfirmationModal: (config) => set({
+      isConfirmationModalOpen: true,
+      confirmationModalConfig: config,
+    }),
+    closeConfirmationModal: () => set({
+      isConfirmationModalOpen: false,
+      // Keep config around for a moment to avoid flicker if content relies on it during closing animation
+      // It will be overwritten on next open. Or set to null after a timeout if needed.
+      // For now, simply setting to null.
+      confirmationModalConfig: null,
+    }),
+  };
+});
