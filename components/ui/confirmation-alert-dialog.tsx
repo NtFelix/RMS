@@ -18,6 +18,7 @@ interface ConfirmationAlertDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
+  onCancel?: () => void;
   title: string;
   description: React.ReactNode;
   confirmButtonText?: string;
@@ -29,6 +30,7 @@ export function ConfirmationAlertDialog({
   isOpen,
   onOpenChange,
   onConfirm,
+  onCancel,
   title,
   description,
   confirmButtonText,
@@ -42,6 +44,9 @@ export function ConfirmationAlertDialog({
   };
 
   const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    }
     onOpenChange(false); // Close dialog on cancel
   };
 

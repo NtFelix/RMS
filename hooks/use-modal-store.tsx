@@ -4,6 +4,7 @@ interface ConfirmationModalConfig {
   title: string;
   description: string;
   onConfirm: () => void;
+  onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
 }
@@ -153,8 +154,33 @@ const createInitialModalState = () => ({
   confirmationModalConfig: null,
 });
 
+type DirtyFlagKey = {
+  [K in keyof ModalState]: K extends `${string}ModalDirty` ? K : never;
+}[keyof ModalState];
+
 export const useModalStore = create<ModalState>((set, get) => {
-  const resetAllModals = () => set(createInitialModalState());
+  const createCloseHandler = (
+    isDirtyFlag: DirtyFlagKey,
+    initialState: Partial<ModalState>
+  ) => (options?: CloseModalOptions) => {
+    const state = get();
+    const resetModal = () => set(initialState);
+
+    if (isDirtyFlag && state[isDirtyFlag] && !options?.force) {
+      state.openConfirmationModal({
+        ...CONFIRMATION_MODAL_DEFAULTS,
+        onConfirm: () => {
+          resetModal();
+          get().closeConfirmationModal();
+        },
+        onCancel: () => {
+          get().closeConfirmationModal();
+        }
+      });
+    } else {
+      resetModal();
+    }
+  };
 
   return {
     ...createInitialModalState(),
@@ -164,16 +190,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       tenantModalWohnungen: wohnungen || [],
       isTenantModalDirty: false, // Reset dirty state on open
     }),
-    closeTenantModal: (options) => {
-      if (get().isTenantModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeTenantModal: createCloseHandler('isTenantModalDirty', initialTenantModalState),
     setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
 
     // House Modal
@@ -183,16 +200,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       houseModalOnSuccess: onSuccess,
       isHouseModalDirty: false
     }),
-    closeHouseModal: (options) => {
-      if (get().isHouseModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeHouseModal: createCloseHandler('isHouseModalDirty', initialHouseModalState),
     setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
 
     // Finance Modal
@@ -203,16 +211,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       financeModalOnSuccess: onSuccess,
       isFinanceModalDirty: false
     }),
-    closeFinanceModal: (options) => {
-      if (get().isFinanceModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeFinanceModal: createCloseHandler('isFinanceModalDirty', initialFinanceModalState),
     setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
 
     // Wohnung Modal
@@ -233,16 +232,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       wohnungIsActiveSubscription: isActiveSubscription,
       isWohnungModalDirty: false
     }),
-    closeWohnungModal: (options) => {
-      if (get().isWohnungModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeWohnungModal: createCloseHandler('isWohnungModalDirty', initialWohnungModalState),
     setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
 
     // Aufgabe Modal
@@ -252,16 +242,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       aufgabeModalOnSuccess: onSuccess,
       isAufgabeModalDirty: false
     }),
-    closeAufgabeModal: (options) => {
-      if (get().isAufgabeModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeAufgabeModal: createCloseHandler('isAufgabeModalDirty', initialAufgabeModalState),
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
     // Betriebskosten Modal
@@ -272,16 +253,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       betriebskostenModalOnSuccess: onSuccess,
       isBetriebskostenModalDirty: false
     }),
-    closeBetriebskostenModal: (options) => {
-      if (get().isBetriebskostenModalDirty && !options?.force) {
-        get().openConfirmationModal({
-          ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: resetAllModals,
-        });
-      } else {
-        resetAllModals();
-      }
-    },
+    closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
 
     // Confirmation Modal
