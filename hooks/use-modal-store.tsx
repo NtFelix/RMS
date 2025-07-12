@@ -311,9 +311,6 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeConfirmationModal: () => set({
       isConfirmationModalOpen: false,
-      // Keep config around for a moment to avoid flicker if content relies on it during closing animation
-      // It will be overwritten on next open. Or set to null after a timeout if needed.
-      // For now, simply setting to null.
       confirmationModalConfig: null,
     }),
   };
