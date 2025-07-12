@@ -161,8 +161,9 @@ export const useModalStore = create<ModalState>((set, get) => {
   const resetAllModals = () => set(createInitialModalState());
 
   const createCloseHandler = (isDirtyFlag: DirtyFlagKey) => (options?: CloseModalOptions) => {
-    if (get()[isDirtyFlag] && !options?.force) {
-      get().openConfirmationModal({
+    const state = get();
+    if (state[isDirtyFlag] && !options?.force) {
+      state.openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: resetAllModals,
       });
