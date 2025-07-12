@@ -137,8 +137,8 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
   // Determine trial eligibility and button text/state based on userProfile
   const isTrialEligible = useMemo(() => {
     if (!userProfile) return true; // Logged out users see trial message
-    const hasActiveSub = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
-    return !userProfile.trial_starts_at && !hasActiveSub;
+    // A user is eligible for a trial if they have not started one and have no subscription history.
+    return !userProfile.trial_starts_at && !userProfile.stripe_subscription_id;
   }, [userProfile]);
 
   const getButtonTextAndState = (planPriceId: string) => {
@@ -164,19 +164,17 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
         // Keep button enabled for both cases to allow navigation to customer portal
         disabled = false;
       } else {
-        // Logic for users without an active subscription (no changes here from previous correct state)
-        const hasUsedTrial = !!userProfile.trial_starts_at;
-        // Note: isCurrentPlan here would be false if hasActiveSubscription is false.
-        // The original logic for non-subscribed users is preserved.
-        if (hasUsedTrial) { // No active sub, but trial used
-          text = 'Subscribe';
-        } else { // Eligible for trial (no active sub, no trial used)
-          text = 'Start Free Trial';
+        // User has no active subscription.
+        // The isTrialEligible flag, which is now more accurate, determines the button text.
+        if (isTrialEligible) {
+          text = 'Kostenlos testen'; // Corrected German text for "Start Free Trial"
+        } else {
+          text = 'Abo auswählen'; // "Select Subscription" for users who are not eligible for a trial
         }
       }
     } else {
-      // Default for logged-out users
-      text = 'Get Started';
+      // Default for logged-out users, implies trial eligibility.
+      text = 'Kostenlos testen';
     }
 
     return { text, disabled };
