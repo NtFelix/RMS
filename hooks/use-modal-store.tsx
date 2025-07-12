@@ -175,10 +175,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
 
     // House Modal
-    isHouseModalOpen: false,
-    houseInitialData: undefined,
-    houseModalOnSuccess: undefined,
-    isHouseModalDirty: false,
+    ...initialHouseModalState,
     openHouseModal: (initialData, onSuccess) => set({
       isHouseModalOpen: true,
       houseInitialData: initialData,
@@ -201,11 +198,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
 
     // Finance Modal
-    isFinanceModalOpen: false,
-    financeInitialData: undefined,
-    financeModalWohnungen: [],
-    financeModalOnSuccess: undefined,
-    isFinanceModalDirty: false,
+    ...initialFinanceModalState,
     openFinanceModal: (initialData, wohnungen, onSuccess) => set({
       isFinanceModalOpen: true,
       financeInitialData: initialData,
@@ -229,14 +222,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
 
     // Wohnung Modal
-    isWohnungModalOpen: false,
-    wohnungInitialData: undefined,
-    wohnungModalHaeuser: [],
-    wohnungModalOnSuccess: undefined,
-    wohnungApartmentCount: undefined,
-    wohnungApartmentLimit: undefined,
-    wohnungIsActiveSubscription: undefined,
-    isWohnungModalDirty: false,
+    ...initialWohnungModalState,
     openWohnungModal: (
       initialData,
       haeuser,
@@ -270,10 +256,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
 
     // Aufgabe Modal
-    isAufgabeModalOpen: false,
-    aufgabeInitialData: undefined,
-    aufgabeModalOnSuccess: undefined,
-    isAufgabeModalDirty: false,
+    ...initialAufgabeModalState,
     openAufgabeModal: (initialData, onSuccess) => set({
       isAufgabeModalOpen: true,
       aufgabeInitialData: initialData,
@@ -296,11 +279,7 @@ export const useModalStore = create<ModalState>((set, get) => {
     setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
 
     // Betriebskosten Modal
-    isBetriebskostenModalOpen: false,
-    betriebskostenInitialData: undefined,
-    betriebskostenModalHaeuser: [],
-    betriebskostenModalOnSuccess: undefined,
-    isBetriebskostenModalDirty: false,
+    ...initialBetriebskostenModalState,
     openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
       isBetriebskostenModalOpen: true,
       betriebskostenInitialData: initialData,
