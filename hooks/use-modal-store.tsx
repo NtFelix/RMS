@@ -168,10 +168,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       if (get().isTenantModalDirty && !options?.force) {
         get().openConfirmationModal({
           ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: () => {
-            resetAllModals();
-            get().closeConfirmationModal();
-          },
+          onConfirm: resetAllModals,
         });
       } else {
         resetAllModals();
@@ -190,10 +187,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       if (get().isHouseModalDirty && !options?.force) {
         get().openConfirmationModal({
           ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: () => {
-            resetAllModals();
-            get().closeConfirmationModal();
-          },
+          onConfirm: resetAllModals,
         });
       } else {
         resetAllModals();
@@ -213,10 +207,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       if (get().isFinanceModalDirty && !options?.force) {
         get().openConfirmationModal({
           ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: () => {
-            resetAllModals();
-            get().closeConfirmationModal();
-          },
+          onConfirm: resetAllModals,
         });
       } else {
         resetAllModals();
@@ -246,10 +237,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       if (get().isWohnungModalDirty && !options?.force) {
         get().openConfirmationModal({
           ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: () => {
-            resetAllModals();
-            get().closeConfirmationModal();
-          },
+          onConfirm: resetAllModals,
         });
       } else {
         resetAllModals();
@@ -268,10 +256,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       if (get().isAufgabeModalDirty && !options?.force) {
         get().openConfirmationModal({
           ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: () => {
-            resetAllModals();
-            get().closeConfirmationModal();
-          },
+          onConfirm: resetAllModals,
         });
       } else {
         resetAllModals();
@@ -291,10 +276,7 @@ export const useModalStore = create<ModalState>((set, get) => {
       if (get().isBetriebskostenModalDirty && !options?.force) {
         get().openConfirmationModal({
           ...CONFIRMATION_MODAL_DEFAULTS,
-          onConfirm: () => {
-            resetAllModals();
-            get().closeConfirmationModal();
-          },
+          onConfirm: resetAllModals,
         });
       } else {
         resetAllModals();
