@@ -31,9 +31,9 @@ npm run dev
 
 ### Troubleshooting Build/Run Issues
 
--   If the `npm run dev` command times out, retry it up to 3 times.
+-   If the `npm run dev` command fails or times out, retry it.
 -   If errors persist after retrying, investigate the error messages and attempt to fix them.
--   If you are unable to resolve the errors, try a different approach to test the application's functionality before pushing the code. This might involve running specific tests or manually verifying critical features.
+-   If you are unable to resolve the errors, report the failure, including the error logs and a summary of your attempted fixes, to the user for guidance.
 
 ## Supabase Database
 
