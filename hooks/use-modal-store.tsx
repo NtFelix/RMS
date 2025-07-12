@@ -158,7 +158,13 @@ type DirtyFlagKey = {
   [K in keyof ModalState]: K extends `${string}ModalDirty` ? K : never;
 }[keyof ModalState];
 
+const MODAL_ANIMATION_DURATION = 300; // ms
+
 export const useModalStore = create<ModalState>((set, get) => {
+  let confirmationModalTimeoutId: NodeJS.Timeout | null = null;
+
+  const resetAllModals = () => set(createInitialModalState());
+
   const createCloseHandler = (
     isDirtyFlag: DirtyFlagKey,
     initialState: Partial<ModalState>
@@ -259,16 +265,23 @@ export const useModalStore = create<ModalState>((set, get) => {
     // Confirmation Modal
     isConfirmationModalOpen: false,
     confirmationModalConfig: null,
-    openConfirmationModal: (config) => set({
-      isConfirmationModalOpen: true,
-      confirmationModalConfig: config,
-    }),
-    closeConfirmationModal: () => set({
-      isConfirmationModalOpen: false,
-      // Keep config around for a moment to avoid flicker if content relies on it during closing animation
-      // It will be overwritten on next open. Or set to null after a timeout if needed.
-      // For now, simply setting to null.
-      confirmationModalConfig: null,
-    }),
+    openConfirmationModal: (config) => {
+      if (confirmationModalTimeoutId) {
+        clearTimeout(confirmationModalTimeoutId);
+        confirmationModalTimeoutId = null;
+      }
+      set({
+        isConfirmationModalOpen: true,
+        confirmationModalConfig: config,
+      });
+    },
+    closeConfirmationModal: () => {
+      set({ isConfirmationModalOpen: false });
+      // Delay nullifying the config to allow for closing animations to complete
+      confirmationModalTimeoutId = setTimeout(() => {
+        set({ confirmationModalConfig: null });
+        confirmationModalTimeoutId = null;
+      }, MODAL_ANIMATION_DURATION); 
+    },
   };
 });
