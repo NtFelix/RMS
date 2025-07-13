@@ -176,16 +176,12 @@ export const useModalStore = create<ModalState>((set, get) => {
       state.openConfirmationModal({
         ...CONFIRMATION_MODAL_DEFAULTS,
         onConfirm: () => {
-          set({
-            isBetriebskostenModalOpen: false,
-            betriebskostenInitialData: undefined,
-            betriebskostenModalHaeuser: [],
-            betriebskostenModalOnSuccess: undefined,
-            isBetriebskostenModalDirty: false,
-          });
           resetModal();
+          get().closeConfirmationModal();
         },
-        onCancel: () => {}
+        onCancel: () => {
+          get().closeConfirmationModal();
+        }
       });
     } else {
       resetModal();
