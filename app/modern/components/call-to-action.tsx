@@ -26,7 +26,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
         </span>
       </Button>
       
-      <Link href={isCta ? "/modern/documentation" : "#"}>
+      <Link href={isHero ? "/modern/documentation" : "#"}>
         <Button
           size={isHero ? 'lg' : 'lg'}
           variant="outline"

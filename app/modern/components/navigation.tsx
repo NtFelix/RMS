@@ -104,7 +104,7 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
         {/* Logo Pill */}
         <div className="flex-shrink-0 z-10">
-          <div className="bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full h-16 px-6 flex items-center">
+          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md">
             <Link href="/" className="flex items-center space-x-2 group">
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                 <span className="text-primary-foreground font-bold text-sm">IV</span>
@@ -118,7 +118,7 @@ export default function Navigation() {
 
         {/* Desktop Navigation Pill */}
         <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full h-16 px-6 flex items-center space-x-1">
+          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center space-x-1 backdrop-blur-md">
             {pathname === "/" ? (
               // Home page navigation with smooth scroll
               <>
@@ -143,11 +143,11 @@ export default function Navigation() {
 
         {/* Auth Pill */}
         <div className="flex-shrink-0 z-10">
-          <div className="bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full h-16 px-6 flex items-center">
+          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md">
             {currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className="relative cursor-pointer transition-opacity hover:opacity-80">
+                  <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
                     <Avatar className="w-8 h-8">
                       <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                       <AvatarFallback className="bg-muted">
@@ -168,7 +168,7 @@ export default function Navigation() {
               </DropdownMenu>
             ) : (
               <Button
-                variant="default"
+                variant="ghost"
                 size="sm"
                 className="rounded-full"
                 onClick={handleOpenLoginModal}
@@ -197,7 +197,7 @@ export default function Navigation() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden bg-background/95 backdrop-blur-md border-b border-border/50"
+            className="md:hidden glass"
           >
             <div className="px-4 py-4 space-y-4">
               {pathname === "/" ? (
@@ -225,7 +225,7 @@ export default function Navigation() {
               {currentUser ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-accent">
+                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-accent hover:bg-white/50 transition-all duration-300">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                         <AvatarFallback className="bg-muted">
@@ -247,7 +247,7 @@ export default function Navigation() {
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="default" // Changed to default for blue button
+                  variant="ghost" // Changed to ghost for transparent button
                   size="sm"
                   className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
                   onClick={handleOpenLoginModal}
