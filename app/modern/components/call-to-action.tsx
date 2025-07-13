@@ -23,7 +23,7 @@ interface CallToActionProps {
 
 export function CallToAction({ variant = 'default', onGetStarted }: CallToActionProps) {
   const isHero = variant === 'hero'
-  const isCta = variant === 'cta'
+  
 
   return (
     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
