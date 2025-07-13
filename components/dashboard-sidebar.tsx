@@ -24,14 +24,14 @@ const sidebarNavItems = [
     icon: Building2,
   },
   {
-    title: "Mieter",
-    href: "/mieter",
-    icon: Users,
-  },
-  {
     title: "Wohnungen",
     href: "/wohnungen",
     icon: Home,
+  },
+  {
+    title: "Mieter",
+    href: "/mieter",
+    icon: Users,
   },
   {
     title: "Finanzen",
