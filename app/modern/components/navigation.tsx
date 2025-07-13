@@ -247,7 +247,8 @@ export default function Navigation() {
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="ghost" // Changed to ghost for transparent button
+                  variant="default"
+                  variant="ghost"
                   size="sm"
                   className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
                   onClick={handleOpenLoginModal}
