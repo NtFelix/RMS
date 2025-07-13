@@ -26,7 +26,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
         </span>
       </Button>
       
-      <Link href={isHero ? "/modern/documentation" : "https://calendar.notion.so/meet/felix-b0111/demo-anfordern"}>
+      <Link href={isHero ? "/modern/documentation" : "https://calendar.notion.so/meet/felix-b0111/demo-anfordern"} target="_blank" rel="noopener noreferrer">
         <Button
           size={isHero ? 'lg' : 'lg'}
           variant="outline"
