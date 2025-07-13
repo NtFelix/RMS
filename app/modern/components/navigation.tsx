@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { name: "Startseite", href: "#hero" },
+  { name: "Startseite", href: "#hero", icon: Home },
   { name: "Funktionen", href: "#features" },
   { name: "Preise", href: "#pricing" },
   
@@ -127,9 +127,10 @@ export default function Navigation() {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                  className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300"
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
                   >
-                    {item.name}
+                    {item.icon && <item.icon className="w-4 h-4" />}
+                    <span>{item.name}</span>
                   </button>
                 ))}
               </>
