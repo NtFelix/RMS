@@ -2,13 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-.nav-pill {
-    @apply fixed top-4 left-1/2 -translate-x-1/2 z-50;
-}
-
-.nav-pill-content {
-    @apply w-full h-16 px-4 bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full flex items-center justify-between max-w-7xl mx-auto;
-}
 
 @layer base {
   :root {

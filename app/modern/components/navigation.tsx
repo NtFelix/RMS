@@ -99,78 +99,85 @@ export default function Navigation() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6 }}
-      className="nav-pill"
+      className="fixed top-4 left-0 right-0 z-50 px-4"
     >
-      <div className="nav-pill-content">
-        <div className="flex items-center">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-primary-foreground font-bold text-sm">IV</span>
-            </div>
-            <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              Immobilien<span className="text-primary">Verwalter</span>
-            </span>
-          </Link>
-        </div>
-
-        {/* Desktop Navigation */}
-        <div className="hidden md:flex items-center space-x-1 bg-white/20 border border-white/10 px-4 py-2 rounded-full">
-          {pathname === "/" ? (
-            // Home page navigation with smooth scroll
-            <>
-              {navItems.map((item) => (
-                <button
-                  key={item.name}
-                  onClick={() => handleNavClick(item.href)}
-                  className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/30 transition-colors"
-                >
-                  {item.name}
-                </button>
-              ))}
-            </>
-          ) : (
-            // Other pages navigation
-            <Link href="/" className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/30 transition-colors">
-              Startseite
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        {/* Logo Pill */}
+        <div className="flex-shrink-0">
+          <div className="bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full h-16 px-6 flex items-center">
+            <Link href="/" className="flex items-center space-x-2 group">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-primary-foreground font-bold text-sm">IV</span>
+              </div>
+              <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                Immobilien<span className="text-primary">Verwalter</span>
+              </span>
             </Link>
-          )}
+          </div>
         </div>
 
-        <div className="flex items-center">
-          {currentUser ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="relative cursor-pointer transition-opacity hover:opacity-80">
-                  <Avatar className="w-8 h-8">
-                    <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                    <AvatarFallback className="bg-muted">
-                      <UserIcon className="w-4 h-4 text-muted-foreground" />
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
-                <DropdownMenuItem
-                  onSelect={handleLogout}
-                  className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Abmelden
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : (
-            <Button
-              variant="default"
-              size="sm"
-              className="rounded-full"
-              onClick={handleOpenLoginModal}
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              Anmelden
-            </Button>
-          )}
+        {/* Desktop Navigation Pill */}
+        <div className="hidden md:flex flex-grow justify-center">
+          <div className="bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full h-16 px-6 flex items-center space-x-1">
+            {pathname === "/" ? (
+              // Home page navigation with smooth scroll
+              <>
+                {navItems.map((item) => (
+                  <button
+                    key={item.name}
+                    onClick={() => handleNavClick(item.href)}
+                    className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/30 transition-colors"
+                  >
+                    {item.name}
+                  </button>
+                ))}
+              </>
+            ) : (
+              // Other pages navigation
+              <Link href="/" className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/30 transition-colors">
+                Startseite
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Auth Pill */}
+        <div className="flex-shrink-0">
+          <div className="bg-white/30 backdrop-blur-md border border-white/20 shadow-lg rounded-full h-16 px-6 flex items-center">
+            {currentUser ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="relative cursor-pointer transition-opacity hover:opacity-80">
+                    <Avatar className="w-8 h-8">
+                      <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                      <AvatarFallback className="bg-muted">
+                        <UserIcon className="w-4 h-4 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
+                  <DropdownMenuItem
+                    onSelect={handleLogout}
+                    className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Abmelden
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="default"
+                size="sm"
+                className="rounded-full"
+                onClick={handleOpenLoginModal}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Anmelden
+              </Button>
+            )}
+          </div>
 
           {/* Mobile Menu Button */}
           <button
