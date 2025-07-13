@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
+import { PostHogProvider } from "./providers"
 // Vercel Analytics: visitor/page view tracking. To remove, delete the import and usage below.
 import { Analytics } from "@vercel/analytics/react"
 // Vercel SpeedInsights: performance metrics collection. To remove, delete the import and usage below.
@@ -26,12 +27,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="light">
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          {children}
-          <Toaster />
-          {/* Vercel Analytics: visitor/page view tracking. Remove to disable. */}
-          <Analytics />
-          {/* Vercel SpeedInsights: performance metrics collection. Remove to disable. */}
-          <SpeedInsights />
+          <PostHogProvider>
+            {children}
+            <Toaster />
+            {/* Vercel Analytics: visitor/page view tracking. Remove to disable. */}
+            <Analytics />
+            {/* Vercel SpeedInsights: performance metrics collection. Remove to disable. */}
+            <SpeedInsights />
+          </PostHogProvider>
         </ThemeProvider>
       </body>
     </html>
