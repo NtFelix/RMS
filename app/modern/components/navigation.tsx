@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check } from "lucide-react"
 import { Button } from '@/components/ui/button' // Corrected import path
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -21,8 +21,8 @@ import {
 
 const navItems = [
   { name: "Startseite", href: "#hero", icon: Home },
-  { name: "Funktionen", href: "#features", icon: DollarSign },
-  { name: "Preise", href: "#pricing" },
+  { name: "Funktionen", href: "#features", icon: Check },
+  { name: "Preise", href: "#pricing", icon: DollarSign },
   
 ]
 
