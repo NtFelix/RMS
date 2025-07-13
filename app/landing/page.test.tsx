@@ -41,7 +41,7 @@ jest.mock('../modern/components/hero', () => () => <div data-testid="mock-hero" 
 jest.mock('../modern/components/features', () => () => <div data-testid="mock-features" />);
 jest.mock('../modern/components/services', () => () => <div data-testid="mock-services" />);
 jest.mock('../modern/components/pricing', () => () => <div data-testid="mock-pricing" />);
-jest.mock('../modern/components/testimonials', () => () => <div data-testid="mock-testimonials" />);
+
 jest.mock('../modern/components/cta', () => () => <div data-testid="mock-cta" />);
 jest.mock('../modern/components/footer', () => () => <div data-testid="mock-footer" />);
 

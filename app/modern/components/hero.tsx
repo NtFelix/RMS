@@ -1,8 +1,8 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { ArrowRight, Sparkles, Zap } from "lucide-react"
-import { Button } from "@/components/ui/button" // Corrected import path
+import { Sparkles } from "lucide-react"
+import { CallToAction } from "./call-to-action"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -77,7 +77,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Welcome to RMS</span>
+            <span className="text-sm text-muted-foreground">Mühelose Immobilienverwaltung</span>
           </div>
         </motion.div>
 
@@ -87,10 +87,10 @@ export default function Hero({ onGetStarted }: HeroProps) {
           transition={{ duration: 0.8, delay: 0.2 }}
           className="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
-          Design Beyond
+          Optimieren Sie Ihre
           <br />
           <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-            Imagination
+            Immobilien
           </span>
         </motion.h1>
 
@@ -100,93 +100,15 @@ export default function Hero({ onGetStarted }: HeroProps) {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
         >
-          Manage your properties with our comprehensive real estate management system. Track finances, manage tenants, and organize tasks all in one place.
+          Verwalten Sie Ihre Immobilien mit unserem umfassenden Immobilienverwaltungssystem. Verfolgen Sie Finanzen, verwalten Sie Mieter und organisieren Sie Aufgaben – alles an einem Ort.
         </motion.p>
 
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.6 }}
-          className="flex flex-col sm:flex-row gap-4 justify-center items-center"
         >
-          <Button
-            size="lg"
-            onClick={onGetStarted}
-            // className="relative bg-gradient-to-r from-zinc-800 to-slate-800 text-white hover:from-zinc-700 hover:to-slate-700 px-8 py-4 text-lg font-semibold group overflow-hidden border-0"
-            // Using primary button variant and adjusting animation to use theme colors
-            className="relative bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-4 text-lg font-semibold group overflow-hidden"
-          >
-            {/* Animated border gradient - Using primary and secondary theme colors */}
-            <div className="absolute inset-0 rounded-md p-[2px] bg-gradient-to-r from-primary via-secondary to-primary animate-pulse">
-              <div className="absolute inset-[2px] bg-primary rounded-md group-hover:bg-primary/90 transition-all duration-300" />
-            </div>
-
-            {/* Moving gradient overlay - Using foreground with opacity */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-
-            {/* Animated border that flows like water */}
-            <div className="absolute inset-0 rounded-md overflow-hidden">
-              {/* Primary rotating gradient border - Using theme colors */}
-              <div
-                className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                style={{
-                  background:
-                    "conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)))",
-                  animation: "spin 2s linear infinite",
-                }}
-              />
-
-              {/* Secondary counter-rotating gradient - Using theme colors */}
-              <div
-                className="absolute inset-[1px] rounded-md opacity-0 group-hover:opacity-80 transition-opacity duration-700 delay-200"
-                style={{
-                  background:
-                    "conic-gradient(from 180deg, hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--primary)))",
-                  animation: "spin 3s linear infinite reverse",
-                }}
-              />
-
-              {/* Pulsing inner glow - Using primary and background */}
-              <div className="absolute inset-[2px] rounded-md bg-primary group-hover:bg-primary/90 transition-all duration-300">
-                <div className="absolute inset-0 rounded-md bg-gradient-to-r from-primary-foreground/20 via-transparent to-secondary-foreground/20 opacity-0 group-hover:opacity-100 animate-pulse transition-opacity duration-500" />
-              </div>
-
-              {/* Flowing particles effect - Using primary/secondary foreground */}
-              <div className="absolute inset-0 rounded-md opacity-0 group-hover:opacity-60 transition-opacity duration-800">
-                <div
-                  className="absolute top-1 left-1 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "0s" }}
-                />
-                <div
-                  className="absolute top-3 right-2 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "0.5s" }}
-                />
-                <div
-                  className="absolute bottom-2 left-3 w-1 h-1 bg-primary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "1s" }}
-                />
-                <div
-                  className="absolute bottom-1 right-1 w-1 h-1 bg-secondary-foreground/70 rounded-full animate-ping"
-                  style={{ animationDelay: "1.5s" }}
-                />
-              </div>
-            </div>
-
-            <span className="relative z-10 flex items-center">
-              Get Started
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-            </span>
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
-            // className="border-slate-600 text-black hover:bg-slate-800 hover:text-white px-8 py-4 text-lg font-semibold group"
-            // Uses standard outline variant which respects theme. Added explicit text color for better contrast in some themes if needed.
-            className="px-8 py-4 text-lg font-semibold group text-foreground hover:text-accent-foreground"
-          >
-            <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
-            Watch Demo
-          </Button>
+          <CallToAction variant="hero" onGetStarted={onGetStarted} />
         </motion.div>
       </div>
 

@@ -142,11 +142,11 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
   }, [userProfile]);
 
   const getButtonTextAndState = (planPriceId: string) => {
-    let text = 'Get Started';
+    let text = 'Loslegen';
     let disabled = false;
 
     if (isCheckoutProcessing) { // isLoading prop from LandingPage
-      text = 'Processing...';
+      text = 'Wird verarbeitet...';
       disabled = true;
       return { text, disabled };
     }
@@ -157,13 +157,14 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
 
       if (hasActiveSubscription) {
         if (isCurrentPlan) {
-          text = 'Manage Subscription';
+          text = 'Abonnement verwalten';
         } else {
-          text = 'Switch Plan';
+          text = 'Plan wechseln';
         }
         // Keep button enabled for both cases to allow navigation to customer portal
         disabled = false;
       } else {
+
         // User has no active subscription.
         // The isTrialEligible flag, which is now more accurate, determines the button text.
         if (isTrialEligible) {
@@ -215,9 +216,9 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
     <section className="py-16 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold mb-4">Simple, Transparent Pricing</h2>
+          <h2 className="text-3xl font-bold mb-4">Einfache, transparente Preise</h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Choose the perfect plan for your needs. Upgrade or downgrade at any time.
+            Wählen Sie den perfekten Plan für Ihre Bedürfnisse. Jederzeit erweiter- oder herabstufbar.
           </p>
         </div>
 
@@ -228,14 +229,14 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
               onClick={() => setBillingCycle("monthly")}
               className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
             >
-              Monthly
+              Monatlich
             </Button>
             <Button
               variant={billingCycle === "yearly" ? "default" : "ghost"}
               onClick={() => setBillingCycle("yearly")}
               className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
             >
-              Yearly (20% off) {/* TODO: Adjust discount text if necessary based on actuals */}
+              Jährlich (20% Rabatt)
             </Button>
           </div>
         </div>
@@ -271,11 +272,11 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
                       {formatDisplayPrice(planToDisplay.price, planToDisplay.currency, planToDisplay.interval)}
                     </span>
                     <span className="text-muted-foreground">
-                      {billingCycle === "monthly" ? "/month" : "/year"}
+                      {billingCycle === "monthly" ? "/Monat" : "/Jahr"}
                     </span>
                   </div>
                   <CardDescription className="mt-2 h-12 overflow-hidden"> {/* Added fixed height and overflow for description consistency */}
-                    {group.description || `Our ${group.productName} plan.`} {/* Use group's description */}
+                    {group.description || `Unser ${group.productName} Plan.`} {/* Use group's description */}
                   </CardDescription>
                 </CardHeader>
 
@@ -308,7 +309,7 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
 
         {isTrialEligible && (
           <div className="text-center mt-12">
-            <p className="text-muted-foreground">All plans include a 14-day free trial. No credit card required.</p>
+            <p className="text-muted-foreground">Alle Pläne beinhalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich.</p>
           </div>
         )}
       </div>

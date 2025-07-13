@@ -80,7 +80,20 @@ foreground: "hsl(var(--destructive-foreground))",
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function ({ addUtilities }: { addUtilities: any }) {
+      const newUtilities = {
+        ".glass": {
+          "background-color": "rgba(255, 255, 255, 0.3)",
+          "backdrop-filter": "blur(8px) saturate(150%)",
+          "-webkit-backdrop-filter": "blur(8px) saturate(150%)",
+          "border": "1px solid rgba(255, 255, 255, 0.2)",
+        },
+      };
+      addUtilities(newUtilities, ["responsive", "hover"]);
+    },
+  ],
 } satisfies Config
 
 export default config

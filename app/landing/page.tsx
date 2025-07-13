@@ -3,9 +3,9 @@
 import { useState, useEffect, Suspense } from 'react'; // Added Suspense
 import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams will be used by the new component
 import Hero from '../modern/components/hero';
-import Features from '../modern/components/features';
-import Services from '../modern/components/services';
-import Testimonials from '../modern/components/testimonials';
+import FeatureSections from '../modern/components/feature-sections';
+import MoreFeatures from '../modern/components/more-features';
+
 import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
@@ -288,10 +288,10 @@ export default function LandingPage() {
           <Hero onGetStarted={handleGetStarted} />
         </div>
         <div id="features">
-          <Features />
+          <FeatureSections />
         </div>
-        <div id="services">
-          <Services />
+        <div id="more-features">
+          <MoreFeatures />
         </div>
         <div id="pricing">
           <Pricing
@@ -302,9 +302,7 @@ export default function LandingPage() {
             // For button state like "Current Plan", Pricing will use userProfile.stripe_price_id
           />
         </div>
-        <div id="testimonials">
-          <Testimonials />
-        </div>
+        
         <div id="cta">
           <CTA onGetStarted={handleGetStarted} />
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, FileText, Home, User as UserIcon, LogIn, LogOut } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check } from "lucide-react"
 import { Button } from '@/components/ui/button' // Corrected import path
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -10,6 +10,7 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import AuthModal from "@/components/auth-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { PillContainer } from "@/components/ui/pill-container";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,29 +20,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { name: "Home", href: "#hero", icon: Home },
-  { name: "Features", href: "#features" },
-  { name: "Services", href: "#services" },
-  { name: "Testimonials", href: "#testimonials" },
-  { name: "Contact", href: "#cta" },
+  { name: "Startseite", href: "#hero", icon: Home },
+  { name: "Funktionen", href: "#features", icon: Check },
+  { name: "Preise", href: "#pricing", icon: DollarSign },
+  
 ]
 
 export default function Navigation() {
   const [isOpen, setIsOpen] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
   const pathname = usePathname()
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialTab, setAuthModalInitialTab] = useState<"login" | "register">("login");
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50)
-    }
-    window.addEventListener("scroll", handleScroll)
-    return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
 
   useEffect(() => {
     const supabase = createClient();
@@ -109,24 +100,26 @@ export default function Navigation() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-background/95 backdrop-blur-md border-b border-border/50" : "bg-transparent"
-      }`}
+      className="fixed top-4 left-0 right-0 z-50 px-4"
     >
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center space-x-2 group">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-primary-foreground font-bold text-sm">DS</span>
-            </div>
-            <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              Design<span className="text-primary">Studio</span>
-            </span>
-          </Link>
+      <div className="max-w-7xl mx-auto flex items-center justify-between relative">
+        {/* Logo Pill */}
+        <div className="flex-shrink-0 z-10">
+          <PillContainer>
+            <Link href="/" className="flex items-center space-x-2 group">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-primary-foreground font-bold text-sm">IV</span>
+              </div>
+              <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                Immobilien<span className="text-primary">Verwalter</span>
+              </span>
+            </Link>
+          </PillContainer>
+        </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+        {/* Desktop Navigation Pill */}
+        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <PillContainer>
             {pathname === "/" ? (
               // Home page navigation with smooth scroll
               <>
@@ -134,36 +127,29 @@ export default function Navigation() {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                    className="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group"
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
                   >
-                    {item.name}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
+                    {item.icon && <item.icon className="w-4 h-4" />}
+                    <span>{item.name}</span>
                   </button>
                 ))}
               </>
             ) : (
               // Other pages navigation
-              <Link href="/" className="px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group">
-                Home
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
+            <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
+                Startseite
               </Link>
             )}
+          </PillContainer>
+        </div>
 
-            <Link
-              href="/modern/documentation"
-              className={`flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative group ${
-                pathname?.startsWith("/modern/documentation") ? "text-foreground bg-muted" : ""
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              Documentation
-              <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
-            </Link>
-
+        {/* Auth Pill */}
+        <div className="flex-shrink-0 z-10">
+          <PillContainer>
             {currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className="relative cursor-pointer transition-opacity hover:opacity-80">
+                  <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
                     <Avatar className="w-8 h-8">
                       <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                       <AvatarFallback className="bg-muted">
@@ -178,22 +164,22 @@ export default function Navigation() {
                     className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
                   >
                     <LogOut className="w-4 h-4 mr-2" />
-                    Logout
+                    Abmelden
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
               <Button
-                variant="default" // Changed to default for blue button
+                variant="ghost"
                 size="sm"
-                // className="text-muted-foreground hover:text-foreground hover:bg-accent" // Removed custom class
+                className="rounded-full"
                 onClick={handleOpenLoginModal}
               >
                 <LogIn className="w-4 h-4 mr-2" />
-                Login
+                Anmelden
               </Button>
             )}
-          </div>
+          </PillContainer>
 
           {/* Mobile Menu Button */}
           <button
@@ -213,7 +199,7 @@ export default function Navigation() {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden bg-background/95 backdrop-blur-md border-b border-border/50"
+            className="md:hidden glass"
           >
             <div className="px-4 py-4 space-y-4">
               {pathname === "/" ? (
@@ -222,7 +208,7 @@ export default function Navigation() {
                     <button
                       key={item.name}
                       onClick={() => handleNavClick(item.href)}
-                      className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-gray-200 transition-all duration-300"
                     >
                       {item.name}
                     </button>
@@ -232,34 +218,23 @@ export default function Navigation() {
                 <Link
                   href="/"
                   onClick={() => setIsOpen(false)}
-                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-gray-200 transition-all duration-300"
                 >
-                  Home
+                  Startseite
                 </Link>
               )}
-
-              <Link
-                href="/modern/documentation"
-                onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors ${
-                  pathname?.startsWith("/modern/documentation") ? "text-foreground bg-muted" : ""
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                Documentation
-              </Link>
 
               {currentUser ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-accent">
+                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-white/50 transition-all duration-300">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                         <AvatarFallback className="bg-muted">
                           <UserIcon className="w-4 h-4 text-muted-foreground" />
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-muted-foreground">Profile</span>
+                      <span className="text-muted-foreground">Profil</span>
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground w-[calc(100vw-2rem)]">
@@ -268,19 +243,19 @@ export default function Navigation() {
                       className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
                     >
                       <LogOut className="w-4 h-4 mr-2" />
-                      Logout
+                      Abmelden
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="default" // Changed to default for blue button
+                  variant="ghost"
                   size="sm"
                   className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
                   onClick={handleOpenLoginModal}
                 >
                   <LogIn className="w-4 h-4 mr-2" />
-                  Login
+                  Anmelden
                 </Button>
               )}
             </div>
