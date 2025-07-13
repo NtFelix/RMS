@@ -184,7 +184,11 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
   };
 
   const attemptClose = () => {
-    closeBetriebskostenModal(); // Store handles confirmation
+    closeBetriebskostenModal(); // Store handles confirmation for outside click/X
+  };
+
+  const handleCancelClick = () => {
+    closeBetriebskostenModal({ force: true }); // Force close for "Abbrechen" button
   };
 
   // Main useEffect for Data Fetching and Initialization
@@ -709,7 +713,7 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={attemptClose} disabled={isSaving || isLoadingDetails}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isLoadingDetails}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSaving || isLoadingDetails}>
