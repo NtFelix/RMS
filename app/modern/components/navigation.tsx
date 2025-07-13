@@ -126,7 +126,7 @@ export default function Navigation() {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                  className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/50 transition-all duration-300"
+                  className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300"
                   >
                     {item.name}
                   </button>
@@ -134,7 +134,7 @@ export default function Navigation() {
               </>
             ) : (
               // Other pages navigation
-            <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/50 transition-all duration-300">
+            <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
                 Startseite
               </Link>
             )}
@@ -206,7 +206,7 @@ export default function Navigation() {
                     <button
                       key={item.name}
                       onClick={() => handleNavClick(item.href)}
-                      className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-gray-200 transition-all duration-300"
                     >
                       {item.name}
                     </button>
@@ -216,7 +216,7 @@ export default function Navigation() {
                 <Link
                   href="/"
                   onClick={() => setIsOpen(false)}
-                  className="block px-3 py-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                  className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-gray-200 transition-all duration-300"
                 >
                   Startseite
                 </Link>
