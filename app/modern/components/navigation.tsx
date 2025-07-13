@@ -21,7 +21,7 @@ import {
 
 const navItems = [
   { name: "Startseite", href: "#hero", icon: Home },
-  { name: "Funktionen", href: "#features" },
+  { name: "Funktionen", href: "#features", icon: DollarSign },
   { name: "Preise", href: "#pricing" },
   
 ]
