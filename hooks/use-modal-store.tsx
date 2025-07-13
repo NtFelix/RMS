@@ -163,7 +163,7 @@ const MODAL_ANIMATION_DURATION = 300; // ms
 export const useModalStore = create<ModalState>((set, get) => {
   let confirmationModalTimeoutId: NodeJS.Timeout | null = null;
 
-  const resetAllModals = () => set(createInitialModalState());
+  
 
   const createCloseHandler = (
     isDirtyFlag: DirtyFlagKey,
