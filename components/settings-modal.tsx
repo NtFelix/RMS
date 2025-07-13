@@ -213,6 +213,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
           variant: "success",
         });
+        setShowDeleteAccountConfirmModal(false); // Close the confirmation modal on success
         // The UI for code input is already part of showDeleteConfirmation logic
       }
     } catch (error) {
@@ -223,6 +224,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         variant: "destructive",
       });
       setShowDeleteConfirmation(false);
+      setShowDeleteAccountConfirmModal(false); // Close the confirmation modal on error
     } finally {
       setIsDeleting(false);
     }

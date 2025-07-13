@@ -11,6 +11,8 @@ import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correc
 import { deleteNebenkosten as deleteNebenkostenServerAction } from "../../../app/betriebskosten-actions"; // Ensure correct path
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useModalStore } from "@/hooks/use-modal-store"; // Added import
+import { useRouter } from "next/navigation"; // Added import
 
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
@@ -40,11 +42,14 @@ export default function BetriebskostenClientView({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   const [filteredNebenkosten, setFilteredNebenkosten] = useState<Nebenkosten[]>(initialNebenkosten);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [editingNebenkosten, setEditingNebenkosten] = useState<Nebenkosten | null>(null);
+  // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
+  const { openBetriebskostenModal } = useModalStore(); // Get the action to open modal
   const { toast } = useToast();
+   // Define router for potential refresh, though modal might handle it
+  const router = useRouter();
+
 
   useEffect(() => {
     let result = initialNebenkosten;
@@ -69,19 +74,23 @@ export default function BetriebskostenClientView({
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
 
   const handleOpenCreateModal = useCallback(() => {
-    setEditingNebenkosten(null);
-    setIsModalOpen(true);
-  }, []);
+    // Pass initialHaeuser and a success callback (e.g., to refresh data)
+    openBetriebskostenModal(null, initialHaeuser, () => {
+      // This callback is called on successful save from the modal
+      // Trigger data refresh here, e.g., by re-fetching or using router.refresh()
+      // For now, let's assume the modal itself or a global mechanism handles refresh.
+      // If not, this is where you'd add `router.refresh()` or similar.
+      router.refresh(); // Example refresh
+    });
+  }, [openBetriebskostenModal, initialHaeuser, router]);
 
   const handleOpenEditModal = useCallback((item: Nebenkosten) => {
-    setEditingNebenkosten(item);
-    setIsModalOpen(true);
-  }, []);
+    openBetriebskostenModal(item, initialHaeuser, () => {
+      router.refresh(); // Example refresh
+    });
+  }, [openBetriebskostenModal, initialHaeuser, router]);
 
-  const handleCloseModal = useCallback(() => {
-    setIsModalOpen(false);
-    setEditingNebenkosten(null);
-  }, []);
+  // handleCloseModal is no longer needed as the modal store handles closing.
 
   const openDeleteAlert = useCallback((itemId: string) => {
     setSelectedItemIdForDelete(itemId);
@@ -145,15 +154,10 @@ export default function BetriebskostenClientView({
         </CardContent>
       </Card>
 
-      {isModalOpen && userId && (
-        <BetriebskostenEditModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          nebenkostenToEdit={editingNebenkosten}
-          haeuser={initialHaeuser}
-          userId={userId}
-        />
-      )}
+      {/* BetriebskostenEditModal is now rendered globally from layout.tsx
+          and controls its own visibility via useModalStore.
+          The trigger to open it is handled by openBetriebskostenModal action.
+      */}
 
       <ConfirmationAlertDialog
         isOpen={isDeleteAlertOpen}

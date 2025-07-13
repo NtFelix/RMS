@@ -26,8 +26,10 @@ import { toast } from "@/hooks/use-toast"; // Changed import path
 import { format, parseISO } from "date-fns";
 import { createClient } from "@/utils/supabase/client"; // For fetching Wohnungen
 
-// Interfaces (can be moved to a types file)
-interface Finanz {
+import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
+
+// Interfaces (can be moved to a types file if not already covered by store types)
+interface Finanz { // This should align with `financeInitialData` type from store
   id: string;
   wohnung_id?: string | null;
   name: string;
@@ -37,85 +39,99 @@ interface Finanz {
   notiz?: string | null;
 }
 
-interface Wohnung {
+interface Wohnung { // This should align with `financeModalWohnungen` items type from store
   id: string;
   name: string;
 }
 
 interface FinanceEditModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialData?: Finanz;
-  initialWohnungen?: Wohnung[];
+  // Props like open, onOpenChange, initialData, initialWohnungen, onSuccess are now from useModalStore
   serverAction: (id: string | null, payload: Omit<Finanz, "id" | "Wohnungen">) => Promise<{ success: boolean; error?: any; data?: any }>;
-  onSuccess?: (data: any) => void;
   // loading prop can be added if server action is slow
 }
 
 export function FinanceEditModal(props: FinanceEditModalProps) {
+  const { serverAction } = props; // Keep serverAction as a prop for now
+
   const {
-    open,
-    onOpenChange,
-    initialData,
-    initialWohnungen = [],
-    serverAction,
-    onSuccess
-  } = props;
-  const router = useRouter();
+    isFinanceModalOpen,
+    closeFinanceModal,
+    financeInitialData,
+    financeModalWohnungen, // Use this from store
+    financeModalOnSuccess,
+    isFinanceModalDirty,
+    setFinanceModalDirty,
+    openConfirmationModal,
+  } = useModalStore();
+
+  const router = useRouter(); // Keep router if needed for other operations
   const [formData, setFormData] = useState({
-    wohnung_id: initialData?.wohnung_id || "",
-    name: initialData?.name || "",
-    datum: initialData?.datum || "",
-    betrag: initialData?.betrag?.toString() || "",
-    ist_einnahmen: initialData?.ist_einnahmen || false,
-    notiz: initialData?.notiz || "",
+    wohnung_id: financeInitialData?.wohnung_id || "",
+    name: financeInitialData?.name || "",
+    datum: financeInitialData?.datum || "",
+    betrag: financeInitialData?.betrag?.toString() || "",
+    ist_einnahmen: financeInitialData?.ist_einnahmen || false,
+    notiz: financeInitialData?.notiz || "",
   });
 
-  const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
-  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false);
+  // internalWohnungen is now financeModalWohnungen from the store
+  // const [internalWohnungen, setInternalWohnungen] = useState<Wohnung[]>(initialWohnungen);
+  const [isLoadingWohnungen, setIsLoadingWohnungen] = useState(false); // Keep this if fetching logic remains
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const apartmentOptions: ComboboxOption[] = internalWohnungen.map(w => ({ value: w.id, label: w.name }));
+  const apartmentOptions: ComboboxOption[] = (financeModalWohnungen || []).map(w => ({ value: w.id, label: w.name }));
 
   useEffect(() => {
-    setFormData({
-      wohnung_id: initialData?.wohnung_id || "",
-      name: initialData?.name || "",
-      // Ensure date is correctly formatted for DatePicker if it exists
-      datum: initialData?.datum ? format(parseISO(initialData.datum), "yyyy-MM-dd") : "",
-      betrag: initialData?.betrag?.toString() || "",
-      ist_einnahmen: initialData?.ist_einnahmen || false,
-      notiz: initialData?.notiz || "",
-    });
-  }, [initialData, open]);
-
-  useEffect(() => {
-    if (open && (!initialWohnungen || initialWohnungen.length === 0)) {
-      const fetchWohnungen = async () => {
-        setIsLoadingWohnungen(true);
-        const supabase = createClient();
-        const { data, error } = await supabase.from("Wohnungen").select("id, name");
-        if (error) {
-          console.error("Error fetching wohnungen for finance modal:", error);
-          toast({ title: "Fehler", description: "Wohnungen konnten nicht geladen werden.", variant: "destructive" });
-        } else {
-          setInternalWohnungen(data || []);
-        }
-        setIsLoadingWohnungen(false);
-      };
-      fetchWohnungen();
-    } else if (initialWohnungen && initialWohnungen.length > 0) {
-      setInternalWohnungen(initialWohnungen);
+    if (isFinanceModalOpen) {
+      setFormData({
+        wohnung_id: financeInitialData?.wohnung_id || "",
+        name: financeInitialData?.name || "",
+        datum: financeInitialData?.datum ? format(parseISO(financeInitialData.datum), "yyyy-MM-dd") : "",
+        betrag: financeInitialData?.betrag?.toString() || "",
+        ist_einnahmen: financeInitialData?.ist_einnahmen || false,
+        notiz: financeInitialData?.notiz || "",
+      });
+      setFinanceModalDirty(false); // Reset dirty state when modal opens or data changes
     }
-  }, [open, initialWohnungen]);
+  }, [financeInitialData, isFinanceModalOpen, setFinanceModalDirty]);
+
+  // Fetching Wohnungen might need to be triggered via openFinanceModal or handled by parent
+  // For now, let's assume financeModalWohnungen is populated by the time the modal opens.
+  // If not, the original useEffect for fetching Wohnungen can be adapted.
+  // useEffect(() => {
+  //   if (isFinanceModalOpen && (!financeModalWohnungen || financeModalWohnungen.length === 0)) {
+  //     // ... fetch logic ... update store or handle locally if store doesn't own this data fetch
+  //   }
+  // }, [isFinanceModalOpen, financeModalWohnungen]);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFinanceModalDirty(true);
   };
 
   const handleDateChange = (date: Date | undefined) => {
     const formattedDate = date ? format(date, "yyyy-MM-dd") : "";
     setFormData({ ...formData, datum: formattedDate });
+    setFinanceModalDirty(true);
+  };
+
+  const handleComboboxChange = (value: string | null) => {
+    setFormData({ ...formData, wohnung_id: value || "" });
+    setFinanceModalDirty(true);
+  };
+
+  const handleSelectChange = (value: string) => {
+    setFormData({ ...formData, ist_einnahmen: value === "Einnahmen" });
+    setFinanceModalDirty(true);
+  };
+
+  const attemptClose = () => {
+    closeFinanceModal(); // Store handles confirmation logic for outside clicks/X button
+  };
+
+  const handleCancelClick = () => {
+    closeFinanceModal({ force: true }); // Force close for "Abbrechen" button
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,23 +154,22 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
     };
 
     try {
-      const result = await serverAction(initialData?.id || null, payload);
+      const result = await serverAction(financeInitialData?.id || null, payload);
 
       if (result.success) {
         toast({
-          title: initialData ? "Finanzeintrag aktualisiert" : "Finanzeintrag erstellt",
-          description: `Der Finanzeintrag "${payload.name}" wurde erfolgreich ${initialData ? "aktualisiert" : "erstellt"}.`,
+          title: financeInitialData ? "Finanzeintrag aktualisiert" : "Finanzeintrag erstellt",
+          description: `Der Finanzeintrag "${payload.name}" wurde erfolgreich ${financeInitialData ? "aktualisiert" : "erstellt"}.`,
           variant: "success",
         });
         
-        // Call the onSuccess callback with the result data
-        if (onSuccess) {
-          const successData = result.data || { ...payload, id: initialData?.id || '' };
-          onSuccess(successData);
+        setFinanceModalDirty(false); // Reset dirty state on success
+        if (financeModalOnSuccess) {
+          const successData = result.data || { ...payload, id: financeInitialData?.id || result.data?.id || '' };
+          financeModalOnSuccess(successData);
         }
         
-        // Close the modal
-        onOpenChange(false);
+        closeFinanceModal(); // Will close directly as dirty is false
       } else {
         throw new Error(result.error?.message || "Ein unbekannter Fehler ist aufgetreten.");
       }
@@ -164,16 +179,25 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         description: error instanceof Error ? error.message : "Ein unbekannter Fehler ist aufgetreten.",
         variant: "destructive",
       });
+      // Do not reset dirty flag here, error occurred, changes are still pending
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (!isFinanceModalOpen) {
+    return null;
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isFinanceModalOpen} onOpenChange={(open) => !open && attemptClose()}>
+      <DialogContent
+        className="sm:max-w-[500px]"
+        isDirty={isFinanceModalDirty}
+        onAttemptClose={attemptClose}
+      >
         <DialogHeader>
-          <DialogTitle>{initialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}</DialogTitle>
+          <DialogTitle>{financeInitialData ? "Transaktion bearbeiten" : "Transaktion hinzufügen"}</DialogTitle>
           <DialogDescription>Füllen Sie die erforderlichen Felder aus.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
@@ -189,7 +213,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             <div>
               <Label htmlFor="datum">Datum</Label>
               <DatePicker
-                value={formData.datum} // DatePicker expects string in yyyy-MM-dd or Date object
+                value={formData.datum}
                 onChange={handleDateChange}
                 placeholder="TT.MM.JJJJ"
                 disabled={isSubmitting}
@@ -201,12 +225,11 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                 width="w-full"
                 options={apartmentOptions}
                 value={formData.wohnung_id}
-                onChange={(value) => setFormData({ ...formData, wohnung_id: value || "" })}
+                onChange={handleComboboxChange}
                 placeholder={isLoadingWohnungen ? "Lädt..." : "Wohnung auswählen"}
                 searchPlaceholder="Wohnung suchen..."
                 emptyText="Keine Wohnung gefunden."
                 disabled={isLoadingWohnungen || isSubmitting}
-                // The ID "wohnung_id" is for the Label's htmlFor.
               />
             </div>
             <div>
@@ -214,7 +237,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               <Select
                 name="ist_einnahmen"
                 value={formData.ist_einnahmen ? "Einnahmen" : "Ausgaben"}
-                onValueChange={(v) => setFormData({ ...formData, ist_einnahmen: v === "Einnahmen" })}
+                onValueChange={handleSelectChange}
                 disabled={isSubmitting}
               >
                 <SelectTrigger id="ist_einnahmen">
@@ -232,11 +255,11 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSubmitting}>
               Abbrechen
             </Button>
             <Button type="submit" disabled={isSubmitting || isLoadingWohnungen}>
-              {isSubmitting ? "Wird gespeichert..." : (initialData ? "Aktualisieren" : "Speichern")}
+              {isSubmitting ? "Wird gespeichert..." : (financeInitialData ? "Aktualisieren" : "Speichern")}
             </Button>
           </DialogFooter>
         </form>

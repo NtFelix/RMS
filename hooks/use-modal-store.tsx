@@ -1,106 +1,123 @@
 import { create } from 'zustand';
 
+interface ConfirmationModalConfig {
+  title: string;
+  description: string;
+  onConfirm: () => void;
+  onCancel?: () => void;
+  confirmText?: string;
+  cancelText?: string;
+}
+
+interface CloseModalOptions {
+  force?: boolean;
+}
+
 interface ModalState {
+  // Tenant Modal State
   isTenantModalOpen: boolean;
   tenantInitialData?: any;
   tenantModalWohnungen: any[];
+  isTenantModalDirty: boolean;
   openTenantModal: (initialData?: any, wohnungen?: any[]) => void;
-  closeTenantModal: () => void;
+  closeTenantModal: (options?: CloseModalOptions) => void;
+  setTenantModalDirty: (isDirty: boolean) => void;
 
   // House Modal State
   isHouseModalOpen: boolean;
-  houseInitialData?: any; // Replace 'any' with a proper 'House' type if available
+  houseInitialData?: any;
   houseModalOnSuccess?: (data: any) => void;
+  isHouseModalDirty: boolean;
   openHouseModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
-  closeHouseModal: () => void;
+  closeHouseModal: (options?: CloseModalOptions) => void;
+  setHouseModalDirty: (isDirty: boolean) => void;
 
   // Finance Modal State
   isFinanceModalOpen: boolean;
-  financeInitialData?: any; // Replace 'any' with 'Finanz' type if available
+  financeInitialData?: any;
   financeModalWohnungen: any[];
   financeModalOnSuccess?: (data: any) => void;
+  isFinanceModalDirty: boolean;
   openFinanceModal: (initialData?: any, wohnungen?: any[], onSuccess?: (data: any) => void) => void;
-  closeFinanceModal: () => void;
+  closeFinanceModal: (options?: CloseModalOptions) => void;
+  setFinanceModalDirty: (isDirty: boolean) => void;
 
   // Wohnung Modal State
   isWohnungModalOpen: boolean;
-  wohnungInitialData?: any; // Replace 'any' with actual Wohnung type
-  wohnungModalHaeuser: any[]; // Replace 'any' with actual Haus type
+  wohnungInitialData?: any;
+  wohnungModalHaeuser: any[];
   wohnungModalOnSuccess?: (data: any) => void;
-  // Add these new lines for apartment limits and subscription
   wohnungApartmentCount?: number;
-  wohnungApartmentLimit?: number | typeof Infinity; // Corrected type
+  wohnungApartmentLimit?: number | typeof Infinity;
   wohnungIsActiveSubscription?: boolean;
-  // Update openWohnungModal signature
+  isWohnungModalDirty: boolean;
   openWohnungModal: (
     initialData?: any,
     haeuser?: any[],
     onSuccess?: (data: any) => void,
-    // Add new parameters here
     apartmentCount?: number,
     apartmentLimit?: number,
     isActiveSubscription?: boolean
   ) => void;
-  closeWohnungModal: () => void;
+  closeWohnungModal: (options?: CloseModalOptions) => void;
+  setWohnungModalDirty: (isDirty: boolean) => void;
 
   // Aufgabe Modal State
   isAufgabeModalOpen: boolean;
-  aufgabeInitialData?: any; // Replace 'any' with actual Aufgabe/Task type
+  aufgabeInitialData?: any;
   aufgabeModalOnSuccess?: (data: any) => void;
+  isAufgabeModalDirty: boolean;
   openAufgabeModal: (initialData?: any, onSuccess?: (data: any) => void) => void;
-  closeAufgabeModal: () => void;
+  closeAufgabeModal: (options?: CloseModalOptions) => void;
+  setAufgabeModalDirty: (isDirty: boolean) => void;
+
+  // Betriebskosten Modal State
+  isBetriebskostenModalOpen: boolean;
+  betriebskostenInitialData?: any; // Replace 'any' with Nebenkosten | { id: string } | null
+  betriebskostenModalHaeuser: any[]; // Replace 'any' with Haus[]
+  betriebskostenModalOnSuccess?: () => void; // Adjust if it needs to pass data
+  isBetriebskostenModalDirty: boolean;
+  openBetriebskostenModal: (initialData?: any, haeuser?: any[], onSuccess?: () => void) => void;
+  closeBetriebskostenModal: (options?: CloseModalOptions) => void;
+  setBetriebskostenModalDirty: (isDirty: boolean) => void;
+
+  // Confirmation Modal State
+  isConfirmationModalOpen: boolean;
+  confirmationModalConfig: ConfirmationModalConfig | null;
+  openConfirmationModal: (config: ConfirmationModalConfig) => void;
+  closeConfirmationModal: () => void;
 }
 
-export const useModalStore = create<ModalState>((set) => ({
-  // Tenant Modal
+const CONFIRMATION_MODAL_DEFAULTS = {
+  title: "Ungespeicherte Änderungen verwerfen?",
+  description: "Wenn Sie dieses Formular schließen, gehen Ihre Änderungen verloren. Möchten Sie sie wirklich verwerfen?",
+  confirmText: "Verwerfen",
+  cancelText: "Abbrechen",
+};
+
+const initialTenantModalState = {
   isTenantModalOpen: false,
   tenantInitialData: undefined,
   tenantModalWohnungen: [],
-  openTenantModal: (initialData, wohnungen) => set({ 
-    isTenantModalOpen: true, 
-    tenantInitialData: initialData, 
-    tenantModalWohnungen: wohnungen || [] 
-  }),
-  closeTenantModal: () => set({ 
-    isTenantModalOpen: false, 
-    tenantInitialData: undefined, 
-    tenantModalWohnungen: [] 
-  }),
+  isTenantModalDirty: false,
+};
 
-  // House Modal
+const initialHouseModalState = {
   isHouseModalOpen: false,
   houseInitialData: undefined,
   houseModalOnSuccess: undefined,
-  openHouseModal: (initialData, onSuccess) => set({
-    isHouseModalOpen: true,
-    houseInitialData: initialData,
-    houseModalOnSuccess: onSuccess,
-  }),
-  closeHouseModal: () => set({
-    isHouseModalOpen: false,
-    houseInitialData: undefined,
-    houseModalOnSuccess: undefined,
-  }),
+  isHouseModalDirty: false,
+};
 
-  // Finance Modal
+const initialFinanceModalState = {
   isFinanceModalOpen: false,
   financeInitialData: undefined,
   financeModalWohnungen: [],
   financeModalOnSuccess: undefined,
-  openFinanceModal: (initialData, wohnungen, onSuccess) => set({
-    isFinanceModalOpen: true,
-    financeInitialData: initialData,
-    financeModalWohnungen: wohnungen || [],
-    financeModalOnSuccess: onSuccess,
-  }),
-  closeFinanceModal: () => set({
-    isFinanceModalOpen: false,
-    financeInitialData: undefined,
-    financeModalWohnungen: [],
-    financeModalOnSuccess: undefined,
-  }),
+  isFinanceModalDirty: false,
+};
 
-  // Wohnung Modal
+const initialWohnungModalState = {
   isWohnungModalOpen: false,
   wohnungInitialData: undefined,
   wohnungModalHaeuser: [],
@@ -108,47 +125,163 @@ export const useModalStore = create<ModalState>((set) => ({
   wohnungApartmentCount: undefined,
   wohnungApartmentLimit: undefined,
   wohnungIsActiveSubscription: undefined,
-  openWohnungModal: (
-    initialData,
-    haeuser,
-    onSuccess,
-    // Add new parameters
-    apartmentCount,
-    apartmentLimit,
-    isActiveSubscription
-  ) => set({
-    isWohnungModalOpen: true,
-    wohnungInitialData: initialData,
-    wohnungModalHaeuser: haeuser || [],
-    wohnungModalOnSuccess: onSuccess,
-    // Set new state values
-    wohnungApartmentCount: apartmentCount,
-    wohnungApartmentLimit: apartmentLimit,
-    wohnungIsActiveSubscription: isActiveSubscription,
-  }),
-  closeWohnungModal: () => set({
-    isWohnungModalOpen: false,
-    wohnungInitialData: undefined,
-    wohnungModalHaeuser: [],
-    wohnungModalOnSuccess: undefined,
-    // Reset new state values
-    wohnungApartmentCount: undefined,
-    wohnungApartmentLimit: undefined,
-    wohnungIsActiveSubscription: undefined,
-  }),
+  isWohnungModalDirty: false,
+};
 
-  // Aufgabe Modal
+const initialAufgabeModalState = {
   isAufgabeModalOpen: false,
   aufgabeInitialData: undefined,
   aufgabeModalOnSuccess: undefined,
-  openAufgabeModal: (initialData, onSuccess) => set({
-    isAufgabeModalOpen: true,
-    aufgabeInitialData: initialData,
-    aufgabeModalOnSuccess: onSuccess,
-  }),
-  closeAufgabeModal: () => set({
-    isAufgabeModalOpen: false,
-    aufgabeInitialData: undefined,
-    aufgabeModalOnSuccess: undefined,
-  }),
-}));
+  isAufgabeModalDirty: false,
+};
+
+const initialBetriebskostenModalState = {
+  isBetriebskostenModalOpen: false,
+  betriebskostenInitialData: undefined,
+  betriebskostenModalHaeuser: [],
+  betriebskostenModalOnSuccess: undefined,
+  isBetriebskostenModalDirty: false,
+};
+
+const createInitialModalState = () => ({
+  ...initialTenantModalState,
+  ...initialHouseModalState,
+  ...initialFinanceModalState,
+  ...initialWohnungModalState,
+  ...initialAufgabeModalState,
+  ...initialBetriebskostenModalState,
+  isConfirmationModalOpen: false,
+  confirmationModalConfig: null,
+});
+
+type DirtyFlagKey = {
+  [K in keyof ModalState]: K extends `${string}ModalDirty` ? K : never;
+}[keyof ModalState];
+
+const MODAL_ANIMATION_DURATION = 300; // ms
+
+export const useModalStore = create<ModalState>((set, get) => {
+  let confirmationModalTimeoutId: NodeJS.Timeout | null = null;
+
+  
+
+  const createCloseHandler = (
+    isDirtyFlag: DirtyFlagKey,
+    initialState: Partial<ModalState>
+  ) => (options?: CloseModalOptions) => {
+    const state = get();
+    const resetModal = () => set(initialState);
+
+    if (isDirtyFlag && state[isDirtyFlag] && !options?.force) {
+      state.openConfirmationModal({
+        ...CONFIRMATION_MODAL_DEFAULTS,
+        onConfirm: () => {
+          resetModal();
+          get().closeConfirmationModal();
+        },
+        onCancel: () => {
+          get().closeConfirmationModal();
+        }
+      });
+    } else {
+      resetModal();
+    }
+  };
+
+  return {
+    ...createInitialModalState(),
+    openTenantModal: (initialData, wohnungen) => set({ 
+      isTenantModalOpen: true, 
+      tenantInitialData: initialData, 
+      tenantModalWohnungen: wohnungen || [],
+      isTenantModalDirty: false, // Reset dirty state on open
+    }),
+    closeTenantModal: createCloseHandler('isTenantModalDirty', initialTenantModalState),
+    setTenantModalDirty: (isDirty) => set({ isTenantModalDirty: isDirty }),
+
+    // House Modal
+    openHouseModal: (initialData, onSuccess) => set({
+      isHouseModalOpen: true,
+      houseInitialData: initialData,
+      houseModalOnSuccess: onSuccess,
+      isHouseModalDirty: false
+    }),
+    closeHouseModal: createCloseHandler('isHouseModalDirty', initialHouseModalState),
+    setHouseModalDirty: (isDirty) => set({ isHouseModalDirty: isDirty }),
+
+    // Finance Modal
+    openFinanceModal: (initialData, wohnungen, onSuccess) => set({
+      isFinanceModalOpen: true,
+      financeInitialData: initialData,
+      financeModalWohnungen: wohnungen || [],
+      financeModalOnSuccess: onSuccess,
+      isFinanceModalDirty: false
+    }),
+    closeFinanceModal: createCloseHandler('isFinanceModalDirty', initialFinanceModalState),
+    setFinanceModalDirty: (isDirty) => set({ isFinanceModalDirty: isDirty }),
+
+    // Wohnung Modal
+    openWohnungModal: (
+      initialData,
+      haeuser,
+      onSuccess,
+      apartmentCount,
+      apartmentLimit,
+      isActiveSubscription
+    ) => set({
+      isWohnungModalOpen: true,
+      wohnungInitialData: initialData,
+      wohnungModalHaeuser: haeuser || [],
+      wohnungModalOnSuccess: onSuccess,
+      wohnungApartmentCount: apartmentCount,
+      wohnungApartmentLimit: apartmentLimit,
+      wohnungIsActiveSubscription: isActiveSubscription,
+      isWohnungModalDirty: false
+    }),
+    closeWohnungModal: createCloseHandler('isWohnungModalDirty', initialWohnungModalState),
+    setWohnungModalDirty: (isDirty) => set({ isWohnungModalDirty: isDirty }),
+
+    // Aufgabe Modal
+    openAufgabeModal: (initialData, onSuccess) => set({
+      isAufgabeModalOpen: true,
+      aufgabeInitialData: initialData,
+      aufgabeModalOnSuccess: onSuccess,
+      isAufgabeModalDirty: false
+    }),
+    closeAufgabeModal: createCloseHandler('isAufgabeModalDirty', initialAufgabeModalState),
+    setAufgabeModalDirty: (isDirty) => set({ isAufgabeModalDirty: isDirty }),
+
+    // Betriebskosten Modal
+    openBetriebskostenModal: (initialData, haeuser, onSuccess) => set({
+      isBetriebskostenModalOpen: true,
+      betriebskostenInitialData: initialData,
+      betriebskostenModalHaeuser: haeuser || [],
+      betriebskostenModalOnSuccess: onSuccess,
+      isBetriebskostenModalDirty: false
+    }),
+    closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
+    setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+
+    // Confirmation Modal
+    isConfirmationModalOpen: false,
+    confirmationModalConfig: null,
+    openConfirmationModal: (config) => {
+      if (confirmationModalTimeoutId) {
+        clearTimeout(confirmationModalTimeoutId);
+        confirmationModalTimeoutId = null;
+      }
+      set({
+        isConfirmationModalOpen: true,
+        confirmationModalConfig: config,
+      });
+    },
+    closeConfirmationModal: () => {
+      set({ isConfirmationModalOpen: false });
+      // Delay nullifying the config to allow for closing animations to complete
+      confirmationModalTimeoutId = setTimeout(() => {
+        set({ confirmationModalConfig: null });
+        confirmationModalTimeoutId = null;
+      }, MODAL_ANIMATION_DURATION); 
+    },
+  };
+});
