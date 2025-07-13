@@ -147,7 +147,7 @@ export default function Navigation() {
             {currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <div className="relative cursor-pointer transition-opacity hover:opacity-80">
+                  <div className="relative cursor-pointer transition-opacity hover:opacity-80 hover:bg-white/50 transition-all duration-300 rounded-full">
                     <Avatar className="w-8 h-8">
                       <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                       <AvatarFallback className="bg-muted">
@@ -168,7 +168,7 @@ export default function Navigation() {
               </DropdownMenu>
             ) : (
               <Button
-                variant="default"
+                variant="ghost"
                 size="sm"
                 className="rounded-full"
                 onClick={handleOpenLoginModal}
@@ -225,7 +225,7 @@ export default function Navigation() {
               {currentUser ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-accent">
+                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-accent hover:bg-white/50 transition-all duration-300">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                         <AvatarFallback className="bg-muted">
@@ -247,7 +247,7 @@ export default function Navigation() {
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="default" // Changed to default for blue button
+                  variant="ghost" // Changed to ghost for transparent button
                   size="sm"
                   className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
                   onClick={handleOpenLoginModal}
