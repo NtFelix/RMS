@@ -126,7 +126,7 @@ export default function Navigation() {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                    className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/30 transition-colors"
+                  className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/50 transition-all duration-300"
                   >
                     {item.name}
                   </button>
@@ -134,7 +134,7 @@ export default function Navigation() {
               </>
             ) : (
               // Other pages navigation
-              <Link href="/" className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/30 transition-colors">
+            <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-white/50 transition-all duration-300">
                 Startseite
               </Link>
             )}
