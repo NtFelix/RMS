@@ -18,7 +18,7 @@ const PricingViewComponent: React.FC<PricingViewProps> = ({ profile, onSelectPla
           </p>
       )}
       {profile.stripe_subscription_status === 'canceled' && (
-           <p className="mb-4 text-center">Your previous subscription was canceled. You can subscribe to a new plan below.</p>
+           <p className="mb-4 text-center">Ihr vorheriges Abonnement ist gekündigt. Sie können unten einen neuen Plan abonnieren.</p>
       )}
       {!profile.stripe_subscription_status && !profile.isTrialActive && ( // Added !profile.isTrialActive here to ensure it doesn't show for active trials
           <p className="mb-4 text-center">Sie haben derzeit kein Abonnement. Wählen Sie einen Plan, um loszulegen!</p>
