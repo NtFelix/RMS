@@ -10,6 +10,7 @@ import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import AuthModal from "@/components/auth-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { PillContainer } from "@/components/ui/pill-container";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,7 +105,7 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
         {/* Logo Pill */}
         <div className="flex-shrink-0 z-10">
-          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md">
+          <PillContainer>
             <Link href="/" className="flex items-center space-x-2 group">
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                 <span className="text-primary-foreground font-bold text-sm">IV</span>
@@ -113,12 +114,12 @@ export default function Navigation() {
                 Immobilien<span className="text-primary">Verwalter</span>
               </span>
             </Link>
-          </div>
+          </PillContainer>
         </div>
 
         {/* Desktop Navigation Pill */}
         <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center space-x-1 backdrop-blur-md">
+          <PillContainer>
             {pathname === "/" ? (
               // Home page navigation with smooth scroll
               <>
@@ -138,12 +139,12 @@ export default function Navigation() {
                 Startseite
               </Link>
             )}
-          </div>
+          </PillContainer>
         </div>
 
         {/* Auth Pill */}
         <div className="flex-shrink-0 z-10">
-          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md">
+          <PillContainer>
             {currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -177,7 +178,7 @@ export default function Navigation() {
                 Anmelden
               </Button>
             )}
-          </div>
+          </PillContainer>
 
           {/* Mobile Menu Button */}
           <button
@@ -247,7 +248,6 @@ export default function Navigation() {
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="default"
                   variant="ghost"
                   size="sm"
                   className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
