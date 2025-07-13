@@ -225,7 +225,7 @@ export default function Navigation() {
               {currentUser ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-accent hover:bg-white/50 transition-all duration-300">
+                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-white/50 transition-all duration-300">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                         <AvatarFallback className="bg-muted">
