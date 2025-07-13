@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const navItems = [
-  { name: "Startseite", href: "#hero", icon: Home },
+  { name: "Startseite", href: "#hero" },
   { name: "Funktionen", href: "#features" },
   { name: "Preise", href: "#pricing" },
   
