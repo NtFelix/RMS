@@ -104,7 +104,7 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
         {/* Logo Pill */}
         <div className="flex-shrink-0 z-10">
-          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center">
+          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md">
             <Link href="/" className="flex items-center space-x-2 group">
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                 <span className="text-primary-foreground font-bold text-sm">IV</span>
@@ -118,7 +118,7 @@ export default function Navigation() {
 
         {/* Desktop Navigation Pill */}
         <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center space-x-1">
+          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center space-x-1 backdrop-blur-md">
             {pathname === "/" ? (
               // Home page navigation with smooth scroll
               <>
@@ -143,7 +143,7 @@ export default function Navigation() {
 
         {/* Auth Pill */}
         <div className="flex-shrink-0 z-10">
-          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center">
+          <div className="glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md">
             {currentUser ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
