@@ -52,11 +52,10 @@ export default function RegisterPage() {
         setError(error.message)
       }
       setIsLoading(false)
-      return
+    } else {
+      setMessage("Überprüfen Sie Ihre E-Mail für den Bestätigungslink.")
+      setIsLoading(false)
     }
-
-    setMessage("Überprüfen Sie Ihre E-Mail für den Bestätigungslink.")
-    setIsLoading(false)
   }
 
   return (
