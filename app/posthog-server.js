@@ -4,8 +4,8 @@ let posthogInstance = null
 
 function getPostHogServer() {
   if (!posthogInstance) {
-    posthogInstance = new PostHog('phc_jfMUSdIAQg9y9uJNtHpT4vf8kdv0ZvT6aHfq7R4Kyx3', {
-      host: 'https://eu.i.posthog.com',
+    posthogInstance = new PostHog(process.env.POSTHOG_API_KEY, {
+      host: process.env.POSTHOG_HOST,
       flushAt: 1,
       flushInterval: 0
     })
