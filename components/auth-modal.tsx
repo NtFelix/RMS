@@ -82,22 +82,24 @@ export default function AuthModal({
     setLoginIsLoading(true)
     setLoginError(null)
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPassword,
-    })
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      })
 
-    setLoginIsLoading(false)
+      if (error) {
+        setLoginError(error.message)
+        return
+      }
 
-    if (error) {
-      setLoginError(error.message)
-      return
+      onAuthenticated();
+      onClose();
+    } finally {
+      setLoginIsLoading(false)
     }
-
-    onAuthenticated();
-    onClose();
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -145,19 +147,21 @@ export default function AuthModal({
     setForgotPasswordError(null)
     setForgotPasswordSuccess(false)
 
-    const supabase = createClient()
+    try {
+      const supabase = createClient()
 
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
-        redirectTo: `${window.location.origin}/auth/update-password`,
-    })
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+          redirectTo: `${window.location.origin}/auth/update-password`,
+      })
 
-    if (error) {
-      setForgotPasswordError(error.message)
-    } else {
-      setForgotPasswordSuccess(true)
+      if (error) {
+        setForgotPasswordError(error.message)
+      } else {
+        setForgotPasswordSuccess(true)
+      }
+    } finally {
+      setForgotPasswordIsLoading(false)
     }
-
-    setForgotPasswordIsLoading(false)
   }
 
   const renderContent = () => {
