@@ -1,0 +1,18 @@
+const { PostHog } = require('posthog-node')
+
+let posthogInstance = null
+
+function getPostHogServer() {
+  if (!posthogInstance) {
+    posthogInstance = new PostHog(process.env.POSTHOG_API_KEY, {
+      host: process.env.POSTHOG_HOST,
+      flushAt: 1,
+      flushInterval: 0
+    })
+  }
+  return posthogInstance
+}
+
+module.exports = {
+  getPostHogServer
+}
