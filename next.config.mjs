@@ -42,7 +42,7 @@ const nextConfig = {
 };
 
 export default withPostHogConfig(nextConfig, {
-  personalApiKey: "phx_GzCrDC4mgMK2DQGWHzbPnetyTtF4sNcrAfDMNasJcbcZUyf",
-  envId: "76914",
-  host: "https://eu.i.posthog.com",
+  personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
+  envId: process.env.POSTHOG_ENV_ID,
+  host: process.env.POSTHOG_HOST,
 });
