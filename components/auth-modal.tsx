@@ -50,6 +50,7 @@ export default function AuthModal({
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [registerIsLoading, setRegisterIsLoading] = useState(false)
+  const [registerSuccessMessage, setRegisterSuccessMessage] = useState<string | null>(null);
 
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
   const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null)
@@ -82,32 +83,43 @@ export default function AuthModal({
   }
 
   const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setRegisterIsLoading(true)
-    setRegisterError(null)
+    e.preventDefault();
+    setRegisterIsLoading(true);
+    setRegisterError(null);
+    setRegisterSuccessMessage(null);
 
     if (registerPassword !== registerConfirmPassword) {
-        setRegisterError("Passwords do not match.");
-        setRegisterIsLoading(false);
-        return;
+      setRegisterError("Passwords do not match.");
+      setRegisterIsLoading(false);
+      return;
     }
 
-    const supabase = createClient()
-
-    const { error } = await supabase.auth.signUp({
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signUp({
       email: registerEmail,
       password: registerPassword,
-    })
+    });
 
     if (error) {
-      setRegisterError(error.message)
-      setRegisterIsLoading(false)
-      return
+      setRegisterError(error.message);
+      setRegisterIsLoading(false);
+      return;
     }
 
-    onAuthenticated();
-    onClose();
-  }
+    if (data.session) {
+      // User is logged in (e.g., email confirmation is disabled)
+      setRegisterSuccessMessage('Registration successful! You are now logged in.');
+      onAuthenticated();
+      onClose();
+    } else if (data.user) {
+      // Email confirmation is required
+      setRegisterSuccessMessage("Registration successful! Please check your email to confirm your account.");
+    } else {
+      setRegisterError("An unexpected error occurred during registration.");
+    }
+
+    setRegisterIsLoading(false);
+  };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -247,6 +259,11 @@ export default function AuthModal({
               {registerError && (
                 <Alert variant="destructive">
                   <AlertDescription>{registerError}</AlertDescription>
+                </Alert>
+              )}
+              {registerSuccessMessage && (
+                <Alert variant="default">
+                  <AlertDescription>{registerSuccessMessage}</AlertDescription>
                 </Alert>
               )}
               <div className="space-y-2">
