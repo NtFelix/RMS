@@ -46,7 +46,11 @@ export default function RegisterPage() {
     })
 
     if (error) {
-      setError(error.message)
+      if (error.message.includes("User already registered")) {
+        setError("Ein Benutzer mit dieser E-Mail-Adresse ist bereits registriert.")
+      } else {
+        setError(error.message)
+      }
       setIsLoading(false)
       return
     }
