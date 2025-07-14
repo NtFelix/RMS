@@ -1,35 +1,31 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react'; // Added Suspense
-import { useRouter, useSearchParams } from 'next/navigation'; // useSearchParams will be used by the new component
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '../modern/components/hero';
 import FeatureSections from '../modern/components/feature-sections';
 import MoreFeatures from '../modern/components/more-features';
-
 import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
+import AuthModal from '@/components/auth-modal'; // Import the new AuthModal
 import { createClient } from '@/utils/supabase/client';
-import { User } from '@supabase/supabase-js'; // Import User type
+import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe } from '@stripe/stripe-js';
 
-// Stripe Promise for client-side redirection
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
 );
 
-// Use the new environment variable for the main available plan, with a fallback.
 const MAIN_PLAN_PRICE_ID = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_MAIN || 'price_basic_monthly_placeholder';
 
-// Internal Client Component for Handling Profile Fetch Error Toast
 function ProfileErrorToastHandler() {
-  // Hooks specific to this error handling logic
   const searchParams = useSearchParams();
-  const router = useRouter(); // Gets its own instance of router
-  const { toast } = useToast(); // Gets its own instance of toast
+  const router = useRouter();
+  const { toast } = useToast();
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -39,27 +35,23 @@ function ProfileErrorToastHandler() {
         description: "Could not retrieve your user details. Please try logging in again or contact support if the issue persists.",
         variant: "destructive",
       });
-      // Remove the error query parameter from the URL without adding to history
       router.replace('/landing', { scroll: false });
     }
   }, [searchParams, router, toast]);
 
-  return null; // This component does not render anything visible
+  return null;
 }
 
 export default function LandingPage() {
-  // router and toast are still needed here for other functionalities
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient(); // Rely on type inference for supabase client
-
-  // Define UserProfile interface based on expected fields
-  
+  const supabase = createClient();
 
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
-  const [selectedPriceId, setSelectedPriceId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
-  const [sessionUser, setSessionUser] = useState<User | null>(null); // To store the auth user object
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     const fetchInitialUserAndProfile = async () => {
@@ -78,6 +70,7 @@ export default function LandingPage() {
       setSessionUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         fetchUserProfile(session.user.id);
+        setIsAuthModalOpen(false); // Close modal on successful sign-in
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
       }
@@ -96,21 +89,18 @@ export default function LandingPage() {
         .eq('id', userId)
         .single();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 means no row found, which is fine (profile might not exist)
+      if (error && error.code !== 'PGRST116') {
         throw error;
       }
       setUserProfile(data as Profile | null);
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      // Optionally show a toast error, but avoid if it's just profile not found for a new user
-      // toast({ title: 'Error', description: 'Could not fetch your profile details.', variant: 'destructive' });
-      setUserProfile(null); // Ensure profile is null on error
+      setUserProfile(null);
     }
   };
 
   const proceedToCheckout = async (priceId: string) => {
     setIsProcessingCheckout(true);
-    // sessionUser is now derived from onAuthStateChange and initial load
     if (!sessionUser) {
       console.error('User not logged in for proceedToCheckout');
       toast({ title: 'Authentication Required', description: 'Please log in to proceed with checkout.', variant: 'default' });
@@ -125,7 +115,6 @@ export default function LandingPage() {
       return;
     }
 
-    // User is available from sessionUser state
     const customerEmail = sessionUser.email;
     const userId = sessionUser.id;
 
@@ -195,14 +184,9 @@ export default function LandingPage() {
   };
 
   const handleAuthFlow = async (priceId: string) => {
-    setSelectedPriceId(priceId); // Keep track of which plan button was clicked, though not strictly needed for manage flow
-
     if (isProcessingCheckout) return;
 
-    // sessionUser is already available in the component's state
-    // const { data: { user } } = await supabase.auth.getUser(); // Not needed, use sessionUser
-
-    if (sessionUser && userProfile) { // Check both sessionUser and that userProfile is loaded
+    if (sessionUser && userProfile) {
       const hasActiveSubscription = userProfile.stripe_subscription_status === 'active' || userProfile.stripe_subscription_status === 'trialing';
       if (hasActiveSubscription) {
         await redirectToCustomerPortal();
@@ -210,26 +194,19 @@ export default function LandingPage() {
         await proceedToCheckout(priceId);
       }
     } else if (sessionUser && !userProfile) {
-      // Profile is still loading or failed to load, user is logged in.
-      // Potentially show a loading state or a message if profile fetch failed earlier.
-      // For now, let's assume profile will eventually load or an error toast is shown by fetchUserProfile/ProfileErrorToastHandler
       toast({
         title: 'Please wait',
         description: 'User details are still loading. Please try again shortly.',
         variant: 'default',
       });
-    }
-     else { // No sessionUser (user not logged in)
-      toast({
-        title: 'Login Required',
-        description: 'Please log in via the navigation bar to select a plan.',
-        variant: 'default',
-      });
+    } else {
+      setAuthModalInitialTab('login');
+      setIsAuthModalOpen(true);
     }
   };
 
   const redirectToCustomerPortal = async () => {
-    setIsProcessingCheckout(true); // Use the same loading state
+    setIsProcessingCheckout(true);
     if (!sessionUser || !sessionUser.id) {
       toast({ title: 'Error', description: 'User not found. Please log in again.', variant: 'destructive' });
       setIsProcessingCheckout(false);
@@ -244,7 +221,6 @@ export default function LandingPage() {
         },
         body: JSON.stringify({
           userId: sessionUser.id,
-          // customerEmail: sessionUser.email // Email might not be needed if backend uses userId to get stripe_customer_id
         }),
       });
 
@@ -266,23 +242,37 @@ export default function LandingPage() {
       setIsProcessingCheckout(false);
     }
   };
-  
-  // useEffect for profile_fetch_failed has been moved to ProfileErrorToastHandler
 
   const handleGetStarted = async () => {
-    router.push('/home');
+    if (sessionUser) {
+        router.push('/home');
+    } else {
+        setAuthModalInitialTab('register');
+        setIsAuthModalOpen(true);
+    }
   };
 
   const handleSelectPlan = async (priceId: string) => {
     await handleAuthFlow(priceId);
   };
 
+  const handleAuthenticated = () => {
+    // This can be used for any logic that needs to run after authentication is successful
+    // For example, refetching data or redirecting.
+    // The onAuthStateChange listener already handles the main logic of fetching the user profile.
+    router.refresh();
+  };
+
+
   return (
     <>
       <Suspense fallback={null}>
         <ProfileErrorToastHandler />
       </Suspense>
-      <Navigation />
+      <Navigation onLogin={() => {
+        setAuthModalInitialTab('login');
+        setIsAuthModalOpen(true);
+      }} />
       <main className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
@@ -298,8 +288,6 @@ export default function LandingPage() {
             onSelectPlan={handleSelectPlan}
             userProfile={userProfile}
             isLoading={isProcessingCheckout}
-            // currentPlanId is implicitly handled by userProfile.stripe_price_id if needed by Pricing
-            // For button state like "Current Plan", Pricing will use userProfile.stripe_price_id
           />
         </div>
         
@@ -308,6 +296,12 @@ export default function LandingPage() {
         </div>
         <Footer />
       </main>
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthenticated={handleAuthenticated}
+        initialTab={authModalInitialTab}
+      />
     </>
   );
 }

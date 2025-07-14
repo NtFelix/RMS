@@ -26,13 +26,15 @@ const navItems = [
   
 ]
 
-export default function Navigation() {
+interface NavigationProps {
+  onLogin?: () => void;
+}
+
+export default function Navigation({ onLogin }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalInitialTab, setAuthModalInitialTab] = useState<"login" | "register">("login");
 
   useEffect(() => {
     const supabase = createClient();
@@ -61,21 +63,10 @@ export default function Navigation() {
     setIsOpen(false)
   }
 
-  const handleAuthenticated = async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    setCurrentUser(user);
-    setIsAuthModalOpen(false);
-  };
-
   const handleOpenLoginModal = () => {
-    setAuthModalInitialTab("login");
-    setIsAuthModalOpen(true);
-  };
-
-  const handleOpenRegisterModal = () => {
-    setAuthModalInitialTab("register");
-    setIsAuthModalOpen(true);
+    if (onLogin) {
+      onLogin();
+    }
   };
 
   const handleLogout = async () => {
@@ -262,12 +253,6 @@ export default function Navigation() {
           </motion.div>
         )}
       </AnimatePresence>
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthenticated={handleAuthenticated}
-        initialTab={authModalInitialTab}
-      />
     </motion.nav>
   )
 }
