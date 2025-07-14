@@ -9,12 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
+import { CustomTabs } from '@/components/ui/custom-tabs';
+import { TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -188,12 +184,17 @@ export default function AuthModal({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'login' | 'register')} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
+        <div className="w-full">
+          <CustomTabs
+            options={[
+              { value: 'login', label: 'Login' },
+              { value: 'register', label: 'Register' },
+            ]}
+            value={activeTab}
+            onChange={(value) => setActiveTab(value as 'login' | 'register')}
+            className="mb-4"
+          />
+          {activeTab === 'login' && (
             <form onSubmit={handleLogin} className="space-y-4">
               {loginError && (
                 <Alert variant="destructive">
@@ -238,7 +239,8 @@ export default function AuthModal({
               </DialogFooter>
             </form>
           </TabsContent>
-          <TabsContent value="register">
+          )}
+          {activeTab === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
               {registerError && (
                 <Alert variant="destructive">
@@ -294,8 +296,8 @@ export default function AuthModal({
                 </Button>
               </DialogFooter>
             </form>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
 
