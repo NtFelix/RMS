@@ -9,12 +9,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
+import { CustomTabs, CustomTabsContent } from '@/components/ui/custom-tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -188,114 +183,123 @@ export default function AuthModal({
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'login' | 'register')} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{loginError}</AlertDescription>
-                </Alert>
-              )}
-              {loginSuccessMessage && (
-                <Alert variant="default">
-                  <AlertTitle>Success</AlertTitle>
-                  <AlertDescription>{loginSuccessMessage}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-1">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  required
-                  disabled={loginLoading}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                  disabled={loginLoading}
-                />
-              </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full" disabled={loginLoading}>
-                  {loginLoading ? 'Logging in...' : 'Login'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
-          <TabsContent value="register">
-            <form onSubmit={handleRegister} className="space-y-4">
-              {registerError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{registerError}</AlertDescription>
-                </Alert>
-              )}
-              {registerSuccessMessage && (
-                <Alert variant="default">
-                  <AlertTitle>Success</AlertTitle>
-                  <AlertDescription>{registerSuccessMessage}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-1">
-                <Label htmlFor="register-email">Email</Label>
-                <Input
-                  id="register-email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  required
-                  disabled={registerLoading}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="register-password">Password</Label>
-                <Input
-                  id="register-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  required
-                  disabled={registerLoading}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                  disabled={registerLoading}
-                />
-              </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full" disabled={registerLoading}>
-                  {registerLoading ? 'Registering...' : 'Create Account'}
-                </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
-        </Tabs>
+        <div className="w-full">
+          <CustomTabs
+            tabs={[
+              { value: 'login', label: 'Login' },
+              { value: 'register', label: 'Register' },
+            ]}
+            activeTab={activeTab}
+            onTabChange={(value) => setActiveTab(value as 'login' | 'register')}
+            className="mb-4"
+          />
+          {activeTab === 'login' && (
+            <CustomTabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
+                {loginError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{loginError}</AlertDescription>
+                  </Alert>
+                )}
+                {loginSuccessMessage && (
+                  <Alert variant="default">
+                    <AlertTitle>Success</AlertTitle>
+                    <AlertDescription>{loginSuccessMessage}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-1">
+                  <Label htmlFor="login-email">Email</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                    disabled={loginLoading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="login-password">Password</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    disabled={loginLoading}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="submit" className="w-full" disabled={loginLoading}>
+                    {loginLoading ? 'Logging in...' : 'Login'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </CustomTabsContent>
+          )}
+          {activeTab === 'register' && (
+            <CustomTabsContent value="register">
+              <form onSubmit={handleRegister} className="space-y-4">
+                {registerError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Error</AlertTitle>
+                    <AlertDescription>{registerError}</AlertDescription>
+                  </Alert>
+                )}
+                {registerSuccessMessage && (
+                  <Alert variant="default">
+                    <AlertTitle>Success</AlertTitle>
+                    <AlertDescription>{registerSuccessMessage}</AlertDescription>
+                  </Alert>
+                )}
+                <div className="space-y-1">
+                  <Label htmlFor="register-email">Email</Label>
+                  <Input
+                    id="register-email"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    required
+                    disabled={registerLoading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="register-password">Password</Label>
+                  <Input
+                    id="register-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    required
+                    disabled={registerLoading}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    disabled={registerLoading}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button type="submit" className="w-full" disabled={registerLoading}>
+                    {registerLoading ? 'Registering...' : 'Create Account'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </CustomTabsContent>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
 
