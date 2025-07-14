@@ -1,3 +1,5 @@
+import { withPostHogConfig } from "@posthog/nextjs-config";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -37,6 +39,10 @@ const nextConfig = {
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
     return config;
   },
-}
+};
 
-export default nextConfig
+export default withPostHogConfig(nextConfig, {
+  personalApiKey: "phx_GzCrDC4mgMK2DQGWHzbPnetyTtF4sNcrAfDMNasJcbcZUyf",
+  envId: "76914",
+  host: "https://eu.i.posthog.com",
+});
