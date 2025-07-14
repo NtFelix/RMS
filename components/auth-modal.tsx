@@ -89,9 +89,10 @@ export default function AuthModal({
       password: loginPassword,
     })
 
+    setLoginIsLoading(false)
+
     if (error) {
       setLoginError(error.message)
-      setLoginIsLoading(false)
       return
     }
 
