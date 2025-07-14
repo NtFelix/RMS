@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/client"
@@ -58,6 +58,23 @@ export default function AuthModal({
   const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
 
   const [activeView, setActiveView] = useState<'login' | 'register' | 'forgotPassword'>(initialTab);
+
+  useEffect(() => {
+    // Always set the active view based on initialTab prop
+    setActiveView(initialTab);
+    // When the modal opens, clear transient states like errors, success messages, and loading indicators.
+    // Input fields are intentionally kept to allow users to resume typing if they close and reopen.
+    if (isOpen) {
+      setLoginError(null);
+      setLoginIsLoading(false);
+      setRegisterError(null);
+      setRegisterIsLoading(false);
+      setRegisterSuccessMessage(null);
+      setForgotPasswordError(null);
+      setForgotPasswordIsLoading(false);
+      setForgotPasswordSuccess(false);
+    }
+  }, [isOpen, initialTab]);
 
 
   const handleLogin = async (e: React.FormEvent) => {
