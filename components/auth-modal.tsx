@@ -38,9 +38,9 @@ export default function AuthModal({
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loginIsLoading, setLoginIsLoading] = useState(false)
 
-  const [registerEmail, setRegisterEmail] = useState("")
-  const [registerPassword, setRegisterPassword] = useState("")
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
+  const registerEmailRef = React.useRef<HTMLInputElement>(null);
+  const registerPasswordRef = React.useRef<HTMLInputElement>(null);
+  const confirmPasswordRef = React.useRef<HTMLInputElement>(null);
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [registerIsLoading, setRegisterIsLoading] = useState(false)
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState<string | null>(null);
@@ -106,15 +106,19 @@ export default function AuthModal({
     setRegisterSuccessMessage(null);
 
     try {
-      if (registerPassword !== registerConfirmPassword) {
+      const email = registerEmailRef.current?.value || '';
+      const password = registerPasswordRef.current?.value || '';
+      const confirmPassword = confirmPasswordRef.current?.value || '';
+
+      if (password !== confirmPassword) {
         setRegisterError("Passwords do not match.");
         return;
       }
 
       const supabase = createClient();
       const { data, error } = await supabase.auth.signUp({
-        email: registerEmail,
-        password: registerPassword,
+        email,
+        password,
       });
 
       if (error) {
@@ -356,31 +360,34 @@ export default function AuthModal({
                 error={registerError}
                 successMessage={registerSuccessMessage}
               >
-                <FormField
-                  id="register-email"
-                  label="E-Mail"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  required
-                />
-                <FormField
-                  id="register-password"
-                  label="Passwort"
-                  type="password"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  required
-                />
-                <FormField
-                  id="confirm-password"
-                  label="Passwort bestätigen"
-                  type="password"
-                  value={registerConfirmPassword}
-                  onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                  required
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="register-email">E-Mail</Label>
+                  <Input
+                    id="register-email"
+                    type="email"
+                    placeholder="name@example.com"
+                    ref={registerEmailRef}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="register-password">Passwort</Label>
+                  <Input
+                    id="register-password"
+                    type="password"
+                    ref={registerPasswordRef}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Passwort bestätigen</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    ref={confirmPasswordRef}
+                    required
+                  />
+                </div>
                 <Button type="submit" className="w-full" disabled={registerIsLoading}>
                   {registerIsLoading ? "Wird registriert..." : "Registrieren"}
                 </Button>
