@@ -66,10 +66,6 @@ export default function AuthModal({
       setForgotPasswordError(null);
       setForgotPasswordIsLoading(false);
       setForgotPasswordSuccess(false);
-
-      if (initialTab === 'login' && loginEmailRef.current) {
-        loginEmailRef.current.focus();
-      }
     }
   }, [isOpen, initialTab]);
 
