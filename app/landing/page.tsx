@@ -196,8 +196,7 @@ export default function LandingPage() {
         variant: 'default',
       });
     } else {
-      setAuthModalInitialTab('login');
-      setIsAuthModalOpen(true);
+      (window as any).openAuthModal('login');
     }
   };
 
