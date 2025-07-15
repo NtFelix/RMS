@@ -1,30 +1,55 @@
 "use client"
 
-import React, { useState, useEffect } from "react";
+import React, { useState, createContext, useContext } from "react";
 import { useRouter } from 'next/navigation';
 import AuthModal from "@/components/auth-modal";
 
-export default function AuthModalProvider() {
+// Define the context type
+interface AuthModalContextType {
+  openAuthModal: (tab: 'login' | 'register') => void;
+  closeAuthModal: () => void;
+  isOpen: boolean;
+}
+
+// Create the context
+const AuthModalContext = createContext<AuthModalContextType | undefined>(undefined);
+
+// Custom hook to use the auth modal context
+export const useAuthModal = () => {
+  const context = useContext(AuthModalContext);
+  if (context === undefined) {
+    throw new Error('useAuthModal must be used within an AuthModalProvider');
+  }
+  return context;
+};
+
+// Provider component
+export default function AuthModalProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
 
-  useEffect(() => {
-    (window as any).openAuthModal = (tab: 'login' | 'register') => {
-      setAuthModalInitialTab(tab);
-      setIsAuthModalOpen(true);
-    };
-  }, []);
+  const openAuthModal = (tab: 'login' | 'register') => {
+    setAuthModalInitialTab(tab);
+    setIsAuthModalOpen(true);
+  };
 
-  const handleCloseAuthModal = () => {
+  const closeAuthModal = () => {
     setIsAuthModalOpen(false);
   };
 
+  const contextValue: AuthModalContextType = {
+    openAuthModal,
+    closeAuthModal,
+    isOpen: isAuthModalOpen,
+  };
+
   return (
-    <>
+    <AuthModalContext.Provider value={contextValue}>
+      {children}
       <AuthModal
         isOpen={isAuthModalOpen}
-        onClose={handleCloseAuthModal}
+        onClose={closeAuthModal}
         onAuthenticated={() => {
           // This can be used for any logic that needs to run after authentication is successful
           // For example, refetching data or redirecting.
@@ -33,6 +58,6 @@ export default function AuthModalProvider() {
         }}
         initialTab={authModalInitialTab}
       />
-    </>
+    </AuthModalContext.Provider>
   );
 }
