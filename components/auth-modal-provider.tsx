@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, createContext, useContext } from "react";
+import React, { useState, createContext, useContext, useCallback, useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import AuthModal from "@/components/auth-modal";
 
@@ -29,20 +29,20 @@ export default function AuthModalProvider({ children }: { children: React.ReactN
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
 
-  const openAuthModal = (tab: 'login' | 'register') => {
+  const openAuthModal = useCallback((tab: 'login' | 'register') => {
     setAuthModalInitialTab(tab);
     setIsAuthModalOpen(true);
-  };
+  }, []);
 
-  const closeAuthModal = () => {
+  const closeAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);
-  };
+  }, []);
 
-  const contextValue: AuthModalContextType = {
+  const contextValue = useMemo(() => ({
     openAuthModal,
     closeAuthModal,
     isOpen: isAuthModalOpen,
-  };
+  }), [isAuthModalOpen, openAuthModal, closeAuthModal]);
 
   return (
     <AuthModalContext.Provider value={contextValue}>
