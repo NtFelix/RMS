@@ -17,13 +17,7 @@ import {
   DialogContent,
   DialogHeader,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
-import { PillContainer } from "@/components/ui/pill-container";
+import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -211,121 +205,135 @@ export default function AuthModal({
       )
     }
 
+    const tabs = [
+      { id: 'login', label: 'Login', value: 'login' },
+      { id: 'register', label: 'Register', value: 'register' }
+    ];
+
     return (
-      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'login' | 'register')} className="w-full">
-        <div className="flex justify-center p-4">
-          <PillContainer>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
-            </TabsList>
-          </PillContainer>
+      <div className="w-full">
+        {/* Modern pill tab switcher with proper spacing */}
+        <div className="flex justify-center px-6 pt-6 pb-4">
+          <PillTabSwitcher
+            tabs={tabs}
+            activeTab={activeView}
+            onTabChange={(value) => setActiveView(value as 'login' | 'register')}
+          />
         </div>
-        <TabsContent value="login">
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-2">
-              <Building2 className="h-10 w-10 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Anmelden</CardTitle>
-            <CardDescription>Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{loginError}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="login-email">E-Mail</Label>
-                <Input
-                  id="login-email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="login-password">Passwort</Label>
-                  <Button variant="link" onClick={() => setActiveView('forgotPassword')} className="text-sm text-primary hover:underline p-0 h-auto">
-                    Passwort vergessen?
-                  </Button>
+        
+        {/* Tab content with consistent spacing */}
+        <div className="px-0">
+          {activeView === 'login' && (
+            <>
+              <CardHeader className="space-y-1 text-center px-6 pt-2">
+                <div className="flex justify-center mb-2">
+                  <Building2 className="h-10 w-10 text-primary" />
                 </div>
-                <Input
-                  id="login-password"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={loginIsLoading}>
-                {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
-              </Button>
-            </form>
-          </CardContent>
-        </TabsContent>
-        <TabsContent value="register">
-        <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-2">
-              <Building2 className="h-10 w-10 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Registrieren</CardTitle>
-            <CardDescription>Erstellen Sie ein neues Konto, um loszulegen</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
-              {registerError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{registerError}</AlertDescription>
-                </Alert>
-              )}
-              {registerSuccessMessage && (
-                <Alert variant="default">
-                  <AlertDescription>{registerSuccessMessage}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="register-email">E-Mail</Label>
-                <Input
-                  id="register-email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-password">Passwort</Label>
-                <Input
-                  id="register-password"
-                  type="password"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Passwort bestätigen</Label>
-                <Input
-                  id="confirm-password"
-                  type="password"
-                  value={registerConfirmPassword}
-                  onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full" disabled={registerIsLoading}>
-                {registerIsLoading ? "Wird registriert..." : "Registrieren"}
-              </Button>
-            </form>
-          </CardContent>
-        </TabsContent>
-      </Tabs>
+                <CardTitle className="text-2xl font-bold">Anmelden</CardTitle>
+                <CardDescription>Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                <form onSubmit={handleLogin} className="space-y-4">
+                  {loginError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{loginError}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">E-Mail</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="login-password">Passwort</Label>
+                      <Button variant="link" onClick={() => setActiveView('forgotPassword')} className="text-sm text-primary hover:underline p-0 h-auto">
+                        Passwort vergessen?
+                      </Button>
+                    </div>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={loginIsLoading}>
+                    {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+          )}
+          
+          {activeView === 'register' && (
+            <>
+              <CardHeader className="space-y-1 text-center px-6 pt-2">
+                <div className="flex justify-center mb-2">
+                  <Building2 className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="text-2xl font-bold">Registrieren</CardTitle>
+                <CardDescription>Erstellen Sie ein neues Konto, um loszulegen</CardDescription>
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                <form onSubmit={handleRegister} className="space-y-4">
+                  {registerError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{registerError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {registerSuccessMessage && (
+                    <Alert variant="default">
+                      <AlertDescription>{registerSuccessMessage}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">E-Mail</Label>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">Passwort</Label>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      value={registerPassword}
+                      onChange={(e) => setRegisterPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Passwort bestätigen</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={registerConfirmPassword}
+                      onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={registerIsLoading}>
+                    {registerIsLoading ? "Wird registriert..." : "Registrieren"}
+                  </Button>
+                </form>
+              </CardContent>
+            </>
+          )}
+        </div>
+      </div>
     )
   }
 

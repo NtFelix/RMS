@@ -1,0 +1,238 @@
+"use client"
+
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { useIsMobile } from "./use-mobile"
+
+interface PillTabSwitcherTab {
+  id: string;
+  label: string;
+  value: string;
+}
+
+interface PillTabSwitcherProps {
+  tabs: PillTabSwitcherTab[];
+  activeTab: string;
+  onTabChange: (tabValue: string) => void;
+  className?: string;
+}
+
+const PillTabSwitcher = React.forwardRef<
+  HTMLDivElement,
+  PillTabSwitcherProps
+>(({ tabs, activeTab, onTabChange, className, ...props }, ref) => {
+  // Responsive design hook for mobile optimization
+  const isMobile = useIsMobile()
+  
+  // State management for tracking active tab
+  const [currentActiveTab, setCurrentActiveTab] = React.useState(activeTab)
+  
+  // Ref for the container to calculate tab positions
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  
+  // State for sliding background indicator position
+  const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({})
+  
+  // Touch interaction state for better mobile feedback
+  const [touchedTab, setTouchedTab] = React.useState<string | null>(null)
+  
+  // Update internal state when activeTab prop changes
+  React.useEffect(() => {
+    setCurrentActiveTab(activeTab)
+  }, [activeTab])
+
+  // Calculate and update indicator position based on active tab
+  React.useEffect(() => {
+    const updateIndicatorPosition = () => {
+      if (!containerRef.current) return
+      
+      const container = containerRef.current
+      const activeIndex = tabs.findIndex(tab => tab.value === currentActiveTab)
+      
+      if (activeIndex === -1) return
+      
+      // Get all tab buttons
+      const tabButtons = container.querySelectorAll('button[data-tab]')
+      const activeButton = tabButtons[activeIndex] as HTMLElement
+      
+      if (!activeButton) return
+      
+      // Calculate position and dimensions for the sliding indicator
+      const containerRect = container.getBoundingClientRect()
+      const buttonRect = activeButton.getBoundingClientRect()
+      
+      // Account for responsive padding in position calculation
+      const paddingOffset = isMobile ? 6 : 4 // 1.5rem = 6px, 1rem = 4px
+      
+      // Calculate relative position within the container, accounting for padding
+      const left = buttonRect.left - containerRect.left - paddingOffset
+      const width = buttonRect.width
+      
+      setIndicatorStyle({
+        transform: `translateX(${left}px)`,
+        width: `${width}px`,
+      })
+    }
+    
+    // Update position immediately
+    updateIndicatorPosition()
+    
+    // Update position on window resize
+    const handleResize = () => {
+      requestAnimationFrame(updateIndicatorPosition)
+    }
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [currentActiveTab, tabs])
+
+  // Handle tab switching with immediate visual feedback
+  const handleTabChange = React.useCallback((tabValue: string) => {
+    // Immediate state update for visual feedback
+    setCurrentActiveTab(tabValue)
+    // Call parent callback
+    onTabChange(tabValue)
+  }, [onTabChange])
+
+  // Touch interaction handlers for better mobile feedback
+  const handleTouchStart = React.useCallback((tabValue: string) => {
+    setTouchedTab(tabValue)
+  }, [])
+
+  const handleTouchEnd = React.useCallback(() => {
+    setTouchedTab(null)
+  }, [])
+
+  const handleTouchCancel = React.useCallback(() => {
+    setTouchedTab(null)
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(
+        // Core pill container styling with responsive height
+        "relative inline-flex items-center justify-center",
+        // Responsive height: larger on mobile for better touch targets
+        isMobile ? "h-14" : "h-12",
+        // Pill shape with rounded corners
+        "rounded-full",
+        // Semi-transparent background with backdrop blur
+        "bg-muted/60 backdrop-blur-md",
+        // Responsive padding: more on mobile for better touch spacing
+        isMobile ? "p-1.5" : "p-1",
+        // Subtle shadow for elevation
+        "shadow-md shadow-black/5",
+        // Border for better definition
+        "border border-border/50",
+        // Responsive width: full width on small screens, auto on larger
+        "w-full sm:w-auto",
+        // Responsive max width to prevent excessive stretching on mobile
+        "max-w-sm sm:max-w-none",
+        // Touch optimization: prevent text selection and improve touch response
+        "select-none touch-manipulation",
+        className
+      )}
+      {...props}
+    >
+      {/* Sliding background indicator */}
+      <div
+        className={cn(
+          // Responsive positioning and layering based on container padding
+          "absolute rounded-full bg-primary",
+          // Responsive positioning: adjust for different padding on mobile vs desktop
+          isMobile ? "left-1.5 top-1.5 bottom-1.5" : "left-1 top-1 bottom-1",
+          // Smooth transform animation for position changes with reduced motion support
+          "transition-transform duration-200 ease-in-out motion-reduce:transition-none",
+          // Subtle shadow for the indicator
+          "shadow-sm shadow-primary/20",
+          // Ensure it's behind the tab buttons
+          "z-0"
+        )}
+        style={indicatorStyle}
+      />
+      {tabs.map((tab, index) => {
+        const isActive = currentActiveTab === tab.value
+        
+        return (
+          <button
+            key={tab.id}
+            type="button"
+            data-tab={tab.value}
+            onClick={() => handleTabChange(tab.value)}
+            onTouchStart={() => handleTouchStart(tab.value)}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
+            className={cn(
+              // Base tab item structure
+              "relative z-10 inline-flex items-center justify-center whitespace-nowrap",
+              // Pill shape matching container
+              "rounded-full",
+              // Responsive spacing and typography for tab labels
+              // Mobile: larger padding and text for better touch targets
+              isMobile 
+                ? "px-8 py-3 text-base font-medium leading-none" 
+                : "px-6 py-2.5 text-sm font-medium leading-none",
+              // Ensure even distribution within container
+              "flex-1 min-w-0",
+              // Responsive minimum touch target size (44px minimum on mobile)
+              isMobile ? "min-h-[44px]" : "min-h-[40px]",
+              // Touch optimization: improve tap response
+              "touch-manipulation",
+              // Smooth transitions for all state changes with proper timing
+              "transition-all duration-200 ease-in-out motion-reduce:transition-none",
+              // Enhanced focus states for accessibility with better visibility
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              // Focus state background for better contrast
+              "focus-visible:bg-muted/30",
+              // Disabled state handling
+              "disabled:pointer-events-none disabled:opacity-50",
+              // Touch feedback: visual feedback when touched on mobile
+              touchedTab === tab.value && isMobile && "bg-muted/30 scale-[0.98]",
+              // Enhanced active vs inactive state styling
+              isActive
+                ? [
+                    // Active tab: white text over sliding background indicator
+                    "text-primary-foreground",
+                    // Ensure active state is clearly visible
+                    "font-semibold",
+                    // No background since sliding indicator provides it
+                    "bg-transparent",
+                    // Prevent hover effects on active tab to avoid interference
+                    "hover:scale-100",
+                    // Mobile: prevent hover effects entirely on touch devices
+                    isMobile && "hover:scale-100 hover:bg-transparent"
+                  ]
+                : [
+                    // Inactive tab: muted styling with enhanced hover effects
+                    "text-muted-foreground",
+                    // Desktop hover effects (disabled on mobile to prevent sticky hover)
+                    !isMobile && [
+                      "hover:text-foreground",
+                      "hover:bg-muted/50",
+                      "hover:scale-[1.02]",
+                      "hover:shadow-sm hover:shadow-black/5",
+                      "hover:brightness-110",
+                      "hover:ring-1 hover:ring-border/30"
+                    ],
+                    // Mobile: simpler touch feedback without hover effects
+                    isMobile && [
+                      "active:bg-muted/40",
+                      "active:scale-[0.98]"
+                    ],
+                    // Maintain normal font weight for inactive
+                    "font-medium"
+                  ]
+            )}
+          >
+            {tab.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+})
+
+PillTabSwitcher.displayName = "PillTabSwitcher"
+
+export { PillTabSwitcher, type PillTabSwitcherProps, type PillTabSwitcherTab }
