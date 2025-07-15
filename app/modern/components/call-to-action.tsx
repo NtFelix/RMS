@@ -38,41 +38,49 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
         </span>
       </Button>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
+      {isHero ? (
+        <Link href="/modern/documentation">
           <Button
-            size={isHero ? 'lg' : 'lg'}
+            size="lg"
             variant="outline"
             className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
           >
             <span className="flex items-center">
-              {isHero ? (
-                <>
-                  <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
-                  Mehr erfahren
-                </>
-              ) : (
-                'Demo anfordern'
-              )}
+              <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+              Mehr erfahren
             </span>
           </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Demo buchen</AlertDialogTitle>
-            <AlertDialogDescription>
-              Sie werden auf eine neue Seite weitergeleitet, wo Sie einen Termin für eine Demo mit Felix buchen können.
-              Es handelt sich um einen Notion Kalender-Link.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={() => window.open("https://calendar.notion.so/meet/felix-b0111/demo-anfordern", "_blank")}>
-              Weiterleiten
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        </Link>
+      ) : (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+            >
+              <span className="flex items-center">
+                Demo anfordern
+              </span>
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Demo buchen</AlertDialogTitle>
+              <AlertDialogDescription>
+                Sie werden auf eine neue Seite weitergeleitet, wo Sie einen Termin für eine Demo mit Felix buchen können.
+                Es handelt sich um einen Notion Kalender-Link.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction onClick={() => window.open("https://calendar.notion.so/meet/felix-b0111/demo-anfordern", "_blank")}>
+                Weiterleiten
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   )
 }
