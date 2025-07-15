@@ -11,6 +11,11 @@ const footerLinks = {
   Rechtliches: ["Datenschutz", "AGB", "Sicherheit", "Lizenzen"],
 }
 
+// Special links that require custom routing or display text
+const specialLinks: Record<string, { href: string; text: string }> = {
+  "Hilfezentrum": { href: "/modern/documentation", text: "Dokumentation" },
+}
+
 const socialLinks = [
   { icon: Github, href: "#", label: "GitHub" },
   { icon: Twitter, href: "#", label: "Twitter" },
@@ -77,19 +82,22 @@ export default function Footer() {
             >
               <h4 className="text-foreground font-semibold mb-4">{category}</h4>
               <ul className="space-y-3">
-                {links.map((link, linkIndex) => (
-                  <li key={linkIndex}>
-                    {link === "Hilfezentrum" ? (
-                      <Link href="/modern/documentation" className="text-muted-foreground hover:text-foreground transition-colors">
-                        Dokumentation
-                      </Link>
-                    ) : (
-                      <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                        {link}
-                      </a>
-                    )}
-                  </li>
-                ))}
+                {links.map((link, linkIndex) => {
+                  const specialLink = specialLinks[link];
+                  return (
+                    <li key={linkIndex}>
+                      {specialLink ? (
+                        <Link href={specialLink.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                          {specialLink.text}
+                        </Link>
+                      ) : (
+                        <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                          {link}
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </motion.div>
           ))}
