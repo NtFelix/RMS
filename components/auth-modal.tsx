@@ -16,6 +16,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
 
@@ -384,6 +385,9 @@ export default function AuthModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="p-0 w-full max-w-md">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Authentication</DialogTitle>
+        </DialogHeader>
         <Card className="mx-auto w-full max-w-md border-none">
           {renderContent()}
         </Card>
