@@ -17,13 +17,7 @@ import {
   DialogContent,
   DialogHeader,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
-import { PillContainer } from "@/components/ui/pill-container";
+import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -164,17 +158,90 @@ export default function AuthModal({
     }
   }
 
+  // Common header component to reduce duplication
+  const AuthHeader = ({ title, description }: { title: string; description: string }) => (
+    <CardHeader className="space-y-1 text-center px-6 pt-2">
+      <div className="flex justify-center mb-2">
+        <Building2 className="h-10 w-10 text-primary" />
+      </div>
+      <CardTitle className="text-2xl font-bold">{title}</CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+  );
+
+  // Common form wrapper to reduce duplication
+  const AuthForm = ({ 
+    onSubmit, 
+    error, 
+    successMessage, 
+    children 
+  }: { 
+    onSubmit: (e: React.FormEvent) => void;
+    error: string | null;
+    successMessage?: string | null;
+    children: React.ReactNode;
+  }) => (
+    <CardContent className="px-6 pb-6">
+      <form onSubmit={onSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {successMessage && (
+          <Alert variant="default">
+            <AlertDescription>{successMessage}</AlertDescription>
+          </Alert>
+        )}
+        {children}
+      </form>
+    </CardContent>
+  );
+
+  // Common input field component
+  const FormField = ({ 
+    id, 
+    label, 
+    type = "text", 
+    placeholder, 
+    value, 
+    onChange, 
+    required = false,
+    extraContent 
+  }: {
+    id: string;
+    label: string;
+    type?: string;
+    placeholder?: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    required?: boolean;
+    extraContent?: React.ReactNode;
+  }) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id}>{label}</Label>
+        {extraContent}
+      </div>
+      <Input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required={required}
+      />
+    </div>
+  );
+
   const renderContent = () => {
     if (activeView === 'forgotPassword') {
       return (
         <CardContent>
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-2">
-              <Building2 className="h-10 w-10 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Passwort zurücksetzen</CardTitle>
-            <CardDescription>Geben Sie Ihre E-Mail-Adresse ein, um einen Link zum Zurücksetzen des Passworts zu erhalten</CardDescription>
-          </CardHeader>
+          <AuthHeader 
+            title="Passwort zurücksetzen"
+            description="Geben Sie Ihre E-Mail-Adresse ein, um einen Link zum Zurücksetzen des Passworts zu erhalten"
+          />
           {forgotPasswordSuccess ? (
             <Alert variant="default">
               <AlertDescription>
@@ -188,17 +255,15 @@ export default function AuthModal({
                   <AlertDescription>{forgotPasswordError}</AlertDescription>
                 </Alert>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="forgot-password-email">E-Mail</Label>
-                <Input
-                  id="forgot-password-email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={forgotPasswordEmail}
-                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                  required
-                />
-              </div>
+              <FormField
+                id="forgot-password-email"
+                label="E-Mail"
+                type="email"
+                placeholder="name@example.com"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+              />
               <Button type="submit" className="w-full" disabled={forgotPasswordIsLoading}>
                 {forgotPasswordIsLoading ? "Wird gesendet..." : "Link zum Zurücksetzen senden"}
               </Button>
@@ -211,121 +276,108 @@ export default function AuthModal({
       )
     }
 
+    const tabs = [
+      { id: 'login', label: 'Login', value: 'login' },
+      { id: 'register', label: 'Register', value: 'register' }
+    ];
+
     return (
-      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'login' | 'register')} className="w-full">
-        <div className="flex justify-center p-4">
-          <PillContainer>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
-            </TabsList>
-          </PillContainer>
+      <div className="w-full">
+        {/* Modern pill tab switcher with proper spacing */}
+        <div className="flex justify-center px-6 pt-6 pb-4">
+          <PillTabSwitcher
+            tabs={tabs}
+            activeTab={activeView}
+            onTabChange={(value) => setActiveView(value as 'login' | 'register')}
+          />
         </div>
-        <TabsContent value="login">
-          <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-2">
-              <Building2 className="h-10 w-10 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Anmelden</CardTitle>
-            <CardDescription>Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{loginError}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="login-email">E-Mail</Label>
-                <Input
+        
+        {/* Tab content with consistent spacing */}
+        <div className="px-0">
+          {activeView === 'login' && (
+            <>
+              <AuthHeader 
+                title="Anmelden"
+                description="Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden"
+              />
+              <AuthForm onSubmit={handleLogin} error={loginError}>
+                <FormField
                   id="login-email"
+                  label="E-Mail"
                   type="email"
                   placeholder="name@example.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="login-password">Passwort</Label>
-                  <Button variant="link" onClick={() => setActiveView('forgotPassword')} className="text-sm text-primary hover:underline p-0 h-auto">
-                    Passwort vergessen?
-                  </Button>
-                </div>
-                <Input
+                <FormField
                   id="login-password"
+                  label="Passwort"
                   type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
+                  extraContent={
+                    <Button 
+                      variant="link" 
+                      onClick={() => setActiveView('forgotPassword')} 
+                      className="text-sm text-primary hover:underline p-0 h-auto"
+                    >
+                      Passwort vergessen?
+                    </Button>
+                  }
                 />
-              </div>
-              <Button type="submit" className="w-full" disabled={loginIsLoading}>
-                {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
-              </Button>
-            </form>
-          </CardContent>
-        </TabsContent>
-        <TabsContent value="register">
-        <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-2">
-              <Building2 className="h-10 w-10 text-primary" />
-            </div>
-            <CardTitle className="text-2xl font-bold">Registrieren</CardTitle>
-            <CardDescription>Erstellen Sie ein neues Konto, um loszulegen</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
-              {registerError && (
-                <Alert variant="destructive">
-                  <AlertDescription>{registerError}</AlertDescription>
-                </Alert>
-              )}
-              {registerSuccessMessage && (
-                <Alert variant="default">
-                  <AlertDescription>{registerSuccessMessage}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-2">
-                <Label htmlFor="register-email">E-Mail</Label>
-                <Input
+                <Button type="submit" className="w-full" disabled={loginIsLoading}>
+                  {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
+                </Button>
+              </AuthForm>
+            </>
+          )}
+          
+          {activeView === 'register' && (
+            <>
+              <AuthHeader 
+                title="Registrieren"
+                description="Erstellen Sie ein neues Konto, um loszulegen"
+              />
+              <AuthForm 
+                onSubmit={handleRegister} 
+                error={registerError}
+                successMessage={registerSuccessMessage}
+              >
+                <FormField
                   id="register-email"
+                  label="E-Mail"
                   type="email"
                   placeholder="name@example.com"
                   value={registerEmail}
                   onChange={(e) => setRegisterEmail(e.target.value)}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-password">Passwort</Label>
-                <Input
+                <FormField
                   id="register-password"
+                  label="Passwort"
                   type="password"
                   value={registerPassword}
                   onChange={(e) => setRegisterPassword(e.target.value)}
                   required
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Passwort bestätigen</Label>
-                <Input
+                <FormField
                   id="confirm-password"
+                  label="Passwort bestätigen"
                   type="password"
                   value={registerConfirmPassword}
                   onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                   required
                 />
-              </div>
-              <Button type="submit" className="w-full" disabled={registerIsLoading}>
-                {registerIsLoading ? "Wird registriert..." : "Registrieren"}
-              </Button>
-            </form>
-          </CardContent>
-        </TabsContent>
-      </Tabs>
+                <Button type="submit" className="w-full" disabled={registerIsLoading}>
+                  {registerIsLoading ? "Wird registriert..." : "Registrieren"}
+                </Button>
+              </AuthForm>
+            </>
+          )}
+        </div>
+      </div>
     )
   }
 
