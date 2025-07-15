@@ -62,7 +62,7 @@ const PillTabSwitcher = React.forwardRef<
       const buttonRect = activeButton.getBoundingClientRect()
       
       // Account for responsive padding in position calculation
-      const paddingOffset = isMobile ? 6 : 4 // 1.5rem = 6px, 1rem = 4px
+      const paddingOffset = isMobile ? 10 : 8 // 2.5rem = 10px, 2rem = 8px
       
       // Calculate relative position within the container, accounting for padding
       const left = buttonRect.left - containerRect.left - paddingOffset
@@ -113,6 +113,8 @@ const PillTabSwitcher = React.forwardRef<
       className={cn(
         // Core pill container styling with responsive height
         "relative inline-flex items-center justify-center",
+        // Add gap between tabs for better visual separation
+        isMobile ? "gap-2" : "gap-1.5",
         // Responsive height: larger on mobile for better touch targets
         isMobile ? "h-14" : "h-12",
         // Pill shape with rounded corners
@@ -120,7 +122,7 @@ const PillTabSwitcher = React.forwardRef<
         // Semi-transparent background with backdrop blur
         "bg-muted/60 backdrop-blur-md",
         // Responsive padding: more on mobile for better touch spacing
-        isMobile ? "p-1.5" : "p-1",
+        isMobile ? "p-2.5" : "p-2",
         // Subtle shadow for elevation
         "shadow-md shadow-black/5",
         // Border for better definition
@@ -141,7 +143,7 @@ const PillTabSwitcher = React.forwardRef<
           // Responsive positioning and layering based on container padding
           "absolute rounded-full bg-primary",
           // Responsive positioning: adjust for different padding on mobile vs desktop
-          isMobile ? "left-1.5 top-1.5 bottom-1.5" : "left-1 top-1 bottom-1",
+          isMobile ? "left-2.5 top-2.5 bottom-2.5" : "left-2 top-2 bottom-2",
           // Smooth transform animation for position changes with reduced motion support
           "transition-transform duration-200 ease-in-out motion-reduce:transition-none",
           // Subtle shadow for the indicator
