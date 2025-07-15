@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Zap } from "lucide-react"
+import { ArrowRight, Zap, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import {
@@ -61,6 +61,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
             >
               <span className="flex items-center">
                 Demo anfordern
+                <ExternalLink className="ml-2 w-5 h-5 group-hover:scale-110 transition-transform" />
               </span>
             </Button>
           </AlertDialogTrigger>
