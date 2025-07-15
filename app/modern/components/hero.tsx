@@ -85,7 +85,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-6xl md:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
+          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
           Optimieren Sie Ihre
           <br />
@@ -98,7 +98,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
+          className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
         >
           Verwalten Sie Ihre Immobilien mit unserem umfassenden Immobilienverwaltungssystem. Verfolgen Sie Finanzen, verwalten Sie Mieter und organisieren Sie Aufgaben – alles an einem Ort.
         </motion.p>

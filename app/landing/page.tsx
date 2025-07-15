@@ -9,7 +9,7 @@ import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
-import AuthModal from '@/components/auth-modal'; // Import the new AuthModal
+import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
@@ -42,17 +42,16 @@ function ProfileErrorToastHandler() {
   return null;
 }
 
-export default function LandingPage() {
+// Main content component that uses the auth modal context
+function LandingPageContent() {
   const router = useRouter();
   const { toast } = useToast();
   const supabase = createClient();
+  const { openAuthModal } = useAuthModal();
 
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
-
   useEffect(() => {
     const fetchInitialUserAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -70,7 +69,6 @@ export default function LandingPage() {
       setSessionUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         fetchUserProfile(session.user.id);
-        setIsAuthModalOpen(false); // Close modal on successful sign-in
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
       }
@@ -200,8 +198,7 @@ export default function LandingPage() {
         variant: 'default',
       });
     } else {
-      setAuthModalInitialTab('login');
-      setIsAuthModalOpen(true);
+      openAuthModal('login');
     }
   };
 
@@ -247,13 +244,16 @@ export default function LandingPage() {
     if (sessionUser) {
         router.push('/home');
     } else {
-        setAuthModalInitialTab('login');
-        setIsAuthModalOpen(true);
+        openAuthModal('login');
     }
   };
 
   const handleSelectPlan = async (priceId: string) => {
-    await handleAuthFlow(priceId);
+    if (sessionUser) {
+      await handleAuthFlow(priceId);
+    } else {
+      openAuthModal('login');
+    }
   };
 
   const handleAuthenticated = () => {
@@ -269,10 +269,7 @@ export default function LandingPage() {
       <Suspense fallback={null}>
         <ProfileErrorToastHandler />
       </Suspense>
-      <Navigation onLogin={() => {
-        setAuthModalInitialTab('login');
-        setIsAuthModalOpen(true);
-      }} />
+      <Navigation onLogin={() => openAuthModal('login')} />
       <main className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
@@ -296,12 +293,15 @@ export default function LandingPage() {
         </div>
         <Footer />
       </main>
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthenticated={handleAuthenticated}
-        initialTab={authModalInitialTab}
-      />
     </>
+  );
+}
+
+// Main export component that provides the auth modal context
+export default function LandingPage() {
+  return (
+    <AuthModalProvider>
+      <LandingPageContent />
+    </AuthModalProvider>
   );
 }

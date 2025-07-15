@@ -91,17 +91,36 @@ export default function Navigation({ onLogin }: NavigationProps) {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6 }}
-      className="fixed top-4 left-0 right-0 z-50 px-4"
+      className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4"
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
-        {/* Logo Pill */}
-        <div className="flex-shrink-0 z-10">
+        {/* Mobile Header with Menu Button and Logo */}
+        <div className="flex-shrink-0 z-10 md:hidden flex items-center space-x-2">
           <PillContainer>
-            <Link href="/" className="flex items-center space-x-2 group">
-              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                <span className="text-primary-foreground font-bold text-sm">IV</span>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-foreground hover:text-foreground/80 transition-colors flex items-center space-x-2"
+            >
+              <Menu className="w-5 h-5" />
+              <span className="text-sm font-medium">Menü</span>
+            </button>
+          </PillContainer>
+          <Link href="/" className="flex items-center space-x-1 group">
+            <div className="w-6 h-6 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+              <span className="text-primary-foreground font-bold text-xs">IV</span>
+            </div>
+            <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+              Immobilien<span className="text-primary">Verwalter</span>
+            </span>
+          </Link>
+        </div>
+        <div className="hidden md:flex flex-shrink-0 z-10">
+          <PillContainer>
+            <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-primary-foreground font-bold text-xs sm:text-sm">IV</span>
               </div>
-              <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+              <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                 Immobilien<span className="text-primary">Verwalter</span>
               </span>
             </Link>
@@ -135,7 +154,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
         </div>
 
         {/* Auth Pill */}
-        <div className="flex-shrink-0 z-10">
+        <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             {currentUser ? (
               <DropdownMenu>
@@ -171,86 +190,112 @@ export default function Navigation({ onLogin }: NavigationProps) {
               </Button>
             )}
           </PillContainer>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-foreground hover:text-foreground/80 transition-colors"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </div>
 
       {/* Mobile Navigation */}
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-            className="md:hidden glass"
-          >
-            <div className="px-4 py-4 space-y-4">
-              {pathname === "/" ? (
-                <>
-                  {navItems.map((item) => (
+          <>
+            {/* Backdrop with blur */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40"
+              onClick={() => setIsOpen(false)}
+            />
+            
+            {/* Menu Panel */}
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'tween', ease: 'easeInOut', duration: 0.3 }}
+              className="fixed inset-y-0 left-0 w-72 max-w-full bg-background/95 backdrop-blur-lg z-50 shadow-2xl md:hidden overflow-y-auto"
+            >
+              <div className="h-full flex flex-col">
+                <div className="p-4 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Navigation</h3>
                     <button
-                      key={item.name}
-                      onClick={() => handleNavClick(item.href)}
-                      className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-gray-200 transition-all duration-300"
+                      onClick={() => setIsOpen(false)}
+                      className="p-1.5 rounded-full hover:bg-muted transition-colors"
+                      aria-label="Menü schließen"
                     >
-                      {item.name}
+                      <X className="w-5 h-5" />
                     </button>
-                  ))}
-                </>
-              ) : (
-                <Link
-                  href="/"
-                  onClick={() => setIsOpen(false)}
-                  className="block w-full text-left px-3 py-2 rounded-md text-muted-foreground hover:bg-gray-200 transition-all duration-300"
-                >
-                  Startseite
-                </Link>
-              )}
-
-              {currentUser ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <div className="mt-4 flex items-center space-x-3 cursor-pointer w-full py-2 px-1 rounded-md hover:bg-white/50 transition-all duration-300">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
-                        <AvatarFallback className="bg-muted">
-                          <UserIcon className="w-4 h-4 text-muted-foreground" />
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-muted-foreground">Profil</span>
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground w-[calc(100vw-2rem)]">
-                    <DropdownMenuItem
-                      onSelect={handleLogout}
-                      className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                  {pathname === "/" ? (
+                    <>
+                      {navItems.map((item) => (
+                        <button
+                          key={item.name}
+                          onClick={() => handleNavClick(item.href)}
+                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                        >
+                          {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
+                          <span className="text-base">{item.name}</span>
+                        </button>
+                      ))}
+                    </>
+                  ) : (
+                    <Link
+                      href="/"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
                     >
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Abmelden
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start py-2 mt-4" // Removed text color and hover classes
-                  onClick={handleOpenLoginModal}
-                >
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Anmelden
-                </Button>
-              )}
-            </div>
-          </motion.div>
+                      <Home className="w-5 h-5 mr-3 text-muted-foreground" />
+                      <span className="text-base">Startseite</span>
+                    </Link>
+                  )}
+
+                  <div className="pt-2 mt-2 border-t border-border/50">
+                    {currentUser ? (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <div className="flex items-center space-x-3 cursor-pointer w-full p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                            <Avatar className="w-9 h-9">
+                              <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                              <AvatarFallback className="bg-muted">
+                                <UserIcon className="w-4 h-4 text-muted-foreground" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="text-sm font-medium">Mein Konto</p>
+                              <p className="text-xs text-muted-foreground">Profil verwalten</p>
+                            </div>
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-lg border-border/50 shadow-xl">
+                          <DropdownMenuItem
+                            onSelect={handleLogout}
+                            className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                          >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            Abmelden
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="lg"
+                        className="w-full justify-start px-4 py-6 text-base hover:bg-muted/50"
+                        onClick={handleOpenLoginModal}
+                      >
+                        <LogIn className="w-5 h-5 mr-3" />
+                        <span>Anmelden</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </motion.nav>

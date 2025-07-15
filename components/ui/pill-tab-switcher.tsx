@@ -17,7 +17,7 @@ interface PillTabSwitcherProps {
   className?: string;
 }
 
-const PillTabSwitcher = React.forwardRef<
+const PillTabSwitcher = React.memo(React.forwardRef<
   HTMLDivElement,
   PillTabSwitcherProps
 >(({ tabs, activeTab, onTabChange, className, ...props }, ref) => {
@@ -41,59 +41,49 @@ const PillTabSwitcher = React.forwardRef<
     setCurrentActiveTab(activeTab)
   }, [activeTab])
 
-  // Calculate and update indicator position based on active tab
-  React.useEffect(() => {
-    const updateIndicatorPosition = () => {
-      if (!containerRef.current) return
-      
-      const container = containerRef.current
-      const activeIndex = tabs.findIndex(tab => tab.value === currentActiveTab)
-      
-      if (activeIndex === -1) return
-      
-      // Get all tab buttons
-      const tabButtons = container.querySelectorAll('button[data-tab]')
-      const activeButton = tabButtons[activeIndex] as HTMLElement
-      
-      if (!activeButton) return
-      
-      // Calculate position and dimensions for the sliding indicator
-      const containerRect = container.getBoundingClientRect()
-      const buttonRect = activeButton.getBoundingClientRect()
-      
-      // Dynamically get padding to make component more robust
-      const computedStyle = window.getComputedStyle(container)
-      const paddingLeft = parseFloat(computedStyle.paddingLeft)
+  // Memoized function to calculate and update indicator position
+  const updateIndicatorPosition = React.useCallback((tabValue: string) => {
+    if (!containerRef.current) return;
 
-      // Calculate relative position within the container, accounting for padding
-      const left = buttonRect.left - containerRect.left - paddingLeft
-      const width = buttonRect.width
-      
-      setIndicatorStyle({
-        transform: `translateX(${left}px)`,
-        width: `${width}px`,
-      })
-    }
-    
-    // Update position immediately
-    updateIndicatorPosition()
-    
-    // Update position on window resize
-    const handleResize = () => {
-      requestAnimationFrame(updateIndicatorPosition)
-    }
-    
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [currentActiveTab, tabs, isMobile])
+    const container = containerRef.current;
+    const activeIndex = tabs.findIndex(tab => tab.value === tabValue);
 
-  // Handle tab switching with immediate visual feedback
+    if (activeIndex === -1) return;
+
+    const tabButtons = container.querySelectorAll('button[data-tab]');
+    const activeButton = tabButtons[activeIndex] as HTMLElement;
+
+    if (!activeButton) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+    const computedStyle = window.getComputedStyle(container);
+    const paddingLeft = parseFloat(computedStyle.paddingLeft);
+    const left = buttonRect.left - containerRect.left - paddingLeft;
+    const width = buttonRect.width;
+
+    setIndicatorStyle({
+      transform: `translateX(${left}px)`,
+      width: `${width}px`,
+    });
+  }, [tabs]);
+
   const handleTabChange = React.useCallback((tabValue: string) => {
-    // Immediate state update for visual feedback
-    setCurrentActiveTab(tabValue)
-    // Call parent callback
-    onTabChange(tabValue)
-  }, [onTabChange])
+    setCurrentActiveTab(tabValue);
+    onTabChange(tabValue);
+    updateIndicatorPosition(tabValue);
+  }, [onTabChange, updateIndicatorPosition]);
+
+  React.useEffect(() => {
+    // Initial position update
+    updateIndicatorPosition(activeTab);
+
+    // Update on resize
+    const handleResize = () => requestAnimationFrame(() => updateIndicatorPosition(activeTab));
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, [activeTab, updateIndicatorPosition]);
 
   // Touch interaction handlers for better mobile feedback
   const handleTouchStart = React.useCallback((tabValue: string) => {
@@ -234,7 +224,7 @@ const PillTabSwitcher = React.forwardRef<
       })}
     </div>
   )
-})
+}))
 
 PillTabSwitcher.displayName = "PillTabSwitcher"
 
