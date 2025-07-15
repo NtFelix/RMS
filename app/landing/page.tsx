@@ -9,7 +9,7 @@ import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
-import AuthModal from '@/components/auth-modal'; // Import the new AuthModal
+import AuthModalProvider from '@/components/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { Profile } from '@/types/supabase';
@@ -50,9 +50,6 @@ export default function LandingPage() {
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [sessionUser, setSessionUser] = useState<User | null>(null);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
-
   useEffect(() => {
     const fetchInitialUserAndProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -70,7 +67,6 @@ export default function LandingPage() {
       setSessionUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         fetchUserProfile(session.user.id);
-        setIsAuthModalOpen(false); // Close modal on successful sign-in
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
       }
@@ -247,13 +243,16 @@ export default function LandingPage() {
     if (sessionUser) {
         router.push('/home');
     } else {
-        setAuthModalInitialTab('login');
-        setIsAuthModalOpen(true);
+        (window as any).openAuthModal('login');
     }
   };
 
   const handleSelectPlan = async (priceId: string) => {
-    await handleAuthFlow(priceId);
+    if (sessionUser) {
+      await handleAuthFlow(priceId);
+    } else {
+      (window as any).openAuthModal('login');
+    }
   };
 
   const handleAuthenticated = () => {
@@ -269,10 +268,7 @@ export default function LandingPage() {
       <Suspense fallback={null}>
         <ProfileErrorToastHandler />
       </Suspense>
-      <Navigation onLogin={() => {
-        setAuthModalInitialTab('login');
-        setIsAuthModalOpen(true);
-      }} />
+      <Navigation onLogin={() => (window as any).openAuthModal('login')} />
       <main className="min-h-screen overflow-x-hidden">
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
@@ -296,12 +292,7 @@ export default function LandingPage() {
         </div>
         <Footer />
       </main>
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthenticated={handleAuthenticated}
-        initialTab={authModalInitialTab}
-      />
+      <AuthModalProvider />
     </>
   );
 }

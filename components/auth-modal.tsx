@@ -1,6 +1,6 @@
 "use client"
 
-import type React from "react"
+import React, { useEffect, useState } from "react"
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -35,8 +35,8 @@ export default function AuthModal({
 }: AuthModalProps) {
   const router = useRouter()
 
-  const [loginEmail, setLoginEmail] = useState("")
-  const [loginPassword, setLoginPassword] = useState("")
+  const loginEmailRef = React.useRef<HTMLInputElement>(null);
+  const loginPasswordRef = React.useRef<HTMLInputElement>(null);
   const [loginError, setLoginError] = useState<string | null>(null)
   const [loginIsLoading, setLoginIsLoading] = useState(false)
 
@@ -68,6 +68,10 @@ export default function AuthModal({
       setForgotPasswordError(null);
       setForgotPasswordIsLoading(false);
       setForgotPasswordSuccess(false);
+
+      if (initialTab === 'login' && loginEmailRef.current) {
+        loginEmailRef.current.focus();
+      }
     }
   }, [isOpen, initialTab]);
 
@@ -81,8 +85,8 @@ export default function AuthModal({
       const supabase = createClient()
 
       const { error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
+        email: loginEmailRef.current?.value || '',
+        password: loginPasswordRef.current?.value || '',
       })
 
       if (error) {
@@ -302,32 +306,33 @@ export default function AuthModal({
                 description="Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden"
               />
               <AuthForm onSubmit={handleLogin} error={loginError}>
-                <FormField
-                  id="login-email"
-                  label="E-Mail"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  required
-                />
-                <FormField
-                  id="login-password"
-                  label="Passwort"
-                  type="password"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                  extraContent={
-                    <Button 
-                      variant="link" 
-                      onClick={() => setActiveView('forgotPassword')} 
-                      className="text-sm text-primary hover:underline p-0 h-auto"
-                    >
-                      Passwort vergessen?
-                    </Button>
-                  }
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="login-email">E-Mail</Label>
+                  <Input
+                    id="login-email"
+                    type="email"
+                    placeholder="name@example.com"
+                    ref={loginEmailRef}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Passwort</Label>
+                  <Input
+                    id="login-password"
+                    type="password"
+                    ref={loginPasswordRef}
+                    required
+                  />
+                  <Button
+                    variant="link"
+                    onClick={() => setActiveView('forgotPassword')}
+                    className="text-sm text-primary hover:underline p-0 h-auto"
+                  >
+                    Passwort vergessen?
+                  </Button>
+                </div>
                 <Button type="submit" className="w-full" disabled={loginIsLoading}>
                   {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
                 </Button>
