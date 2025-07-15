@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     // Fetch the user's profile to get Stripe details and trial status
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_current_period_end, stripe_price_id, trial_starts_at, trial_ends_at')
+      .select('stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_current_period_end, stripe_price_id')
       .eq('id', user.id)
       .single();
 
@@ -88,24 +88,41 @@ export async function POST(req: Request) {
       cancel_url: `${req.headers.get('origin')}/checkout/cancel`,
     };
 
-    // Determine trial eligibility more strictly
-    // Eligible for trial IF:
-    // 1. They have never had a trial (profile.trial_starts_at is null).
-    // 2. AND they have never had a subscription (profile.stripe_subscription_id is null).
-    // This prevents users from getting another free trial if they've subscribed in the past.
-    const hasHadTrial = profile && profile.trial_starts_at;
-    const hasHadSubscription = profile && profile.stripe_subscription_id; // Added this check
+    // Determine trial eligibility based on subscription history
+    const isEligibleForTrial = () => {
+      if (!profile || !profile.stripe_price_id) {
+        // No previous subscription, so eligible for a trial
+        return true;
+      }
 
-    if (!hasHadTrial && !hasHadSubscription) {
+      if (profile.stripe_subscription_status === 'past_due' || profile.stripe_subscription_status === 'canceled') {
+        // If the subscription is past_due or canceled, they are not eligible for a new trial.
+        return false;
+      }
+
+      if (profile.stripe_current_period_end) {
+        const now = new Date();
+        const endDate = new Date(profile.stripe_current_period_end);
+        if (endDate < now) {
+          // The subscription has ended, so not eligible for a new trial
+          return false;
+        }
+      }
+
+      // If there is an active or trialing subscription, they are not eligible.
+      if (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') {
+          return false;
+      }
+
+      // Default to eligible if none of the above conditions are met.
+      return true;
+    };
+
+    if (isEligibleForTrial()) {
         console.log("Applying 14-day trial for a new user.");
         sessionParams.subscription_data = { trial_period_days: 14 };
     } else {
-        // This block now covers all other cases:
-        // - User has an active subscription.
-        // - User has had a trial before.
-        // - User has had a subscription before.
-        // In all these cases, no new trial will be applied.
-        console.log("Not applying a trial period. User may have an active subscription, or has had a trial or subscription before.");
+        console.log("Not applying a trial period. User has a subscription history.");
     }
 
     if (profile && profile.stripe_customer_id) {
