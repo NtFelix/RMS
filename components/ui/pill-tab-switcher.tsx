@@ -61,12 +61,12 @@ const PillTabSwitcher = React.forwardRef<
       const containerRect = container.getBoundingClientRect()
       const buttonRect = activeButton.getBoundingClientRect()
       
-      // Account for responsive padding in position calculation
-      // These values correspond to Tailwind padding classes: p-2.5 (10px) on mobile, p-2 (8px) on desktop
-      const paddingOffset = isMobile ? 10 : 8
-      
+      // Dynamically get padding to make component more robust
+      const computedStyle = window.getComputedStyle(container)
+      const paddingLeft = parseFloat(computedStyle.paddingLeft)
+
       // Calculate relative position within the container, accounting for padding
-      const left = buttonRect.left - containerRect.left - paddingOffset
+      const left = buttonRect.left - containerRect.left - paddingLeft
       const width = buttonRect.width
       
       setIndicatorStyle({
