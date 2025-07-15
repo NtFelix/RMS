@@ -90,31 +90,13 @@ export async function POST(req: Request) {
 
     // Determine trial eligibility based on subscription history
     const isEligibleForTrial = () => {
-      if (!profile || !profile.stripe_price_id) {
-        // No previous subscription, so eligible for a trial
-        return true;
-      }
-
-      if (profile.stripe_subscription_status === 'past_due' || profile.stripe_subscription_status === 'canceled') {
-        // If the subscription is past_due or canceled, they are not eligible for a new trial.
+      // A user is eligible for a trial only if they have no subscription history.
+      // The presence of a `stripe_price_id` indicates a past or present subscription.
+      if (profile && profile.stripe_price_id) {
         return false;
       }
 
-      if (profile.stripe_current_period_end) {
-        const now = new Date();
-        const endDate = new Date(profile.stripe_current_period_end);
-        if (endDate < now) {
-          // The subscription has ended, so not eligible for a new trial
-          return false;
-        }
-      }
-
-      // If there is an active or trialing subscription, they are not eligible.
-      if (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') {
-          return false;
-      }
-
-      // Default to eligible if none of the above conditions are met.
+      // No subscription history found, so the user is eligible for a trial.
       return true;
     };
 
