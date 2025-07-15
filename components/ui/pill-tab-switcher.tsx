@@ -41,10 +41,8 @@ const PillTabSwitcher = React.memo(React.forwardRef<
     setCurrentActiveTab(activeTab)
   }, [activeTab])
 
-  const handleTabChange = React.useCallback((tabValue: string) => {
-    setCurrentActiveTab(tabValue);
-    onTabChange(tabValue);
-
+  // Memoized function to calculate and update indicator position
+  const updateIndicatorPosition = React.useCallback((tabValue: string) => {
     if (!containerRef.current) return;
 
     const container = containerRef.current;
@@ -68,38 +66,24 @@ const PillTabSwitcher = React.memo(React.forwardRef<
       transform: `translateX(${left}px)`,
       width: `${width}px`,
     });
-  }, [onTabChange, tabs]);
+  }, [tabs]);
+
+  const handleTabChange = React.useCallback((tabValue: string) => {
+    setCurrentActiveTab(tabValue);
+    onTabChange(tabValue);
+    updateIndicatorPosition(tabValue);
+  }, [onTabChange, updateIndicatorPosition]);
 
   React.useEffect(() => {
-    const updateIndicatorPosition = () => {
-      if (!containerRef.current) return;
-      const container = containerRef.current;
-      const activeIndex = tabs.findIndex(tab => tab.value === activeTab);
-      if (activeIndex === -1) return;
-      const tabButtons = container.querySelectorAll('button[data-tab]');
-      const activeButton = tabButtons[activeIndex] as HTMLElement;
-      if (!activeButton) return;
-      const containerRect = container.getBoundingClientRect();
-      const buttonRect = activeButton.getBoundingClientRect();
-      const computedStyle = window.getComputedStyle(container);
-      const paddingLeft = parseFloat(computedStyle.paddingLeft);
-      const left = buttonRect.left - containerRect.left - paddingLeft;
-      const width = buttonRect.width;
-      setIndicatorStyle({
-        transform: `translateX(${left}px)`,
-        width: `${width}px`,
-      });
-    };
-
     // Initial position update
-    updateIndicatorPosition();
+    updateIndicatorPosition(activeTab);
 
     // Update on resize
-    const handleResize = () => requestAnimationFrame(updateIndicatorPosition);
+    const handleResize = () => requestAnimationFrame(() => updateIndicatorPosition(activeTab));
     window.addEventListener('resize', handleResize);
 
     return () => window.removeEventListener('resize', handleResize);
-  }, [activeTab, tabs]);
+  }, [activeTab, updateIndicatorPosition]);
 
   // Touch interaction handlers for better mobile feedback
   const handleTouchStart = React.useCallback((tabValue: string) => {
