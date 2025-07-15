@@ -1,26 +1,23 @@
-'use client';
+"use client"
 
-import { useState, useEffect, FormEvent } from 'react';
+import type React from "react"
+
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { createClient } from "@/utils/supabase/client"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
+import { Building2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
+import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -35,289 +32,362 @@ export default function AuthModal({
   onAuthenticated,
   initialTab = 'login',
 }: AuthModalProps) {
-  const supabase = createClient();
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
+  const router = useRouter()
 
-  // Login state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginSuccessMessage, setLoginSuccessMessage] = useState<string | null>(null);
+  const [loginEmail, setLoginEmail] = useState("")
+  const [loginPassword, setLoginPassword] = useState("")
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginIsLoading, setLoginIsLoading] = useState(false)
 
-  // Register state
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [registerError, setRegisterError] = useState<string | null>(null);
-  const [registerLoading, setRegisterLoading] = useState(false);
+  const [registerEmail, setRegisterEmail] = useState("")
+  const [registerPassword, setRegisterPassword] = useState("")
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState("")
+  const [registerError, setRegisterError] = useState<string | null>(null)
+  const [registerIsLoading, setRegisterIsLoading] = useState(false)
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState<string | null>(null);
 
-  // Email confirmation modal state
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
+  const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null)
+  const [forgotPasswordIsLoading, setForgotPasswordIsLoading] = useState(false)
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false)
 
-
-  useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+  const [activeView, setActiveView] = useState<'login' | 'register' | 'forgotPassword'>(initialTab);
 
   useEffect(() => {
-    if (!isOpen) {
-      // Reset states when modal is closed
-      setLoginEmail('');
-      setLoginPassword('');
+    // Always set the active view based on initialTab prop
+    setActiveView(initialTab);
+    // When the modal opens, clear transient states like errors, success messages, and loading indicators.
+    // Input fields are intentionally kept to allow users to resume typing if they close and reopen.
+    if (isOpen) {
       setLoginError(null);
-      setLoginLoading(false);
-      setLoginSuccessMessage(null);
-      setRegisterEmail('');
-      setRegisterPassword('');
-      setConfirmPassword('');
+      setLoginIsLoading(false);
       setRegisterError(null);
-      setRegisterLoading(false);
+      setRegisterIsLoading(false);
       setRegisterSuccessMessage(null);
-      setShowConfirmationModal(false);
-      setConfirmationMessage('');
+      setForgotPasswordError(null);
+      setForgotPasswordIsLoading(false);
+      setForgotPasswordSuccess(false);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTab]);
 
-  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoginLoading(true);
-    setLoginError(null);
-    setLoginSuccessMessage(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPassword,
-    });
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginIsLoading(true)
+    setLoginError(null)
 
-    if (error) {
-      setLoginError(error.message);
-    } else {
-      setLoginSuccessMessage('Login successful! Redirecting...');
+    try {
+      const supabase = createClient()
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      })
+
+      if (error) {
+        setLoginError(error.message)
+        return
+      }
+
       onAuthenticated();
-      onClose(); // Close modal on success
+      onClose();
+    } finally {
+      setLoginIsLoading(false)
     }
-    setLoginLoading(false);
-  };
+  }
 
-  const handleRegister = async (e: FormEvent<HTMLFormElement>) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRegisterLoading(true);
+    setRegisterIsLoading(true);
     setRegisterError(null);
     setRegisterSuccessMessage(null);
 
-    if (registerPassword !== confirmPassword) {
-      setRegisterError("Passwords do not match.");
-      setRegisterLoading(false);
-      return;
-    }
+    try {
+      if (registerPassword !== registerConfirmPassword) {
+        setRegisterError("Passwords do not match.");
+        return;
+      }
 
-    const { data, error } = await supabase.auth.signUp({
-      email: registerEmail,
-      password: registerPassword,
-      options: {
-        // emailRedirectTo: `${window.location.origin}/auth/callback`, // Optional: if you have email confirmation setup
-      },
-    });
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signUp({
+        email: registerEmail,
+        password: registerPassword,
+      });
 
-    if (error) {
-      setRegisterError(error.message);
-    } else if (data.user) {
-      // For simplicity in this modal, we'll assume direct authentication.
-      // In a real app, you might want to handle email confirmation.
-      // If data.user is present and data.session is null, it means confirmation is required.
+      if (error) {
+        setRegisterError(error.message);
+        return;
+      }
+
       if (data.session) {
+        // User is logged in (e.g., email confirmation is disabled)
         setRegisterSuccessMessage('Registration successful! You are now logged in.');
         onAuthenticated();
-        onClose(); // Close modal on success
+        onClose();
+      } else if (data.user) {
+        // Email confirmation is required
+        setRegisterSuccessMessage("Registration successful! Please check your email to confirm your account.");
       } else {
-        // User signed up, but email confirmation is needed
-        setConfirmationMessage('Registration successful! Please check your email to confirm your account. Click OK to attempt login.');
-        setShowConfirmationModal(true);
-        // Do not call onAuthenticated() or onClose() here.
-        // The main modal will remain open, and the confirmation modal will show on top.
+        setRegisterError("An unexpected error occurred during registration.");
       }
+    } finally {
+      setRegisterIsLoading(false);
     }
-    setRegisterLoading(false);
   };
 
-  const handleConfirmAndLogin = async () => {
-    setLoginLoading(true);
-    setLoginError(null);
-    setLoginSuccessMessage(null);
-    setShowConfirmationModal(false);
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordIsLoading(true)
+    setForgotPasswordError(null)
+    setForgotPasswordSuccess(false)
 
-    // Populate login form fields with registered email for convenience,
-    // as these are used by signInWithPassword and also displayed if login fails.
-    setLoginEmail(registerEmail);
-    setLoginPassword(registerPassword);
+    try {
+      const supabase = createClient()
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: registerEmail, // Use email from registration
-      password: registerPassword, // Use password from registration
-    });
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+          redirectTo: `${window.location.origin}/auth/update-password`,
+      })
 
-    if (error) {
-      setLoginError(error.message);
-      setActiveTab('login'); // Switch to login tab to show the error
-    } else {
-      setLoginSuccessMessage('Account confirmed and you are now logged in! Redirecting...');
-      onAuthenticated();
-      onClose();
+      if (error) {
+        setForgotPasswordError(error.message)
+      } else {
+        setForgotPasswordSuccess(true)
+      }
+    } finally {
+      setForgotPasswordIsLoading(false)
     }
-    setLoginLoading(false);
-  };
+  }
 
-  if (!isOpen) return null;
+  // Common header component to reduce duplication
+  const AuthHeader = ({ title, description }: { title: string; description: string }) => (
+    <CardHeader className="space-y-1 text-center px-6 pt-2">
+      <div className="flex justify-center mb-2">
+        <Building2 className="h-10 w-10 text-primary" />
+      </div>
+      <CardTitle className="text-2xl font-bold">{title}</CardTitle>
+      <CardDescription>{description}</CardDescription>
+    </CardHeader>
+  );
 
-  return (
-    <>
-      <Dialog open={isOpen && !showConfirmationModal} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {activeTab === 'login' ? 'Login' : 'Create an Account'}
-          </DialogTitle>
-          <DialogDescription>
-            {activeTab === 'login'
-              ? "Access your account."
-              : "Sign up to get started."}
-          </DialogDescription>
-        </DialogHeader>
+  // Common form wrapper to reduce duplication
+  const AuthForm = ({ 
+    onSubmit, 
+    error, 
+    successMessage, 
+    children 
+  }: { 
+    onSubmit: (e: React.FormEvent) => void;
+    error: string | null;
+    successMessage?: string | null;
+    children: React.ReactNode;
+  }) => (
+    <CardContent className="px-6 pb-6">
+      <form onSubmit={onSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {successMessage && (
+          <Alert variant="default">
+            <AlertDescription>{successMessage}</AlertDescription>
+          </Alert>
+        )}
+        {children}
+      </form>
+    </CardContent>
+  );
 
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'login' | 'register')} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
-              {loginError && (
+  // Common input field component
+  const FormField = ({ 
+    id, 
+    label, 
+    type = "text", 
+    placeholder, 
+    value, 
+    onChange, 
+    required = false,
+    extraContent 
+  }: {
+    id: string;
+    label: string;
+    type?: string;
+    placeholder?: string;
+    value: string;
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    required?: boolean;
+    extraContent?: React.ReactNode;
+  }) => (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label htmlFor={id}>{label}</Label>
+        {extraContent}
+      </div>
+      <Input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required={required}
+      />
+    </div>
+  );
+
+  const renderContent = () => {
+    if (activeView === 'forgotPassword') {
+      return (
+        <CardContent>
+          <AuthHeader 
+            title="Passwort zurücksetzen"
+            description="Geben Sie Ihre E-Mail-Adresse ein, um einen Link zum Zurücksetzen des Passworts zu erhalten"
+          />
+          {forgotPasswordSuccess ? (
+            <Alert variant="default">
+              <AlertDescription>
+                Wenn ein Konto mit dieser E-Mail-Adresse existiert, erhalten Sie eine E-Mail mit Anweisungen zum Zurücksetzen Ihres Passworts.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              {forgotPasswordError && (
                 <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{loginError}</AlertDescription>
+                  <AlertDescription>{forgotPasswordError}</AlertDescription>
                 </Alert>
               )}
-              {loginSuccessMessage && (
-                <Alert variant="default">
-                  <AlertTitle>Success</AlertTitle>
-                  <AlertDescription>{loginSuccessMessage}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-1">
-                <Label htmlFor="login-email">Email</Label>
-                <Input
+              <FormField
+                id="forgot-password-email"
+                label="E-Mail"
+                type="email"
+                placeholder="name@example.com"
+                value={forgotPasswordEmail}
+                onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                required
+              />
+              <Button type="submit" className="w-full" disabled={forgotPasswordIsLoading}>
+                {forgotPasswordIsLoading ? "Wird gesendet..." : "Link zum Zurücksetzen senden"}
+              </Button>
+            </form>
+          )}
+          <Button variant="link" onClick={() => setActiveView('login')} className="w-full mt-4">
+            Zurück zum Login
+          </Button>
+        </CardContent>
+      )
+    }
+
+    const tabs = [
+      { id: 'login', label: 'Login', value: 'login' },
+      { id: 'register', label: 'Register', value: 'register' }
+    ];
+
+    return (
+      <div className="w-full">
+        {/* Modern pill tab switcher with proper spacing */}
+        <div className="flex justify-center px-6 pt-6 pb-4">
+          <PillTabSwitcher
+            tabs={tabs}
+            activeTab={activeView}
+            onTabChange={(value) => setActiveView(value as 'login' | 'register')}
+          />
+        </div>
+        
+        {/* Tab content with consistent spacing */}
+        <div className="px-0">
+          {activeView === 'login' && (
+            <>
+              <AuthHeader 
+                title="Anmelden"
+                description="Geben Sie Ihre E-Mail-Adresse und Ihr Passwort ein, um sich anzumelden"
+              />
+              <AuthForm onSubmit={handleLogin} error={loginError}>
+                <FormField
                   id="login-email"
+                  label="E-Mail"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="name@example.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
-                  disabled={loginLoading}
                 />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="login-password">Password</Label>
-                <Input
+                <FormField
                   id="login-password"
+                  label="Passwort"
                   type="password"
-                  placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
-                  disabled={loginLoading}
+                  extraContent={
+                    <Button 
+                      variant="link" 
+                      onClick={() => setActiveView('forgotPassword')} 
+                      className="text-sm text-primary hover:underline p-0 h-auto"
+                    >
+                      Passwort vergessen?
+                    </Button>
+                  }
                 />
-              </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full" disabled={loginLoading}>
-                  {loginLoading ? 'Logging in...' : 'Login'}
+                <Button type="submit" className="w-full" disabled={loginIsLoading}>
+                  {loginIsLoading ? "Wird angemeldet..." : "Anmelden"}
                 </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
-          <TabsContent value="register">
-            <form onSubmit={handleRegister} className="space-y-4">
-              {registerError && (
-                <Alert variant="destructive">
-                  <AlertTitle>Error</AlertTitle>
-                  <AlertDescription>{registerError}</AlertDescription>
-                </Alert>
-              )}
-              {registerSuccessMessage && (
-                <Alert variant="default">
-                  <AlertTitle>Success</AlertTitle>
-                  <AlertDescription>{registerSuccessMessage}</AlertDescription>
-                </Alert>
-              )}
-              <div className="space-y-1">
-                <Label htmlFor="register-email">Email</Label>
-                <Input
+              </AuthForm>
+            </>
+          )}
+          
+          {activeView === 'register' && (
+            <>
+              <AuthHeader 
+                title="Registrieren"
+                description="Erstellen Sie ein neues Konto, um loszulegen"
+              />
+              <AuthForm 
+                onSubmit={handleRegister} 
+                error={registerError}
+                successMessage={registerSuccessMessage}
+              >
+                <FormField
                   id="register-email"
+                  label="E-Mail"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="name@example.com"
                   value={registerEmail}
                   onChange={(e) => setRegisterEmail(e.target.value)}
                   required
-                  disabled={registerLoading}
                 />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="register-password">Password</Label>
-                <Input
+                <FormField
                   id="register-password"
+                  label="Passwort"
                   type="password"
-                  placeholder="••••••••"
                   value={registerPassword}
                   onChange={(e) => setRegisterPassword(e.target.value)}
                   required
-                  disabled={registerLoading}
                 />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
-                <Input
+                <FormField
                   id="confirm-password"
+                  label="Passwort bestätigen"
                   type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  value={registerConfirmPassword}
+                  onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                   required
-                  disabled={registerLoading}
                 />
-              </div>
-              <DialogFooter>
-                <Button type="submit" className="w-full" disabled={registerLoading}>
-                  {registerLoading ? 'Registering...' : 'Create Account'}
+                <Button type="submit" className="w-full" disabled={registerIsLoading}>
+                  {registerIsLoading ? "Wird registriert..." : "Registrieren"}
                 </Button>
-              </DialogFooter>
-            </form>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
-    </Dialog>
-
-    {/* Email Confirmation Modal */}
-    <Dialog open={showConfirmationModal} onOpenChange={setShowConfirmationModal}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Email Confirmation</DialogTitle>
-        </DialogHeader>
-        <div className="py-4">
-          <p>{confirmationMessage}</p>
+              </AuthForm>
+            </>
+          )}
         </div>
-        <DialogFooter>
-          <Button
-            onClick={handleConfirmAndLogin}
-            disabled={loginLoading}
-          >
-            {loginLoading ? 'Logging in...' : 'OK'}
-          </Button>
-        </DialogFooter>
+      </div>
+    )
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="p-0 w-full max-w-md">
+        <Card className="mx-auto w-full max-w-md border-none">
+          {renderContent()}
+        </Card>
       </DialogContent>
     </Dialog>
-  </>
-  );
+  )
 }
