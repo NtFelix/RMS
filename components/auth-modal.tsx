@@ -329,7 +329,7 @@ export default function AuthModal({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleLogin(e);
+                        e.currentTarget.form?.requestSubmit();
                       }
                     }}
                   />
