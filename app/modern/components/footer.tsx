@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion"
 import { Github, Twitter, Linkedin, Mail } from "lucide-react"
+import Link from "next/link"
 
 const footerLinks = {
   Unternehmen: ["Über uns", "Kontakt", "Karriere", "Blog"],
@@ -78,9 +79,15 @@ export default function Footer() {
               <ul className="space-y-3">
                 {links.map((link, linkIndex) => (
                   <li key={linkIndex}>
-                    <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                      {link}
-                    </a>
+                    {link === "Hilfezentrum" ? (
+                      <Link href="/modern/documentation" className="text-muted-foreground hover:text-foreground transition-colors">
+                        Dokumentation
+                      </Link>
+                    ) : (
+                      <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                        {link}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
