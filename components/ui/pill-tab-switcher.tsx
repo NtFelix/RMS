@@ -173,8 +173,8 @@ const PillTabSwitcher = React.forwardRef<
               // Responsive spacing and typography for tab labels
               // Mobile: larger padding and text for better touch targets
               isMobile 
-                ? "px-8 py-3 text-base font-medium leading-none" 
-                : "px-6 py-2.5 text-sm font-medium leading-none",
+                ? "px-6 py-3 text-base font-medium leading-none" 
+                : "px-4 py-2.5 text-sm font-medium leading-none",
               // Ensure even distribution within container
               "flex-1 min-w-0",
               // Responsive minimum touch target size (44px minimum on mobile)
