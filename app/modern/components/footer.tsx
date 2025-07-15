@@ -2,12 +2,18 @@
 
 import { motion } from "framer-motion"
 import { Github, Twitter, Linkedin, Mail } from "lucide-react"
+import Link from "next/link"
 
 const footerLinks = {
   Unternehmen: ["Über uns", "Kontakt", "Karriere", "Blog"],
   Plattform: ["Funktionen", "Preise", "Integrationen", "API"],
   Ressourcen: ["Hilfezentrum", "Anleitungen", "Webinare", "Community"],
   Rechtliches: ["Datenschutz", "AGB", "Sicherheit", "Lizenzen"],
+}
+
+// Special links that require custom routing or display text
+const specialLinks: Record<string, { href: string; text: string }> = {
+  "Hilfezentrum": { href: "/modern/documentation", text: "Dokumentation" },
 }
 
 const socialLinks = [
@@ -76,13 +82,22 @@ export default function Footer() {
             >
               <h4 className="text-foreground font-semibold mb-4">{category}</h4>
               <ul className="space-y-3">
-                {links.map((link, linkIndex) => (
-                  <li key={linkIndex}>
-                    <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
-                      {link}
-                    </a>
-                  </li>
-                ))}
+                {links.map((link, linkIndex) => {
+                  const specialLink = specialLinks[link];
+                  return (
+                    <li key={linkIndex}>
+                      {specialLink ? (
+                        <Link href={specialLink.href} className="text-muted-foreground hover:text-foreground transition-colors">
+                          {specialLink.text}
+                        </Link>
+                      ) : (
+                        <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                          {link}
+                        </a>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </motion.div>
           ))}
