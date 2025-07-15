@@ -72,7 +72,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
           viewport={{ once: true }}
-          className="text-5xl md:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
+          className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-8 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
         >
           Übernehmen Sie die Kontrolle über Ihre
           <br />
@@ -86,7 +86,7 @@ export default function CTA({ onGetStarted }: CTAProps) {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
           viewport={{ once: true }}
-          className="text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed"
+          className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 leading-relaxed"
         >
           Beginnen Sie noch heute, Ihre Immobilien effizienter zu verwalten und profitieren Sie von einer modernen und benutzerfreundlichen Plattform.
         </motion.p>

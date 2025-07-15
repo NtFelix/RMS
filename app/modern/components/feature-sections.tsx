@@ -57,8 +57,8 @@ export default function FeatureSections() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             viewport={{ once: true }}
-            className={`flex flex-col md:flex-row items-center gap-12 ${
-              index % 2 !== 0 ? "md:flex-row-reverse" : ""
+            className={`flex flex-col lg:flex-row items-center gap-12 ${
+              index % 2 !== 0 ? "lg:flex-row-reverse" : ""
             }`}
           >
             {/* Image Section */}

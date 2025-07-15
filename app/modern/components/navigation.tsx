@@ -109,7 +109,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
         </div>
 
         {/* Desktop Navigation Pill */}
-        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="hidden lg:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
           <PillContainer>
             {pathname === "/" ? (
               // Home page navigation with smooth scroll
@@ -175,7 +175,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-foreground hover:text-foreground/80 transition-colors"
+            className="lg:hidden text-foreground hover:text-foreground/80 transition-colors"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -190,7 +190,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.3 }}
-            className="md:hidden glass"
+            className="lg:hidden glass"
           >
             <div className="px-4 py-4 space-y-4">
               {pathname === "/" ? (
