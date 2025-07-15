@@ -322,11 +322,18 @@ export default function AuthModal({
                     type="password"
                     ref={loginPasswordRef}
                     required
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleLogin(e);
+                      }
+                    }}
                   />
                   <Button
                     variant="link"
                     onClick={() => setActiveView('forgotPassword')}
                     className="text-sm text-primary hover:underline p-0 h-auto"
+                    type="button"
                   >
                     Passwort vergessen?
                   </Button>
