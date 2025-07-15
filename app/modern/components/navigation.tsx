@@ -95,7 +95,17 @@ export default function Navigation({ onLogin }: NavigationProps) {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
         {/* Logo Pill */}
-        <div className="flex-shrink-0 z-10">
+        <div className="flex-shrink-0 z-10 md:hidden">
+          <PillContainer>
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-foreground hover:text-foreground/80 transition-colors"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+          </PillContainer>
+        </div>
+        <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
               <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -135,7 +145,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
         </div>
 
         {/* Auth Pill */}
-        <div className="flex-shrink-0 z-10">
+        <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             {currentUser ? (
               <DropdownMenu>
@@ -171,14 +181,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
               </Button>
             )}
           </PillContainer>
-
-          {/* Mobile Menu Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden text-foreground hover:text-foreground/80 transition-colors"
-          >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-          </button>
         </div>
       </div>
 
@@ -193,6 +195,22 @@ export default function Navigation({ onLogin }: NavigationProps) {
             className="md:hidden glass"
           >
             <div className="px-4 py-4 space-y-4">
+            <div className="flex justify-between items-center">
+                <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group" onClick={() => setIsOpen(false)}>
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <span className="text-primary-foreground font-bold text-xs sm:text-sm">IV</span>
+                  </div>
+                  <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                    Immobilien<span className="text-primary">Verwalter</span>
+                  </span>
+                </Link>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-foreground hover:text-foreground/80 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
               {pathname === "/" ? (
                 <>
                   {navItems.map((item) => (
