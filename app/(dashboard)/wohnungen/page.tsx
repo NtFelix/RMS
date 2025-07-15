@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 // Removed Card, CardContent etc. as they are used in ClientView
 import { createClient as createSupabaseClient } from '@/utils/supabase/server';
 import { fetchUserProfile } from '@/lib/data-fetching';
-import { isUserInActiveTrial } from '@/lib/utils';
+
 import { getPlanDetails } from '@/lib/stripe-server';
 import WohnungenClientView from './client'; // Import the default export from client.tsx
 import type { Wohnung } from "@/types/Wohnung";
@@ -26,9 +26,8 @@ export default async function WohnungenPage() {
   if (user) {
     const userProfile = await fetchUserProfile();
     if (userProfile) {
-      const isCustomTrial = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
       const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
-      const isEffectivelyInTrial = isCustomTrial || isStripeTrial;
+      const isEffectivelyInTrial = isStripeTrial;
       const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
 
       if (isEffectivelyInTrial) {

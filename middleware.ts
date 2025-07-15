@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { updateSession } from "@/utils/supabase/middleware"
 import { createServerClient } from "@supabase/ssr"
-import { isUserInActiveTrial } from '@/lib/utils';
+
 
 export async function middleware(request: NextRequest) {
   // Initialize response
@@ -92,7 +92,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('stripe_subscription_status, trial_starts_at, trial_ends_at') // Added trial fields
+      .select('stripe_subscription_status')
       .eq('id', sessionUser.id)
       .single()
 
@@ -107,8 +107,7 @@ export async function middleware(request: NextRequest) {
       }
     } else if (!profile ||
                (profile.stripe_subscription_status !== 'active' &&
-                profile.stripe_subscription_status !== 'trialing' &&
-                !isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at))) {
+                profile.stripe_subscription_status !== 'trialing')) {
       if (pathname.startsWith('/api/')) {
         // For API routes, return a JSON response indicating subscription issue
         return NextResponse.json({ error: 'Subscription inactive or invalid. Please subscribe or manage your subscription.' }, { status: 403 });
@@ -121,9 +120,7 @@ export async function middleware(request: NextRequest) {
         } else {
           redirectUrl.searchParams.set('debug_profile_status', 'exists');
           redirectUrl.searchParams.set('debug_stripe_status', profile.stripe_subscription_status || 'null');
-          redirectUrl.searchParams.set('debug_trial_ends_at', profile.trial_ends_at || 'null');
-          const trialValid = isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at);
-          redirectUrl.searchParams.set('debug_is_trial_calculated_valid', trialValid.toString());
+          // Trial fields removed - no longer using custom trial logic
         }
         return NextResponse.redirect(redirectUrl);
       }

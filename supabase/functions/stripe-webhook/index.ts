@@ -147,19 +147,8 @@ Deno.serve(async (request: Request) => {
           stripe_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
         };
 
-        // Check if the subscription has a trial period
-        if (subscription.trial_start && subscription.trial_end) {
-          profileUpdateData.trial_starts_at = new Date(subscription.trial_start * 1000).toISOString();
-          profileUpdateData.trial_ends_at = new Date(subscription.trial_end * 1000).toISOString();
-          console.log(`Subscription ${subscription.id} includes a trial period. Start: ${profileUpdateData.trial_starts_at}, End: ${profileUpdateData.trial_ends_at}`);
-        } else {
-          // If there's no trial, ensure these fields are explicitly nulled or not set,
-          // depending on whether they could have old values.
-          // Assuming they should be null if no active trial from Stripe.
-          profileUpdateData.trial_starts_at = null;
-          profileUpdateData.trial_ends_at = null;
-          console.log(`Subscription ${subscription.id} does not include a trial period.`);
-        }
+        // Trial period is now handled by Stripe subscription status only
+        console.log(`Subscription ${subscription.id} trial status handled by Stripe subscription status.`);
 
         await updateProfileInSupabase(userId, profileUpdateData);
         console.log(`Profile updated for user ${userId} after checkout.session.completed.`);

@@ -12,8 +12,8 @@ BEGIN
 
   -- Insert a new row into public.profiles, only with the user's ID.
   -- The 'email' column should be removed from 'profiles' table.
-  INSERT INTO public.profiles (id, trial_starts_at, trial_ends_at)
-  VALUES (NEW.id, NULL, NULL);
+  INSERT INTO public.profiles (id)
+  VALUES (NEW.id);
 
   RAISE LOG '[handle_new_user] Successfully inserted profile ID for user: %', NEW.id;
   RETURN NEW;
