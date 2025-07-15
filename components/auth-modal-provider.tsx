@@ -1,9 +1,11 @@
 "use client"
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
 import AuthModal from "@/components/auth-modal";
 
 export default function AuthModalProvider() {
+  const router = useRouter();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
 
@@ -27,7 +29,7 @@ export default function AuthModalProvider() {
           // This can be used for any logic that needs to run after authentication is successful
           // For example, refetching data or redirecting.
           // The onAuthStateChange listener already handles the main logic of fetching the user profile.
-          window.location.reload();
+          router.refresh();
         }}
         initialTab={authModalInitialTab}
       />
