@@ -92,12 +92,7 @@ export async function POST(req: Request) {
     const isEligibleForTrial = () => {
       // A user is eligible for a trial only if they have no subscription history.
       // The presence of a `stripe_price_id` indicates a past or present subscription.
-      if (profile && profile.stripe_price_id) {
-        return false;
-      }
-
-      // No subscription history found, so the user is eligible for a trial.
-      return true;
+      return !(profile && profile.stripe_price_id);
     };
 
     if (isEligibleForTrial()) {
