@@ -32,6 +32,12 @@ const customJestConfig = {
     '!<rootDir>/*.config.{js,mjs}', // Updated to include mjs
     '!<rootDir>/coverage/**',
   ],
+  transformIgnorePatterns: [
+    "node_modules/(?!(isows|@supabase/ssr|@supabase/realtime-js|@supabase/supabase-js)/)"
+  ],
+  transform: {
+    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+  },
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
