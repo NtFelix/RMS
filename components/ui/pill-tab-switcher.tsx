@@ -85,7 +85,7 @@ const PillTabSwitcher = React.forwardRef<
     
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [currentActiveTab, tabs])
+  }, [currentActiveTab, tabs, isMobile])
 
   // Handle tab switching with immediate visual feedback
   const handleTabChange = React.useCallback((tabValue: string) => {
