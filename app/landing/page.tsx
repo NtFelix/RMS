@@ -247,7 +247,7 @@ export default function LandingPage() {
     if (sessionUser) {
         router.push('/home');
     } else {
-        setAuthModalInitialTab('register');
+        setAuthModalInitialTab('login');
         setIsAuthModalOpen(true);
     }
   };
