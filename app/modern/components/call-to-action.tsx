@@ -39,18 +39,19 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
       </Button>
 
       {isHero ? (
-        <Link href="/modern/documentation">
-          <Button
-            size="lg"
-            variant="outline"
-            className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
-          >
+        <Button
+          size="lg"
+          variant="outline"
+          className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
+          asChild
+        >
+          <Link href="/modern/documentation">
             <span className="flex items-center">
               <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
               Mehr erfahren
             </span>
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       ) : (
         <AlertDialog>
           <AlertDialogTrigger asChild>
