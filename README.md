@@ -4,6 +4,27 @@ Das Rent-Managing-System oder auch RMS ist dazu da um Mieteingänge, Mieter und 
 
 Es ist mit einer Supabase Datenbank verbunden um alle Daten zentral zu speichern und einen einfachen Zugriff auf die Daten zu ermöglichen. Diese Daten werden im Webbrowser über html, css und in Kombination mit javascript verwaltet.
 
+## API Endpoints
+
+### User Profile API (`/api/user/profile`)
+
+The user profile endpoint provides comprehensive user information including subscription details and current usage statistics.
+
+**GET** `/api/user/profile`
+
+Returns user profile data with the following structure:
+- `id` - User profile ID
+- `email` - User's primary email from authentication
+- `stripe_customer_id` - Stripe customer identifier
+- `stripe_subscription_id` - Active Stripe subscription ID
+- `stripe_subscription_status` - Current subscription status
+- `stripe_price_id` - Associated Stripe price/plan ID
+- `stripe_current_period_end` - Subscription period end date
+- `stripe_cancel_at_period_end` - Whether subscription will cancel at period end
+- `activePlan` - Detailed plan information from Stripe
+- `hasActiveSubscription` - Boolean indicating active subscription status
+- `currentWohnungenCount` - Current number of apartments managed by user
+
 ## Installation
 
 ```bash
