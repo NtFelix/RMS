@@ -17,6 +17,7 @@ import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjuste
 import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
 import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
+import { WasserzaehlerModal } from "@/components/wasserzaehler-modal"; // Added
 // Assuming betriebskosten-actions.ts exports server actions, adjust if needed
 // For now, let's assume no specific serverAction prop is needed for BetriebskostenEditModal
 // as it seemed to handle its actions internally or via imported functions.
@@ -101,6 +102,9 @@ export default function DashboardRootLayout({
 
       {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
       <BetriebskostenEditModal />
+
+      {/* WasserzaehlerModal - Handles its own state via modal store */}
+      <WasserzaehlerModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

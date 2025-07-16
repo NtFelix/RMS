@@ -100,6 +100,135 @@ Ensuring this metadata is correctly set in Stripe is crucial for the dynamic dis
 
 ## Components
 
+### Operating Costs Table (`components/operating-costs-table.tsx`)
+
+The operating costs table component manages the display and interaction with Betriebskosten (operating costs) data, providing access to water meter readings and cost calculations.
+
+#### Recent Architectural Improvements
+- **Modal Store Integration**: Migrated from local state management to centralized Zustand modal store
+- **Enhanced Error Handling**: Improved error propagation and user feedback with toast notifications
+- **Streamlined Data Flow**: Simplified modal opening process with better separation of concerns
+- **Robust Error Recovery**: Better handling of partial failures when loading modal data
+
+#### Key Features
+- **Water Meter Modal Integration**: Opens Wasserzähler modal for meter readings management
+- **Async Data Loading**: Fetches tenant and existing meter reading data before modal display
+- **Error State Management**: Comprehensive error handling with user-friendly German messages
+- **Loading State Indicators**: Visual feedback during data fetching operations
+
+#### Modal Opening Process
+The component follows a streamlined process for opening the water meter modal:
+
+1. **Validation**: Checks for required `haeuser_id` and `jahr` fields
+2. **Data Fetching**: Loads tenant data and existing meter readings in parallel
+3. **Error Handling**: Provides specific error messages for different failure scenarios
+4. **Modal Store Integration**: Uses `openWasserzaehlerModal()` from the global modal store
+
+```typescript
+// Simplified modal opening with modal store
+const handleOpenWasserzaehlerModal = async (item: Nebenkosten) => {
+  // Validation and data loading...
+  openWasserzaehlerModal(
+    item,
+    mieterResult.data,
+    existingReadings,
+    handleSaveWasserzaehler
+  );
+};
+```
+
+#### Save Handler Improvements
+The save handler now includes better error propagation to prevent modal closure on failures:
+
+```typescript
+const handleSaveWasserzaehler = async (data: WasserzaehlerFormData) => {
+  try {
+    const result = await saveWasserzaehlerData(data);
+    if (result.success) {
+      toast.success("Wasserzählerdaten erfolgreich gespeichert!");
+      // Modal closes automatically on success
+    } else {
+      throw new Error(result.message); // Prevents modal from closing
+    }
+  } catch (error) {
+    // Re-throw errors to prevent modal closure on failure
+    throw error instanceof Error ? error : new Error("Unerwarteter Fehler");
+  }
+};
+```
+
+### Wasserzähler Modal (`components/wasserzaehler-modal.tsx`)
+
+The water meter readings modal provides a comprehensive interface for managing water meter readings for tenants in operating cost calculations. This modal is now globally available in the dashboard layout.
+
+#### Key Features
+- **Centralized State Management**: Integrated with Zustand modal store for consistent state handling
+- **Dirty State Tracking**: Automatically detects unsaved changes and prevents accidental data loss
+- **Form Validation**: Real-time validation of meter readings and consumption values
+- **Responsive Design**: Optimized layout for desktop and mobile devices with adaptive grid layouts
+- **Error Handling**: Comprehensive error handling with user-friendly toast notifications
+- **Data Persistence**: Automatic saving of form state with rollback capabilities
+- **Global Availability**: Rendered in dashboard layout for access from any dashboard page
+
+#### Modal State Management
+The component uses the global modal store (`useModalStore`) with the following state properties:
+- `isWasserzaehlerModalOpen`: Controls modal visibility
+- `wasserzaehlerNebenkosten`: Operating cost data for the modal
+- `wasserzaehlerMieterList`: List of tenants for meter readings
+- `wasserzaehlerExistingReadings`: Previously saved meter readings
+- `wasserzaehlerOnSave`: Save callback function
+- `isWasserzaehlerModalDirty`: Tracks unsaved changes
+- `closeWasserzaehlerModal()`: Handles modal closing with dirty state checks
+- `setWasserzaehlerModalDirty()`: Updates dirty state
+
+#### Form Data Structure
+```typescript
+interface WasserzaehlerFormEntry {
+  mieter_id: string;
+  mieter_name: string;
+  ablese_datum: string | null;  // Date in YYYY-MM-DD format
+  zaehlerstand: string | number; // Meter reading value
+  verbrauch: string | number;    // Consumption amount
+}
+
+interface WasserzaehlerFormData {
+  nebenkosten_id: string;
+  entries: WasserzaehlerFormEntry[];
+}
+```
+
+#### Recent Architectural Changes
+- **Dashboard Layout Integration**: Modal is now rendered globally in the dashboard layout (`app/(dashboard)/layout.tsx`)
+- **Automatic Dirty State Detection**: Compares current form data with initial state to track changes
+- **Enhanced Error Handling**: Toast notifications for both success and error states with German localization
+- **Forced Close Option**: Ability to force close modal after successful save operations
+- **Deep Copy State Management**: Prevents reference issues with form state tracking
+- **Improved UX**: Better feedback for user actions and form validation
+
+#### Usage Pattern
+The modal is automatically rendered in the dashboard layout and controlled through the global modal store:
+
+```typescript
+// Opening the modal from any dashboard component
+const { openWasserzaehlerModal } = useModalStore();
+openWasserzaehlerModal(
+  nebenkosten,
+  mieterList,
+  existingReadings,
+  handleSaveWasserzaehler
+);
+
+// The modal handles its own state and closing logic
+// No need to import or render the modal component directly
+```
+
+#### Integration with Operating Costs
+The modal is primarily accessed through the Operating Costs Table component, which handles:
+- Data validation before opening the modal
+- Fetching tenant and existing meter reading data
+- Error handling for data loading failures
+- Save callback implementation with proper error propagation
+
 ### Pricing Component (`app/modern/components/pricing.tsx`)
 
 The pricing component provides a comprehensive subscription plan display with the following features:
