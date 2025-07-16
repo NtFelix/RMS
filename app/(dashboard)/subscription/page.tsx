@@ -44,10 +44,7 @@ async function getUserProfileWithSubscription(): Promise<{ profile: UserSubscrip
   const now = new Date();
 
   // Determine if the trial is active based on Stripe subscription status only
-  let isTrialCurrentlyActive = false;
-  if (baseProfile.stripe_subscription_status === 'trialing') {
-    isTrialCurrentlyActive = true;
-  }
+  const isTrialCurrentlyActive = baseProfile.stripe_subscription_status === 'trialing';
 
 
   // Construct the UserSubscriptionProfile
