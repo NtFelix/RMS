@@ -25,6 +25,26 @@ Returns user profile data with the following structure:
 - `hasActiveSubscription` - Boolean indicating active subscription status
 - `currentWohnungenCount` - Current number of apartments managed by user
 
+### Stripe Plans API (`/api/stripe/plans`)
+
+The plans endpoint provides subscription plan information for the pricing component.
+
+**GET** `/api/stripe/plans`
+
+Returns an array of available subscription plans with the following structure:
+- `id` - Stripe Price ID
+- `name` - Plan display name
+- `price` - Price in cents
+- `currency` - Currency code (e.g., 'eur')
+- `interval` - Billing interval ('month' or 'year')
+- `interval_count` - Number of intervals
+- `features` - Array of plan features
+- `limit_wohnungen` - Maximum number of apartments allowed
+- `priceId` - Stripe Price ID (same as id)
+- `position` - Display order position
+- `productName` - Common product name (e.g., "Basic", "Professional")
+- `description` - Plan description from Stripe product
+
 ## Installation
 
 ```bash
@@ -77,6 +97,73 @@ When creating or updating products and their prices in your Stripe Dashboard:
         -   If this field is missing, not a valid number, or set to `"0"` (or a negative number), the current backend implementation may interpret this as allowing an unlimited number of 'Wohnungen'. This behavior should be kept in mind when setting up plans.
 
 Ensuring this metadata is correctly set in Stripe is crucial for the dynamic display of plan details and for the enforcement of plan limits (like the 'Wohnungen' count).
+
+## Components
+
+### Pricing Component (`app/modern/components/pricing.tsx`)
+
+The pricing component provides a comprehensive subscription plan display with the following features:
+
+#### Key Features
+- **Dynamic Plan Loading**: Fetches subscription plans from `/api/stripe/plans`
+- **Billing Cycle Toggle**: Switch between monthly and yearly pricing with automatic discount display
+- **Plan Grouping**: Groups monthly and yearly versions of the same product together
+- **Popular Plan Highlighting**: Automatically marks popular plans with badges and enhanced styling
+- **User-Aware Button States**: Dynamic button text and states based on user subscription status
+- **Trial Eligibility Detection**: Shows trial messaging for eligible users
+- **German Localization**: All text and currency formatting in German
+
+#### Component Props
+```typescript
+interface PricingProps {
+  onSelectPlan: (priceId: string) => void;
+  userProfile: Profile | null;
+  isLoading?: boolean; // Checkout processing state
+}
+```
+
+#### Plan Data Structure
+The component expects plan data with the following structure from the API:
+```typescript
+interface Plan {
+  id: string;              // Stripe Price ID
+  name: string;            // Plan display name
+  price: number;           // Price in cents
+  currency: string;        // Currency code
+  interval: string | null; // 'month' or 'year'
+  features: string[];      // Array of plan features
+  limit_wohnungen?: number;// Apartment limit
+  priceId: string;         // Stripe Price ID
+  position?: number;       // Display order
+  productName: string;     // Common product name
+  description?: string;    // Plan description
+}
+```
+
+#### Button States
+The component intelligently handles different user states:
+- **Logged out users**: "Kostenlos testen" (Start Free Trial)
+- **Trial eligible users**: "Kostenlos testen" 
+- **Non-trial eligible users**: "Abo auswählen" (Select Subscription)
+- **Current plan users**: "Abonnement verwalten" (Manage Subscription)
+- **Different plan users**: "Plan wechseln" (Switch Plan)
+- **Processing state**: "Wird verarbeitet..." (Processing...)
+
+#### Usage Example
+```typescript
+<Pricing 
+  onSelectPlan={(priceId) => handlePlanSelection(priceId)}
+  userProfile={userProfile}
+  isLoading={isCheckoutProcessing}
+/>
+```
+
+#### Stripe Metadata Requirements
+For proper functionality, ensure your Stripe products include:
+- `position`: Numeric value for display ordering
+- `features`: Comma-separated feature list
+- `limit_wohnungen`: Apartment limit for the plan
+- Product descriptions for plan descriptions
 
 ## Lizenz
 
