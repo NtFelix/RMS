@@ -42,12 +42,11 @@ export async function speichereWohnung(formData: WohnungFormData) {
     // Assuming userId is available from const userId = user.id; defined earlier in the function
     console.log(`speichereWohnung: Debug User ID: ${userId.substring(0, 8)}..., Profile Status: ${userProfile.stripe_subscription_status}`);
 
-    const isStripeTrialing = userProfile.stripe_subscription_status === 'trialing';
-    const isEffectivelyInTrial = isStripeTrialing;
+    const isEffectivelyInTrial = userProfile.stripe_subscription_status === 'trialing';
     const isPaidActiveStripeSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
 
     // Log the derived boolean flags
-    console.log(`speichereWohnung: Debug Flags - isStripeTrialing: ${isStripeTrialing}, isEffectivelyInTrial: ${isEffectivelyInTrial}, isPaidActiveStripeSub: ${isPaidActiveStripeSub}`);
+    console.log(`speichereWohnung: Debug Flags - isEffectivelyInTrial: ${isEffectivelyInTrial}, isPaidActiveStripeSub: ${isPaidActiveStripeSub}`);
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
     let limitReasonIsTrial = false;
