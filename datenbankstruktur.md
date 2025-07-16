@@ -2,6 +2,22 @@
 
 Die Datenbank besteht aus folgenden Tabellen:
 
+## profiles
+
+```sql
+create table public."profiles" (
+  id uuid not null,
+  stripe_customer_id text unique,
+  stripe_subscription_id text unique,
+  stripe_subscription_status text default 'inactive'::text,
+  stripe_price_id text,
+  stripe_current_period_end timestamp with time zone,
+  stripe_cancel_at_period_end boolean default false,
+  constraint profiles_pkey primary key (id),
+  constraint profiles_id_fkey foreign key (id) references auth.users(id)
+) tablespace pg_default;
+```
+
 ## Aufgaben
 
 ```sql
@@ -61,12 +77,11 @@ create table public."Mieter" (
   email text null,
   telefonnummer text null,
   notiz text null,
-  nebenkosten numeric[] null,
-  nebenkosten_datum date[] null,
   user_id uuid not null default auth.uid (),
+  nebenkosten jsonb null,
   constraint Mieter_pkey primary key (id),
-  constraint Mieter_wohnung_id_fkey foreign KEY (wohnung_id) references "Wohnungen" (id) on update CASCADE on delete RESTRICT
-) TABLESPACE pg_default;
+  constraint Mieter_wohnung_id_fkey foreign key (wohnung_id) references "Wohnungen" (id)
+) tablespace pg_default;
 ```
 
 ## Nebenkosten
@@ -75,16 +90,16 @@ create table public."Mieter" (
 create table public."Nebenkosten" (
   id uuid not null default gen_random_uuid (),
   user_id uuid not null default auth.uid (),
-  jahr text null,
+  jahr text null check (length(jahr) <= 50),
   nebenkostenart text[] null,
   betrag numeric[] null,
   berechnungsart text[] null,
   wasserkosten numeric null,
   haeuser_id uuid not null,
+  wasserverbrauch numeric null,
   constraint Nebenkosten_pkey primary key (id),
-  constraint Nebenkosten_haeuser_id_fkey foreign KEY (haeuser_id) references "Haeuser" (id) on update CASCADE on delete CASCADE,
-  constraint Nebenkosten_year_check check ((length(jahr) <= 50))
-) TABLESPACE pg_default;
+  constraint Nebenkosten_haeuser_id_fkey foreign key (haeuser_id) references "Haeuser" (id)
+) tablespace pg_default;
 ```
 
 ## Rechnungen
@@ -109,8 +124,15 @@ create table public."Rechnungen" (
 create table public."Wasserzaehler" (
   id uuid not null default gen_random_uuid (),
   user_id uuid not null default auth.uid (),
-  constraint Wasserzaehler_pkey primary key (id)
-) TABLESPACE pg_default;
+  mieter_id uuid not null,
+  ablese_datum date null,
+  zaehlerstand numeric not null,
+  verbrauch numeric not null,
+  nebenkosten_id uuid not null,
+  constraint Wasserzaehler_pkey primary key (id),
+  constraint Wasserzaehler_mieter_id_fkey foreign key (mieter_id) references "Mieter" (id),
+  constraint Wasserzaehler_nebenkosten_id_fkey foreign key (nebenkosten_id) references "Nebenkosten" (id)
+) tablespace pg_default;
 ```
 
 ## Wohnungen

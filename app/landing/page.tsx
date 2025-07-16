@@ -85,7 +85,7 @@ export default function LandingPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, trial_starts_at, trial_ends_at, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_price_id')
+        .select('id, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_price_id')
         .eq('id', userId)
         .single();
 

@@ -5,7 +5,7 @@ import { cookies } from 'next/headers';
 import { getPlanDetails } from '@/lib/stripe-server'; // Assuming lib is aliased to @/lib
 import { Profile } from '@/types/supabase'; // Import the Profile type
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';
-import { isUserInActiveTrial, calculateOverallSubscriptionActivity } from '@/lib/utils';
+import { calculateOverallSubscriptionActivity } from '@/lib/utils';
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -59,11 +59,8 @@ export async function GET() {
       stripe_subscription_status: profile.stripe_subscription_status,
       stripe_price_id: profile.stripe_price_id,
       stripe_current_period_end: profile.stripe_current_period_end,
-      trial_starts_at: profile.trial_starts_at,
-      trial_ends_at: profile.trial_ends_at,
       activePlan: planDetails, // This will be null if no active plan or error fetching
       hasActiveSubscription: calculateOverallSubscriptionActivity(profile),
-      isTrialActive: isUserInActiveTrial(profile.trial_starts_at, profile.trial_ends_at),
       currentWohnungenCount: currentWohnungenCount, // Add this line
     };
 

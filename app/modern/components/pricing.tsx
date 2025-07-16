@@ -137,8 +137,8 @@ export default function Pricing({ onSelectPlan, userProfile, isLoading: isChecko
   // Determine trial eligibility and button text/state based on userProfile
   const isTrialEligible = useMemo(() => {
     if (!userProfile) return true; // Logged out users see trial message
-    // A user is eligible for a trial if they have not started one and have no subscription history.
-    return !userProfile.trial_starts_at && !userProfile.stripe_subscription_id;
+    // A user is eligible for a trial if they have no subscription history.
+    return !userProfile.stripe_subscription_id;
   }, [userProfile]);
 
   const getButtonTextAndState = (planPriceId: string) => {

@@ -24,8 +24,7 @@ export interface UserSubscriptionProfile extends SupabaseProfile {
     features: string[];
     limitWohnungen?: number | null | undefined;
   };
-  trial_starts_at?: string | null;
-  trial_ends_at?: string | null;
+
   isTrialActive?: boolean;
   // stripe_subscription_status is used by multiple views
   stripe_subscription_status?: string | null;
@@ -132,8 +131,10 @@ export default function SubscriptionClientPage({ initialProfile, error: initialE
 
 
   let daysRemaining = 0;
-  if (profile?.isTrialActive && profile?.trial_ends_at) {
-    const trialEndsDate = new Date(profile.trial_ends_at);
+  // Since we removed custom trial fields, trial days remaining is now handled by Stripe
+  // For Stripe trials, we could calculate from stripe_current_period_end if needed
+  if (profile?.isTrialActive && profile?.stripe_current_period_end) {
+    const trialEndsDate = new Date(profile.stripe_current_period_end);
     const now = new Date();
     const diffTime = trialEndsDate.getTime() - now.getTime();
     daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));

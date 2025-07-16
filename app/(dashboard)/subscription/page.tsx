@@ -42,22 +42,11 @@ async function getUserProfileWithSubscription(): Promise<{ profile: UserSubscrip
   }
 
   const now = new Date();
-  const trialEndsAt = baseProfile.trial_ends_at ? new Date(baseProfile.trial_ends_at) : null;
-  const trialStartsAt = baseProfile.trial_starts_at ? new Date(baseProfile.trial_starts_at) : null;
 
-  // Determine if the trial is active.
-  // A trial is active if trial_ends_at is in the future AND stripe_subscription_status is 'trialing' or empty/null (not yet a paid sub).
-  // Or, if they have a trial_ends_at and no stripe_subscription_id yet.
+  // Determine if the trial is active based on Stripe subscription status only
   let isTrialCurrentlyActive = false;
-  if (trialEndsAt && trialEndsAt > now) {
-    // If status is 'trialing', it's definitely an active trial.
-    // If status is null/undefined/empty, and trial_ends_at is future, also consider it active trial (pre-Stripe record perhaps).
-    if (baseProfile.stripe_subscription_status === 'trialing' || !baseProfile.stripe_subscription_status) {
-        isTrialCurrentlyActive = true;
-    }
-    // If they have a subscription_id but status is not 'trialing' (e.g. 'active', 'past_due'), then trial is not the active state.
-    // Exception: if they somehow have an 'active' status but trial_ends_at is future, this logic might need refinement
-    // based on exact business rules for transition from trial to paid. For now, 'trialing' status is key for Stripe-managed trials.
+  if (baseProfile.stripe_subscription_status === 'trialing') {
+    isTrialCurrentlyActive = true;
   }
 
 
@@ -75,7 +64,6 @@ async function getUserProfileWithSubscription(): Promise<{ profile: UserSubscrip
       limitWohnungen: activePlanDetails.limitWohnungen,
     } : undefined, // Set to undefined if no active plan details
     isTrialActive: isTrialCurrentlyActive,
-    // trial_starts_at and trial_ends_at are already from baseProfile
   };
 
   return { profile: enrichedProfile };
