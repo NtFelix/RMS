@@ -18,9 +18,9 @@ const TrialView: React.FC<TrialViewProps> = ({ profile, daysRemaining, onSelectP
         <p className="mb-2">
           You are currently on a free trial.
         </p>
-        {profile?.trial_ends_at && (
+        {profile?.stripe_current_period_end && (
           <p className="mb-2">
-            Your trial ends on: <strong>{new Date(profile.trial_ends_at).toLocaleDateString()}</strong> ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining).
+            Your trial ends on: <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString()}</strong> ({daysRemaining} day{daysRemaining !== 1 ? 's' : ''} remaining).
           </p>
         )}
         <p className="mb-2">You can create up to <strong>5 Wohnungen</strong> during your trial.</p>

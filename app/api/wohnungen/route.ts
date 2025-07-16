@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { fetchUserProfile } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
-import { isUserInActiveTrial } from '@/lib/utils';
+
 
 export async function POST(request: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     }
     const userId = userProfile.id; // Get userId from userProfile
 
-    const isTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
+    const isTrialActive = userProfile.stripe_subscription_status === 'trialing';
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
 

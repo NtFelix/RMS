@@ -216,8 +216,6 @@ describe('fetchUserProfile', () => {
       stripe_subscription_status: 'active',
       stripe_price_id: 'price_123',
       stripe_current_period_end: '2023-12-31T23:59:59.000Z',
-      trial_starts_at: null,
-      trial_ends_at: null,
     };
     mockSupabaseClient.auth.getUser.mockResolvedValueOnce({ data: { user: mockUser }, error: null });
     mockSupabaseClient.single.mockResolvedValueOnce({ data: mockProfile, error: null });
@@ -232,9 +230,7 @@ describe('fetchUserProfile', () => {
       stripe_subscription_id,
       stripe_subscription_status,
       stripe_price_id,
-      stripe_current_period_end,
-      trial_starts_at,
-      trial_ends_at
+      stripe_current_period_end
     `);
     expect(mockSupabaseClient.eq).toHaveBeenCalledWith('id', mockUser.id);
     expect(mockSupabaseClient.single).toHaveBeenCalledTimes(1);
@@ -259,8 +255,6 @@ describe('fetchUserProfile', () => {
       stripe_subscription_status: null,
       stripe_price_id: null,
       stripe_current_period_end: null,
-      trial_starts_at: null,
-      trial_ends_at: null,
     });
   });
 
@@ -282,8 +276,6 @@ describe('fetchUserProfile', () => {
       stripe_subscription_status: null,
       stripe_price_id: null,
       stripe_current_period_end: null,
-      trial_starts_at: null,
-      trial_ends_at: null,
     });
   });
 

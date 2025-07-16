@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails
-import { isUserInActiveTrial } from '@/lib/utils';
+
 
 // Typdefinition für die Wohnungsdaten
 type WohnungFormData = {
@@ -40,15 +40,13 @@ export async function speichereWohnung(formData: WohnungFormData) {
 
     // Log the crucial parts of the fetched profile
     // Assuming userId is available from const userId = user.id; defined earlier in the function
-    console.log(`speichereWohnung: Debug User ID: ${userId.substring(0, 8)}..., Profile Status: ${userProfile.stripe_subscription_status}, Custom Trial Starts: ${userProfile.trial_starts_at}, Custom Trial Ends: ${userProfile.trial_ends_at}`);
+    console.log(`speichereWohnung: Debug User ID: ${userId.substring(0, 8)}..., Profile Status: ${userProfile.stripe_subscription_status}`);
 
-    const isCustomTrialActive = isUserInActiveTrial(userProfile.trial_starts_at, userProfile.trial_ends_at);
-    const isStripeTrialing = userProfile.stripe_subscription_status === 'trialing';
-    const isEffectivelyInTrial = isCustomTrialActive || isStripeTrialing;
+    const isEffectivelyInTrial = userProfile.stripe_subscription_status === 'trialing';
     const isPaidActiveStripeSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
 
     // Log the derived boolean flags
-    console.log(`speichereWohnung: Debug Flags - isCustomTrialActive: ${isCustomTrialActive}, isStripeTrialing: ${isStripeTrialing}, isEffectivelyInTrial: ${isEffectivelyInTrial}, isPaidActiveStripeSub: ${isPaidActiveStripeSub}`);
+    console.log(`speichereWohnung: Debug Flags - isEffectivelyInTrial: ${isEffectivelyInTrial}, isPaidActiveStripeSub: ${isPaidActiveStripeSub}`);
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
     let limitReasonIsTrial = false;

@@ -106,14 +106,6 @@ export async function POST(req: Request) {
           stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
         };
 
-        // Check and add trial data if present on the subscription
-        if (retrievedSubscription.trial_start) {
-          profileUpdateData.trial_starts_at = new Date(retrievedSubscription.trial_start * 1000).toISOString();
-        }
-        if (retrievedSubscription.trial_end) {
-          profileUpdateData.trial_ends_at = new Date(retrievedSubscription.trial_end * 1000).toISOString();
-        }
-
         await updateProfileInSupabase(userId, profileUpdateData);
         console.log(`Profile updated for user ${userId} after checkout. Update data:`, profileUpdateData);
         break;
@@ -191,24 +183,6 @@ export async function POST(req: Request) {
             stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
             stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
         };
-
-        // Check and add trial data if present on the subscription
-        // This handles cases where a subscription is updated and might enter a trial period,
-        // or its trial period details change.
-        if (subscriptionFromEvent.trial_start) {
-            profileUpdateData.trial_starts_at = new Date(subscriptionFromEvent.trial_start * 1000).toISOString();
-        }
-
-        if (subscriptionFromEvent.trial_end) {
-            profileUpdateData.trial_ends_at = new Date(subscriptionFromEvent.trial_end * 1000).toISOString();
-        } else {
-            profileUpdateData.trial_ends_at = null;
-        }
-
-        // Safety check for current_period_end which might be an issue if not handled by `(subscriptionFromEvent as any)`
-        // Modern Stripe typings should have current_period_end as number (Unix timestamp)
-        // If `subscriptionFromEvent.current_period_end` is indeed a number, `(subscriptionFromEvent as any)` is not needed.
-        // Let's assume it's correctly typed or handled by the existing `(as any)` if it was an issue before.
 
         await updateProfileByCustomerIdInSupabase(customerId, profileUpdateData);
         console.log(`Profile updated for customer ${customerId} after subscription update. Update data:`, profileUpdateData);
