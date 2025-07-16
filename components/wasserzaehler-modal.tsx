@@ -8,7 +8,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,11 +196,14 @@ export function WasserzaehlerModal() {
         </div>
 
         <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline" onClick={attemptClose} disabled={isLoading}>
-              Abbrechen
-            </Button>
-          </DialogClose>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => closeWasserzaehlerModal({ force: true })}
+            disabled={isLoading}
+          >
+            Abbrechen
+          </Button>
           <Button type="button" onClick={handleSubmit} disabled={isLoading}>
             {isLoading ? "Speichern..." : "Speichern"}
           </Button>
