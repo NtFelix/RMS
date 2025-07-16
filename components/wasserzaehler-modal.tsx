@@ -199,7 +199,7 @@ export function WasserzaehlerModal() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => closeWasserzaehlerModal({ force: true })}
+            onClick={() => closeWasserzaehlerModal({ force: true })} // Force close without confirmation
             disabled={isLoading}
           >
             Abbrechen
