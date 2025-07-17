@@ -99,6 +99,50 @@ When creating or updating products and their prices in your Stripe Dashboard:
 Ensuring this metadata is correctly set in Stripe is crucial for the dynamic display of plan details and for the enforcement of plan limits (like the 'Wohnungen' count).
 
 ## Components
+### Feature Sections (`app/modern/components/feature-sections.tsx`)
+
+The feature sections component showcases the key capabilities of the RMS platform through an interactive, visually appealing layout on the modern landing page.
+
+#### Recent Visual Improvements
+- **Enhanced Image Rendering**: Improved image display with proper aspect ratio handling and responsive design
+- **Modern Glass-morphism Effects**: Added backdrop blur and subtle border effects for a premium visual appearance
+- **Optimized Image Loading**: Switched from `layout="fill"` to explicit width/height for better performance and Next.js 15 compatibility
+- **Smooth Hover Interactions**: Refined hover effects with subtle scaling and gradient overlays
+- **Performance Optimizations**: Added priority loading for above-the-fold images and improved object-fit handling
+- **Keyboard Navigation**: Added Escape key support to close image preview modal for improved accessibility
+- **React Hook Optimization**: Implemented `useCallback` and `useEffect` for better performance and memory management
+- **Accessibility Enhancements**: Added proper ARIA labels for interactive elements including modal close buttons
+
+#### Key Features
+- **Responsive Layout**: Alternating left-right layout for visual variety on desktop
+- **Motion Animations**: Smooth scroll-triggered animations using Framer Motion
+- **Product Screenshots**: Real dashboard screenshots showcasing:
+  - `haus-page.png`: House and tenant management interface
+  - `nebenkosten-overview.png`: Operating costs calculation and overview
+  - `finance-page.png`: Financial dashboard with income and expense tracking
+- **Feature Highlights**: Bullet-point lists with check icons for each feature set
+- **German Localization**: All content in German for the target market
+- **Modern Visual Design**: Glass-morphism effects with backdrop blur and subtle borders for enhanced visual appeal
+
+#### Visual Assets
+The component now uses authentic product screenshots located in `/public/product-images/`:
+- **House Management**: Shows the property and tenant management interface
+- **Operating Costs**: Displays the detailed operating cost calculation system
+- **Financial Overview**: Demonstrates the comprehensive financial tracking dashboard
+
+#### Component Structure
+```javascript
+const features = [
+{
+title: "Zentrale Haus- & Mieterverwaltung",
+description: "...",
+points: ["...", "...", "..."],
+image: "/product-images/haus-page.png",
+image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
+},
+// Additional features...
+]
+```
 
 ### Financial Analytics (`app/(dashboard)/finanzen/client-wrapper.tsx`)
 
@@ -117,25 +161,22 @@ The financial analytics component provides comprehensive financial tracking and 
 
 #### Calculation Logic
 The component now uses improved logic for financial averages:
-
-```typescript
+```javascript
 // Only consider months that have passed for accurate averages
 const now = new Date();
 const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
 const monthsPassed = currentMonthIndex + 1;
-
 const totalsForPassedMonths = Object.entries(monthlyData).reduce(
-  (acc, [monthKey, data]) => {
-    const monthIndex = Number(monthKey);
-    if (monthIndex <= currentMonthIndex) {
-      acc.income += data.income;
-      acc.expenses += data.expenses;
-    }
-    return acc;
-  },
-  { income: 0, expenses: 0 }
+(acc, [monthKey, data]) => {
+const monthIndex = Number(monthKey);
+if (monthIndex <= currentMonthIndex) {
+acc.income += data.income;
+acc.expenses += data.expenses;
+}
+return acc;
+},
+{ income: 0, expenses: 0 }
 );
-
 const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
 const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
 ```
@@ -145,7 +186,6 @@ This ensures that:
 - **June calculations** use January through June data (6 months)
 - **December calculations** use the full year data (12 months)
 - Future months with no data don't artificially lower the averages
-
 ### Operating Costs Table (`components/operating-costs-table.tsx`)
 
 The operating costs table component manages the display and interaction with Betriebskosten (operating costs) data, providing access to water meter readings and cost calculations.

@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion"
 import Image from "next/image"
-import { CheckCircle } from "lucide-react"
+import { CheckCircle, X, ZoomIn } from "lucide-react"
+import { useState, useCallback, useEffect } from "react"
 
 const features = [
   {
@@ -15,8 +16,8 @@ const features = [
       "Einfache Zuweisung von Mietern zu Objekten",
       "Historie aller Aktivitäten pro Mieter",
     ],
-    image: "/placeholder.jpg",
-    image_alt: "Screenshot of Property and Tenant Management",
+    image: "/product-images/haus-page.png",
+    image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
   },
   {
     title: "Detaillierte Betriebskostenabrechnung",
@@ -28,8 +29,8 @@ const features = [
       "PDF-Export für Mieter und Eigentümer",
       "Rechtssichere und transparente Darstellung",
     ],
-    image: "/placeholder.jpg",
-    image_alt: "Screenshot of Operating Cost Statement Generation",
+    image: "/product-images/nebenkosten-overview.png",
+    image_alt: "Screenshot der Betriebskostenabrechnung und Nebenkostenübersicht",
   },
   {
     title: "Umfassende Finanzübersicht",
@@ -41,16 +42,47 @@ const features = [
       "Detaillierte Finanzberichte und Exporte",
       "Transparente Nachverfolgung aller Transaktionen",
     ],
-    image: "/placeholder.jpg",
-    image_alt: "Screenshot of Financial Overview",
+    image: "/product-images/finance-page.png",
+    image_alt: "Screenshot der Finanzübersicht mit Einnahmen und Ausgaben",
   },
 ]
 
 export default function FeatureSections() {
+  const [selectedImage, setSelectedImage] = useState<{
+    src: string
+    alt: string
+    title: string
+  } | null>(null)
+
+  const openImagePreview = (image: string, alt: string, title: string) => {
+    setSelectedImage({ src: image, alt, title })
+  }
+
+  const closeImagePreview = useCallback(() => {
+    setSelectedImage(null)
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeImagePreview()
+      }
+    }
+
+    if (selectedImage) {
+      window.addEventListener("keydown", handleKeyDown)
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [selectedImage, closeImagePreview])
+
   return (
-    <section className="py-40 px-4 bg-background text-foreground">
-      <div className="max-w-7xl mx-auto space-y-40">
-        {features.map((feature, index) => (
+    <>
+      <section className="py-40 px-4 bg-background text-foreground">
+        <div className="max-w-7xl mx-auto space-y-40">
+          {features.map((feature, index) => (
           <motion.div
             key={index}
             initial={{ opacity: 0, y: 50 }}
@@ -63,15 +95,25 @@ export default function FeatureSections() {
           >
             {/* Image Section */}
             <div className="w-full md:w-1/2">
-              <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl group">
-                <Image
-                  src={feature.image}
-                  alt={feature.image_alt}
-                  layout="fill"
-                  objectFit="cover"
-                                      className="mt-6 group-hover:border-primary group-hover:text-primary transition-colors hover:bg-gray-800 hover:text-white duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              <div 
+                className="relative rounded-2xl overflow-hidden shadow-2xl group bg-white/5 backdrop-blur-sm border border-white/10 cursor-pointer"
+                onClick={() => openImagePreview(feature.image, feature.image_alt, feature.title)}
+              >
+                <div className="relative w-full">
+                  <Image
+                    src={feature.image}
+                    alt={feature.image_alt}
+                    width={800}
+                    height={600}
+                    className="w-full h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                    priority={index === 0}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                {/* Zoom Icon Overlay */}
+                <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <ZoomIn className="w-5 h-5 text-white" />
+                </div>
               </div>
             </div>
 
@@ -96,5 +138,49 @@ export default function FeatureSections() {
         ))}
       </div>
     </section>
+
+      {/* Image Preview Modal */}
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={closeImagePreview}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.3 }}
+            className="relative max-w-6xl max-h-[90vh] w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={closeImagePreview}
+              className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-2 transition-colors duration-200 z-10"
+              aria-label="Schließen"
+            >
+              <X className="w-6 h-6 text-white" />
+            </button>
+            
+            {/* Image Title */}
+            <div className="absolute -top-12 left-0 text-white text-lg font-semibold">
+              {selectedImage.title}
+            </div>
+
+            {/* Image Container */}
+            <div className="relative bg-white/5 backdrop-blur-sm rounded-2xl overflow-hidden border border-white/10">
+              <Image
+                src={selectedImage.src}
+                alt={selectedImage.alt}
+                width={1200}
+                height={900}
+                className="w-full h-auto object-contain max-h-[80vh]"
+                priority
+              />
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </>
   )
 }
