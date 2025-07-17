@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
 
 interface ConfirmationModalConfig {
   title: string;
@@ -81,6 +82,17 @@ interface ModalState {
   closeBetriebskostenModal: (options?: CloseModalOptions) => void;
   setBetriebskostenModalDirty: (isDirty: boolean) => void;
 
+  // Wasserzähler Modal State
+  isWasserzaehlerModalOpen: boolean;
+  wasserzaehlerNebenkosten?: Nebenkosten;
+  wasserzaehlerMieterList: Mieter[];
+  wasserzaehlerExistingReadings?: Wasserzaehler[] | null;
+  wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<void>;
+  isWasserzaehlerModalDirty: boolean;
+  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<void>) => void;
+  closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
+  setWasserzaehlerModalDirty: (isDirty: boolean) => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -143,6 +155,15 @@ const initialBetriebskostenModalState = {
   isBetriebskostenModalDirty: false,
 };
 
+const initialWasserzaehlerModalState = {
+  isWasserzaehlerModalOpen: false,
+  wasserzaehlerNebenkosten: undefined,
+  wasserzaehlerMieterList: [],
+  wasserzaehlerExistingReadings: undefined,
+  wasserzaehlerOnSave: undefined,
+  isWasserzaehlerModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -150,6 +171,7 @@ const createInitialModalState = () => ({
   ...initialWohnungModalState,
   ...initialAufgabeModalState,
   ...initialBetriebskostenModalState,
+  ...initialWasserzaehlerModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -261,6 +283,18 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeBetriebskostenModal: createCloseHandler('isBetriebskostenModalDirty', initialBetriebskostenModalState),
     setBetriebskostenModalDirty: (isDirty) => set({ isBetriebskostenModalDirty: isDirty }),
+
+    // Wasserzähler Modal
+    openWasserzaehlerModal: (nebenkosten, mieterList, existingReadings, onSave) => set({
+      isWasserzaehlerModalOpen: true,
+      wasserzaehlerNebenkosten: nebenkosten,
+      wasserzaehlerMieterList: mieterList || [],
+      wasserzaehlerExistingReadings: existingReadings,
+      wasserzaehlerOnSave: onSave,
+      isWasserzaehlerModalDirty: false
+    }),
+    closeWasserzaehlerModal: createCloseHandler('isWasserzaehlerModalDirty', initialWasserzaehlerModalState),
+    setWasserzaehlerModalDirty: (isDirty) => set({ isWasserzaehlerModalDirty: isDirty }),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

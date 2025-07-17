@@ -16,6 +16,7 @@ import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
 import { getMieterForNebenkostenAction, saveWasserzaehlerData, getWasserzaehlerRecordsAction, getRechnungenForNebenkostenAction } from "@/app/betriebskosten-actions" // Adjusted path, Added getRechnungenForNebenkostenAction
 import { toast } from "sonner" // For notifications
+import { useModalStore } from "@/hooks/use-modal-store"
 
 
 interface OperatingCostsTableProps {
@@ -33,12 +34,10 @@ export function OperatingCostsTable({
   ownerName,
   allHaeuser
 }: OperatingCostsTableProps) {
+  const { openWasserzaehlerModal } = useModalStore();
   const [overviewItem, setOverviewItem] = useState<Nebenkosten | null>(null);
-  const [isWasserzaehlerModalOpen, setIsWasserzaehlerModalOpen] = useState(false);
-  const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<Nebenkosten | null>(null);
-  const [mieterForModal, setMieterForModal] = useState<Mieter[]>([]);
   const [isLoadingDataForModal, setIsLoadingDataForModal] = useState(false);
-  const [existingWasserzaehlerRecords, setExistingWasserzaehlerRecords] = useState<Wasserzaehler[] | null>(null);
+  const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<Nebenkosten | null>(null);
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<Nebenkosten | null>(null);
   const [tenantsForAbrechnungModal, setTenantsForAbrechnungModal] = useState<Mieter[]>([]);
@@ -71,50 +70,53 @@ export function OperatingCostsTable({
       const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
 
       if (mieterResult.success && mieterResult.data) {
-        setMieterForModal(mieterResult.data);
-
         // Fetch existing Wasserzaehler records
         const existingReadingsResult = await getWasserzaehlerRecordsAction(item.id); // item.id is nebenkosten_id
 
-        if (existingReadingsResult.success && existingReadingsResult.data) {
-          setExistingWasserzaehlerRecords(existingReadingsResult.data);
-        } else {
+        const existingReadings = existingReadingsResult.success && existingReadingsResult.data 
+          ? existingReadingsResult.data 
+          : null;
+
+        if (!existingReadingsResult.success) {
           console.error("Error fetching existing Wasserzaehler records:", existingReadingsResult.message);
           toast.error(`Fehler beim Laden vorhandener Zählerstände: ${existingReadingsResult.message || "Unbekannter Fehler"}`);
-          setExistingWasserzaehlerRecords(null); // Ensure it's reset if fetch fails
         }
-        setIsWasserzaehlerModalOpen(true); // Open modal after all data is fetched (or attempted)
+
+        // Open modal using modal store
+        openWasserzaehlerModal(
+          item,
+          mieterResult.data,
+          existingReadings,
+          handleSaveWasserzaehler
+        );
       } else {
         console.error("Error fetching mieter via action:", mieterResult.message);
         toast.error(`Fehler beim Laden der Mieterdaten: ${mieterResult.message || "Unbekannter Fehler"}`);
-        setMieterForModal([]); // Ensure mieter list is empty if it failed
-        setExistingWasserzaehlerRecords(null); // Reset existing records too
       }
     } catch (error) { // Catch errors from the action call itself (e.g., network issues)
       console.error("Error calling getMieterForNebenkostenAction or getWasserzaehlerRecordsAction:", error);
       toast.error("Ein unerwarteter Fehler ist beim Abrufen der Daten aufgetreten.");
-      setExistingWasserzaehlerRecords(null);
     } finally {
       setIsLoadingDataForModal(false);
     }
   };
 
   const handleSaveWasserzaehler = async (data: WasserzaehlerFormData) => {
-    // setIsLoadingDataForModal(true); // Or a specific saving state
     try {
       const result = await saveWasserzaehlerData(data);
       if (result.success) {
         toast.success("Wasserzählerdaten erfolgreich gespeichert!");
-        setIsWasserzaehlerModalOpen(false);
-        // Optionally, re-fetch Nebenkosten list or update the specific item if display changes
+        // Modal will be closed by the modal component itself
       } else {
-        toast.error(`Fehler beim Speichern: ${result.message}`);
+        throw new Error(result.message); // Re-throw to prevent modal from closing
       }
     } catch (error) {
       console.error("Error calling saveWasserzaehlerData:", error);
-      toast.error("Ein unerwarteter Fehler ist aufgetreten.");
-    } finally {
-      // setIsLoadingDataForModal(false);
+      if (error instanceof Error) {
+        throw error; // Re-throw to prevent modal from closing
+      } else {
+        throw new Error("Ein unerwarteter Fehler ist aufgetreten.");
+      }
     }
   };
 
@@ -286,21 +288,7 @@ export function OperatingCostsTable({
         />
       )}
 
-      {/* Wasserzaehler Modal */}
-      {selectedNebenkostenItem && (
-        <WasserzaehlerModal
-          isOpen={isWasserzaehlerModalOpen}
-          onClose={() => {
-            setIsWasserzaehlerModalOpen(false);
-            setSelectedNebenkostenItem(null); // Also clear selected item
-            setExistingWasserzaehlerRecords(null); // Clear existing records on close
-          }}
-          nebenkosten={selectedNebenkostenItem}
-          mieterList={mieterForModal}
-          onSave={handleSaveWasserzaehler}
-          existingReadings={existingWasserzaehlerRecords} // New prop
-        />
-      )}
+      {/* Wasserzaehler Modal is now handled by the modal store */}
 
       {/* Abrechnung Modal */}
       {selectedNebenkostenForAbrechnung && (
