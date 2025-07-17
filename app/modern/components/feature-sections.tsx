@@ -141,6 +141,7 @@ export default function FeatureSections() {
             <button
               onClick={closeImagePreview}
               className="absolute -top-12 right-0 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full p-2 transition-colors duration-200 z-10"
+              aria-label="Schließen"
             >
               <X className="w-6 h-6 text-white" />
             </button>
