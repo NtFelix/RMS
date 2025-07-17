@@ -110,6 +110,8 @@ The feature sections component showcases the key capabilities of the RMS platfor
 - **Optimized Image Loading**: Switched from `layout="fill"` to explicit width/height for better performance and Next.js 15 compatibility
 - **Smooth Hover Interactions**: Refined hover effects with subtle scaling and gradient overlays
 - **Performance Optimizations**: Added priority loading for above-the-fold images and improved object-fit handling
+- **Keyboard Navigation**: Added Escape key support to close image preview modal for improved accessibility
+- **React Hook Optimization**: Implemented `useCallback` and `useEffect` for better performance and memory management
 - **Accessibility Enhancements**: Added proper ARIA labels for interactive elements including modal close buttons
 
 #### Key Features

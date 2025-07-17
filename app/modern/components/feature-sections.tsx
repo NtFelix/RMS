@@ -3,7 +3,7 @@
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { CheckCircle, X, ZoomIn } from "lucide-react"
-import { useState } from "react"
+import { useState, useCallback, useEffect } from "react"
 
 const features = [
   {
@@ -58,9 +58,25 @@ export default function FeatureSections() {
     setSelectedImage({ src: image, alt, title })
   }
 
-  const closeImagePreview = () => {
+  const closeImagePreview = useCallback(() => {
     setSelectedImage(null)
-  }
+  }, [])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeImagePreview()
+      }
+    }
+
+    if (selectedImage) {
+      window.addEventListener("keydown", handleKeyDown)
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [selectedImage, closeImagePreview])
 
   return (
     <>
