@@ -114,7 +114,7 @@ export function WasserzaehlerModal() {
       console.error("Error saving Wasserzaehler data:", error);
       toast({
         title: "Fehler beim Speichern",
-        description: "Die Wasserzählerstände konnten nicht gespeichert werden.",
+        description: error instanceof Error ? error.message : "Die Wasserzählerstände konnten nicht gespeichert werden.",
         variant: "destructive",
       });
     } finally {
