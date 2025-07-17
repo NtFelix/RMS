@@ -79,31 +79,32 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   // This will be handled by CommandMenu triggering useModalStore.
 
   // Werte berechnen (keep)
-  // Werte berechnen (keep)
-  const monthlyData = finData.reduce((acc, item) => {
-    const month = item.datum ? new Date(item.datum).getMonth() : new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const financesForCurrentYear = finData.filter(f => f.datum && new Date(f.datum).getFullYear() === currentYear);
+
+  const monthlyData = financesForCurrentYear.reduce((acc, item) => {
+    const month = new Date(item.datum!).getMonth();
     if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0, count: 0 };
+      acc[month] = { income: 0, expenses: 0 };
     }
     if (item.ist_einnahmen) {
       acc[month].income += Number(item.betrag);
     } else {
       acc[month].expenses += Number(item.betrag);
     }
-    acc[month].count = 1; // Mark month as having data
     return acc;
-  }, {} as Record<number, { income: number; expenses: number; count: number }>);
+  }, {} as Record<number, { income: number; expenses: number }>);
 
   const monthlyEntries = Object.values(monthlyData);
-  const numberOfMonthsWithData = monthlyEntries.reduce((sum, item) => sum + item.count, 0);
   const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
   const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
 
-  const averageMonthlyIncome = numberOfMonthsWithData > 0 ? totalIncome / numberOfMonthsWithData : 0;
-  const averageMonthlyExpenses = numberOfMonthsWithData > 0 ? totalExpenses / numberOfMonthsWithData : 0;
+  const currentMonth = new Date().getMonth() + 1;
+  const averageMonthlyIncome = totalIncome / currentMonth;
+  const averageMonthlyExpenses = totalExpenses / currentMonth;
 
-  const monthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-  const yearlyProjection = monthlyCashflow * 12;
+  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
+  const yearlyProjection = averageMonthlyCashflow * 12;
 
   // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
   // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
@@ -148,32 +149,32 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
         {/* Cards remain the same */}
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
+            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
+            <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ausgaben</CardTitle>
+            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Monatliche Betriebskosten</p>
+            <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Cash Flow</CardTitle>
+            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{monthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Monatlicher Überschuss</p>
+            <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
