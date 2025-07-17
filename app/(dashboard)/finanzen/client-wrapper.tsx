@@ -99,9 +99,25 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
   const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
 
-  const currentMonth = new Date().getMonth() + 1;
-  const averageMonthlyIncome = totalIncome / currentMonth;
-  const averageMonthlyExpenses = totalExpenses / currentMonth;
+  // Improved average calculation - only consider months that have passed
+  const now = new Date();
+  const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
+  const monthsPassed = currentMonthIndex + 1;
+
+  const totalsForPassedMonths = Object.entries(monthlyData).reduce(
+    (acc, [monthKey, data]) => {
+      const monthIndex = Number(monthKey); // monthKey is already 0-based from getMonth()
+      if (monthIndex <= currentMonthIndex) {
+        acc.income += data.income;
+        acc.expenses += data.expenses;
+      }
+      return acc;
+    },
+    { income: 0, expenses: 0 }
+  );
+
+  const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
+  const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
 
   const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
   const yearlyProjection = averageMonthlyCashflow * 12;
