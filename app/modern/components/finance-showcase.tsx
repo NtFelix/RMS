@@ -107,6 +107,153 @@ const financeTabsData: FinanceTab[] = [
   }
 ];
 
+// Tab Content Component for displaying individual tab information
+interface TabContentProps {
+  tab: FinanceTab;
+  isTransitioning: boolean;
+  onImageClick: (image: { src: string; alt: string; title: string }) => void;
+}
+
+function TabContent({ tab, isTransitioning, onImageClick }: TabContentProps) {
+  return (
+    <div className={`grid lg:grid-cols-2 gap-12 items-center transition-opacity duration-300 ease-in-out ${
+      isTransitioning ? 'opacity-50' : 'opacity-100'
+    }`}>
+      {/* Content Side */}
+      <div className={`space-y-8 transform transition-all duration-300 ease-in-out ${
+        isTransitioning ? 'translate-y-2' : 'translate-y-0'
+      }`}>
+        <div>
+          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+            {tab.title}
+          </h3>
+          <p className="text-lg text-gray-600 mb-6">
+            {tab.description}
+          </p>
+        </div>
+
+        {/* Features List */}
+        <FeaturesList features={tab.features} />
+
+        {/* Data Capabilities */}
+        <DataCapabilities capabilities={tab.dataCapabilities} />
+      </div>
+
+      {/* Image Side */}
+      <TabImage 
+        tab={tab} 
+        onImageClick={onImageClick}
+      />
+    </div>
+  );
+}
+
+// Features List Component
+interface FeaturesListProps {
+  features: string[];
+}
+
+function FeaturesList({ features }: FeaturesListProps) {
+  return (
+    <div>
+      <h4 className="text-lg font-semibold text-gray-900 mb-4">
+        Hauptfunktionen
+      </h4>
+      <ul className="space-y-3">
+        {features.map((feature, index) => (
+          <li key={index} className="flex items-start">
+            <svg
+              className="h-6 w-6 text-green-500 mr-3 mt-0.5 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+            <span className="text-gray-700">{feature}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Data Capabilities Component
+interface DataCapabilitiesProps {
+  capabilities: {
+    filtering: string[];
+    searching: string[];
+    tracking: string[];
+  };
+}
+
+function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
+  return (
+    <div className="grid md:grid-cols-3 gap-6">
+      <div>
+        <h5 className="font-semibold text-gray-900 mb-2">Filterung</h5>
+        <ul className="text-sm text-gray-600 space-y-1">
+          {capabilities.filtering.map((item, index) => (
+            <li key={index}>• {item}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h5 className="font-semibold text-gray-900 mb-2">Suche</h5>
+        <ul className="text-sm text-gray-600 space-y-1">
+          {capabilities.searching.map((item, index) => (
+            <li key={index}>• {item}</li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h5 className="font-semibold text-gray-900 mb-2">Tracking</h5>
+        <ul className="text-sm text-gray-600 space-y-1">
+          {capabilities.tracking.map((item, index) => (
+            <li key={index}>• {item}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// Tab Image Component with Next.js Image optimization
+interface TabImageProps {
+  tab: FinanceTab;
+  onImageClick: (image: { src: string; alt: string; title: string }) => void;
+}
+
+function TabImage({ tab, onImageClick }: TabImageProps) {
+  return (
+    <div className="relative">
+      <div className="relative rounded-lg overflow-hidden shadow-2xl">
+        <Image
+          src={tab.image}
+          alt={tab.imageAlt}
+          width={600}
+          height={400}
+          className="w-full h-auto object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+          onClick={() => onImageClick({
+            src: tab.image,
+            alt: tab.imageAlt,
+            title: tab.title
+          })}
+          priority={false}
+          placeholder="blur"
+          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+        />
+      </div>
+    </div>
+  );
+}
+
 // Tab Button Component with enhanced styling and accessibility
 interface TabButtonProps {
   tab: FinanceTab;
@@ -254,96 +401,12 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
           role="tabpanel"
           id={`tabpanel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
-          className={`grid lg:grid-cols-2 gap-12 items-center transition-opacity duration-300 ease-in-out ${
-            isTransitioning ? 'opacity-50' : 'opacity-100'
-          }`}
         >
-          {/* Content Side */}
-          <div className={`space-y-8 transform transition-all duration-300 ease-in-out ${
-            isTransitioning ? 'translate-y-2' : 'translate-y-0'
-          }`}>
-            <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                {currentTab.title}
-              </h3>
-              <p className="text-lg text-gray-600 mb-6">
-                {currentTab.description}
-              </p>
-            </div>
-
-            {/* Features List */}
-            <div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                Hauptfunktionen
-              </h4>
-              <ul className="space-y-3">
-                {currentTab.features.map((feature, index) => (
-                  <li key={index} className="flex items-start">
-                    <svg
-                      className="h-6 w-6 text-green-500 mr-3 mt-0.5 flex-shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    <span className="text-gray-700">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Data Capabilities */}
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <h5 className="font-semibold text-gray-900 mb-2">Filterung</h5>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  {currentTab.dataCapabilities.filtering.map((item, index) => (
-                    <li key={index}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h5 className="font-semibold text-gray-900 mb-2">Suche</h5>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  {currentTab.dataCapabilities.searching.map((item, index) => (
-                    <li key={index}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-              <div>
-                <h5 className="font-semibold text-gray-900 mb-2">Tracking</h5>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  {currentTab.dataCapabilities.tracking.map((item, index) => (
-                    <li key={index}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Image Side */}
-          <div className="relative">
-            <div className="relative rounded-lg overflow-hidden shadow-2xl">
-              <Image
-                src={currentTab.image}
-                alt={currentTab.imageAlt}
-                width={600}
-                height={400}
-                className="w-full h-auto object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
-                onClick={() => setSelectedImage({
-                  src: currentTab.image,
-                  alt: currentTab.imageAlt,
-                  title: currentTab.title
-                })}
-              />
-            </div>
-          </div>
+          <TabContent 
+            tab={currentTab}
+            isTransitioning={isTransitioning}
+            onImageClick={setSelectedImage}
+          />
         </div>
       </div>
 
