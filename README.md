@@ -100,6 +100,52 @@ Ensuring this metadata is correctly set in Stripe is crucial for the dynamic dis
 
 ## Components
 
+### Financial Analytics (`app/(dashboard)/finanzen/client-wrapper.tsx`)
+
+The financial analytics component provides comprehensive financial tracking and projection calculations for property management.
+
+#### Recent Calculation Improvements
+- **Accurate Monthly Averages**: Improved average calculation logic that only considers months that have already passed in the current year
+- **Time-Aware Projections**: Monthly averages now exclude future months to provide more realistic financial projections
+- **Enhanced Yearly Projections**: Yearly cashflow projections based on actual historical data rather than including future months with zero values
+
+#### Key Features
+- **Monthly Income/Expense Tracking**: Aggregates financial data by month for detailed analysis
+- **Average Monthly Calculations**: Calculates realistic monthly averages based only on elapsed months
+- **Yearly Cashflow Projections**: Projects annual financial performance based on historical trends
+- **Real-time Data Processing**: Processes financial entries to provide up-to-date analytics
+
+#### Calculation Logic
+The component now uses improved logic for financial averages:
+
+```typescript
+// Only consider months that have passed for accurate averages
+const now = new Date();
+const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
+const monthsPassed = currentMonthIndex + 1;
+
+const totalsForPassedMonths = Object.entries(monthlyData).reduce(
+  (acc, [monthKey, data]) => {
+    const monthIndex = Number(monthKey);
+    if (monthIndex <= currentMonthIndex) {
+      acc.income += data.income;
+      acc.expenses += data.expenses;
+    }
+    return acc;
+  },
+  { income: 0, expenses: 0 }
+);
+
+const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
+const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
+```
+
+This ensures that:
+- **January calculations** use only January data (1 month)
+- **June calculations** use January through June data (6 months)
+- **December calculations** use the full year data (12 months)
+- Future months with no data don't artificially lower the averages
+
 ### Operating Costs Table (`components/operating-costs-table.tsx`)
 
 The operating costs table component manages the display and interaction with Betriebskosten (operating costs) data, providing access to water meter readings and cost calculations.
