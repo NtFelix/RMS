@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // TypeScript interfaces for the component
 interface FinanceTab {
@@ -110,43 +111,75 @@ const financeTabsData: FinanceTab[] = [
 // Tab Content Component for displaying individual tab information
 interface TabContentProps {
   tab: FinanceTab;
-  isTransitioning: boolean;
   onImageClick: (image: { src: string; alt: string; title: string }) => void;
 }
 
-function TabContent({ tab, isTransitioning, onImageClick }: TabContentProps) {
+function TabContent({ tab, onImageClick }: TabContentProps) {
   return (
-    <div className={`grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center transition-opacity duration-300 ease-in-out ${
-      isTransitioning ? 'opacity-50' : 'opacity-100'
-    }`}>
+    <motion.div 
+      key={tab.id}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ 
+        duration: 0.4, 
+        ease: [0.4, 0.0, 0.2, 1],
+        staggerChildren: 0.1
+      }}
+      className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center"
+    >
       {/* Image Side - Show first on mobile */}
-      <div className="order-1 lg:order-2">
+      <motion.div 
+        className="order-1 lg:order-2"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
         <TabImage 
           tab={tab} 
           onImageClick={onImageClick}
         />
-      </div>
+      </motion.div>
 
       {/* Content Side - Show second on mobile */}
-      <div className={`order-2 lg:order-1 space-y-6 lg:space-y-8 transform transition-all duration-300 ease-in-out ${
-        isTransitioning ? 'translate-y-2' : 'translate-y-0'
-      }`}>
-        <div>
+      <motion.div 
+        className="order-2 lg:order-1 space-y-6 lg:space-y-8"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, delay: 0.1 }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+        >
           <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-3 lg:mb-4">
             {tab.title}
           </h3>
           <p className="text-base lg:text-lg text-muted-foreground mb-4 lg:mb-6 leading-relaxed">
             {tab.description}
           </p>
-        </div>
+        </motion.div>
 
         {/* Features List */}
-        <FeaturesList features={tab.features} />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          <FeaturesList features={tab.features} />
+        </motion.div>
 
         {/* Data Capabilities */}
-        <DataCapabilities capabilities={tab.dataCapabilities} />
-      </div>
-    </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+        >
+          <DataCapabilities capabilities={tab.dataCapabilities} />
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -163,13 +196,33 @@ function FeaturesList({ features }: FeaturesListProps) {
       </h4>
       <ul className="space-y-3">
         {features.map((feature, index) => (
-          <li key={index} className="flex items-start">
-            <svg
+          <motion.li 
+            key={index} 
+            className="flex items-start group"
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ 
+              duration: 0.3, 
+              delay: index * 0.1,
+              ease: "easeOut"
+            }}
+            whileHover={{ x: 4 }}
+          >
+            <motion.svg
               className="h-6 w-6 text-primary mr-3 mt-0.5 flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
               aria-hidden="true"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ 
+                duration: 0.3, 
+                delay: index * 0.1 + 0.2,
+                type: "spring",
+                stiffness: 200
+              }}
+              whileHover={{ scale: 1.1 }}
             >
               <path
                 strokeLinecap="round"
@@ -177,9 +230,11 @@ function FeaturesList({ features }: FeaturesListProps) {
                 strokeWidth={2}
                 d="M5 13l4 4L19 7"
               />
-            </svg>
-            <span className="text-foreground/90">{feature}</span>
-          </li>
+            </motion.svg>
+            <span className="text-foreground/90 group-hover:text-foreground transition-colors duration-200">
+              {feature}
+            </span>
+          </motion.li>
         ))}
       </ul>
     </div>
@@ -196,32 +251,55 @@ interface DataCapabilitiesProps {
 }
 
 function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
+  const sections = [
+    { title: 'Filterung', items: capabilities.filtering },
+    { title: 'Suche', items: capabilities.searching },
+    { title: 'Tracking', items: capabilities.tracking }
+  ];
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-      <div>
-        <h5 className="font-semibold text-foreground mb-2 text-sm sm:text-base">Filterung</h5>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          {capabilities.filtering.map((item, index) => (
-            <li key={index} className="leading-relaxed">• {item}</li>
-          ))}
-        </ul>
-      </div>
-      <div>
-        <h5 className="font-semibold text-foreground mb-2 text-sm sm:text-base">Suche</h5>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          {capabilities.searching.map((item, index) => (
-            <li key={index} className="leading-relaxed">• {item}</li>
-          ))}
-        </ul>
-      </div>
-      <div className="sm:col-span-2 lg:col-span-1">
-        <h5 className="font-semibold text-foreground mb-2 text-sm sm:text-base">Tracking</h5>
-        <ul className="text-sm text-muted-foreground space-y-1">
-          {capabilities.tracking.map((item, index) => (
-            <li key={index} className="leading-relaxed">• {item}</li>
-          ))}
-        </ul>
-      </div>
+      {sections.map((section, sectionIndex) => (
+        <motion.div 
+          key={section.title}
+          className={sectionIndex === 2 ? "sm:col-span-2 lg:col-span-1" : ""}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ 
+            duration: 0.4, 
+            delay: sectionIndex * 0.1,
+            ease: "easeOut"
+          }}
+          whileHover={{ y: -2 }}
+        >
+          <motion.h5 
+            className="font-semibold text-foreground mb-2 text-sm sm:text-base"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: sectionIndex * 0.1 + 0.2 }}
+          >
+            {section.title}
+          </motion.h5>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            {section.items.map((item, index) => (
+              <motion.li 
+                key={index} 
+                className="leading-relaxed hover:text-foreground transition-colors duration-200"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ 
+                  duration: 0.3, 
+                  delay: sectionIndex * 0.1 + index * 0.05 + 0.3,
+                  ease: "easeOut"
+                }}
+                whileHover={{ x: 2 }}
+              >
+                • {item}
+              </motion.li>
+            ))}
+          </ul>
+        </motion.div>
+      ))}
     </div>
   );
 }
@@ -234,34 +312,66 @@ interface TabImageProps {
 
 function TabImage({ tab, onImageClick }: TabImageProps) {
   return (
-    <div className="relative">
-      <div className="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl">
-        <Image
-          src={tab.image}
-          alt={tab.imageAlt}
-          width={600}
-          height={400}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
-          className="w-full h-auto object-cover cursor-pointer hover:scale-105 transition-transform duration-300 touch-manipulation"
-          onClick={() => onImageClick({
-            src: tab.image,
-            alt: tab.imageAlt,
-            title: tab.title
-          })}
-          priority={false}
-          placeholder="blur"
-          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-        />
-        {/* Click indicator for mobile */}
-        <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center opacity-0 hover:opacity-100 sm:hidden">
-          <div className="bg-white bg-opacity-90 rounded-full p-2">
+    <motion.div 
+      className="relative group"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      <motion.div 
+        className="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl"
+        whileHover={{ 
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          scale: 1.02
+        }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+      >
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <Image
+            src={tab.image}
+            alt={tab.imageAlt}
+            width={600}
+            height={400}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
+            className="w-full h-auto object-cover cursor-pointer touch-manipulation"
+            onClick={() => onImageClick({
+              src: tab.image,
+              alt: tab.imageAlt,
+              title: tab.title
+            })}
+            priority={false}
+            placeholder="blur"
+            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+          />
+        </motion.div>
+        
+        {/* Enhanced hover overlay */}
+        <motion.div 
+          className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
+          initial={{ opacity: 0 }}
+          whileHover={{ opacity: 1 }}
+        >
+          <motion.div 
+            className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg"
+            initial={{ scale: 0, rotate: -180 }}
+            whileHover={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+          >
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
             </svg>
-          </div>
-        </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Subtle glow effect on hover */}
+        <motion.div
+          className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+          style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
+        />
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -276,7 +386,7 @@ interface TabButtonProps {
 
 function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonProps) {
   return (
-    <button
+    <motion.button
       key={tab.id}
       onClick={onClick}
       onKeyDown={onKeyDown}
@@ -294,12 +404,62 @@ function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonPro
           : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50 active:bg-muted'
         }
       `}
+      whileHover={{ 
+        y: -2,
+        scale: 1.02
+      }}
+      whileTap={{ 
+        scale: 0.98,
+        y: 0
+      }}
+      transition={{ 
+        duration: 0.2, 
+        ease: "easeOut" 
+      }}
     >
-      <span className="relative z-10 whitespace-nowrap">{tab.title}</span>
-      {isActive && (
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-50 rounded-t-md transition-opacity duration-300" />
-      )}
-    </button>
+      <motion.span 
+        className="relative z-10 whitespace-nowrap"
+        animate={{ 
+          color: isActive ? 'var(--primary)' : 'var(--muted-foreground)' 
+        }}
+        transition={{ duration: 0.2 }}
+      >
+        {tab.title}
+      </motion.span>
+      
+      <AnimatePresence>
+        {isActive && (
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-50 rounded-t-md"
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 0.5, scaleX: 1 }}
+            exit={{ opacity: 0, scaleX: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            style={{ originX: 0.5 }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Active tab indicator */}
+      <AnimatePresence>
+        {isActive && (
+          <motion.div
+            className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={{ scaleX: 1, opacity: 1 }}
+            exit={{ scaleX: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Hover effect */}
+      <motion.div
+        className="absolute inset-0 bg-primary/5 rounded-t-md opacity-0"
+        whileHover={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+      />
+    </motion.button>
   );
 }
 
@@ -311,7 +471,6 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
     alt: string;
     title: string;
   } | null>(null);
-  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
   
   // Refs for keyboard navigation
   const tabListRef = useRef<HTMLDivElement>(null);
@@ -320,17 +479,10 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
   // Get the currently active tab data
   const currentTab = financeTabsData.find(tab => tab.id === activeTab) || financeTabsData[0];
 
-  // Tab switching logic with smooth transitions
+  // Tab switching logic with Framer Motion animations
   const handleTabChange = (tabId: string) => {
     if (tabId === activeTab) return;
-    
-    setIsTransitioning(true);
-    
-    // Smooth transition effect
-    setTimeout(() => {
-      setActiveTab(tabId);
-      setIsTransitioning(false);
-    }, 150);
+    setActiveTab(tabId);
   };
 
   // Keyboard navigation support for accessibility
@@ -414,50 +566,104 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
           id={`tabpanel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
         >
-          <TabContent 
-            tab={currentTab}
-            isTransitioning={isTransitioning}
-            onImageClick={setSelectedImage}
-          />
+          <AnimatePresence mode="wait">
+            <TabContent 
+              key={activeTab}
+              tab={currentTab}
+              onImageClick={setSelectedImage}
+            />
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Image Modal - Responsive and touch-friendly */}
-      {selectedImage && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <div className="relative w-full h-full max-w-6xl max-h-full flex items-center justify-center">
-            <Image
-              src={selectedImage.src}
-              alt={selectedImage.alt}
-              width={800}
-              height={600}
-              sizes="(max-width: 640px) 95vw, (max-width: 1024px) 90vw, 80vw"
-              className="w-full h-auto max-h-full object-contain rounded-lg"
-            />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSelectedImage(null);
+      {/* Enhanced Image Modal with animations */}
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div 
+            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
+            onClick={() => setSelectedImage(null)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.div 
+              className="relative w-full h-full max-w-6xl max-h-full flex items-center justify-center"
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              transition={{ 
+                duration: 0.4, 
+                ease: [0.4, 0.0, 0.2, 1] 
               }}
-              className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white bg-black bg-opacity-50 rounded-full p-2 sm:p-3 hover:bg-opacity-75 transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
-              aria-label="Close image modal"
+              onClick={(e) => e.stopPropagation()}
             >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            {/* Modal title for context */}
-            <div className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-4 text-center">
-              <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm sm:text-base">
-                {selectedImage.title}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 20, opacity: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <Image
+                  src={selectedImage.src}
+                  alt={selectedImage.alt}
+                  width={800}
+                  height={600}
+                  sizes="(max-width: 640px) 95vw, (max-width: 1024px) 90vw, 80vw"
+                  className="w-full h-auto max-h-full object-contain rounded-lg shadow-2xl"
+                />
+              </motion.div>
+              
+              <motion.button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedImage(null);
+                }}
+                className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white bg-black bg-opacity-50 rounded-full p-2 sm:p-3 hover:bg-opacity-75 transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+                aria-label="Close image modal"
+                initial={{ scale: 0, rotate: -90 }}
+                animate={{ scale: 1, rotate: 0 }}
+                exit={{ scale: 0, rotate: 90 }}
+                transition={{ 
+                  duration: 0.3, 
+                  delay: 0.2,
+                  type: "spring",
+                  stiffness: 200
+                }}
+                whileHover={{ 
+                  scale: 1.1,
+                  backgroundColor: "rgba(0, 0, 0, 0.8)"
+                }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </motion.button>
+              
+              {/* Enhanced modal title with animation */}
+              <motion.div 
+                className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-4 text-center"
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 20, opacity: 0 }}
+                transition={{ duration: 0.3, delay: 0.3 }}
+              >
+                <motion.div 
+                  className="bg-black bg-opacity-50 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm sm:text-base"
+                  whileHover={{ 
+                    backgroundColor: "rgba(0, 0, 0, 0.7)",
+                    scale: 1.02
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
+                  {selectedImage.title}
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }
