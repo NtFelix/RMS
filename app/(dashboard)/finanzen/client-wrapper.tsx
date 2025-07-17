@@ -79,8 +79,22 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   // This will be handled by CommandMenu triggering useModalStore.
 
   // Werte berechnen (keep)
-  const totalIncome = finData.filter(f => f.ist_einnahmen).reduce((sum, item) => sum + Number(item.betrag), 0);
-  const totalExpenses = finData.filter(f => !f.ist_einnahmen).reduce((sum, item) => sum + Number(item.betrag), 0);
+  const monthlyData = finData.reduce((acc, item) => {
+    const month = item.datum ? new Date(item.datum).getMonth() : new Date().getMonth();
+    if (!acc[month]) {
+      acc[month] = { income: 0, expenses: 0 };
+    }
+    if (item.ist_einnahmen) {
+      acc[month].income += Number(item.betrag);
+    } else {
+      acc[month].expenses += Number(item.betrag);
+    }
+    return acc;
+  }, {} as Record<number, { income: number; expenses: number }>);
+
+  const monthlyEntries = Object.values(monthlyData);
+  const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
+  const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
   const monthlyCashflow = totalIncome - totalExpenses;
   const yearlyProjection = monthlyCashflow * 12;
 
