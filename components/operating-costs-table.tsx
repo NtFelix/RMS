@@ -108,7 +108,6 @@ export function OperatingCostsTable({
         toast.success("Wasserzählerdaten erfolgreich gespeichert!");
         // Modal will be closed by the modal component itself
       } else {
-        toast.error(`Fehler beim Speichern: ${result.message}`);
         throw new Error(result.message); // Re-throw to prevent modal from closing
       }
     } catch (error) {
