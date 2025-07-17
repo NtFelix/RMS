@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 
 // TypeScript interfaces for the component
@@ -107,6 +107,43 @@ const financeTabsData: FinanceTab[] = [
   }
 ];
 
+// Tab Button Component with enhanced styling and accessibility
+interface TabButtonProps {
+  tab: FinanceTab;
+  isActive: boolean;
+  onClick: () => void;
+  onKeyDown: (e: React.KeyboardEvent) => void;
+  tabIndex: number;
+}
+
+function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonProps) {
+  return (
+    <button
+      key={tab.id}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      role="tab"
+      aria-selected={isActive}
+      aria-controls={`tabpanel-${tab.id}`}
+      id={`tab-${tab.id}`}
+      tabIndex={isActive ? 0 : -1}
+      className={`
+        relative px-6 py-3 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out
+        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white
+        ${isActive
+          ? 'border-blue-500 text-blue-600 bg-blue-50/50'
+          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50/50'
+        }
+      `}
+    >
+      <span className="relative z-10">{tab.title}</span>
+      {isActive && (
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-50 rounded-t-md transition-opacity duration-300" />
+      )}
+    </button>
+  );
+}
+
 export default function FinanceShowcase({}: FinanceShowcaseProps) {
   // Component state management for active tab tracking
   const [activeTab, setActiveTab] = useState<string>(financeTabsData[0].id);
@@ -115,9 +152,68 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
     alt: string;
     title: string;
   } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState<boolean>(false);
+  
+  // Refs for keyboard navigation
+  const tabListRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Get the currently active tab data
   const currentTab = financeTabsData.find(tab => tab.id === activeTab) || financeTabsData[0];
+
+  // Tab switching logic with smooth transitions
+  const handleTabChange = (tabId: string) => {
+    if (tabId === activeTab) return;
+    
+    setIsTransitioning(true);
+    
+    // Smooth transition effect
+    setTimeout(() => {
+      setActiveTab(tabId);
+      setIsTransitioning(false);
+    }, 150);
+  };
+
+  // Keyboard navigation support for accessibility
+  const handleKeyDown = (e: React.KeyboardEvent, currentTabId: string) => {
+    const currentIndex = financeTabsData.findIndex(tab => tab.id === currentTabId);
+    let newIndex = currentIndex;
+
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        newIndex = currentIndex > 0 ? currentIndex - 1 : financeTabsData.length - 1;
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        newIndex = currentIndex < financeTabsData.length - 1 ? currentIndex + 1 : 0;
+        break;
+      case 'Home':
+        e.preventDefault();
+        newIndex = 0;
+        break;
+      case 'End':
+        e.preventDefault();
+        newIndex = financeTabsData.length - 1;
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        handleTabChange(currentTabId);
+        return;
+      default:
+        return;
+    }
+
+    const newTabId = financeTabsData[newIndex].id;
+    handleTabChange(newTabId);
+    
+    // Focus the new tab button
+    setTimeout(() => {
+      const newTabButton = document.getElementById(`tab-${newTabId}`);
+      newTabButton?.focus();
+    }, 200);
+  };
 
   return (
     <section className="py-24 bg-white">
@@ -134,26 +230,38 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex flex-wrap justify-center mb-12 border-b border-gray-200">
-          {financeTabsData.map((tab) => (
-            <button
+        <div 
+          ref={tabListRef}
+          role="tablist" 
+          aria-label="Finance feature tabs"
+          className="flex flex-wrap justify-center mb-12 border-b border-gray-200"
+        >
+          {financeTabsData.map((tab, index) => (
+            <TabButton
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors duration-200 ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab.title}
-            </button>
+              tab={tab}
+              isActive={activeTab === tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              onKeyDown={(e) => handleKeyDown(e, tab.id)}
+              tabIndex={activeTab === tab.id ? 0 : -1}
+            />
           ))}
         </div>
 
         {/* Tab Content */}
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+        <div 
+          ref={contentRef}
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
+          className={`grid lg:grid-cols-2 gap-12 items-center transition-opacity duration-300 ease-in-out ${
+            isTransitioning ? 'opacity-50' : 'opacity-100'
+          }`}
+        >
           {/* Content Side */}
-          <div className="space-y-8">
+          <div className={`space-y-8 transform transition-all duration-300 ease-in-out ${
+            isTransitioning ? 'translate-y-2' : 'translate-y-0'
+          }`}>
             <div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">
                 {currentTab.title}
