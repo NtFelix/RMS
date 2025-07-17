@@ -79,23 +79,30 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   // This will be handled by CommandMenu triggering useModalStore.
 
   // Werte berechnen (keep)
+  // Werte berechnen (keep)
   const monthlyData = finData.reduce((acc, item) => {
     const month = item.datum ? new Date(item.datum).getMonth() : new Date().getMonth();
     if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0 };
+      acc[month] = { income: 0, expenses: 0, count: 0 };
     }
     if (item.ist_einnahmen) {
       acc[month].income += Number(item.betrag);
     } else {
       acc[month].expenses += Number(item.betrag);
     }
+    acc[month].count = 1; // Mark month as having data
     return acc;
-  }, {} as Record<number, { income: number; expenses: number }>);
+  }, {} as Record<number, { income: number; expenses: number; count: number }>);
 
   const monthlyEntries = Object.values(monthlyData);
+  const numberOfMonthsWithData = monthlyEntries.reduce((sum, item) => sum + item.count, 0);
   const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
   const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
-  const monthlyCashflow = totalIncome - totalExpenses;
+
+  const averageMonthlyIncome = numberOfMonthsWithData > 0 ? totalIncome / numberOfMonthsWithData : 0;
+  const averageMonthlyExpenses = numberOfMonthsWithData > 0 ? totalExpenses / numberOfMonthsWithData : 0;
+
+  const monthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
   const yearlyProjection = monthlyCashflow * 12;
 
   // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
