@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
 
 interface ConfirmationModalConfig {
   title: string;
@@ -83,12 +84,12 @@ interface ModalState {
 
   // Wasserzähler Modal State
   isWasserzaehlerModalOpen: boolean;
-  wasserzaehlerNebenkosten?: any;
-  wasserzaehlerMieterList: any[];
-  wasserzaehlerExistingReadings?: any[] | null;
-  wasserzaehlerOnSave?: (data: any) => Promise<void>;
+  wasserzaehlerNebenkosten?: Nebenkosten;
+  wasserzaehlerMieterList: Mieter[];
+  wasserzaehlerExistingReadings?: Wasserzaehler[] | null;
+  wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<void>;
   isWasserzaehlerModalDirty: boolean;
-  openWasserzaehlerModal: (nebenkosten?: any, mieterList?: any[], existingReadings?: any[] | null, onSave?: (data: any) => Promise<void>) => void;
+  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<void>) => void;
   closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
   setWasserzaehlerModalDirty: (isDirty: boolean) => void;
 

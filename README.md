@@ -171,15 +171,22 @@ The water meter readings modal provides a comprehensive interface for managing w
 - **Global Availability**: Rendered in dashboard layout for access from any dashboard page
 
 #### Modal State Management
-The component uses the global modal store (`useModalStore`) with the following state properties:
+The component uses the global modal store (`useModalStore`) with strongly typed state properties:
 - `isWasserzaehlerModalOpen`: Controls modal visibility
-- `wasserzaehlerNebenkosten`: Operating cost data for the modal
-- `wasserzaehlerMieterList`: List of tenants for meter readings
-- `wasserzaehlerExistingReadings`: Previously saved meter readings
-- `wasserzaehlerOnSave`: Save callback function
+- `wasserzaehlerNebenkosten?: Nebenkosten`: Typed operating cost data for the modal
+- `wasserzaehlerMieterList: Mieter[]`: Strongly typed list of tenants for meter readings
+- `wasserzaehlerExistingReadings?: Wasserzaehler[] | null`: Typed previously saved meter readings
+- `wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<void>`: Typed save callback function
 - `isWasserzaehlerModalDirty`: Tracks unsaved changes
 - `closeWasserzaehlerModal()`: Handles modal closing with dirty state checks
 - `setWasserzaehlerModalDirty()`: Updates dirty state
+
+#### Type Safety Improvements
+Recent updates have enhanced type safety throughout the Wasserzähler modal system:
+- **Strongly Typed Props**: All modal store properties now use proper TypeScript types instead of `any`
+- **Type-Safe Callbacks**: The `openWasserzaehlerModal` function now accepts properly typed parameters
+- **Enhanced IntelliSense**: Developers now get full autocomplete and type checking for all modal interactions
+- **Runtime Safety**: Reduced risk of runtime errors through compile-time type validation
 
 #### Form Data Structure
 ```typescript
