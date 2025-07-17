@@ -100,6 +100,48 @@ Ensuring this metadata is correctly set in Stripe is crucial for the dynamic dis
 
 ## Components
 
+### Feature Sections (`app/modern/components/feature-sections.tsx`)
+
+The feature sections component showcases the key capabilities of the RMS platform through an interactive, visually appealing layout on the modern landing page.
+
+#### Recent Visual Improvements
+- **Enhanced Image Rendering**: Improved image display with proper aspect ratio handling and responsive design
+- **Modern Glass-morphism Effects**: Added backdrop blur and subtle border effects for a premium visual appearance
+- **Optimized Image Loading**: Switched from `layout="fill"` to explicit width/height for better performance and Next.js 15 compatibility
+- **Smooth Hover Interactions**: Refined hover effects with subtle scaling and gradient overlays
+- **Performance Optimizations**: Added priority loading for above-the-fold images and improved object-fit handling
+
+#### Key Features
+- **Responsive Layout**: Alternating left-right layout for visual variety on desktop
+- **Motion Animations**: Smooth scroll-triggered animations using Framer Motion
+- **Product Screenshots**: Real dashboard screenshots showcasing:
+  - `haus-page.png`: House and tenant management interface
+  - `nebenkosten-overview.png`: Operating costs calculation and overview
+  - `finance-page.png`: Financial dashboard with income and expense tracking
+- **Feature Highlights**: Bullet-point lists with check icons for each feature set
+- **German Localization**: All content in German for the target market
+- **Modern Visual Design**: Glass-morphism effects with backdrop blur and subtle borders for enhanced visual appeal
+
+#### Visual Assets
+The component now uses authentic product screenshots located in `/public/product-images/`:
+- **House Management**: Shows the property and tenant management interface
+- **Operating Costs**: Displays the detailed operating cost calculation system
+- **Financial Overview**: Demonstrates the comprehensive financial tracking dashboard
+
+#### Component Structure
+```typescript
+const features = [
+  {
+    title: "Zentrale Haus- & Mieterverwaltung",
+    description: "...",
+    points: ["...", "...", "..."],
+    image: "/product-images/haus-page.png",
+    image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
+  },
+  // Additional features...
+]
+```
+
 ### Operating Costs Table (`components/operating-costs-table.tsx`)
 
 The operating costs table component manages the display and interaction with Betriebskosten (operating costs) data, providing access to water meter readings and cost calculations.

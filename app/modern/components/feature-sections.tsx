@@ -15,8 +15,8 @@ const features = [
       "Einfache Zuweisung von Mietern zu Objekten",
       "Historie aller Aktivitäten pro Mieter",
     ],
-    image: "/placeholder.jpg",
-    image_alt: "Screenshot of Property and Tenant Management",
+    image: "/product-images/haus-page.png",
+    image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
   },
   {
     title: "Detaillierte Betriebskostenabrechnung",
@@ -28,8 +28,8 @@ const features = [
       "PDF-Export für Mieter und Eigentümer",
       "Rechtssichere und transparente Darstellung",
     ],
-    image: "/placeholder.jpg",
-    image_alt: "Screenshot of Operating Cost Statement Generation",
+    image: "/product-images/nebenkosten-overview.png",
+    image_alt: "Screenshot der Betriebskostenabrechnung und Nebenkostenübersicht",
   },
   {
     title: "Umfassende Finanzübersicht",
@@ -41,8 +41,8 @@ const features = [
       "Detaillierte Finanzberichte und Exporte",
       "Transparente Nachverfolgung aller Transaktionen",
     ],
-    image: "/placeholder.jpg",
-    image_alt: "Screenshot of Financial Overview",
+    image: "/product-images/finance-page.png",
+    image_alt: "Screenshot der Finanzübersicht mit Einnahmen und Ausgaben",
   },
 ]
 
@@ -63,15 +63,18 @@ export default function FeatureSections() {
           >
             {/* Image Section */}
             <div className="w-full md:w-1/2">
-              <div className="relative aspect-video rounded-2xl overflow-hidden shadow-2xl group">
-                <Image
-                  src={feature.image}
-                  alt={feature.image_alt}
-                  layout="fill"
-                  objectFit="cover"
-                                      className="mt-6 group-hover:border-primary group-hover:text-primary transition-colors hover:bg-gray-800 hover:text-white duration-300"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl group bg-white/5 backdrop-blur-sm border border-white/10">
+                <div className="relative w-full">
+                  <Image
+                    src={feature.image}
+                    alt={feature.image_alt}
+                    width={800}
+                    height={600}
+                    className="w-full h-auto object-contain rounded-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                    priority={index === 0}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
             </div>
 
