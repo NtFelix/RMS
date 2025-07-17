@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finance Showcase Responsive Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Test different screen sizes */
+        .test-mobile { width: 375px; }
+        .test-tablet { width: 768px; }
+        .test-desktop { width: 1024px; }
+        .test-large { width: 1440px; }
+        
+        .test-container {
+            border: 2px solid #e5e7eb;
+            margin: 20px;
+            overflow: hidden;
+        }
+        
+        .screen-label {
+            background: #f3f4f6;
+            padding: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4">
+    <h1 class="text-2xl font-bold mb-6">Finance Showcase Responsive Design Test</h1>
+    
+    <!-- Mobile View -->
+    <div class="test-container test-mobile">
+        <div class="screen-label">Mobile (375px)</div>
+        <div class="p-4 bg-white">
+            <!-- Tab Navigation - Mobile -->
+            <div class="flex flex-wrap justify-center mb-8 border-b border-gray-200 overflow-x-auto scrollbar-hide">
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50/50 min-h-[44px] touch-manipulation">
+                    <span class="relative z-10 whitespace-nowrap">Dashboard</span>
+                </button>
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-500 min-h-[44px] touch-manipulation">
+                    <span class="relative z-10 whitespace-nowrap">Charts</span>
+                </button>
+            </div>
+            
+            <!-- Content Grid - Mobile -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center">
+                <!-- Image First on Mobile -->
+                <div class="order-1 lg:order-2">
+                    <div class="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl">
+                        <div class="w-full h-32 bg-gray-300 flex items-center justify-center">Image</div>
+                    </div>
+                </div>
+                
+                <!-- Content Second on Mobile -->
+                <div class="order-2 lg:order-1 space-y-6 lg:space-y-8">
+                    <h3 class="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Übersicht</h3>
+                    
+                    <!-- Data Capabilities - Mobile -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        <div>
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Filterung</h5>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li class="leading-relaxed">• Nach Zeitraum</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Suche</h5>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li class="leading-relaxed">• Transaktionsname</li>
+                            </ul>
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-1">
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Tracking</h5>
+                            <ul class="text-sm text-gray-600 space-y-1">
+                                <li class="leading-relaxed">• Mieteinnahmen</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tablet View -->
+    <div class="test-container test-tablet">
+        <div class="screen-label">Tablet (768px)</div>
+        <div class="p-4 bg-white">
+            <!-- Tab Navigation - Tablet -->
+            <div class="flex flex-wrap justify-center mb-8 border-b border-gray-200">
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50/50 min-h-[44px]">
+                    <span class="relative z-10 whitespace-nowrap">Dashboard Übersicht</span>
+                </button>
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-500 min-h-[44px]">
+                    <span class="relative z-10 whitespace-nowrap">Charts & Analytics</span>
+                </button>
+            </div>
+            
+            <!-- Content Grid - Tablet -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center">
+                <div class="order-1 lg:order-2">
+                    <div class="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl">
+                        <div class="w-full h-40 bg-gray-300 flex items-center justify-center">Image</div>
+                    </div>
+                </div>
+                
+                <div class="order-2 lg:order-1 space-y-6 lg:space-y-8">
+                    <h3 class="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Übersicht</h3>
+                    
+                    <!-- Data Capabilities - Tablet (2 columns) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        <div>
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Filterung</h5>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Suche</h5>
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-1">
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Tracking</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Desktop View -->
+    <div class="test-container test-desktop">
+        <div class="screen-label">Desktop (1024px)</div>
+        <div class="p-4 bg-white">
+            <!-- Tab Navigation - Desktop -->
+            <div class="flex flex-wrap justify-center mb-8 border-b border-gray-200">
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-blue-500 text-blue-600 bg-blue-50/50">
+                    <span class="relative z-10 whitespace-nowrap">Dashboard Übersicht</span>
+                </button>
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-500">
+                    <span class="relative z-10 whitespace-nowrap">Charts & Analytics</span>
+                </button>
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-500">
+                    <span class="relative z-10 whitespace-nowrap">Transaktionsverwaltung</span>
+                </button>
+                <button class="relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 border-transparent text-gray-500">
+                    <span class="relative z-10 whitespace-nowrap">Reporting & Export</span>
+                </button>
+            </div>
+            
+            <!-- Content Grid - Desktop (2 columns) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center">
+                <div class="order-2 lg:order-1 space-y-6 lg:space-y-8">
+                    <h3 class="text-xl sm:text-2xl font-bold text-gray-900">Dashboard Übersicht</h3>
+                    
+                    <!-- Data Capabilities - Desktop (3 columns) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                        <div>
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Filterung</h5>
+                        </div>
+                        <div>
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Suche</h5>
+                        </div>
+                        <div class="sm:col-span-2 lg:col-span-1">
+                            <h5 class="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Tracking</h5>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="order-1 lg:order-2">
+                    <div class="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl">
+                        <div class="w-full h-48 bg-gray-300 flex items-center justify-center">Image</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8 p-4 bg-white rounded-lg">
+        <h2 class="text-lg font-bold mb-4">Responsive Design Features Implemented:</h2>
+        <ul class="space-y-2 text-sm">
+            <li>✅ <strong>Mobile-first responsive layout</strong> - Uses grid-cols-1 base, then sm:grid-cols-2, lg:grid-cols-3</li>
+            <li>✅ <strong>Touch-friendly tab navigation</strong> - min-h-[44px] for touch targets, touch-manipulation CSS</li>
+            <li>✅ <strong>Optimized image display</strong> - Responsive sizes attribute, different shadow levels per breakpoint</li>
+            <li>✅ <strong>Content reordering</strong> - Image shows first on mobile (order-1), content second (order-2)</li>
+            <li>✅ <strong>Responsive typography</strong> - text-xl sm:text-2xl scaling, text-xs sm:text-sm for tabs</li>
+            <li>✅ <strong>Adaptive spacing</strong> - gap-4 sm:gap-6, space-y-6 lg:space-y-8</li>
+            <li>✅ <strong>Modal optimization</strong> - Responsive padding, touch-friendly close button</li>
+            <li>✅ <strong>Horizontal scroll for tabs</strong> - overflow-x-auto for narrow screens</li>
+        </ul>
+    </div>
+</body>
+</html>

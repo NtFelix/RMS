@@ -278,6 +278,9 @@ function LandingPageContent() {
         <div id="features">
           <FeatureSections />
         </div>
+        <div id="finance-showcase">
+          <FinanceShowcase />
+        </div>
         <div id="more-features">
           <MoreFeatures />
         </div>

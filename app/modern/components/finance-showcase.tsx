@@ -116,18 +116,26 @@ interface TabContentProps {
 
 function TabContent({ tab, isTransitioning, onImageClick }: TabContentProps) {
   return (
-    <div className={`grid lg:grid-cols-2 gap-12 items-center transition-opacity duration-300 ease-in-out ${
+    <div className={`grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center transition-opacity duration-300 ease-in-out ${
       isTransitioning ? 'opacity-50' : 'opacity-100'
     }`}>
-      {/* Content Side */}
-      <div className={`space-y-8 transform transition-all duration-300 ease-in-out ${
+      {/* Image Side - Show first on mobile */}
+      <div className="order-1 lg:order-2">
+        <TabImage 
+          tab={tab} 
+          onImageClick={onImageClick}
+        />
+      </div>
+
+      {/* Content Side - Show second on mobile */}
+      <div className={`order-2 lg:order-1 space-y-6 lg:space-y-8 transform transition-all duration-300 ease-in-out ${
         isTransitioning ? 'translate-y-2' : 'translate-y-0'
       }`}>
         <div>
-          <h3 className="text-2xl font-bold text-gray-900 mb-4">
+          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 lg:mb-4">
             {tab.title}
           </h3>
-          <p className="text-lg text-gray-600 mb-6">
+          <p className="text-base lg:text-lg text-gray-600 mb-4 lg:mb-6 leading-relaxed">
             {tab.description}
           </p>
         </div>
@@ -138,12 +146,6 @@ function TabContent({ tab, isTransitioning, onImageClick }: TabContentProps) {
         {/* Data Capabilities */}
         <DataCapabilities capabilities={tab.dataCapabilities} />
       </div>
-
-      {/* Image Side */}
-      <TabImage 
-        tab={tab} 
-        onImageClick={onImageClick}
-      />
     </div>
   );
 }
@@ -195,28 +197,28 @@ interface DataCapabilitiesProps {
 
 function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
   return (
-    <div className="grid md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       <div>
-        <h5 className="font-semibold text-gray-900 mb-2">Filterung</h5>
+        <h5 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Filterung</h5>
         <ul className="text-sm text-gray-600 space-y-1">
           {capabilities.filtering.map((item, index) => (
-            <li key={index}>• {item}</li>
+            <li key={index} className="leading-relaxed">• {item}</li>
           ))}
         </ul>
       </div>
       <div>
-        <h5 className="font-semibold text-gray-900 mb-2">Suche</h5>
+        <h5 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Suche</h5>
         <ul className="text-sm text-gray-600 space-y-1">
           {capabilities.searching.map((item, index) => (
-            <li key={index}>• {item}</li>
+            <li key={index} className="leading-relaxed">• {item}</li>
           ))}
         </ul>
       </div>
-      <div>
-        <h5 className="font-semibold text-gray-900 mb-2">Tracking</h5>
+      <div className="sm:col-span-2 lg:col-span-1">
+        <h5 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Tracking</h5>
         <ul className="text-sm text-gray-600 space-y-1">
           {capabilities.tracking.map((item, index) => (
-            <li key={index}>• {item}</li>
+            <li key={index} className="leading-relaxed">• {item}</li>
           ))}
         </ul>
       </div>
@@ -233,13 +235,14 @@ interface TabImageProps {
 function TabImage({ tab, onImageClick }: TabImageProps) {
   return (
     <div className="relative">
-      <div className="relative rounded-lg overflow-hidden shadow-2xl">
+      <div className="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl">
         <Image
           src={tab.image}
           alt={tab.imageAlt}
           width={600}
           height={400}
-          className="w-full h-auto object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
+          className="w-full h-auto object-cover cursor-pointer hover:scale-105 transition-transform duration-300 touch-manipulation"
           onClick={() => onImageClick({
             src: tab.image,
             alt: tab.imageAlt,
@@ -249,6 +252,14 @@ function TabImage({ tab, onImageClick }: TabImageProps) {
           placeholder="blur"
           blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
         />
+        {/* Click indicator for mobile */}
+        <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-300 flex items-center justify-center opacity-0 hover:opacity-100 sm:hidden">
+          <div className="bg-white bg-opacity-90 rounded-full p-2">
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+            </svg>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -275,15 +286,16 @@ function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonPro
       id={`tab-${tab.id}`}
       tabIndex={isActive ? 0 : -1}
       className={`
-        relative px-6 py-3 text-sm font-medium border-b-2 transition-all duration-300 ease-in-out
+        relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 
+        transition-all duration-300 ease-in-out min-h-[44px] touch-manipulation
         focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white
         ${isActive
           ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50/50'
+          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50/50 active:bg-gray-100/50'
         }
       `}
     >
-      <span className="relative z-10">{tab.title}</span>
+      <span className="relative z-10 whitespace-nowrap">{tab.title}</span>
       {isActive && (
         <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-50 rounded-t-md transition-opacity duration-300" />
       )}
@@ -363,14 +375,14 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
   };
 
   return (
-    <section className="py-24 bg-white">
+    <section className="py-12 sm:py-16 lg:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl mb-4">
+        <div className="text-center mb-12 sm:mb-16">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
             Umfassende Finanzverwaltung
           </h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
             Behalten Sie den Überblick über alle Ihre Immobilienfinanzen mit leistungsstarken 
             Analyse- und Tracking-Tools
           </p>
@@ -381,7 +393,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
           ref={tabListRef}
           role="tablist" 
           aria-label="Finance feature tabs"
-          className="flex flex-wrap justify-center mb-12 border-b border-gray-200"
+          className="flex flex-wrap justify-center mb-8 sm:mb-12 border-b border-gray-200 overflow-x-auto scrollbar-hide"
         >
           {financeTabsData.map((tab, index) => (
             <TabButton
@@ -410,28 +422,39 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
         </div>
       </div>
 
-      {/* Image Modal (placeholder for future implementation) */}
+      {/* Image Modal - Responsive and touch-friendly */}
       {selectedImage && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
           onClick={() => setSelectedImage(null)}
         >
-          <div className="relative max-w-4xl max-h-full">
+          <div className="relative w-full h-full max-w-6xl max-h-full flex items-center justify-center">
             <Image
               src={selectedImage.src}
               alt={selectedImage.alt}
               width={800}
               height={600}
-              className="w-full h-auto object-contain"
+              sizes="(max-width: 640px) 95vw, (max-width: 1024px) 90vw, 80vw"
+              className="w-full h-auto max-h-full object-contain rounded-lg"
             />
             <button
-              onClick={() => setSelectedImage(null)}
-              className="absolute top-4 right-4 text-white bg-black bg-opacity-50 rounded-full p-2 hover:bg-opacity-75"
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedImage(null);
+              }}
+              className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white bg-black bg-opacity-50 rounded-full p-2 sm:p-3 hover:bg-opacity-75 transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
+              aria-label="Close image modal"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+            {/* Modal title for context */}
+            <div className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-4 text-center">
+              <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-lg text-sm sm:text-base">
+                {selectedImage.title}
+              </div>
+            </div>
           </div>
         </div>
       )}

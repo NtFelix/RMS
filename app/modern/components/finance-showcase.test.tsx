@@ -295,13 +295,13 @@ describe('FinanceShowcase', () => {
     it('applies correct CSS classes for responsive design', () => {
       render(<FinanceShowcase />);
       
-      // Check for responsive grid classes
+      // Check for responsive grid classes - mobile-first approach
       const contentGrid = screen.getByRole('tabpanel').firstChild;
-      expect(contentGrid).toHaveClass('grid', 'lg:grid-cols-2');
+      expect(contentGrid).toHaveClass('grid', 'grid-cols-1', 'lg:grid-cols-2');
       
-      // Check for responsive capability grid
+      // Check for responsive capability grid - mobile-first approach
       const capabilitiesSection = screen.getByText('Filterung').closest('.grid');
-      expect(capabilitiesSection).toHaveClass('md:grid-cols-3');
+      expect(capabilitiesSection).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3');
     });
   });
 
