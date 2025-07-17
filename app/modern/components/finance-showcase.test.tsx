@@ -48,7 +48,7 @@ describe('FinanceShowcase', () => {
       
       const dashboardTab = screen.getByRole('tab', { name: /Dashboard Übersicht/ });
       expect(dashboardTab).toHaveAttribute('aria-selected', 'true');
-      expect(dashboardTab).toHaveClass('border-blue-500', 'text-blue-600');
+      expect(dashboardTab).toHaveClass('border-primary', 'text-primary');
     });
 
     it('renders tab content for the active tab', () => {

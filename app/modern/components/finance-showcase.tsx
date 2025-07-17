@@ -132,10 +132,10 @@ function TabContent({ tab, isTransitioning, onImageClick }: TabContentProps) {
         isTransitioning ? 'translate-y-2' : 'translate-y-0'
       }`}>
         <div>
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 lg:mb-4">
+          <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-3 lg:mb-4">
             {tab.title}
           </h3>
-          <p className="text-base lg:text-lg text-gray-600 mb-4 lg:mb-6 leading-relaxed">
+          <p className="text-base lg:text-lg text-muted-foreground mb-4 lg:mb-6 leading-relaxed">
             {tab.description}
           </p>
         </div>
@@ -158,14 +158,14 @@ interface FeaturesListProps {
 function FeaturesList({ features }: FeaturesListProps) {
   return (
     <div>
-      <h4 className="text-lg font-semibold text-gray-900 mb-4">
+      <h4 className="text-lg font-semibold text-foreground mb-4">
         Hauptfunktionen
       </h4>
       <ul className="space-y-3">
         {features.map((feature, index) => (
           <li key={index} className="flex items-start">
             <svg
-              className="h-6 w-6 text-green-500 mr-3 mt-0.5 flex-shrink-0"
+              className="h-6 w-6 text-primary mr-3 mt-0.5 flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -178,7 +178,7 @@ function FeaturesList({ features }: FeaturesListProps) {
                 d="M5 13l4 4L19 7"
               />
             </svg>
-            <span className="text-gray-700">{feature}</span>
+            <span className="text-foreground/90">{feature}</span>
           </li>
         ))}
       </ul>
@@ -199,24 +199,24 @@ function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       <div>
-        <h5 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Filterung</h5>
-        <ul className="text-sm text-gray-600 space-y-1">
+        <h5 className="font-semibold text-foreground mb-2 text-sm sm:text-base">Filterung</h5>
+        <ul className="text-sm text-muted-foreground space-y-1">
           {capabilities.filtering.map((item, index) => (
             <li key={index} className="leading-relaxed">• {item}</li>
           ))}
         </ul>
       </div>
       <div>
-        <h5 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Suche</h5>
-        <ul className="text-sm text-gray-600 space-y-1">
+        <h5 className="font-semibold text-foreground mb-2 text-sm sm:text-base">Suche</h5>
+        <ul className="text-sm text-muted-foreground space-y-1">
           {capabilities.searching.map((item, index) => (
             <li key={index} className="leading-relaxed">• {item}</li>
           ))}
         </ul>
       </div>
       <div className="sm:col-span-2 lg:col-span-1">
-        <h5 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base">Tracking</h5>
-        <ul className="text-sm text-gray-600 space-y-1">
+        <h5 className="font-semibold text-foreground mb-2 text-sm sm:text-base">Tracking</h5>
+        <ul className="text-sm text-muted-foreground space-y-1">
           {capabilities.tracking.map((item, index) => (
             <li key={index} className="leading-relaxed">• {item}</li>
           ))}
@@ -288,10 +288,10 @@ function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonPro
       className={`
         relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 
         transition-all duration-300 ease-in-out min-h-[44px] touch-manipulation
-        focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white
+        focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background
         ${isActive
-          ? 'border-blue-500 text-blue-600 bg-blue-50/50'
-          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50/50 active:bg-gray-100/50'
+          ? 'border-primary text-primary bg-primary/10'
+          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50 active:bg-muted'
         }
       `}
     >
@@ -375,14 +375,14 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
   };
 
   return (
-    <section className="py-12 sm:py-16 lg:py-24 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-24 px-4 bg-background text-foreground">
+      <div className="max-w-7xl mx-auto">
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-16">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3 sm:mb-4">
             Umfassende Finanzverwaltung
           </h2>
-          <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
             Behalten Sie den Überblick über alle Ihre Immobilienfinanzen mit leistungsstarken 
             Analyse- und Tracking-Tools
           </p>
@@ -393,7 +393,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
           ref={tabListRef}
           role="tablist" 
           aria-label="Finance feature tabs"
-          className="flex flex-wrap justify-center mb-8 sm:mb-12 border-b border-gray-200 overflow-x-auto scrollbar-hide"
+          className="flex flex-wrap justify-center mb-8 sm:mb-12 border-b border-border overflow-x-auto scrollbar-hide"
         >
           {financeTabsData.map((tab, index) => (
             <TabButton
