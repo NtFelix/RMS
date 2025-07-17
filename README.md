@@ -99,7 +99,6 @@ When creating or updating products and their prices in your Stripe Dashboard:
 Ensuring this metadata is correctly set in Stripe is crucial for the dynamic display of plan details and for the enforcement of plan limits (like the 'Wohnungen' count).
 
 ## Components
-
 ### Feature Sections (`app/modern/components/feature-sections.tsx`)
 
 The feature sections component showcases the key capabilities of the RMS platform through an interactive, visually appealing layout on the modern landing page.
@@ -132,19 +131,61 @@ The component now uses authentic product screenshots located in `/public/product
 - **Financial Overview**: Demonstrates the comprehensive financial tracking dashboard
 
 #### Component Structure
-```typescript
+```javascript
 const features = [
-  {
-    title: "Zentrale Haus- & Mieterverwaltung",
-    description: "...",
-    points: ["...", "...", "..."],
-    image: "/product-images/haus-page.png",
-    image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
-  },
-  // Additional features...
+{
+title: "Zentrale Haus- & Mieterverwaltung",
+description: "...",
+points: ["...", "...", "..."],
+image: "/product-images/haus-page.png",
+image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
+},
+// Additional features...
 ]
 ```
 
+### Financial Analytics (`app/(dashboard)/finanzen/client-wrapper.tsx`)
+
+The financial analytics component provides comprehensive financial tracking and projection calculations for property management.
+
+#### Recent Calculation Improvements
+- **Accurate Monthly Averages**: Improved average calculation logic that only considers months that have already passed in the current year
+- **Time-Aware Projections**: Monthly averages now exclude future months to provide more realistic financial projections
+- **Enhanced Yearly Projections**: Yearly cashflow projections based on actual historical data rather than including future months with zero values
+
+#### Key Features
+- **Monthly Income/Expense Tracking**: Aggregates financial data by month for detailed analysis
+- **Average Monthly Calculations**: Calculates realistic monthly averages based only on elapsed months
+- **Yearly Cashflow Projections**: Projects annual financial performance based on historical trends
+- **Real-time Data Processing**: Processes financial entries to provide up-to-date analytics
+
+#### Calculation Logic
+The component now uses improved logic for financial averages:
+```javascript
+// Only consider months that have passed for accurate averages
+const now = new Date();
+const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
+const monthsPassed = currentMonthIndex + 1;
+const totalsForPassedMonths = Object.entries(monthlyData).reduce(
+(acc, [monthKey, data]) => {
+const monthIndex = Number(monthKey);
+if (monthIndex <= currentMonthIndex) {
+acc.income += data.income;
+acc.expenses += data.expenses;
+}
+return acc;
+},
+{ income: 0, expenses: 0 }
+);
+const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
+const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
+```
+
+This ensures that:
+- **January calculations** use only January data (1 month)
+- **June calculations** use January through June data (6 months)
+- **December calculations** use the full year data (12 months)
+- Future months with no data don't artificially lower the averages
 ### Operating Costs Table (`components/operating-costs-table.tsx`)
 
 The operating costs table component manages the display and interaction with Betriebskosten (operating costs) data, providing access to water meter readings and cost calculations.
