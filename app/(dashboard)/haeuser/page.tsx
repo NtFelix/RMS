@@ -37,9 +37,11 @@ export default async function HaeuserPage() {
     }, 0);
 
     let displaySize;
-    if (typeof house.groesse === 'number') {
+    // Check if groesse is a non-null number.
+    if (house.groesse !== null && house.groesse !== undefined) {
       displaySize = house.groesse.toString();
     } else {
+      // If groesse is null or undefined, calculate it from apartments.
       const calculatedSize = apts.reduce((sum, apt) => sum + Number(apt.groesse), 0);
       displaySize = calculatedSize.toString();
     }
