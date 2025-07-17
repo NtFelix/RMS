@@ -80,15 +80,15 @@ export function WasserzaehlerModal() {
   }, [formData, initialFormData, setWasserzaehlerModalDirty]);
 
   const handleInputChange = (index: number, field: keyof WasserzaehlerFormEntry, value: any) => {
-    const updatedFormData = [...formData];
-    (updatedFormData[index] as any)[field] = value;
-    setFormData(updatedFormData);
+    setFormData(formData.map((entry, i) =>
+      i === index ? { ...entry, [field]: value } : entry
+    ));
   };
 
   const handleAbleseDatumChange = (index: number, date: Date | undefined) => {
-    const updatedFormData = [...formData];
-    updatedFormData[index].ablese_datum = date ? format(date, "yyyy-MM-dd") : null;
-    setFormData(updatedFormData);
+    setFormData(formData.map((entry, i) =>
+      i === index ? { ...entry, ablese_datum: date ? format(date, "yyyy-MM-dd") : null } : entry
+    ));
   };
 
   const handleSubmit = async () => {
