@@ -481,6 +481,9 @@ function ImageModal({ selectedImage, onClose }: ImageModalProps) {
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
@@ -502,7 +505,7 @@ function ImageModal({ selectedImage, onClose }: ImageModalProps) {
         </button>
         
         {/* Image Title */}
-        <div className="absolute -top-12 left-0 text-white text-lg font-semibold">
+        <div id="modal-title" className="absolute -top-12 left-0 text-white text-lg font-semibold">
           {selectedImage.title}
         </div>
 
