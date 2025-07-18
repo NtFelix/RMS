@@ -30,6 +30,10 @@ interface FinanceShowcaseState {
     alt: string;
     title: string;
   } | null;
+  isLoading: boolean;
+  imageErrors: Record<string, boolean>;
+  tabTransitionLoading: boolean;
+  hasInitialized: boolean;
 }
 
 // Tab data structure and configuration
@@ -112,9 +116,12 @@ const financeTabsData: FinanceTab[] = [
 interface TabContentProps {
   tab: FinanceTab;
   onImageClick: (image: { src: string; alt: string; title: string }) => void;
+  hasImageError?: boolean;
+  onImageError?: () => void;
+  onImageLoad?: () => void;
 }
 
-function TabContent({ tab, onImageClick }: TabContentProps) {
+function TabContent({ tab, onImageClick, hasImageError, onImageError, onImageLoad }: TabContentProps) {
   return (
     <motion.div 
       key={tab.id}
@@ -138,6 +145,9 @@ function TabContent({ tab, onImageClick }: TabContentProps) {
         <TabImage 
           tab={tab} 
           onImageClick={onImageClick}
+          hasError={hasImageError}
+          onImageError={onImageError}
+          onImageLoad={onImageLoad}
         />
       </motion.div>
 
@@ -304,13 +314,149 @@ function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
   );
 }
 
-// Tab Image Component with Next.js Image optimization
+// Tab Image Component with enhanced error handling and loading states
 interface TabImageProps {
   tab: FinanceTab;
   onImageClick: (image: { src: string; alt: string; title: string }) => void;
+  hasError?: boolean;
+  onImageError?: () => void;
+  onImageLoad?: () => void;
 }
 
-function TabImage({ tab, onImageClick }: TabImageProps) {
+function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: TabImageProps) {
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(hasError || false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [imageLoadStartTime, setImageLoadStartTime] = useState<number>(0);
+  
+  const MAX_RETRY_ATTEMPTS = 2;
+  const LOADING_TIMEOUT_MS = 10000; // 10 seconds
+  const RETRY_DELAY_MS = 1000; // 1 second delay between retries
+
+  useEffect(() => {
+    // Set a timeout for image loading
+    const timeout = setTimeout(() => {
+      if (isImageLoading) {
+        console.warn(`Image loading timeout for ${tab.title}`);
+        handleImageError();
+      }
+    }, LOADING_TIMEOUT_MS);
+    
+    setLoadingTimeout(timeout);
+    
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [isImageLoading, tab.title]);
+
+  const handleImageLoad = () => {
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+    setIsImageLoading(false);
+    setImageError(false);
+    setRetryCount(0);
+    onImageLoad?.();
+  };
+
+  const handleImageError = () => {
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      setLoadingTimeout(null);
+    }
+    setIsImageLoading(false);
+    setImageError(true);
+    onImageError?.();
+    console.error(`Failed to load image for ${tab.title}: ${tab.image}`);
+  };
+
+  const handleRetryImage = () => {
+    if (retryCount < MAX_RETRY_ATTEMPTS) {
+      setRetryCount(prev => prev + 1);
+      setImageError(false);
+      setIsImageLoading(true);
+      setImageLoadStartTime(Date.now());
+      
+      // Add delay before retry to avoid overwhelming the server
+      setTimeout(() => {
+        // Force image reload by adding timestamp
+        const img = document.createElement('img');
+        img.onload = handleImageLoad;
+        img.onerror = handleImageError;
+        img.src = `${tab.image}?retry=${retryCount + 1}&t=${Date.now()}`;
+      }, RETRY_DELAY_MS);
+    }
+  };
+
+  // Enhanced fallback image placeholder with retry option
+  const FallbackImage = () => (
+    <div className="w-full h-[400px] bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20">
+      <div className="text-center space-y-4 p-6">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 0.5, type: "spring" }}
+        >
+          <svg className="w-16 h-16 text-muted-foreground mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </motion.div>
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">Bild nicht verfügbar</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">
+            {tab.title} Screenshot
+          </p>
+          {retryCount < MAX_RETRY_ATTEMPTS && (
+            <motion.button
+              onClick={handleRetryImage}
+              className="mt-3 px-3 py-1 text-xs bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Erneut versuchen ({retryCount + 1}/{MAX_RETRY_ATTEMPTS + 1})
+            </motion.button>
+          )}
+          {retryCount >= MAX_RETRY_ATTEMPTS && (
+            <p className="text-xs text-destructive/70 mt-2">
+              Maximale Anzahl von Versuchen erreicht
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Enhanced loading skeleton with progress indication
+  const LoadingSkeleton = () => (
+    <div className="w-full h-[400px] bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg animate-pulse flex items-center justify-center relative overflow-hidden">
+      {/* Shimmer effect */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+        animate={{ x: [-100, 400] }}
+        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+      />
+      
+      <div className="text-center space-y-3">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+        >
+          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+        </motion.div>
+        <p className="text-xs text-muted-foreground">Bild wird geladen...</p>
+        {retryCount > 0 && (
+          <p className="text-xs text-muted-foreground/70">
+            Versuch {retryCount + 1}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <motion.div 
       className="relative group"
@@ -321,55 +467,217 @@ function TabImage({ tab, onImageClick }: TabImageProps) {
         className="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl"
         whileHover={{ 
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-          scale: 1.02
+          scale: imageError ? 1 : 1.02
         }}
         transition={{ duration: 0.3, ease: "easeOut" }}
       >
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        >
-          <Image
-            src={tab.image}
-            alt={tab.imageAlt}
-            width={600}
-            height={400}
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
-            className="w-full h-auto object-cover cursor-pointer touch-manipulation"
-            onClick={() => onImageClick({
-              src: tab.image,
-              alt: tab.imageAlt,
-              title: tab.title
-            })}
-            priority={false}
-            placeholder="blur"
-            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
-          />
-        </motion.div>
-        
-        {/* Enhanced hover overlay */}
-        <motion.div 
-          className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          whileHover={{ opacity: 1 }}
-        >
-          <motion.div 
-            className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg"
-            initial={{ scale: 0, rotate: -180 }}
-            whileHover={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-            </svg>
-          </motion.div>
-        </motion.div>
+        {imageError ? (
+          <FallbackImage />
+        ) : (
+          <>
+            {isImageLoading && <LoadingSkeleton />}
+            <motion.div
+              whileHover={{ scale: imageError ? 1 : 1.05 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+              style={{ display: isImageLoading ? 'none' : 'block' }}
+            >
+              <Image
+                src={tab.image}
+                alt={tab.imageAlt}
+                width={600}
+                height={400}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 600px"
+                className="w-full h-auto object-cover cursor-pointer touch-manipulation"
+                onClick={() => !imageError && onImageClick({
+                  src: tab.image,
+                  alt: tab.imageAlt,
+                  title: tab.title
+                })}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
+                priority={false}
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
+              />
+            </motion.div>
+            
+            {/* Enhanced hover overlay - only show if image loaded successfully */}
+            {!imageError && !isImageLoading && (
+              <motion.div 
+                className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
+                initial={{ opacity: 0 }}
+                whileHover={{ opacity: 1 }}
+              >
+                <motion.div 
+                  className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg"
+                  initial={{ scale: 0, rotate: -180 }}
+                  whileHover={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+                >
+                  <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                  </svg>
+                </motion.div>
+              </motion.div>
+            )}
 
-        {/* Subtle glow effect on hover */}
+            {/* Subtle glow effect on hover - only show if image loaded successfully */}
+            {!imageError && !isImageLoading && (
+              <motion.div
+                className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
+              />
+            )}
+          </>
+        )}
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// Image Modal Component with error handling
+interface ImageModalProps {
+  selectedImage: {
+    src: string;
+    alt: string;
+    title: string;
+  };
+  onClose: () => void;
+}
+
+function ImageModal({ selectedImage, onClose }: ImageModalProps) {
+  const [imageError, setImageError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    setImageError(false);
+  };
+
+  const handleImageError = () => {
+    setIsLoading(false);
+    setImageError(true);
+    console.error(`Failed to load modal image: ${selectedImage.src}`);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  useEffect(() => {
+    // Add escape key listener
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [onClose]);
+
+  return (
+    <motion.div
+      className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
+      onClick={handleBackdropClick}
+      onKeyDown={handleKeyDown}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <motion.div
+        className="relative max-w-4xl max-h-full bg-white rounded-lg overflow-hidden shadow-2xl"
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.8, opacity: 0 }}
+        transition={{ duration: 0.3, type: "spring", stiffness: 200 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <motion.button
+          onClick={onClose}
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white bg-black bg-opacity-50 rounded-full p-2 sm:p-3 hover:bg-opacity-75 transition-all duration-200 z-10"
+          aria-label="Close image modal"
+          initial={{ scale: 0, rotate: -90 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 0.3, delay: 0.2, type: "spring", stiffness: 200 }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </motion.button>
+
+        {/* Image content */}
+        <div className="relative">
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-muted">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+              >
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </motion.div>
+            </div>
+          )}
+
+          {imageError ? (
+            <div className="flex items-center justify-center p-8 bg-muted min-h-[400px]">
+              <div className="text-center space-y-4">
+                <svg className="w-16 h-16 text-muted-foreground mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <div>
+                  <p className="text-lg font-medium text-muted-foreground">Bild konnte nicht geladen werden</p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">{selectedImage.title}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Image
+              src={selectedImage.src}
+              alt={selectedImage.alt}
+              width={800}
+              height={600}
+              className="w-full h-auto max-h-[80vh] object-contain"
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              priority
+            />
+          )}
+        </div>
+
+        {/* Image title */}
         <motion.div
-          className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-          style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
-        />
+          className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4"
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.3 }}
+        >
+          <h3 id="modal-title" className="text-white text-lg font-semibold text-center">
+            {selectedImage.title}
+          </h3>
+        </motion.div>
       </motion.div>
     </motion.div>
   );
@@ -465,24 +773,125 @@ function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonPro
 
 export default function FinanceShowcase({}: FinanceShowcaseProps) {
   // Component state management for active tab tracking
-  const [activeTab, setActiveTab] = useState<string>(financeTabsData[0].id);
+  const [activeTab, setActiveTab] = useState<string>(financeTabsData[0]?.id || 'dashboard');
   const [selectedImage, setSelectedImage] = useState<{
     src: string;
     alt: string;
     title: string;
   } | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [tabTransitionLoading, setTabTransitionLoading] = useState<boolean>(false);
+  const [hasInitialized, setHasInitialized] = useState<boolean>(false);
+  const [componentError, setComponentError] = useState<string | null>(null);
   
   // Refs for keyboard navigation
   const tabListRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Get the currently active tab data
-  const currentTab = financeTabsData.find(tab => tab.id === activeTab) || financeTabsData[0];
+  // Initialize component with error boundary
+  useEffect(() => {
+    try {
+      if (financeTabsData.length === 0) {
+        throw new Error('No finance tab data available');
+      }
+      
+      // Validate tab data structure
+      const invalidTabs = financeTabsData.filter(tab => 
+        !tab.id || !tab.title || !tab.description || !tab.image
+      );
+      
+      if (invalidTabs.length > 0) {
+        console.warn('Invalid tab data detected:', invalidTabs);
+      }
+      
+      setHasInitialized(true);
+    } catch (error) {
+      console.error('Error initializing FinanceShowcase:', error);
+      setComponentError(error instanceof Error ? error.message : 'Unknown initialization error');
+    }
+  }, []);
 
-  // Tab switching logic with Framer Motion animations
+  // Get the currently active tab data with comprehensive fallback handling
+  const getCurrentTab = (): FinanceTab => {
+    if (financeTabsData.length === 0) {
+      // Return a fallback tab if no data is available
+      return {
+        id: 'fallback',
+        title: 'Finanzverwaltung',
+        description: 'Umfassende Finanzverwaltung für Ihre Immobilien',
+        image: '/placeholder.svg',
+        imageAlt: 'Finance management placeholder',
+        features: ['Grundlegende Finanzverwaltung'],
+        dataCapabilities: {
+          filtering: ['Basis-Filter'],
+          searching: ['Basis-Suche'],
+          tracking: ['Basis-Tracking']
+        }
+      };
+    }
+    
+    const foundTab = financeTabsData.find(tab => tab.id === activeTab);
+    return foundTab || financeTabsData[0];
+  };
+
+  const currentTab = getCurrentTab();
+
+  // Handle image loading errors
+  const handleImageError = (tabId: string) => {
+    setImageErrors(prev => ({ ...prev, [tabId]: true }));
+  };
+
+  // Handle image loading success
+  const handleImageLoad = (tabId: string) => {
+    setImageErrors(prev => ({ ...prev, [tabId]: false }));
+  };
+
+  // Tab switching logic with enhanced loading states and error handling
   const handleTabChange = (tabId: string) => {
     if (tabId === activeTab) return;
-    setActiveTab(tabId);
+    
+    try {
+      // Validate tab ID exists in our data
+      const tabExists = financeTabsData.some(tab => tab.id === tabId);
+      if (!tabExists) {
+        console.warn(`Invalid tab ID: ${tabId}. Falling back to first tab.`);
+        const fallbackTabId = financeTabsData[0]?.id || 'dashboard';
+        setActiveTab(fallbackTabId);
+        return;
+      }
+      
+      // Set loading state during tab transition
+      setTabTransitionLoading(true);
+      setIsLoading(true);
+      
+      // Clear any previous component errors
+      setComponentError(null);
+      
+      // Simulate brief loading for smooth transition and allow animations to complete
+      const transitionTimeout = setTimeout(() => {
+        try {
+          setActiveTab(tabId);
+          setTabTransitionLoading(false);
+          setIsLoading(false);
+        } catch (error) {
+          console.error('Error during tab transition:', error);
+          setComponentError('Fehler beim Wechseln der Registerkarte');
+          setTabTransitionLoading(false);
+          setIsLoading(false);
+          // Fallback to first tab on error
+          setActiveTab(financeTabsData[0]?.id || 'dashboard');
+        }
+      }, 200);
+      
+      // Cleanup timeout on component unmount
+      return () => clearTimeout(transitionTimeout);
+    } catch (error) {
+      console.error('Error in handleTabChange:', error);
+      setComponentError('Unerwarteter Fehler beim Tab-Wechsel');
+      setTabTransitionLoading(false);
+      setIsLoading(false);
+    }
   };
 
   // Keyboard navigation support for accessibility
@@ -526,6 +935,78 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
     }, 200);
   };
 
+  // Error boundary component
+  if (componentError) {
+    return (
+      <section className="py-24 px-4 bg-background text-foreground">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-destructive/10 border border-destructive/20 rounded-lg p-8"
+            >
+              <svg className="w-16 h-16 text-destructive mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              <h3 className="text-xl font-semibold text-destructive mb-2">
+                Fehler beim Laden der Finanzübersicht
+              </h3>
+              <p className="text-muted-foreground mb-4">
+                {componentError}
+              </p>
+              <button
+                onClick={() => {
+                  setComponentError(null);
+                  setHasInitialized(false);
+                  // Retry initialization
+                  setTimeout(() => {
+                    try {
+                      setHasInitialized(true);
+                    } catch (error) {
+                      console.error('Retry failed:', error);
+                    }
+                  }, 100);
+                }}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Erneut versuchen
+              </button>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Loading state during initialization
+  if (!hasInitialized) {
+    return (
+      <section className="py-24 px-4 bg-background text-foreground">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-4"
+            >
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="w-12 h-12 mx-auto"
+              >
+                <svg className="w-full h-full text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </motion.div>
+              <p className="text-muted-foreground">Finanzübersicht wird geladen...</p>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-24 px-4 bg-background text-foreground">
       <div className="max-w-7xl mx-auto">
@@ -560,108 +1041,56 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
         </div>
 
         {/* Tab Content */}
+        {/* Tab Content with loading overlay */}
         <div 
           ref={contentRef}
           role="tabpanel"
           id={`tabpanel-${activeTab}`}
           aria-labelledby={`tab-${activeTab}`}
+          className="relative"
         >
+          {/* Loading overlay during tab transitions */}
+          <AnimatePresence>
+            {tabTransitionLoading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
+              >
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-8 h-8"
+                >
+                  <svg className="w-full h-full text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
             <TabContent 
               key={activeTab}
               tab={currentTab}
               onImageClick={setSelectedImage}
+              hasImageError={imageErrors[activeTab]}
+              onImageError={() => handleImageError(activeTab)}
+              onImageLoad={() => handleImageLoad(activeTab)}
             />
           </AnimatePresence>
         </div>
       </div>
 
-      {/* Enhanced Image Modal with animations */}
+      {/* Enhanced Image Modal with error handling and animations */}
       <AnimatePresence>
         {selectedImage && (
-          <motion.div 
-            className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-2 sm:p-4"
-            onClick={() => setSelectedImage(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <motion.div 
-              className="relative w-full h-full max-w-6xl max-h-full flex items-center justify-center"
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ 
-                duration: 0.4, 
-                ease: [0.4, 0.0, 0.2, 1] 
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <motion.div
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 20, opacity: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
-              >
-                <Image
-                  src={selectedImage.src}
-                  alt={selectedImage.alt}
-                  width={800}
-                  height={600}
-                  sizes="(max-width: 640px) 95vw, (max-width: 1024px) 90vw, 80vw"
-                  className="w-full h-auto max-h-full object-contain rounded-lg shadow-2xl"
-                />
-              </motion.div>
-              
-              <motion.button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedImage(null);
-                }}
-                className="absolute top-2 right-2 sm:top-4 sm:right-4 text-white bg-black bg-opacity-50 rounded-full p-2 sm:p-3 hover:bg-opacity-75 transition-all duration-200 touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center"
-                aria-label="Close image modal"
-                initial={{ scale: 0, rotate: -90 }}
-                animate={{ scale: 1, rotate: 0 }}
-                exit={{ scale: 0, rotate: 90 }}
-                transition={{ 
-                  duration: 0.3, 
-                  delay: 0.2,
-                  type: "spring",
-                  stiffness: 200
-                }}
-                whileHover={{ 
-                  scale: 1.1,
-                  backgroundColor: "rgba(0, 0, 0, 0.8)"
-                }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </motion.button>
-              
-              {/* Enhanced modal title with animation */}
-              <motion.div 
-                className="absolute bottom-2 left-2 right-2 sm:bottom-4 sm:left-4 sm:right-4 text-center"
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 20, opacity: 0 }}
-                transition={{ duration: 0.3, delay: 0.3 }}
-              >
-                <motion.div 
-                  className="bg-black bg-opacity-50 backdrop-blur-sm text-white px-3 py-2 rounded-lg text-sm sm:text-base"
-                  whileHover={{ 
-                    backgroundColor: "rgba(0, 0, 0, 0.7)",
-                    scale: 1.02
-                  }}
-                  transition={{ duration: 0.2 }}
-                >
-                  {selectedImage.title}
-                </motion.div>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+          <ImageModal 
+            selectedImage={selectedImage}
+            onClose={() => setSelectedImage(null)}
+          />
         )}
       </AnimatePresence>
     </section>
