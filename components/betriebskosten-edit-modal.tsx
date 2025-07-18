@@ -36,6 +36,7 @@ import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
 import { PlusCircle, Trash2 } from "lucide-react";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added import
+import { InfoTooltip } from "./ui/info-tooltip";
 
 interface CostItem {
   id: string; // For React key, temporary client-side ID
@@ -506,10 +507,13 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4"> 
+          <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="formJahr">Jahr *</Label>
+                <div className="flex items-center">
+                  <Label htmlFor="formJahr">Jahr *</Label>
+                  <InfoTooltip infoText="Das Jahr, für das die Nebenkostenabrechnung gilt." />
+                </div>
                 {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
                   <Input
                     id="formJahr"
@@ -522,7 +526,10 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
                 )}
               </div>
               <div>
-                <Label htmlFor="formHausId">Haus *</Label>
+                <div className="flex items-center">
+                  <Label htmlFor="formHausId">Haus *</Label>
+                  <InfoTooltip infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird." />
+                </div>
                 {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
                   <CustomCombobox
                     width="w-full"
@@ -539,7 +546,10 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
             </div>
 
             <div>
-              <Label htmlFor="formWasserkosten">Wasserkosten (€)</Label>
+              <div className="flex items-center">
+                <Label htmlFor="formWasserkosten">Wasserkosten (€)</Label>
+                <InfoTooltip infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Jahr." />
+              </div>
               {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
                 <Input
                   id="formWasserkosten"
