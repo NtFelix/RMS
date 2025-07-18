@@ -325,37 +325,16 @@ interface TabImageProps {
 }
 
 function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: TabImageProps) {
-  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [isImageLoading, setIsImageLoading] = useState(false);
   const [imageError, setImageError] = useState(hasError || false);
   const [retryCount, setRetryCount] = useState(0);
-  const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [imageLoadStartTime, setImageLoadStartTime] = useState<number>(0);
 
   const MAX_RETRY_ATTEMPTS = 2;
-  const LOADING_TIMEOUT_MS = 10000; // 10 seconds
   const RETRY_DELAY_MS = 1000; // 1 second delay between retries
 
-  useEffect(() => {
-    // Set a timeout for image loading
-    const timeout = setTimeout(() => {
-      if (isImageLoading) {
-        console.warn(`Image loading timeout for ${tab.title}`);
-        handleImageError();
-      }
-    }, LOADING_TIMEOUT_MS);
 
-    setLoadingTimeout(timeout);
-
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  }, [isImageLoading, tab.title]);
 
   const handleImageLoad = () => {
-    if (loadingTimeout) {
-      clearTimeout(loadingTimeout);
-      setLoadingTimeout(null);
-    }
     setIsImageLoading(false);
     setImageError(false);
     setRetryCount(0);
@@ -363,10 +342,6 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
   };
 
   const handleImageError = () => {
-    if (loadingTimeout) {
-      clearTimeout(loadingTimeout);
-      setLoadingTimeout(null);
-    }
     setIsImageLoading(false);
     setImageError(true);
     onImageError?.();
@@ -377,8 +352,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
     if (retryCount < MAX_RETRY_ATTEMPTS) {
       setRetryCount(prev => prev + 1);
       setImageError(false);
-      setIsImageLoading(true);
-      setImageLoadStartTime(Date.now());
+      setIsImageLoading(false);
 
       // Add delay before retry to avoid overwhelming the server
       setTimeout(() => {
@@ -429,34 +403,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
     </div>
   );
 
-  // Enhanced loading skeleton with progress indication
-  const LoadingSkeleton = () => (
-    <div className="w-full h-[400px] bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg animate-pulse flex items-center justify-center relative overflow-hidden">
-      {/* Shimmer effect */}
-      <motion.div
-        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-        animate={{ x: [-100, 400] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-      />
 
-      <div className="text-center space-y-3">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        >
-          <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-        </motion.div>
-        <p className="text-xs text-muted-foreground">Bild wird geladen...</p>
-        {retryCount > 0 && (
-          <p className="text-xs text-muted-foreground/70">
-            Versuch {retryCount + 1}
-          </p>
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <motion.div
@@ -476,11 +423,9 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
           <FallbackImage />
         ) : (
           <>
-            {isImageLoading && <LoadingSkeleton />}
             <motion.div
               whileHover={{ scale: imageError ? 1 : 1.05 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              style={{ display: isImageLoading ? 'none' : 'block' }}
             >
               <Image
                 src={tab.image}
@@ -503,7 +448,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
             </motion.div>
 
             {/* Enhanced hover overlay - only show if image loaded successfully */}
-            {!imageError && !isImageLoading && (
+            {!imageError && (
               <motion.div
                 className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
                 initial={{ opacity: 0 }}
@@ -523,7 +468,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
             )}
 
             {/* Subtle glow effect on hover - only show if image loaded successfully */}
-            {!imageError && !isImageLoading && (
+            {!imageError && (
               <motion.div
                 className="absolute inset-0 rounded-lg bg-gradient-to-r from-blue-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                 style={{ filter: 'blur(20px)', transform: 'scale(1.1)' }}
@@ -694,10 +639,8 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
     alt: string;
     title: string;
   } | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
-  const [tabTransitionLoading, setTabTransitionLoading] = useState<boolean>(false);
-  const [hasInitialized, setHasInitialized] = useState<boolean>(false);
+  const [hasInitialized, setHasInitialized] = useState<boolean>(true);
   const [componentError, setComponentError] = useState<string | null>(null);
 
   // Ref for content
@@ -761,7 +704,7 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
     setImageErrors(prev => ({ ...prev, [tabId]: false }));
   };
 
-  // Tab switching logic with enhanced loading states and error handling
+  // Tab switching logic - instant switching without loading states
   const handleTabChange = (tabId: string) => {
     if (tabId === activeTab) return;
 
@@ -775,36 +718,16 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
         return;
       }
 
-      // Set loading state during tab transition
-      setTabTransitionLoading(true);
-      setIsLoading(true);
-
       // Clear any previous component errors
       setComponentError(null);
 
-      // Simulate brief loading for smooth transition and allow animations to complete
-      const transitionTimeout = setTimeout(() => {
-        try {
-          setActiveTab(tabId);
-          setTabTransitionLoading(false);
-          setIsLoading(false);
-        } catch (error) {
-          console.error('Error during tab transition:', error);
-          setComponentError('Fehler beim Wechseln der Registerkarte');
-          setTabTransitionLoading(false);
-          setIsLoading(false);
-          // Fallback to first tab on error
-          setActiveTab(financeTabsData[0]?.id || 'dashboard');
-        }
-      }, 200);
-
-      // Cleanup timeout on component unmount
-      return () => clearTimeout(transitionTimeout);
+      // Instant tab switching
+      setActiveTab(tabId);
     } catch (error) {
       console.error('Error in handleTabChange:', error);
       setComponentError('Unerwarteter Fehler beim Tab-Wechsel');
-      setTabTransitionLoading(false);
-      setIsLoading(false);
+      // Fallback to first tab on error
+      setActiveTab(financeTabsData[0]?.id || 'dashboard');
     }
   };
 
@@ -854,33 +777,7 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
     );
   }
 
-  // Loading state during initialization
-  if (!hasInitialized) {
-    return (
-      <section className="py-24 px-4 bg-background text-foreground">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="space-y-4"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="w-12 h-12 mx-auto"
-              >
-                <svg className="w-full h-full text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </motion.div>
-              <p className="text-muted-foreground">Finanzübersicht wird geladen...</p>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-    );
-  }
+
 
   return (
     <section className="py-24 px-4 bg-background text-foreground">
@@ -910,33 +807,10 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
         </div>
 
         {/* Tab Content */}
-        {/* Tab Content with loading overlay */}
         <div
           ref={contentRef}
           className="relative"
         >
-          {/* Loading overlay during tab transitions */}
-          <AnimatePresence>
-            {tabTransitionLoading && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 flex items-center justify-center"
-              >
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                  className="w-8 h-8"
-                >
-                  <svg className="w-full h-full text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           <AnimatePresence mode="wait">
             <TabContent
               key={activeTab}
