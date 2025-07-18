@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PillTabSwitcher } from "@/components/ui/pill-tab-switcher";
 
 // TypeScript interfaces for the component
 interface FinanceTab {
@@ -123,27 +124,27 @@ interface TabContentProps {
 
 function TabContent({ tab, onImageClick, hasImageError, onImageError, onImageLoad }: TabContentProps) {
   return (
-    <motion.div 
+    <motion.div
       key={tab.id}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      transition={{ 
-        duration: 0.4, 
+      transition={{
+        duration: 0.4,
         ease: [0.4, 0.0, 0.2, 1],
         staggerChildren: 0.1
       }}
       className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-start lg:items-center"
     >
       {/* Image Side - Show first on mobile */}
-      <motion.div 
+      <motion.div
         className="order-1 lg:order-2"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <TabImage 
-          tab={tab} 
+        <TabImage
+          tab={tab}
           onImageClick={onImageClick}
           hasError={hasImageError}
           onImageError={onImageError}
@@ -152,7 +153,7 @@ function TabContent({ tab, onImageClick, hasImageError, onImageError, onImageLoa
       </motion.div>
 
       {/* Content Side - Show second on mobile */}
-      <motion.div 
+      <motion.div
         className="order-2 lg:order-1 space-y-6 lg:space-y-8"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
@@ -206,13 +207,13 @@ function FeaturesList({ features }: FeaturesListProps) {
       </h4>
       <ul className="space-y-3">
         {features.map((feature, index) => (
-          <motion.li 
-            key={index} 
+          <motion.li
+            key={index}
             className="flex items-start group"
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ 
-              duration: 0.3, 
+            transition={{
+              duration: 0.3,
               delay: index * 0.1,
               ease: "easeOut"
             }}
@@ -226,8 +227,8 @@ function FeaturesList({ features }: FeaturesListProps) {
               aria-hidden="true"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              transition={{ 
-                duration: 0.3, 
+              transition={{
+                duration: 0.3,
                 delay: index * 0.1 + 0.2,
                 type: "spring",
                 stiffness: 200
@@ -270,19 +271,19 @@ function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
       {sections.map((section, sectionIndex) => (
-        <motion.div 
+        <motion.div
           key={section.title}
           className={sectionIndex === 2 ? "sm:col-span-2 lg:col-span-1" : ""}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ 
-            duration: 0.4, 
+          transition={{
+            duration: 0.4,
             delay: sectionIndex * 0.1,
             ease: "easeOut"
           }}
           whileHover={{ y: -2 }}
         >
-          <motion.h5 
+          <motion.h5
             className="font-semibold text-foreground mb-2 text-sm sm:text-base"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -292,13 +293,13 @@ function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
           </motion.h5>
           <ul className="text-sm text-muted-foreground space-y-1">
             {section.items.map((item, index) => (
-              <motion.li 
-                key={index} 
+              <motion.li
+                key={index}
                 className="leading-relaxed hover:text-foreground transition-colors duration-200"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ 
-                  duration: 0.3, 
+                transition={{
+                  duration: 0.3,
                   delay: sectionIndex * 0.1 + index * 0.05 + 0.3,
                   ease: "easeOut"
                 }}
@@ -329,7 +330,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
   const [retryCount, setRetryCount] = useState(0);
   const [loadingTimeout, setLoadingTimeout] = useState<NodeJS.Timeout | null>(null);
   const [imageLoadStartTime, setImageLoadStartTime] = useState<number>(0);
-  
+
   const MAX_RETRY_ATTEMPTS = 2;
   const LOADING_TIMEOUT_MS = 10000; // 10 seconds
   const RETRY_DELAY_MS = 1000; // 1 second delay between retries
@@ -342,9 +343,9 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
         handleImageError();
       }
     }, LOADING_TIMEOUT_MS);
-    
+
     setLoadingTimeout(timeout);
-    
+
     return () => {
       if (timeout) clearTimeout(timeout);
     };
@@ -378,7 +379,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
       setImageError(false);
       setIsImageLoading(true);
       setImageLoadStartTime(Date.now());
-      
+
       // Add delay before retry to avoid overwhelming the server
       setTimeout(() => {
         // Force image reload by adding timestamp
@@ -437,7 +438,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
         animate={{ x: [-100, 400] }}
         transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
       />
-      
+
       <div className="text-center space-y-3">
         <motion.div
           animate={{ rotate: 360 }}
@@ -458,14 +459,14 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
   );
 
   return (
-    <motion.div 
+    <motion.div
       className="relative group"
       whileHover={{ y: -4 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
     >
-      <motion.div 
+      <motion.div
         className="relative rounded-lg overflow-hidden shadow-lg sm:shadow-xl lg:shadow-2xl"
-        whileHover={{ 
+        whileHover={{
           boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
           scale: imageError ? 1 : 1.02
         }}
@@ -500,15 +501,15 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
                 blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
               />
             </motion.div>
-            
+
             {/* Enhanced hover overlay - only show if image loaded successfully */}
             {!imageError && !isImageLoading && (
-              <motion.div 
+              <motion.div
                 className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center"
                 initial={{ opacity: 0 }}
                 whileHover={{ opacity: 1 }}
               >
-                <motion.div 
+                <motion.div
                   className="bg-white/90 backdrop-blur-sm rounded-full p-3 shadow-lg"
                   initial={{ scale: 0, rotate: -180 }}
                   whileHover={{ scale: 1, rotate: 0 }}
@@ -683,95 +684,9 @@ function ImageModal({ selectedImage, onClose }: ImageModalProps) {
   );
 }
 
-// Tab Button Component with enhanced styling and accessibility
-interface TabButtonProps {
-  tab: FinanceTab;
-  isActive: boolean;
-  onClick: () => void;
-  onKeyDown: (e: React.KeyboardEvent) => void;
-  tabIndex: number;
-}
 
-function TabButton({ tab, isActive, onClick, onKeyDown, tabIndex }: TabButtonProps) {
-  return (
-    <motion.button
-      key={tab.id}
-      onClick={onClick}
-      onKeyDown={onKeyDown}
-      role="tab"
-      aria-selected={isActive}
-      aria-controls={`tabpanel-${tab.id}`}
-      id={`tab-${tab.id}`}
-      tabIndex={isActive ? 0 : -1}
-      className={`
-        relative px-3 sm:px-4 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 
-        transition-all duration-300 ease-in-out min-h-[44px] touch-manipulation
-        focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background
-        ${isActive
-          ? 'border-primary text-primary bg-primary/10'
-          : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/50 active:bg-muted'
-        }
-      `}
-      whileHover={{ 
-        y: -2,
-        scale: 1.02
-      }}
-      whileTap={{ 
-        scale: 0.98,
-        y: 0
-      }}
-      transition={{ 
-        duration: 0.2, 
-        ease: "easeOut" 
-      }}
-    >
-      <motion.span 
-        className="relative z-10 whitespace-nowrap"
-        animate={{ 
-          color: isActive ? 'var(--primary)' : 'var(--muted-foreground)' 
-        }}
-        transition={{ duration: 0.2 }}
-      >
-        {tab.title}
-      </motion.span>
-      
-      <AnimatePresence>
-        {isActive && (
-          <motion.div 
-            className="absolute inset-0 bg-gradient-to-r from-blue-50 to-blue-100 opacity-50 rounded-t-md"
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 0.5, scaleX: 1 }}
-            exit={{ opacity: 0, scaleX: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            style={{ originX: 0.5 }}
-          />
-        )}
-      </AnimatePresence>
 
-      {/* Active tab indicator */}
-      <AnimatePresence>
-        {isActive && (
-          <motion.div
-            className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
-            initial={{ scaleX: 0, opacity: 0 }}
-            animate={{ scaleX: 1, opacity: 1 }}
-            exit={{ scaleX: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Hover effect */}
-      <motion.div
-        className="absolute inset-0 bg-primary/5 rounded-t-md opacity-0"
-        whileHover={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
-      />
-    </motion.button>
-  );
-}
-
-export default function FinanceShowcase({}: FinanceShowcaseProps) {
+export default function FinanceShowcase({ }: FinanceShowcaseProps) {
   // Component state management for active tab tracking
   const [activeTab, setActiveTab] = useState<string>(financeTabsData[0]?.id || 'dashboard');
   const [selectedImage, setSelectedImage] = useState<{
@@ -784,9 +699,8 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
   const [tabTransitionLoading, setTabTransitionLoading] = useState<boolean>(false);
   const [hasInitialized, setHasInitialized] = useState<boolean>(false);
   const [componentError, setComponentError] = useState<string | null>(null);
-  
-  // Refs for keyboard navigation
-  const tabListRef = useRef<HTMLDivElement>(null);
+
+  // Ref for content
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Initialize component with error boundary
@@ -795,16 +709,16 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
       if (financeTabsData.length === 0) {
         throw new Error('No finance tab data available');
       }
-      
+
       // Validate tab data structure
-      const invalidTabs = financeTabsData.filter(tab => 
+      const invalidTabs = financeTabsData.filter(tab =>
         !tab.id || !tab.title || !tab.description || !tab.image
       );
-      
+
       if (invalidTabs.length > 0) {
         console.warn('Invalid tab data detected:', invalidTabs);
       }
-      
+
       setHasInitialized(true);
     } catch (error) {
       console.error('Error initializing FinanceShowcase:', error);
@@ -830,7 +744,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
         }
       };
     }
-    
+
     const foundTab = financeTabsData.find(tab => tab.id === activeTab);
     return foundTab || financeTabsData[0];
   };
@@ -850,7 +764,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
   // Tab switching logic with enhanced loading states and error handling
   const handleTabChange = (tabId: string) => {
     if (tabId === activeTab) return;
-    
+
     try {
       // Validate tab ID exists in our data
       const tabExists = financeTabsData.some(tab => tab.id === tabId);
@@ -860,14 +774,14 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
         setActiveTab(fallbackTabId);
         return;
       }
-      
+
       // Set loading state during tab transition
       setTabTransitionLoading(true);
       setIsLoading(true);
-      
+
       // Clear any previous component errors
       setComponentError(null);
-      
+
       // Simulate brief loading for smooth transition and allow animations to complete
       const transitionTimeout = setTimeout(() => {
         try {
@@ -883,7 +797,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
           setActiveTab(financeTabsData[0]?.id || 'dashboard');
         }
       }, 200);
-      
+
       // Cleanup timeout on component unmount
       return () => clearTimeout(transitionTimeout);
     } catch (error) {
@@ -894,46 +808,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
     }
   };
 
-  // Keyboard navigation support for accessibility
-  const handleKeyDown = (e: React.KeyboardEvent, currentTabId: string) => {
-    const currentIndex = financeTabsData.findIndex(tab => tab.id === currentTabId);
-    let newIndex = currentIndex;
 
-    switch (e.key) {
-      case 'ArrowLeft':
-        e.preventDefault();
-        newIndex = currentIndex > 0 ? currentIndex - 1 : financeTabsData.length - 1;
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        newIndex = currentIndex < financeTabsData.length - 1 ? currentIndex + 1 : 0;
-        break;
-      case 'Home':
-        e.preventDefault();
-        newIndex = 0;
-        break;
-      case 'End':
-        e.preventDefault();
-        newIndex = financeTabsData.length - 1;
-        break;
-      case 'Enter':
-      case ' ':
-        e.preventDefault();
-        handleTabChange(currentTabId);
-        return;
-      default:
-        return;
-    }
-
-    const newTabId = financeTabsData[newIndex].id;
-    handleTabChange(newTabId);
-    
-    // Focus the new tab button
-    setTimeout(() => {
-      const newTabButton = document.getElementById(`tab-${newTabId}`);
-      newTabButton?.focus();
-    }, 200);
-  };
 
   // Error boundary component
   if (componentError) {
@@ -1016,37 +891,28 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
             Umfassende Finanzverwaltung
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Behalten Sie den Überblick über alle Ihre Immobilienfinanzen mit leistungsstarken 
+            Behalten Sie den Überblick über alle Ihre Immobilienfinanzen mit leistungsstarken
             Analyse- und Tracking-Tools
           </p>
         </div>
 
         {/* Tab Navigation */}
-        <div 
-          ref={tabListRef}
-          role="tablist" 
-          aria-label="Finance feature tabs"
-          className="flex flex-wrap justify-center mb-8 sm:mb-12 border-b border-border overflow-x-auto scrollbar-hide"
-        >
-          {financeTabsData.map((tab, index) => (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              isActive={activeTab === tab.id}
-              onClick={() => handleTabChange(tab.id)}
-              onKeyDown={(e) => handleKeyDown(e, tab.id)}
-              tabIndex={activeTab === tab.id ? 0 : -1}
-            />
-          ))}
+        <div className="flex justify-center mb-8 sm:mb-12">
+          <PillTabSwitcher
+            tabs={financeTabsData.map(tab => ({
+              id: tab.id,
+              label: tab.title,
+              value: tab.id
+            }))}
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+          />
         </div>
 
         {/* Tab Content */}
         {/* Tab Content with loading overlay */}
-        <div 
+        <div
           ref={contentRef}
-          role="tabpanel"
-          id={`tabpanel-${activeTab}`}
-          aria-labelledby={`tab-${activeTab}`}
           className="relative"
         >
           {/* Loading overlay during tab transitions */}
@@ -1072,7 +938,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
           </AnimatePresence>
 
           <AnimatePresence mode="wait">
-            <TabContent 
+            <TabContent
               key={activeTab}
               tab={currentTab}
               onImageClick={setSelectedImage}
@@ -1087,7 +953,7 @@ export default function FinanceShowcase({}: FinanceShowcaseProps) {
       {/* Enhanced Image Modal with error handling and animations */}
       <AnimatePresence>
         {selectedImage && (
-          <ImageModal 
+          <ImageModal
             selectedImage={selectedImage}
             onClose={() => setSelectedImage(null)}
           />
