@@ -49,6 +49,7 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   //   notiz: "" 
   // });
   const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
+  const [selectedChart, setSelectedChart] = useState("apartment-income");
   const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
 
   // Add handler for new entries
@@ -131,6 +132,34 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   const handleAddTransaction = () => {
     useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
   };
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const financeVisualization = document.getElementById('finance-visualization');
+      if (financeVisualization) {
+        const { top, bottom } = financeVisualization.getBoundingClientRect();
+        const isInView = top < window.innerHeight && bottom >= 0;
+        if (isInView) {
+          const scrollY = window.scrollY;
+          const tabSections = document.querySelectorAll('[data-tab-section]');
+          tabSections.forEach((section) => {
+            const htmlSection = section as HTMLElement;
+            const sectionTop = htmlSection.offsetTop;
+            const sectionHeight = htmlSection.offsetHeight;
+            if (scrollY >= sectionTop && scrollY < sectionTop + sectionHeight) {
+              const tabValue = htmlSection.getAttribute('data-tab-section');
+              if (tabValue && selectedChart !== tabValue) {
+                setSelectedChart(tabValue);
+              }
+            }
+          });
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
   
   // Function to refresh finance data, can be called by FinanceTransactions or after modal operations
   const refreshFinances = async () => {
@@ -146,7 +175,7 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
 
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-4 md:p-8 min-h-screen">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
@@ -205,7 +234,13 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
         </Card>
       </div>
 
-      <FinanceVisualization finances={finData} />
+      <div id="finance-visualization">
+        <FinanceVisualization
+          finances={finData}
+          setSelectedChart={setSelectedChart}
+          selectedChart={selectedChart}
+        />
+      </div>
       <FinanceTransactions 
         finances={finData} 
         onEdit={handleEdit} 

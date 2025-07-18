@@ -19,7 +19,7 @@ import {
 } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 // Einnahmen nach Wohnung (simulierte Daten)
 const staticIncomeByApartment = [
@@ -87,15 +87,16 @@ interface Finanz {
 }
 
 interface FinanceVisualizationProps {
-  finances: Finanz[]
+  finances: Finanz[];
+  setSelectedChart: (chart: string) => void;
+  selectedChart: string;
 }
 
 // Farben für Pie Chart
 const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"]
 
-export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
+export function FinanceVisualization({ finances, setSelectedChart, selectedChart }: FinanceVisualizationProps) {
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString())
-  const [selectedChart, setSelectedChart] = useState("apartment-income")
   
   // Generate data for charts from real finances data
   const incomeByApartment = useMemo(() => {
@@ -249,27 +250,27 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
 
   return (
     <Card className="p-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <ToggleGroup type="single" value={selectedChart} onValueChange={setSelectedChart} className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
-          <ToggleGroupItem value="monthly-income">Monatlich</ToggleGroupItem>
-          <ToggleGroupItem value="income-expense">Vergleich</ToggleGroupItem>
-          <ToggleGroupItem value="expense-categories">Kategorien</ToggleGroupItem>
-        </ToggleGroup>
-        <div className="mt-4 md:mt-0 flex items-center gap-2">
-          <label htmlFor="jahr-select" className="text-sm font-medium">Jahr:</label>
-          <Select value={selectedYear} onValueChange={setSelectedYear}>
-            <SelectTrigger id="jahr-select" className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {['2022','2023','2024','2025'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <Tabs value={selectedChart} onValueChange={setSelectedChart}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+          <TabsList className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <TabsTrigger value="apartment-income">Wohnung</TabsTrigger>
+            <TabsTrigger value="monthly-income">Monatlich</TabsTrigger>
+            <TabsTrigger value="income-expense">Vergleich</TabsTrigger>
+            <TabsTrigger value="expense-categories">Kategorien</TabsTrigger>
+          </TabsList>
+          <div className="mt-4 md:mt-0 flex items-center gap-2">
+            <label htmlFor="jahr-select" className="text-sm font-medium">Jahr:</label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger id="jahr-select" className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {['2022','2023','2024','2025'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
-      <div>
-        {selectedChart === 'apartment-income' && (
+        <TabsContent value="apartment-income" data-tab-section="apartment-income">
           <Card>
             <CardHeader>
               <CardTitle>Einnahmen nach Wohnung</CardTitle>
@@ -299,8 +300,8 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
               </div>
             </CardContent>
           </Card>
-        )}
-        {selectedChart === 'monthly-income' && (
+        </TabsContent>
+        <TabsContent value="monthly-income" data-tab-section="monthly-income">
           <Card>
             <CardHeader>
               <CardTitle>Monatliche Einnahmen</CardTitle>
@@ -330,8 +331,8 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
               </div>
             </CardContent>
           </Card>
-        )}
-        {selectedChart === 'income-expense' && (
+        </TabsContent>
+        <TabsContent value="income-expense" data-tab-section="income-expense">
           <Card>
             <CardHeader>
               <CardTitle>Einnahmen-Ausgaben-Verhältnis</CardTitle>
@@ -366,8 +367,8 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
               </div>
             </CardContent>
           </Card>
-        )}
-        {selectedChart === 'expense-categories' && (
+        </TabsContent>
+        <TabsContent value="expense-categories" data-tab-section="expense-categories">
           <Card>
             <CardHeader>
               <CardTitle>Ausgabenkategorien</CardTitle>
@@ -397,8 +398,8 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+        </TabsContent>
+      </Tabs>
     </Card>
   )
 }
