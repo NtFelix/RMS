@@ -296,6 +296,69 @@ describe('BetriebskostenEditModal', () => {
       expect(mockCreateNebenkosten).not.toHaveBeenCalled();
     });
 
+    it('shows error if jahr or haus is missing', async () => {
+      const user = userEvent.setup();
+      
+      // Mock store with empty house list to simulate missing house
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenModalHaeuser: [], // Empty house list
+      });
+      
+      render(<BetriebskostenEditModal />);
+      
+      // Jahr should be empty by default when no houses are available
+      // Add a valid cost item
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test Kosten');
+      
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.type(betragInput, '100');
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Fehlende Eingaben',
+          description: 'Jahr und Haus sind Pflichtfelder.',
+          variant: 'destructive',
+        });
+      });
+      
+      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
+    });
+
+    it('shows error for invalid betrag in cost item', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      // Fill required fields
+      const jahrInput = screen.getByLabelText('Jahr *');
+      await user.type(jahrInput, '2024');
+      
+      const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
+      await user.type(artInput, 'Test Kosten');
+      
+      // Enter invalid amount (non-numeric) - note: number inputs might not accept 'abc'
+      // So we'll test with an empty betrag which should trigger validation
+      const betragInput = screen.getAllByPlaceholderText('Betrag (€)')[0];
+      await user.clear(betragInput); // Clear to make it empty
+      
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockToastFn).toHaveBeenCalledWith({
+          title: 'Validierungsfehler',
+          description: expect.stringContaining('ist keine gültige Zahl'),
+          variant: 'destructive',
+        });
+      });
+      
+      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
+    });
+
 
 
     it('successfully creates new Nebenkosten entry', async () => {
@@ -363,6 +426,72 @@ describe('BetriebskostenEditModal', () => {
 
       await waitFor(() => {
         expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-123', expect.any(Object));
+      });
+      
+      expect(mockCloseBetriebskostenModal).toHaveBeenCalled();
+    });
+
+    it('calls updateNebenkosten with transformed data for existing entry', async () => {
+      const user = userEvent.setup();
+      const mockEntry = {
+        id: 'test-id-456',
+        jahr: '2023',
+        haeuser_id: 'h1',
+        nebenkostenart: ['Strom', 'Wasser'],
+        betrag: [100, 50],
+        berechnungsart: ['pauschal', 'pro Flaeche'],
+        wasserkosten: 20,
+        Haeuser: { name: 'Haus A' },
+        user_id: 'u1',
+        Rechnungen: [],
+      };
+
+      mockGetNebenkostenDetailsAction.mockResolvedValueOnce({ success: true, data: mockEntry });
+      
+      mockUseModalStore.mockReturnValue({
+        ...defaultStoreState,
+        betriebskostenInitialData: { id: 'test-id-456' },
+      });
+
+      render(<BetriebskostenEditModal />);
+      
+      // Wait for data to load
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Strom')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
+      });
+
+      // Modify the year
+      const jahrInput = screen.getByLabelText('Jahr *');
+      await user.clear(jahrInput);
+      await user.type(jahrInput, '2024');
+
+      // Modify the water costs
+      const wasserkostenInput = screen.getByLabelText('Wasserkosten (€)');
+      await user.clear(wasserkostenInput);
+      await user.type(wasserkostenInput, '30');
+
+      // Modify the first cost item
+      const artInputs = screen.getAllByPlaceholderText('Kostenart');
+      await user.clear(artInputs[0]);
+      await user.type(artInputs[0], 'Heizung');
+
+      const betragInputs = screen.getAllByPlaceholderText('Betrag (€)');
+      await user.clear(betragInputs[0]);
+      await user.type(betragInputs[0], '150');
+
+      const submitButton = screen.getByRole('button', { name: 'Speichern' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-456', {
+          jahr: '2024',
+          nebenkostenart: ['Heizung', 'Wasser'],
+          betrag: [150, 50],
+          berechnungsart: ['pauschal', 'pro Flaeche'],
+          wasserkosten: 30,
+          haeuser_id: 'h1',
+        });
       });
       
       expect(mockCloseBetriebskostenModal).toHaveBeenCalled();
