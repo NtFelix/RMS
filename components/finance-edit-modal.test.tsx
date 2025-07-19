@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { FinanceEditModal } from './finance-edit-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
@@ -7,7 +7,9 @@ import { toast } from '@/hooks/use-toast';
 
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store');
-jest.mock('@/hooks/use-toast');
+jest.mock('@/hooks/use-toast', () => ({
+  toast: jest.fn(),
+}));
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
     push: jest.fn(),
@@ -226,7 +228,13 @@ describe('FinanceEditModal', () => {
       const user = userEvent.setup();
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
-      // Try to submit with empty required fields
+      // Remove required attributes to bypass HTML5 validation
+      const nameInput = screen.getByLabelText('Bezeichnung');
+      const betragInput = screen.getByLabelText('Betrag (€)');
+      
+      nameInput.removeAttribute('required');
+      betragInput.removeAttribute('required');
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
 
