@@ -220,7 +220,14 @@ describe('FinanceEditModal', () => {
       await user.click(submitButton);
 
       await waitFor(() => {
-        expect(mockServerAction).toHaveBeenCalledWith('1', expect.any(Object));
+        expect(mockServerAction).toHaveBeenCalledWith('1', {
+          name: initialData.name,
+          betrag: initialData.betrag,
+          ist_einnahmen: initialData.ist_einnahmen,
+          wohnung_id: initialData.wohnung_id,
+          datum: initialData.datum,
+          notiz: initialData.notiz,
+        });
       });
     });
 
