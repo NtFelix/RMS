@@ -231,7 +231,7 @@ describe('FinanceEditModal', () => {
       // Remove required attributes to bypass HTML5 validation
       const nameInput = screen.getByLabelText('Bezeichnung');
       const betragInput = screen.getByLabelText('Betrag (€)');
-      
+
       nameInput.removeAttribute('required');
       betragInput.removeAttribute('required');
 
