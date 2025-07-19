@@ -509,7 +509,7 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
           
           <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <div className="flex items-center">
                   <Label htmlFor="formJahr">Jahr *</Label>
                   <InfoTooltip infoText="Das Jahr, für das die Nebenkostenabrechnung gilt." />
@@ -525,7 +525,7 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
                   />
                 )}
               </div>
-              <div>
+              <div className="space-y-2">
                 <div className="flex items-center">
                   <Label htmlFor="formHausId">Haus *</Label>
                   <InfoTooltip infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird." />
@@ -545,7 +545,7 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
               </div>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <div className="flex items-center">
                 <Label htmlFor="formWasserkosten">Wasserkosten (€)</Label>
                 <InfoTooltip infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Jahr." />

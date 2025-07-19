@@ -283,7 +283,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="name">Name der Wohnung</Label>
             <Input
               id="name"
@@ -295,7 +295,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               disabled={isSubmitting || isLoadingContext}
             />
           </div>
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="groesse">Größe (m²)</Label>
             <Input
               id="groesse"
@@ -310,7 +310,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               disabled={isSubmitting || isLoadingContext}
             />
           </div>
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="miete">Miete (€)</Label>
             <Input
               id="miete"
@@ -325,7 +325,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
               disabled={isSubmitting || isLoadingContext}
             />
           </div>
-          <div>
+          <div className="space-y-2">
             <Label htmlFor="haus_id">Zugehöriges Haus</Label>
             <CustomCombobox
               width="w-full"

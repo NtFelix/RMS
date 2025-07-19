@@ -22,9 +22,10 @@ interface DatePickerProps {
   placeholder?: string
   className?: string
   disabled?: boolean
+  id?: string
 }
 
-export function DatePicker({ value, onChange, placeholder = "Datum auswählen", className, disabled }: DatePickerProps) {
+export function DatePicker({ value, onChange, placeholder = "Datum auswählen", className, disabled, id }: DatePickerProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [inputValue, setInputValue] = useState<string>("");
   const [popoverOpen, setPopoverOpen] = useState(false);
@@ -99,6 +100,7 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
       <PopoverTrigger asChild>
         <div className={cn("relative w-full", className)}>
           <Input
+            id={id}
             type="text"
             placeholder={placeholder}
             value={inputValue}

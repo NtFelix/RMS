@@ -161,7 +161,7 @@ export function TaskEditModal({ serverAction }: TaskEditModalProps) {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="edit-name" className="required">
                 Name
               </Label>
@@ -174,7 +174,7 @@ export function TaskEditModal({ serverAction }: TaskEditModalProps) {
                 disabled={isSubmitting}
               />
             </div>
-            <div className="grid gap-2">
+            <div className="space-y-2">
               <Label htmlFor="edit-beschreibung" className="required">
                 Beschreibung
               </Label>
