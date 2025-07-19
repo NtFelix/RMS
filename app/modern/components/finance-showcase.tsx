@@ -34,7 +34,6 @@ interface FinanceShowcaseState {
   isLoading: boolean;
   imageErrors: Record<string, boolean>;
   tabTransitionLoading: boolean;
-  hasInitialized: boolean;
 }
 
 // Tab data structure and configuration
@@ -549,7 +548,6 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
     title: string;
   } | null>(null);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
-  const [hasInitialized, setHasInitialized] = useState<boolean>(true);
   const [componentError, setComponentError] = useState<string | null>(null);
 
   // Ref for content
@@ -570,8 +568,6 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
       if (invalidTabs.length > 0) {
         console.warn('Invalid tab data detected:', invalidTabs);
       }
-
-      setHasInitialized(true);
     } catch (error) {
       console.error('Error initializing FinanceShowcase:', error);
       setComponentError(error instanceof Error ? error.message : 'Unknown initialization error');
@@ -665,15 +661,7 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
               <button
                 onClick={() => {
                   setComponentError(null);
-                  setHasInitialized(false);
-                  // Retry initialization
-                  setTimeout(() => {
-                    try {
-                      setHasInitialized(true);
-                    } catch (error) {
-                      console.error('Retry failed:', error);
-                    }
-                  }, 100);
+                  // Simply clear the error to retry
                 }}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
               >
