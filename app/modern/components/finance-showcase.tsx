@@ -35,7 +35,7 @@ interface FinanceShowcaseState {
 const financeTabsData: FinanceTab[] = [
   {
     id: 'dashboard',
-    title: 'Intelligente Dashboard-Karten',
+    title: 'Dashboard-Karten',
     description: 'Vier zentrale Kennzahlen-Karten mit intelligenter Berechnung: Durchschnittswerte nur aus vergangenen Monaten, Cashflow-Analyse und präzise Jahresprognosen',
     image: '/product-images/finance-page.png',
     imageAlt: 'Finance Dashboard Screenshot showing summary cards and key metrics',
@@ -61,7 +61,7 @@ const financeTabsData: FinanceTab[] = [
   },
   {
     id: 'transactions',
-    title: 'Erweiterte Transaktionsverwaltung',
+    title: 'Transaktionsverwaltung',
     description: 'Vollständige CRUD-Transaktionsverwaltung mit mehrstufigen Filtern, Volltext-Suche, Rechtsklick-Kontextmenü und Echtzeit-Saldo-Berechnung',
     image: '/product-images/finance-page.png',
     imageAlt: 'Transaction management table with filtering and search capabilities',
@@ -74,7 +74,7 @@ const financeTabsData: FinanceTab[] = [
   },
   {
     id: 'reporting',
-    title: 'Export & Formularverwaltung',
+    title: 'Exportfunktionalität',
     description: 'Professionelle CSV-Export-Funktionen für Steuerberater, vollständiges Transaktionsformular mit Wohnungszuordnung und intelligente Validierung',
     image: '/product-images/finance-page.png',
     imageAlt: 'Financial reporting interface with export options',
