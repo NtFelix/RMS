@@ -95,9 +95,9 @@ export function TenantDataTable() {
       )
     },
     { accessorKey: "tenant", header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Mieter <ArrowUpDown className="ml-2 h-4 w-4" /></Button> },
-    { accessorKey: "size", header: "Größe" },
-    { accessorKey: "rent", header: "Miete" },
-    { accessorKey: "pricePerSqm", header: "Preis pro m²" },
+    { accessorKey: "size", header: "Größe", sortingFn: "alphanumeric" },
+    { accessorKey: "rent", header: "Miete", sortingFn: "alphanumeric" },
+    { accessorKey: "pricePerSqm", header: "Preis pro m²", sortingFn: "alphanumeric" },
     {
       accessorKey: "status",
       header: "Status",

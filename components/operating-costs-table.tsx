@@ -155,7 +155,7 @@ export function OperatingCostsTable({
     { accessorKey: "nebenkostenart", header: "Kostenarten", cell: ({ row }) => <div>{row.original.nebenkostenart?.map((art, idx) => <div key={idx}>{art || '-'}</div>)}</div> },
     { accessorKey: "betrag", header: "Beträge", cell: ({ row }) => <div>{row.original.betrag?.map((b, idx) => <div key={idx}>{formatCurrency(b)}</div>)}</div> },
     { accessorKey: "berechnungsart", header: "Berechnungsarten", cell: ({ row }) => <div>{row.original.berechnungsart?.map((ba, idx) => <div key={idx}>{ba || '-'}</div>)}</div> },
-    { accessorKey: "wasserkosten", header: "Wasserkosten", cell: ({ row }) => formatCurrency(row.original.wasserkosten) },
+    { accessorKey: "wasserkosten", header: "Wasserkosten", cell: ({ row }) => formatCurrency(row.original.wasserkosten), sortingFn: "alphanumeric" },
   ], [isLoadingDataForModal, selectedNebenkostenItem, isLoadingAbrechnungData, selectedNebenkostenForAbrechnung, onEdit, onDeleteItem]);
 
   return (

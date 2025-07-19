@@ -135,6 +135,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         </Button>
       ),
       cell: ({ row }) => (row.original.size ? `${row.original.size} m²` : "-"),
+      sortingFn: "alphanumeric",
     },
     {
       accessorKey: "rent",
@@ -144,11 +145,13 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         </Button>
       ),
       cell: ({ row }) => (row.original.rent ? `${row.original.rent} €` : "-"),
+      sortingFn: "alphanumeric",
     },
     {
       accessorKey: "pricePerSqm",
       header: "Miete pro m²",
       cell: ({ row }) => (row.original.pricePerSqm ? `${row.original.pricePerSqm} €/m²` : "-"),
+      sortingFn: "alphanumeric",
     },
     {
       accessorKey: "status",

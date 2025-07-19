@@ -71,6 +71,7 @@ export function ApartmentTable({ filter, searchQuery, onEdit, onTableRefresh, in
         </Button>
       ),
       cell: ({ row }) => `${row.original.groesse} m²`,
+      sortingFn: "alphanumeric",
     },
     {
       accessorKey: "miete",
@@ -80,11 +81,13 @@ export function ApartmentTable({ filter, searchQuery, onEdit, onTableRefresh, in
         </Button>
       ),
       cell: ({ row }) => `${row.original.miete} €`,
+      sortingFn: "alphanumeric",
     },
     {
       id: "pricePerSqm",
       header: "Miete pro m²",
       cell: ({ row }) => `${(row.original.miete / row.original.groesse).toFixed(2)} €/m²`,
+      sortingFn: "alphanumeric",
     },
     {
       accessorKey: "Haeuser.name",
