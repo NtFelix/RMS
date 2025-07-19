@@ -232,7 +232,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                 disabled={isLoadingWohnungen || isSubmitting}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="ist_einnahmen">Typ</Label>
               <Select
                 name="ist_einnahmen"
@@ -249,7 +249,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-2 space-y-2">
               <Label htmlFor="notiz">Notiz</Label>
               <Input id="notiz" name="notiz" value={formData.notiz || ""} onChange={handleChange} disabled={isSubmitting} />
             </div>
