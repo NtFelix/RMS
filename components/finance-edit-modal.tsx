@@ -213,6 +213,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             <div className="space-y-2">
               <Label htmlFor="datum">Datum</Label>
               <DatePicker
+                id="datum"
                 value={formData.datum}
                 onChange={handleDateChange}
                 placeholder="TT.MM.JJJJ"
