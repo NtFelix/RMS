@@ -89,7 +89,7 @@ describe('FinanceEditModal', () => {
       
       expect(screen.getByLabelText('Bezeichnung')).toBeInTheDocument();
       expect(screen.getByLabelText('Betrag (€)')).toBeInTheDocument();
-      expect(screen.getByText('Datum')).toBeInTheDocument(); // Label exists but not connected to input
+      expect(screen.getByLabelText('Datum')).toBeInTheDocument();
       expect(screen.getByText('Wohnung')).toBeInTheDocument();
       expect(screen.getByText('Typ')).toBeInTheDocument();
       expect(screen.getByLabelText('Notiz')).toBeInTheDocument();
