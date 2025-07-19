@@ -353,15 +353,6 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
       setRetryCount(prev => prev + 1);
       setImageError(false);
       setIsImageLoading(false);
-
-      // Add delay before retry to avoid overwhelming the server
-      setTimeout(() => {
-        // Force image reload by adding timestamp
-        const img = document.createElement('img');
-        img.onload = handleImageLoad;
-        img.onerror = handleImageError;
-        img.src = `${tab.image}?retry=${retryCount + 1}&t=${Date.now()}`;
-      }, RETRY_DELAY_MS);
     }
   };
 
@@ -413,6 +404,7 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
         ) : (
           <>
             <Image
+                key={`${tab.image}?retry=${retryCount}`}
                 src={tab.image}
                 alt={tab.imageAlt}
                 width={600}
