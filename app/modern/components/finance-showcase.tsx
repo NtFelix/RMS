@@ -332,8 +332,6 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
   const MAX_RETRY_ATTEMPTS = 2;
   const RETRY_DELAY_MS = 1000; // 1 second delay between retries
 
-
-
   const handleImageLoad = () => {
     setIsImageLoading(false);
     setImageError(false);
@@ -350,9 +348,14 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
 
   const handleRetryImage = () => {
     if (retryCount < MAX_RETRY_ATTEMPTS) {
-      setRetryCount(prev => prev + 1);
+      setIsImageLoading(true);
       setImageError(false);
-      setIsImageLoading(false);
+      
+      // Implement delay before retry
+      setTimeout(() => {
+        setRetryCount(prev => prev + 1);
+        setIsImageLoading(false);
+      }, RETRY_DELAY_MS);
     }
   };
 
@@ -360,36 +363,54 @@ function TabImage({ tab, onImageClick, hasError, onImageError, onImageLoad }: Ta
   const FallbackImage = () => (
     <div className="w-full h-[400px] bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20">
       <div className="text-center space-y-4 p-6">
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 0.5, type: "spring" }}
-        >
-          <svg className="w-16 h-16 text-muted-foreground mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-        </motion.div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">Bild nicht verfügbar</p>
-          <p className="text-xs text-muted-foreground/70 mt-1">
-            {tab.title} Screenshot
-          </p>
-          {retryCount < MAX_RETRY_ATTEMPTS && (
-            <motion.button
-              onClick={handleRetryImage}
-              className="mt-3 px-3 py-1 text-xs bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+        {isImageLoading ? (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ duration: 0.5, type: "spring" }}
+          >
+            <div className="w-16 h-16 mx-auto mb-4 animate-spin">
+              <svg className="w-full h-full text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Bild wird geladen...</p>
+          </motion.div>
+        ) : (
+          <>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.5, type: "spring" }}
             >
-              Erneut versuchen ({retryCount + 1}/{MAX_RETRY_ATTEMPTS + 1})
-            </motion.button>
-          )}
-          {retryCount >= MAX_RETRY_ATTEMPTS && (
-            <p className="text-xs text-destructive/70 mt-2">
-              Maximale Anzahl von Versuchen erreicht
-            </p>
-          )}
-        </div>
+              <svg className="w-16 h-16 text-muted-foreground mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </motion.div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Bild nicht verfügbar</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                {tab.title} Screenshot
+              </p>
+              {retryCount < MAX_RETRY_ATTEMPTS && (
+                <motion.button
+                  onClick={handleRetryImage}
+                  className="mt-3 px-3 py-1 text-xs bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors disabled:opacity-50"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  disabled={isImageLoading}
+                >
+                  Erneut versuchen ({retryCount + 1}/{MAX_RETRY_ATTEMPTS + 1})
+                </motion.button>
+              )}
+              {retryCount >= MAX_RETRY_ATTEMPTS && (
+                <p className="text-xs text-destructive/70 mt-2">
+                  Maximale Anzahl von Versuchen erreicht
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
