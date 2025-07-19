@@ -34,3 +34,16 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
+
+// Add polyfill for hasPointerCapture which is missing in JSDOM
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = jest.fn(() => false);
+}
+
+if (!Element.prototype.setPointerCapture) {
+  Element.prototype.setPointerCapture = jest.fn();
+}
+
+if (!Element.prototype.releasePointerCapture) {
+  Element.prototype.releasePointerCapture = jest.fn();
+}
