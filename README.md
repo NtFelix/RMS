@@ -261,7 +261,7 @@ interface FinanceTab {
 
 #### Error Handling
 - **Image Fallbacks**: Graceful degradation when product images fail to load
-- **Retry Mechanism**: Automatic retry with exponential backoff for failed image loads
+- **Retry Mechanism**: Manual retry option with "Erneut versuchen" button for failed image loads
 - **Loading States**: Visual feedback during tab transitions and image loading
 - **Error Recovery**: User-friendly error messages with retry options
 
