@@ -197,7 +197,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input
               type="text"
@@ -209,7 +209,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
               disabled={isSubmitting}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="strasse">Straße</Label>
             <Input
               type="text"
@@ -221,7 +221,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
               disabled={isSubmitting}
             />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="ort">Ort</Label>
             <Input
               type="text"
@@ -242,7 +242,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             />
             <Label htmlFor="automaticSize">Automatische Größe</Label>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="manualGroesse">Größe (m²)</Label>
             <Input
               type="number"

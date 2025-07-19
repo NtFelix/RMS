@@ -202,15 +202,15 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+            <div className="col-span-2 space-y-2">
               <Label htmlFor="name">Bezeichnung</Label>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="betrag">Betrag (€)</Label>
               <Input id="betrag" name="betrag" type="number" step="0.01" value={formData.betrag} onChange={handleChange} required disabled={isSubmitting} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="datum">Datum</Label>
               <DatePicker
                 value={formData.datum}
@@ -219,7 +219,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
                 disabled={isSubmitting}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="wohnung_id">Wohnung</Label>
               <CustomCombobox
                 width="w-full"
