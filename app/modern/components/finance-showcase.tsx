@@ -13,11 +13,6 @@ interface FinanceTab {
   image: string;
   imageAlt: string;
   features: string[];
-  dataCapabilities: {
-    filtering: string[];
-    searching: string[];
-    tracking: string[];
-  };
 }
 
 interface FinanceShowcaseProps {
@@ -40,75 +35,55 @@ interface FinanceShowcaseState {
 const financeTabsData: FinanceTab[] = [
   {
     id: 'dashboard',
-    title: 'Dashboard Übersicht',
-    description: 'Zentrale Finanzübersicht mit wichtigen Kennzahlen und Echtzeit-Aktualisierung der Finanzdaten',
+    title: 'Intelligente Dashboard-Karten',
+    description: 'Vier zentrale Kennzahlen-Karten mit intelligenter Berechnung: Durchschnittswerte nur aus vergangenen Monaten, Cashflow-Analyse und präzise Jahresprognosen',
     image: '/product-images/finance-page.png',
     imageAlt: 'Finance Dashboard Screenshot showing summary cards and key metrics',
     features: [
-      'Durchschnittliche monatliche Einnahmen und Ausgaben',
-      'Cashflow-Analyse und Jahresprognose',
-      'Übersichtliche Kennzahlen-Karten',
-      'Echtzeit-Aktualisierung der Finanzdaten'
-    ],
-    dataCapabilities: {
-      filtering: ['Nach Zeitraum', 'Nach Wohnung', 'Nach Transaktionstyp'],
-      searching: ['Transaktionsname', 'Notizen', 'Betrag'],
-      tracking: ['Mieteinnahmen', 'Betriebskosten', 'Instandhaltung', 'Steuern']
-    }
+      'Ø Monatliche Einnahmen (nur bereits vergangene Monate)',
+      'Ø Monatliche Ausgaben mit präziser Berechnung',
+      'Ø Monatlicher Cashflow (Einnahmen minus Ausgaben)',
+      'Jahresprognose basierend auf Durchschnittswerten × 12'
+    ]
   },
   {
     id: 'charts',
-    title: 'Charts & Analytics',
-    description: 'Interaktive Diagramme zeigen Einnahmen-/Ausgabentrends und Verteilungen für bessere Finanzanalyse',
+    title: 'Interaktive Diagramme',
+    description: 'Vier verschiedene Diagrammtypen mit Jahresfilter: Einnahmen nach Wohnung, monatliche Trends, Einnahmen-Ausgaben-Vergleich und Ausgabenkategorien',
     image: '/product-images/finance-page.png',
     imageAlt: 'Finance Charts showing income and expense trends with interactive analytics',
     features: [
-      'Interaktive Einnahmen- und Ausgabendiagramme',
-      'Monatliche und jährliche Trendanalysen',
-      'Kategoriebasierte Ausgabenverteilung',
-      'Vergleichsanalysen zwischen Zeiträumen'
-    ],
-    dataCapabilities: {
-      filtering: ['Nach Kategorie', 'Nach Zeitraum', 'Nach Wohnung'],
-      searching: ['Transaktionskategorien', 'Zeiträume', 'Beträge'],
-      tracking: ['Trendentwicklung', 'Kategorieverteilung', 'Jahresvergleiche']
-    }
+      'Pie-Chart: Einnahmenverteilung nach Wohnungen',
+      'Liniendiagramm: Monatliche Einnahmenentwicklung',
+      'Balkendiagramm: Einnahmen vs. Ausgaben Vergleich',
+      'Kategorien-Chart: Ausgabenverteilung nach Bereichen'
+    ]
   },
   {
     id: 'transactions',
-    title: 'Transaktionsverwaltung',
-    description: 'Umfassende Transaktionsverwaltung mit erweiterten Filter- und Suchfunktionen',
+    title: 'Erweiterte Transaktionsverwaltung',
+    description: 'Vollständige CRUD-Transaktionsverwaltung mit mehrstufigen Filtern, Volltext-Suche, Rechtsklick-Kontextmenü und Echtzeit-Saldo-Berechnung',
     image: '/product-images/finance-page.png',
     imageAlt: 'Transaction management table with filtering and search capabilities',
     features: [
-      'Detaillierte Transaktionsübersicht',
-      'Erweiterte Filter- und Suchoptionen',
-      'Bulk-Bearbeitung von Transaktionen',
-      'Automatische Kategorisierung'
-    ],
-    dataCapabilities: {
-      filtering: ['Nach Datum', 'Nach Kategorie', 'Nach Betrag', 'Nach Status'],
-      searching: ['Beschreibung', 'Referenznummer', 'Notizen'],
-      tracking: ['Einzeltransaktionen', 'Wiederkehrende Zahlungen', 'Ausstehende Beträge']
-    }
+      'Mehrstufige Filter: Wohnung, Jahr, Transaktionstyp kombinierbar',
+      'Volltext-Suche durchsucht alle Felder gleichzeitig',
+      'Rechtsklick-Kontextmenü: Bearbeiten, Status umschalten, Löschen',
+      'Echtzeit-Saldo-Berechnung basierend auf aktiven Filtern'
+    ]
   },
   {
     id: 'reporting',
-    title: 'Reporting & Export',
-    description: 'Umfassende Berichtsfunktionen und Datenexport-Optionen für Steuerberater und Buchhaltung',
+    title: 'Export & Formularverwaltung',
+    description: 'Professionelle CSV-Export-Funktionen für Steuerberater, vollständiges Transaktionsformular mit Wohnungszuordnung und intelligente Validierung',
     image: '/product-images/finance-page.png',
     imageAlt: 'Financial reporting interface with export options',
     features: [
-      'Automatische Finanzberichte',
-      'PDF- und CSV-Export-Funktionen',
-      'Steuerrelevante Zusammenfassungen',
-      'Anpassbare Berichtszeiträume'
-    ],
-    dataCapabilities: {
-      filtering: ['Nach Berichtszeitraum', 'Nach Steuerrelevanz', 'Nach Kategorie'],
-      searching: ['Berichtstypen', 'Exportformate', 'Zeiträume'],
-      tracking: ['Jahresabschlüsse', 'Steuerberichte', 'Cashflow-Statements']
-    }
+      'CSV-Export mit deutschen Trennzeichen für Excel-Kompatibilität',
+      'Vollständiges Bearbeitungsformular mit allen Feldern',
+      'Wohnungs-Combobox mit Suchfunktion und Autocomplete',
+      'Server-seitige Validierung und Fehlerbehandlung'
+    ]
   }
 ];
 
@@ -180,14 +155,7 @@ function TabContent({ tab, onImageClick, hasImageError, onImageError, onImageLoa
           <FeaturesList features={tab.features} />
         </motion.div>
 
-        {/* Data Capabilities */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-        >
-          <DataCapabilities capabilities={tab.dataCapabilities} />
-        </motion.div>
+
       </motion.div>
     </motion.div>
   );
@@ -251,68 +219,7 @@ function FeaturesList({ features }: FeaturesListProps) {
   );
 }
 
-// Data Capabilities Component
-interface DataCapabilitiesProps {
-  capabilities: {
-    filtering: string[];
-    searching: string[];
-    tracking: string[];
-  };
-}
 
-function DataCapabilities({ capabilities }: DataCapabilitiesProps) {
-  const sections = [
-    { title: 'Filterung', items: capabilities.filtering },
-    { title: 'Suche', items: capabilities.searching },
-    { title: 'Tracking', items: capabilities.tracking }
-  ];
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-      {sections.map((section, sectionIndex) => (
-        <motion.div
-          key={section.title}
-          className={sectionIndex === 2 ? "sm:col-span-2 lg:col-span-1" : ""}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.4,
-            delay: sectionIndex * 0.1,
-            ease: "easeOut"
-          }}
-          whileHover={{ y: -2 }}
-        >
-          <motion.h5
-            className="font-semibold text-foreground mb-2 text-sm sm:text-base"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3, delay: sectionIndex * 0.1 + 0.2 }}
-          >
-            {section.title}
-          </motion.h5>
-          <ul className="text-sm text-muted-foreground space-y-1">
-            {section.items.map((item, index) => (
-              <motion.li
-                key={index}
-                className="leading-relaxed hover:text-foreground transition-colors duration-200"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{
-                  duration: 0.3,
-                  delay: sectionIndex * 0.1 + index * 0.05 + 0.3,
-                  ease: "easeOut"
-                }}
-                whileHover={{ x: 2 }}
-              >
-                • {item}
-              </motion.li>
-            ))}
-          </ul>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
 
 // Tab Image Component with enhanced error handling and loading states
 interface TabImageProps {
@@ -584,12 +491,7 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
         description: 'Umfassende Finanzverwaltung für Ihre Immobilien',
         image: '/placeholder.svg',
         imageAlt: 'Finance management placeholder',
-        features: ['Grundlegende Finanzverwaltung'],
-        dataCapabilities: {
-          filtering: ['Basis-Filter'],
-          searching: ['Basis-Suche'],
-          tracking: ['Basis-Tracking']
-        }
+        features: ['Grundlegende Finanzverwaltung']
       };
     }
 
@@ -682,11 +584,11 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-16">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-3 sm:mb-4">
-            Umfassende Finanzverwaltung
+            Professionelle Finanzverwaltung
           </h2>
           <p className="text-lg sm:text-xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Behalten Sie den Überblick über alle Ihre Immobilienfinanzen mit leistungsstarken
-            Analyse- und Tracking-Tools
+            Vollständige Kontrolle über Ihre Immobilienfinanzen: Von intelligenten Dashboards über 
+            interaktive Diagramme bis hin zu professionellen Export-Funktionen für Steuerberater
           </p>
         </div>
 
