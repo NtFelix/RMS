@@ -70,3 +70,12 @@ jest.mock('@/app/betriebskosten-actions', () => ({
 jest.mock('@/app/mieter-actions', () => ({
   getMieterByHausIdAction: jest.fn(),
 }));
+
+// Mock hooks to prevent actual imports during testing
+jest.mock('@/hooks/use-modal-store', () => ({
+  useModalStore: jest.fn(),
+}));
+
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: jest.fn(),
+}));

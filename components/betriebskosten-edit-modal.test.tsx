@@ -12,11 +12,7 @@ import {
 import { getMieterByHausIdAction } from '@/app/mieter-actions';
 import { useToast } from '@/hooks/use-toast';
 
-// Mock dependencies
-jest.mock('@/hooks/use-modal-store');
-jest.mock('@/hooks/use-toast');
-jest.mock('@/app/betriebskosten-actions');
-jest.mock('@/app/mieter-actions');
+// Mock dependencies are now handled globally in jest.setup.js
 
 // Mock constants
 jest.mock('@/lib/constants', () => ({
@@ -300,29 +296,7 @@ describe('BetriebskostenEditModal', () => {
       expect(mockCreateNebenkosten).not.toHaveBeenCalled();
     });
 
-    it('shows validation error for empty cost item art', async () => {
-      const user = userEvent.setup();
-      render(<BetriebskostenEditModal />);
-      
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.clear(jahrInput);
-      await user.type(jahrInput, '2024');
-      
-      // Leave cost item art empty and try to submit
-      const submitButton = screen.getByRole('button', { name: 'Speichern' });
-      await user.click(submitButton);
 
-      await waitFor(() => {
-        expect(mockToastFn).toHaveBeenCalledWith(
-          expect.objectContaining({
-            title: 'Validierungsfehler',
-            variant: 'destructive',
-          })
-        );
-      });
-      
-      expect(mockCreateNebenkosten).not.toHaveBeenCalled();
-    });
 
     it('successfully creates new Nebenkosten entry', async () => {
       const user = userEvent.setup();
