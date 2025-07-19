@@ -46,7 +46,7 @@ describe('FinanceEditModal', () => {
   describe('Rendering', () => {
     it('renders create modal when no initial data is provided', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       expect(screen.getByText('Transaktion hinzufügen')).toBeInTheDocument();
       expect(screen.getByText('Füllen Sie die erforderlichen Felder aus.')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Speichern' })).toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('FinanceEditModal', () => {
       });
 
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       expect(screen.getByText('Transaktion bearbeiten')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Aktualisieren' })).toBeInTheDocument();
     });
@@ -86,7 +86,7 @@ describe('FinanceEditModal', () => {
 
     it('renders all form fields', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       expect(screen.getByLabelText('Bezeichnung')).toBeInTheDocument();
       expect(screen.getByLabelText('Betrag (€)')).toBeInTheDocument();
       expect(screen.getByLabelText('Datum')).toBeInTheDocument();
@@ -114,7 +114,7 @@ describe('FinanceEditModal', () => {
       });
 
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       expect(screen.getByDisplayValue('Test Transaction')).toBeInTheDocument();
       expect(screen.getByDisplayValue('100.5')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Test note')).toBeInTheDocument();
@@ -122,11 +122,11 @@ describe('FinanceEditModal', () => {
 
     it('handles empty initial data gracefully', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const nameInput = screen.getByLabelText('Bezeichnung') as HTMLInputElement;
       const betragInput = screen.getByLabelText('Betrag (€)') as HTMLInputElement;
       const notizInput = screen.getByLabelText('Notiz') as HTMLInputElement;
-      
+
       expect(nameInput.value).toBe('');
       expect(betragInput.value).toBe('');
       expect(notizInput.value).toBe('');
@@ -137,10 +137,10 @@ describe('FinanceEditModal', () => {
     it('updates form data when user types in input fields', async () => {
       const user = userEvent.setup();
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const nameInput = screen.getByLabelText('Bezeichnung');
       await user.type(nameInput, 'New Transaction');
-      
+
       expect(nameInput).toHaveValue('New Transaction');
       expect(mockSetFinanceModalDirty).toHaveBeenCalledWith(true);
     });
@@ -148,21 +148,21 @@ describe('FinanceEditModal', () => {
     it('updates betrag field correctly', async () => {
       const user = userEvent.setup();
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const betragInput = screen.getByLabelText('Betrag (€)');
       await user.type(betragInput, '150.75');
-      
+
       expect(betragInput).toHaveValue(150.75);
       expect(mockSetFinanceModalDirty).toHaveBeenCalledWith(true);
     });
 
     it('renders transaction type selector', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       // Just verify the type selector is rendered
       const typeSelect = screen.getByRole('combobox', { name: 'Typ' });
       expect(typeSelect).toBeInTheDocument();
-      
+
       // Verify the label is present
       expect(screen.getByText('Typ')).toBeInTheDocument();
     });
@@ -172,15 +172,15 @@ describe('FinanceEditModal', () => {
     it('submits form with correct data for new transaction', async () => {
       const user = userEvent.setup();
       mockServerAction.mockResolvedValue({ success: true, data: { id: 'new-id' } });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockServerAction).toHaveBeenCalledWith(null, {
           name: 'Test Transaction',
@@ -211,12 +211,12 @@ describe('FinanceEditModal', () => {
       });
 
       mockServerAction.mockResolvedValue({ success: true, data: initialData });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const submitButton = screen.getByRole('button', { name: 'Aktualisieren' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockServerAction).toHaveBeenCalledWith('1', expect.any(Object));
       });
@@ -225,14 +225,11 @@ describe('FinanceEditModal', () => {
     it('shows validation error for missing required fields', async () => {
       const user = userEvent.setup();
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       // Try to submit with empty required fields
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
-      
-      // Simulate form submission by triggering the form's onSubmit event
-      const form = screen.getByRole('dialog').querySelector('form');
-      fireEvent.submit(form!);
-      
+      await user.click(submitButton);
+
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith({
           title: 'Fehler',
@@ -240,22 +237,22 @@ describe('FinanceEditModal', () => {
           variant: 'destructive',
         });
       });
-      
+
       expect(mockServerAction).not.toHaveBeenCalled();
     });
 
     it('shows success toast on successful submission', async () => {
       const user = userEvent.setup();
       mockServerAction.mockResolvedValue({ success: true, data: { id: 'new-id' } });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith({
           title: 'Finanzeintrag erstellt',
@@ -267,19 +264,19 @@ describe('FinanceEditModal', () => {
 
     it('shows error toast on submission failure', async () => {
       const user = userEvent.setup();
-      mockServerAction.mockResolvedValue({ 
-        success: false, 
-        error: { message: 'Database error' } 
+      mockServerAction.mockResolvedValue({
+        success: false,
+        error: { message: 'Database error' }
       });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockToast).toHaveBeenCalledWith({
           title: 'Fehler',
@@ -296,18 +293,18 @@ describe('FinanceEditModal', () => {
         resolveServerAction = resolve;
       });
       mockServerAction.mockReturnValue(serverActionPromise);
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       expect(screen.getByRole('button', { name: 'Wird gespeichert...' })).toBeDisabled();
       expect(screen.getByLabelText('Bezeichnung')).toBeDisabled();
-      
+
       resolveServerAction!({ success: true });
     });
   });
@@ -316,25 +313,25 @@ describe('FinanceEditModal', () => {
     it('calls closeFinanceModal when cancel button is clicked', async () => {
       const user = userEvent.setup();
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const cancelButton = screen.getByRole('button', { name: 'Abbrechen' });
       await user.click(cancelButton);
-      
+
       expect(mockCloseFinanceModal).toHaveBeenCalledWith({ force: true });
     });
 
     it('closes modal after successful submission', async () => {
       const user = userEvent.setup();
       mockServerAction.mockResolvedValue({ success: true, data: { id: 'new-id' } });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockCloseFinanceModal).toHaveBeenCalled();
       });
@@ -344,15 +341,15 @@ describe('FinanceEditModal', () => {
       const user = userEvent.setup();
       const successData = { id: 'new-id', name: 'Test Transaction' };
       mockServerAction.mockResolvedValue({ success: true, data: successData });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockFinanceModalOnSuccess).toHaveBeenCalledWith(successData);
       });
@@ -362,32 +359,32 @@ describe('FinanceEditModal', () => {
   describe('Dirty State Management', () => {
     it('sets dirty state to false when modal opens', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       expect(mockSetFinanceModalDirty).toHaveBeenCalledWith(false);
     });
 
     it('sets dirty state to true when form data changes', async () => {
       const user = userEvent.setup();
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const nameInput = screen.getByLabelText('Bezeichnung');
       await user.type(nameInput, 'Test');
-      
+
       expect(mockSetFinanceModalDirty).toHaveBeenCalledWith(true);
     });
 
     it('resets dirty state to false after successful submission', async () => {
       const user = userEvent.setup();
       mockServerAction.mockResolvedValue({ success: true, data: { id: 'new-id' } });
-      
+
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       await user.type(screen.getByLabelText('Bezeichnung'), 'Test Transaction');
       await user.type(screen.getByLabelText('Betrag (€)'), '100.50');
-      
+
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
-      
+
       await waitFor(() => {
         expect(mockSetFinanceModalDirty).toHaveBeenCalledWith(false);
       });
@@ -397,11 +394,11 @@ describe('FinanceEditModal', () => {
   describe('Apartment Selection', () => {
     it('renders apartment combobox', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       // The apartment combobox doesn't have an accessible name, so we find it by its position
       const comboboxes = screen.getAllByRole('combobox');
       expect(comboboxes).toHaveLength(2); // One for apartment, one for type
-      
+
       // Check that the label exists
       expect(screen.getByText('Wohnung')).toBeInTheDocument();
     });
@@ -413,7 +410,7 @@ describe('FinanceEditModal', () => {
       });
 
       render(<FinanceEditModal serverAction={mockServerAction} />);
-      
+
       const comboboxes = screen.getAllByRole('combobox');
       expect(comboboxes).toHaveLength(2);
       expect(screen.getByText('Wohnung')).toBeInTheDocument();
