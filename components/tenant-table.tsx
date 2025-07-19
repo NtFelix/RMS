@@ -1,14 +1,15 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantContextMenu } from "@/components/tenant-context-menu"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
-
-import { Tenant, NebenkostenEntry } from "@/types/Tenant";
+import { Tenant } from "@/types/Tenant"
+import { DataTable } from "@/components/ui/data-table"
+import { ColumnDef } from "@tanstack/react-table"
+import { ArrowUpDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface TenantTableProps {
   tenants: Tenant[];
@@ -18,8 +19,6 @@ interface TenantTableProps {
   onEdit?: (t: Tenant) => void;
   onDelete?: (id: string) => void;
 }
-
-
 
 export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
   const router = useRouter()
@@ -51,52 +50,51 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     return map
   }, [wohnungen])
 
+  const tableColumns: ColumnDef<Tenant>[] = useMemo(() => [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Name <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <TenantContextMenu tenant={row.original} onEdit={() => onEdit?.(row.original)} onRefresh={() => router.refresh()}>
+          <div className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(row.original)}>
+            {row.original.name}
+          </div>
+        </TenantContextMenu>
+      )
+    },
+    {
+      accessorKey: "email",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          E-Mail <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+    },
+    { accessorKey: "telefonnummer", header: "Telefon" },
+    {
+      accessorKey: "wohnung_id",
+      header: "Wohnung",
+      cell: ({ row }) => wohnungsMap[row.original.wohnung_id || ''] || '-',
+    },
+    {
+      accessorKey: "nebenkosten",
+      header: "Nebenkosten",
+      cell: ({ row }) => {
+        const { nebenkosten } = row.original
+        return (nebenkosten && nebenkosten.length > 0)
+          ? `${nebenkosten.slice(0, 3).map(n => `${n.amount} €`).join(', ')}${nebenkosten.length > 3 ? '...' : ''}`
+          : '-'
+      }
+    },
+  ], [onEdit, router, wohnungsMap]);
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[250px]">Name</TableHead>
-            <TableHead>E-Mail</TableHead>
-            <TableHead>Telefon</TableHead>
-            <TableHead>Wohnung</TableHead>
-            <TableHead>Nebenkosten</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredData.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
-                Keine Mieter gefunden.
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredData.map((tenant) => (
-              <TenantContextMenu
-                key={tenant.id}
-                tenant={tenant}
-                onEdit={() => onEdit?.(tenant)}
-                onRefresh={() => router.refresh()}
-              >
-                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
-                  <TableCell className="font-medium">{tenant.name}</TableCell>
-                  <TableCell>{tenant.email}</TableCell>
-                  <TableCell>{tenant.telefonnummer}</TableCell>
-                  <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell>
-                    {tenant.nebenkosten && tenant.nebenkosten.length > 0
-                      ? tenant.nebenkosten
-                          .slice(0, 3)
-                          .map(n => `${n.amount} €`)
-                          .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
-                      : '-'}
-                  </TableCell>
-                </TableRow>
-              </TenantContextMenu>
-            ))
-          )}
-        </TableBody>
-      </Table>
+    <div>
+      <DataTable columns={tableColumns} data={filteredData} />
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

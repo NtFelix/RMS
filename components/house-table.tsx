@@ -1,8 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, MutableRefObject } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect, useCallback, useMemo, MutableRefObject } from "react"
 import { HouseContextMenu } from "@/components/house-context-menu"
 import {
   AlertDialog,
@@ -14,7 +12,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast" // Import toast
+import { toast } from "@/hooks/use-toast"
+import { DataTable } from "@/components/ui/data-table"
+import { ColumnDef } from "@tanstack/react-table"
+import { ArrowUpDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 
 export interface House {
   id: string
@@ -33,20 +36,17 @@ interface HouseTableProps {
   filter: string
   searchQuery: string
   reloadRef?: MutableRefObject<(() => void) | null>
-  onEdit: (house: House) => void // Add onEdit prop
-  // optional initial houses loaded server-side
+  onEdit: (house: House) => void
   initialHouses?: House[]
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) { // Destructure onEdit
-  // initialize with server-provided data if available
+export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) {
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
   const [filteredData, setFilteredData] = useState<House[]>([])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // State for delete dialog
-  const [houseToDelete, setHouseToDelete] = useState<House | null>(null) // State for house to delete
-  const [isDeleting, setIsDeleting] = useState(false) // State for delete loading
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [houseToDelete, setHouseToDelete] = useState<House | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  // fetchHouses will be called on mount and can be triggered via reloadRef
   const fetchHouses = useCallback(async () => {
     try {
       const res = await fetch("/api/haeuser")
@@ -63,105 +63,46 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }, [])
 
   useEffect(() => {
-    // Set up the reloadRef
-    if (reloadRef) {
-      reloadRef.current = fetchHouses
-    }
-    
-    // Only fetch if no initial data was provided
-    if (!initialHouses || initialHouses.length === 0) {
-      fetchHouses()
-    }
-    
-    // Clean up the ref on unmount
-    return () => {
-      if (reloadRef) {
-        reloadRef.current = null
-      }
-    }
+    if (reloadRef) reloadRef.current = fetchHouses
+    if (!initialHouses || initialHouses.length === 0) fetchHouses()
+    return () => { if (reloadRef) reloadRef.current = null }
   }, [fetchHouses, initialHouses, reloadRef])
   
-  // Update local state when initialHouses changes (server-side rendering)
   useEffect(() => {
-    if (initialHouses && initialHouses.length > 0) {
-      setHouses(initialHouses)
-    }
+    if (initialHouses && initialHouses.length > 0) setHouses(initialHouses)
   }, [initialHouses])
 
   useEffect(() => {
     let result = houses
+    if (filter === "full") result = result.filter((h) => h.freeApartments === 0)
+    else if (filter === "vacant") result = result.filter((h) => (h.freeApartments ?? 0) > 0)
 
-    // Filter by status if status exists
-    if (filter === "full") {
-      result = result.filter((house) =>
-        house.freeApartments !== undefined && house.freeApartments === 0
-      )
-    } else if (filter === "vacant") {
-      result = result.filter((house) =>
-        house.freeApartments !== undefined && house.freeApartments > 0
-      )
-    }
-
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      result = result.filter(
-        (house) =>
-          house.name.toLowerCase().includes(query) ||
-          (house.size && house.size.toLowerCase().includes(query)) ||
-          (house.rent && house.rent.toLowerCase().includes(query)) ||
-          (house.pricePerSqm && house.pricePerSqm.toLowerCase().includes(query)),
+      result = result.filter((h) =>
+          h.name.toLowerCase().includes(query) ||
+          (h.size && h.size.toLowerCase().includes(query)) ||
+          (h.rent && h.rent.toLowerCase().includes(query)) ||
+          (h.pricePerSqm && h.pricePerSqm.toLowerCase().includes(query)),
       )
     }
-
     setFilteredData(result)
   }, [houses, filter, searchQuery])
 
   const handleDeleteConfirm = async () => {
     if (!houseToDelete) return
     setIsDeleting(true)
-    
     try {
-      const response = await fetch(`/api/haeuser/${houseToDelete.id}`, {
-        method: 'DELETE',
-      })
-      
+      const response = await fetch(`/api/haeuser/${houseToDelete.id}`, { method: 'DELETE' })
       if (response.ok) {
-        toast({
-          title: 'Haus gelöscht',
-          description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.`,
-          variant: 'success',
-        })
-        // Refresh the list after successful deletion
+        toast({ title: 'Haus gelöscht', description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.`, variant: 'success' })
         await fetchHouses()
       } else {
         const errorData = await response.json()
         throw new Error(errorData.error || 'Löschen fehlgeschlagen')
       }
     } catch (error) {
-      toast({
-        title: 'Fehler',
-        description: error instanceof Error ? error.message : 'Ein Fehler ist beim Löschen aufgetreten',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
-      setHouseToDelete(null)
-    }
-    try {
-      const res = await fetch(`/api/haeuser?id=${houseToDelete.id}`, {
-        method: "DELETE",
-      })
-      if (res.ok) {
-        toast({ title: "Haus gelöscht", description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.` })
-        fetchHouses() // Refresh the table data
-      } else {
-        const errorData = await res.json()
-        toast({ title: "Fehler", description: errorData.error || "Das Haus konnte nicht gelöscht werden.", variant: "destructive" })
-      }
-    } catch (err) {
-      toast({ title: "Fehler", description: "Netzwerkfehler beim Löschen.", variant: "destructive" })
+      toast({ title: 'Fehler', description: error instanceof Error ? error.message : 'Ein Fehler ist aufgetreten', variant: 'destructive' })
     } finally {
       setIsDeleting(false)
       setShowDeleteConfirm(false)
@@ -169,65 +110,68 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     }
   }
 
+  const columns: ColumnDef<House>[] = useMemo(() => [
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Häuser <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <HouseContextMenu house={row.original} onEdit={() => onEdit(row.original)} onRefresh={fetchHouses}>
+          <div className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(row.original)}>
+            {row.original.name}
+          </div>
+        </HouseContextMenu>
+      ),
+    },
+    { accessorKey: "ort", header: "Ort" },
+    {
+      accessorKey: "size",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Größe <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (row.original.size ? `${row.original.size} m²` : "-"),
+    },
+    {
+      accessorKey: "rent",
+      header: ({ column }) => (
+        <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Miete <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (row.original.rent ? `${row.original.rent} €` : "-"),
+    },
+    {
+      accessorKey: "pricePerSqm",
+      header: "Miete pro m²",
+      cell: ({ row }) => (row.original.pricePerSqm ? `${row.original.pricePerSqm} €/m²` : "-"),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const house = row.original
+        return (house.totalApartments ?? 0) === 0 ? (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">Keine Wohnungen</Badge>
+        ) : (
+          <Badge
+            variant="outline"
+            className={(house.freeApartments ?? 0) > 0 ? "bg-blue-50 text-blue-700 hover:bg-blue-50" : "bg-green-50 text-green-700 hover:bg-green-50"}
+          >
+            {(house.totalApartments ?? 0) - (house.freeApartments ?? 0)}/{house.totalApartments ?? 0} belegt
+          </Badge>
+        )
+      },
+    },
+  ], [onEdit, fetchHouses]);
+
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[250px]">Häuser</TableHead>
-            <TableHead>Ort</TableHead>
-            <TableHead>Größe</TableHead>
-            <TableHead>Miete</TableHead>
-            <TableHead>Miete pro m²</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredData.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
-                Keine Häuser gefunden.
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredData.map((house) => (
-              <HouseContextMenu
-                key={house.id}
-                house={house}
-                onEdit={() => onEdit(house)}
-                onRefresh={fetchHouses}
-              >
-                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(house)}>
-                  <TableCell className="font-medium">{house.name}</TableCell>
-                  <TableCell>{house.ort}</TableCell>
-                  <TableCell>{house.size ? `${house.size} m²` : "-"}</TableCell>
-                  <TableCell>{house.rent ? `${house.rent} €` : "-"}</TableCell>
-                  <TableCell>{house.pricePerSqm ? `${house.pricePerSqm} €/m²` : "-"}</TableCell>
-                  <TableCell>
-                    {(house.totalApartments ?? 0) === 0 ? (
-                      <Badge variant="outline" className="bg-gray-50 text-gray-700 hover:bg-gray-50">
-                        Keine Wohnungen
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className={
-                          (house.freeApartments ?? 0) > 0
-                            ? "bg-blue-50 text-blue-700 hover:bg-blue-50"
-                            : "bg-green-50 text-green-700 hover:bg-green-50"
-                        }
-                      >
-                        {(house.totalApartments ?? 0) - (house.freeApartments ?? 0)}/{house.totalApartments ?? 0} belegt
-                      </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              </HouseContextMenu>
-            ))
-          )}
-        </TableBody>
-      </Table>
-      {/* Delete Confirmation Dialog */}
+    <div>
+      <DataTable columns={columns} data={filteredData} />
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
