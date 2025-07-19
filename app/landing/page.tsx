@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Hero from '../modern/components/hero';
 import FeatureSections from '../modern/components/feature-sections';
+import FinanceShowcase from '../modern/components/finance-showcase';
 import MoreFeatures from '../modern/components/more-features';
 import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
@@ -276,6 +277,9 @@ function LandingPageContent() {
         </div>
         <div id="features">
           <FeatureSections />
+        </div>
+        <div id="finance-showcase">
+          <FinanceShowcase />
         </div>
         <div id="more-features">
           <MoreFeatures />

@@ -29,19 +29,31 @@ jest.mock('@/utils/supabase/client', () => ({
   createClient: jest.fn(() => ({
     auth: {
       getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
-      // Add other methods if needed by the component's rendering path
+      onAuthStateChange: jest.fn().mockReturnValue({
+        data: {
+          subscription: {
+            unsubscribe: jest.fn(),
+          },
+        },
+      }),
     },
-    // Add other Supabase client features if necessary
+    from: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        eq: jest.fn().mockReturnValue({
+          single: jest.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    }),
   })),
 }));
 
 // Mock child components to simplify testing and avoid their internal logic/errors
 jest.mock('../modern/components/navigation', () => () => <div data-testid="mock-navigation" />);
 jest.mock('../modern/components/hero', () => () => <div data-testid="mock-hero" />);
-jest.mock('../modern/components/features', () => () => <div data-testid="mock-features" />);
-jest.mock('../modern/components/services', () => () => <div data-testid="mock-services" />);
+jest.mock('../modern/components/feature-sections', () => () => <div data-testid="mock-feature-sections" />);
+jest.mock('../modern/components/finance-showcase', () => () => <div data-testid="mock-finance-showcase" />);
+jest.mock('../modern/components/more-features', () => () => <div data-testid="mock-more-features" />);
 jest.mock('../modern/components/pricing', () => () => <div data-testid="mock-pricing" />);
-
 jest.mock('../modern/components/cta', () => () => <div data-testid="mock-cta" />);
 jest.mock('../modern/components/footer', () => () => <div data-testid="mock-footer" />);
 

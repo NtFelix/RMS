@@ -4,6 +4,23 @@ Das Rent-Managing-System oder auch RMS ist dazu da um Mieteingänge, Mieter und 
 
 Es ist mit einer Supabase Datenbank verbunden um alle Daten zentral zu speichern und einen einfachen Zugriff auf die Daten zu ermöglichen. Diese Daten werden im Webbrowser über html, css und in Kombination mit javascript verwaltet.
 
+## Recent Updates
+
+### Finance Landing Showcase (NEW)
+A comprehensive finance showcase section has been added to the landing page, featuring:
+- **Interactive Tabbed Interface**: Four tabs demonstrating different aspects of financial management
+- **Visual Product Demonstrations**: Real screenshots of the finance dashboard and analytics
+- **Comprehensive Feature Coverage**: Detailed explanations of filtering, searching, and tracking capabilities
+- **Full Accessibility Support**: WCAG 2.1 AA compliant with keyboard navigation and screen reader support
+- **Responsive Design**: Optimized for all device sizes with touch-friendly interactions
+- **Robust Error Handling**: Graceful fallbacks for image loading failures with retry mechanisms
+
+### Enhanced Testing Infrastructure
+- **Comprehensive Test Coverage**: Over 2000 lines of tests covering functionality, accessibility, and edge cases
+- **Accessibility Testing**: Dedicated test suite ensuring WCAG 2.1 AA compliance
+- **Performance Testing**: Memory leak prevention and cleanup verification
+- **Integration Testing**: Cross-component interaction and landing page integration testing
+
 ## API Endpoints
 
 ### User Profile API (`/api/user/profile`)
@@ -85,6 +102,36 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 STRIPE_WEBHOOK_SIGNING_SECRET=your_stripe_webhook_signing_secret
 ```
 
+## Testing
+
+The application includes comprehensive testing coverage across multiple areas:
+
+### Test Structure
+- **Unit Tests**: Component-level testing with Jest and React Testing Library
+- **Integration Tests**: Cross-component interaction testing
+- **Accessibility Tests**: WCAG 2.1 AA compliance verification
+- **Performance Tests**: Memory leak and performance optimization testing
+
+### Key Test Files
+- `app/modern/components/finance-showcase.test.tsx` - Comprehensive Finance Showcase testing
+- `app/modern/components/finance-showcase.accessibility.test.tsx` - Accessibility compliance testing
+- `app/landing/page.integration.test.tsx` - Landing page integration testing
+
+### Running Tests
+```bash
+npm test                    # Run all tests
+npm test -- --watch        # Run tests in watch mode
+npm test -- --coverage     # Run tests with coverage report
+```
+
+### Test Coverage Areas
+- **Component Rendering**: Ensures all components render correctly
+- **User Interactions**: Tab navigation, image modals, form submissions
+- **Error Handling**: Network failures, image loading errors, edge cases
+- **Accessibility**: Keyboard navigation, screen reader support, WCAG compliance
+- **Responsive Design**: Mobile and desktop layout testing
+- **Performance**: Memory management and cleanup testing
+
 ## Stripe Configuration
 
 For the subscription plans and their associated features/limits to function correctly within the application, specific metadata fields must be configured on your Stripe Price objects.
@@ -97,6 +144,25 @@ When creating or updating products and their prices in your Stripe Dashboard:
         -   If this field is missing, not a valid number, or set to `"0"` (or a negative number), the current backend implementation may interpret this as allowing an unlimited number of 'Wohnungen'. This behavior should be kept in mind when setting up plans.
 
 Ensuring this metadata is correctly set in Stripe is crucial for the dynamic display of plan details and for the enforcement of plan limits (like the 'Wohnungen' count).
+
+## Landing Page Architecture
+
+The modern landing page (`app/landing/page.tsx`) provides a comprehensive showcase of the RMS platform with the following structure:
+
+1. **Navigation** - User authentication and navigation controls
+2. **Hero Section** - Primary call-to-action and value proposition
+3. **Feature Sections** - Core platform capabilities with product screenshots
+4. **Finance Showcase** - Dedicated financial management demonstration (NEW)
+5. **More Features** - Additional platform capabilities
+6. **Pricing** - Subscription plans and pricing information
+7. **Call-to-Action** - Final conversion opportunity
+8. **Footer** - Additional links and information
+
+### Recent Landing Page Updates
+- **Finance Showcase Integration**: Added dedicated section showcasing financial management capabilities
+- **Enhanced User Journey**: Improved flow from features to detailed finance demonstration to pricing
+- **Responsive Design**: Optimized mobile experience across all sections
+- **Performance Improvements**: Lazy loading and image optimization throughout
 
 ## Components
 ### Feature Sections (`app/modern/components/feature-sections.tsx`)
@@ -143,6 +209,67 @@ image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
 // Additional features...
 ]
 ```
+
+### Finance Showcase (`app/modern/components/finance-showcase.tsx`)
+
+The Finance Showcase is a comprehensive landing page component that demonstrates the financial management capabilities of the RMS platform through an interactive tabbed interface.
+
+#### Key Features
+- **Tabbed Interface**: Four distinct tabs showcasing different aspects of financial management
+- **Interactive Navigation**: Smooth tab switching with keyboard and mouse support
+- **Visual Demonstrations**: Product screenshots showing actual finance dashboard functionality
+- **Responsive Design**: Mobile-first approach with touch-friendly interactions
+- **Error Handling**: Robust image loading with fallback states and retry mechanisms
+- **Accessibility**: Full WCAG 2.1 AA compliance with screen reader support
+
+#### Tab Structure
+The component features four main tabs:
+
+1. **Dashboard Übersicht** - Central finance overview with key metrics and real-time data updates
+2. **Charts & Analytics** - Interactive charts showing income/expense trends and distributions
+3. **Transaktionsverwaltung** - Comprehensive transaction management with filtering and search
+4. **Reporting & Export** - Financial reporting and data export capabilities for accounting
+
+#### Technical Implementation
+```typescript
+interface FinanceTab {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  imageAlt: string;
+  features: string[];
+  dataCapabilities: {
+    filtering: string[];
+    searching: string[];
+    tracking: string[];
+  };
+}
+```
+
+#### Integration
+- **Landing Page Position**: Positioned between feature sections and pricing for optimal user journey
+- **Design Consistency**: Uses the same UI components and styling patterns as other landing page sections
+- **Performance Optimized**: Lazy loading, image optimization, and smooth animations using Framer Motion
+
+#### Accessibility Features
+- **Keyboard Navigation**: Full arrow key, Home/End key support for tab navigation
+- **Screen Reader Support**: Proper ARIA labels, roles, and state management
+- **Focus Management**: Visible focus indicators and logical tab order
+- **High Contrast Support**: Compatible with high contrast mode and reduced motion preferences
+- **Touch Accessibility**: Minimum 44px touch targets for mobile devices
+
+#### Error Handling
+- **Image Fallbacks**: Graceful degradation when product images fail to load
+- **Retry Mechanism**: Manual retry option with "Erneut versuchen" button for failed image loads
+- **Loading States**: Visual feedback during tab transitions and image loading
+- **Error Recovery**: User-friendly error messages with retry options
+
+#### Testing Coverage
+- **Unit Tests**: Comprehensive test suite covering component functionality, error states, and edge cases
+- **Accessibility Tests**: WCAG 2.1 AA compliance testing with screen reader simulation
+- **Integration Tests**: Landing page integration and responsive behavior testing
+- **Performance Tests**: Memory leak prevention and cleanup testing
 
 ### Financial Analytics (`app/(dashboard)/finanzen/client-wrapper.tsx`)
 

@@ -33,6 +33,8 @@ const PillTabSwitcher = React.memo(React.forwardRef<
   // State for sliding background indicator position
   const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({})
   
+
+  
   // Touch interaction state for better mobile feedback
   const [touchedTab, setTouchedTab] = React.useState<string | null>(null)
   
@@ -98,6 +100,8 @@ const PillTabSwitcher = React.memo(React.forwardRef<
     setTouchedTab(null)
   }, [])
 
+
+
   return (
     <div
       ref={containerRef}
@@ -135,8 +139,8 @@ const PillTabSwitcher = React.memo(React.forwardRef<
           "absolute rounded-full bg-primary",
           // Responsive positioning: adjust for different padding on mobile vs desktop
           isMobile ? "left-2.5 top-2.5 bottom-2.5" : "left-2 top-2 bottom-2",
-          // Smooth transform animation for position changes with reduced motion support
-          "transition-transform duration-200 ease-in-out motion-reduce:transition-none",
+          // Smooth sliding animation
+          "transition-all duration-300 ease-out motion-reduce:transition-none",
           // Subtle shadow for the indicator
           "shadow-sm shadow-primary/20",
           // Ensure it's behind the tab buttons
@@ -144,6 +148,8 @@ const PillTabSwitcher = React.memo(React.forwardRef<
         )}
         style={indicatorStyle}
       />
+      
+
       {tabs.map((tab, index) => {
         const isActive = currentActiveTab === tab.value
         
@@ -153,6 +159,7 @@ const PillTabSwitcher = React.memo(React.forwardRef<
             type="button"
             data-tab={tab.value}
             onClick={() => handleTabChange(tab.value)}
+
             onTouchStart={() => handleTouchStart(tab.value)}
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchCancel}
@@ -172,8 +179,8 @@ const PillTabSwitcher = React.memo(React.forwardRef<
               isMobile ? "min-h-[44px]" : "min-h-[40px]",
               // Touch optimization: improve tap response
               "touch-manipulation",
-              // Smooth transitions for all state changes with proper timing
-              "transition-all duration-200 ease-in-out motion-reduce:transition-none",
+              // Simple smooth transitions
+              "transition-all duration-200 ease-out motion-reduce:transition-none",
               // Enhanced focus states for accessibility with better visibility
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               // Focus state background for better contrast
@@ -199,14 +206,10 @@ const PillTabSwitcher = React.memo(React.forwardRef<
                 : [
                     // Inactive tab: muted styling with enhanced hover effects
                     "text-muted-foreground",
-                    // Desktop hover effects (disabled on mobile to prevent sticky hover)
+                    // Simple desktop hover effects
                     !isMobile && [
                       "hover:text-foreground",
-                      "hover:bg-muted/50",
-                      "hover:scale-[1.02]",
-                      "hover:shadow-sm hover:shadow-black/5",
-                      "hover:brightness-110",
-                      "hover:ring-1 hover:ring-border/30"
+                      "hover:scale-105"
                     ],
                     // Mobile: simpler touch feedback without hover effects
                     isMobile && [
