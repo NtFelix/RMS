@@ -44,8 +44,6 @@ export function TenantContextMenu({
 
   const handleKaution = () => {
     try {
-      console.log('Opening Kaution modal for tenant:', { tenantId: tenant.id, hasKaution: !!tenant.kaution });
-      
       // Ensure we're passing a clean tenant object with only the required fields
       const cleanTenant = {
         id: tenant.id,
@@ -57,8 +55,6 @@ export function TenantContextMenu({
       let kautionData = undefined;
       
       if (tenant.kaution) {
-        console.log('Existing kaution data:', tenant.kaution);
-        
         // Ensure amount is a number
         const amount = typeof tenant.kaution.amount === 'string' 
           ? parseFloat(tenant.kaution.amount)
@@ -66,7 +62,6 @@ export function TenantContextMenu({
           
         // Ensure we have valid data
         if (isNaN(amount)) {
-          console.error('Invalid amount in kaution data:', tenant.kaution.amount);
           throw new Error('Ungültiger Kautionbetrag');
         }
         
@@ -77,17 +72,12 @@ export function TenantContextMenu({
           createdAt: tenant.kaution.createdAt,
           updatedAt: tenant.kaution.updatedAt
         };
-        
-        console.log('Prepared kaution data for modal:', kautionData);
-      } else {
-        console.log('No existing kaution data for tenant');
       }
       
       // Open the modal with the prepared data
       openKautionModal(cleanTenant, kautionData);
       
     } catch (error) {
-      console.error('Error preparing kaution data:', error);
       toast({
         title: 'Fehler',
         description: 'Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.',
