@@ -13,7 +13,8 @@ Enhanced user experience with intelligent authentication routing:
 - **"Jetzt loslegen" Flow**: Direct redirect to dashboard after authentication for new users
 - **"Anmelden" Flow**: Stay on current page after authentication for returning users
 - **Intent-Based Routing**: Uses sessionStorage to track user intent and redirect accordingly
-- **Cross-Browser Compatibility**: Graceful fallback for browsers without sessionStorage support
+- **Browser Requirements**: Requires sessionStorage support for proper functionality. The "Jetzt loslegen" flow will not work as expected in environments where sessionStorage is not available.
+- **Error Handling**: Logs a warning to the console when sessionStorage is not available
 - **Comprehensive Testing**: 70+ tests covering all authentication scenarios and edge cases
 
 ### Finance Landing Showcase (NEW)
