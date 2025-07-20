@@ -324,7 +324,7 @@ describe('FinanceShowcase UI Components', () => {
       await user.click(image);
 
       await waitFor(() => {
-        const title = screen.getByText('Dashboard Übersicht');
+        const title = screen.getByText('Dashboard-Karten');
         expect(title).toHaveClass('absolute', '-top-12', 'left-0', 'text-white', 'text-lg', 'font-semibold');
       });
     });
@@ -366,7 +366,9 @@ describe('FinanceShowcase UI Components', () => {
       await user.click(image);
 
       await waitFor(() => {
-        const modalImage = screen.getByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
+        const modalImages = screen.getAllByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
+        // The modal image is the second one in the DOM
+        const modalImage = modalImages[1];
         expect(modalImage).toHaveClass('w-full', 'h-auto', 'object-contain', 'max-h-[80vh]');
         expect(modalImage).toHaveAttribute('width', '1200');
         expect(modalImage).toHaveAttribute('height', '900');

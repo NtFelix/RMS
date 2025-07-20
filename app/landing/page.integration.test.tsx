@@ -14,6 +14,7 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => ({
     get: jest.fn().mockReturnValue(null),
   }),
+  usePathname: () => '/',
 }));
 
 // Mock Supabase client
@@ -81,6 +82,12 @@ jest.mock('@/hooks/use-toast', () => ({
     toast: jest.fn(),
   }),
 }));
+
+jest.mock('../modern/components/navigation', () => {
+  return function MockNavigation() {
+    return <nav role="navigation">Mocked Navigation</nav>;
+  };
+});
 
 describe('Landing Page Integration with Finance Showcase', () => {
   let user: ReturnType<typeof userEvent.setup>;

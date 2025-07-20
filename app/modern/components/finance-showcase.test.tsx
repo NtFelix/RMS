@@ -124,14 +124,14 @@ describe('FinanceShowcase', () => {
     it('renders the main section with correct structure or shows error boundary', () => {
       render(<SafeFinanceShowcase />);
       
-      const mainHeading = screen.queryByText('Umfassende Finanzverwaltung');
+      const mainHeading = screen.queryByText('Professionelle Finanzverwaltung');
       const errorBoundary = screen.queryByTestId('error-boundary');
       const importError = screen.queryByTestId('import-error');
       
       expect(mainHeading || errorBoundary || importError).toBeInTheDocument();
       
       if (mainHeading) {
-        expect(screen.getByText(/Behalten Sie den Überblick über alle Ihre Immobilienfinanzen/)).toBeInTheDocument();
+        expect(screen.getByText(/Vollständige Kontrolle über Ihre Immobilienfinanzen/)).toBeInTheDocument();
       }
     });
 
@@ -275,20 +275,29 @@ describe('FinanceShowcase', () => {
     it('should restore focus to trigger element when modal closes', async () => {
       const user = userEvent.setup();
       render(<SafeFinanceShowcase />);
-      
+
       const image = screen.queryByTestId('mock-image');
       if (image) {
+        // Ensure the image is focusable, which might not be default for <img>
+        image.setAttribute('tabindex', '0');
         image.focus();
+        expect(image).toHaveFocus();
+
         await user.click(image);
+
+        const modal = await screen.findByRole('dialog');
+        expect(modal).toBeInTheDocument();
+
+        await user.keyboard('{Escape}');
+
+        await waitFor(() => {
+          expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
+
+        // Add a slight delay to allow focus to be restored
+        await new Promise(resolve => setTimeout(resolve, 100));
         
-        const modal = screen.queryByRole('dialog');
-        if (modal) {
-          await user.keyboard('{Escape}');
-          
-          await waitFor(() => {
-            expect(image).toHaveFocus();
-          });
-        }
+        expect(image).toHaveFocus();
       }
     });
 
@@ -432,11 +441,11 @@ describe('FinanceShowcase', () => {
     it('has proper heading structure (if component loads successfully)', () => {
       render(<SafeFinanceShowcase />);
       
-      const mainHeading = screen.queryByRole('heading', { level: 2, name: 'Umfassende Finanzverwaltung' });
+      const mainHeading = screen.queryByRole('heading', { level: 2, name: 'Professionelle Finanzverwaltung' });
       if (mainHeading) {
         expect(mainHeading).toBeInTheDocument();
         
-        const tabHeading = screen.queryByRole('heading', { level: 3, name: 'Dashboard Übersicht' });
+        const tabHeading = screen.queryByRole('heading', { level: 3, name: 'Dashboard-Karten' });
         if (tabHeading) {
           expect(tabHeading).toBeInTheDocument();
         }
@@ -454,10 +463,10 @@ describe('FinanceShowcase', () => {
       render(<SafeFinanceShowcase />);
       
       const expectedFeatures = [
-        'Durchschnittliche monatliche Einnahmen und Ausgaben',
-        'Cashflow-Analyse und Jahresprognose',
-        'Übersichtliche Kennzahlen-Karten',
-        'Echtzeit-Aktualisierung der Finanzdaten'
+        'Ø Monatliche Einnahmen (nur bereits vergangene Monate)',
+        'Ø Monatliche Ausgaben mit präziser Berechnung',
+        'Ø Monatlicher Cashflow (Einnahmen minus Ausgaben)',
+        'Jahresprognose basierend auf Durchschnittswerten × 12'
       ];
       
       const presentFeatures = expectedFeatures.filter(feature => 

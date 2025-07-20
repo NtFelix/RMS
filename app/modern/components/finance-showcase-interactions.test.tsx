@@ -421,10 +421,10 @@ describe('FinanceShowcase Interactions', () => {
       });
 
       const tabs = [
-        { id: 'dashboard', imageAlt: 'Finance Dashboard Screenshot showing summary cards and key metrics', title: 'Dashboard Übersicht' },
-        { id: 'charts', imageAlt: 'Finance Charts showing income and expense trends with interactive analytics', title: 'Charts & Analytics' },
+        { id: 'dashboard', imageAlt: 'Finance Dashboard Screenshot showing summary cards and key metrics', title: 'Dashboard-Karten' },
+        { id: 'charts', imageAlt: 'Finance Charts showing income and expense trends with interactive analytics', title: 'Interaktive Diagramme' },
         { id: 'transactions', imageAlt: 'Transaction management table with filtering and search capabilities', title: 'Transaktionsverwaltung' },
-        { id: 'reporting', imageAlt: 'Financial reporting interface with export options', title: 'Reporting & Export' }
+        { id: 'reporting', imageAlt: 'Financial reporting interface with export options', title: 'Exportfunktionalität' }
       ];
 
       for (const tab of tabs) {

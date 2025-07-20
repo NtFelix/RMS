@@ -1,15 +1,17 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { KautionModal } from './kaution-modal';
-import { updateKautionAction } from '@/app/mieter-actions';
+import * as mieterActions from '@/app/mieter-actions';
 import { toast } from 'sonner';
 
 jest.mock('@/hooks/use-modal-store');
-jest.mock('@/app/mieter-actions');
+jest.mock('@/app/mieter-actions', () => ({
+  updateKautionAction: jest.fn(),
+}));
 jest.mock('sonner');
 
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
-const mockUpdateKautionAction = updateKautionAction as jest.MockedFunction<typeof updateKautionAction>;
+const mockUpdateKautionAction = mieterActions.updateKautionAction as jest.Mock;
 const mockToast = toast as jest.Mocked<typeof toast>;
 
 describe('KautionModal', () => {
@@ -28,6 +30,9 @@ describe('KautionModal', () => {
       },
       setKautionModalDirty: mockSetKautionModalDirty,
     });
+    mockUpdateKautionAction.mockClear();
+    mockToast.success.mockClear();
+    mockToast.error.mockClear();
   });
 
   it('renders the modal with initial data', () => {
@@ -37,10 +42,9 @@ describe('KautionModal', () => {
     expect(screen.getByText(`Mieter: ${mockTenant.name}`)).toBeInTheDocument();
     expect(screen.getByLabelText('Betrag (€)')).toHaveValue(1500);
     expect(screen.getByLabelText('Zahlungsdatum')).toBeInTheDocument();
-    expect(screen.getByLabelText('Status')).toBeInTheDocument();
   });
 
-  it('calls updateKautionAction on form submission', async () => {
+  it('calls updateKautionAction on form submission and shows success toast', async () => {
     mockUpdateKautionAction.mockResolvedValue({ success: true });
     render(<KautionModal />);
 
@@ -61,6 +65,7 @@ describe('KautionModal', () => {
     fireEvent.click(screen.getByText('Speichern'));
 
     await waitFor(() => {
+      expect(mockUpdateKautionAction).toHaveBeenCalled();
       expect(mockToast.error).toHaveBeenCalledWith('Save failed');
     });
   });

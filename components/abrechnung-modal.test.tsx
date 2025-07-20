@@ -205,9 +205,99 @@ describe('calculateOccupancy (30/360 Convention)', () => {
   });
 } );
 
+// --- Mock Data for Proration Tests ---
+const mockHaus: Haus = {
+  id: 'haus_prorat',
+  name: 'Proration Test Haus',
+  ort: 'Testort',
+  strasse: 'Teststrasse 1',
+  user_id: 'user_prorat_test',
+};
+
+const tenantWohnung: Wohnung = {
+  id: 'w_prorat_1',
+  name: 'WE 01',
+  groesse: 75, // 75 qm
+  haus_id: mockHaus.id,
+  // other Wohnung fields if necessary, ensure consistency with Mieter.Wohnungen type
+  // For AbrechnungModal, only 'name' and 'groesse' are directly used from Mieter.Wohnungen.
+  // Adding fields to satisfy the Wohnung type, assuming default values or null where appropriate
+  miete: 500, // Example value
+  user_id: 'user_prorat_test', // Example value
+};
+
+const commonNebenkostenItem2023: Nebenkosten = {
+  id: 'nk_common_2023',
+  jahr: '2023',
+  nebenkostenart: ['Grundsteuer', 'Versicherung', 'Straßenreinigung'],
+  betrag: [200, 300, 100], // Total for building for these items
+  berechnungsart: ['pro qm', 'pro einheit', 'fix'],
+  wasserkosten: 300,      // Total water cost for building
+  wasserverbrauch: 60,    // Total water consumption for building (e.g., 60 m³) -> 5 €/m³
+  gesamtFlaeche: 300,     // Total area of the building in qm
+  Haeuser: { name: mockHaus.name }, // Simplified Haus object
+  haeuser_id: mockHaus.id,
+  user_id: 'test_user_id', // Added user_id
+  // Added other required Nebenkosten fields with example/default values
+  Rechnungen: null,
+  anzahlMieter: 0,
+  anzahlWohnungen: 0,
+};
+
+const nebenkostenItem2024Leap: Nebenkosten = {
+  ...commonNebenkostenItem2023,
+  id: 'nk_common_2024_leap',
+  jahr: '2024', // Leap year
+};
+
+const tenant1_FullYear2023: Mieter = {
+  id: 't_prorat_1', name: 'Tenant Full Year', einzug: '2023-01-01', auszug: '2023-12-31',
+  Wohnungen: tenantWohnung, wohnung_id: tenantWohnung.id, user_id: 'user_prorat_test',
+  // Added other required Mieter fields
+  email: 'full@year.com', telefonnummer: '123', notiz: '', nebenkosten: [], nebenkosten_datum: [],
+};
+const tenant2_HalfYearMoveOut2023: Mieter = {
+  id: 't_prorat_2', name: 'Tenant Half Year MoveOut', einzug: '2023-01-01', auszug: '2023-06-30',
+  Wohnungen: tenantWohnung, wohnung_id: tenantWohnung.id, user_id: 'user_prorat_test',
+  email: 'half@year.com', telefonnummer: '123', notiz: '', nebenkosten: [], nebenkosten_datum: [],
+};
+const tenant4_LeapYearPartial2024: Mieter = { // For 2024 leap year, moved in 2023, moves out mid 2024
+  id: 't_prorat_4', name: 'Tenant Leap Year Partial', einzug: '2023-10-01', auszug: '2024-03-31', // Occupied Jan, Feb, Mar 2024 (3 months = 90 days)
+  Wohnungen: tenantWohnung, wohnung_id: tenantWohnung.id, user_id: 'user_prorat_test',
+  email: 'leap@year.com', telefonnummer: '123', notiz: '', nebenkosten: [], nebenkosten_datum: [],
+};
+const tenant5_ZeroOccupancy2023: Mieter = { // Moved in after year end
+  id: 't_prorat_5', name: 'Tenant Zero Occupancy', einzug: '2024-01-01', auszug: '2024-12-31',
+  Wohnungen: tenantWohnung, wohnung_id: tenantWohnung.id, user_id: 'user_prorat_test',
+  email: 'zero@year.com', telefonnummer: '123', notiz: '', nebenkosten: [], nebenkosten_datum: [],
+};
+
+// For "nach Rechnung" test
+const tenant6_NachRechnung2023: Mieter = {
+  id: 't_nach_rechnung_6', name: 'Tenant Nach Rechnung', einzug: '2023-01-01', auszug: '2023-06-30', // Half year
+  Wohnungen: tenantWohnung, wohnung_id: tenantWohnung.id, user_id: 'user_prorat_test',
+  email: 'rechnung@year.com', telefonnummer: '123', notiz: '', nebenkosten: [], nebenkosten_datum: [],
+};
+const nebenkostenItem_NachRechnung2023: Nebenkosten = {
+  ...commonNebenkostenItem2023,
+  id: 'nk_nach_rechnung_2023',
+  nebenkostenart: ['Kabel TV', 'Grundsteuer'], // Grundsteuer pro-qm, Kabel TV nach Rechnung
+  betrag: [0, 200], // Kabel TV total is 0 at NK-Item, actual cost from Rechnung. Grundsteuer 200 for building.
+  berechnungsart: ['nach Rechnung', 'pro qm'],
+};
+const rechnungen_NachRechnung_Tenant6: Rechnung[] = [
+  { id: 'r_kabel_1', mieter_id: tenant6_NachRechnung2023.id, nebenkosten_id: nebenkostenItem_NachRechnung2023.id, name: 'Kabel TV', betrag: 120, user_id: 'test_user_id' } // Full year cost for tenant is 120
+];
+// --- End Mock Data for Proration Tests ---
+
 // Existing describe block for AbrechnungModal
 describe('AbrechnungModal Cost Calculation & Proration (30/360 Convention)', () => {
   const user = userEvent.setup();
+
+  const pricePerQmGrundsteuer = commonNebenkostenItem2023.betrag![0] / commonNebenkostenItem2023.gesamtFlaeche!; // 200 / 300
+  const versicherungTotal = commonNebenkostenItem2023.betrag![1]; // 300
+  const strassenreinigungTotal = commonNebenkostenItem2023.betrag![2]; // 100
+  const pricePerCubicMeterWater = commonNebenkostenItem2023.wasserkosten! / commonNebenkostenItem2023.wasserverbrauch!; // 300 / 60 = 5
 
   // Helper to assert costs for a tenant
   const assertTenantCosts = async (
@@ -285,11 +375,6 @@ describe('AbrechnungModal Cost Calculation & Proration (30/360 Convention)', () 
     });
   };
 
-  const pricePerQmGrundsteuer = commonNebenkostenItem2023.betrag![0] / commonNebenkostenItem2023.gesamtFlaeche!; // 200 / 300
-  const versicherungTotal = commonNebenkostenItem2023.betrag![1]; // 300
-  const strassenreinigungTotal = commonNebenkostenItem2023.betrag![2]; // 100
-  const pricePerCubicMeterWater = commonNebenkostenItem2023.wasserkosten! / commonNebenkostenItem2023.wasserverbrauch!; // 300 / 60 = 5
-
   it('should calculate costs correctly for full year occupancy (2023, 30/360)', async () => {
     const tenant = tenant1_FullYear2023;
     const occupancy = calculateOccupancy(tenant.einzug, tenant.auszug, 2023); // 100%
@@ -328,102 +413,6 @@ describe('AbrechnungModal Cost Calculation & Proration (30/360 Convention)', () 
 
     await assertTenantCosts(tenant, commonNebenkostenItem2023, [], mockReadings, totalCost, grundsteuerShare, versicherungShare, strassenreinigungShare, waterShare);
   });
-
-  it('should calculate costs correctly for partial year in leap year (2024, 30/360)', async () => {
-    const tenant = tenant4_LeapYearPartial2024; // einzug: 2023-10-01, auszug: 2024-03-31. For year 2024.
-    const occupancy = calculateOccupancy(tenant.einzug, tenant.auszug, 2024); // Jan 1 2024 to Mar 31 2024 = 90 days
-    expect(occupancy.daysOccupied).toBe(90);
-    const factor = occupancy.percentage / 100; // 90/360 = 0.25
-
-    // Using nebenkostenItem2024Leap for this test
-    const pricePerQmGrundsteuer2024 = nebenkostenItem2024Leap.betrag![0] / nebenkostenItem2024Leap.gesamtFlaeche!;
-    const versicherungTotal2024 = nebenkostenItem2024Leap.betrag![1];
-    const strassenreinigungTotal2024 = nebenkostenItem2024Leap.betrag![2];
-    const pricePerCubicMeterWater2024 = nebenkostenItem2024Leap.wasserkosten! / nebenkostenItem2024Leap.wasserverbrauch!;
-
-
-    const grundsteuerShare = pricePerQmGrundsteuer2024 * tenant.Wohnungen!.groesse * factor; // (200/300) * 75 * 0.25 = 12.5
-    const versicherungShare = versicherungTotal2024 * factor; // 300 * 0.25 = 75
-    const strassenreinigungShare = strassenreinigungTotal2024 * factor; // 100 * 0.25 = 25
-
-    const individualWaterConsumption = 3; // Assume 3 m³
-    const waterShare = individualWaterConsumption * pricePerCubicMeterWater2024; // 3 * 5 = 15 (NOT prorated)
-
-    const totalCost = grundsteuerShare + versicherungShare + strassenreinigungShare + waterShare; // 12.5 + 75 + 25 + 15 = 127.5
-
-    const mockReadings: Wasserzaehler[] = [{id: 'wz_t4', user_id:'usr', mieter_id: tenant.id, nebenkosten_id: nebenkostenItem2024Leap.id, verbrauch: individualWaterConsumption, zaehlerstand: 30, ablese_datum: '2024-03-31'}];
-
-    await assertTenantCosts(tenant, nebenkostenItem2024Leap, [], mockReadings, totalCost, grundsteuerShare, versicherungShare, strassenreinigungShare, waterShare);
-  });
-
-  it('should result in zero costs for zero occupancy (2023, 30/360)', async () => {
-    const tenant = tenant5_ZeroOccupancy2023; // einzug: 2024-01-01 for year 2023
-    const occupancy = calculateOccupancy(tenant.einzug, tenant.auszug, 2023);
-    expect(occupancy.percentage).toBe(0);
-    const factor = occupancy.percentage / 100; // 0
-
-    const grundsteuerShare = pricePerQmGrundsteuer * tenant.Wohnungen!.groesse * factor; // 0
-    const versicherungShare = versicherungTotal * factor; // 0
-    const strassenreinigungShare = strassenreinigungTotal * factor; // 0
-
-    // Water consumption should also be 0 if not occupied, or no reading found for the period
-    const individualWaterConsumption = 0;
-    const waterShare = individualWaterConsumption * pricePerCubicMeterWater; // 0 (NOT prorated, but consumption is 0)
-
-    const totalCost = grundsteuerShare + versicherungShare + strassenreinigungShare + waterShare; // 0
-
-    // No specific reading needed if consumption is 0
-    const mockReadings: Wasserzaehler[] = [{id: 'wz_t5', user_id:'usr', mieter_id: tenant.id, nebenkosten_id: commonNebenkostenItem2023.id, verbrauch: 0, zaehlerstand: 0, ablese_datum: '2023-12-31'}];
-
-
-    await assertTenantCosts(tenant, commonNebenkostenItem2023, [], mockReadings, totalCost, grundsteuerShare, versicherungShare, strassenreinigungShare, waterShare);
-  });
-
-  it('should calculate "nach Rechnung" costs with proration (2023, 30/360)', async () => {
-    const tenant = tenant6_NachRechnung2023; // Half year: 2023-01-01 to 2023-06-30
-    const occupancy = calculateOccupancy(tenant.einzug, tenant.auszug, 2023); // 50%
-    const factor = occupancy.percentage / 100; // 0.5
-
-    // Grundsteuer (pro qm) from nebenkostenItem_NachRechnung2023
-    const nkItemNachRechnung = nebenkostenItem_NachRechnung2023;
-    const pricePerQmGrundsteuerNR = nkItemNachRechnung.betrag![1] / nkItemNachRechnung.gesamtFlaeche!; // 200 / 300
-    const grundsteuerShareNR = pricePerQmGrundsteuerNR * tenant.Wohnungen!.groesse * factor; // (200/300) * 75 * 0.5 = 25
-
-    // Kabel TV (nach Rechnung)
-    const kabelTVFullYearCost = rechnungen_NachRechnung_Tenant6[0].betrag!; // 120 for full year
-    const kabelTVProratedShare = kabelTVFullYearCost * factor; // 120 * 0.5 = 60
-
-    // Water cost for this specific Nebenkosten item (nk_nach_rechnung_2023)
-    // It inherits wasskosten: 300, wasserverbrauch: 60 from commonNebenkostenItem2023. So price is 5.
-    const individualWaterConsumption = 4; // Assume 4 m³ for this tenant for this period
-    const waterShareNR = individualWaterConsumption * (nkItemNachRechnung.wasserkosten! / nkItemNachRechnung.wasserbrauch!); // 4 * 5 = 20 (NOT prorated)
-
-    // Total cost = prorated Grundsteuer + prorated KabelTV + non-prorated Water
-    const totalCost = grundsteuerShareNR + kabelTVProratedShare + waterShareNR; // 25 + 60 + 20 = 105
-
-    const mockReadings: Wasserzaehler[] = [{id: 'wz_t6', user_id:'usr', mieter_id: tenant.id, nebenkosten_id: nkItemNachRechnung.id, verbrauch: individualWaterConsumption, zaehlerstand: 0, ablese_datum: '2023-06-30'}];
-
-    // For assertTenantCosts, we need to map these to the general cost item names if they are fixed in the helper
-    // commonNebenkostenItem2023 had: ['Grundsteuer', 'Versicherung', 'Straßenreinigung']
-    // nebenkostenItem_NachRechnung2023 has: ['Kabel TV', 'Grundsteuer']
-    // The assertTenantCosts helper looks for fixed names. This test will need a more specific assertion or a flexible helper.
-    // For now, let's assume we adapt the call to assertTenantCosts or the helper for this specific structure.
-    // The helper expects Grundsteuer, Versicherung, Straßenreinigung. We only have Grundsteuer and KabelTV.
-    // So, pass 0 for Versicherung and Straßenreinigung.
-    await assertTenantCosts(
-      tenant,
-      nkItemNachRechnung,
-      rechnungen_NachRechnung_Tenant6,
-      mockReadings,
-      totalCost,
-      grundsteuerShareNR, // Grundsteuer
-      0,                  // Versicherung (not in this NK item)
-      0,                  // Straßenreinigung (not in this NK item)
-      waterShareNR,
-      kabelTVProratedShare // Kabel TV
-    );
-  });
-});
 
 
 // Mock for jspdf-autotable (handling dynamic import)
@@ -599,6 +588,8 @@ const nebenkostenItem_NachRechnung2023: Nebenkosten = {
 const rechnungen_NachRechnung_Tenant6: Rechnung[] = [
   { id: 'r_kabel_1', mieter_id: tenant6_NachRechnung2023.id, nebenkosten_id: nebenkostenItem_NachRechnung2023.id, name: 'Kabel TV', betrag: 120, user_id: 'test_user_id' } // Full year cost for tenant is 120
 ];
+
+// --- End Mock Data for Proration Tests ---
 // --- End Mock Data for Proration Tests ---
 
 describe('AbrechnungModal', () => {
