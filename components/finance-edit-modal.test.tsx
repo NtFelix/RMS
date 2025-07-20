@@ -410,9 +410,9 @@ describe('FinanceEditModal', () => {
     it('renders apartment combobox', () => {
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
-      // The apartment combobox doesn't have an accessible name, so we find it by its position
-      const comboboxes = screen.getAllByRole('combobox');
-      expect(comboboxes).toHaveLength(2); // One for apartment, one for type
+      // Now we can use a more robust selector with the accessible name
+      const apartmentCombobox = screen.getByRole('combobox', { name: 'Wohnung' });
+      expect(apartmentCombobox).toBeInTheDocument();
 
       // Check that the label exists
       expect(screen.getByText('Wohnung')).toBeInTheDocument();
@@ -426,8 +426,8 @@ describe('FinanceEditModal', () => {
 
       render(<FinanceEditModal serverAction={mockServerAction} />);
 
-      const comboboxes = screen.getAllByRole('combobox');
-      expect(comboboxes).toHaveLength(2);
+      const apartmentCombobox = screen.getByRole('combobox', { name: 'Wohnung' });
+      expect(apartmentCombobox).toBeInTheDocument();
       expect(screen.getByText('Wohnung')).toBeInTheDocument();
     });
   });

@@ -2,6 +2,7 @@
 
 import { Label } from "@/components/ui/label";
 import { InfoTooltip } from "@/components/ui/info-tooltip";
+import { cn } from "@/lib/utils";
 
 interface LabelWithTooltipProps {
   htmlFor: string;

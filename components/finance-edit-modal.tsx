@@ -223,6 +223,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
             <div className="space-y-2">
               <Label htmlFor="wohnung_id">Wohnung</Label>
               <CustomCombobox
+                id="wohnung_id"
                 width="w-full"
                 options={apartmentOptions}
                 value={formData.wohnung_id}
