@@ -59,20 +59,13 @@ export function KautionModal({ serverAction }: KautionModalProps) {
 
   // Load initial data when modal opens or initial data changes
   useEffect(() => {
-    console.log('KautionModal - isKautionModalOpen:', isKautionModalOpen);
-    console.log('KautionModal - kautionInitialData:', JSON.stringify(kautionInitialData, null, 2));
-    
     if (isKautionModalOpen && kautionInitialData) {
       const { tenant, existingKaution } = kautionInitialData;
-      console.log('KautionModal - Tenant:', tenant);
-      console.log('KautionModal - Existing kaution data:', existingKaution);
       
       if (existingKaution) {
         const amount = existingKaution.amount?.toString() || '';
         const paymentDate = existingKaution.paymentDate || '';
         const status = existingKaution.status || 'Ausstehend';
-        
-        console.log('Setting form data from existing kaution:', { amount, paymentDate, status });
         
         setFormData({
           amount,
@@ -83,7 +76,6 @@ export function KautionModal({ serverAction }: KautionModalProps) {
         // Don't calculate suggested amount for existing kaution
         setSuggestedAmount(null);
       } else {
-        console.log('No existing kaution data, initializing empty form');
         // Reset form for new kaution
         setFormData({
           amount: "",
@@ -93,17 +85,14 @@ export function KautionModal({ serverAction }: KautionModalProps) {
         
         // Calculate suggested amount if tenant has apartment
         if (tenant.wohnung_id) {
-          console.log('Calculating suggested amount for wohnung:', tenant.wohnung_id);
           calculateSuggestedAmount(tenant.wohnung_id);
         } else {
-          console.log('No wohnung_id found, cannot calculate suggested amount');
           setSuggestedAmount(null);
         }
       }
 
       setValidationErrors({});
       setKautionModalDirty(false);
-      setKautionModalDirty(false)
     } else if (!isKautionModalOpen) {
       // Reset form state when modal closes
       resetFormState()
