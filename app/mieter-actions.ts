@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching"; // Added import for Mieter type
+import { KautionData, KautionStatus } from "@/types/Tenant";
 
 export async function handleSubmit(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
@@ -142,5 +143,122 @@ export async function getMieterByHausIdAction(hausId: string, jahr?: string): Pr
   } catch (e: any) {
     console.error("Unexpected error in getMieterByHausIdAction:", e.message);
     return { success: false, error: e.message || "An unexpected error occurred.", data: null };
+  }
+}
+
+export async function updateKautionAction(formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
+  const supabase = await createClient();
+
+  try {
+    // Extract form data
+    const tenantId = formData.get('tenantId') as string;
+    const amount = formData.get('amount') as string;
+    const paymentDate = formData.get('paymentDate') as string;
+    const status = formData.get('status') as KautionStatus;
+
+    // Validation
+    if (!tenantId) {
+      return { success: false, error: { message: "Mieter ID ist erforderlich" } };
+    }
+
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      return { success: false, error: { message: "Betrag muss eine positive Zahl sein" } };
+    }
+
+    const validStatuses: KautionStatus[] = ['Erhalten', 'Ausstehend', 'Zurückgezahlt'];
+    if (!status || !validStatuses.includes(status)) {
+      return { success: false, error: { message: "Ungültiger Status" } };
+    }
+
+    // Validate payment date if provided
+    if (paymentDate && paymentDate.trim() !== '') {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(paymentDate) || isNaN(Date.parse(paymentDate))) {
+        return { success: false, error: { message: "Ungültiges Datum" } };
+      }
+    }
+
+    // Create kaution data structure
+    const now = new Date().toISOString();
+    const kautionData: KautionData = {
+      amount: parseFloat(amount),
+      paymentDate: paymentDate && paymentDate.trim() !== '' ? paymentDate : '',
+      status,
+      createdAt: now,
+      updatedAt: now
+    };
+
+    // Check if tenant already has kaution data to preserve createdAt
+    const { data: existingTenant, error: fetchError } = await supabase
+      .from('Mieter')
+      .select('kaution')
+      .eq('id', tenantId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 is "not found"
+      console.error("Error fetching existing tenant data:", fetchError);
+      return { success: false, error: { message: "Fehler beim Laden der Mieterdaten" } };
+    }
+
+    // If tenant has existing kaution data, preserve the createdAt timestamp
+    if (existingTenant?.kaution) {
+      kautionData.createdAt = existingTenant.kaution.createdAt || now;
+    }
+
+    // Update tenant with kaution data
+    const { error: updateError } = await supabase
+      .from('Mieter')
+      .update({ kaution: kautionData })
+      .eq('id', tenantId);
+
+    if (updateError) {
+      console.error("Error updating kaution data:", updateError);
+      return { success: false, error: { message: updateError.message } };
+    }
+
+    // Revalidate the mieter page to reflect changes
+    revalidatePath('/mieter');
+    
+    return { success: true };
+
+  } catch (e) {
+    console.error("Unexpected error in updateKautionAction:", e);
+    return { success: false, error: { message: (e as Error).message } };
+  }
+}
+
+export async function getSuggestedKautionAmount(tenantId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: { message: string } }> {
+  const supabase = await createClient();
+
+  try {
+    // Fetch tenant with associated apartment data
+    const { data: tenant, error: tenantError } = await supabase
+      .from('Mieter')
+      .select('wohnung_id, Wohnungen(miete)')
+      .eq('id', tenantId)
+      .single();
+
+    if (tenantError) {
+      console.error("Error fetching tenant data:", tenantError);
+      return { success: false, error: { message: "Fehler beim Laden der Mieterdaten" } };
+    }
+
+    // Handle the joined data - Supabase returns an array for joins
+    const wohnungen = tenant.Wohnungen as { miete: number }[] | null;
+    const wohnung = Array.isArray(wohnungen) && wohnungen.length > 0 ? wohnungen[0] : null;
+
+    // If tenant has no associated apartment or apartment has no rent data
+    if (!tenant.wohnung_id || !wohnung || !wohnung.miete) {
+      return { success: true, suggestedAmount: undefined };
+    }
+
+    // Calculate suggested amount (3x rent)
+    const suggestedAmount = wohnung.miete * 3;
+
+    return { success: true, suggestedAmount };
+
+  } catch (e) {
+    console.error("Unexpected error in getSuggestedKautionAmount:", e);
+    return { success: false, error: { message: (e as Error).message } };
   }
 }

@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Trash2 } from "lucide-react"
+import { Edit, User, Trash2, Euro } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
+import { useModalStore } from "@/hooks/use-modal-store";
 
 import { Tenant } from "@/types/Tenant";
 
@@ -39,6 +40,51 @@ export function TenantContextMenu({
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const { openKautionModal } = useModalStore()
+
+  const handleKaution = () => {
+    try {
+      // Ensure we're passing a clean tenant object with only the required fields
+      const cleanTenant = {
+        id: tenant.id,
+        name: tenant.name,
+        wohnung_id: tenant.wohnung_id
+      };
+      
+      // Prepare kaution data if it exists
+      let kautionData = undefined;
+      
+      if (tenant.kaution) {
+        // Ensure amount is a number
+        const amount = typeof tenant.kaution.amount === 'string' 
+          ? parseFloat(tenant.kaution.amount)
+          : tenant.kaution.amount;
+          
+        // Ensure we have valid data
+        if (isNaN(amount)) {
+          throw new Error('Ungültiger Kautionbetrag');
+        }
+        
+        kautionData = {
+          amount,
+          paymentDate: tenant.kaution.paymentDate || '',
+          status: tenant.kaution.status || 'Ausstehend',
+          createdAt: tenant.kaution.createdAt,
+          updatedAt: tenant.kaution.updatedAt
+        };
+      }
+      
+      // Open the modal with the prepared data
+      openKautionModal(cleanTenant, kautionData);
+      
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const handleDelete = async () => {
     try {
@@ -82,6 +128,10 @@ export function TenantContextMenu({
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleKaution} className="flex items-center gap-2 cursor-pointer">
+            <Euro className="h-4 w-4" />
+            <span>Kaution</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
