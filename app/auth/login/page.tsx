@@ -16,7 +16,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // Check for redirect parameter or auth intent
+  // Check for redirect parameter, otherwise default to dashboard
   const redirectParam = searchParams.get('redirect')
   const redirect = redirectParam || "/home"
 
