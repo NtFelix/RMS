@@ -273,12 +273,8 @@ export function KautionModal({ serverAction }: KautionModalProps) {
   }
 
   const handleCancelClick = () => {
-    if (isKautionModalDirty) {
-      // Let the modal store handle the dirty state confirmation
-      closeKautionModal()
-    } else {
-      closeKautionModal({ force: true })
-    }
+    // Always close immediately when cancel button is clicked, regardless of dirty state
+    closeKautionModal({ force: true });
   }
 
   if (!isKautionModalOpen || !kautionInitialData) return null
