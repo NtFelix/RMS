@@ -286,8 +286,8 @@ function LandingPageContent() {
         try {
           sessionStorage.setItem('authIntent', 'get-started');
         } catch (e) {
-          // Fallback for browsers without sessionStorage support
-          console.warn('SessionStorage not available, using URL parameter fallback');
+          // In browsers without sessionStorage, the redirect intent will be lost
+          console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
         }
         openAuthModal('login');
     }
