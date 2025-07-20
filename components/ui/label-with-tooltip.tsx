@@ -18,7 +18,7 @@ export function LabelWithTooltip({
   className 
 }: LabelWithTooltipProps) {
   return (
-    <div className={`flex items-center ${className || ''}`}>
+    <div className={cn('flex items-center', className)}>
       <Label htmlFor={htmlFor}>{children}</Label>
       <InfoTooltip infoText={infoText} />
     </div>
