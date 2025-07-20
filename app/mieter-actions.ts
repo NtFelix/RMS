@@ -49,6 +49,36 @@ export async function handleSubmit(formData: FormData): Promise<{ success: boole
   }
 }
 
+export async function getSuggestedKaution(wohnungId: string): Promise<{ success: boolean; suggestedAmount?: number; error?: string }> {
+  if (!wohnungId) {
+    return { success: false, error: "Wohnung ID is required." };
+  }
+
+  const supabase = await createClient();
+
+  try {
+    const { data: wohnung, error } = await supabase
+      .from("Wohnungen")
+      .select("miete")
+      .eq("id", wohnungId)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching Wohnung for suggestion ${wohnungId}:`, error.message);
+      return { success: false, error: error.message };
+    }
+
+    if (!wohnung || !wohnung.miete) {
+      return { success: true, suggestedAmount: 0 };
+    }
+
+    return { success: true, suggestedAmount: wohnung.miete * 3 };
+  } catch (e: any) {
+    console.error("Unexpected error in getSuggestedKaution:", e.message);
+    return { success: false, error: e.message || "An unexpected error occurred." };
+  }
+}
+
 export async function deleteTenantAction(tenantId: string): Promise<{ success: boolean; error?: { message: string } }> {
   try {
     const supabase = await createClient();
@@ -142,5 +172,61 @@ export async function getMieterByHausIdAction(hausId: string, jahr?: string): Pr
   } catch (e: any) {
     console.error("Unexpected error in getMieterByHausIdAction:", e.message);
     return { success: false, error: e.message || "An unexpected error occurred.", data: null };
+  }
+}
+
+export async function updateKautionAction(formData: FormData): Promise<{
+  success: boolean;
+  error?: { message: string };
+}> {
+  const supabase = await createClient();
+  const tenantId = formData.get('tenantId') as string;
+  const amount = formData.get('amount') as string;
+  const paymentDate = formData.get('paymentDate') as string;
+  const status = formData.get('status') as 'Erhalten' | 'Ausstehend' | 'Zurückgezahlt';
+
+  if (!tenantId) {
+    return { success: false, error: { message: "Mieter-ID fehlt." } };
+  }
+
+  try {
+    // Fetch existing tenant to get current kaution data for timestamping
+    const { data: tenant, error: fetchError } = await supabase
+      .from('Mieter')
+      .select('kaution')
+      .eq('id', tenantId)
+      .single();
+
+    if (fetchError) {
+      console.error("Error fetching tenant for kaution update:", fetchError);
+      return { success: false, error: { message: "Fehler beim Abrufen der Mieterdaten." } };
+    }
+
+    const now = new Date().toISOString();
+    const existingKaution = tenant?.kaution || {};
+
+    const kautionData = {
+      ...existingKaution,
+      amount: parseFloat(amount),
+      paymentDate: paymentDate,
+      status: status,
+      createdAt: existingKaution.createdAt || now,
+      updatedAt: now,
+    };
+
+    const { error } = await supabase
+      .from('Mieter')
+      .update({ kaution: kautionData })
+      .eq('id', tenantId);
+
+    if (error) {
+      console.error("Error updating kaution:", error);
+      return { success: false, error: { message: "Kaution konnte nicht gespeichert werden." } };
+    }
+
+    revalidatePath('/mieter');
+    return { success: true };
+  } catch (e) {
+    return { success: false, error: { message: (e as Error).message } };
   }
 }

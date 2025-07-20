@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { Tenant, KautionData } from '@/types/Tenant';
 import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
 
 interface ConfirmationModalConfig {
@@ -93,6 +94,18 @@ interface ModalState {
   closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
   setWasserzaehlerModalDirty: (isDirty: boolean) => void;
 
+  // Kaution Modal State
+  isKautionModalOpen: boolean;
+  kautionInitialData?: {
+    tenant: Tenant;
+    existingKaution?: KautionData;
+    suggestedAmount?: number;
+  };
+  isKautionModalDirty: boolean;
+  openKautionModal: (tenant: Tenant, existingKaution?: KautionData, suggestedAmount?: number) => void;
+  closeKautionModal: (options?: CloseModalOptions) => void;
+  setKautionModalDirty: (isDirty: boolean) => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -164,6 +177,12 @@ const initialWasserzaehlerModalState = {
   isWasserzaehlerModalDirty: false,
 };
 
+const initialKautionModalState = {
+  isKautionModalOpen: false,
+  kautionInitialData: undefined,
+  isKautionModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -172,6 +191,7 @@ const createInitialModalState = () => ({
   ...initialAufgabeModalState,
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
+  ...initialKautionModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -295,6 +315,15 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeWasserzaehlerModal: createCloseHandler('isWasserzaehlerModalDirty', initialWasserzaehlerModalState),
     setWasserzaehlerModalDirty: (isDirty) => set({ isWasserzaehlerModalDirty: isDirty }),
+
+    // Kaution Modal
+    openKautionModal: (tenant, existingKaution, suggestedAmount) => set({
+      isKautionModalOpen: true,
+      kautionInitialData: { tenant, existingKaution, suggestedAmount },
+      isKautionModalDirty: false,
+    }),
+    closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
+    setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

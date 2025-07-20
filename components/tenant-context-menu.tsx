@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu"
-import { Edit, User, Trash2 } from "lucide-react"
+} from "@/components/ui/context-menu";
+import { Edit, Trash2, Euro } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,17 +18,17 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast"
-import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
-
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { deleteTenantAction, getSuggestedKaution } from "@/app/mieter-actions";
+import { useModalStore } from "@/hooks/use-modal-store";
 import { Tenant } from "@/types/Tenant";
 
 interface TenantContextMenuProps {
-  children: React.ReactNode
-  tenant: Tenant
-  onEdit: () => void
-  onRefresh: () => void
+  children: React.ReactNode;
+  tenant: Tenant;
+  onEdit: () => void;
+  onRefresh: () => void;
 }
 
 export function TenantContextMenu({
@@ -37,8 +37,20 @@ export function TenantContextMenu({
   onEdit,
   onRefresh,
 }: TenantContextMenuProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const { openKautionModal } = useModalStore();
+
+  const handleOpenKautionModal = async () => {
+    let suggestedAmount: number | undefined;
+    if (tenant.wohnung_id) {
+      const result = await getSuggestedKaution(tenant.wohnung_id);
+      if (result.success) {
+        suggestedAmount = result.suggestedAmount;
+      }
+    }
+    openKautionModal(tenant, tenant.kaution, suggestedAmount);
+  };
 
   const handleDelete = async () => {
     try {
@@ -46,28 +58,16 @@ export function TenantContextMenu({
       const result = await deleteTenantAction(tenant.id);
 
       if (result.success) {
-        toast({
-          title: "Erfolg",
-          description: `Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`,
-          variant: "success",
-        });
+        toast.success(`Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`);
         setTimeout(() => {
           onRefresh();
-        }, 100); // Delay of 100 milliseconds
+        }, 100);
       } else {
-        toast({
-          title: "Fehler",
-          description: result.error?.message || "Der Mieter konnte nicht gelöscht werden.",
-          variant: "destructive",
-        });
+        toast.error(result.error?.message || "Der Mieter konnte nicht gelöscht werden.");
       }
-    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+    } catch (error) {
       console.error("Unerwarteter Fehler beim Löschen des Mieters:", error);
-      toast({
-        title: "Systemfehler",
-        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
-        variant: "destructive",
-      });
+      toast.error("Ein unerwarteter Fehler ist aufgetreten.");
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
@@ -83,8 +83,15 @@ export function TenantContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
+          <ContextMenuItem
+            onClick={handleOpenKautionModal}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Euro className="h-4 w-4" />
+            <span>Kaution</span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem 
+          <ContextMenuItem
             onClick={() => setDeleteDialogOpen(true)}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
