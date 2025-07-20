@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Trash2 } from "lucide-react"
+import { Edit, User, Trash2, Euro } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
+import { useModalStore } from "@/hooks/use-modal-store";
 
 import { Tenant } from "@/types/Tenant";
 
@@ -39,6 +40,11 @@ export function TenantContextMenu({
 }: TenantContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const { openKautionModal } = useModalStore()
+
+  const handleKaution = () => {
+    openKautionModal(tenant, tenant.kaution);
+  };
 
   const handleDelete = async () => {
     try {
@@ -82,6 +88,10 @@ export function TenantContextMenu({
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleKaution} className="flex items-center gap-2 cursor-pointer">
+            <Euro className="h-4 w-4" />
+            <span>Kaution</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
