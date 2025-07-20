@@ -48,18 +48,24 @@ function URLParamHandler() {
   const searchParams = useSearchParams();
   const { openAuthModal } = useAuthModal();
   const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
   const supabase = createClient();
 
   useEffect(() => {
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUser(user);
+      setIsLoadingUser(false);
     };
     fetchUser();
   }, [supabase]);
 
   // Handle URL parameter for "get started" flow
   useEffect(() => {
+    if (isLoadingUser) {
+      return; // Wait until we've checked the user's auth status
+    }
+
     const getStarted = searchParams.get('getStarted');
     if (getStarted === 'true' && !sessionUser) {
       try {
@@ -69,7 +75,7 @@ function URLParamHandler() {
       }
       openAuthModal('login');
     }
-  }, [searchParams, sessionUser, openAuthModal]);
+  }, [searchParams, sessionUser, openAuthModal, isLoadingUser]);
 
   return null;
 }
