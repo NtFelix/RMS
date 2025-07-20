@@ -165,7 +165,8 @@ export async function updateKautionAction(formData: FormData): Promise<{ success
       return { success: false, error: { message: "Betrag muss eine positive Zahl sein" } };
     }
 
-    if (!status || !['Erhalten', 'Ausstehend', 'Zurückgezahlt'].includes(status)) {
+    const validStatuses: KautionStatus[] = ['Erhalten', 'Ausstehend', 'Zurückgezahlt'];
+    if (!status || !validStatuses.includes(status)) {
       return { success: false, error: { message: "Ungültiger Status" } };
     }
 
