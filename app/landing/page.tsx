@@ -101,20 +101,6 @@ function LandingPageContent() {
       setSessionUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         fetchUserProfile(session.user.id);
-        // Check if this was a "get started" flow and redirect to dashboard
-        let authIntent = null;
-        try {
-          authIntent = sessionStorage.getItem('authIntent');
-          if (authIntent === 'get-started') {
-            sessionStorage.removeItem('authIntent');
-          }
-        } catch (e) {
-          console.warn('SessionStorage not available');
-        }
-        
-        if (authIntent === 'get-started') {
-          router.push('/home');
-        }
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
       }
