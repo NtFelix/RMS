@@ -22,6 +22,7 @@ describe('Server Action: speichereWohnung', () => {
   let mockSupabaseClient: any;
   const mockUserId = 'user-test-id-123';
   const mockUser = { id: mockUserId, email: 'test@example.com' };
+  const mockWohnungId = 'wohnung-123';
   const mockFormData = {
     name: 'Test Wohnung',
     groesse: '70',
