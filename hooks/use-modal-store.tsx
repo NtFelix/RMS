@@ -15,6 +15,22 @@ interface CloseModalOptions {
   force?: boolean;
 }
 
+interface KautionModalData {
+  tenant: {
+    id: string;
+    name: string;
+    wohnung_id?: string;
+  };
+  existingKaution?: {
+    amount: number;
+    paymentDate: string;
+    status: 'Erhalten' | 'Ausstehend' | 'Zurückgezahlt';
+    createdAt?: string;
+    updatedAt?: string;
+  };
+  suggestedAmount?: number;
+}
+
 interface ModalState {
   // Tenant Modal State
   isTenantModalOpen: boolean;
@@ -96,11 +112,7 @@ interface ModalState {
 
   // Kaution Modal State
   isKautionModalOpen: boolean;
-  kautionInitialData?: {
-    tenant: Tenant;
-    existingKaution?: KautionData;
-    suggestedAmount?: number;
-  };
+  kautionInitialData?: KautionModalData;
   isKautionModalDirty: boolean;
   openKautionModal: (tenant: Tenant, existingKaution?: KautionData) => void;
   closeKautionModal: (options?: CloseModalOptions) => void;

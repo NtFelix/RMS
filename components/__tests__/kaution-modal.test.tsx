@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { KautionModal } from '../kaution-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
 import { Tenant, KautionData } from '@/types/Tenant'
+import { format } from 'date-fns'
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')
@@ -39,6 +40,78 @@ describe('KautionModal', () => {
 
   const mockServerAction = jest.fn()
 
+  // Helper function to get the default modal store mock
+  const getDefaultModalStore = () => ({
+    isKautionModalOpen: false,
+    kautionInitialData: undefined,
+    isKautionModalDirty: false,
+    closeKautionModal: jest.fn(),
+    setKautionModalDirty: jest.fn(),
+    // Add other required properties with default values
+    isTenantModalOpen: false,
+    tenantInitialData: undefined,
+    tenantModalWohnungen: [],
+    isTenantModalDirty: false,
+    openTenantModal: jest.fn(),
+    closeTenantModal: jest.fn(),
+    setTenantModalDirty: jest.fn(),
+    isHouseModalOpen: false,
+    houseInitialData: undefined,
+    houseModalOnSuccess: undefined,
+    isHouseModalDirty: false,
+    openHouseModal: jest.fn(),
+    closeHouseModal: jest.fn(),
+    setHouseModalDirty: jest.fn(),
+    isFinanceModalOpen: false,
+    financeInitialData: undefined,
+    financeModalWohnungen: [],
+    financeModalOnSuccess: undefined,
+    isFinanceModalDirty: false,
+    openFinanceModal: jest.fn(),
+    closeFinanceModal: jest.fn(),
+    setFinanceModalDirty: jest.fn(),
+    isWohnungModalOpen: false,
+    wohnungInitialData: undefined,
+    wohnungModalHaeuser: [],
+    wohnungModalOnSuccess: undefined,
+    wohnungApartmentCount: undefined,
+    wohnungApartmentLimit: undefined,
+    wohnungIsActiveSubscription: undefined,
+    isWohnungModalDirty: false,
+    openWohnungModal: jest.fn(),
+    closeWohnungModal: jest.fn(),
+    setWohnungModalDirty: jest.fn(),
+    isAufgabeModalOpen: false,
+    aufgabeInitialData: undefined,
+    aufgabeModalOnSuccess: undefined,
+    isAufgabeModalDirty: false,
+    openAufgabeModal: jest.fn(),
+    closeAufgabeModal: jest.fn(),
+    setAufgabeModalDirty: jest.fn(),
+    isBetriebskostenModalOpen: false,
+    betriebskostenInitialData: undefined,
+    betriebskostenModalHaeuser: [],
+    betriebskostenModalOnSuccess: undefined,
+    isBetriebskostenModalDirty: false,
+    openBetriebskostenModal: jest.fn(),
+    closeBetriebskostenModal: jest.fn(),
+    setBetriebskostenModalDirty: jest.fn(),
+    isWasserzaehlerModalOpen: false,
+    wasserzaehlerNebenkosten: undefined,
+    wasserzaehlerMieterList: [],
+    wasserzaehlerExistingReadings: undefined,
+    wasserzaehlerOnSave: undefined,
+    isWasserzaehlerModalDirty: false,
+    openWasserzaehlerModal: jest.fn(),
+    closeWasserzaehlerModal: jest.fn(),
+    setWasserzaehlerModalDirty: jest.fn(),
+    openKautionModal: jest.fn(),
+    isConfirmationModalOpen: false,
+    confirmationModalConfig: null,
+    openConfirmationModal: jest.fn(),
+    closeConfirmationModal: jest.fn(),
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
     
@@ -48,77 +121,8 @@ describe('KautionModal', () => {
       json: () => Promise.resolve({}),
     })
     
-    // Default mock implementation
-    mockUseModalStore.mockReturnValue({
-      isKautionModalOpen: false,
-      kautionInitialData: undefined,
-      isKautionModalDirty: false,
-      closeKautionModal: jest.fn(),
-      setKautionModalDirty: jest.fn(),
-      // Add other required properties with default values
-      isTenantModalOpen: false,
-      tenantInitialData: undefined,
-      tenantModalWohnungen: [],
-      isTenantModalDirty: false,
-      openTenantModal: jest.fn(),
-      closeTenantModal: jest.fn(),
-      setTenantModalDirty: jest.fn(),
-      isHouseModalOpen: false,
-      houseInitialData: undefined,
-      houseModalOnSuccess: undefined,
-      isHouseModalDirty: false,
-      openHouseModal: jest.fn(),
-      closeHouseModal: jest.fn(),
-      setHouseModalDirty: jest.fn(),
-      isFinanceModalOpen: false,
-      financeInitialData: undefined,
-      financeModalWohnungen: [],
-      financeModalOnSuccess: undefined,
-      isFinanceModalDirty: false,
-      openFinanceModal: jest.fn(),
-      closeFinanceModal: jest.fn(),
-      setFinanceModalDirty: jest.fn(),
-      isWohnungModalOpen: false,
-      wohnungInitialData: undefined,
-      wohnungModalHaeuser: [],
-      wohnungModalOnSuccess: undefined,
-      wohnungApartmentCount: undefined,
-      wohnungApartmentLimit: undefined,
-      wohnungIsActiveSubscription: undefined,
-      isWohnungModalDirty: false,
-      openWohnungModal: jest.fn(),
-      closeWohnungModal: jest.fn(),
-      setWohnungModalDirty: jest.fn(),
-      isAufgabeModalOpen: false,
-      aufgabeInitialData: undefined,
-      aufgabeModalOnSuccess: undefined,
-      isAufgabeModalDirty: false,
-      openAufgabeModal: jest.fn(),
-      closeAufgabeModal: jest.fn(),
-      setAufgabeModalDirty: jest.fn(),
-      isBetriebskostenModalOpen: false,
-      betriebskostenInitialData: undefined,
-      betriebskostenModalHaeuser: [],
-      betriebskostenModalOnSuccess: undefined,
-      isBetriebskostenModalDirty: false,
-      openBetriebskostenModal: jest.fn(),
-      closeBetriebskostenModal: jest.fn(),
-      setBetriebskostenModalDirty: jest.fn(),
-      isWasserzaehlerModalOpen: false,
-      wasserzaehlerNebenkosten: undefined,
-      wasserzaehlerMieterList: [],
-      wasserzaehlerExistingReadings: undefined,
-      wasserzaehlerOnSave: undefined,
-      isWasserzaehlerModalDirty: false,
-      openWasserzaehlerModal: jest.fn(),
-      closeWasserzaehlerModal: jest.fn(),
-      setWasserzaehlerModalDirty: jest.fn(),
-      openKautionModal: jest.fn(),
-      isConfirmationModalOpen: false,
-      confirmationModalConfig: null,
-      openConfirmationModal: jest.fn(),
-      closeConfirmationModal: jest.fn(),
-    })
+    // Set default mock implementation
+    mockUseModalStore.mockReturnValue(getDefaultModalStore())
   })
 
   it('should not render when modal is closed', () => {
@@ -128,7 +132,7 @@ describe('KautionModal', () => {
 
   it('should render modal for new kaution', () => {
     mockUseModalStore.mockReturnValue({
-      ...mockUseModalStore(),
+      ...getDefaultModalStore(),
       isKautionModalOpen: true,
       kautionInitialData: {
         tenant: mockTenant,
@@ -143,7 +147,7 @@ describe('KautionModal', () => {
 
   it('should render modal for existing kaution', () => {
     mockUseModalStore.mockReturnValue({
-      ...mockUseModalStore(),
+      ...getDefaultModalStore(),
       isKautionModalOpen: true,
       kautionInitialData: {
         tenant: mockTenant,
@@ -161,7 +165,7 @@ describe('KautionModal', () => {
     const mockSetKautionModalDirty = jest.fn()
     
     mockUseModalStore.mockReturnValue({
-      ...mockUseModalStore(),
+      ...getDefaultModalStore(),
       isKautionModalOpen: true,
       kautionInitialData: {
         tenant: mockTenant,
@@ -183,7 +187,7 @@ describe('KautionModal', () => {
     const mockSetKautionModalDirty = jest.fn()
     
     mockUseModalStore.mockReturnValue({
-      ...mockUseModalStore(),
+      ...getDefaultModalStore(),
       isKautionModalOpen: true,
       kautionInitialData: {
         tenant: mockTenant,
@@ -211,7 +215,7 @@ describe('KautionModal', () => {
     mockServerAction.mockResolvedValue({ success: true })
     
     mockUseModalStore.mockReturnValue({
-      ...mockUseModalStore(),
+      ...getDefaultModalStore(),
       isKautionModalOpen: true,
       kautionInitialData: {
         tenant: mockTenant,
@@ -225,11 +229,111 @@ describe('KautionModal', () => {
     const amountInput = screen.getByLabelText(/Betrag/)
     fireEvent.change(amountInput, { target: { value: '1500' } })
     
+    // Select a status
+    const statusSelect = screen.getByText('Status auswählen')
+    fireEvent.mouseDown(statusSelect)
+    const statusOption = screen.getByText('Erhalten')
+    fireEvent.click(statusOption)
+    
     const form = screen.getByRole('form')
     fireEvent.submit(form)
 
     await waitFor(() => {
       expect(mockServerAction).toHaveBeenCalledWith(expect.any(FormData))
     }, { timeout: 3000 })
+  })
+
+  it('should handle date selection', async () => {
+    const mockSetKautionModalDirty = jest.fn()
+    
+    mockUseModalStore.mockReturnValue({
+      ...getDefaultModalStore(),
+      isKautionModalOpen: true,
+      kautionInitialData: {
+        tenant: mockTenant,
+      },
+      setKautionModalDirty: mockSetKautionModalDirty,
+    })
+
+    render(<KautionModal serverAction={mockServerAction} />)
+    
+    // Find and click the date picker
+    const datePicker = screen.getByLabelText('Zahlungsdatum')
+    fireEvent.click(datePicker)
+    
+    // Select today's date
+    const today = new Date()
+    const dateButton = screen.getByText(today.getDate().toString())
+    fireEvent.click(dateButton)
+    
+    // Verify the date was set
+    expect(mockSetKautionModalDirty).toHaveBeenCalled()
+  })
+
+  it('should show dirty state when form is modified', async () => {
+    const mockSetKautionModalDirty = jest.fn()
+    
+    mockUseModalStore.mockReturnValue({
+      ...getDefaultModalStore(),
+      isKautionModalOpen: true,
+      kautionInitialData: {
+        tenant: mockTenant,
+      },
+      setKautionModalDirty: mockSetKautionModalDirty,
+    })
+
+    render(<KautionModal serverAction={mockServerAction} />)
+    
+    // Change the amount
+    const amountInput = screen.getByLabelText(/Betrag/)
+    fireEvent.change(amountInput, { target: { value: '2000' } })
+    
+    // Verify dirty state was set
+    expect(mockSetKautionModalDirty).toHaveBeenCalledWith(true)
+  })
+
+  it('should load existing kaution data when editing', async () => {
+    const mockCloseKautionModal = jest.fn()
+    const mockSetKautionModalDirty = jest.fn()
+    
+    mockUseModalStore.mockReturnValue({
+      ...getDefaultModalStore(),
+      isKautionModalOpen: true,
+      kautionInitialData: {
+        tenant: mockTenant,
+        existingKaution: mockExistingKaution,
+      },
+      closeKautionModal: mockCloseKautionModal,
+      setKautionModalDirty: mockSetKautionModalDirty,
+    })
+
+    render(<KautionModal serverAction={mockServerAction} />)
+    
+    // Check if form is populated with existing data
+    expect(screen.getByDisplayValue('1500')).toBeInTheDocument()
+    expect(screen.getByText('Erhalten')).toBeInTheDocument()
+  })
+
+  it('should suggest amount when creating new kaution', async () => {
+    // Mock the fetch response for rent data
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ miete: 500 }),
+    })
+
+    mockUseModalStore.mockReturnValue({
+      ...getDefaultModalStore(),
+      isKautionModalOpen: true,
+      kautionInitialData: {
+        tenant: { ...mockTenant, wohnung_id: 'wohnung-1' },
+      },
+    })
+
+    render(<KautionModal serverAction={mockServerAction} />)
+    
+    // Wait for the suggested amount to be loaded
+    await waitFor(() => {
+      expect(screen.getByText(/Vorschlag: 1.500,00 €/)).toBeInTheDocument()
+    })
   })
 })

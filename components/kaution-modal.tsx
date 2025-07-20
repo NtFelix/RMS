@@ -57,37 +57,52 @@ export function KautionModal({ serverAction }: KautionModalProps) {
     setIsSubmitting(false)
   }
 
-  // Load existing data and calculate suggested amount when modal opens
+  // Load initial data when modal opens or initial data changes
   useEffect(() => {
+    console.log('KautionModal - isKautionModalOpen:', isKautionModalOpen);
+    console.log('KautionModal - kautionInitialData:', JSON.stringify(kautionInitialData, null, 2));
+    
     if (isKautionModalOpen && kautionInitialData) {
-      const { tenant, existingKaution } = kautionInitialData
-
-      // Load existing kaution data if available
+      const { tenant, existingKaution } = kautionInitialData;
+      console.log('KautionModal - Tenant:', tenant);
+      console.log('KautionModal - Existing kaution data:', existingKaution);
+      
       if (existingKaution) {
+        const amount = existingKaution.amount?.toString() || '';
+        const paymentDate = existingKaution.paymentDate || '';
+        const status = existingKaution.status || 'Ausstehend';
+        
+        console.log('Setting form data from existing kaution:', { amount, paymentDate, status });
+        
         setFormData({
-          amount: existingKaution.amount.toString(),
-          paymentDate: existingKaution.paymentDate || "",
-          status: existingKaution.status,
-        })
+          amount,
+          paymentDate,
+          status,
+        });
+        
         // Don't calculate suggested amount for existing kaution
-        setSuggestedAmount(null)
+        setSuggestedAmount(null);
       } else {
+        console.log('No existing kaution data, initializing empty form');
         // Reset form for new kaution
         setFormData({
           amount: "",
           paymentDate: "",
           status: "Ausstehend",
-        })
+        });
         
         // Calculate suggested amount if tenant has apartment
         if (tenant.wohnung_id) {
-          calculateSuggestedAmount(tenant.wohnung_id)
+          console.log('Calculating suggested amount for wohnung:', tenant.wohnung_id);
+          calculateSuggestedAmount(tenant.wohnung_id);
         } else {
-          setSuggestedAmount(null)
+          console.log('No wohnung_id found, cannot calculate suggested amount');
+          setSuggestedAmount(null);
         }
       }
 
-      setValidationErrors({})
+      setValidationErrors({});
+      setKautionModalDirty(false);
       setKautionModalDirty(false)
     } else if (!isKautionModalOpen) {
       // Reset form state when modal closes
@@ -186,8 +201,8 @@ export function KautionModal({ serverAction }: KautionModalProps) {
       })
       return
     }
-
-    if (!kautionInitialData?.tenant.id) {
+    
+    if (!kautionInitialData?.tenant?.id) {
       toast({
         title: "Fehler",
         description: "Mieter-ID nicht gefunden. Bitte schließen Sie das Modal und versuchen Sie es erneut.",
@@ -197,29 +212,39 @@ export function KautionModal({ serverAction }: KautionModalProps) {
     }
 
     setIsSubmitting(true)
-
+    
     try {
       const submitFormData = new FormData()
       
       // Add tenant ID
-      submitFormData.set("tenantId", kautionInitialData.tenant.id)
+      submitFormData.append("tenantId", kautionInitialData.tenant.id)
       
-      // Add kaution data
-      submitFormData.set("amount", formData.amount.trim())
-      submitFormData.set("paymentDate", formData.paymentDate.trim())
-      submitFormData.set("status", formData.status)
+      // Add kaution data - ensure proper formatting
+      const amount = parseFloat(formData.amount.trim())
+      submitFormData.append("amount", amount.toString())
+      submitFormData.append("paymentDate", formData.paymentDate.trim() || "")
+      submitFormData.append("status", formData.status)
+      
+      console.log('Submitting kaution data:', {
+        tenantId: kautionInitialData.tenant.id,
+        amount: amount,
+        paymentDate: formData.paymentDate,
+        status: formData.status
+      });
 
       const result = await serverAction(submitFormData)
 
       if (result.success) {
         toast({
           title: "Kaution gespeichert",
-          description: `Die Kaution für ${kautionInitialData.tenant.name} wurde erfolgreich ${kautionInitialData.existingKaution ? 'aktualisiert' : 'erstellt'}.`,
+          description: `Die Kaution für ${kautionInitialData.tenant.name} wurde erfolgreich ${kautionInitialData?.existingKaution ? 'aktualisiert' : 'erstellt'}.`,
+          variant: "success"
         })
         setKautionModalDirty(false)
         closeKautionModal()
         router.refresh()
       } else {
+        console.error('Error from server action:', result.error);
         toast({
           title: "Fehler beim Speichern",
           description: result.error?.message || "Ein unbekannter Fehler ist aufgetreten.",

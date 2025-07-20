@@ -43,7 +43,57 @@ export function TenantContextMenu({
   const { openKautionModal } = useModalStore()
 
   const handleKaution = () => {
-    openKautionModal(tenant, tenant.kaution);
+    try {
+      console.log('Opening Kaution modal for tenant:', { tenantId: tenant.id, hasKaution: !!tenant.kaution });
+      
+      // Ensure we're passing a clean tenant object with only the required fields
+      const cleanTenant = {
+        id: tenant.id,
+        name: tenant.name,
+        wohnung_id: tenant.wohnung_id
+      };
+      
+      // Prepare kaution data if it exists
+      let kautionData = undefined;
+      
+      if (tenant.kaution) {
+        console.log('Existing kaution data:', tenant.kaution);
+        
+        // Ensure amount is a number
+        const amount = typeof tenant.kaution.amount === 'string' 
+          ? parseFloat(tenant.kaution.amount)
+          : tenant.kaution.amount;
+          
+        // Ensure we have valid data
+        if (isNaN(amount)) {
+          console.error('Invalid amount in kaution data:', tenant.kaution.amount);
+          throw new Error('Ungültiger Kautionbetrag');
+        }
+        
+        kautionData = {
+          amount,
+          paymentDate: tenant.kaution.paymentDate || '',
+          status: tenant.kaution.status || 'Ausstehend',
+          createdAt: tenant.kaution.createdAt,
+          updatedAt: tenant.kaution.updatedAt
+        };
+        
+        console.log('Prepared kaution data for modal:', kautionData);
+      } else {
+        console.log('No existing kaution data for tenant');
+      }
+      
+      // Open the modal with the prepared data
+      openKautionModal(cleanTenant, kautionData);
+      
+    } catch (error) {
+      console.error('Error preparing kaution data:', error);
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleDelete = async () => {
