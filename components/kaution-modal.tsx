@@ -171,7 +171,8 @@ export function KautionModal({ serverAction }: KautionModalProps) {
     }
 
     // Status validation
-    if (!formData.status || !['Erhalten', 'Ausstehend', 'Zurückgezahlt'].includes(formData.status)) {
+    const validStatuses: KautionStatus[] = ['Erhalten', 'Ausstehend', 'Zurückgezahlt'];
+    if (!formData.status || !validStatuses.includes(formData.status)) {
       errors.status = "Status ist erforderlich"
     }
 
