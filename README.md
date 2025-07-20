@@ -4,7 +4,17 @@ Das Rent-Managing-System oder auch RMS ist dazu da um Mieteingänge, Mieter und 
 
 Es ist mit einer Supabase Datenbank verbunden um alle Daten zentral zu speichern und einen einfachen Zugriff auf die Daten zu ermöglichen. Diese Daten werden im Webbrowser über html, css und in Kombination mit javascript verwaltet.
 
+Das System bietet eine intelligente Benutzerführung mit unterschiedlichen Authentifizierungsflüssen je nach Einstiegspunkt - neue Nutzer werden nach der Anmeldung direkt zum Dashboard weitergeleitet, während wiederkehrende Nutzer auf der aktuellen Seite bleiben.
+
 ## Recent Updates
+
+### Smart Authentication Flow (NEW)
+Enhanced user experience with intelligent authentication routing:
+- **"Jetzt loslegen" Flow**: Direct redirect to dashboard after authentication for new users
+- **"Anmelden" Flow**: Stay on current page after authentication for returning users
+- **Intent-Based Routing**: Uses sessionStorage to track user intent and redirect accordingly
+- **Cross-Browser Compatibility**: Graceful fallback for browsers without sessionStorage support
+- **Comprehensive Testing**: 70+ tests covering all authentication scenarios and edge cases
 
 ### Finance Landing Showcase (NEW)
 A comprehensive finance showcase section has been added to the landing page, featuring:
@@ -116,21 +126,34 @@ The application includes comprehensive testing coverage across multiple areas:
 - `app/modern/components/finance-showcase.test.tsx` - Comprehensive Finance Showcase testing
 - `app/modern/components/finance-showcase.accessibility.test.tsx` - Accessibility compliance testing
 - `app/landing/page.integration.test.tsx` - Landing page integration testing
+- `components/auth-modal-provider.test.tsx` - Authentication modal and flow testing (NEW)
+- `app/modern/components/call-to-action.test.tsx` - Call-to-action button and intent testing (NEW)
+- `app/modern/components/navigation.test.tsx` - Navigation and login flow testing (NEW)
+- `app/auth/login/page.test.tsx` - Standalone login page testing (NEW)
+- `integration/jetzt-loslegen-flow.test.tsx` - End-to-end authentication flow testing (NEW)
 
 ### Running Tests
 ```bash
 npm test                    # Run all tests
 npm test -- --watch        # Run tests in watch mode
 npm test -- --coverage     # Run tests with coverage report
+
+# Authentication Flow Tests
+npm test -- --testPathPatterns="auth-modal-provider|call-to-action|navigation"
+npm test -- components/auth-modal-provider.test.tsx
+npm test -- app/modern/components/call-to-action.test.tsx
+npm test -- app/modern/components/navigation.test.tsx
 ```
 
 ### Test Coverage Areas
 - **Component Rendering**: Ensures all components render correctly
-- **User Interactions**: Tab navigation, image modals, form submissions
-- **Error Handling**: Network failures, image loading errors, edge cases
+- **User Interactions**: Tab navigation, image modals, form submissions, authentication flows
+- **Authentication Logic**: "Jetzt loslegen" vs "Anmelden" flow differentiation
+- **Error Handling**: Network failures, image loading errors, sessionStorage issues, edge cases
 - **Accessibility**: Keyboard navigation, screen reader support, WCAG compliance
 - **Responsive Design**: Mobile and desktop layout testing
 - **Performance**: Memory management and cleanup testing
+- **Integration Testing**: End-to-end user flow validation
 
 ## Stripe Configuration
 
@@ -145,20 +168,68 @@ When creating or updating products and their prices in your Stripe Dashboard:
 
 Ensuring this metadata is correctly set in Stripe is crucial for the dynamic display of plan details and for the enforcement of plan limits (like the 'Wohnungen' count).
 
+## Authentication Flow Architecture
+
+The RMS platform features an intelligent authentication system that provides different user experiences based on entry point:
+
+### Smart Authentication Routing
+The authentication system differentiates between two primary user flows:
+
+#### "Jetzt loslegen" Flow (Get Started)
+- **Target Users**: New users ready to start using the platform
+- **Behavior**: After successful authentication, users are automatically redirected to the dashboard (`/home`)
+- **Intent Tracking**: Uses `sessionStorage` to track user intent across the authentication process
+- **Components**: Hero section, CTA section call-to-action buttons
+
+#### "Anmelden" Flow (Login)
+- **Target Users**: Returning users who want to stay on the current page
+- **Behavior**: After successful authentication, users remain on the landing page
+- **Intent Clearing**: Clears any existing "get started" intent to prevent unwanted redirects
+- **Components**: Navigation login button, mobile menu login
+
+### Technical Implementation
+```typescript
+// Setting get-started intent
+sessionStorage.setItem('authIntent', 'get-started');
+
+// Checking intent after authentication
+const authIntent = sessionStorage.getItem('authIntent');
+if (authIntent === 'get-started') {
+  sessionStorage.removeItem('authIntent');
+  router.push('/home');
+} else {
+  router.refresh(); // Stay on current page
+}
+```
+
+### Error Handling & Compatibility
+- **SessionStorage Fallback**: Graceful degradation for browsers without sessionStorage support
+- **Modal Cancellation**: Clears auth intent if user closes modal without authenticating
+- **Cross-Browser Support**: Works consistently across all modern browsers
+- **Error Recovery**: Handles sessionStorage errors without breaking functionality
+
+### URL Parameter Support
+The system also supports direct "get started" flow via URL parameters:
+```
+/landing?getStarted=true
+```
+This automatically opens the authentication modal with get-started intent.
+
 ## Landing Page Architecture
 
 The modern landing page (`app/landing/page.tsx`) provides a comprehensive showcase of the RMS platform with the following structure:
 
-1. **Navigation** - User authentication and navigation controls
-2. **Hero Section** - Primary call-to-action and value proposition
+1. **Navigation** - User authentication and navigation controls with smart login routing
+2. **Hero Section** - Primary call-to-action with "Jetzt loslegen" button
 3. **Feature Sections** - Core platform capabilities with product screenshots
 4. **Finance Showcase** - Dedicated financial management demonstration (NEW)
 5. **More Features** - Additional platform capabilities
 6. **Pricing** - Subscription plans and pricing information
-7. **Call-to-Action** - Final conversion opportunity
+7. **Call-to-Action** - Final conversion opportunity with "Jetzt loslegen" button
 8. **Footer** - Additional links and information
 
 ### Recent Landing Page Updates
+- **Smart Authentication Flow**: Intelligent routing based on user entry point (NEW)
 - **Finance Showcase Integration**: Added dedicated section showcasing financial management capabilities
 - **Enhanced User Journey**: Improved flow from features to detailed finance demonstration to pricing
 - **Responsive Design**: Optimized mobile experience across all sections
@@ -209,6 +280,31 @@ image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
 // Additional features...
 ]
 ```
+
+### Call-to-Action Component (`app/modern/components/call-to-action.tsx`)
+
+The Call-to-Action component provides the primary conversion buttons for the landing page, featuring intelligent authentication flow routing.
+
+#### Key Features
+- **Smart Authentication Intent**: "Jetzt loslegen" button sets get-started intent for dashboard redirect
+- **Multiple Variants**: Supports hero, cta, and default variants with different secondary actions
+- **Demo Booking Integration**: Alert dialog for scheduling product demonstrations
+- **External Link Handling**: Notion calendar integration for demo bookings
+- **Responsive Design**: Mobile-optimized button layouts and interactions
+
+#### Authentication Flow Integration
+```typescript
+const handleGetStarted = () => {
+  // Set intent for dashboard redirect after authentication
+  sessionStorage.setItem('authIntent', 'get-started');
+  openAuthModal('login');
+};
+```
+
+#### Variant Behaviors
+- **Hero Variant**: "Jetzt loslegen" + "Mehr erfahren" (documentation link)
+- **CTA Variant**: "Jetzt loslegen" + "Demo anfordern" (booking dialog)
+- **Default Variant**: "Jetzt loslegen" + "Demo anfordern" (booking dialog)
 
 ### Finance Showcase (`app/modern/components/finance-showcase.tsx`)
 
@@ -270,6 +366,32 @@ interface FinanceTab {
 - **Accessibility Tests**: WCAG 2.1 AA compliance testing with screen reader simulation
 - **Integration Tests**: Landing page integration and responsive behavior testing
 - **Performance Tests**: Memory leak prevention and cleanup testing
+
+### Navigation Component (`app/modern/components/navigation.tsx`)
+
+The navigation component provides the primary site navigation and authentication controls with intelligent flow management.
+
+#### Authentication Flow Features
+- **Intent Clearing**: "Anmelden" button clears any existing get-started intent
+- **User State Management**: Dynamic rendering based on authentication status
+- **Mobile Navigation**: Responsive navigation with mobile-optimized authentication controls
+- **Logout Handling**: Secure logout with proper state cleanup
+
+#### Smart Login Behavior
+```typescript
+const handleOpenLoginModal = () => {
+  // Clear any existing auth intent for regular login
+  sessionStorage.removeItem('authIntent');
+  openAuthModal('login');
+};
+```
+
+#### Key Features
+- **Responsive Design**: Mobile hamburger menu with full navigation options
+- **User Avatar Display**: Shows user avatar when authenticated
+- **Smooth Scrolling**: Anchor-based navigation for landing page sections
+- **Brand Integration**: Consistent branding with logo and color scheme
+- **Error Handling**: Graceful handling of sessionStorage and authentication errors
 
 ### Financial Analytics (`app/(dashboard)/finanzen/client-wrapper.tsx`)
 
