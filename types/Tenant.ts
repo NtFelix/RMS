@@ -4,6 +4,22 @@ export interface NebenkostenEntry {
   date: string;
 }
 
+export type KautionStatus = 'Erhalten' | 'Ausstehend' | 'Zurückgezahlt';
+
+export interface KautionData {
+  amount: number;           // Deposit amount in EUR
+  paymentDate: string;      // ISO date string (YYYY-MM-DD)
+  status: KautionStatus;
+  createdAt: string;        // ISO timestamp
+  updatedAt: string;        // ISO timestamp
+}
+
+export interface KautionFormData {
+  amount: string;           // String for form input handling
+  paymentDate: string;      // ISO date string (YYYY-MM-DD)
+  status: KautionStatus;
+}
+
 export interface Tenant {
   id: string;
   wohnung_id?: string;
@@ -14,4 +30,5 @@ export interface Tenant {
   telefonnummer?: string;
   notiz?: string;
   nebenkosten?: NebenkostenEntry[];
+  kaution?: KautionData;    // New optional kaution field
 }
