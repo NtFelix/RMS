@@ -16,8 +16,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  // Always redirect to dashboard after login, ignore any redirect parameter
-  const redirect = "/home"
+  // Check for redirect parameter, otherwise default to dashboard
+  const redirectParam = searchParams.get('redirect')
+  const redirect = redirectParam || "/home"
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

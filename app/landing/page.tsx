@@ -43,6 +43,43 @@ function ProfileErrorToastHandler() {
   return null;
 }
 
+// Component that handles URL parameters
+function URLParamHandler() {
+  const searchParams = useSearchParams();
+  const { openAuthModal } = useAuthModal();
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setSessionUser(user);
+      setIsLoadingUser(false);
+    };
+    fetchUser();
+  }, [supabase]);
+
+  // Handle URL parameter for "get started" flow
+  useEffect(() => {
+    if (isLoadingUser) {
+      return; // Wait until we've checked the user's auth status
+    }
+
+    const getStarted = searchParams.get('getStarted');
+    if (getStarted === 'true' && !sessionUser) {
+      try {
+        sessionStorage.setItem('authIntent', 'get-started');
+      } catch (e) {
+        console.warn('SessionStorage not available');
+      }
+      openAuthModal('login');
+    }
+  }, [searchParams, sessionUser, openAuthModal, isLoadingUser]);
+
+  return null;
+}
+
 // Main content component that uses the auth modal context
 function LandingPageContent() {
   const router = useRouter();
@@ -78,7 +115,7 @@ function LandingPageContent() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, router]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -245,6 +282,13 @@ function LandingPageContent() {
     if (sessionUser) {
         router.push('/home');
     } else {
+        // Store intent to redirect to dashboard after login
+        try {
+          sessionStorage.setItem('authIntent', 'get-started');
+        } catch (e) {
+          // In browsers without sessionStorage, the redirect intent will be lost
+          console.warn('SessionStorage not available. The "get-started" redirect flow will not work as intended.');
+        }
         openAuthModal('login');
     }
   };
@@ -257,18 +301,14 @@ function LandingPageContent() {
     }
   };
 
-  const handleAuthenticated = () => {
-    // This can be used for any logic that needs to run after authentication is successful
-    // For example, refetching data or redirecting.
-    // The onAuthStateChange listener already handles the main logic of fetching the user profile.
-    router.refresh();
-  };
-
 
   return (
     <>
       <Suspense fallback={null}>
         <ProfileErrorToastHandler />
+      </Suspense>
+      <Suspense fallback={null}>
+        <URLParamHandler />
       </Suspense>
       <Navigation onLogin={() => openAuthModal('login')} />
       <main className="min-h-screen overflow-x-hidden">
