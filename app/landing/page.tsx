@@ -309,27 +309,6 @@ function LandingPageContent() {
     }
   };
 
-  const handleAuthenticated = () => {
-    // Check if user clicked "Jetzt loslegen" and redirect to dashboard
-    let authIntent = null;
-    try {
-      authIntent = sessionStorage.getItem('authIntent');
-      if (authIntent === 'get-started') {
-        sessionStorage.removeItem('authIntent');
-      }
-    } catch (e) {
-      // Fallback for browsers without sessionStorage support
-      console.warn('SessionStorage not available');
-    }
-    
-    if (authIntent === 'get-started') {
-      router.push('/home');
-    } else {
-      // For regular login (Anmelden button), stay on current page
-      router.refresh();
-    }
-  };
-
 
   return (
     <>
