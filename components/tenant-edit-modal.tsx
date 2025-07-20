@@ -263,7 +263,7 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
         }} className="grid gap-4 pt-4 pb-2">
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-2 gap-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="wohnung_id">Wohnung</Label>
               <CustomCombobox
                 width="w-full"
@@ -276,29 +276,29 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 disabled={isLoadingWohnungen || isSubmitting}
               />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting}/>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="einzug">Einzug</Label>
               <DatePicker value={formData.einzug} onChange={(date) => handleDateChange('einzug', date)} placeholder="TT.MM.JJJJ" disabled={isSubmitting}/>
               <input type="hidden" name="einzug" value={formData.einzug} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="auszug">Auszug</Label>
               <DatePicker value={formData.auszug} onChange={(date) => handleDateChange('auszug', date)} placeholder="TT.MM.JJJJ" disabled={isSubmitting}/>
               <input type="hidden" name="auszug" value={formData.auszug} />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="email">E-Mail</Label>
               <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isSubmitting}/>
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="telefonnummer">Telefon</Label>
               <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting}/>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-2 space-y-2">
               <Label htmlFor="notiz">Notiz</Label>
               <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
             </div>

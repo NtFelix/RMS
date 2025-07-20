@@ -154,19 +154,19 @@ export function ApartmentEditModal({
           <DialogDescription>Geben Sie die Wohnungsdaten ein.</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={loading} />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="groesse">Größe (m²)</Label>
             <Input id="groesse" name="groesse" type="number" value={formData.groesse} onChange={handleChange} required disabled={loading} />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="miete">Miete (€)</Label>
             <Input id="miete" name="miete" type="number" value={formData.miete} onChange={handleChange} required disabled={loading} />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="haus_id">Haus</Label>
             <CustomCombobox
               width="w-full"

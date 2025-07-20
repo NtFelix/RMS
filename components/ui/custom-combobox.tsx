@@ -35,6 +35,7 @@ interface CustomComboboxProps {
   emptyText?: string;
   width?: string; // e.g., "w-[200px]", "w-full"
   disabled?: boolean; // For disabling the entire combobox
+  id?: string; // For accessibility - connects with Label htmlFor
 }
 
 export function CustomCombobox({
@@ -46,6 +47,7 @@ export function CustomCombobox({
   emptyText = "No option found.",
   width = "w-[200px]",
   disabled = false,
+  id,
 }: CustomComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -60,6 +62,7 @@ export function CustomCombobox({
           aria-expanded={open}
           className={cn("justify-between", width, !value && "text-muted-foreground")}
           disabled={disabled}
+          id={id}
         >
           {selectedOption ? selectedOption.label : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
