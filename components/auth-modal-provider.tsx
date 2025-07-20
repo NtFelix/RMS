@@ -36,6 +36,12 @@ export default function AuthModalProvider({ children }: { children: React.ReactN
 
   const closeAuthModal = useCallback(() => {
     setIsAuthModalOpen(false);
+    // Clear auth intent if modal is closed without authentication
+    try {
+      sessionStorage.removeItem('authIntent');
+    } catch (e) {
+      console.warn('SessionStorage not available');
+    }
   }, []);
 
   const contextValue = useMemo(() => ({
@@ -51,10 +57,23 @@ export default function AuthModalProvider({ children }: { children: React.ReactN
         isOpen={isAuthModalOpen}
         onClose={closeAuthModal}
         onAuthenticated={() => {
-          // This can be used for any logic that needs to run after authentication is successful
-          // For example, refetching data or redirecting.
-          // The onAuthStateChange listener already handles the main logic of fetching the user profile.
-          router.refresh();
+          // Check if user clicked "Jetzt loslegen" and redirect to dashboard
+          let authIntent = null;
+          try {
+            authIntent = sessionStorage.getItem('authIntent');
+            if (authIntent === 'get-started') {
+              sessionStorage.removeItem('authIntent');
+            }
+          } catch (e) {
+            console.warn('SessionStorage not available');
+          }
+          
+          if (authIntent === 'get-started') {
+            router.push('/home');
+          } else {
+            // For regular login (Anmelden button), stay on current page
+            router.refresh();
+          }
         }}
         initialTab={authModalInitialTab}
       />

@@ -64,6 +64,12 @@ export default function Navigation({ onLogin }: NavigationProps) {
   }
 
   const handleOpenLoginModal = () => {
+    // Clear any existing auth intent for regular login
+    try {
+      sessionStorage.removeItem('authIntent');
+    } catch (e) {
+      console.warn('SessionStorage not available');
+    }
     if (onLogin) {
       onLogin();
     }

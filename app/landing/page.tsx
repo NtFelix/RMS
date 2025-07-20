@@ -43,6 +43,37 @@ function ProfileErrorToastHandler() {
   return null;
 }
 
+// Component that handles URL parameters
+function URLParamHandler() {
+  const searchParams = useSearchParams();
+  const { openAuthModal } = useAuthModal();
+  const [sessionUser, setSessionUser] = useState<User | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setSessionUser(user);
+    };
+    fetchUser();
+  }, [supabase]);
+
+  // Handle URL parameter for "get started" flow
+  useEffect(() => {
+    const getStarted = searchParams.get('getStarted');
+    if (getStarted === 'true' && !sessionUser) {
+      try {
+        sessionStorage.setItem('authIntent', 'get-started');
+      } catch (e) {
+        console.warn('SessionStorage not available');
+      }
+      openAuthModal('login');
+    }
+  }, [searchParams, sessionUser, openAuthModal]);
+
+  return null;
+}
+
 // Main content component that uses the auth modal context
 function LandingPageContent() {
   const router = useRouter();
@@ -70,6 +101,20 @@ function LandingPageContent() {
       setSessionUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
         fetchUserProfile(session.user.id);
+        // Check if this was a "get started" flow and redirect to dashboard
+        let authIntent = null;
+        try {
+          authIntent = sessionStorage.getItem('authIntent');
+          if (authIntent === 'get-started') {
+            sessionStorage.removeItem('authIntent');
+          }
+        } catch (e) {
+          console.warn('SessionStorage not available');
+        }
+        
+        if (authIntent === 'get-started') {
+          router.push('/home');
+        }
       } else if (event === 'SIGNED_OUT') {
         setUserProfile(null);
       }
@@ -78,7 +123,7 @@ function LandingPageContent() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, router]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
@@ -245,6 +290,13 @@ function LandingPageContent() {
     if (sessionUser) {
         router.push('/home');
     } else {
+        // Store intent to redirect to dashboard after login
+        try {
+          sessionStorage.setItem('authIntent', 'get-started');
+        } catch (e) {
+          // Fallback for browsers without sessionStorage support
+          console.warn('SessionStorage not available, using URL parameter fallback');
+        }
         openAuthModal('login');
     }
   };
@@ -258,10 +310,24 @@ function LandingPageContent() {
   };
 
   const handleAuthenticated = () => {
-    // This can be used for any logic that needs to run after authentication is successful
-    // For example, refetching data or redirecting.
-    // The onAuthStateChange listener already handles the main logic of fetching the user profile.
-    router.refresh();
+    // Check if user clicked "Jetzt loslegen" and redirect to dashboard
+    let authIntent = null;
+    try {
+      authIntent = sessionStorage.getItem('authIntent');
+      if (authIntent === 'get-started') {
+        sessionStorage.removeItem('authIntent');
+      }
+    } catch (e) {
+      // Fallback for browsers without sessionStorage support
+      console.warn('SessionStorage not available');
+    }
+    
+    if (authIntent === 'get-started') {
+      router.push('/home');
+    } else {
+      // For regular login (Anmelden button), stay on current page
+      router.refresh();
+    }
   };
 
 
@@ -269,6 +335,9 @@ function LandingPageContent() {
     <>
       <Suspense fallback={null}>
         <ProfileErrorToastHandler />
+      </Suspense>
+      <Suspense fallback={null}>
+        <URLParamHandler />
       </Suspense>
       <Navigation onLogin={() => openAuthModal('login')} />
       <main className="min-h-screen overflow-x-hidden">
