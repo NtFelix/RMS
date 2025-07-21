@@ -497,22 +497,20 @@ export async function getDashboardSummary() {
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
   
-  // Calculate monthly expenses (average of last 3 months)
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  // Calculate yearly expenses
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setFullYear(twelveMonthsAgo.getFullYear() - 1);
   
-  const recentAusgaben = finanzen
-    .filter(f => !f.ist_einnahmen && f.datum && new Date(f.datum) >= threeMonthsAgo)
+  const jaehrlicheAusgaben = finanzen
+    .filter(f => !f.ist_einnahmen && f.datum && new Date(f.datum) >= twelveMonthsAgo)
     .reduce((sum, item) => sum + Number(item.betrag), 0);
-  
-  const monatlicheAusgaben = recentAusgaben / 3; // Average over 3 months
   
   return {
     haeuserCount: haeuser.length,
     wohnungenCount: wohnungen.length,
     mieterCount: mieter.filter(m => !m.auszug || new Date(m.auszug) > new Date()).length,
     monatlicheEinnahmen,
-    monatlicheAusgaben,
+    jaehrlicheAusgaben,
     offeneAufgabenCount: aufgaben.length
   };
 }
