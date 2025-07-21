@@ -75,7 +75,7 @@ export default async function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
-              <p className="text-xs text-muted-foreground">Jaehrliche Ausgaben</p>
+              <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
             </CardContent>
           </Card>
         </Link>
