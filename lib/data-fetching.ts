@@ -176,11 +176,15 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function fetchNebenkosten() {
+export async function fetchNebenkosten(year?: string) {
   const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("Nebenkosten")
-    .select('*');
+  let query = supabase.from("Nebenkosten").select('*');
+  
+  if (year) {
+    query = query.eq('jahr', year);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error("Error fetching Nebenkosten:", error);
@@ -506,18 +510,16 @@ export async function getDashboardSummary() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
   const aufgaben = await fetchAufgaben();
-  const nebenkosten = await fetchNebenkosten();
   
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
   
-  // Calculate yearly expenses from Nebenkosten
+  // Calculate yearly expenses from Nebenkosten - fetch only last year's data
   const currentYear = new Date().getFullYear();
-  const lastYear = currentYear -1;
+  const lastYear = (currentYear - 1).toString();
+  const nebenkosten = await fetchNebenkosten(lastYear);
 
-  const jaehrlicheAusgaben = nebenkosten
-  .filter(nk => parseInt(nk.jahr) === lastYear)
-  .reduce((sum, item) => {
+  const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
     const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
     const wasserkosten = item.wasserkosten || 0;
     return sum + betraegeSum + wasserkosten;
