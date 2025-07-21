@@ -176,6 +176,24 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
+export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
+  const supabase = createSupabaseServerClient();
+  let query = supabase.from("Nebenkosten").select('*');
+  
+  if (year) {
+    query = query.eq('jahr', year);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching Nebenkosten:", error);
+    return [];
+  }
+
+  return data as Nebenkosten[];
+}
+
 export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promise<{
   gesamtFlaeche: number;
   anzahlWohnungen: number;
@@ -492,27 +510,27 @@ export async function getDashboardSummary() {
   const wohnungen = await fetchWohnungen();
   const mieter = await fetchMieter();
   const aufgaben = await fetchAufgaben();
-  const finanzen = await fetchFinanzen();
   
   // Calculate monthly income
   const monatlicheEinnahmen = wohnungen.reduce((sum, wohnung) => sum + Number(wohnung.miete), 0);
   
-  // Calculate monthly expenses (average of last 3 months)
-  const threeMonthsAgo = new Date();
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-  
-  const recentAusgaben = finanzen
-    .filter(f => !f.ist_einnahmen && f.datum && new Date(f.datum) >= threeMonthsAgo)
-    .reduce((sum, item) => sum + Number(item.betrag), 0);
-  
-  const monatlicheAusgaben = recentAusgaben / 3; // Average over 3 months
-  
+  // Calculate yearly expenses from Nebenkosten - fetch only last year's data
+  const currentYear = new Date().getFullYear();
+  const lastYear = (currentYear - 1).toString();
+  const nebenkosten = await fetchNebenkosten(lastYear);
+
+  const jaehrlicheAusgaben = nebenkosten.reduce((sum, item) => {
+    const betraegeSum = item.betrag ? item.betrag.reduce((a, b) => a + b, 0) : 0;
+    const wasserkosten = item.wasserkosten || 0;
+    return sum + betraegeSum + wasserkosten;
+  }, 0);
+
   return {
     haeuserCount: haeuser.length,
     wohnungenCount: wohnungen.length,
     mieterCount: mieter.filter(m => !m.auszug || new Date(m.auszug) > new Date()).length,
     monatlicheEinnahmen,
-    monatlicheAusgaben,
+    jaehrlicheAusgaben,
     offeneAufgabenCount: aufgaben.length
   };
 }
