@@ -176,7 +176,7 @@ export async function fetchFinanzen() {
   return data as Finanzen[];
 }
 
-export async function fetchNebenkosten(year?: string) {
+export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   const supabase = createSupabaseServerClient();
   let query = supabase.from("Nebenkosten").select('*');
   
