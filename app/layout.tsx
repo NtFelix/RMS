@@ -18,8 +18,6 @@ export const metadata: Metadata = {
   generator: 'v0.dev',
   icons: {
     icon: '/favicon.png',
-    shortcut: '/favicon.png',
-    apple: '/favicon.png',
   },
 }
 
