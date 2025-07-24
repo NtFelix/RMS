@@ -17,10 +17,6 @@ const nextConfig = {
     minimumCacheTTL: 60,
     domains: [],
     unoptimized: false,
-    icons: {
-      icon: '/favicon.png',
-      apple: '/apple-icon.png',
-    },
   },
   experimental: {
     optimizeCss: true,
