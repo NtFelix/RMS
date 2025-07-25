@@ -5,9 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle } from "lucide-react";
-import { TenantFilters } from "@/components/tenant-filters";
-import { TenantTable } from "@/components/tenant-table";
-import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper";
+import { TenantsDataTable } from "@/components/data-tables/tenants-data-table";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
@@ -35,8 +33,7 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
 }: MieterClientViewProps) {
-  const [filter, setFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { openTenantModal } = useModalStore();
 
   // Remove local state for dialogOpen and editingId, as store will manage modal state
@@ -49,27 +46,45 @@ export default function MieterClientView({
   }, [openTenantModal, initialWohnungen]);
 
   const handleEditTenantInTable = useCallback((tenant: Tenant) => {
-    // Find the full tenant data if only partial data is passed by the table event
-    const tenantToEdit = initialTenants.find(t => t.id === tenant.id);
-    if (tenantToEdit) {
-      // Format data as expected by TenantEditModal's useEffect for parsing Nebenkosten
-      const formattedInitialData = {
-        id: tenantToEdit.id,
-        wohnung_id: tenantToEdit.wohnung_id || "",
-        name: tenantToEdit.name,
-        einzug: tenantToEdit.einzug || "",
-        auszug: tenantToEdit.auszug || "",
-        email: tenantToEdit.email || "",
-        telefonnummer: tenantToEdit.telefonnummer || "",
-        notiz: tenantToEdit.notiz || "",
-        nebenkosten: tenantToEdit.nebenkosten || [],
-      };
-      openTenantModal(formattedInitialData, initialWohnungen);
-    } else {
-      console.error("Tenant not found for editing:", tenant.id);
-      // Optionally, show a toast message
+    try {
+      // Find the full tenant data if only partial data is passed by the table event
+      const tenantToEdit = initialTenants.find(t => t.id === tenant.id);
+      if (tenantToEdit) {
+        // Format data as expected by TenantEditModal's useEffect for parsing Nebenkosten
+        const formattedInitialData = {
+          id: tenantToEdit.id,
+          wohnung_id: tenantToEdit.wohnung_id || "",
+          name: tenantToEdit.name,
+          einzug: tenantToEdit.einzug || "",
+          auszug: tenantToEdit.auszug || "",
+          email: tenantToEdit.email || "",
+          telefonnummer: tenantToEdit.telefonnummer || "",
+          notiz: tenantToEdit.notiz || "",
+          nebenkosten: tenantToEdit.nebenkosten || [],
+        };
+        openTenantModal(formattedInitialData, initialWohnungen);
+      } else {
+        console.error("Tenant not found for editing:", tenant.id);
+        // The error is logged, and the modal won't open, which is the expected behavior
+      }
+    } catch (error) {
+      console.error("Error opening tenant edit modal:", error);
+      // Error is handled gracefully by not opening the modal
     }
   }, [initialTenants, initialWohnungen, openTenantModal]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      // Trigger a page refresh to get updated data
+      window.location.reload();
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      // The page refresh will handle the error, so we don't need additional error handling here
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -103,13 +118,13 @@ export default function MieterClientView({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <TenantFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <TenantTable
-            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
+          <TenantsDataTable
+            data={initialTenants}
             wohnungen={initialWohnungen}
-            filter={filter}
-            searchQuery={searchQuery}
             onEdit={handleEditTenantInTable}
+            onRefresh={handleRefresh}
+            enableSelection={true}
+            loading={isRefreshing}
           />
         </CardContent>
       </Card>
