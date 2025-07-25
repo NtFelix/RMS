@@ -15,7 +15,11 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Property Management Dashboard",
   description: "Modern dashboard for property management",
-    generator: 'v0.dev'
+  generator: 'v0.dev',
+  icons: {
+    icon: '/favicon.png',
+    apple: '/apple-icon.png',
+  },
 }
 
 export default function RootLayout({
