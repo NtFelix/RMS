@@ -192,8 +192,11 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }
 
   const TableHeaderCell = ({ sortKey, children }: { sortKey: SortKey, children: React.ReactNode }) => (
-    <TableHead onClick={() => handleSort(sortKey)} className="cursor-pointer hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-2">
+    <TableHead>
+      <div
+        onClick={() => handleSort(sortKey)}
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50"
+      >
         {children}
         {renderSortIcon(sortKey)}
       </div>
