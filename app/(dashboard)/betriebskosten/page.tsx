@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { OperatingCostsDataTable } from "./components/data-table";
 import { columns, OperatingCost } from "./components/columns";
 import { createClient } from "@/utils/supabase/server";

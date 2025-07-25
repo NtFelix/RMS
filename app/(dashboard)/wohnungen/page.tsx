@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { ApartmentsDataTable } from "./components/data-table";
 import { columns, Apartment } from "./components/columns";
 import { createClient } from "@/utils/supabase/server";
