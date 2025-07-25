@@ -191,8 +191,8 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     }
   }
 
-  const TableHeaderCell = ({ sortKey, children }: { sortKey: SortKey, children: React.ReactNode }) => (
-    <TableHead>
+  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: SortKey, children: React.ReactNode, className?: string }) => (
+    <TableHead className={className}>
       <div
         onClick={() => handleSort(sortKey)}
         className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50"
@@ -208,7 +208,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHeaderCell sortKey="name">Häuser</TableHeaderCell>
+            <TableHeaderCell sortKey="name" className="w-[250px]">Häuser</TableHeaderCell>
             <TableHeaderCell sortKey="ort">Ort</TableHeaderCell>
             <TableHeaderCell sortKey="size">Größe</TableHeaderCell>
             <TableHeaderCell sortKey="rent">Miete</TableHeaderCell>
