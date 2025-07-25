@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
-import { FinancesDataTable } from "@/components/data-tables/finances-data-table";
+import { FinanceTransactions } from "@/components/finance-transactions";
 // Dialog, Input, Label, Select, DatePicker, toast, format are removed as they were for the local modal
 // If other parts of the component use them, they should be kept. For now, assuming they are modal-specific.
 // import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -197,7 +197,13 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
       </div>
 
       <FinanceVisualization finances={finData} />
-      <FinancesDataTable data={finData} />
+      <FinanceTransactions
+        finances={finData}
+        onEdit={handleEdit}
+        onAdd={handleAddFinance}
+        loadFinances={refreshFinances}
+        reloadRef={reloadRef}
+      />
     </div>
   );
 }
