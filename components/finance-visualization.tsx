@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { Finance } from "@/components/columns/finances-columns"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   Bar,
@@ -74,20 +75,8 @@ const staticExpenseCategories = [
   { name: "Sonstiges", value: 1400 },
 ]
 
-// Interface for finance transactions
-interface Finanz {
-  id: string
-  wohnung_id?: string
-  name: string
-  datum?: string
-  betrag: number
-  ist_einnahmen: boolean
-  notiz?: string
-  Wohnungen?: { name: string }
-}
-
 interface FinanceVisualizationProps {
-  finances: Finanz[]
+  finances: Finance[]
 }
 
 // Farben für Pie Chart

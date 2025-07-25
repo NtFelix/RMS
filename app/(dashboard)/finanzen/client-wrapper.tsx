@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react"; // useEffect might be removable if not used elsewhere
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
-import { FinanceTransactions } from "@/components/finance-transactions";
+import { FinancesDataTable } from "@/components/data-tables/finances-data-table";
+import { Finance } from "@/components/columns/finances-columns";
 // Dialog, Input, Label, Select, DatePicker, toast, format are removed as they were for the local modal
 // If other parts of the component use them, they should be kept. For now, assuming they are modal-specific.
 // import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -18,41 +19,18 @@ import { FinanceTransactions } from "@/components/finance-transactions";
 
 import { useModalStore } from "@/hooks/use-modal-store"; // Added
 
-interface Finanz {
-  id: string;
-  wohnung_id?: string;
-  name: string;
-  datum?: string;
-  betrag: number;
-  ist_einnahmen: boolean;
-  notiz?: string;
-  Wohnungen?: { name: string };
-}
-
 interface Wohnung { id: string; name: string; }
 
 interface FinanzenClientWrapperProps {
-  finances: Finanz[];
+  finances: Finance[];
   wohnungen: Wohnung[];
 }
 
 export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenClientWrapperProps) {
-  // Local state for dialog (dialogOpen, editingId, formData) is removed
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-  // const [formData, setFormData] = useState({ 
-  //   wohnung_id: "", 
-  //   name: "", 
-  //   datum: "", 
-  //   betrag: "", 
-  //   ist_einnahmen: false, 
-  //   notiz: "" 
-  // });
-  const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
-  const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
+  const [finData, setFinData] = useState<Finance[]>(finances);
 
   // Add handler for new entries
-  const handleAddFinance = useCallback((newFinance: Finanz) => {
+  const handleAddFinance = useCallback((newFinance: Finance) => {
     setFinData(prev => {
       // Check if the entry already exists to prevent duplicates
       const exists = prev.some(item => item.id === newFinance.id);
@@ -123,8 +101,7 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   const yearlyProjection = averageMonthlyCashflow * 12;
 
   // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
-  // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
-  const handleEdit = useCallback((finance: Finanz) => {
+  const handleEdit = useCallback((finance: Finance) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
   }, [wohnungen, handleSuccess]);
 
@@ -206,12 +183,11 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
       </div>
 
       <FinanceVisualization finances={finData} />
-      <FinanceTransactions 
-        finances={finData} 
+      <FinancesDataTable 
+        data={finData} 
         onEdit={handleEdit} 
-        onAdd={handleAddFinance}
-        loadFinances={refreshFinances} 
-        reloadRef={reloadRef}
+        onRefresh={refreshFinances}
+        enableSelection={true}
       />
     </div>
   );
