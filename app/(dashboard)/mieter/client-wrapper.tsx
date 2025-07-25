@@ -5,9 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle } from "lucide-react";
-import { TenantFilters } from "@/components/tenant-filters";
-import { TenantTable } from "@/components/tenant-table";
-import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper";
+import { TenantsDataTable } from "@/components/data-tables/tenants-data-table";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
@@ -33,43 +31,12 @@ function AddTenantButton({ onAdd }: { onAdd: () => void }) {
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
-  serverAction,
 }: MieterClientViewProps) {
-  const [filter, setFilter] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const { openTenantModal } = useModalStore();
 
-  // Remove local state for dialogOpen and editingId, as store will manage modal state
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-
   const handleAddTenant = useCallback(() => {
-    // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
     openTenantModal(undefined, initialWohnungen);
   }, [openTenantModal, initialWohnungen]);
-
-  const handleEditTenantInTable = useCallback((tenant: Tenant) => {
-    // Find the full tenant data if only partial data is passed by the table event
-    const tenantToEdit = initialTenants.find(t => t.id === tenant.id);
-    if (tenantToEdit) {
-      // Format data as expected by TenantEditModal's useEffect for parsing Nebenkosten
-      const formattedInitialData = {
-        id: tenantToEdit.id,
-        wohnung_id: tenantToEdit.wohnung_id || "",
-        name: tenantToEdit.name,
-        einzug: tenantToEdit.einzug || "",
-        auszug: tenantToEdit.auszug || "",
-        email: tenantToEdit.email || "",
-        telefonnummer: tenantToEdit.telefonnummer || "",
-        notiz: tenantToEdit.notiz || "",
-        nebenkosten: tenantToEdit.nebenkosten || [],
-      };
-      openTenantModal(formattedInitialData, initialWohnungen);
-    } else {
-      console.error("Tenant not found for editing:", tenant.id);
-      // Optionally, show a toast message
-    }
-  }, [initialTenants, initialWohnungen, openTenantModal]);
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -81,20 +48,6 @@ export default function MieterClientView({
         <AddTenantButton onAdd={handleAddTenant} />
       </div>
 
-      {/* TenantDialogWrapper is no longer needed here as TenantEditModal is global
-          and opened directly via useModalStore actions.
-      */}
-      {/*
-      <TenantDialogWrapper
-        wohnungen={initialWohnungen}
-        mieter={initialTenants}
-        serverAction={serverAction} // This prop is for TenantEditModal, not wrapper
-        open={dialogOpen}
-        editingId={editingId}
-        setOpen={setDialogOpen}
-        setEditingId={setEditingId}
-      />
-      */}
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
           <div>
@@ -103,14 +56,7 @@ export default function MieterClientView({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <TenantFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <TenantTable
-            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
-            wohnungen={initialWohnungen}
-            filter={filter}
-            searchQuery={searchQuery}
-            onEdit={handleEditTenantInTable}
-          />
+          <TenantsDataTable data={initialTenants} />
         </CardContent>
       </Card>
     </div>

@@ -74,20 +74,10 @@ const staticExpenseCategories = [
   { name: "Sonstiges", value: 1400 },
 ]
 
-// Interface for finance transactions
-interface Finanz {
-  id: string
-  wohnung_id?: string
-  name: string
-  datum?: string
-  betrag: number
-  ist_einnahmen: boolean
-  notiz?: string
-  Wohnungen?: { name: string }
-}
+import { Finanzen } from "@/types/supabase";
 
 interface FinanceVisualizationProps {
-  finances: Finanz[]
+  finances: Finanzen[]
 }
 
 // Farben für Pie Chart
@@ -111,7 +101,7 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
     finances.forEach(f => {
       if (f.ist_einnahmen) {
         // Debug logging
-        console.log('Processing income:', f.id, f.name, f.betrag, 'Wohnung:', f.Wohnungen?.name || 'undefined');
+        console.log('Processing income:', f.id, f.beschreibung, f.betrag, 'Wohnung:', f.Wohnungen?.name || 'undefined');
         
         if (!f.Wohnungen?.name) {
           undefinedCount++;
@@ -222,7 +212,7 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
       .filter(f => !f.ist_einnahmen) // Only expenses
       .forEach(f => {
         // Extract base category from expense name (first word)
-        const category = f.name ? f.name.split(' ')[0] : 'Sonstiges';
+        const category = f.beschreibung ? f.beschreibung.split(' ')[0] : 'Sonstiges';
         const currentValue = categories.get(category) || 0;
         categories.set(category, currentValue + Number(f.betrag));
       });

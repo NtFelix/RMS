@@ -316,7 +316,9 @@ export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promi
   }
 }
 
-export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
+import { Betriebskosten } from "@/types/supabase";
+
+export async function fetchNebenkostenList(): Promise<Betriebskosten[]> {
   const supabase = createSupabaseServerClient();
   
   try {
@@ -375,7 +377,7 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
       }
     }
     
-    return nebendkostenWithArea as Nebenkosten[];
+    return nebendkostenWithArea as Betriebskosten[];
   } catch (error) {
     console.error('Unexpected error in fetchNebenkostenList:', error);
     return [];

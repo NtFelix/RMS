@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { Row } from "@tanstack/react-table"
 import { MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,13 +9,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Tenant } from "@/types/Tenant"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { Betriebskosten } from "@/types/supabase"
 
-interface TenantContextMenuProps {
-  row: Row<Tenant>
+interface OperatingCostsContextMenuProps {
+  row: Row<Betriebskosten>
 }
 
-export function TenantContextMenu({ row }: TenantContextMenuProps) {
+export function OperatingCostsContextMenu({ row }: OperatingCostsContextMenuProps) {
+  const { openBetriebskostenModal } = useModalStore()
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -26,12 +28,10 @@ export function TenantContextMenu({ row }: TenantContextMenuProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => {}}>
+        <DropdownMenuItem onClick={() => openBetriebskostenModal(row.original, [], () => {})}>
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => {}}>
-          Delete
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => {}}>Delete</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

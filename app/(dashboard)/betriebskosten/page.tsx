@@ -7,7 +7,8 @@ import { fetchNebenkostenList, fetchHaeuser as fetchHaeuserServer } from "../../
 import { createClient } from "@/utils/supabase/server";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
 // Types are still needed for data fetching
-import { Nebenkosten, Haus } from "../../../lib/data-fetching";
+import { Haus } from "../../../lib/data-fetching";
+import { Betriebskosten } from "@/types/supabase";
 // Server actions are fine to be imported by Server Components if needed, but not directly by client-wrapper
 
 export default async function BetriebskostenPage() {
@@ -15,7 +16,7 @@ export default async function BetriebskostenPage() {
   const { data: { user } } = await supabase.auth.getUser();
   const userId = user?.id;
   
-  const nebenkostenData: Nebenkosten[] = await fetchNebenkostenList();
+  const nebenkostenData: Betriebskosten[] = await fetchNebenkostenList();
   const haeuserData: Haus[] = await fetchHaeuserServer();
 
   let ownerName = "Vermieter Name";
