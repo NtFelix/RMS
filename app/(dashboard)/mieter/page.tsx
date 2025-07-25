@@ -1,49 +1,26 @@
-// "use client" directive removed - this is now a Server Component file.
+import { TenantsDataTable } from "./components/data-table";
+import { columns, Tenant } from "./components/columns";
+import { createClient } from "@/utils/supabase/server";
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
-import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
-import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
-import MieterClientView from "./client-wrapper"; // Import the default export
-
-import type { Tenant } from "@/types/Tenant";
-import type { Wohnung } from "@/types/Wohnung";
+export const metadata = {
+  title: "Mieter",
+};
 
 export default async function MieterPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
-  if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
+  const supabase = await createClient();
+  const { data: mieter, error } = await supabase.from("Mieter").select("id, name, email, telefon, wohnung_id");
 
-  const { data: rawMieter, error: mieterError } = await supabase
-    .from('Mieter')
-    .select('id,wohnung_id,einzug,auszug,name,nebenkosten,email,telefonnummer,notiz,kaution');
-  if (mieterError) console.error('Fehler beim Laden der Mieter:', mieterError);
-
-  const today = new Date();
-  const wohnungen: Wohnung[] = rawWohnungen ? rawWohnungen.map((apt: any) => {
-    const tenant = rawMieter?.find((t: any) => t.wohnung_id === apt.id);
-    let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
-      status = 'vermietet';
-    }
-    return {
-      ...apt,
-      Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
-      status,
-      tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
-    } as Wohnung;
-  }) : [];
-
-  const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({...m})) : [];
-  
-
+  if (error) {
+    console.error("Error fetching tenants:", error);
+    return <div>Error loading data.</div>;
+  }
 
   return (
-    <MieterClientView
-      initialTenants={mieter}
-      initialWohnungen={wohnungen}
-      serverAction={mieterServerAction}
-    />
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Mieter</h2>
+      </div>
+      <TenantsDataTable columns={columns} data={mieter as Tenant[]} />
+    </div>
   );
 }

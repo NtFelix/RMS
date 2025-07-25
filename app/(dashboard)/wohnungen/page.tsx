@@ -1,103 +1,26 @@
-// "use client" directive removed from the top of this file.
-// This file now exports a Server Component by default.
+import { ApartmentsDataTable } from "./components/data-table";
+import { columns, Apartment } from "./components/columns";
+import { createClient } from "@/utils/supabase/server";
 
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
+export const metadata = {
+  title: "Wohnungen",
+};
 
-// Removed Card, CardContent etc. as they are used in ClientView
-import { createClient as createSupabaseClient } from '@/utils/supabase/server';
-import { fetchUserProfile } from '@/lib/data-fetching';
-
-import { getPlanDetails } from '@/lib/stripe-server';
-import WohnungenClientView from './client'; // Import the default export from client.tsx
-import type { Wohnung } from "@/types/Wohnung";
-
-// Server Component: Fetches data and passes it to the Client Component
 export default async function WohnungenPage() {
-  const supabase = await createSupabaseClient();
+  const supabase = await createClient();
+  const { data: wohnungen, error } = await supabase.from("Wohnungen").select("id, name, flaeche, miete, haus_id");
 
-  const { data: { user } } = await supabase.auth.getUser();
-
-  let apartmentCount = 0;
-  let userIsEligibleToAdd = false;
-  let effectiveApartmentLimit: number | typeof Infinity = 0;
-  let limitReason: 'trial' | 'subscription' | 'none' = 'none';
-
-  if (user) {
-    const userProfile = await fetchUserProfile();
-    if (userProfile) {
-      const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
-      const isEffectivelyInTrial = isStripeTrial;
-      const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
-
-      if (isEffectivelyInTrial) {
-        userIsEligibleToAdd = true;
-        effectiveApartmentLimit = 5;
-        limitReason = 'trial';
-        if (isPaidActiveSub && userProfile.stripe_price_id) {
-          try {
-            const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-            if (planDetails) {
-              if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
-              else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > effectiveApartmentLimit) {
-                effectiveApartmentLimit = planDetails.limitWohnungen;
-              }
-              if (effectiveApartmentLimit !== 5 || planDetails.limitWohnungen === null) limitReason = 'subscription';
-            }
-          } catch (error) { console.error('WohnungenPage: Error fetching plan details for active sub during trial:', error); }
-        }
-      } else if (isPaidActiveSub && userProfile.stripe_price_id) {
-        userIsEligibleToAdd = true;
-        limitReason = 'subscription';
-        try {
-          const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-          if (planDetails) {
-            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) effectiveApartmentLimit = planDetails.limitWohnungen;
-            else if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
-            else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-          } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-        } catch (error) { console.error('WohnungenPage: Error fetching plan details:', error); userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-      } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-    } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; limitReason = 'none'; }
-
-    const { count, error: countError } = await supabase.from('Wohnungen').select('*', { count: 'exact', head: true }).eq('user_id', user.id);
-    if (countError) console.error('Error fetching apartment count:', countError.message);
-    else apartmentCount = count || 0;
+  if (error) {
+    console.error("Error fetching apartments:", error);
+    return <div>Error loading data.</div>;
   }
 
-  const { data: rawApartments, error: apartmentsError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
-  if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
-
-  const { data: tenants, error: tenantsError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
-  if (tenantsError) console.error('Fehler beim Laden der Mieter:', tenantsError);
-
-  const today = new Date();
-  const initialWohnungen: Wohnung[] = rawApartments ? rawApartments.map((apt) => {
-    const tenant = tenants?.find((t: any) => t.wohnung_id === apt.id);
-    let status: 'frei' | 'vermietet' = 'frei';
-    if (tenant && (!tenant.auszug || new Date(tenant.auszug) > today)) {
-      status = 'vermietet';
-    }
-    return {
-      ...apt,
-      Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
-      status,
-      tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,
-    } as Wohnung; // Ensure the mapped object conforms to Wohnung type
-  }) : [];
-
-  const { data: housesData, error: housesError } = await supabase.from('Haeuser').select('id,name');
-  if (housesError) console.error('Fehler beim Laden der Häuser:', housesError);
-  const houses = housesData || [];
-
   return (
-    <WohnungenClientView
-      initialWohnungenData={initialWohnungen}
-      housesData={houses}
-      serverApartmentCount={apartmentCount}
-      serverApartmentLimit={effectiveApartmentLimit}
-      serverUserIsEligibleToAdd={userIsEligibleToAdd}
-      serverLimitReason={limitReason}
-    />
+    <div className="flex-1 space-y-4 p-8 pt-6">
+      <div className="flex items-center justify-between space-y-2">
+        <h2 className="text-3xl font-bold tracking-tight">Wohnungen</h2>
+      </div>
+      <ApartmentsDataTable columns={columns} data={wohnungen as Apartment[]} />
+    </div>
   );
 }

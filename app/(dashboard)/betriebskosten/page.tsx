@@ -1,40 +1,26 @@
-// Remove "use client" from here as this file will be a Server Component
-
-export const runtime = 'edge';
-export const dynamic = 'force-dynamic';
-
-import { fetchNebenkostenList, fetchHaeuser as fetchHaeuserServer } from "../../../lib/data-fetching";
+import { OperatingCostsDataTable } from "./components/data-table";
+import { columns, OperatingCost } from "./components/columns";
 import { createClient } from "@/utils/supabase/server";
-import BetriebskostenClientView from "./client-wrapper"; // Import the default export
-// Types are still needed for data fetching
-import { Nebenkosten, Haus } from "../../../lib/data-fetching";
-// Server actions are fine to be imported by Server Components if needed, but not directly by client-wrapper
+
+export const metadata = {
+    title: "Betriebskosten",
+};
 
 export default async function BetriebskostenPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id;
-  
-  const nebenkostenData: Nebenkosten[] = await fetchNebenkostenList();
-  const haeuserData: Haus[] = await fetchHaeuserServer();
+    const supabase = await createClient();
+    const { data: betriebskosten, error } = await supabase.from("Betriebskosten").select("id, jahr, haus_id, kostenart, betrag");
 
-  let ownerName = "Vermieter Name";
-  if (user) {
-    const firstName = user.user_metadata?.first_name;
-    const lastName = user.user_metadata?.last_name;
-    let constructedName = "";
-    if (firstName && lastName) constructedName = `${firstName} ${lastName}`;
-    else if (firstName) constructedName = firstName;
-    else if (lastName) constructedName = lastName;
-    ownerName = constructedName || user.email || "Vermieter Name";
-  }
+    if (error) {
+        console.error("Error fetching operating costs:", error);
+        return <div>Error loading data.</div>;
+    }
 
-  return (
-    <BetriebskostenClientView
-      initialNebenkosten={nebenkostenData}
-      initialHaeuser={haeuserData}
-      userId={userId} // Pass userId, not serverUserId
-      ownerName={ownerName}    // Pass ownerName, not serverOwnerName
-    />
-  );
+    return (
+        <div className="flex-1 space-y-4 p-8 pt-6">
+        <div className="flex items-center justify-between space-y-2">
+            <h2 className="text-3xl font-bold tracking-tight">Betriebskosten</h2>
+        </div>
+        <OperatingCostsDataTable columns={columns} data={betriebskosten as OperatingCost[]} />
+        </div>
+    );
 }
