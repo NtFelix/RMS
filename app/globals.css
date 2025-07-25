@@ -79,3 +79,51 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Mobile data table enhancements */
+  .mobile-data-table {
+    /* Smooth scrolling for touch devices */
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar for mobile tables */
+  .mobile-data-table::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .mobile-data-table::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .mobile-data-table::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 2px;
+  }
+
+  .mobile-data-table::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* Touch feedback for mobile table rows */
+  @media (hover: none) and (pointer: coarse) {
+    .mobile-table-row:active {
+      background-color: hsl(var(--muted) / 0.7);
+      transform: scale(0.995);
+      transition: all 0.1s ease;
+    }
+  }
+
+  /* Ensure minimum touch target size on mobile */
+  @media (max-width: 768px) {
+    .mobile-table-button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+    
+    .mobile-table-cell {
+      padding: 12px 8px;
+    }
+  }
+}

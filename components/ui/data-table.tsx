@@ -30,6 +30,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { exportTableData, ExportOptions } from "@/lib/data-export"
 import { toast } from "@/hooks/use-toast"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -68,6 +69,7 @@ export function DataTable<TData, TValue>({
   loading = false,
   emptyMessage = "Keine Daten verfügbar.",
 }: DataTableProps<TData, TValue>) {
+  const isMobile = useIsMobile()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
@@ -78,6 +80,12 @@ export function DataTable<TData, TValue>({
     pageSize: 10,
   })
   const [isExporting, setIsExporting] = React.useState(false)
+  
+  // Mobile-specific state
+  const [touchStart, setTouchStart] = React.useState<{ x: number; y: number } | null>(null)
+  const [touchEnd, setTouchEnd] = React.useState<{ x: number; y: number } | null>(null)
+  const [isScrolling, setIsScrolling] = React.useState(false)
+  const tableContainerRef = React.useRef<HTMLDivElement>(null)
 
   // Add selection column if enabled
   const tableColumns = React.useMemo(() => {
@@ -133,18 +141,75 @@ export function DataTable<TData, TValue>({
     globalFilterFn: "includesString",
   })
 
+  // Touch gesture handling
+  const handleTouchStart = React.useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    setTouchStart({ x: touch.clientX, y: touch.clientY })
+    setTouchEnd(null)
+    setIsScrolling(false)
+  }, [])
+
+  const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    setTouchEnd({ x: touch.clientX, y: touch.clientY })
+    
+    if (touchStart) {
+      const deltaX = Math.abs(touch.clientX - touchStart.x)
+      const deltaY = Math.abs(touch.clientY - touchStart.y)
+      
+      // If horizontal movement is greater than vertical, it's likely a scroll gesture
+      if (deltaX > deltaY && deltaX > 10) {
+        setIsScrolling(true)
+      }
+    }
+  }, [touchStart])
+
+  const handleTouchEnd = React.useCallback(() => {
+    if (!touchStart || !touchEnd || isScrolling) return
+    
+    const deltaX = touchEnd.x - touchStart.x
+    const deltaY = touchEnd.y - touchStart.y
+    
+    // Detect swipe gestures (minimum 50px movement)
+    const minSwipeDistance = 50
+    
+    if (Math.abs(deltaX) > minSwipeDistance && Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Horizontal swipe - could be used for pagination or column navigation
+      if (deltaX > 0) {
+        // Swipe right - previous page
+        if (table.getCanPreviousPage()) {
+          table.previousPage()
+        }
+      } else {
+        // Swipe left - next page
+        if (table.getCanNextPage()) {
+          table.nextPage()
+        }
+      }
+    }
+    
+    setTouchStart(null)
+    setTouchEnd(null)
+    setIsScrolling(false)
+  }, [touchStart, touchEnd, isScrolling, table])
+
   // Handle row click
   const handleRowClick = React.useCallback(
-    (row: TData, event: React.MouseEvent | React.KeyboardEvent) => {
+    (row: TData, event: React.MouseEvent | React.KeyboardEvent | React.TouchEvent) => {
       // Don't trigger row click if clicking on checkbox or other interactive elements
       const target = event.target as HTMLElement
       if (target.closest('[role="checkbox"]') || target.closest('button')) {
         return
       }
       
+      // Don't trigger on touch if we were scrolling
+      if (event.type === 'touchend' && isScrolling) {
+        return
+      }
+      
       onRowClick?.(row)
     },
-    [onRowClick]
+    [onRowClick, isScrolling]
   )
 
   // Enhanced keyboard navigation
@@ -327,8 +392,23 @@ export function DataTable<TData, TValue>({
         onExport={handleExport}
         isExporting={isExporting}
       />
-      <div className="rounded-md border">
-        <Table role="table" aria-label="Datentabelle">
+      <div 
+        ref={tableContainerRef}
+        className={cn(
+          "rounded-md border",
+          isMobile && "overflow-x-auto mobile-data-table"
+        )}
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchMove={isMobile ? handleTouchMove : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      >
+        <Table 
+          role="table" 
+          aria-label="Datentabelle"
+          className={cn(
+            isMobile && "min-w-[600px]" // Ensure minimum width on mobile for horizontal scroll
+          )}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} role="row">
@@ -377,9 +457,11 @@ export function DataTable<TData, TValue>({
                       data-state={row.getIsSelected() && "selected"}
                       className={cn(
                         "transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                        onRowClick && "cursor-pointer"
+                        onRowClick && "cursor-pointer",
+                        isMobile && onRowClick && "mobile-table-row" // Touch feedback
                       )}
                       onClick={(event) => handleRowClick(row.original, event)}
+                      onTouchEnd={isMobile && onRowClick ? (event) => handleRowClick(row.original, event) : undefined}
                       onKeyDown={(event) => handleKeyDown(event, row.original)}
                       tabIndex={0}
                       role={onRowClick ? "button" : "row"}

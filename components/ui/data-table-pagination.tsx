@@ -6,6 +6,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -27,12 +28,95 @@ export function DataTablePagination<TData>({
   pageSizeOptions = [10, 20, 30, 40, 50],
   showSelectedCount = true,
 }: DataTablePaginationProps<TData>) {
+  const isMobile = useIsMobile()
   const selectedRowCount = table.getFilteredSelectedRowModel().rows.length
   const totalRowCount = table.getFilteredRowModel().rows.length
   const currentPage = table.getState().pagination.pageIndex + 1
   const totalPages = table.getPageCount()
   const pageSize = table.getState().pagination.pageSize
 
+  if (isMobile) {
+    return (
+      <div className="space-y-3 px-2">
+        {/* Mobile: Selection count */}
+        {showSelectedCount && selectedRowCount > 0 && (
+          <div className="text-sm text-muted-foreground text-center">
+            {selectedRowCount} von {totalRowCount} Zeile(n) ausgewählt
+          </div>
+        )}
+        
+        {/* Mobile: Page size and info */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <p className="text-sm font-medium">Pro Seite</p>
+            <Select
+              value={`${pageSize}`}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value))
+              }}
+            >
+              <SelectTrigger className="h-8 w-[60px]">
+                <SelectValue placeholder={pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {pageSizeOptions.map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="text-sm font-medium">
+            {currentPage} / {totalPages}
+          </div>
+        </div>
+        
+        {/* Mobile: Navigation buttons */}
+        <div className="flex items-center justify-center space-x-1">
+          <Button
+            variant="outline"
+            className="h-9 w-9 p-0 mobile-table-button"
+            onClick={() => table.setPageIndex(0)}
+            disabled={!table.getCanPreviousPage()}
+            aria-label="Zur ersten Seite"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 w-9 p-0 mobile-table-button"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+            aria-label="Zur vorherigen Seite"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 w-9 p-0 mobile-table-button"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+            aria-label="Zur nächsten Seite"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            className="h-9 w-9 p-0 mobile-table-button"
+            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
+            disabled={!table.getCanNextPage()}
+            aria-label="Zur letzten Seite"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Desktop layout
   return (
     <div className="flex items-center justify-between px-2">
       <div className="flex-1 text-sm text-muted-foreground">
