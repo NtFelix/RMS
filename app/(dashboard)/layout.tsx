@@ -12,8 +12,8 @@ import { HouseEditModal } from "@/components/house-edit-modal" // Added
 import { handleSubmit as houseServerAction } from "@/app/(dashboard)/haeuser/actions" // Added
 import { FinanceEditModal } from "@/components/finance-edit-modal" // Added
 import { financeServerAction } from "@/app/finanzen-actions" // Added - Adjusted path due to tool limitation
-import { WohnungEditModal } from "@/components/wohnung-edit-modal" // Added
-import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
+import { ApartmentEditModal } from "@/components/apartment-edit-modal" // Added
+import { speichereWohnung, aktualisiereWohnung } from "@/app/(dashboard)/wohnungen/actions" // Added
 import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
 import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
@@ -90,10 +90,16 @@ export default function DashboardRootLayout({
       {/* FinanceEditModal needs serverAction. */}
       <FinanceEditModal serverAction={financeServerAction} />
 
-      {/* WohnungEditModal needs serverAction. */}
+      {/* ApartmentEditModal needs serverAction. */}
       {/* Also pass specific props if they are not part of the store's initialData object for wohnung */}
-      <WohnungEditModal
-        serverAction={wohnungServerAction}
+      <ApartmentEditModal
+        serverAction={async (id: string | null, data: { name: string; groesse: string; miete: string; haus_id: string }) => {
+          if (id) {
+            return await aktualisiereWohnung(id, data);
+          } else {
+            return await speichereWohnung(data);
+          }
+        }}
         currentApartmentLimitFromProps={wohnungApartmentLimit}
         isActiveSubscriptionFromProps={wohnungIsActiveSubscription}
         currentApartmentCountFromProps={wohnungApartmentCount}
