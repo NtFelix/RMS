@@ -35,6 +35,7 @@ interface DataTableToolbarProps<TData> {
   enableColumnVisibility?: boolean
   enableExport?: boolean
   onExport?: (format: 'csv' | 'pdf') => void
+  isExporting?: boolean
 }
 
 export function DataTableToolbar<TData>({
@@ -45,6 +46,7 @@ export function DataTableToolbar<TData>({
   enableColumnVisibility = true,
   enableExport = true,
   onExport,
+  isExporting = false,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0 || 
                     table.getState().globalFilter
@@ -121,9 +123,19 @@ export function DataTableToolbar<TData>({
                 size="sm"
                 className="ml-auto h-8"
                 aria-label="Daten exportieren"
+                disabled={isExporting}
               >
-                <Download className="mr-2 h-4 w-4" />
-                Export
+                {isExporting ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    Exportiere...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -132,6 +144,7 @@ export function DataTableToolbar<TData>({
               <DropdownMenuCheckboxItem
                 onClick={() => onExport('csv')}
                 className="cursor-pointer"
+                disabled={isExporting}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 CSV
@@ -139,6 +152,7 @@ export function DataTableToolbar<TData>({
               <DropdownMenuCheckboxItem
                 onClick={() => onExport('pdf')}
                 className="cursor-pointer"
+                disabled={isExporting}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 PDF

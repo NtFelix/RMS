@@ -41,8 +41,13 @@ export interface DataTableProps<TData, TValue = unknown> {
   enableColumnVisibility?: boolean
   enableExport?: boolean
   onRowClick?: (row: TData) => void
-  contextMenuComponent?: React.ComponentType<{ row: TData }>
-  toolbar?: React.ComponentType<{ table: Table<TData> }>
+  contextMenuComponent?: React.ComponentType<{ row: TData; children: React.ReactNode }>
+  filters?: FilterConfig[]
+  onExport?: (format: 'csv' | 'pdf') => void
+  exportOptions?: ExportOptions
+  className?: string
+  loading?: boolean
+  emptyMessage?: string
 }
 
 // Filter configuration interface
@@ -51,6 +56,14 @@ export interface FilterConfig {
   label: string
   options: { label: string; value: string }[]
   type: 'select' | 'multiselect' | 'date'
+}
+
+// Export options interface
+export interface ExportOptions {
+  filename?: string
+  includeHeaders?: boolean
+  dateFormat?: 'german' | 'iso'
+  numberFormat?: 'german' | 'us'
 }
 
 // Table toolbar props interface
@@ -62,6 +75,7 @@ export interface DataTableToolbarProps<TData> {
   enableColumnVisibility?: boolean
   enableExport?: boolean
   onExport?: (format: 'csv' | 'pdf') => void
+  isExporting?: boolean
 }
 
 // Pagination props interface
