@@ -103,6 +103,7 @@ export type Finanzen = {
   ist_einnahmen: boolean;
   notiz: string | null;
   user_id: string;
+  Wohnungen?: { name: string };
 };
 
 export async function fetchHaeuser() {

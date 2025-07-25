@@ -13,16 +13,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "@/hooks/use-toast"
 
 // Interface for finance transactions
-interface Finanz {
-  id: string
-  wohnung_id?: string
-  name: string
-  datum?: string
-  betrag: number
-  ist_einnahmen: boolean
-  notiz?: string
-  Wohnungen?: { name: string }
-}
+import { Finanzen } from "@/lib/data-fetching";
+type Finanz = Finanzen;
 
 interface FinanceTransactionsProps {
   finances: Finanz[]
@@ -33,7 +25,7 @@ interface FinanceTransactionsProps {
 }
 
 // Helper function to format date in DD.MM.YYYY format
-const formatDate = (dateString: string | undefined): string => {
+const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-'
   const date = new Date(dateString)
   return date.toLocaleDateString('de-DE', {
