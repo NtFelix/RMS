@@ -1,9 +1,6 @@
-export interface Wohnung {
-  id: string;
-  name: string;
-  miete: number;
-  groesse: number;
-  zimmer: number;
+import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+
+export interface Wohnung extends ApartmentTableType {
   status: 'frei' | 'vermietet';
   tenant?: {
     id: string;

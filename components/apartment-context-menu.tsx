@@ -1,14 +1,14 @@
 "use client"
 
 import * as React from "react"
-import { MoreHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import { Edit, Building, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,23 +21,25 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
-import { Wohnung as Apartment } from "@/types/Wohnung"; // Import the shared type
+import type { Apartment } from "./apartment-table"; // Import the shared type
 
 // Remove local Apartment interface definition
 
-import { Row } from "@tanstack/react-table";
-
 interface ApartmentContextMenuProps {
-  row: Row<Apartment>
+  children: React.ReactNode
+  apartment: Apartment // Now uses the imported Apartment type
+  onEdit: () => void
+  onRefresh: () => void
 }
 
-import { useRouter } from "next/navigation"
-
-export function ApartmentContextMenu({ row }: ApartmentContextMenuProps) {
-  const apartment = row.original;
+export function ApartmentContextMenu({
+  children,
+  apartment,
+  onEdit,
+  onRefresh,
+}: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const router = useRouter();
 
   const handleDelete = async () => {
     try {
@@ -51,7 +53,7 @@ export function ApartmentContextMenu({ row }: ApartmentContextMenuProps) {
           variant: "success",
         });
         setTimeout(() => {
-          router.refresh();
+          onRefresh();
         }, 100); // Delay of 100 milliseconds
       } else {
         toast({
@@ -75,22 +77,24 @@ export function ApartmentContextMenu({ row }: ApartmentContextMenuProps) {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => {}}>
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setDeleteDialogOpen(true)}>
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuContent className="w-64">
+          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+            <Edit className="h-4 w-4" />
+            <span>Bearbeiten</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => setDeleteDialogOpen(true)}
+            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Löschen</span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

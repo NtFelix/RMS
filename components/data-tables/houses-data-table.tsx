@@ -1,7 +1,7 @@
 "use client"
 
 import { DataTable } from "@/components/ui/data-table"
-import { House } from "@/types/supabase"
+import { House } from "@/components/house-table"
 import { housesColumns } from "@/components/columns/houses-columns"
 
 interface HousesDataTableProps {

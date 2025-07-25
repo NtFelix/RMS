@@ -65,7 +65,7 @@ export default async function WohnungenPage() {
     else apartmentCount = count || 0;
   }
 
-  const { data: rawApartments, error: apartmentsError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,zimmer,Haeuser(name)');
+  const { data: rawApartments, error: apartmentsError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
   if (apartmentsError) console.error('Fehler beim Laden der Wohnungen:', apartmentsError);
 
   const { data: tenants, error: tenantsError } = await supabase.from('Mieter').select('id,wohnung_id,einzug,auszug,name');
@@ -80,7 +80,6 @@ export default async function WohnungenPage() {
     }
     return {
       ...apt,
-      zimmer: apt.zimmer || 0,
       Haeuser: Array.isArray(apt.Haeuser) ? apt.Haeuser[0] : apt.Haeuser,
       status,
       tenant: tenant ? { id: tenant.id, name: tenant.name, einzug: tenant.einzug as string, auszug: tenant.auszug as string } : undefined,

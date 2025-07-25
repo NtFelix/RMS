@@ -18,12 +18,12 @@ import { FinancesDataTable } from "@/components/data-tables/finances-data-table"
 
 import { useModalStore } from "@/hooks/use-modal-store"; // Added
 
-import { Finanzen } from "@/types/supabase";
+import { Finanzen as Finanz } from "@/lib/data-fetching";
 
 interface Wohnung { id: string; name: string; }
 
 interface FinanzenClientWrapperProps {
-  finances: Finanzen[];
+  finances: Finanz[];
   wohnungen: Wohnung[];
 }
 
@@ -39,11 +39,11 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   //   ist_einnahmen: false, 
   //   notiz: "" 
   // });
-  const [finData, setFinData] = useState<Finanzen[]>(finances); // Keep for display
+  const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
   const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
 
   // Add handler for new entries
-  const handleAddFinance = useCallback((newFinance: Finanzen) => {
+  const handleAddFinance = useCallback((newFinance: Finanz) => {
     setFinData(prev => {
       // Check if the entry already exists to prevent duplicates
       const exists = prev.some(item => item.id === newFinance.id);
@@ -115,7 +115,7 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
 
   // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
   // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
-  const handleEdit = useCallback((finance: Finanzen) => {
+  const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
   }, [wohnungen, handleSuccess]);
 

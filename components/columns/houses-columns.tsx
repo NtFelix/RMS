@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
-import { House } from "@/types/supabase"
+import { House } from "@/components/house-table"
 import { HouseContextMenu } from "@/components/house-context-menu"
 
 export const housesColumns: ColumnDef<House>[] = [
@@ -49,6 +49,14 @@ export const housesColumns: ColumnDef<House>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <HouseContextMenu row={row} />,
+    cell: ({ row }) => {
+      return (
+        <div onClick={(e) => e.stopPropagation()}>
+          <HouseContextMenu house={row.original} onEdit={() => {}} onRefresh={() => {}}>
+            <button className="p-2">...</button>
+          </HouseContextMenu>
+        </div>
+      );
+    },
   },
 ]

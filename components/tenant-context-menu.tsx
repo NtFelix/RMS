@@ -1,38 +1,165 @@
 "use client"
 
 import * as React from "react"
-import { Row } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Tenant } from "@/types/Tenant"
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import { Edit, User, Trash2, Euro } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { toast } from "@/hooks/use-toast"
+import { deleteTenantAction } from "@/app/mieter-actions"; // Added import
+import { useModalStore } from "@/hooks/use-modal-store";
+
+import { Tenant } from "@/types/Tenant";
 
 interface TenantContextMenuProps {
-  row: Row<Tenant>
+  children: React.ReactNode
+  tenant: Tenant
+  onEdit: () => void
+  onRefresh: () => void
 }
 
-export function TenantContextMenu({ row }: TenantContextMenuProps) {
+export function TenantContextMenu({
+  children,
+  tenant,
+  onEdit,
+  onRefresh,
+}: TenantContextMenuProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const { openKautionModal } = useModalStore()
+
+  const handleKaution = () => {
+    try {
+      // Ensure we're passing a clean tenant object with only the required fields
+      const cleanTenant = {
+        id: tenant.id,
+        name: tenant.name,
+        wohnung_id: tenant.wohnung_id
+      };
+
+      // Prepare kaution data if it exists
+      let kautionData = undefined;
+
+      if (tenant.kaution) {
+        // Ensure amount is a number
+        const amount = typeof tenant.kaution.amount === 'string'
+          ? parseFloat(tenant.kaution.amount)
+          : tenant.kaution.amount;
+
+        // Ensure we have valid data
+        if (isNaN(amount)) {
+          throw new Error('Ungültiger Kautionbetrag');
+        }
+
+        kautionData = {
+          amount,
+          paymentDate: tenant.kaution.paymentDate || '',
+          status: tenant.kaution.status || 'Ausstehend',
+          createdAt: tenant.kaution.createdAt,
+          updatedAt: tenant.kaution.updatedAt
+        };
+      }
+
+      // Open the modal with the prepared data
+      openKautionModal(cleanTenant, kautionData);
+
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setIsDeleting(true);
+      const result = await deleteTenantAction(tenant.id);
+
+      if (result.success) {
+        toast({
+          title: "Erfolg",
+          description: `Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`,
+          variant: "success",
+        });
+        setTimeout(() => {
+          onRefresh();
+        }, 100); // Delay of 100 milliseconds
+      } else {
+        toast({
+          title: "Fehler",
+          description: result.error?.message || "Der Mieter konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+      console.error("Unerwarteter Fehler beim Löschen des Mieters:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => {}}>
-          Edit
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => {}}>
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuContent className="w-64">
+          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+            <Edit className="h-4 w-4" />
+            <span>Bearbeiten</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={handleKaution} className="flex items-center gap-2 cursor-pointer">
+            <Euro className="h-4 w-4" />
+            <span>Kaution</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            onClick={() => setDeleteDialogOpen(true)}
+            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+          >
+            <Trash2 className="h-4 w-4" />
+            <span>Löschen</span>
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie den Mieter "{tenant.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+              {isDeleting ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

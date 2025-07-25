@@ -3,10 +3,10 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
-import { Betriebskosten } from "@/types/supabase"
+import { Nebenkosten } from "@/lib/data-fetching"
 import { OperatingCostsContextMenu } from "@/components/operating-costs-context-menu"
 
-export const operatingCostsColumns: ColumnDef<Betriebskosten>[] = [
+export const operatingCostsColumns: ColumnDef<Nebenkosten>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -33,7 +33,7 @@ export const operatingCostsColumns: ColumnDef<Betriebskosten>[] = [
     ),
   },
   {
-    accessorKey: "kostenart",
+    accessorKey: "nebenkostenart",
     header: "Kostenart",
   },
   {
@@ -42,6 +42,12 @@ export const operatingCostsColumns: ColumnDef<Betriebskosten>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <OperatingCostsContextMenu row={row} />,
+    cell: ({ row }) => {
+        return (
+            <div onClick={(e) => e.stopPropagation()}>
+                <OperatingCostsContextMenu item={row.original} onDelete={() => {}} onEdit={() => {}} />
+            </div>
+        );
+    }
   },
 ]

@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
-import { Finanzen } from "@/types/supabase"
+import { Finanzen } from "@/lib/data-fetching"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
 
 export const financesColumns: ColumnDef<Finanzen>[] = [
@@ -33,7 +33,7 @@ export const financesColumns: ColumnDef<Finanzen>[] = [
     ),
   },
   {
-    accessorKey: "beschreibung",
+    accessorKey: "name",
     header: "Beschreibung",
   },
   {
@@ -41,11 +41,19 @@ export const financesColumns: ColumnDef<Finanzen>[] = [
     header: "Betrag",
   },
   {
-    accessorKey: "kategorie",
+    accessorKey: "ist_einnahmen",
     header: "Kategorie",
   },
   {
     id: "actions",
-    cell: ({ row }) => <FinanceContextMenu row={row} />,
+    cell: ({ row }) => {
+        return (
+            <div onClick={(e) => e.stopPropagation()}>
+                <FinanceContextMenu finance={row.original} onEdit={() => {}} onRefresh={() => {}} onStatusToggle={() => {}}>
+                    <button className="p-2">...</button>
+                </FinanceContextMenu>
+            </div>
+        );
+    }
   },
 ]

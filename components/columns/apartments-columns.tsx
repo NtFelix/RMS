@@ -3,10 +3,10 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
-import { Wohnung } from "@/types/Wohnung"
+import { Apartment } from "@/components/apartment-table"
 import { ApartmentContextMenu } from "@/components/apartment-context-menu"
 
-export const apartmentsColumns: ColumnDef<Wohnung>[] = [
+export const apartmentsColumns: ColumnDef<Apartment>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -48,6 +48,14 @@ export const apartmentsColumns: ColumnDef<Wohnung>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ApartmentContextMenu row={row} />,
+    cell: ({ row }) => {
+      return (
+        <div onClick={(e) => e.stopPropagation()}>
+          <ApartmentContextMenu apartment={row.original} onEdit={() => {}} onRefresh={() => {}}>
+            <button className="p-2">...</button>
+          </ApartmentContextMenu>
+        </div>
+      );
+    },
   },
 ]

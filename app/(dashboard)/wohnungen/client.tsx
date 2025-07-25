@@ -3,11 +3,12 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentsDataTable } from "@/components/data-tables/apartments-data-table";
+import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createClient as createBrowserClient } from "@/utils/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -28,7 +29,10 @@ export default function WohnungenClientView({
   serverUserIsEligibleToAdd,
   serverLimitReason,
 }: WohnungenClientViewProps) {
+  const [filter, setFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [apartments, setApartments] = useState<Wohnung[]>(initialWohnungenData);
+  const reloadRef = useRef<(() => void) | null>(null);
   const { openWohnungModal } = useModalStore();
 
   const [isAddButtonDisabled, setIsAddButtonDisabled] = useState(!serverUserIsEligibleToAdd || (serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity));
@@ -58,7 +62,7 @@ export default function WohnungenClientView({
       if (exists) return prev.map(apt => (apt.id === updatedApartment.id ? updatedApartment : apt));
       return [updatedApartment, ...prev];
     });
-  }, []);
+  }, [setApartments]);
 
   const refreshTable = useCallback(async (): Promise<void> => { // Explicitly set return type to Promise<void>
     try {
@@ -73,7 +77,7 @@ export default function WohnungenClientView({
     } catch (error) {
       console.error('Error fetching wohnungen in refreshTable:', error);
     }
-  }, []);
+  }, [setApartments]);
 
   const handleSuccess = useCallback((data: Wohnung) => {
     updateApartmentInList(data);
@@ -85,8 +89,19 @@ export default function WohnungenClientView({
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
   const handleEditWohnung = useCallback(async (apartment: Wohnung) => {
-    // This function can be simplified or removed if the context menu handles editing directly
-  }, []);
+    try {
+      const supabase = createBrowserClient();
+      const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartment.id).single();
+      if (error || !aptToEdit) {
+        console.error('Wohnung nicht gefunden oder Fehler:', error?.message);
+        return;
+      }
+      const transformedApt = { ...aptToEdit, Haeuser: Array.isArray(aptToEdit.Haeuser) ? aptToEdit.Haeuser[0] : aptToEdit.Haeuser } as Wohnung;
+      openWohnungModal(transformedApt, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+    } catch (error) {
+      console.error('Fehler beim Laden der Wohnung für Bearbeitung:', error);
+    }
+  }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
@@ -128,6 +143,7 @@ export default function WohnungenClientView({
           <CardDescription>Hier können Sie Ihre Wohnungen verwalten und filtern</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
+          <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
           <ApartmentsDataTable data={apartments} />
         </CardContent>
       </Card>

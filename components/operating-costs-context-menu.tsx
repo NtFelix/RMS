@@ -1,6 +1,6 @@
 "use client"
 
-import { Row } from "@tanstack/react-table"
+import * as React from "react"
 import { MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -9,16 +9,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { useModalStore } from "@/hooks/use-modal-store"
-import { Betriebskosten } from "@/types/supabase"
+import { Nebenkosten } from "@/lib/data-fetching"
 
 interface OperatingCostsContextMenuProps {
-  row: Row<Betriebskosten>
+  item: Nebenkosten
+  onEdit: (item: Nebenkosten) => void
+  onDelete: (id: string) => void
 }
 
-export function OperatingCostsContextMenu({ row }: OperatingCostsContextMenuProps) {
-  const { openBetriebskostenModal } = useModalStore()
-
+export function OperatingCostsContextMenu({ item, onEdit, onDelete }: OperatingCostsContextMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -28,10 +27,12 @@ export function OperatingCostsContextMenu({ row }: OperatingCostsContextMenuProp
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => openBetriebskostenModal(row.original, [], () => {})}>
+        <DropdownMenuItem onClick={() => onEdit(item)}>
           Edit
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => {}}>Delete</DropdownMenuItem>
+        <DropdownMenuItem onClick={() => onDelete(item.id)}>
+          Delete
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

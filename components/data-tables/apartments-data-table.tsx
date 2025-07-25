@@ -1,11 +1,11 @@
 "use client"
 
 import { DataTable } from "@/components/ui/data-table"
-import { Wohnung } from "@/types/Wohnung"
+import { Apartment } from "@/components/apartment-table"
 import { apartmentsColumns } from "@/components/columns/apartments-columns"
 
 interface ApartmentsDataTableProps {
-  data: Wohnung[]
+  data: Apartment[]
 }
 
 export function ApartmentsDataTable({ data }: ApartmentsDataTableProps) {

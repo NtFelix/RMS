@@ -16,6 +16,7 @@ import { WohnungEditModal } from "@/components/wohnung-edit-modal" // Added
 import { wohnungServerAction } from "@/app/wohnungen-actions" // Added - Adjusted path
 import { AufgabeEditModal } from "@/components/aufgabe-edit-modal" // Added
 import { aufgabeServerAction } from "@/app/todos-actions" // Added
+import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal"; // Added
 import { WasserzaehlerModal } from "@/components/wasserzaehler-modal"; // Added
 import { KautionModal } from "@/components/kaution-modal"; // Added
 import { updateKautionAction } from "@/app/mieter-actions"; // Added
@@ -101,6 +102,8 @@ export default function DashboardRootLayout({
       {/* AufgabeEditModal needs serverAction. */}
       <AufgabeEditModal serverAction={aufgabeServerAction} />
 
+      {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
+      <BetriebskostenEditModal />
 
       {/* WasserzaehlerModal - Handles its own state via modal store */}
       <WasserzaehlerModal />

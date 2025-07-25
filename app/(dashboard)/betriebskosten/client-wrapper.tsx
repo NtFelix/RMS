@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
+import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsDataTable } from "@/components/data-tables/operating-costs-data-table";
-import { Haus } from "../../../lib/data-fetching"; // Ensure correct path
-import { Betriebskosten } from "@/types/supabase";
+import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal";
+import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correct path
 import { deleteNebenkosten as deleteNebenkostenServerAction } from "../../../app/betriebskosten-actions"; // Ensure correct path
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -15,7 +16,7 @@ import { useRouter } from "next/navigation"; // Added import
 
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
-  initialNebenkosten: Betriebskosten[];
+  initialNebenkosten: Nebenkosten[];
   initialHaeuser: Haus[];
   userId?: string;
   ownerName: string;
@@ -40,7 +41,7 @@ export default function BetriebskostenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
-  const [filteredNebenkosten, setFilteredNebenkosten] = useState<Betriebskosten[]>(initialNebenkosten);
+  const [filteredNebenkosten, setFilteredNebenkosten] = useState<Nebenkosten[]>(initialNebenkosten);
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
@@ -59,14 +60,14 @@ export default function BetriebskostenClientView({
       result = result.filter(item =>
         item.jahr?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.Haeuser?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.kostenart && item.kostenart.toLowerCase().includes(searchQuery.toLowerCase()))
+        (item.nebenkostenart && item.nebenkostenart.join(" ").toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
     if (filter === "current_year") {
-      const currentYear = new Date().getFullYear();
+      const currentYear = new Date().getFullYear().toString();
       result = result.filter(item => item.jahr === currentYear);
     } else if (filter === "previous") {
-      const currentYear = new Date().getFullYear();
+      const currentYear = new Date().getFullYear().toString();
       result = result.filter(item => item.jahr !== currentYear);
     }
     setFilteredNebenkosten(result);
@@ -83,7 +84,7 @@ export default function BetriebskostenClientView({
     });
   }, [openBetriebskostenModal, initialHaeuser, router]);
 
-  const handleOpenEditModal = useCallback((item: Betriebskosten) => {
+  const handleOpenEditModal = useCallback((item: Nebenkosten) => {
     openBetriebskostenModal(item, initialHaeuser, () => {
       router.refresh(); // Example refresh
     });
@@ -137,10 +138,31 @@ export default function BetriebskostenClientView({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
+          <OperatingCostsFilters
+            onFilterChange={setFilter}
+            onSearchChange={setSearchQuery}
+            onHouseChange={setSelectedHouseId}
+            haeuser={initialHaeuser}
+          />
           <OperatingCostsDataTable data={filteredNebenkosten} />
         </CardContent>
       </Card>
 
+      {/* BetriebskostenEditModal is now rendered globally from layout.tsx
+          and controls its own visibility via useModalStore.
+          The trigger to open it is handled by openBetriebskostenModal action.
+      */}
+
+      <ConfirmationAlertDialog
+        isOpen={isDeleteAlertOpen}
+        onOpenChange={handleDeleteDialogOnOpenChange}
+        onConfirm={executeDelete}
+        title="Löschen Bestätigen"
+        description="Sind Sie sicher, dass Sie diesen Nebenkosten-Eintrag löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmButtonText="Löschen"
+        cancelButtonText="Abbrechen"
+        confirmButtonVariant="destructive"
+      />
     </div>
   );
 }

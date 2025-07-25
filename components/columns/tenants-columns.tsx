@@ -42,6 +42,14 @@ export const tenantsColumns: ColumnDef<Tenant>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <TenantContextMenu row={row} />,
+    cell: ({ row }) => {
+        return (
+            <div onClick={(e) => e.stopPropagation()}>
+                <TenantContextMenu tenant={row.original} onEdit={() => {}} onRefresh={() => {}}>
+                    <button className="p-2">...</button>
+                </TenantContextMenu>
+            </div>
+        );
+    }
   },
 ]
