@@ -1,8 +1,10 @@
 "use client"
 
-import { useState, useEffect, useCallback, MutableRefObject } from "react"
+import { useState, useEffect, useCallback, useMemo, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ArrowUpDown } from "lucide-react"
 import { HouseContextMenu } from "@/components/house-context-menu"
 import {
   AlertDialog,
@@ -14,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast" // Import toast
+import { toast } from "@/hooks/use-toast"
 
 export interface House {
   id: string
@@ -29,24 +31,25 @@ export interface House {
   freeApartments?: number
 }
 
+type SortKey = keyof House | "status"
+type SortDirection = "asc" | "desc"
+
 interface HouseTableProps {
   filter: string
   searchQuery: string
   reloadRef?: MutableRefObject<(() => void) | null>
-  onEdit: (house: House) => void // Add onEdit prop
-  // optional initial houses loaded server-side
+  onEdit: (house: House) => void
   initialHouses?: House[]
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) { // Destructure onEdit
-  // initialize with server-provided data if available
+export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) {
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
-  const [filteredData, setFilteredData] = useState<House[]>([])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false) // State for delete dialog
-  const [houseToDelete, setHouseToDelete] = useState<House | null>(null) // State for house to delete
-  const [isDeleting, setIsDeleting] = useState(false) // State for delete loading
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [houseToDelete, setHouseToDelete] = useState<House | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [sortKey, setSortKey] = useState<SortKey>("name")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
 
-  // fetchHouses will be called on mount and can be triggered via reloadRef
   const fetchHouses = useCallback(async () => {
     try {
       const res = await fetch("/api/haeuser")
@@ -63,105 +66,120 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   }, [])
 
   useEffect(() => {
-    // Set up the reloadRef
     if (reloadRef) {
       reloadRef.current = fetchHouses
     }
-    
-    // Only fetch if no initial data was provided
     if (!initialHouses || initialHouses.length === 0) {
       fetchHouses()
     }
-    
-    // Clean up the ref on unmount
     return () => {
       if (reloadRef) {
         reloadRef.current = null
       }
     }
   }, [fetchHouses, initialHouses, reloadRef])
-  
-  // Update local state when initialHouses changes (server-side rendering)
+
   useEffect(() => {
     if (initialHouses && initialHouses.length > 0) {
       setHouses(initialHouses)
     }
   }, [initialHouses])
 
-  useEffect(() => {
-    let result = houses
+  const sortedAndFilteredData = useMemo(() => {
+    let result = [...houses]
 
-    // Filter by status if status exists
     if (filter === "full") {
-      result = result.filter((house) =>
-        house.freeApartments !== undefined && house.freeApartments === 0
-      )
+      result = result.filter((house) => house.freeApartments !== undefined && house.freeApartments === 0)
     } else if (filter === "vacant") {
-      result = result.filter((house) =>
-        house.freeApartments !== undefined && house.freeApartments > 0
-      )
+      result = result.filter((house) => house.freeApartments !== undefined && house.freeApartments > 0)
     }
 
-    // Filter by search query
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
       result = result.filter(
         (house) =>
           house.name.toLowerCase().includes(query) ||
-          (house.size && house.size.toLowerCase().includes(query)) ||
-          (house.rent && house.rent.toLowerCase().includes(query)) ||
-          (house.pricePerSqm && house.pricePerSqm.toLowerCase().includes(query)),
+          (house.ort && house.ort.toLowerCase().includes(query)) ||
+          (house.size && house.size.toString().toLowerCase().includes(query)) ||
+          (house.rent && house.rent.toString().toLowerCase().includes(query)) ||
+          (house.pricePerSqm && house.pricePerSqm.toString().toLowerCase().includes(query)),
       )
     }
 
-    setFilteredData(result)
-  }, [houses, filter, searchQuery])
+    const sortValue = (house: House, key: SortKey) => {
+      if (key === "status") {
+        const total = house.totalApartments ?? 0
+        const free = house.freeApartments ?? 0
+        if (total === 0) return 2 // No apartments
+        if (free > 0) return 1 // Vacant
+        return 0 // Full
+      }
+
+      const value = house[key]
+      if (typeof value === "string") {
+        const num = parseFloat(value.replace(",", "."))
+        return isNaN(num) ? value.toLowerCase() : num
+      }
+      return value
+    }
+
+    result.sort((a, b) => {
+      const aValue = sortValue(a, sortKey)
+      const bValue = sortValue(b, sortKey)
+
+      if (aValue === null || aValue === undefined) return 1
+      if (bValue === null || bValue === undefined) return -1
+
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1
+      return 0
+    })
+
+    return result
+  }, [houses, filter, searchQuery, sortKey, sortDirection])
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortKey(key)
+      setSortDirection("asc")
+    }
+  }
+
+  const renderSortArrow = (key: SortKey) => {
+    if (sortKey !== key) return <ArrowUpDown className="ml-2 h-4 w-4" />
+    return sortDirection === "asc" ? (
+      <ArrowUpDown className="ml-2 h-4 w-4 text-blue-500" />
+    ) : (
+      <ArrowUpDown className="ml-2 h-4 w-4 text-blue-500" />
+    )
+  }
 
   const handleDeleteConfirm = async () => {
     if (!houseToDelete) return
     setIsDeleting(true)
-    
     try {
       const response = await fetch(`/api/haeuser/${houseToDelete.id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       })
-      
       if (response.ok) {
         toast({
-          title: 'Haus gelöscht',
+          title: "Haus gelöscht",
           description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.`,
-          variant: 'success',
+          variant: "success",
         })
-        // Refresh the list after successful deletion
         await fetchHouses()
       } else {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Löschen fehlgeschlagen')
+        throw new Error(errorData.error || "Löschen fehlgeschlagen")
       }
     } catch (error) {
       toast({
-        title: 'Fehler',
-        description: error instanceof Error ? error.message : 'Ein Fehler ist beim Löschen aufgetreten',
-        variant: 'destructive',
+        title: "Fehler",
+        description: error instanceof Error ? error.message : "Ein Fehler ist beim Löschen aufgetreten",
+        variant: "destructive",
       })
-    } finally {
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
-      setHouseToDelete(null)
-    }
-    try {
-      const res = await fetch(`/api/haeuser?id=${houseToDelete.id}`, {
-        method: "DELETE",
-      })
-      if (res.ok) {
-        toast({ title: "Haus gelöscht", description: `Das Haus "${houseToDelete.name}" wurde erfolgreich gelöscht.` })
-        fetchHouses() // Refresh the table data
-      } else {
-        const errorData = await res.json()
-        toast({ title: "Fehler", description: errorData.error || "Das Haus konnte nicht gelöscht werden.", variant: "destructive" })
-      }
-    } catch (err) {
-      toast({ title: "Fehler", description: "Netzwerkfehler beim Löschen.", variant: "destructive" })
     } finally {
       setIsDeleting(false)
       setShowDeleteConfirm(false)
@@ -174,29 +192,54 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[250px]">Häuser</TableHead>
-            <TableHead>Ort</TableHead>
-            <TableHead>Größe</TableHead>
-            <TableHead>Miete</TableHead>
-            <TableHead>Miete pro m²</TableHead>
-            <TableHead>Status</TableHead>
+            <TableHead className="w-[250px]">
+              <Button variant="ghost" onClick={() => handleSort("name")}>
+                Häuser
+                {renderSortArrow("name")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button variant="ghost" onClick={() => handleSort("ort")}>
+                Ort
+                {renderSortArrow("ort")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button variant="ghost" onClick={() => handleSort("size")}>
+                Größe
+                {renderSortArrow("size")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button variant="ghost" onClick={() => handleSort("rent")}>
+                Miete
+                {renderSortArrow("rent")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button variant="ghost" onClick={() => handleSort("pricePerSqm")}>
+                Miete pro m²
+                {renderSortArrow("pricePerSqm")}
+              </Button>
+            </TableHead>
+            <TableHead>
+              <Button variant="ghost" onClick={() => handleSort("status")}>
+                Status
+                {renderSortArrow("status")}
+              </Button>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredData.length === 0 ? (
+          {sortedAndFilteredData.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
+              <TableCell colSpan={6} className="h-24 text-center">
                 Keine Häuser gefunden.
               </TableCell>
             </TableRow>
           ) : (
-            filteredData.map((house) => (
-              <HouseContextMenu
-                key={house.id}
-                house={house}
-                onEdit={() => onEdit(house)}
-                onRefresh={fetchHouses}
-              >
+            sortedAndFilteredData.map((house) => (
+              <HouseContextMenu key={house.id} house={house} onEdit={() => onEdit(house)} onRefresh={fetchHouses}>
                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(house)}>
                   <TableCell className="font-medium">{house.name}</TableCell>
                   <TableCell>{house.ort}</TableCell>
@@ -227,7 +270,6 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
           )}
         </TableBody>
       </Table>
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
