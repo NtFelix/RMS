@@ -14,13 +14,13 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/utils/supabase/client');
 
 jest.mock('next/link', () => {
-  return function MockLink({ href, children, ...props }: any) {
+  return function MockLink({ href, children, ...props }: React.PropsWithChildren<any>) {
     return <a href={href} {...props}>{children}</a>;
   };
 });
 
 jest.mock('@/components/ui/button', () => ({
-  Button: ({ children, onClick, disabled, ...props }: any) => (
+  Button: ({ children, onClick, disabled, ...props }: React.PropsWithChildren<any>) => (
     <button onClick={onClick} disabled={disabled} {...props}>
       {children}
     </button>
@@ -28,29 +28,29 @@ jest.mock('@/components/ui/button', () => ({
 }));
 
 jest.mock('@/components/ui/input', () => ({
-  Input: ({ onChange, value, ...props }: any) => (
+  Input: ({ onChange, value, ...props }: React.PropsWithChildren<any>) => (
     <input onChange={onChange} value={value} {...props} />
   ),
 }));
 
 jest.mock('@/components/ui/card', () => ({
-  Card: ({ children }: any) => <div data-testid="card">{children}</div>,
-  CardContent: ({ children }: any) => <div data-testid="card-content">{children}</div>,
-  CardDescription: ({ children }: any) => <p data-testid="card-description">{children}</p>,
-  CardFooter: ({ children }: any) => <div data-testid="card-footer">{children}</div>,
-  CardHeader: ({ children }: any) => <div data-testid="card-header">{children}</div>,
-  CardTitle: ({ children }: any) => <h1 data-testid="card-title">{children}</h1>,
+  Card: ({ children }: React.PropsWithChildren<any>) => <div data-testid="card">{children}</div>,
+  CardContent: ({ children }: React.PropsWithChildren<any>) => <div data-testid="card-content">{children}</div>,
+  CardDescription: ({ children }: React.PropsWithChildren<any>) => <p data-testid="card-description">{children}</p>,
+  CardFooter: ({ children }: React.PropsWithChildren<any>) => <div data-testid="card-footer">{children}</div>,
+  CardHeader: ({ children }: React.PropsWithChildren<any>) => <div data-testid="card-header">{children}</div>,
+  CardTitle: ({ children }: React.PropsWithChildren<any>) => <h1 data-testid="card-title">{children}</h1>,
 }));
 
 jest.mock('@/components/ui/label', () => ({
-  Label: ({ children, ...props }: any) => <label {...props}>{children}</label>,
+  Label: ({ children, ...props }: React.PropsWithChildren<any>) => <label {...props}>{children}</label>,
 }));
 
 jest.mock('@/components/ui/alert', () => ({
-  Alert: ({ children, variant }: any) => (
+  Alert: ({ children, variant }: React.PropsWithChildren<any>) => (
     <div data-testid="alert" data-variant={variant}>{children}</div>
   ),
-  AlertDescription: ({ children }: any) => <div data-testid="alert-description">{children}</div>,
+  AlertDescription: ({ children }: React.PropsWithChildren<any>) => <div data-testid="alert-description">{children}</div>,
 }));
 
 const mockRouter = {

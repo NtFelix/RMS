@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { DataTablePagination } from "@/components/ui/data-table-pagination"
+import { DataTableErrorBoundary } from "@/components/ui/data-table-error-boundary"
 import { DataTableToolbar, FilterConfig } from "@/components/ui/data-table-toolbar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
@@ -193,6 +194,7 @@ export function DataTable<TData, TValue>({
     setIsScrolling(false)
   }, [touchStart, touchEnd, isScrolling, table])
 
+
   // Handle row click
   const handleRowClick = React.useCallback(
     (row: TData, event: React.MouseEvent | React.KeyboardEvent | React.TouchEvent) => {
@@ -269,6 +271,7 @@ export function DataTable<TData, TValue>({
   // Loading skeleton
   if (loading) {
     return (
+      <DataTableErrorBoundary>
       <div className={cn("space-y-4", className)}>
         <div className="flex items-center justify-between">
           <div className="flex flex-1 items-center space-x-2">
@@ -305,6 +308,7 @@ export function DataTable<TData, TValue>({
           </Table>
         </div>
       </div>
+      </DataTableErrorBoundary>
     )
   }
 
@@ -371,7 +375,8 @@ export function DataTable<TData, TValue>({
   )
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <DataTableErrorBoundary>
+      <div className={cn("space-y-4", className)}>
       {/* Screen reader live region */}
       <div 
         className="sr-only" 
@@ -501,5 +506,6 @@ export function DataTable<TData, TValue>({
       </div>
       {enablePagination && <DataTablePagination table={table} />}
     </div>
+    </DataTableErrorBoundary>
   )
 }

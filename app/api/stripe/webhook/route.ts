@@ -103,7 +103,7 @@ export async function POST(req: Request) {
           stripe_subscription_id: retrievedSubscription.id,
           stripe_subscription_status: retrievedSubscription.status,
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
+          stripe_current_period_end: new Date(retrievedSubscription.current_period_end * 1000).toISOString(),
         };
 
         await updateProfileInSupabase(userId, profileUpdateData);
@@ -132,7 +132,7 @@ export async function POST(req: Request) {
         await updateProfileByCustomerIdInSupabase(customerId, {
           stripe_subscription_status: retrievedSubscription.status,
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
-          stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
+          stripe_current_period_end: new Date(retrievedSubscription.current_period_end * 1000).toISOString(),
         });
         console.log(`Profile updated for customer ${customerId} after invoice payment.`);
         break;
@@ -181,7 +181,7 @@ export async function POST(req: Request) {
             stripe_subscription_id: subscriptionFromEvent.id,
             stripe_subscription_status: subscriptionFromEvent.status,
             stripe_price_id: subscriptionFromEvent.items.data[0]?.price.id,
-            stripe_current_period_end: new Date((subscriptionFromEvent as any).current_period_end * 1000).toISOString(),
+            stripe_current_period_end: new Date(subscriptionFromEvent.current_period_end * 1000).toISOString(),
         };
 
         await updateProfileByCustomerIdInSupabase(customerId, profileUpdateData);

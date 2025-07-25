@@ -45,13 +45,12 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
     });
   }, []);
   
-  // Handle successful form submission
-  const handleSuccess = useCallback((data: any) => {
+  const handleSuccess = useCallback(() => {
     // The server returns the created/updated finance entry
-    if (data) {
-      handleAddFinance(data);
-    }
-  }, [handleAddFinance]);
+    // For now, router.refresh() in the modal should handle revalidation.
+    // We can also consider a client-side revalidation to avoid a full page reload.
+    // For example, by using the `useSWR` hook.
+  }, []);
 
   // useEffect for 'open-add-finance-modal' event is removed.
   // This will be handled by CommandMenu triggering useModalStore.

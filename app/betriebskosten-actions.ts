@@ -184,9 +184,9 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
     } else {
       return { success: false, message: "Nebenkosten not found." };
     }
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error in getNebenkostenDetailsAction:", error);
-    return { success: false, message: error.message || "Failed to fetch Nebenkosten details." };
+    return { success: false, message: (error as Error).message || "Failed to fetch Nebenkosten details." };
   }
 }
 
