@@ -7,10 +7,15 @@ import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lu
 import { DashboardCharts } from "@/components/dashboard-charts"
 import { TenantDataTable } from "@/components/tenant-data-table"
 import { getDashboardSummary } from "@/lib/data-fetching"
+import { createClient } from "@/utils/supabase/server"
+import { columns } from "../mieter/columns"
 
 export default async function Dashboard() {
   // Fetch real data from database
   const summary = await getDashboardSummary();
+  const supabase = await createClient();
+  const { data: mieter } = await supabase.from('Mieter').select('*');
+  const { data: wohnungen } = await supabase.from('Wohnungen').select('id, name');
   
   return (
     <div className="flex flex-col gap-8">
@@ -95,7 +100,7 @@ export default async function Dashboard() {
 
       <DashboardCharts />
 
-      <TenantDataTable />
+      <TenantDataTable columns={columns} data={mieter || []} wohnungen={wohnungen || []} />
     </div>
   )
 }

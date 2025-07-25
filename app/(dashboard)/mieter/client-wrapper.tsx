@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle } from "lucide-react";
 import { TenantFilters } from "@/components/tenant-filters";
-import { TenantTable } from "@/components/tenant-table";
+import { TenantDataTable } from "@/components/tenant-data-table";
 import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper";
+import { columns } from "./columns";
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
@@ -104,11 +105,10 @@ export default function MieterClientView({
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <TenantFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <TenantTable
-            tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
+          <TenantDataTable
+            columns={columns}
+            data={initialTenants}
             wohnungen={initialWohnungen}
-            filter={filter}
-            searchQuery={searchQuery}
             onEdit={handleEditTenantInTable}
           />
         </CardContent>
