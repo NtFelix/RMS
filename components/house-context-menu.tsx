@@ -40,14 +40,24 @@ interface HouseContextMenuProps {
   onRefresh: () => void
 }
 
+import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+
 export function HouseContextMenu({
-  children,
   house,
   onEdit,
   onRefresh,
-}: HouseContextMenuProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [isDeleting, setIsDeleting] = React.useState(false)
+}: Omit<HouseContextMenuProps, "children">) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async () => {
     try {
@@ -85,23 +95,30 @@ export function HouseContextMenu({
 
   return (
     <>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-        <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
-            <Edit className="h-4 w-4" />
-            <span>Bearbeiten</span>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem 
-            onClick={() => setDeleteDialogOpen(true)}
-            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Aktionen</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => navigator.clipboard.writeText(house.id)}
           >
-            <Trash2 className="h-4 w-4" />
-            <span>Löschen</span>
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+            ID kopieren
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onEdit}>Bearbeiten</DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setDeleteDialogOpen(true)}
+            className="text-red-600"
+          >
+            Löschen
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -120,5 +137,5 @@ export function HouseContextMenu({
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }

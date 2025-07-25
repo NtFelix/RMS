@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { OperatingCostsFilters } from "@/components/operating-costs-filters";
-import { OperatingCostsTable } from "@/components/operating-costs-table";
-import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal";
-import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correct path
-import { deleteNebenkosten as deleteNebenkostenServerAction } from "../../../app/betriebskosten-actions"; // Ensure correct path
+import { Nebenkosten, Haus } from "@/lib/data-fetching";
+import { deleteNebenkosten as deleteNebenkostenServerAction } from "@/app/betriebskosten-actions";
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useModalStore } from "@/hooks/use-modal-store"; // Added import
-import { useRouter } from "next/navigation"; // Added import
+import { useModalStore } from "@/hooks/use-modal-store";
+import { useRouter } from "next/navigation";
+import { DataTable } from "@/components/ui/data-table/data-table";
+import { columns } from "./columns";
 
-// Props for the main client view component
 interface BetriebskostenClientViewProps {
   initialNebenkosten: Nebenkosten[];
   initialHaeuser: Haus[];
@@ -22,7 +20,6 @@ interface BetriebskostenClientViewProps {
   ownerName: string;
 }
 
-// AddBetriebskostenButton component (can be kept separate or integrated)
 function AddBetriebskostenButton({ onAdd }: { onAdd: () => void }) {
   return (
     <Button onClick={onAdd} className="sm:w-auto">
@@ -38,59 +35,18 @@ export default function BetriebskostenClientView({
   userId,
   ownerName,
 }: BetriebskostenClientViewProps) {
-  const [filter, setFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
   const [filteredNebenkosten, setFilteredNebenkosten] = useState<Nebenkosten[]>(initialNebenkosten);
-  // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
-  const { openBetriebskostenModal } = useModalStore(); // Get the action to open modal
+  const { openBetriebskostenModal } = useModalStore();
   const { toast } = useToast();
-   // Define router for potential refresh, though modal might handle it
   const router = useRouter();
 
-
-  useEffect(() => {
-    let result = initialNebenkosten;
-    if (selectedHouseId && selectedHouseId !== "all") {
-      result = result.filter(item => item.haeuser_id === selectedHouseId);
-    }
-    if (searchQuery) {
-      result = result.filter(item =>
-        item.jahr?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.Haeuser?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.nebenkostenart && item.nebenkostenart.join(" ").toLowerCase().includes(searchQuery.toLowerCase()))
-      );
-    }
-    if (filter === "current_year") {
-      const currentYear = new Date().getFullYear().toString();
-      result = result.filter(item => item.jahr === currentYear);
-    } else if (filter === "previous") {
-      const currentYear = new Date().getFullYear().toString();
-      result = result.filter(item => item.jahr !== currentYear);
-    }
-    setFilteredNebenkosten(result);
-  }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);
-
   const handleOpenCreateModal = useCallback(() => {
-    // Pass initialHaeuser and a success callback (e.g., to refresh data)
     openBetriebskostenModal(null, initialHaeuser, () => {
-      // This callback is called on successful save from the modal
-      // Trigger data refresh here, e.g., by re-fetching or using router.refresh()
-      // For now, let's assume the modal itself or a global mechanism handles refresh.
-      // If not, this is where you'd add `router.refresh()` or similar.
-      router.refresh(); // Example refresh
+      router.refresh();
     });
   }, [openBetriebskostenModal, initialHaeuser, router]);
-
-  const handleOpenEditModal = useCallback((item: Nebenkosten) => {
-    openBetriebskostenModal(item, initialHaeuser, () => {
-      router.refresh(); // Example refresh
-    });
-  }, [openBetriebskostenModal, initialHaeuser, router]);
-
-  // handleCloseModal is no longer needed as the modal store handles closing.
 
   const openDeleteAlert = useCallback((itemId: string) => {
     setSelectedItemIdForDelete(itemId);
@@ -129,7 +85,6 @@ export default function BetriebskostenClientView({
         <AddBetriebskostenButton onAdd={handleOpenCreateModal} />
       </div>
 
-      {/* Main Content Area including Card, Table, Modals */}
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
           <div>
@@ -138,26 +93,9 @@ export default function BetriebskostenClientView({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <OperatingCostsFilters
-            onFilterChange={setFilter}
-            onSearchChange={setSearchQuery}
-            onHouseChange={setSelectedHouseId}
-            haeuser={initialHaeuser}
-          />
-          <OperatingCostsTable
-            nebenkosten={filteredNebenkosten}
-            onEdit={handleOpenEditModal}
-            onDeleteItem={openDeleteAlert}
-            ownerName={ownerName}
-            allHaeuser={initialHaeuser}
-          />
+          <DataTable columns={columns} data={filteredNebenkosten} filterColumn="jahr" />
         </CardContent>
       </Card>
-
-      {/* BetriebskostenEditModal is now rendered globally from layout.tsx
-          and controls its own visibility via useModalStore.
-          The trigger to open it is handled by openBetriebskostenModal action.
-      */}
 
       <ConfirmationAlertDialog
         isOpen={isDeleteAlertOpen}

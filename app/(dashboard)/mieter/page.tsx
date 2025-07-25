@@ -36,8 +36,27 @@ export default async function MieterPage() {
   }) : [];
 
   const mieter: Tenant[] = rawMieter ? rawMieter.map(m => ({...m})) : [];
-  
 
+  for (let i = 0; i < 20; i++) {
+    mieter.push({
+      id: `tenant-${i}`,
+      name: `Tenant ${i}`,
+      email: `tenant${i}@example.com`,
+      telefonnummer: `123456789${i}`,
+      wohnung_id: "1",
+      einzug: "2023-01-01",
+      auszug: i % 2 === 0 ? "2024-01-01" : undefined,
+      nebenkosten: [],
+      kaution: {
+        amount: 1000,
+        paymentDate: "2023-01-01",
+        status: "Erhalten",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      notiz: `This is a test tenant ${i}`,
+    });
+  }
 
   return (
     <MieterClientView

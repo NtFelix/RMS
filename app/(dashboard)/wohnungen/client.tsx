@@ -1,17 +1,15 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { ApartmentFilters } from "@/components/apartment-filters";
-import { ApartmentTable } from "@/components/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table/data-table";
+import { columns } from "./columns";
 
-// Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
   initialWohnungenData: Wohnung[];
   housesData: { id: string; name: string }[];
@@ -21,7 +19,6 @@ interface WohnungenClientViewProps {
   serverLimitReason: 'trial' | 'subscription' | 'none';
 }
 
-// This is the new main client component, previously WohnungenPageClientComponent in page.tsx
 export default function WohnungenClientView({
   initialWohnungenData,
   housesData,
@@ -30,9 +27,6 @@ export default function WohnungenClientView({
   serverUserIsEligibleToAdd,
   serverLimitReason,
 }: WohnungenClientViewProps) {
-  const [filter, setFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const reloadRef = useRef<(() => void) | null>(null);
   const [apartments, setApartments] = useState<Wohnung[]>(initialWohnungenData);
   const { openWohnungModal } = useModalStore();
 
@@ -65,13 +59,12 @@ export default function WohnungenClientView({
     });
   }, []);
 
-  const refreshTable = useCallback(async (): Promise<void> => { // Explicitly set return type to Promise<void>
+  const refreshTable = useCallback(async (): Promise<void> => {
     try {
       const res = await fetch('/api/wohnungen');
       if (res.ok) {
         const data: Wohnung[] = await res.json();
         setApartments(data);
-        // No explicit return here
       } else {
         console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
       }
@@ -82,14 +75,14 @@ export default function WohnungenClientView({
 
   const handleSuccess = useCallback((data: Wohnung) => {
     updateApartmentInList(data);
-    refreshTable(); // This call is fine, refreshTable now returns Promise<void>
+    refreshTable();
   }, [updateApartmentInList, refreshTable]);
 
   const handleAddWohnung = useCallback(() => {
     openWohnungModal(undefined, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
-  const handleEditWohnung = useCallback(async (apartment: ApartmentTableType) => {
+  const handleEditWohnung = useCallback(async (apartment: Wohnung) => {
     try {
       const supabase = createBrowserClient();
       const { data: aptToEdit, error } = await supabase.from('Wohnungen').select('*, Haeuser(name)').eq('id', apartment.id).single();
@@ -128,7 +121,7 @@ export default function WohnungenClientView({
           <h1 className="text-3xl font-bold tracking-tight">Wohnungen</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Wohnungen und Apartments</p>
         </div>
-        <div> {/* Wrapper for button and tooltip */}
+        <div>
           <Button onClick={handleAddWohnung} className="sm:w-auto" disabled={isAddButtonDisabled}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Wohnung hinzufügen
@@ -144,15 +137,7 @@ export default function WohnungenClientView({
           <CardDescription>Hier können Sie Ihre Wohnungen verwalten und filtern</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <ApartmentTable
-            filter={filter}
-            searchQuery={searchQuery}
-            initialApartments={apartments}
-            onEdit={handleEditWohnung}
-            onTableRefresh={refreshTable}
-            reloadRef={reloadRef}
-          />
+          <DataTable columns={columns} data={apartments} filterColumn="name" />
         </CardContent>
       </Card>
     </div>

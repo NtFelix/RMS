@@ -12,10 +12,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { deleteTenantAction } from "@/app/mieter-actions";
-import { useModalStore } from "@/hooks/use-modal-store";
-import { Tenant } from "@/types/Tenant";
-import { MoreHorizontal, Edit, Trash2, Euro } from "lucide-react";
+import { deleteNebenkosten } from "@/app/betriebskosten-actions";
+import { Nebenkosten } from "@/lib/data-fetching";
+import { MoreHorizontal, Edit, Trash2, FileText, Droplets } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,94 +24,62 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { useModalStore } from "@/hooks/use-modal-store";
 
-interface TenantContextMenuProps {
-  tenant: Tenant;
-  onEdit: () => void;
-  onRefresh: () => void;
+interface BetriebskostenContextMenuProps {
+  betriebskosten: Nebenkosten;
 }
 
-export function TenantContextMenu({
-  tenant,
-  onEdit,
-  onRefresh,
-}: TenantContextMenuProps) {
+export function BetriebskostenContextMenu({
+  betriebskosten,
+}: BetriebskostenContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
-  const { openKautionModal } = useModalStore();
+  const { openBetriebskostenModal, openWasserzaehlerModal } = useModalStore();
 
-  const handleKaution = () => {
-    try {
-      const cleanTenant = {
-        id: tenant.id,
-        name: tenant.name,
-        wohnung_id: tenant.wohnung_id,
-      };
-
-      let kautionData = undefined;
-
-      if (tenant.kaution) {
-        const amount =
-          typeof tenant.kaution.amount === "string"
-            ? parseFloat(tenant.kaution.amount)
-            : tenant.kaution.amount;
-
-        if (isNaN(amount)) {
-          throw new Error("Ungültiger Kautionbetrag");
-        }
-
-        kautionData = {
-          amount,
-          paymentDate: tenant.kaution.paymentDate || "",
-          status: tenant.kaution.status || "Ausstehend",
-          createdAt: tenant.kaution.createdAt,
-          updatedAt: tenant.kaution.updatedAt,
-        };
-      }
-
-      openKautionModal(cleanTenant, kautionData);
-    } catch (error) {
-      toast({
-        title: "Fehler",
-        description: "Fehler beim Laden der Kautiondaten. Bitte versuchen Sie es erneut.",
-        variant: "destructive",
-      });
-    }
+  const handleEdit = () => {
+    openBetriebskostenModal(betriebskosten, [], () => {});
   };
 
   const handleDelete = async () => {
     try {
       setIsDeleting(true);
-      const result = await deleteTenantAction(tenant.id);
+      const result = await deleteNebenkosten(betriebskosten.id);
 
       if (result.success) {
         toast({
           title: "Erfolg",
-          description: `Der Mieter "${tenant.name}" wurde erfolgreich gelöscht.`,
+          description: "Die Betriebskostenabrechnung wurde erfolgreich gelöscht.",
           variant: "success",
         });
-        setTimeout(() => {
-          onRefresh();
-        }, 100);
       } else {
         toast({
           title: "Fehler",
           description:
-            result.error?.message || "Der Mieter konnte nicht gelöscht werden.",
+            result.message ||
+            "Die Betriebskostenabrechnung konnte nicht gelöscht werden.",
           variant: "destructive",
         });
       }
     } catch (error) {
-      console.error("Unerwarteter Fehler beim Löschen des Mieters:", error);
+      console.error(
+        "Unerwarteter Fehler beim Löschen der Betriebskostenabrechnung:",
+        error
+      );
       toast({
         title: "Systemfehler",
-        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        description:
+          "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
         variant: "destructive",
       });
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
     }
+  };
+
+  const handleOpenWasserzaehlerModal = () => {
+    openWasserzaehlerModal(betriebskosten, [], null, async () => {});
   };
 
   return (
@@ -126,13 +93,17 @@ export function TenantContextMenu({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Aktionen</DropdownMenuLabel>
-          <DropdownMenuItem onClick={onEdit}>
+          <DropdownMenuItem onClick={handleEdit}>
             <Edit className="mr-2 h-4 w-4" />
             Bearbeiten
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleKaution}>
-            <Euro className="mr-2 h-4 w-4" />
-            Kaution
+          <DropdownMenuItem onClick={() => {}}>
+            <FileText className="mr-2 h-4 w-4" />
+            Übersicht
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={handleOpenWasserzaehlerModal}>
+            <Droplets className="mr-2 h-4 w-4" />
+            Wasserzähler
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -148,9 +119,10 @@ export function TenantContextMenu({
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
+            <AlertDialogTitle>Betriebskostenabrechnung löschen?</AlertDialogTitle>
             <AlertDialogDescription>
-              Möchten Sie den Mieter "{tenant.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+              Möchten Sie diese Betriebskostenabrechnung wirklich löschen? Diese
+              Aktion kann nicht rückgängig gemacht werden.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

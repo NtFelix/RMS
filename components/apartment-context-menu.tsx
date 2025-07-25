@@ -1,14 +1,6 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu"
-import { Edit, Building, Trash2 } from "lucide-react"
+import * as React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,28 +10,34 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast"
-import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
-import type { Apartment } from "./apartment-table"; // Import the shared type
-
-// Remove local Apartment interface definition
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
+import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
+import type { Wohnung } from "@/types/Wohnung";
+import { MoreHorizontal } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 
 interface ApartmentContextMenuProps {
-  children: React.ReactNode
-  apartment: Apartment // Now uses the imported Apartment type
-  onEdit: () => void
-  onRefresh: () => void
+  apartment: Wohnung;
+  onEdit: () => void;
+  onRefresh: () => void;
 }
 
 export function ApartmentContextMenu({
-  children,
   apartment,
   onEdit,
   onRefresh,
 }: ApartmentContextMenuProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleDelete = async () => {
     try {
@@ -54,7 +52,7 @@ export function ApartmentContextMenu({
         });
         setTimeout(() => {
           onRefresh();
-        }, 100); // Delay of 100 milliseconds
+        }, 100);
       } else {
         toast({
           title: "Fehler",
@@ -62,7 +60,7 @@ export function ApartmentContextMenu({
           variant: "destructive",
         });
       }
-    } catch (error) { // Catch unexpected errors from the action call itself or UI updates
+    } catch (error) {
       console.error("Unerwarteter Fehler beim Löschen der Wohnung:", error);
       toast({
         title: "Systemfehler",
@@ -77,23 +75,30 @@ export function ApartmentContextMenu({
 
   return (
     <>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-        <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
-            <Edit className="h-4 w-4" />
-            <span>Bearbeiten</span>
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem 
-            onClick={() => setDeleteDialogOpen(true)}
-            className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="h-8 w-8 p-0">
+            <span className="sr-only">Open menu</span>
+            <MoreHorizontal className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Aktionen</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => navigator.clipboard.writeText(apartment.id)}
           >
-            <Trash2 className="h-4 w-4" />
-            <span>Löschen</span>
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+            ID kopieren
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={onEdit}>Bearbeiten</DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => setDeleteDialogOpen(true)}
+            className="text-red-600"
+          >
+            Löschen
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -105,12 +110,16 @@ export function ApartmentContextMenu({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-red-600 hover:bg-red-700">
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
               {isDeleting ? "Löschen..." : "Löschen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
-  )
+  );
 }
