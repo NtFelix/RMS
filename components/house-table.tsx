@@ -195,7 +195,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
     <TableHead className={className}>
       <div
         onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50"
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
       >
         {children}
         {renderSortIcon(sortKey)}
