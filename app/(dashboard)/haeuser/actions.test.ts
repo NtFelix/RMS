@@ -265,24 +265,27 @@ describe('House Actions', () => {
     });
 
     describe('FormData processing', () => {
-{{ ... }}
-      it('processes all form fields correctly', async () => {
+      it('processes only expected form fields and ignores others', async () => {
         const formData = new FormData();
         formData.append('name', 'Test House');
         formData.append('ort', 'Berlin');
         formData.append('strasse', 'Test Street');
         formData.append('plz', '12345');
         formData.append('groesse', '150');
+        // Malicious or unexpected fields that should be ignored
         formData.append('custom_field', 'custom_value');
+        formData.append('user_id', 'hacked_user_id');
+        formData.append('is_admin', 'true');
 
         const result = await handleSubmit(null, formData);
 
+        // The test will fail until the action is fixed to be secure.
+        // The action should explicitly pick fields, not iterate through FormData.
         expect(mockTable.insert).toHaveBeenCalledWith({
           name: 'Test House',
           ort: 'Berlin',
           strasse: 'Test Street',
           plz: '12345',
-          custom_field: 'custom_value',
           groesse: 150,
         });
         expect(result).toEqual({ success: true });
