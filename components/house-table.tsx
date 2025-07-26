@@ -30,7 +30,8 @@ export interface House {
   freeApartments?: number
 }
 
-type SortKey = keyof House | 'status'
+// Define sortable fields explicitly, excluding internal calculation properties
+type SortKey = keyof Omit<House, 'totalApartments' | 'freeApartments'> | 'status'
 type SortDirection = "asc" | "desc"
 
 interface HouseTableProps {
