@@ -71,6 +71,12 @@ jest.mock('@/app/mieter-actions', () => ({
   getMieterByHausIdAction: jest.fn(),
 }));
 
+jest.mock('@/app/(dashboard)/haeuser/actions', () => ({
+  handleSubmit: jest.fn(),
+  deleteHouseAction: jest.fn(),
+  getWasserzaehlerModalDataAction: jest.fn(),
+}));
+
 // Mock hooks to prevent actual imports during testing
 jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: jest.fn(),
@@ -78,4 +84,5 @@ jest.mock('@/hooks/use-modal-store', () => ({
 
 jest.mock('@/hooks/use-toast', () => ({
   useToast: jest.fn(),
+  toast: jest.fn(),
 }));
