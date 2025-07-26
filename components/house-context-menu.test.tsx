@@ -250,10 +250,14 @@ describe('HouseContextMenu', () => {
         });
       });
 
-      // onRefresh should be called after a short delay
-      await waitFor(() => {
-        expect(mockOnRefresh).toHaveBeenCalled();
-      }, { timeout: 200 });
+      // Use fake timers to test the delayed refresh
+      jest.useFakeTimers();
+      // Fast-forward until all timers have been executed
+      jest.runAllTimers();
+      // Verify onRefresh was called
+      expect(mockOnRefresh).toHaveBeenCalled();
+      // Restore real timers
+      jest.useRealTimers();
     });
 
     it('shows error toast when deletion fails', async () => {
