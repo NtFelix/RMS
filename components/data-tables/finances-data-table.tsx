@@ -6,22 +6,27 @@ import { FilterConfig } from "@/components/ui/data-table-toolbar"
 import { financesColumns, Finance } from "@/components/columns/finances-columns"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
 import { toast } from "@/hooks/use-toast"
+import { Plus } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 interface FinancesDataTableProps {
   data: Finance[]
   onEdit: (finance: Finance) => void
   onRefresh: () => Promise<void>
+  onCreateNew?: () => void
   enableSelection?: boolean
   loading?: boolean
+  error?: string
 }
 
 export function FinancesDataTable({
   data,
   onEdit,
   onRefresh,
+  onCreateNew,
   enableSelection = true,
   loading = false,
+  error,
 }: FinancesDataTableProps) {
   const [isExporting, setIsExporting] = React.useState(false)
 
@@ -208,7 +213,18 @@ export function FinancesDataTable({
           filters={filters}
           onExport={handleExport}
           loading={loading}
-          emptyMessage="Keine Transaktionen gefunden."
+          error={error}
+          emptyMessage={error ? "Fehler beim Laden der Transaktionen." : "Keine Transaktionen gefunden."}
+          emptyAction={
+            onCreateNew && !error
+              ? {
+                  label: "Erste Transaktion erstellen",
+                  onClick: onCreateNew,
+                  icon: Plus,
+                }
+              : undefined
+          }
+          onRetry={error ? onRefresh : undefined}
           className="finances-data-table"
         />
       </CardContent>

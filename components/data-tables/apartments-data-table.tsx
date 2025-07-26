@@ -7,21 +7,26 @@ import { apartmentsColumns, Apartment } from "@/components/columns/apartments-co
 import { ApartmentContextMenu } from "@/components/apartment-context-menu"
 import { ExportOptions } from "@/lib/data-export"
 import { toast } from "@/hooks/use-toast"
+import { Plus } from "lucide-react"
 
 interface ApartmentsDataTableProps {
   data: Apartment[]
   onEdit: (apartment: Apartment) => void
   onRefresh: () => Promise<void>
+  onCreateNew?: () => void
   enableSelection?: boolean
   loading?: boolean
+  error?: string
 }
 
 export function ApartmentsDataTable({
   data,
   onEdit,
   onRefresh,
+  onCreateNew,
   enableSelection = true,
   loading = false,
+  error,
 }: ApartmentsDataTableProps) {
   const [, setIsExporting] = React.useState(false)
 
@@ -97,7 +102,18 @@ export function ApartmentsDataTable({
       filters={filters}
       onExport={handleExport}
       loading={loading}
-      emptyMessage="Keine Wohnungen gefunden."
+      error={error}
+      emptyMessage={error ? "Fehler beim Laden der Wohnungen." : "Keine Wohnungen gefunden."}
+      emptyAction={
+        onCreateNew && !error
+          ? {
+              label: "Erste Wohnung erstellen",
+              onClick: onCreateNew,
+              icon: Plus,
+            }
+          : undefined
+      }
+      onRetry={error ? onRefresh : undefined}
       className="apartments-data-table"
     />
   )

@@ -8,14 +8,17 @@ import { TenantContextMenu } from "@/components/tenant-context-menu"
 import { exportTableData, ExportOptions } from "@/lib/data-export"
 import { toast } from "@/hooks/use-toast"
 import { Tenant } from "@/types/Tenant"
+import { Plus } from "lucide-react"
 
 interface TenantsDataTableProps {
   data: Tenant[]
   wohnungen: { id: string; name: string }[]
   onEdit: (tenant: Tenant) => void
   onRefresh: () => Promise<void>
+  onCreateNew?: () => void
   enableSelection?: boolean
   loading?: boolean
+  error?: string
 }
 
 export function TenantsDataTable({
@@ -23,8 +26,10 @@ export function TenantsDataTable({
   wohnungen,
   onEdit,
   onRefresh,
+  onCreateNew,
   enableSelection = true,
   loading = false,
+  error,
 }: TenantsDataTableProps) {
   const [isExporting, setIsExporting] = React.useState(false)
 
@@ -138,7 +143,18 @@ export function TenantsDataTable({
       filters={filters}
       onExport={handleExport}
       loading={loading}
-      emptyMessage="Keine Mieter gefunden."
+      error={error}
+      emptyMessage={error ? "Fehler beim Laden der Mieter." : "Keine Mieter gefunden."}
+      emptyAction={
+        onCreateNew && !error
+          ? {
+              label: "Ersten Mieter erstellen",
+              onClick: onCreateNew,
+              icon: Plus,
+            }
+          : undefined
+      }
+      onRetry={error ? onRefresh : undefined}
       className="tenants-data-table"
     />
   )

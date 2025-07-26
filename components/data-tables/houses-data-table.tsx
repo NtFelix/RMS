@@ -7,21 +7,26 @@ import { housesColumns, House } from "@/components/columns/houses-columns"
 import { HouseContextMenu } from "@/components/house-context-menu"
 import { exportTableData, ExportOptions } from "@/lib/data-export"
 import { toast } from "@/hooks/use-toast"
+import { Plus } from "lucide-react"
 
 interface HousesDataTableProps {
   data: House[]
   onEdit: (house: House) => void
   onRefresh: () => Promise<void>
+  onCreateNew?: () => void
   enableSelection?: boolean
   loading?: boolean
+  error?: string
 }
 
 export function HousesDataTable({
   data,
   onEdit,
   onRefresh,
+  onCreateNew,
   enableSelection = true,
   loading = false,
+  error,
 }: HousesDataTableProps) {
   const [isExporting, setIsExporting] = React.useState(false)
 
@@ -104,7 +109,18 @@ export function HousesDataTable({
       filters={filters}
       onExport={handleExport}
       loading={loading}
-      emptyMessage="Keine Häuser gefunden."
+      error={error}
+      emptyMessage={error ? "Fehler beim Laden der Häuser." : "Keine Häuser gefunden."}
+      emptyAction={
+        onCreateNew && !error
+          ? {
+              label: "Erstes Haus erstellen",
+              onClick: onCreateNew,
+              icon: Plus,
+            }
+          : undefined
+      }
+      onRetry={error ? onRefresh : undefined}
       className="houses-data-table"
     />
   )

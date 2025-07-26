@@ -27,6 +27,9 @@ import {
 import { DataTablePagination } from "@/components/ui/data-table-pagination"
 import { DataTableErrorBoundary } from "@/components/ui/data-table-error-boundary"
 import { DataTableToolbar, FilterConfig } from "@/components/ui/data-table-toolbar"
+import { DataTableSkeleton } from "@/components/ui/data-table-skeleton"
+import { DataTableEmptyState } from "@/components/ui/data-table-empty-state"
+import { ExportLoadingOverlay } from "@/components/ui/data-table-loading-overlay"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import { exportTableData, ExportOptions } from "@/lib/data-export"
@@ -50,6 +53,13 @@ interface DataTableProps<TData, TValue> {
   className?: string
   loading?: boolean
   emptyMessage?: string
+  emptyAction?: {
+    label: string
+    onClick: () => void
+    icon?: React.ComponentType<{ className?: string }>
+  }
+  onRetry?: () => void
+  error?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -69,6 +79,9 @@ export function DataTable<TData, TValue>({
   className,
   loading = false,
   emptyMessage = "Keine Daten verfügbar.",
+  emptyAction,
+  onRetry,
+  error,
 }: DataTableProps<TData, TValue>) {
   const isMobile = useIsMobile()
   const [sorting, setSorting] = React.useState<SortingState>([])
@@ -81,6 +94,7 @@ export function DataTable<TData, TValue>({
     pageSize: 10,
   })
   const [isExporting, setIsExporting] = React.useState(false)
+  const [exportFormat, setExportFormat] = React.useState<'csv' | 'pdf'>('csv')
   
   // Mobile-specific state
   const [touchStart, setTouchStart] = React.useState<{ x: number; y: number } | null>(null)
@@ -272,42 +286,14 @@ export function DataTable<TData, TValue>({
   if (loading) {
     return (
       <DataTableErrorBoundary>
-      <div className={cn("space-y-4", className)}>
-        <div className="flex items-center justify-between">
-          <div className="flex flex-1 items-center space-x-2">
-            <div className="h-8 w-[250px] animate-pulse rounded-md bg-muted" />
-            <div className="h-8 w-[180px] animate-pulse rounded-md bg-muted" />
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="h-8 w-[100px] animate-pulse rounded-md bg-muted" />
-            <div className="h-8 w-[100px] animate-pulse rounded-md bg-muted" />
-          </div>
-        </div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {Array.from({ length: columns.length }).map((_, i) => (
-                  <TableHead key={i}>
-                    <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <TableRow key={i}>
-                  {Array.from({ length: columns.length }).map((_, j) => (
-                    <TableCell key={j}>
-                      <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+        <DataTableSkeleton
+          columnCount={columns.length}
+          rowCount={5}
+          showToolbar={true}
+          showPagination={enablePagination}
+          showSelection={enableSelection}
+          className={className}
+        />
       </DataTableErrorBoundary>
     )
   }
@@ -341,11 +327,18 @@ export function DataTable<TData, TValue>({
     async (format: 'csv' | 'pdf') => {
       if (onExport) {
         // Use custom export handler if provided
-        onExport(format)
+        setExportFormat(format)
+        setIsExporting(true)
+        try {
+          onExport(format)
+        } finally {
+          setIsExporting(false)
+        }
         return
       }
 
       // Use built-in export functionality
+      setExportFormat(format)
       setIsExporting(true)
       try {
         await exportTableData(table, format, {
@@ -377,6 +370,12 @@ export function DataTable<TData, TValue>({
   return (
     <DataTableErrorBoundary>
       <div className={cn("space-y-4", className)}>
+      {/* Export Loading Overlay */}
+      <ExportLoadingOverlay
+        isVisible={isExporting}
+        format={exportFormat}
+      />
+      
       {/* Screen reader live region */}
       <div 
         className="sr-only" 
@@ -493,11 +492,21 @@ export function DataTable<TData, TValue>({
               <TableRow role="row">
                 <TableCell
                   colSpan={tableColumns.length}
-                  className="h-24 text-center"
+                  className="p-0"
                   role="cell"
-                  aria-live="polite"
                 >
-                  {emptyMessage}
+                  <DataTableEmptyState
+                    title={error ? "Fehler beim Laden" : undefined}
+                    description={error || emptyMessage}
+                    isFiltered={table.getState().columnFilters.length > 0}
+                    searchTerm={table.getState().globalFilter}
+                    onClearFilters={() => {
+                      table.resetColumnFilters()
+                      table.setGlobalFilter("")
+                    }}
+                    onClearSearch={() => table.setGlobalFilter("")}
+                    action={emptyAction}
+                  />
                 </TableCell>
               </TableRow>
             )}
