@@ -122,8 +122,8 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         if (valB === undefined || valB === null) valB = ''
 
         // Convert to number if it's a numeric string for proper sorting
-        const numA = parseFloat(valA as string)
-        const numB = parseFloat(valB as string)
+        const numA = parseFloat(String(valA));
+        const numB = parseFloat(String(valB));
 
         if (!isNaN(numA) && !isNaN(numB)) {
             valA = numA
