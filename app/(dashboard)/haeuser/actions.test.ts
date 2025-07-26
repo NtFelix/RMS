@@ -259,12 +259,13 @@ describe('House Actions', () => {
 
         expect(result).toEqual({
           success: false,
-          error: { message: 'String error' },
+          error: { message: 'An unknown server error occurred' },
         });
       });
     });
 
     describe('FormData processing', () => {
+{{ ... }}
       it('processes all form fields correctly', async () => {
         const formData = new FormData();
         formData.append('name', 'Test House');
