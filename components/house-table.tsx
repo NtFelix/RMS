@@ -99,9 +99,9 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         (house) =>
           house.name.toLowerCase().includes(query) ||
           (house.ort && house.ort.toLowerCase().includes(query)) ||
-          (house.size && house.size.toString().toLowerCase().includes(query)) ||
-          (house.rent && house.rent.toString().toLowerCase().includes(query)) ||
-          (house.pricePerSqm && house.pricePerSqm.toString().toLowerCase().includes(query))
+          (house.size && house.size.toLowerCase().includes(query)) ||
+          (house.rent && house.rent.toLowerCase().includes(query)) ||
+          (house.pricePerSqm && house.pricePerSqm.toLowerCase().includes(query))
       )
     }
 
