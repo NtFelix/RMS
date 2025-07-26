@@ -3,10 +3,20 @@ import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
 
 // Update function signature to accept id as the first parameter
+// Define the expected fields and their types
+interface HouseData {
+  name: string;
+  ort: string;
+  strasse?: string | null;
+  plz?: string | null;
+  groesse: number | null;
+}
+
 export async function handleSubmit(id: string | null, formData: FormData): Promise<{ success: boolean; error?: { message: string } }> {
   const supabase = await createClient();
 
   try {
+    // Process groesse field
     const groesseValue = formData.get("groesse");
     let processedGroesse: number | null = null;
 
@@ -15,43 +25,33 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       if (!isNaN(num)) {
         processedGroesse = num;
       }
-    } else if (typeof groesseValue === 'number') { // Should not happen with FormData but good for robustness
-      processedGroesse = groesseValue;
     }
 
-    if (id) {
-      const updatePayload: { [key: string]: any } = {};
-      formData.forEach((value, key) => {
-        if (key !== 'groesse') {
-          updatePayload[key] = value;
-        }
-      });
-      updatePayload['groesse'] = processedGroesse;
+    // Explicitly pick only the expected fields
+    const houseData: Partial<HouseData> = {
+      name: formData.get('name')?.toString() || '',
+      ort: formData.get('ort')?.toString() || '',
+      strasse: formData.get('strasse')?.toString() || null,
+      plz: formData.get('plz')?.toString() || null,
+      groesse: processedGroesse,
+    };
 
-      const { error } = await supabase.from("Haeuser").update(updatePayload).eq("id", id);
+    if (id) {
+      const { error } = await supabase
+        .from("Haeuser")
+        .update(houseData)
+        .eq("id", id);
+      
       if (error) {
         return { success: false, error: { message: error.message } };
       }
     } else {
-      const insertData: { [key: string]: any } = {};
-      formData.forEach((value, key) => {
-        if (key !== 'groesse') {
-          insertData[key] = value;
-        }
-      });
-      insertData['groesse'] = processedGroesse;
-      // Ensure user_id is set for new houses if not coming from form
-      // For example, if auth.uid() should be the default:
-      // if (!insertData.user_id) {
-      //   const { data: { user } } = await supabase.auth.getUser();
-      //   if (user) insertData.user_id = user.id;
-      //   else throw new Error("User not authenticated for insert.");
-      // }
-
-
-      const { error } = await supabase.from("Haeuser").insert(insertData);
-      if (error) {
-        return { success: false, error: { message: error.message } };
+      const { error: insertError } = await supabase
+        .from("Haeuser")
+        .insert(houseData);
+      
+      if (insertError) {
+        return { success: false, error: { message: insertError.message } };
       }
     }
     revalidatePath("/haeuser");
