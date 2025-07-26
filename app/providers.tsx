@@ -10,9 +10,13 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     const consent = localStorage.getItem('cookie_consent');
     posthog.init('phc_jfMUSdIAQg9y9uJNtHpT4vf8kdv0ZvT6aHfq7R4Kyx3', {
       api_host: 'https://eu.i.posthog.com',
-      opt_in_capturing: consent === 'true',
-      capture_pageview: consent === 'true',
+      capture_pageview: false, // we will capture the pageview manually after consent is given
     });
+    if (consent === 'true') {
+      posthog.opt_in_capturing();
+    } else if (consent === 'false') {
+      posthog.opt_out_capturing();
+    }
   }, []);
 
   return (
