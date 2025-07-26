@@ -7,6 +7,7 @@ import {
   ChevronsRight,
 } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { DATA_TABLE_TEXTS } from "@/lib/data-table-localization"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -41,14 +42,14 @@ export function DataTablePagination<TData>({
         {/* Mobile: Selection count */}
         {showSelectedCount && selectedRowCount > 0 && (
           <div className="text-sm text-muted-foreground text-center">
-            {selectedRowCount} von {totalRowCount} Zeile(n) ausgewählt
+            {selectedRowCount} von {totalRowCount} {DATA_TABLE_TEXTS.selectedRows}
           </div>
         )}
         
         {/* Mobile: Page size and info */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <p className="text-sm font-medium">Pro Seite</p>
+            <p className="text-sm font-medium">{DATA_TABLE_TEXTS.rowsPerPage}</p>
             <Select
               value={`${pageSize}`}
               onValueChange={(value) => {
@@ -80,7 +81,7 @@ export function DataTablePagination<TData>({
             className="h-9 w-9 p-0 mobile-table-button"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
-            aria-label="Zur ersten Seite"
+            aria-label={DATA_TABLE_TEXTS.firstPage}
           >
             <ChevronsLeft className="h-4 w-4" />
           </Button>
@@ -89,7 +90,7 @@ export function DataTablePagination<TData>({
             className="h-9 w-9 p-0 mobile-table-button"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            aria-label="Zur vorherigen Seite"
+            aria-label={DATA_TABLE_TEXTS.previousPage}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -98,7 +99,7 @@ export function DataTablePagination<TData>({
             className="h-9 w-9 p-0 mobile-table-button"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            aria-label="Zur nächsten Seite"
+            aria-label={DATA_TABLE_TEXTS.nextPage}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -107,7 +108,7 @@ export function DataTablePagination<TData>({
             className="h-9 w-9 p-0 mobile-table-button"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
-            aria-label="Zur letzten Seite"
+            aria-label={DATA_TABLE_TEXTS.lastPage}
           >
             <ChevronsRight className="h-4 w-4" />
           </Button>
@@ -122,13 +123,13 @@ export function DataTablePagination<TData>({
       <div className="flex-1 text-sm text-muted-foreground">
         {showSelectedCount && selectedRowCount > 0 && (
           <span>
-            {selectedRowCount} von {totalRowCount} Zeile(n) ausgewählt.
+{selectedRowCount} von {totalRowCount} {DATA_TABLE_TEXTS.selectedRows}.
           </span>
         )}
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Zeilen pro Seite</p>
+          <p className="text-sm font-medium">{DATA_TABLE_TEXTS.rowsPerPage}</p>
           <Select
             value={`${pageSize}`}
             onValueChange={(value) => {
@@ -148,7 +149,7 @@ export function DataTablePagination<TData>({
           </Select>
         </div>
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-          Seite {currentPage} von {totalPages}
+          {DATA_TABLE_TEXTS.page} {currentPage} {DATA_TABLE_TEXTS.of} {totalPages}
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -156,9 +157,9 @@ export function DataTablePagination<TData>({
             className="hidden h-8 w-8 p-0 lg:flex"
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
-            aria-label="Zur ersten Seite"
+            aria-label={DATA_TABLE_TEXTS.firstPage}
           >
-            <span className="sr-only">Zur ersten Seite</span>
+            <span className="sr-only">{DATA_TABLE_TEXTS.firstPage}</span>
             <ChevronsLeft className="h-4 w-4" />
           </Button>
           <Button
@@ -166,9 +167,9 @@ export function DataTablePagination<TData>({
             className="h-8 w-8 p-0"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
-            aria-label="Zur vorherigen Seite"
+            aria-label={DATA_TABLE_TEXTS.previousPage}
           >
-            <span className="sr-only">Zur vorherigen Seite</span>
+            <span className="sr-only">{DATA_TABLE_TEXTS.previousPage}</span>
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
@@ -176,9 +177,9 @@ export function DataTablePagination<TData>({
             className="h-8 w-8 p-0"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
-            aria-label="Zur nächsten Seite"
+            aria-label={DATA_TABLE_TEXTS.nextPage}
           >
-            <span className="sr-only">Zur nächsten Seite</span>
+            <span className="sr-only">{DATA_TABLE_TEXTS.nextPage}</span>
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button
@@ -186,9 +187,9 @@ export function DataTablePagination<TData>({
             className="hidden h-8 w-8 p-0 lg:flex"
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
-            aria-label="Zur letzten Seite"
+            aria-label={DATA_TABLE_TEXTS.lastPage}
           >
-            <span className="sr-only">Zur letzten Seite</span>
+            <span className="sr-only">{DATA_TABLE_TEXTS.lastPage}</span>
             <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>

@@ -1,9 +1,16 @@
 "use client"
 
+import * as React from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
 import { DataTableColumnHeader } from "@/components/ui/data-table-column-header"
 import { Checkbox } from "@/components/ui/checkbox"
+import { 
+  formatGermanArea, 
+  formatGermanCurrency, 
+  formatGermanPricePerSqm,
+  DATA_TABLE_TEXTS 
+} from "@/lib/data-table-localization"
 
 export interface House {
   id: string
@@ -18,6 +25,64 @@ export interface House {
   freeApartments?: number
 }
 
+// Memoized cell components for better performance
+const HouseNameCell = React.memo(({ value }: { value: string }) => (
+  <div className="font-medium">{value}</div>
+))
+HouseNameCell.displayName = "HouseNameCell"
+
+const HouseOrtCell = React.memo(({ value }: { value: string }) => (
+  <div>{value}</div>
+))
+HouseOrtCell.displayName = "HouseOrtCell"
+
+const HouseSizeCell = React.memo(({ value }: { value: string }) => (
+  <div>{value ? formatGermanArea(value) : "-"}</div>
+))
+HouseSizeCell.displayName = "HouseSizeCell"
+
+const HouseRentCell = React.memo(({ value }: { value: string }) => (
+  <div>{value ? formatGermanCurrency(value) : "-"}</div>
+))
+HouseRentCell.displayName = "HouseRentCell"
+
+const HousePricePerSqmCell = React.memo(({ value }: { value: string }) => (
+  <div>{value ? formatGermanPricePerSqm(value) : "-"}</div>
+))
+HousePricePerSqmCell.displayName = "HousePricePerSqmCell"
+
+const HouseStatusCell = React.memo(({ house }: { house: House }) => {
+  const totalApartments = house.totalApartments ?? 0
+  const freeApartments = house.freeApartments ?? 0
+  const occupiedApartments = totalApartments - freeApartments
+
+  if (totalApartments === 0) {
+    return (
+      <Badge 
+        variant="outline" 
+        className="bg-gray-50 text-gray-700 hover:bg-gray-50"
+      >
+        Keine Wohnungen
+      </Badge>
+    )
+  }
+
+  const isFull = freeApartments === 0
+  return (
+    <Badge
+      variant="outline"
+      className={
+        isFull
+          ? "bg-green-50 text-green-700 hover:bg-green-50"
+          : "bg-blue-50 text-blue-700 hover:bg-blue-50"
+      }
+    >
+      {occupiedApartments}/{totalApartments} belegt
+    </Badge>
+  )
+})
+HouseStatusCell.displayName = "HouseStatusCell"
+
 export const housesColumns: ColumnDef<House>[] = [
   {
     id: "select",
@@ -28,14 +93,14 @@ export const housesColumns: ColumnDef<House>[] = [
           (table.getIsSomePageRowsSelected() && "indeterminate")
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Alle auswählen"
+        aria-label={DATA_TABLE_TEXTS.selectAll}
       />
     ),
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Zeile auswählen"
+        aria-label={DATA_TABLE_TEXTS.selectRow}
       />
     ),
     enableSorting: false,
@@ -44,38 +109,27 @@ export const housesColumns: ColumnDef<House>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Häuser" />
+      <DataTableColumnHeader column={column} title={DATA_TABLE_TEXTS.houses} />
     ),
-    cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("name")}</div>
-    ),
+    cell: ({ row }) => <HouseNameCell value={row.getValue("name")} />,
     enableSorting: true,
     enableHiding: false,
   },
   {
     accessorKey: "ort",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Ort" />
+      <DataTableColumnHeader column={column} title={DATA_TABLE_TEXTS.location} />
     ),
-    cell: ({ row }) => (
-      <div>{row.getValue("ort")}</div>
-    ),
+    cell: ({ row }) => <HouseOrtCell value={row.getValue("ort")} />,
     enableSorting: true,
     enableHiding: true,
   },
   {
     accessorKey: "size",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Größe" />
+      <DataTableColumnHeader column={column} title={DATA_TABLE_TEXTS.size} />
     ),
-    cell: ({ row }) => {
-      const size = row.getValue("size") as string
-      return (
-        <div>
-          {size ? `${size} m²` : "-"}
-        </div>
-      )
-    },
+    cell: ({ row }) => <HouseSizeCell value={row.getValue("size")} />,
     enableSorting: true,
     enableHiding: true,
     sortingFn: (rowA, rowB) => {
@@ -87,16 +141,9 @@ export const housesColumns: ColumnDef<House>[] = [
   {
     accessorKey: "rent",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Miete" />
+      <DataTableColumnHeader column={column} title={DATA_TABLE_TEXTS.rent} />
     ),
-    cell: ({ row }) => {
-      const rent = row.getValue("rent") as string
-      return (
-        <div>
-          {rent ? `${rent} €` : "-"}
-        </div>
-      )
-    },
+    cell: ({ row }) => <HouseRentCell value={row.getValue("rent")} />,
     enableSorting: true,
     enableHiding: true,
     sortingFn: (rowA, rowB) => {
@@ -110,14 +157,7 @@ export const housesColumns: ColumnDef<House>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Miete pro m²" />
     ),
-    cell: ({ row }) => {
-      const pricePerSqm = row.getValue("pricePerSqm") as string
-      return (
-        <div>
-          {pricePerSqm ? `${pricePerSqm} €/m²` : "-"}
-        </div>
-      )
-    },
+    cell: ({ row }) => <HousePricePerSqmCell value={row.getValue("pricePerSqm")} />,
     enableSorting: true,
     enableHiding: true,
     sortingFn: (rowA, rowB) => {
@@ -129,39 +169,9 @@ export const housesColumns: ColumnDef<House>[] = [
   {
     id: "status",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
+      <DataTableColumnHeader column={column} title={DATA_TABLE_TEXTS.status} />
     ),
-    cell: ({ row }) => {
-      const house = row.original
-      const totalApartments = house.totalApartments ?? 0
-      const freeApartments = house.freeApartments ?? 0
-      const occupiedApartments = totalApartments - freeApartments
-
-      if (totalApartments === 0) {
-        return (
-          <Badge 
-            variant="outline" 
-            className="bg-gray-50 text-gray-700 hover:bg-gray-50"
-          >
-            Keine Wohnungen
-          </Badge>
-        )
-      }
-
-      const isFull = freeApartments === 0
-      return (
-        <Badge
-          variant="outline"
-          className={
-            isFull
-              ? "bg-green-50 text-green-700 hover:bg-green-50"
-              : "bg-blue-50 text-blue-700 hover:bg-blue-50"
-          }
-        >
-          {occupiedApartments}/{totalApartments} belegt
-        </Badge>
-      )
-    },
+    cell: ({ row }) => <HouseStatusCell house={row.original} />,
     enableSorting: true,
     enableHiding: true,
     sortingFn: (rowA, rowB) => {

@@ -15,6 +15,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table"
+import { useVirtualizer } from "@tanstack/react-virtual"
 
 import {
   Table,
@@ -35,6 +36,8 @@ import { cn } from "@/lib/utils"
 import { exportTableData, ExportOptions } from "@/lib/data-export"
 import { toast } from "@/hooks/use-toast"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useDebouncedCallback } from "use-debounce"
+import { DATA_TABLE_TEXTS, getLocalizedText } from "@/lib/data-table-localization"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -60,13 +63,16 @@ interface DataTableProps<TData, TValue> {
   }
   onRetry?: () => void
   error?: string
+  enableVirtualization?: boolean
+  virtualRowHeight?: number
+  searchDebounceMs?: number
 }
 
-export function DataTable<TData, TValue>({
+export const DataTable = React.memo(<TData, TValue>({
   columns,
   data,
   searchKey,
-  searchPlaceholder = "Suchen...",
+  searchPlaceholder = DATA_TABLE_TEXTS.search,
   enableSelection = false,
   enablePagination = true,
   enableColumnVisibility = true,
@@ -78,17 +84,21 @@ export function DataTable<TData, TValue>({
   exportOptions = {},
   className,
   loading = false,
-  emptyMessage = "Keine Daten verfügbar.",
+  emptyMessage = DATA_TABLE_TEXTS.noData,
   emptyAction,
   onRetry,
   error,
-}: DataTableProps<TData, TValue>) {
+  enableVirtualization = false,
+  virtualRowHeight = 50,
+  searchDebounceMs = 300,
+}: DataTableProps<TData, TValue>) => {
   const isMobile = useIsMobile()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [debouncedGlobalFilter, setDebouncedGlobalFilter] = React.useState("")
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -101,8 +111,22 @@ export function DataTable<TData, TValue>({
   const [touchEnd, setTouchEnd] = React.useState<{ x: number; y: number } | null>(null)
   const [isScrolling, setIsScrolling] = React.useState(false)
   const tableContainerRef = React.useRef<HTMLDivElement>(null)
+  const tableBodyRef = React.useRef<HTMLTableSectionElement>(null)
 
-  // Add selection column if enabled
+  // Debounced search handler
+  const debouncedSetGlobalFilter = useDebouncedCallback(
+    (value: string) => {
+      setDebouncedGlobalFilter(value)
+    },
+    searchDebounceMs
+  )
+
+  // Update debounced filter when globalFilter changes
+  React.useEffect(() => {
+    debouncedSetGlobalFilter(globalFilter)
+  }, [globalFilter, debouncedSetGlobalFilter])
+
+  // Memoized columns with selection column if enabled
   const tableColumns = React.useMemo(() => {
     if (!enableSelection) return columns
 
@@ -115,14 +139,14 @@ export function DataTable<TData, TValue>({
             (table.getIsSomePageRowsSelected() && "indeterminate")
           }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Alle auswählen"
+          aria-label={DATA_TABLE_TEXTS.selectAll}
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Zeile auswählen"
+          aria-label={DATA_TABLE_TEXTS.selectRow}
         />
       ),
       enableSorting: false,
@@ -132,8 +156,11 @@ export function DataTable<TData, TValue>({
     return [selectionColumn, ...columns]
   }, [columns, enableSelection])
 
+  // Memoized data to prevent unnecessary re-renders
+  const memoizedData = React.useMemo(() => data, [data])
+
   const table = useReactTable({
-    data,
+    data: memoizedData,
     columns: tableColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -150,10 +177,19 @@ export function DataTable<TData, TValue>({
       columnFilters,
       columnVisibility,
       rowSelection,
-      globalFilter,
-      pagination: enablePagination ? pagination : { pageIndex: 0, pageSize: data.length },
+      globalFilter: debouncedGlobalFilter,
+      pagination: enablePagination ? pagination : { pageIndex: 0, pageSize: memoizedData.length },
     },
     globalFilterFn: "includesString",
+  })
+
+  // Virtual scrolling setup for large datasets
+  const rows = table.getRowModel().rows
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => tableBodyRef.current,
+    estimateSize: () => virtualRowHeight,
+    enabled: enableVirtualization && rows.length > 100,
   })
 
   // Touch gesture handling
@@ -308,11 +344,11 @@ export function DataTable<TData, TValue>({
     let status = `${totalRows} Zeilen insgesamt`
     
     if (enablePagination && totalPages > 1) {
-      status += `, Seite ${currentPage} von ${totalPages}`
+      status += `, ${DATA_TABLE_TEXTS.page} ${currentPage} ${DATA_TABLE_TEXTS.of} ${totalPages}`
     }
     
     if (enableSelection && selectedRows > 0) {
-      status += `, ${selectedRows} Zeilen ausgewählt`
+      status += `, ${selectedRows} ${DATA_TABLE_TEXTS.selectedRows}`
     }
     
     if (globalFilter) {
@@ -350,13 +386,13 @@ export function DataTable<TData, TValue>({
         })
         
         toast({
-          title: "Export erfolgreich",
+          title: DATA_TABLE_TEXTS.exportSuccess,
           description: `Daten wurden als ${format.toUpperCase()} exportiert.`,
         })
       } catch (error) {
         console.error('Export error:', error)
         toast({
-          title: "Export fehlgeschlagen",
+          title: DATA_TABLE_TEXTS.exportError,
           description: `Fehler beim Exportieren als ${format.toUpperCase()}.`,
           variant: "destructive",
         })
@@ -386,7 +422,7 @@ export function DataTable<TData, TValue>({
         {screenReaderStatus}
       </div>
       
-      <DataTableToolbar
+      <MemoizedDataTableToolbar
         table={table}
         searchKey={searchKey}
         searchPlaceholder={searchPlaceholder}
@@ -395,6 +431,8 @@ export function DataTable<TData, TValue>({
         enableExport={enableExport}
         onExport={handleExport}
         isExporting={isExporting}
+        globalFilter={globalFilter}
+        onGlobalFilterChange={setGlobalFilter}
       />
       <div 
         ref={tableContainerRef}
@@ -444,50 +482,117 @@ export function DataTable<TData, TValue>({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody role="rowgroup">
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => {
-                const RowWrapper = ContextMenuComponent
-                  ? ({ children }: { children: React.ReactNode }) => (
-                      <ContextMenuComponent row={row.original}>
-                        {children}
-                      </ContextMenuComponent>
-                    )
-                  : React.Fragment
+          <TableBody 
+            ref={tableBodyRef}
+            role="rowgroup"
+            style={
+              enableVirtualization && rows.length > 100
+                ? {
+                    height: `${virtualizer.getTotalSize()}px`,
+                    position: 'relative',
+                  }
+                : undefined
+            }
+          >
+            {rows?.length ? (
+              enableVirtualization && rows.length > 100 ? (
+                // Virtual scrolling for large datasets
+                virtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = rows[virtualRow.index]
+                  const RowWrapper = ContextMenuComponent
+                    ? ({ children }: { children: React.ReactNode }) => (
+                        <ContextMenuComponent row={row.original}>
+                          {children}
+                        </ContextMenuComponent>
+                      )
+                    : React.Fragment
 
-                return (
-                  <RowWrapper key={row.id}>
-                    <TableRow
-                      data-state={row.getIsSelected() && "selected"}
-                      className={cn(
-                        "transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                        onRowClick && "cursor-pointer",
-                        isMobile && onRowClick && "mobile-table-row" // Touch feedback
-                      )}
-                      onClick={(event) => handleRowClick(row.original, event)}
-                      onTouchEnd={isMobile && onRowClick ? (event) => handleRowClick(row.original, event) : undefined}
-                      onKeyDown={(event) => handleKeyDown(event, row.original)}
-                      tabIndex={0}
-                      role={onRowClick ? "button" : "row"}
-                      aria-label={onRowClick ? "Zeile bearbeiten - Drücken Sie Enter zum Öffnen" : undefined}
-                      aria-rowindex={row.index + 2} // +2 because header is row 1
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell 
-                          key={cell.id}
-                          role="cell"
-                          aria-describedby={`column-${cell.column.id}`}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </RowWrapper>
-                )
-              })
+                  return (
+                    <RowWrapper key={row.id}>
+                      <TableRow
+                        data-state={row.getIsSelected() && "selected"}
+                        className={cn(
+                          "transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                          onRowClick && "cursor-pointer",
+                          isMobile && onRowClick && "mobile-table-row"
+                        )}
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: `${virtualRow.size}px`,
+                          transform: `translateY(${virtualRow.start}px)`,
+                        }}
+                        onClick={(event) => handleRowClick(row.original, event)}
+                        onTouchEnd={isMobile && onRowClick ? (event) => handleRowClick(row.original, event) : undefined}
+                        onKeyDown={(event) => handleKeyDown(event, row.original)}
+                        tabIndex={0}
+                        role={onRowClick ? "button" : "row"}
+                        aria-label={onRowClick ? `${DATA_TABLE_TEXTS.edit} - Drücken Sie Enter zum Öffnen` : undefined}
+                        aria-rowindex={row.index + 2}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell 
+                            key={cell.id}
+                            role="cell"
+                            aria-describedby={`column-${cell.column.id}`}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </RowWrapper>
+                  )
+                })
+              ) : (
+                // Regular rendering for smaller datasets
+                rows.map((row) => {
+                  const RowWrapper = ContextMenuComponent
+                    ? ({ children }: { children: React.ReactNode }) => (
+                        <ContextMenuComponent row={row.original}>
+                          {children}
+                        </ContextMenuComponent>
+                      )
+                    : React.Fragment
+
+                  return (
+                    <RowWrapper key={row.id}>
+                      <TableRow
+                        data-state={row.getIsSelected() && "selected"}
+                        className={cn(
+                          "transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                          onRowClick && "cursor-pointer",
+                          isMobile && onRowClick && "mobile-table-row"
+                        )}
+                        onClick={(event) => handleRowClick(row.original, event)}
+                        onTouchEnd={isMobile && onRowClick ? (event) => handleRowClick(row.original, event) : undefined}
+                        onKeyDown={(event) => handleKeyDown(event, row.original)}
+                        tabIndex={0}
+                        role={onRowClick ? "button" : "row"}
+                        aria-label={onRowClick ? `${DATA_TABLE_TEXTS.edit} - Drücken Sie Enter zum Öffnen` : undefined}
+                        aria-rowindex={row.index + 2}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell 
+                            key={cell.id}
+                            role="cell"
+                            aria-describedby={`column-${cell.column.id}`}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext()
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </RowWrapper>
+                  )
+                })
+              )
             ) : (
               <TableRow role="row">
                 <TableCell
@@ -499,12 +604,16 @@ export function DataTable<TData, TValue>({
                     title={error ? "Fehler beim Laden" : undefined}
                     description={error || emptyMessage}
                     isFiltered={table.getState().columnFilters.length > 0}
-                    searchTerm={table.getState().globalFilter}
+                    searchTerm={debouncedGlobalFilter}
                     onClearFilters={() => {
                       table.resetColumnFilters()
-                      table.setGlobalFilter("")
+                      setGlobalFilter("")
+                      setDebouncedGlobalFilter("")
                     }}
-                    onClearSearch={() => table.setGlobalFilter("")}
+                    onClearSearch={() => {
+                      setGlobalFilter("")
+                      setDebouncedGlobalFilter("")
+                    }}
                     action={emptyAction}
                   />
                 </TableCell>
@@ -517,4 +626,44 @@ export function DataTable<TData, TValue>({
     </div>
     </DataTableErrorBoundary>
   )
-}
+}) as <TData, TValue>(props: DataTableProps<TData, TValue>) => JSX.Element
+
+// Memoized toolbar component to prevent unnecessary re-renders
+const MemoizedDataTableToolbar = React.memo(<TData,>({
+  table,
+  searchKey,
+  searchPlaceholder,
+  filters,
+  enableColumnVisibility,
+  enableExport,
+  onExport,
+  isExporting,
+  globalFilter,
+  onGlobalFilterChange,
+}: {
+  table: any
+  searchKey?: string
+  searchPlaceholder?: string
+  filters?: FilterConfig[]
+  enableColumnVisibility?: boolean
+  enableExport?: boolean
+  onExport?: (format: 'csv' | 'pdf') => void
+  isExporting?: boolean
+  globalFilter: string
+  onGlobalFilterChange: (value: string) => void
+}) => {
+  return (
+    <DataTableToolbar
+      table={table}
+      searchKey={searchKey}
+      searchPlaceholder={searchPlaceholder}
+      filters={filters}
+      enableColumnVisibility={enableColumnVisibility}
+      enableExport={enableExport}
+      onExport={onExport}
+      isExporting={isExporting}
+      globalFilter={globalFilter}
+      onGlobalFilterChange={onGlobalFilterChange}
+    />
+  )
+}) as <TData>(props: any) => JSX.Element

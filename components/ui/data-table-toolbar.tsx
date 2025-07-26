@@ -2,6 +2,7 @@ import * as React from "react"
 import { Table } from "@tanstack/react-table"
 import { X, Search, Download, FileText, Settings2, Filter, ChevronDown } from "lucide-react"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { DATA_TABLE_TEXTS } from "@/lib/data-table-localization"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,17 +38,21 @@ interface DataTableToolbarProps<TData> {
   enableExport?: boolean
   onExport?: (format: 'csv' | 'pdf') => void
   isExporting?: boolean
+  globalFilter?: string
+  onGlobalFilterChange?: (value: string) => void
 }
 
 export function DataTableToolbar<TData>({
   table,
   searchKey,
-  searchPlaceholder = "Suchen...",
+  searchPlaceholder = DATA_TABLE_TEXTS.search,
   filters = [],
   enableColumnVisibility = true,
   enableExport = true,
   onExport,
   isExporting = false,
+  globalFilter,
+  onGlobalFilterChange,
 }: DataTableToolbarProps<TData>) {
   const isMobile = useIsMobile()
   const [showMobileFilters, setShowMobileFilters] = React.useState(false)
@@ -64,10 +69,17 @@ export function DataTableToolbar<TData>({
             <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={searchPlaceholder}
-              value={(table.getState().globalFilter as string) ?? ""}
-              onChange={(event) => table.setGlobalFilter(event.target.value)}
+              value={globalFilter ?? (table.getState().globalFilter as string) ?? ""}
+              onChange={(event) => {
+                const value = event.target.value
+                if (onGlobalFilterChange) {
+                  onGlobalFilterChange(value)
+                } else {
+                  table.setGlobalFilter(value)
+                }
+              }}
               className="pl-8 h-8"
-              aria-label="Globale Suche"
+              aria-label={DATA_TABLE_TEXTS.search}
             />
           </div>
           
@@ -79,7 +91,7 @@ export function DataTableToolbar<TData>({
                 size="sm"
                 className="h-8 px-2 mobile-table-button"
                 onClick={() => setShowMobileFilters(!showMobileFilters)}
-                aria-label="Filter anzeigen"
+                aria-label={DATA_TABLE_TEXTS.filter}
               >
                 <Filter className="h-4 w-4" />
                 <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${showMobileFilters ? 'rotate-180' : ''}`} />
@@ -94,7 +106,7 @@ export function DataTableToolbar<TData>({
                     variant="outline"
                     size="sm"
                     className="h-8 px-2 mobile-table-button"
-                    aria-label="Exportieren"
+                    aria-label={DATA_TABLE_TEXTS.export}
                     disabled={isExporting}
                   >
                     {isExporting ? (
@@ -135,13 +147,13 @@ export function DataTableToolbar<TData>({
                     variant="outline"
                     size="sm"
                     className="h-8 px-2 mobile-table-button"
-                    aria-label="Spalten"
+                    aria-label={DATA_TABLE_TEXTS.columns}
                   >
                     <Settings2 className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[200px]">
-                  <DropdownMenuLabel>Spalten anzeigen</DropdownMenuLabel>
+                  <DropdownMenuLabel>{DATA_TABLE_TEXTS.showColumns}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {table
                     .getAllColumns()
@@ -205,12 +217,16 @@ export function DataTableToolbar<TData>({
                 variant="ghost"
                 onClick={() => {
                   table.resetColumnFilters()
-                  table.setGlobalFilter("")
+                  if (onGlobalFilterChange) {
+                    onGlobalFilterChange("")
+                  } else {
+                    table.setGlobalFilter("")
+                  }
                 }}
                 className="h-8 px-2"
-                aria-label="Filter zurücksetzen"
+                aria-label={DATA_TABLE_TEXTS.clearFilters}
               >
-                Zurücksetzen
+{DATA_TABLE_TEXTS.clearFilters}
                 <X className="ml-1 h-4 w-4" />
               </Button>
             )}
@@ -229,10 +245,17 @@ export function DataTableToolbar<TData>({
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={searchPlaceholder}
-            value={(table.getState().globalFilter as string) ?? ""}
-            onChange={(event) => table.setGlobalFilter(event.target.value)}
+            value={globalFilter ?? (table.getState().globalFilter as string) ?? ""}
+            onChange={(event) => {
+              const value = event.target.value
+              if (onGlobalFilterChange) {
+                onGlobalFilterChange(value)
+              } else {
+                table.setGlobalFilter(value)
+              }
+            }}
             className="pl-8 h-8 w-[150px] lg:w-[250px]"
-            aria-label="Globale Suche"
+            aria-label={DATA_TABLE_TEXTS.search}
           />
         </div>
 
@@ -272,7 +295,11 @@ export function DataTableToolbar<TData>({
             variant="ghost"
             onClick={() => {
               table.resetColumnFilters()
-              table.setGlobalFilter("")
+              if (onGlobalFilterChange) {
+                onGlobalFilterChange("")
+              } else {
+                table.setGlobalFilter("")
+              }
             }}
             className="h-8 px-2 lg:px-3"
             aria-label="Filter zurücksetzen"
@@ -292,24 +319,24 @@ export function DataTableToolbar<TData>({
                 variant="outline"
                 size="sm"
                 className="ml-auto h-8"
-                aria-label="Daten exportieren"
+                aria-label={DATA_TABLE_TEXTS.export}
                 disabled={isExporting}
               >
                 {isExporting ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                    Exportiere...
+{DATA_TABLE_TEXTS.exporting}
                   </>
                 ) : (
                   <>
                     <Download className="mr-2 h-4 w-4" />
-                    Export
+{DATA_TABLE_TEXTS.export}
                   </>
                 )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Exportformat</DropdownMenuLabel>
+              <DropdownMenuLabel>{DATA_TABLE_TEXTS.exportFormat}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuCheckboxItem
                 onClick={() => onExport('csv')}
@@ -339,14 +366,14 @@ export function DataTableToolbar<TData>({
                 variant="outline"
                 size="sm"
                 className="ml-auto h-8"
-                aria-label="Spalten ein-/ausblenden"
+                aria-label={DATA_TABLE_TEXTS.showColumns}
               >
                 <Settings2 className="mr-2 h-4 w-4" />
-                Spalten
+{DATA_TABLE_TEXTS.columns}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[150px]">
-              <DropdownMenuLabel>Spalten anzeigen</DropdownMenuLabel>
+              <DropdownMenuLabel>{DATA_TABLE_TEXTS.showColumns}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {table
                 .getAllColumns()
