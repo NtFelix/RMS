@@ -9,6 +9,7 @@ import { PostHogProvider } from "./providers"
 import { Analytics } from "@vercel/analytics/react"
 // Vercel SpeedInsights: performance metrics collection. To remove, delete the import and usage below.
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import CookieBanner from "@/components/cookie-banner"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -40,6 +41,7 @@ export default function RootLayout({
             <SpeedInsights />
           </PostHogProvider>
         </ThemeProvider>
+        <CookieBanner />
       </body>
     </html>
   )

@@ -7,15 +7,17 @@ import React from 'react'
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    const consent = localStorage.getItem('cookie_consent');
     posthog.init('phc_jfMUSdIAQg9y9uJNtHpT4vf8kdv0ZvT6aHfq7R4Kyx3', {
       api_host: 'https://eu.i.posthog.com',
-      defaults: '2025-05-24',
-    })
-  }, [])
+      opt_in_capturing: consent === 'true',
+      capture_pageview: consent === 'true',
+    });
+  }, []);
 
   return (
     <PHProvider client={posthog}>
       {children}
     </PHProvider>
-  )
+  );
 }
