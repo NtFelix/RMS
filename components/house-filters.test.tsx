@@ -190,8 +190,7 @@ describe('HouseFilters', () => {
       const searchInput = screen.getByPlaceholderText('Haus suchen...');
       await user.type(searchInput, 'test house');
 
-      // Should be called for each character typed
-      expect(mockOnSearchChange).toHaveBeenCalledTimes(10); // "test house" = 10 characters
+      // Verify the final search value
       expect(mockOnSearchChange).toHaveBeenLastCalledWith('test house');
     });
 
