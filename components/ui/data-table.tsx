@@ -626,7 +626,7 @@ export const DataTable = React.memo(<TData, TValue>({
     </div>
     </DataTableErrorBoundary>
   )
-}) as <TData, TValue>(props: DataTableProps<TData, TValue>) => JSX.Element
+}) as <TData, TValue>(props: DataTableProps<TData, TValue>) => React.ReactElement
 
 // Memoized toolbar component to prevent unnecessary re-renders
 const MemoizedDataTableToolbar = React.memo(<TData,>({
@@ -666,4 +666,4 @@ const MemoizedDataTableToolbar = React.memo(<TData,>({
       onGlobalFilterChange={onGlobalFilterChange}
     />
   )
-}) as <TData>(props: any) => JSX.Element
+}) as <TData>(props: any) => React.ReactElement
