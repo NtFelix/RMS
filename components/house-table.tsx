@@ -126,13 +126,14 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
         const numB = parseFloat(String(valB));
 
         if (!isNaN(numA) && !isNaN(numB)) {
-            valA = numA
-            valB = numB
+          if (numA < numB) return sortDirection === "asc" ? -1 : 1;
+          if (numA > numB) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        } else {
+          const strA = String(valA);
+          const strB = String(valB);
+          return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
         }
-
-        if (valA < valB) return sortDirection === "asc" ? -1 : 1
-        if (valA > valB) return sortDirection === "asc" ? 1 : -1
-        return 0
       })
     }
 
