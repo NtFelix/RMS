@@ -21,9 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
-import type { Apartment } from "./apartment-table"; // Import the shared type
-
-// Remove local Apartment interface definition
+import type { Apartment } from "@/components/columns/apartments-columns"; // Import from new columns file
 
 interface ApartmentContextMenuProps {
   children: React.ReactNode

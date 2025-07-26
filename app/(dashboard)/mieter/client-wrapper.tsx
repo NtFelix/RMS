@@ -14,7 +14,6 @@ import type { Wohnung } from "@/types/Wohnung";
 interface MieterClientViewProps {
   initialTenants: Tenant[];
   initialWohnungen: Wohnung[];
-  serverAction: (formData: FormData) => Promise<{ success: boolean; error?: { message: string } }>;
 }
 
 // Internal AddTenantButton (could be kept from previous step if preferred)
@@ -31,14 +30,11 @@ function AddTenantButton({ onAdd }: { onAdd: () => void }) {
 export default function MieterClientView({
   initialTenants,
   initialWohnungen,
-  serverAction,
 }: MieterClientViewProps) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { openTenantModal } = useModalStore();
 
-  // Remove local state for dialogOpen and editingId, as store will manage modal state
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
+
 
   const handleAddTenant = useCallback(() => {
     // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
@@ -96,20 +92,7 @@ export default function MieterClientView({
         <AddTenantButton onAdd={handleAddTenant} />
       </div>
 
-      {/* TenantDialogWrapper is no longer needed here as TenantEditModal is global
-          and opened directly via useModalStore actions.
-      */}
-      {/*
-      <TenantDialogWrapper
-        wohnungen={initialWohnungen}
-        mieter={initialTenants}
-        serverAction={serverAction} // This prop is for TenantEditModal, not wrapper
-        open={dialogOpen}
-        editingId={editingId}
-        setOpen={setDialogOpen}
-        setEditingId={setEditingId}
-      />
-      */}
+
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
           <div>

@@ -4,7 +4,6 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
-import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 
 import type { Tenant } from "@/types/Tenant";
@@ -43,7 +42,6 @@ export default async function MieterPage() {
     <MieterClientView
       initialTenants={mieter}
       initialWohnungen={wohnungen}
-      serverAction={mieterServerAction}
     />
   );
 }
