@@ -5,6 +5,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
 import { PostHogProvider } from "./providers"
+import CookieBanner from "@/components/cookie-banner"
 // Vercel Analytics: visitor/page view tracking. To remove, delete the import and usage below.
 import { Analytics } from "@vercel/analytics/react"
 // Vercel SpeedInsights: performance metrics collection. To remove, delete the import and usage below.
@@ -34,6 +35,7 @@ export default function RootLayout({
           <PostHogProvider>
             {children}
             <Toaster />
+            <CookieBanner />
             {/* Vercel Analytics: visitor/page view tracking. Remove to disable. */}
             <Analytics />
             {/* Vercel SpeedInsights: performance metrics collection. Remove to disable. */}
