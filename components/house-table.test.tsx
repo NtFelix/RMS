@@ -414,7 +414,7 @@ describe('HouseTable', () => {
       const rows = screen.getAllByRole('row');
       const dataRows = rows.slice(1);
       
-      // Should be sorted by occupied apartments: 2, 3, 4
+      // Should be sorted by occupied apartments: 2, 2, 4
       expect(within(dataRows[0]).getByText('2/3 belegt')).toBeInTheDocument();
       expect(within(dataRows[1]).getByText('2/2 belegt')).toBeInTheDocument();
       expect(within(dataRows[2]).getByText('4/4 belegt')).toBeInTheDocument();
