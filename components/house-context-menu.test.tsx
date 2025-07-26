@@ -222,6 +222,9 @@ describe('HouseContextMenu', () => {
     });
 
     it('shows success toast and calls onRefresh after successful deletion', async () => {
+      // Set up fake timers at the beginning of the test
+      jest.useFakeTimers();
+      
       const user = userEvent.setup();
       render(
         <HouseContextMenu
@@ -250,12 +253,12 @@ describe('HouseContextMenu', () => {
         });
       });
 
-      // Use fake timers to test the delayed refresh
-      jest.useFakeTimers();
       // Fast-forward until all timers have been executed
       jest.runAllTimers();
+      
       // Verify onRefresh was called
       expect(mockOnRefresh).toHaveBeenCalled();
+      
       // Restore real timers
       jest.useRealTimers();
     });
