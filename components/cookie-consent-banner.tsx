@@ -35,7 +35,7 @@ export function CookieConsentBanner() {
         <p className="text-sm text-gray-600 dark:text-gray-300">
           Wir verwenden Cookies, um Ihnen die beste Erfahrung auf unserer Website zu bieten. 
           Sie können Ihre Einstellungen jederzeit ändern. Weitere Informationen finden Sie in unserer{' '}
-          <Link href="/datenschutz" className="text-primary underline hover:no-underline">
+          <Link href="/datenschutz" className="text-primary underline hover:underline">
             Datenschutzerklärung
           </Link>.
         </p>
