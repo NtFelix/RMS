@@ -40,15 +40,15 @@ export function CookieConsentBanner() {
           </Link>.
         </p>
         <div className="space-y-3 w-full">
-          <Button 
-            variant="outline" 
-            size="sm"
-            className="w-full"
-            onClick={() => handleAccept('none')}
-          >
-            Ablehnen
-          </Button>
           <div className="flex gap-2 w-full">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="flex-1"
+              onClick={() => handleAccept('none')}
+            >
+              Ablehnen
+            </Button>
             <Button 
               variant="outline" 
               size="sm"
@@ -57,15 +57,15 @@ export function CookieConsentBanner() {
             >
               Nur notwendige
             </Button>
-            <Button 
-              variant="default" 
-              size="sm"
-              className="flex-1"
-              onClick={() => handleAccept('all')}
-            >
-              Alle akzeptieren
-            </Button>
           </div>
+          <Button 
+            variant="default" 
+            size="sm"
+            className="w-full"
+            onClick={() => handleAccept('all')}
+          >
+            Alle akzeptieren
+          </Button>
         </div>
       </div>
     </div>
