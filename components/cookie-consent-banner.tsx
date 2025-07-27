@@ -39,28 +39,33 @@ export function CookieConsentBanner() {
             Datenschutzerklärung
           </Link>.
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-3 w-full">
           <Button 
             variant="outline" 
             size="sm"
+            className="w-full"
             onClick={() => handleAccept('none')}
           >
             Ablehnen
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => handleAccept('necessary')}
-          >
-            Nur notwendige akzeptieren
-          </Button>
-          <Button 
-            variant="default" 
-            size="sm"
-            onClick={() => handleAccept('all')}
-          >
-            Alle akzeptieren
-          </Button>
+          <div className="flex gap-2 w-full">
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="flex-1"
+              onClick={() => handleAccept('necessary')}
+            >
+              Nur notwendige
+            </Button>
+            <Button 
+              variant="default" 
+              size="sm"
+              className="flex-1"
+              onClick={() => handleAccept('all')}
+            >
+              Alle akzeptieren
+            </Button>
+          </div>
         </div>
       </div>
     </div>
