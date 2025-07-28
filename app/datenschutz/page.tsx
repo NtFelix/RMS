@@ -10,6 +10,17 @@ import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provide
 // Note: Metadata export is not supported in client components
 // This would need to be handled by a parent server component or layout
 
+// Essential cookies that should not be deleted (authentication, security)
+const ESSENTIAL_COOKIES = [
+  'sb-access-token',
+  'sb-refresh-token',
+  '__Secure-next-auth.session-token',
+  'next-auth.session-token',
+  '__Secure-next-auth.csrf-token',
+  'next-auth.csrf-token',
+  '__Host-next-auth.csrf-token'
+];
+
 function DatenschutzPageContent() {
   const { toast } = useToast();
   const { openAuthModal } = useAuthModal();
@@ -19,17 +30,6 @@ function DatenschutzPageContent() {
       // Get all cookies
       const cookies = document.cookie.split(';');
       
-      // Essential cookies that should not be deleted (authentication, security)
-      const essentialCookies = [
-        'sb-access-token',
-        'sb-refresh-token',
-        '__Secure-next-auth.session-token',
-        'next-auth.session-token',
-        '__Secure-next-auth.csrf-token',
-        'next-auth.csrf-token',
-        '__Host-next-auth.csrf-token'
-      ];
-      
       let deletedCount = 0;
       
       cookies.forEach(cookie => {
@@ -37,7 +37,7 @@ function DatenschutzPageContent() {
         const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
         
         // Skip essential cookies (using exact match)
-        if (!essentialCookies.includes(name)) {
+        if (!ESSENTIAL_COOKIES.includes(name)) {
           // Delete cookie by setting it to expire in the past
           document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
           document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
