@@ -1,11 +1,75 @@
-import { Metadata } from 'next';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Datenschutzerklärung',
-  description: 'Informationen zum Datenschutz gemäß DSGVO',
-};
+import { Button } from '@/components/ui/button';
+import { Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
+// Note: Metadata export is not supported in client components
+// This would need to be handled by a parent server component or layout
 
 export default function DatenschutzPage() {
+  const { toast } = useToast();
+
+  const handleDeleteCookies = () => {
+    try {
+      // Get all cookies
+      const cookies = document.cookie.split(';');
+      
+      // Essential cookies that should not be deleted (authentication, security)
+      const essentialCookies = [
+        'sb-access-token',
+        'sb-refresh-token',
+        '__Secure-next-auth.session-token',
+        'next-auth.session-token',
+        '__Secure-next-auth.csrf-token',
+        'next-auth.csrf-token',
+        '__Host-next-auth.csrf-token'
+      ];
+      
+      let deletedCount = 0;
+      
+      cookies.forEach(cookie => {
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        
+        // Skip essential cookies
+        if (!essentialCookies.some(essential => name.includes(essential))) {
+          // Delete cookie by setting it to expire in the past
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=.${window.location.hostname}`;
+          deletedCount++;
+        }
+      });
+      
+      // Clear localStorage (except essential items)
+      const essentialLocalStorage = ['theme', 'user-preferences'];
+      const localStorageKeys = Object.keys(localStorage);
+      localStorageKeys.forEach(key => {
+        if (!essentialLocalStorage.includes(key)) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      toast({
+        variant: "success",
+        title: "Cookies erfolgreich gelöscht!",
+        description: `${deletedCount} Cookies wurden entfernt. Notwendige Cookies für die Website-Funktionalität wurden beibehalten.`
+      });
+      
+    } catch (error) {
+      console.error('Error deleting cookies:', error);
+      toast({
+        variant: "destructive",
+        title: "Fehler beim Löschen der Cookies",
+        description: "Bitte versuchen Sie es erneut oder löschen Sie die Cookies manuell in Ihren Browser-Einstellungen."
+      });
+    }
+  };
+
   return (
     <div className="w-full bg-background pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
@@ -273,6 +337,23 @@ export default function DatenschutzPage() {
           <p className="mt-6 text-sm text-muted-foreground italic">
             Diese Datenschutzerklärung wurde erstellt am 27. Juli 2025 und zuletzt aktualisiert am 27. Juli 2025.
           </p>
+
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="flex flex-col items-center space-y-4">
+              <h3 className="text-lg font-semibold">Cookie-Verwaltung</h3>
+              <p className="text-sm text-muted-foreground text-center max-w-md">
+                Sie können alle nicht-notwendigen Cookies mit einem Klick löschen. Notwendige Cookies für die Funktionalität der Website bleiben erhalten.
+              </p>
+              <Button
+                onClick={handleDeleteCookies}
+                variant="outline"
+                className="flex items-center space-x-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>Alle Cookies löschen</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
