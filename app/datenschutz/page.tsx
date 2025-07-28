@@ -34,7 +34,7 @@ function DatenschutzPageContent() {
       
       cookies.forEach(cookie => {
         const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+        const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
         
         // Skip essential cookies
         if (!essentialCookies.some(essential => name.includes(essential))) {
