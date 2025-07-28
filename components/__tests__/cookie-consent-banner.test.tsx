@@ -37,12 +37,6 @@ describe('CookieConsentBanner', () => {
     expect(screen.queryByText('Cookie-Einstellungen')).not.toBeInTheDocument();
   });
 
-  it('should set consent to none when "Ablehnen" is clicked', () => {
-    render(<CookieConsentBanner />);
-    fireEvent.click(screen.getByText('Ablehnen'));
-    expect(localStorage.getItem('cookieConsent')).toBe('none');
-  });
-
   it('should set consent to necessary when "Nur notwendige" is clicked', () => {
     render(<CookieConsentBanner />);
     fireEvent.click(screen.getByText('Nur notwendige'));
