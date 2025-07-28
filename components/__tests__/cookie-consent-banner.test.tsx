@@ -43,9 +43,9 @@ describe('CookieConsentBanner', () => {
     expect(localStorage.getItem('cookieConsent')).toBe('none');
   });
 
-  it('should set consent to necessary when "Nur notwendige akzeptieren" is clicked', () => {
+  it('should set consent to necessary when "Nur notwendige" is clicked', () => {
     render(<CookieConsentBanner />);
-    fireEvent.click(screen.getByText('Nur notwendige akzeptieren'));
+    fireEvent.click(screen.getByText('Nur notwendige'));
     expect(localStorage.getItem('cookieConsent')).toBe('necessary');
   });
 
