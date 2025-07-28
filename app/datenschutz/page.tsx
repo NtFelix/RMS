@@ -3,12 +3,16 @@
 import { Button } from '@/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Navigation from '../modern/components/navigation';
+import Footer from '../modern/components/footer';
+import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 
 // Note: Metadata export is not supported in client components
 // This would need to be handled by a parent server component or layout
 
-export default function DatenschutzPage() {
+function DatenschutzPageContent() {
   const { toast } = useToast();
+  const { openAuthModal } = useAuthModal();
 
   const handleDeleteCookies = () => {
     try {
@@ -71,8 +75,11 @@ export default function DatenschutzPage() {
   };
 
   return (
-    <div className="w-full bg-background pt-24 pb-12">
-      <div className="container mx-auto px-4 max-w-4xl">
+    <>
+      <Navigation onLogin={() => openAuthModal('login')} />
+      <div className="w-full bg-background pt-24 pb-12">
+        <div className="container mx-auto px-4 max-w-4xl">
+
         <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-sm">
           <h1 className="text-3xl font-bold mb-2">Datenschutzerklärung</h1>
           <p className="text-muted-foreground italic mb-8">Letzte Aktualisierung: 27. Juli 2025</p>
@@ -354,8 +361,20 @@ export default function DatenschutzPage() {
               </Button>
             </div>
           </div>
+
+
+        </div>
         </div>
       </div>
-    </div>
+      <Footer />
+    </>
+  );
+}
+
+export default function DatenschutzPage() {
+  return (
+    <AuthModalProvider>
+      <DatenschutzPageContent />
+    </AuthModalProvider>
   );
 }
