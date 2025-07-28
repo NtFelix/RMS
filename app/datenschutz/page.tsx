@@ -87,13 +87,13 @@ function DatenschutzPageContent() {
           <h2 className="text-2xl font-semibold mb-4">1. Verantwortlicher und Kontaktdaten</h2>
           <p>Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
           <div className="mt-2 pl-4 border-l-4 border-primary/20">
-            <p><strong>[IHR VOLLSTÄNDIGER NAME]</strong><br />
-            [Ihre Privatadresse]<br />
-            [PLZ Ort]<br />
+            <p><strong>Felix Plant</strong><br />
+            Kirchbrändelring 21a<br />
+            76669 Bad Schönborn<br />
             Deutschland</p>
             
-            <p className="mt-2">E-Mail: [IHRE-E-MAIL-ADRESSE]<br />
-            Website: [IHRE-DOMAIN.de]</p>
+            <p className="mt-2">E-Mail: felix.plant@web.de<br />
+            Website: rent-manager.pages.dev</p>
           </div>
 
           <h2 className="text-2xl font-semibold mt-10 mb-4">2. Allgemeine Hinweise zur Datenverarbeitung</h2>
@@ -313,7 +313,7 @@ function DatenschutzPageContent() {
           <p>Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde über unsere Verarbeitung personenbezogener Daten zu beschweren.</p>
           
           <p className="mt-4"><strong>Kontakt zur Ausübung Ihrer Rechte:</strong><br />
-          E-Mail: [IHRE-E-MAIL-ADRESSE]</p>
+          E-Mail: felix.plant@web.de</p>
 
           <h2 className="text-2xl font-semibold mt-10 mb-4">9. Datensicherheit</h2>
           <p>Wir haben technische und organisatorische Maßnahmen getroffen, um Ihre personenbezogenen Daten vor Verlust, unrichtigen Veränderungen oder unberechtigten Zugriffen Dritter zu schützen:</p>
@@ -337,8 +337,8 @@ function DatenschutzPageContent() {
           <p>Bei Fragen zum Datenschutz oder zur Ausübung Ihrer Rechte wenden Sie sich bitte an:</p>
           
           <div className="mt-4 pl-4 border-l-4 border-primary/20">
-            <p><strong>E-Mail:</strong> [IHRE-E-MAIL-ADRESSE]</p>
-            <p><strong>Post:</strong> [VOLLSTÄNDIGE PRIVATADRESSE]</p>
+            <p><strong>E-Mail:</strong> felix.plant@web.de</p>
+            <p><strong>Post:</strong> Felix Plant, Kirchbrändelring 21a, 76669 Bad Schönborn, Deutschland</p>
           </div>
           
           <p className="mt-6 text-sm text-muted-foreground italic">
