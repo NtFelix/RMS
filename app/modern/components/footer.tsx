@@ -14,6 +14,7 @@ const footerLinks = {
 // Special links that require custom routing or display text
 const specialLinks: Record<string, { href: string; text: string }> = {
   "Hilfezentrum": { href: "/modern/documentation", text: "Dokumentation" },
+  "Datenschutz": { href: "/datenschutz", text: "Datenschutz" },
 }
 
 const socialLinks = [
