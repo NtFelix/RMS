@@ -9,6 +9,70 @@ export default function DatenschutzPage() {
   return (
     <div className="w-full bg-background pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-4xl">
+        <h1 className="text-3xl font-bold mb-6">Datenschutzerklärung</h1>
+        <p className="text-muted-foreground mb-8"><em>Letzte Aktualisierung: 27. Juli 2025</em></p>
+
+        <div className="prose prose-lg max-w-none dark:prose-invert">
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-4">1. Verantwortlicher und Kontaktdaten</h2>
+            <p>Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
+            <address className="not-italic mt-4 space-y-2">
+              <p><strong>[IHR VOLLSTÄNDIGER NAME]</strong></p>
+              <p>[Ihre Privatadresse]</p>
+              <p>[PLZ Ort]</p>
+              <p>Deutschland</p>
+              <p>E-Mail: [IHRE-E-MAIL-ADRESSE]</p>
+              <p>Website: [IHRE-DOMAIN.de]</p>
+            </address>
+          </section>
+
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-4">2. Allgemeine Hinweise zur Datenverarbeitung</h2>
+            
+            <h3 className="text-xl font-medium mt-6 mb-2">2.1 Umfang der Verarbeitung personenbezogener Daten</h3>
+            <p>Wir verarbeiten personenbezogene Daten unserer Nutzer grundsätzlich nur, soweit dies zur Bereitstellung unserer Mieterverwaltungssoftware erforderlich ist. Die Verarbeitung erfolgt nach datenschutzrechtlichen Grundsätzen.</p>
+            
+            <h3 className="text-xl font-medium mt-6 mb-2">2.2 Rechtsgrundlage für die Verarbeitung personenbezogener Daten</h3>
+            <p>Die Rechtsgrundlagen der Datenverarbeitung ergeben sich aus der DSGVO:</p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li><strong>Art. 6 Abs. 1 lit. a DSGVO</strong> - Einwilligung der betroffenen Person</li>
+              <li><strong>Art. 6 Abs. 1 lit. b DSGVO</strong> - Vertragserfüllung oder vorvertragliche Maßnahmen (Demo-Phase)</li>
+              <li><strong>Art. 6 Abs. 1 lit. f DSGVO</strong> - Berechtigte Interessen (Produktentwicklung, Sicherheit)</li>
+            </ul>
+          </section>
+      <div className="container mx-auto px-4 max-w-4xl">
+        <h1 className="text-3xl font-bold mb-6">Datenschutzerklärung</h1>
+        <p className="text-muted-foreground mb-8"><em>Letzte Aktualisierung: 27. Juli 2025</em></p>
+
+        <div className="prose prose-lg max-w-none dark:prose-invert">
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-4">1. Verantwortlicher und Kontaktdaten</h2>
+            <p>Verantwortlicher im Sinne der Datenschutz-Grundverordnung (DSGVO) ist:</p>
+            <address className="not-italic mt-4 space-y-2">
+              <p><strong>[IHR VOLLSTÄNDIGER NAME]</strong></p>
+              <p>[Ihre Privatadresse]</p>
+              <p>[PLZ Ort]</p>
+              <p>Deutschland</p>
+              <p>E-Mail: [IHRE-E-MAIL-ADRESSE]</p>
+              <p>Website: [IHRE-DOMAIN.de]</p>
+            </address>
+          </section>
+
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold mb-4">2. Allgemeine Hinweise zur Datenverarbeitung</h2>
+            
+            <h3 className="text-xl font-medium mt-6 mb-2">2.1 Umfang der Verarbeitung personenbezogener Daten</h3>
+            <p>Wir verarbeiten personenbezogene Daten unserer Nutzer grundsätzlich nur, soweit dies zur Bereitstellung unserer Mieterverwaltungssoftware erforderlich ist. Die Verarbeitung erfolgt nach datenschutzrechtlichen Grundsätzen.</p>
+            
+            <h3 className="text-xl font-medium mt-6 mb-2">2.2 Rechtsgrundlage für die Verarbeitung personenbezogener Daten</h3>
+            <p>Die Rechtsgrundlagen der Datenverarbeitung ergeben sich aus der DSGVO:</p>
+            <ul className="list-disc pl-6 space-y-2 mt-2">
+              <li><strong>Art. 6 Abs. 1 lit. a DSGVO</strong> - Einwilligung der betroffenen Person</li>
+              <li><strong>Art. 6 Abs. 1 lit. b DSGVO</strong> - Vertragserfüllung oder vorvertragliche Maßnahmen (Demo-Phase)</li>
+              <li><strong>Art. 6 Abs. 1 lit. f DSGVO</strong> - Berechtigte Interessen (Produktentwicklung, Sicherheit)</li>
+            </ul>
+          </section>
+      <div className="container mx-auto px-4 max-w-4xl">
         <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-sm">
           <h1 className="text-3xl font-bold mb-2">Datenschutzerklärung</h1>
           <p className="text-muted-foreground italic mb-8">Letzte Aktualisierung: 27. Juli 2025</p>
