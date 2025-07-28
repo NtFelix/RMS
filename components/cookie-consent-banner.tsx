@@ -15,7 +15,7 @@ export function CookieConsentBanner() {
     }
   }, []);
 
-  const handleAccept = (level: 'none' | 'necessary' | 'all') => {
+  const handleAccept = (level: 'necessary' | 'all') => {
     localStorage.setItem('cookieConsent', level);
     setVisible(false);
     
@@ -45,25 +45,23 @@ export function CookieConsentBanner() {
             Datenschutzerklärung
           </Link>.
         </p>
-        <div className="space-y-3 w-full">
-          <div className="flex gap-3 w-full">
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="flex-1"
-              onClick={() => handleAccept('necessary')}
-            >
-              Nur notwendige
-            </Button>
-            <Button 
-              variant="default" 
-              size="sm"
-              className="flex-1"
-              onClick={() => handleAccept('all')}
-            >
-              Alle akzeptieren
-            </Button>
-          </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="flex-1"
+            onClick={() => handleAccept('necessary')}
+          >
+            Nur notwendige
+          </Button>
+          <Button 
+            variant="default" 
+            size="sm"
+            className="flex-1"
+            onClick={() => handleAccept('all')}
+          >
+            Alle akzeptieren
+          </Button>
         </div>
       </div>
     </div>
