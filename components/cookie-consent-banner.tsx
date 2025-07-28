@@ -29,10 +29,16 @@ export function CookieConsentBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+    <div 
+      className="fixed bottom-4 right-4 max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cookie-consent-title"
+      aria-describedby="cookie-consent-description"
+    >
       <div className="space-y-4">
-        <h3 className="text-lg font-medium">Cookie-Einstellungen</h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
+        <h3 id="cookie-consent-title" className="text-lg font-medium">Cookie-Einstellungen</h3>
+        <p id="cookie-consent-description" className="text-sm text-gray-600 dark:text-gray-300">
           Wir verwenden Cookies, um Ihnen die beste Erfahrung auf unserer Website zu bieten. 
           Sie können Ihre Einstellungen jederzeit ändern. Weitere Informationen finden Sie in unserer{' '}
           <Link href="/datenschutz" className="text-primary underline hover:underline">
