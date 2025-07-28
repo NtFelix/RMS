@@ -36,8 +36,8 @@ function DatenschutzPageContent() {
         const eqPos = cookie.indexOf('=');
         const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
         
-        // Skip essential cookies
-        if (!essentialCookies.some(essential => name.includes(essential))) {
+        // Skip essential cookies (using exact match)
+        if (!essentialCookies.includes(name)) {
           // Delete cookie by setting it to expire in the past
           document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
           document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
