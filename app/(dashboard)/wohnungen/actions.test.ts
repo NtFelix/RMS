@@ -5,8 +5,8 @@ import { fetchUserProfile } from '@/lib/data-fetching'; // This is a new mock de
 import { revalidatePath } from 'next/cache';
 
 // Mock dependencies
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }));
 jest.mock('@/lib/stripe-server', () => ({
   getPlanDetails: jest.fn(),
