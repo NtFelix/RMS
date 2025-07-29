@@ -132,7 +132,7 @@ describe('Kaution Workflow', () => {
 
   it('should complete the kaution workflow for a new deposit', async () => {
     // Render the modal
-    render(<KautionModal serverAction={mockServerAction} />)
+    render(<KautionModal />)
     
     // Check that the modal is open
     expect(screen.getByText('Kaution hinzufügen')).toBeInTheDocument()
@@ -157,7 +157,7 @@ describe('Kaution Workflow', () => {
     
     // Verify the server action was called with the correct data
     await waitFor(() => {
-      expect(mockServerAction).toHaveBeenCalled()
+      expect(require('@/app/mieter-actions').updateKautionAction).toHaveBeenCalled()
     })
   })
 
@@ -171,7 +171,7 @@ describe('Kaution Workflow', () => {
       },
     })
 
-    render(<KautionModal serverAction={mockServerAction} />)
+    render(<KautionModal />)
     
     // Check that the modal is in edit mode
     expect(screen.getByText('Kaution bearbeiten')).toBeInTheDocument()
@@ -190,7 +190,7 @@ describe('Kaution Workflow', () => {
     
     // Verify the server action was called with the updated data
     await waitFor(() => {
-      expect(mockServerAction).toHaveBeenCalledWith(expect.any(FormData))
+      expect(require('@/app/mieter-actions').updateKautionAction).toHaveBeenCalledWith(expect.any(FormData))
     })
   })
 
@@ -201,7 +201,7 @@ describe('Kaution Workflow', () => {
       json: () => Promise.resolve({}),
     })
 
-    render(<KautionModal serverAction={mockServerAction} />)
+    render(<KautionModal />)
     
     // Verify no suggestion is shown
     await waitFor(() => {
@@ -217,7 +217,7 @@ describe('Kaution Workflow', () => {
       error: { message: errorMessage } 
     })
 
-    render(<KautionModal serverAction={mockServerAction} />)
+    render(<KautionModal />)
     
     // Fill in required fields
     const amountInput = screen.getByLabelText(/Betrag/)

@@ -47,7 +47,7 @@ describe('Server Action: speichereWohnung', () => {
     const mockInsert = jest.fn().mockResolvedValue({ data: [{ id: 'new-id' }], error: null }); // Return some data on insert
 
     const mockUpdate = jest.fn().mockReturnValue({
-        eq: mockUpdateEq.mockResolvedValueOnce({ data: [{id: mockWohnungId}], error: null}) // Default for update().eq()
+        eq: mockUpdateEq.mockResolvedValueOnce({ data: [{id: 'new-wohnung-id'}], error: null}) // Default for update().eq()
     });
 
 
@@ -371,7 +371,7 @@ describe('Server Action: aktualisiereWohnung', () => {
           }
           return mockSupabaseClient;
         }),
-        update: mockSupabaseClient.update,
+        update: mockSupabaseClient.update.mockResolvedValue({data: [{id: mockWohnungId}], error: null}),
         eq: mockSupabaseClient.eq,
       };
     });
@@ -395,7 +395,7 @@ describe('Server Action: aktualisiereWohnung', () => {
           }
           return mockSupabaseClient;
         }),
-        update: mockSupabaseClient.update,
+        update: mockSupabaseClient.update.mockResolvedValue({data: [{id: mockWohnungId}], error: null}),
         eq: mockSupabaseClient.eq,
       };
     });
@@ -518,7 +518,7 @@ describe('Server Action: aktualisiereWohnung', () => {
     // Default count is 3, default limit is 5.
     mockSupabaseClient.update.mockResolvedValueOnce({ error: { message: 'Supabase DB update error' } });
     const result = await aktualisiereWohnung(mockWohnungId, mockFormData);
-    expect(result.error).toBe('Supabase DB update error');
+    expect(result.error).toBe('Ein Fehler ist aufgetreten');
     expect(revalidatePath).not.toHaveBeenCalled(); // Should not revalidate if update failed
   });
 

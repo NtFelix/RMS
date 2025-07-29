@@ -19,16 +19,20 @@ jest.mock('next/headers', () => ({ // Mock cookies if your Supabase client setup
 }));
 
 // Helper to simulate NextResponse.json
-const mockNextResponseJson = (body: any, options?: { status: number }) => {
-  return {
-    json: () => Promise.resolve(body),
-    status: options?.status || 200,
-    headers: new Headers({ 'Content-Type': 'application/json' }),
-    ok: (options?.status || 200) >= 200 && (options?.status || 200) < 300,
-    text: () => Promise.resolve(JSON.stringify(body)),
-    clone: function() { return this; } // Basic clone
-  } as unknown as Response; // Cast to Response type for compatibility
-};
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (body: any, options?: { status: number }) => {
+      return {
+        json: () => Promise.resolve(body),
+        status: options?.status || 200,
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+        ok: (options?.status || 200) >= 200 && (options?.status || 200) < 300,
+        text: () => Promise.resolve(JSON.stringify(body)),
+        clone: function() { return this; } // Basic clone
+      } as unknown as Response; // Cast to Response type for compatibility
+    }
+  }
+}));
 
 
 describe('API Route: /api/user/profile GET', () => {

@@ -230,10 +230,10 @@ describe('KautionModal', () => {
     fireEvent.change(amountInput, { target: { value: '1500' } })
     
     // Select a status
-    const statusSelect = screen.getByText('Status auswählen')
-    fireEvent.mouseDown(statusSelect)
-    const statusOption = screen.getByText('Erhalten')
-    fireEvent.click(statusOption)
+    const statusSelect = screen.getByRole('combobox', { name: /Status/i });
+    fireEvent.mouseDown(statusSelect);
+    const statusOption = await screen.findByText('Erhalten');
+    fireEvent.click(statusOption);
     
     const form = screen.getByRole('form')
     fireEvent.submit(form)
@@ -311,7 +311,7 @@ describe('KautionModal', () => {
     
     // Check if form is populated with existing data
     expect(screen.getByDisplayValue('1500')).toBeInTheDocument()
-    expect(screen.getByText('Erhalten')).toBeInTheDocument()
+    expect(screen.getAllByText('Erhalten')[0]).toBeInTheDocument()
   })
 
   it('should suggest amount when creating new kaution', async () => {

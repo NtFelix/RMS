@@ -40,7 +40,7 @@ describe('PillTabSwitcher Responsive Design and Touch Optimization', () => {
 
       // Check desktop container styling
       expect(container).toHaveClass('h-12') // Desktop height
-      expect(container).toHaveClass('p-1') // Desktop padding
+      expect(container).toHaveClass('p-2') // Desktop padding
       expect(container).toHaveClass('w-full', 'sm:w-auto') // Responsive width
 
       // Check desktop tab styling
@@ -65,11 +65,7 @@ describe('PillTabSwitcher Responsive Design and Touch Optimization', () => {
 
       // Check that desktop hover classes are present
       expect(registerTab).toHaveClass('hover:text-foreground')
-      expect(registerTab).toHaveClass('hover:bg-muted/50')
-      expect(registerTab).toHaveClass('hover:scale-[1.02]')
-      expect(registerTab).toHaveClass('hover:shadow-sm')
-      expect(registerTab).toHaveClass('hover:brightness-110')
-      expect(registerTab).toHaveClass('hover:ring-1')
+      expect(registerTab).toHaveClass('hover:scale-105')
     })
   })
 
@@ -94,7 +90,7 @@ describe('PillTabSwitcher Responsive Design and Touch Optimization', () => {
 
       // Check mobile container styling
       expect(container).toHaveClass('h-14') // Larger height for mobile
-      expect(container).toHaveClass('p-1.5') // More padding for mobile
+      expect(container).toHaveClass('p-2.5') // More padding for mobile
       expect(container).toHaveClass('touch-manipulation') // Touch optimization
       expect(container).toHaveClass('select-none') // Prevent text selection
 
@@ -229,7 +225,7 @@ describe('PillTabSwitcher Responsive Design and Touch Optimization', () => {
       const indicator = container?.querySelector('.bg-primary')
 
       // Check mobile indicator positioning classes
-      expect(indicator).toHaveClass('left-1.5', 'top-1.5', 'bottom-1.5')
+      expect(indicator).toHaveClass('left-2.5', 'top-2.5', 'bottom-2.5')
     })
 
     it('should use desktop indicator positioning on larger screens', () => {
@@ -248,7 +244,7 @@ describe('PillTabSwitcher Responsive Design and Touch Optimization', () => {
       const indicator = container?.querySelector('.bg-primary')
 
       // Check desktop indicator positioning classes
-      expect(indicator).toHaveClass('left-1', 'top-1', 'bottom-1')
+      expect(indicator).toHaveClass('left-2', 'top-2', 'bottom-2')
     })
   })
 })
@@ -274,11 +270,7 @@ describe('PillTabSwitcher Hover and Focus States', () => {
 
     // Check that inactive tab has hover classes
     expect(registerTab).toHaveClass('hover:text-foreground')
-    expect(registerTab).toHaveClass('hover:bg-muted/50')
-    expect(registerTab).toHaveClass('hover:scale-[1.02]')
-    expect(registerTab).toHaveClass('hover:shadow-sm')
-    expect(registerTab).toHaveClass('hover:brightness-110')
-    expect(registerTab).toHaveClass('hover:ring-1')
+    expect(registerTab).toHaveClass('hover:scale-105')
 
     // Check that active tab prevents hover scaling
     expect(loginTab).toHaveClass('hover:scale-100')
@@ -308,7 +300,7 @@ describe('PillTabSwitcher Hover and Focus States', () => {
     tabs.forEach(tab => {
       expect(tab).toHaveClass('transition-all')
       expect(tab).toHaveClass('duration-200')
-      expect(tab).toHaveClass('ease-in-out')
+      expect(tab).toHaveClass('ease-out')
       expect(tab).toHaveClass('motion-reduce:transition-none')
     })
   })

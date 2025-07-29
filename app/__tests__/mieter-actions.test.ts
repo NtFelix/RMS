@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
-import { updateKautionAction, getSuggestedKautionAmount } from '../mieter-actions'
+import { updateKautionAction, getSuggestedKautionAmount } from '@/app/mieter-actions'
 
 // Mock the supabase client
 jest.mock('@/utils/supabase/server', () => ({

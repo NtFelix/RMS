@@ -1,5 +1,11 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { OperatingCostsTable } from './operating-costs-table';
+import { useModalStore } from '@/hooks/use-modal-store';
+
+// Mock the modal store
+jest.mock('@/hooks/use-modal-store');
+const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
+
 // Edit icon is no longer used, ContextMenu components are internal to Shadcn
 // So no need to mock lucide-react for Edit specifically for this component anymore.
 
@@ -10,6 +16,9 @@ describe('OperatingCostsTable', () => {
   beforeEach(() => {
     onEditMock.mockClear();
     onDeleteItemMock.mockClear();
+    mockUseModalStore.mockReturnValue({
+      openWasserzaehlerModal: jest.fn(),
+    } as any);
   });
 
   const mockNebenkostenSingleItem = [

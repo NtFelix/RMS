@@ -602,6 +602,7 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
             }))}
             activeTab={activeTab}
             onTabChange={handleTabChange}
+            aria-label="Finance feature tabs"
           />
         </div>
 
@@ -609,6 +610,9 @@ export default function FinanceShowcase({ }: FinanceShowcaseProps) {
         <div
           ref={contentRef}
           className="relative"
+          role="tabpanel"
+          id={`tabpanel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
         >
           <AnimatePresence mode="wait">
             <TabContent

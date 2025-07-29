@@ -128,10 +128,13 @@ describe('FinanceShowcase', () => {
       const errorBoundary = screen.queryByTestId('error-boundary');
       const importError = screen.queryByTestId('import-error');
       
-      expect(mainHeading || errorBoundary || importError).toBeInTheDocument();
-      
       if (mainHeading) {
+        expect(mainHeading).toBeInTheDocument();
         expect(screen.getByText(/Behalten Sie den Überblick über alle Ihre Immobilienfinanzen/)).toBeInTheDocument();
+      } else if (errorBoundary) {
+        expect(errorBoundary).toBeInTheDocument();
+      } else {
+        expect(importError).toBeInTheDocument();
       }
     });
 
@@ -278,7 +281,9 @@ describe('FinanceShowcase', () => {
       
       const image = screen.queryByTestId('mock-image');
       if (image) {
-        image.focus();
+        act(() => {
+          image.focus();
+        });
         await user.click(image);
         
         const modal = screen.queryByRole('dialog');

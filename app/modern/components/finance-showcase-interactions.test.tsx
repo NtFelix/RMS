@@ -441,7 +441,7 @@ describe('FinanceShowcase Interactions', () => {
         await user.click(image);
 
         await waitFor(() => {
-          expect(screen.getByText(tab.title)).toBeInTheDocument();
+          expect(screen.queryByText(tab.title)).toBeInTheDocument();
           expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
         });
 

@@ -324,8 +324,13 @@ describe('FinanceShowcase UI Components', () => {
       await user.click(image);
 
       await waitFor(() => {
-        const title = screen.getByText('Dashboard Übersicht');
-        expect(title).toHaveClass('absolute', '-top-12', 'left-0', 'text-white', 'text-lg', 'font-semibold');
+        const modal = screen.getByRole('dialog', { hidden: true });
+        const title = modal.querySelector('#modal-title');
+        expect(title).toBeInTheDocument();
+        expect(title).toHaveTextContent('Dashboard-Karten');
+        if (title) {
+          expect(title).toHaveClass('absolute', '-top-12', 'left-0', 'text-white', 'text-lg', 'font-semibold');
+        }
       });
     });
 
@@ -365,11 +370,16 @@ describe('FinanceShowcase UI Components', () => {
       const image = screen.getByTestId('finance-image-Finance Dashboard Screenshot showing summary cards and key metrics');
       await user.click(image);
 
-      await waitFor(() => {
-        const modalImage = screen.getByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
-        expect(modalImage).toHaveClass('w-full', 'h-auto', 'object-contain', 'max-h-[80vh]');
-        expect(modalImage).toHaveAttribute('width', '1200');
-        expect(modalImage).toHaveAttribute('height', '900');
+      await waitFor(async () => {
+        const modalImages = await screen.findAllByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
+        const modalImage = modalImages.find(img => img.closest('[role="dialog"]'));
+
+        expect(modalImage).toBeInTheDocument();
+        if (modalImage) {
+          expect(modalImage).toHaveClass('w-full', 'h-auto', 'object-contain', 'max-h-[80vh]');
+          expect(modalImage).toHaveAttribute('width', '1200');
+          expect(modalImage).toHaveAttribute('height', '900');
+        }
       });
     });
   });

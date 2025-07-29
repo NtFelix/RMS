@@ -81,8 +81,10 @@ describe('LoginPage - Jetzt loslegen Feature', () => {
     
     // Mock window.location.assign
     mockLocationAssign.mockClear();
-    delete (window as any).location;
-    (window as any).location = { assign: mockLocationAssign };
+    if (typeof window !== 'undefined') {
+      delete (window as any).location;
+      (window as any).location = { assign: mockLocationAssign };
+    }
     
     // Default - no redirect parameter
     mockSearchParams.get.mockReturnValue(null);

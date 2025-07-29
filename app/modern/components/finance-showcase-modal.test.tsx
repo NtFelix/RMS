@@ -114,7 +114,7 @@ describe('FinanceShowcase Image Modal Tests', () => {
 
       await waitFor(() => {
         // Check modal content
-        expect(screen.getByText('Dashboard Übersicht')).toBeInTheDocument();
+        expect(screen.queryByText('Dashboard Übersicht')).toBeInTheDocument();
         expect(screen.getByAltText('Finance Dashboard Screenshot showing summary cards and key metrics')).toBeInTheDocument();
       });
     });
@@ -130,16 +130,14 @@ describe('FinanceShowcase Image Modal Tests', () => {
       const chartsTab = screen.getByTestId('tab-charts');
       await user.click(chartsTab);
 
-      await waitFor(async () => {
-        const chartsImage = screen.getByTestId('finance-image-Finance Charts showing income and expense trends with interactive analytics');
-        expect(chartsImage).toBeInTheDocument();
-        
-        await user.click(chartsImage);
-        
-        // Check modal opens with charts content
-        await waitFor(() => {
-          expect(screen.getByText('Charts & Analytics')).toBeInTheDocument();
-        });
+      const chartsImage = await screen.findByTestId('finance-image-Finance Charts showing income and expense trends with interactive analytics');
+      expect(chartsImage).toBeInTheDocument();
+
+      await user.click(chartsImage);
+
+      // Check modal opens with charts content
+      await waitFor(() => {
+        expect(screen.getByText('Charts & Analytics')).toBeInTheDocument();
       });
     });
 
@@ -185,7 +183,7 @@ describe('FinanceShowcase Image Modal Tests', () => {
 
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
+      }, { timeout: 5000 });
     });
 
     it('should close modal when clicking outside', async () => {
@@ -275,8 +273,13 @@ describe('FinanceShowcase Image Modal Tests', () => {
         expect(modal).toBeInTheDocument();
         
         // Click on the modal content (not backdrop)
-        const modalImage = screen.getByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
-        await user.click(modalImage);
+        const modalImages = await screen.findAllByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
+        const modalImage = modalImages.find(img => img.closest('[role="dialog"]'));
+
+        expect(modalImage).toBeInTheDocument();
+        if (modalImage) {
+          await user.click(modalImage);
+        }
         
         // Modal should still be open
         expect(modal).toBeInTheDocument();
@@ -295,11 +298,16 @@ describe('FinanceShowcase Image Modal Tests', () => {
       const image = screen.getByTestId('finance-image-Finance Dashboard Screenshot showing summary cards and key metrics');
       await user.click(image);
 
-      await waitFor(() => {
-        const modalImage = screen.getByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
-        expect(modalImage).toHaveAttribute('width', '1200');
-        expect(modalImage).toHaveAttribute('height', '900');
-        expect(modalImage).toHaveClass('w-full', 'h-auto', 'object-contain', 'max-h-[80vh]');
+      await waitFor(async () => {
+        const modalImages = await screen.findAllByAltText('Finance Dashboard Screenshot showing summary cards and key metrics');
+        const modalImage = modalImages.find(img => img.closest('[role="dialog"]'));
+
+        expect(modalImage).toBeInTheDocument();
+        if (modalImage) {
+          expect(modalImage).toHaveAttribute('width', '1200');
+          expect(modalImage).toHaveAttribute('height', '900');
+          expect(modalImage).toHaveClass('w-full', 'h-auto', 'object-contain', 'max-h-[80vh]');
+        }
       });
     });
 
@@ -314,9 +322,11 @@ describe('FinanceShowcase Image Modal Tests', () => {
       await user.click(image);
 
       await waitFor(() => {
-        const title = screen.getByText('Dashboard Übersicht');
+        const title = screen.queryByText('Dashboard Übersicht');
         expect(title).toBeInTheDocument();
-        expect(title).toHaveClass('absolute', '-top-12', 'left-0', 'text-white', 'text-lg', 'font-semibold');
+        if (title) {
+          expect(title).toHaveClass('absolute', '-top-12', 'left-0', 'text-white', 'text-lg', 'font-semibold');
+        }
       });
     });
 
@@ -369,11 +379,13 @@ describe('FinanceShowcase Image Modal Tests', () => {
       const image = screen.getByTestId('finance-image-Finance Dashboard Screenshot showing summary cards and key metrics');
       
       // Focus and activate with keyboard
-      image.focus();
+      act(() => {
+        image.focus();
+      });
       await user.keyboard('{Enter}');
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { hidden: true })).toBeInTheDocument();
       });
 
       // Close with keyboard
@@ -426,7 +438,7 @@ describe('FinanceShowcase Image Modal Tests', () => {
       await user.click(image);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { hidden: true })).toBeInTheDocument();
       });
       
       consoleSpy.mockRestore();

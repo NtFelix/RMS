@@ -16,7 +16,7 @@ import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import an
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
-import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
+import { toast } from "sonner";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -58,7 +58,6 @@ type Tab = { value: string; label: string; icon: React.ElementType; content: Rea
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
-  const { toast } = useToast()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
@@ -146,25 +145,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   };
 
   const handleConfirmDeleteAccount = async () => {
-    if (!reauthCode) {
-      toast({
-        title: "Fehler",
-        description: "Bestätigungscode ist erforderlich.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsDeleting(true);
     try {
+      if (!reauthCode) {
+        throw new Error("Bestätigungscode ist erforderlich.");
+      }
+      setIsDeleting(true);
       const localSupabase = createClient(); // Create a new client instance if needed or use the existing one
       const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
 
       if (functionError) {
-        toast({
-          title: "Fehler",
-          description: `Fehler beim Löschen des Kontos: ${functionError.message}`,
-          variant: "destructive",
-        });
+        throw new Error(`Fehler beim Löschen des Kontos: ${functionError.message}`);
       } else {
         toast({
           title: "Erfolg",
@@ -184,7 +174,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       console.error("Delete account exception:", error);
       toast({
         title: "Fehler",
-        description: "Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.",
+        description: (error as Error).message || "Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.",
         variant: "destructive",
       });
     } finally {

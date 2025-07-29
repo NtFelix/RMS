@@ -15,6 +15,7 @@ interface PillTabSwitcherProps {
   activeTab: string;
   onTabChange: (tabValue: string) => void;
   className?: string;
+  'aria-label'?: string;
 }
 
 const PillTabSwitcher = React.memo(React.forwardRef<
@@ -131,6 +132,7 @@ const PillTabSwitcher = React.memo(React.forwardRef<
         className
       )}
       {...props}
+      role="tablist"
     >
       {/* Sliding background indicator */}
       <div
@@ -147,6 +149,7 @@ const PillTabSwitcher = React.memo(React.forwardRef<
           "z-0"
         )}
         style={indicatorStyle}
+        role="presentation"
       />
       
 
@@ -157,6 +160,10 @@ const PillTabSwitcher = React.memo(React.forwardRef<
           <button
             key={tab.id}
             type="button"
+            role="tab"
+            aria-selected={isActive}
+            aria-controls={`tabpanel-${tab.value}`}
+            id={`tab-${tab.value}`}
             data-tab={tab.value}
             onClick={() => handleTabChange(tab.value)}
 

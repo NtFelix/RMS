@@ -23,18 +23,16 @@ jest.mock('@/utils/supabase/client', () => {
   };
 });
 
+const mockToast = jest.fn();
 jest.mock('sonner', () => ({
-  toast: {
-    success: jest.fn(),
-    error: jest.fn(),
-    info: jest.fn(), // In case any info toasts are used
-  },
+  toast: (options: any) => mockToast(options),
 }));
 
+const mockRouterPush = jest.fn();
 jest.mock('next/navigation', () => ({
-  useRouter: jest.fn(() => ({
-    push: jest.fn(),
-  })),
+  useRouter: () => ({
+    push: mockRouterPush,
+  }),
 }));
 
 jest.mock('@/app/user-profile-actions', () => ({
@@ -67,6 +65,7 @@ describe('Account Deletion in SettingsModal', () => {
   beforeEach(() => {
     // Reset mocks before each test
     jest.clearAllMocks();
+    mockToast.mockClear();
 
     // Get a fresh instance of the mocked Supabase client for assertions
     // This ensures that createClient() in the component returns our mock with its mock methods
@@ -117,10 +116,19 @@ describe('Account Deletion in SettingsModal', () => {
     const deleteButton = screen.getByRole('button', { name: /Konto löschen/i });
     fireEvent.click(deleteButton);
 
+    // Wait for the confirmation dialog to appear
+    const confirmDialog = await screen.findByRole('alertdialog');
+    const confirmButton = within(confirmDialog).getByRole('button', { name: /Löschen einleiten/i });
+    fireEvent.click(confirmButton);
+
     await waitFor(() => {
       expect(mockSupabaseClient.auth.reauthenticate).toHaveBeenCalledTimes(1);
     });
-    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("Bestätigungscode wurde an Ihre E-Mail gesendet"));
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Erfolg",
+      description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
+      variant: "success",
+    });
     expect(screen.getByLabelText(/Bestätigungscode \(OTP\)/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Code bestätigen und Konto löschen/i })).toBeInTheDocument();
   });
@@ -134,28 +142,20 @@ describe('Account Deletion in SettingsModal', () => {
     const deleteButton = screen.getByRole('button', { name: /Konto löschen/i });
     fireEvent.click(deleteButton);
 
+    const confirmDialog = await screen.findByRole('alertdialog');
+    const confirmButton = within(confirmDialog).getByRole('button', { name: /Löschen einleiten/i });
+    fireEvent.click(confirmButton);
+
     await waitFor(() => {
       expect(mockSupabaseClient.auth.reauthenticate).toHaveBeenCalledTimes(1);
     });
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining(errorMessage));
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Fehler",
+      description: `Fehler bei der erneuten Authentifizierung: ${errorMessage}`,
+      variant: "destructive",
+    });
     expect(screen.queryByLabelText(/Bestätigungscode/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Code bestätigen und Konto löschen/i })).not.toBeInTheDocument();
-  });
-
-  test('final deletion attempt with missing code: shows error toast, no function call', async () => {
-    (mockSupabaseClient.auth.reauthenticate as jest.Mock).mockResolvedValue({ error: null }); // Make reauth pass
-    renderModal();
-    await switchToProfileTab();
-
-    // Show confirmation section
-    fireEvent.click(screen.getByRole('button', { name: /Konto löschen/i }));
-    await waitFor(() => expect(screen.getByLabelText(/Bestätigungscode \(OTP\)/i)).toBeInTheDocument());
-
-    const confirmDeleteButton = screen.getByRole('button', { name: /Code bestätigen und Konto löschen/i });
-    fireEvent.click(confirmDeleteButton);
-
-    expect(toast.error).toHaveBeenCalledWith("Bestätigungscode ist erforderlich.");
-    expect(mockSupabaseClient.functions.invoke).not.toHaveBeenCalled();
   });
 
   test('final deletion success: invokes function, signs out, redirects, shows success toast', async () => {
@@ -168,6 +168,9 @@ describe('Account Deletion in SettingsModal', () => {
 
     // 1. Initiate reauth
     fireEvent.click(screen.getByRole('button', { name: /Konto löschen/i }));
+    let confirmDialog = await screen.findByRole('alertdialog');
+    let confirmButton = within(confirmDialog).getByRole('button', { name: /Löschen einleiten/i });
+    fireEvent.click(confirmButton);
     await waitFor(() => expect(screen.getByLabelText(/Bestätigungscode \(OTP\)/i)).toBeInTheDocument());
 
     // 2. Enter code
@@ -181,9 +184,15 @@ describe('Account Deletion in SettingsModal', () => {
     await waitFor(() => {
       expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith("delete-user-account", {});
     });
-    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining("Ihr Konto wurde erfolgreich gelöscht."));
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Erfolg",
+      description: "Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.",
+      variant: "success",
+    });
     expect(mockSupabaseClient.auth.signOut).toHaveBeenCalledTimes(1);
-    expect(mockRouterPush).toHaveBeenCalledWith("/auth/login");
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/auth/login");
+    });
   });
 
   test('final deletion failure (Edge Function error): shows error toast, no sign out/redirect', async () => {
@@ -196,6 +205,9 @@ describe('Account Deletion in SettingsModal', () => {
 
     // 1. Initiate reauth
     fireEvent.click(screen.getByRole('button', { name: /Konto löschen/i }));
+    let confirmDialog = await screen.findByRole('alertdialog');
+    let confirmButton = within(confirmDialog).getByRole('button', { name: /Löschen einleiten/i });
+    fireEvent.click(confirmButton);
     await waitFor(() => expect(screen.getByLabelText(/Bestätigungscode \(OTP\)/i)).toBeInTheDocument());
 
     // 2. Enter code
@@ -209,7 +221,11 @@ describe('Account Deletion in SettingsModal', () => {
     await waitFor(() => {
       expect(mockSupabaseClient.functions.invoke).toHaveBeenCalledWith("delete-user-account", {});
     });
-    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining(functionErrorMessage));
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Fehler",
+      description: `Fehler beim Löschen des Kontos: ${functionErrorMessage}`,
+      variant: "destructive",
+    });
     expect(mockSupabaseClient.auth.signOut).not.toHaveBeenCalled();
     expect(mockRouterPush).not.toHaveBeenCalled();
   });

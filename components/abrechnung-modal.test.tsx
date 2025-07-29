@@ -285,10 +285,17 @@ describe('AbrechnungModal Cost Calculation & Proration (30/360 Convention)', () 
     });
   };
 
-  const pricePerQmGrundsteuer = commonNebenkostenItem2023.betrag![0] / commonNebenkostenItem2023.gesamtFlaeche!; // 200 / 300
-  const versicherungTotal = commonNebenkostenItem2023.betrag![1]; // 300
-  const strassenreinigungTotal = commonNebenkostenItem2023.betrag![2]; // 100
-  const pricePerCubicMeterWater = commonNebenkostenItem2023.wasserkosten! / commonNebenkostenItem2023.wasserverbrauch!; // 300 / 60 = 5
+  let pricePerQmGrundsteuer: number;
+  let versicherungTotal: number;
+  let strassenreinigungTotal: number;
+  let pricePerCubicMeterWater: number;
+
+  beforeAll(() => {
+    pricePerQmGrundsteuer = commonNebenkostenItem2023.betrag![0] / commonNebenkostenItem2023.gesamtFlaeche!; // 200 / 300
+    versicherungTotal = commonNebenkostenItem2023.betrag![1]; // 300
+    strassenreinigungTotal = commonNebenkostenItem2023.betrag![2]; // 100
+    pricePerCubicMeterWater = commonNebenkostenItem2023.wasserkosten! / commonNebenkostenItem2023.wasserverbrauch!; // 300 / 60 = 5
+  });
 
   it('should calculate costs correctly for full year occupancy (2023, 30/360)', async () => {
     const tenant = tenant1_FullYear2023;

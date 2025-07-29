@@ -211,10 +211,14 @@ function TestJetztLoslegenFlow() {
 
 // Mock window.location.assign globally
 const mockLocationAssign = jest.fn();
-Object.defineProperty(window, 'location', {
-  value: { assign: mockLocationAssign },
-  writable: true,
-});
+try {
+  Object.defineProperty(window, 'location', {
+    value: { assign: mockLocationAssign },
+    writable: true,
+  });
+} catch (e) {
+  // Ignore error if it's already defined
+}
 
 describe('Jetzt loslegen Flow - Integration Test', () => {
   beforeEach(() => {

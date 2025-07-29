@@ -14,6 +14,7 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => ({
     get: jest.fn().mockReturnValue(null),
   }),
+  usePathname: () => '/',
 }));
 
 // Mock Supabase client

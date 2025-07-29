@@ -14,16 +14,20 @@ jest.mock('stripe', () => {
 });
 
 // Helper to simulate NextResponse.json - can be shared if multiple test files need it
-const mockNextResponseJson = (body: any, options?: { status: number }) => {
-  return {
-    json: () => Promise.resolve(body),
-    status: options?.status || 200,
-    headers: new Headers({ 'Content-Type': 'application/json' }),
-    ok: (options?.status || 200) >= 200 && (options?.status || 200) < 300,
-    text: () => Promise.resolve(JSON.stringify(body)),
-    clone: function() { return this; }
-  } as unknown as Response;
-};
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: (body: any, options?: { status: number }) => {
+      return {
+        json: () => Promise.resolve(body),
+        status: options?.status || 200,
+        headers: new Headers({ 'Content-Type': 'application/json' }),
+        ok: (options?.status || 200) >= 200 && (options?.status || 200) < 300,
+        text: () => Promise.resolve(JSON.stringify(body)),
+        clone: function() { return this; }
+      } as unknown as Response;
+    }
+  }
+}));
 
 describe('API Route: /api/stripe/plans GET', () => {
   beforeEach(() => {
