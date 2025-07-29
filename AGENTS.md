@@ -347,18 +347,72 @@ if (error) {
 ```
 
 ### Responsive Design Requirements
-```typescript
-// Use Tailwind mobile-first approach
 
-  {/* Content */}
+1. **Breakpoints** (Tailwind defaults):
+   - Mobile-first approach (no prefix)
+   - `sm`: 640px and up
+   - `md`: 768px and up
+   - `lg`: 1024px and up
+   - `xl`: 1280px and up
+   - `2xl`: 1536px and up
 
+2. **Common Patterns**:
+   ```tsx
+   // Responsive grid layout
+   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+     {/* Grid items */}
+   </div>
 
-// Navigation responsive patterns
+   // Responsive flex layout
+   <div className="flex flex-col sm:flex-row gap-4">
+     {/* Flex items */}
+   </div>
 
-  
+   // Responsive padding/margin
+   <div className="p-4 md:p-6 lg:p-8">
+     {/* Content */}
+   </div>
+   ```
 
+3. **Form Layouts**:
+   ```tsx
+   <div className="space-y-4">
+     <div className="grid gap-4 md:grid-cols-2">
+       <div className="space-y-2">
+         <Label>First Name</Label>
+         <Input />
+       </div>
+       <div className="space-y-2">
+         <Label>Last Name</Label>
+         <Input />
+       </div>
+     </div>
+   </div>
+   ```
 
-```
+4. **Navigation**:
+   - Use `flex-col` on mobile, `flex-row` on larger screens
+   - Consider using `Drawer` or `Sheet` for mobile navigation
+   - Keep touch targets at least 44x44px on mobile
+
+5. **Images**:
+   ```tsx
+   <img 
+     src="..." 
+     alt="..."
+     className="w-full h-auto max-w-full"
+     loading="lazy"
+   />
+   ```
+
+6. **Tables**:
+   - Use `overflow-x-auto` for scrollable tables on mobile
+   - Consider card-based layouts for complex data on mobile
+
+7. **Testing**:
+   - Test on multiple device sizes
+   - Check touch interactions
+   - Verify text remains readable on all screens
 
 ## Database & Supabase Integration
 
