@@ -101,24 +101,60 @@ export default function Navigation({ onLogin }: NavigationProps) {
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
         {/* Mobile Header with Menu Button and Logo */}
-        <div className="flex-shrink-0 z-10 md:hidden flex items-center space-x-2">
+        <div className="flex-shrink-0 z-10 md:hidden flex items-center justify-between w-full">
           <PillContainer>
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-foreground hover:text-foreground/80 transition-colors flex items-center space-x-2"
+              className="text-foreground hover:text-foreground/80 transition-colors flex items-center space-x-2 p-2"
             >
               <Menu className="w-5 h-5" />
               <span className="text-sm font-medium">Menü</span>
             </button>
           </PillContainer>
-          <Link href="/" className="flex items-center space-x-1 group">
-            <div className="w-6 h-6 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-primary-foreground font-bold text-xs">IV</span>
-            </div>
-            <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              Immobilien<span className="text-primary">Verwalter</span>
-            </span>
-          </Link>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <Link href="/" className="flex items-center space-x-1 group">
+              <div className="w-7 h-7 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-primary-foreground font-bold text-xs">IV</span>
+              </div>
+              <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+                Immo<span className="text-primary">Ver</span>
+              </span>
+            </Link>
+          </div>
+          <PillContainer>
+            {currentUser ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="relative cursor-pointer transition-opacity hover:opacity-80 p-2">
+                    <Avatar className="w-7 h-7">
+                      <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
+                      <AvatarFallback className="bg-muted">
+                        <UserIcon className="w-4 h-4 text-muted-foreground" />
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
+                  <DropdownMenuItem
+                    onSelect={handleLogout}
+                    className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Abmelden
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="rounded-full p-2"
+                onClick={handleOpenLoginModal}
+              >
+                <LogIn className="w-5 h-5" />
+              </Button>
+            )}
+          </PillContainer>
         </div>
         <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>

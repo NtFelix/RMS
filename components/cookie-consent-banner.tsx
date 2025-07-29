@@ -29,8 +29,8 @@ export function CookieConsentBanner() {
   if (!visible) return null;
 
   return (
-    <div 
-      className="fixed bottom-4 right-4 max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+    <div
+      className="fixed bottom-0 left-0 right-0 w-full sm:bottom-4 sm:right-4 sm:w-auto sm:max-w-md p-6 bg-white dark:bg-gray-800 rounded-t-lg sm:rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cookie-consent-title"
