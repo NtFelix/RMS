@@ -203,20 +203,20 @@ If you cannot resolve build/runtime errors after investigation:
 
 ### Page Component Structure
 ```typescript
-// Server component pattern for pages
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+// Standard pattern for server components
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { fetchTenants } from '@/lib/data-fetching'
 import TenantManagement from './tenant-management'
 
 export default async function TenantsPage() {
-  const supabase = createServerSupabaseClient()
+  const supabase = createSupabaseServerClient()
   const { data: tenants, error } = await fetchTenants(supabase)
   
   if (error) {
-    throw new Error(`Failed to load tenants: ${error.message}`)
+    // Handle error
   }
   
-  return 
+  return <TenantManagement initialTenants={tenants} />
 }
 ```
 
@@ -242,11 +242,11 @@ interface ModalStore {
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { tenantSchema } from '@/lib/validations'
 
 export async function createTenant(formData: FormData) {
-  const supabase = createServerSupabaseClient()
+  const supabase = createSupabaseServerClient()
   
   // Validate input data
   const validatedData = tenantSchema.parse({
