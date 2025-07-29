@@ -11,7 +11,7 @@ import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
   if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
 
