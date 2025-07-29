@@ -436,8 +436,6 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_or_live_key
 STRIPE_WEBHOOK_SIGNING_SECRET=whsec_webhook_secret
 
 # Application Configuration
-NEXTAUTH_URL=http://localhost:3000  # or production URL
-NEXTAUTH_SECRET=your-nextauth-secret-key
 
 # Optional: Analytics & Monitoring
 NEXT_PUBLIC_GOOGLE_ANALYTICS_ID=GA-tracking-id
