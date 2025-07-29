@@ -220,21 +220,75 @@ export default async function TenantsPage() {
 }
 ```
 
-### Modal Management Pattern
+## Modal Management Patterns
+
+### 1. Main Application Modals (use-modal-store.tsx)
+
+The application uses a centralized modal store with individual state and handlers for each modal type. This provides type safety and better code organization.
+
 ```typescript
-// Global modal state management using Zustand
-// Located in lib/use-modal-store.tsx
-interface ModalStore {
-  isOpen: boolean
-  modalType: 'edit-tenant' | 'delete-tenant' | 'create-apartment' | null
-  data?: any
-  openModal: (type: string, data?: any) => void
-  closeModal: () => void
+// Located in hooks/use-modal-store.tsx
+
+// Each modal has its own state and handlers
+interface ModalState {
+  // Tenant Modal
+  isTenantModalOpen: boolean;
+  tenantInitialData?: TenantFormData;
+  openTenantModal: (initialData?: TenantFormData, wohnungen?: any[]) => void;
+  closeTenantModal: (options?: { force?: boolean }) => void;
+  
+  // House Modal
+  isHouseModalOpen: boolean;
+  houseInitialData?: HouseFormData;
+  openHouseModal: (initialData?: HouseFormData, onSuccess?: (data: any) => void) => void;
+  closeHouseModal: (options?: { force?: boolean }) => void;
+  
+  // Other modals follow the same pattern...
 }
 
-// All modals rendered in dashboard layout
-// Pass server actions as props to modals for data mutations
+// Usage in components:
+const { 
+  isTenantModalOpen, 
+  openTenantModal, 
+  closeTenantModal,
+  isHouseModalOpen,
+  openHouseModal,
+  closeHouseModal 
+} = useModalStore();
 ```
+
+### 2. Authentication Modal (auth-modal-provider.tsx)
+
+Authentication uses a separate modal implementation with a React Context provider for global access.
+
+```typescript
+// Located in components/auth-modal-provider.tsx
+
+interface AuthModalContextType {
+  openAuthModal: (tab: 'login' | 'register') => void;
+  closeAuthModal: () => void;
+  isOpen: boolean;
+}
+
+// Usage in components:
+const { openAuthModal, closeAuthModal, isOpen } = useAuthModal();
+
+// Open login form
+openAuthModal('login');
+
+// Open registration form
+openAuthModal('register');
+
+// Close modal
+closeAuthModal();
+```
+
+### Best Practices
+1. Use the main modal store for application-specific modals
+2. Use the auth modal for authentication flows
+3. Always provide proper TypeScript types for modal data
+4. Use the `force` option with caution when closing modals with unsaved changes
+5. Pass success callbacks when you need to refresh data after a modal operation
 
 ### Server Actions Pattern
 ```typescript
