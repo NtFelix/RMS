@@ -2,8 +2,8 @@ import { createSupabaseServerClient as createClient } from '@/lib/supabase-serve
 import { updateKautionAction, getSuggestedKautionAmount } from '../mieter-actions'
 
 // Mock the supabase client
-jest.mock('@/utils/supabase/server', () => ({
-  createClient: jest.fn(),
+jest.mock('@/lib/supabase-server', () => ({
+  createSupabaseServerClient: jest.fn(),
 }))
 
 // Mock next/cache
@@ -28,7 +28,13 @@ describe('Kaution Actions', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(createClient as jest.Mock).mockReturnValue(mockSupabase)
+    ;(createClient as jest.Mock).mockImplementation(() => ({
+      from: mockFrom,
+      select: mockSelect,
+      eq: mockEq,
+      single: mockSingle,
+      update: mockUpdate,
+    }))
   })
 
   describe('updateKautionAction', () => {

@@ -406,7 +406,7 @@ export async function getMieterForNebenkostenAction(
     return { success: false, message: 'Ungültige Haus-ID oder Jahr angegeben.' };
   }
 
-  const supabase = await createClient(); // Uses the server client from utils/supabase/server
+  const supabase = await createClient(); // Uses the server client from lib/supabase-server
   const yearNum = parseInt(jahr);
   const yearStartStr = `${yearNum}-01-01`;
   const yearEndStr = `${yearNum}-12-31`;
