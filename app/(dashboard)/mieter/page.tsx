@@ -3,7 +3,7 @@
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-import { createSupabaseServerClient } from "@/lib/supabase-server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
 import MieterClientView from "./client-wrapper"; // Import the default export
 
@@ -11,7 +11,7 @@ import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
 
 export default async function MieterPage() {
-  const supabase = await createSupabaseServerClient();
+  const supabase = await createClient();
   const { data: rawWohnungen, error: wohnungenError } = await supabase.from('Wohnungen').select('id,name,groesse,miete,haus_id,Haeuser(name)');
   if (wohnungenError) console.error('Fehler beim Laden der Wohnungen:', wohnungenError);
 
