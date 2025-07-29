@@ -153,12 +153,9 @@ supabase/
 # Development workflow
 npm run dev          # Start development server with hot reload and Turbo
 npm run build        # Production build with optimization
-npm run start        # Start production server
-npm run lint         # Run ESLint with auto-fix where possible
-npm run lint:fix     # Fix all auto-fixable linting issues
+npm start            # Start production server
+npm run lint         # Run ESLint
 npm test             # Run Jest test suite with coverage
-npm run test:watch   # Run tests in watch mode during development
-npm run type-check   # TypeScript compilation check without emitting files
 
 # Database operations
 npx supabase db reset      # Reset local database to match migrations
