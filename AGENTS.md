@@ -401,14 +401,14 @@ Located in `supabase/migrations/` with timestamp prefixes:
 ### Database Connection Patterns
 ```typescript
 // Server-side client (has elevated permissions)
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createSupabaseServerClient } from '@/lib/supabase-server'
 
-const supabase = createServerSupabaseClient()
+const supabase = createSupabaseServerClient()
 
 // Client-side client (user permissions only)
-import { createClientSupabaseClient } from '@/lib/supabase-client'
+import { createClient } from '@/utils/supabase/client'
 
-const supabase = createClientSupabaseClient()
+const supabase = createClient()
 ```
 
 ### Query Optimization Guidelines
@@ -416,7 +416,7 @@ const supabase = createClientSupabaseClient()
 - Implement proper indexing for frequently queried columns
 - Use joins instead of multiple queries where possible
 - Implement pagination for large datasets
-- Cache expensive queries using React Query or SWR
+- For client-side data fetching, use React's built-in hooks (useState, useEffect) with the Supabase client
 
 ## Environment Variables & Configuration
 
