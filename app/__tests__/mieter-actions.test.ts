@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createSupabaseServerClient as createClient } from '@/lib/supabase-server'
 import { updateKautionAction, getSuggestedKautionAmount } from '../mieter-actions'
 
 // Mock the supabase client

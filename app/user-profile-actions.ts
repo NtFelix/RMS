@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/lib/supabase-server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import type { Profile as SupabaseProfile } from '@/types/supabase';
 import { getCurrentWohnungenCount } from '@/lib/data-fetching';

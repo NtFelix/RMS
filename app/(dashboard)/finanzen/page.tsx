@@ -2,7 +2,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import FinanzenClientWrapper from "./client-wrapper";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 
 export default async function FinanzenPage() {
   const supabase = await createClient();

@@ -1,7 +1,7 @@
 "use server";
 
 // const APARTMENT_LIMIT = 5; // Removed hardcoded limit
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { fetchUserProfile } from '@/lib/data-fetching'; // Assuming this fetches { id, email, stripe_price_id, stripe_subscription_status, ... }
 import { getPlanDetails } from '@/lib/stripe-server'; // Import getPlanDetails

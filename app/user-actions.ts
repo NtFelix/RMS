@@ -2,7 +2,7 @@
 
 import { fetchUserProfile, getCurrentWohnungenCount } from "@/lib/data-fetching";
 import { getPlanDetails } from "@/lib/stripe-server";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 
 export async function getUserSubscriptionContext(): Promise<{
   stripe_price_id: string | null;

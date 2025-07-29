@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Using @/ alias which should resolve correctly
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server"; // Using @/ alias which should resolve correctly
 import { revalidatePath } from "next/cache";
 
 interface WohnungPayload {

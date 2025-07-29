@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 import { revalidatePath } from "next/cache";
 import { Mieter } from "../lib/data-fetching"; // Added import for Mieter type
 import { KautionData, KautionStatus } from "@/types/Tenant";

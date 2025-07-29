@@ -4,7 +4,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { fetchNebenkostenList, fetchHaeuser as fetchHaeuserServer } from "../../../lib/data-fetching";
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
 // Types are still needed for data fetching
 import { Nebenkosten, Haus } from "../../../lib/data-fetching";

@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 

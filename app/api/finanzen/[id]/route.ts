@@ -1,5 +1,5 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createSupabaseServerClient as createClient } from "@/lib/supabase-server";
 import { NextRequest, NextResponse } from "next/server";
 
 // GET spezifische Finanztransaktion by ID

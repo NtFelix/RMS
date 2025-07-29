@@ -5,7 +5,7 @@ export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 // Removed Card, CardContent etc. as they are used in ClientView
-import { createClient as createSupabaseClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/lib/supabase-server';
 import { fetchUserProfile } from '@/lib/data-fetching';
 
 import { getPlanDetails } from '@/lib/stripe-server';
@@ -14,7 +14,7 @@ import type { Wohnung } from "@/types/Wohnung";
 
 // Server Component: Fetches data and passes it to the Client Component
 export default async function WohnungenPage() {
-  const supabase = await createSupabaseClient();
+  const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
 

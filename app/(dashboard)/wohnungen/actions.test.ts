@@ -1,5 +1,5 @@
 import { speichereWohnung, aktualisiereWohnung } from './actions'; // Adjust path as necessary
-import { createClient } from '@/utils/supabase/server';
+import { createSupabaseServerClient as createClient } from '@/lib/supabase-server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import { fetchUserProfile } from '@/lib/data-fetching'; // This is a new mock dependency
 import { revalidatePath } from 'next/cache';
