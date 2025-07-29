@@ -505,22 +505,51 @@ describe('TenantTable', () => {
   })
 })
 
-// API endpoint testing
-import { createMocks } from 'node-mocks-http'
-import handler from '@/pages/api/tenants'
+// Server Action testing example
+import { createClient } from '@/utils/supabase/server';
+import { handleSubmit } from '@/app/mieter-actions';
 
-describe('/api/tenants', () => {
+describe('Tenant Management', () => {
   it('creates a new tenant', async () => {
-    const { req, res } = createMocks({
-      method: 'POST',
-      body: { name: 'Test Tenant', email: 'test@example.com' }
-    })
+    // Create a test form data object
+    const formData = new FormData();
+    formData.append('name', 'Test Tenant');
+    formData.append('email', 'test@example.com');
+    formData.append('wohnung_id', 'test-wohnung-id');
     
-    await handler(req, res)
-    
-    expect(res._getStatusCode()).toBe(201)
-  })
-})
+    // Mock the Supabase client
+    jest.mock('@/utils/supabase/server', () => ({
+      createClient: jest.fn(() => ({
+        from: jest.fn().mockReturnThis(),
+        insert: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        single: jest.fn().mockResolvedValue({
+          data: {
+            id: 'test-tenant-id',
+            name: 'Test Tenant',
+            email: 'test@example.com',
+            wohnung_id: 'test-wohnung-id'
+          },
+          error: null
+        })
+      }))
+    }));
+
+    // Call the server action
+    const result = await handleSubmit(formData);
+
+    // Assert the result
+    expect(result).toEqual({
+      success: true,
+      data: {
+        id: 'test-tenant-id',
+        name: 'Test Tenant',
+        email: 'test@example.com',
+        wohnung_id: 'test-wohnung-id'
+      }
+    });
+  });
+});
 ```
 
 ### Code Coverage Requirements
