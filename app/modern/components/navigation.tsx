@@ -111,22 +111,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
               <span className="text-sm font-medium">Menü</span>
             </button>
           </PillContainer>
-          <Link href="/" className="flex items-center space-x-1 group">
-            <div className="w-6 h-6 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-primary-foreground font-bold text-xs">IV</span>
-            </div>
-            <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              Immobilien<span className="text-primary">Verwalter</span>
-            </span>
-          </Link>
         </div>
         <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
-            <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                <span className="text-primary-foreground font-bold text-xs sm:text-sm">IV</span>
+            <Link href="/" className="flex items-center space-x-2 group">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                <span className="text-primary-foreground font-bold text-sm">IV</span>
               </div>
-              <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
+              <span className="text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                 Immobilien<span className="text-primary">Verwalter</span>
               </span>
             </Link>
@@ -143,7 +135,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   <button
                     key={item.name}
                     onClick={() => handleNavClick(item.href)}
-                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
+                    className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-1"
                   >
                     {item.icon && <item.icon className="w-4 h-4" />}
                     <span>{item.name}</span>
@@ -152,7 +144,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               </>
             ) : (
               // Other pages navigation
-            <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
+            <Link href="/" className="px-3 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
                 Startseite
               </Link>
             )}
@@ -234,14 +226,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     </button>
                   </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-1">
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
                   {pathname === "/" ? (
                     <>
                       {navItems.map((item) => (
                         <button
                           key={item.name}
                           onClick={() => handleNavClick(item.href)}
-                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                          className="flex items-center w-full text-left px-3 py-2 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
                         >
                           {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
                           <span className="text-base">{item.name}</span>
@@ -252,7 +244,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <Link
                       href="/"
                       onClick={() => setIsOpen(false)}
-                      className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                      className="flex items-center w-full text-left px-3 py-2 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
                     >
                       <Home className="w-5 h-5 mr-3 text-muted-foreground" />
                       <span className="text-base">Startseite</span>
@@ -263,8 +255,8 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     {currentUser ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <div className="flex items-center space-x-3 cursor-pointer w-full p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                            <Avatar className="w-9 h-9">
+                          <div className="flex items-center space-x-3 cursor-pointer w-full p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                            <Avatar className="w-8 h-8">
                               <AvatarImage src={currentUser.user_metadata?.avatar_url || ''} alt="User avatar" />
                               <AvatarFallback className="bg-muted">
                                 <UserIcon className="w-4 h-4 text-muted-foreground" />
@@ -290,7 +282,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                       <Button
                         variant="ghost"
                         size="lg"
-                        className="w-full justify-start px-4 py-6 text-base hover:bg-muted/50"
+                        className="w-full justify-start px-3 py-4 text-base hover:bg-muted/50"
                         onClick={handleOpenLoginModal}
                       >
                         <LogIn className="w-5 h-5 mr-3" />

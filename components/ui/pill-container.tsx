@@ -9,7 +9,7 @@ const PillContainer: React.FC<PillContainerProps> = ({ children, className, ...p
   return (
     <div
       className={cn(
-        "glass shadow-lg rounded-full h-16 px-6 flex items-center backdrop-blur-md",
+        "glass shadow-lg rounded-full h-12 sm:h-14 md:h-16 px-4 sm:px-6 flex items-center backdrop-blur-md",
         className
       )}
       {...props}
