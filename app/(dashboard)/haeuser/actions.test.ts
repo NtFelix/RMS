@@ -285,7 +285,6 @@ describe('House Actions', () => {
           name: 'Test House',
           ort: 'Berlin',
           strasse: 'Test Street',
-          plz: '12345',
           groesse: 150,
         });
         expect(result).toEqual({ success: true });
