@@ -7,8 +7,13 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
+import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
+
+// Define sortable fields for tenant table
+type TenantSortKey = "name" | "email" | "telefonnummer" | "wohnung" | "nebenkosten"
+type SortDirection = "asc" | "desc"
 
 interface TenantTableProps {
   tenants: Tenant[];
@@ -26,12 +31,25 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [sortKey, setSortKey] = useState<TenantSortKey>("name")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
 
-  // Filterung und Suche clientseitig
-  const filteredData = useMemo(() => {
-    let result = tenants
+  // Map wohnung_id to wohnung name
+  const wohnungsMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    wohnungen?.forEach(w => { map[w.id] = w.name })
+    return map
+  }, [wohnungen])
+
+  // Sorting, filtering and search logic
+  const sortedAndFilteredData = useMemo(() => {
+    let result = [...tenants]
+
+    // Apply filters
     if (filter === "current") result = result.filter(t => !t.auszug)
     else if (filter === "previous") result = result.filter(t => !!t.auszug)
+
+    // Apply search
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       result = result.filter(t =>
@@ -41,37 +59,101 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
         (t.wohnung_id && t.wohnung_id.toLowerCase().includes(q))
       )
     }
-    return result
-  }, [tenants, filter, searchQuery])
 
-  // Map wohnung_id to wohnung name
-  const wohnungsMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    wohnungen?.forEach(w => { map[w.id] = w.name })
-    return map
-  }, [wohnungen])
+    // Apply sorting
+    if (sortKey) {
+      result.sort((a, b) => {
+        let valA, valB
+
+        if (sortKey === 'wohnung') {
+          valA = a.wohnung_id ? wohnungsMap[a.wohnung_id] || '' : ''
+          valB = b.wohnung_id ? wohnungsMap[b.wohnung_id] || '' : ''
+        } else if (sortKey === 'nebenkosten') {
+          // Calculate total utility costs for sorting
+          const totalA = a.nebenkosten?.reduce((sum, n) => sum + parseFloat(n.amount || '0'), 0) || 0
+          const totalB = b.nebenkosten?.reduce((sum, n) => sum + parseFloat(n.amount || '0'), 0) || 0
+          valA = totalA
+          valB = totalB
+        } else {
+          valA = a[sortKey]
+          valB = b[sortKey]
+        }
+
+        if (valA === undefined || valA === null) valA = ''
+        if (valB === undefined || valB === null) valB = ''
+
+        // Convert to number if it's a numeric value for proper sorting
+        const numA = parseFloat(String(valA));
+        const numB = parseFloat(String(valB));
+
+        if (!isNaN(numA) && !isNaN(numB)) {
+          if (numA < numB) return sortDirection === "asc" ? -1 : 1;
+          if (numA > numB) return sortDirection === "asc" ? 1 : -1;
+          return 0;
+        } else {
+          const strA = String(valA);
+          const strB = String(valB);
+          return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA);
+        }
+      })
+    }
+
+    return result
+  }, [tenants, filter, searchQuery, sortKey, sortDirection, wohnungsMap])
+
+  const handleSort = (key: TenantSortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortKey(key)
+      setSortDirection("asc")
+    }
+  }
+
+  const renderSortIcon = (key: TenantSortKey) => {
+    if (sortKey !== key) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    )
+  }
+
+  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: TenantSortKey, children: React.ReactNode, className?: string }) => (
+    <TableHead className={className}>
+      <div
+        onClick={() => handleSort(sortKey)}
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
+      >
+        {children}
+        {renderSortIcon(sortKey)}
+      </div>
+    </TableHead>
+  )
 
   return (
     <div className="rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[250px]">Name</TableHead>
-            <TableHead>E-Mail</TableHead>
-            <TableHead>Telefon</TableHead>
-            <TableHead>Wohnung</TableHead>
-            <TableHead>Nebenkosten</TableHead>
+            <TableHeaderCell sortKey="name" className="w-[250px]">Name</TableHeaderCell>
+            <TableHeaderCell sortKey="email">E-Mail</TableHeaderCell>
+            <TableHeaderCell sortKey="telefonnummer">Telefon</TableHeaderCell>
+            <TableHeaderCell sortKey="wohnung">Wohnung</TableHeaderCell>
+            <TableHeaderCell sortKey="nebenkosten">Nebenkosten</TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredData.length === 0 ? (
+          {sortedAndFilteredData.length === 0 ? (
             <TableRow>
               <TableCell colSpan={5} className="h-24 text-center">
                 Keine Mieter gefunden.
               </TableCell>
             </TableRow>
           ) : (
-            filteredData.map((tenant) => (
+            sortedAndFilteredData.map((tenant) => (
               <TenantContextMenu
                 key={tenant.id}
                 tenant={tenant}
