@@ -30,7 +30,7 @@ export function CookieConsentBanner() {
 
   return (
     <div 
-      className="fixed bottom-0 left-0 right-0 sm:bottom-4 sm:left-auto sm:right-4 sm:w-auto sm:max-w-md w-[calc(100%-2rem)] mx-auto sm:mx-0 mb-4 sm:mb-0 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+      className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cookie-consent-title"
