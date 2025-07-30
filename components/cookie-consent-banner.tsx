@@ -48,16 +48,14 @@ export function CookieConsentBanner() {
         <div className="flex flex-col sm:flex-row gap-3 w-full">
           <Button 
             variant="outline" 
-            size="sm"
-            className="flex-1"
+            className="flex-1 py-2 px-4 h-auto sm:h-9 text-sm font-medium"
             onClick={() => handleAccept('necessary')}
           >
             Nur notwendige
           </Button>
           <Button 
             variant="default" 
-            size="sm"
-            className="flex-1"
+            className="flex-1 py-2 px-4 h-auto sm:h-9 text-sm font-medium"
             onClick={() => handleAccept('all')}
           >
             Alle akzeptieren
