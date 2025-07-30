@@ -150,6 +150,7 @@ export default function BetriebskostenClientView({
             onDeleteItem={openDeleteAlert}
             ownerName={ownerName}
             allHaeuser={initialHaeuser}
+            searchQuery={searchQuery}
           />
         </CardContent>
       </Card>

@@ -1,14 +1,3 @@
-import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+import type { Apartment } from "@/components/apartment-table";
 
-export interface Wohnung extends ApartmentTableType {
-  status: 'frei' | 'vermietet';
-  tenant?: {
-    id: string;
-    name: string;
-    einzug: string;
-    auszug: string;
-  };
-  Haeuser: {
-    name: string;
-  } | null;
-}
+export interface Wohnung extends Apartment {}

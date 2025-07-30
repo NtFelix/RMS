@@ -151,7 +151,6 @@ export default function WohnungenClientView({
             initialApartments={apartments}
             onEdit={handleEditWohnung}
             onTableRefresh={refreshTable}
-            reloadRef={reloadRef}
           />
         </CardContent>
       </Card>

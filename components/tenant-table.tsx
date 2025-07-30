@@ -1,120 +1,90 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { TenantContextMenu } from "@/components/tenant-context-menu"
-import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast"
+import { useMemo, useCallback } from "react"
+import { TableRow, TableCell } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { useRouter } from "next/navigation"
-
-import { Tenant, NebenkostenEntry } from "@/types/Tenant";
+import { TenantContextMenu } from "@/components/tenant-context-menu"
+import { DataTable } from "@/components/data-table"
+import type { Tenant } from "@/types/Tenant"
+import type { Wohnung } from "@/types/Wohnung"
 
 interface TenantTableProps {
-  tenants: Tenant[];
-  wohnungen: { id: string; name: string }[];
-  filter: string;
-  searchQuery: string;
-  onEdit?: (t: Tenant) => void;
-  onDelete?: (id: string) => void;
+  tenants: Tenant[]
+  wohnungen: Wohnung[]
+  filter: string
+  searchQuery: string
+  onEdit: (tenant: Tenant) => void
+  onRefresh: () => void
 }
 
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onRefresh }: TenantTableProps) {
+  const enrichedTenants = useMemo(() => {
+    return tenants.map(tenant => {
+      const wohnung = wohnungen.find(w => w.id === tenant.wohnung_id)
+      return {
+        ...tenant,
+        wohnungName: wohnung?.name ?? "-",
+        wohnungGroesse: wohnung?.groesse ?? 0,
+        wohnungMiete: wohnung?.miete ?? 0,
+        status: tenant.auszug && new Date(tenant.auszug) < new Date() ? "inaktiv" : "aktiv",
+      }
+    })
+  }, [tenants, wohnungen])
 
-
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
-  const router = useRouter()
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-
-  // Filterung und Suche clientseitig
   const filteredData = useMemo(() => {
-    let result = tenants
-    if (filter === "current") result = result.filter(t => !t.auszug)
-    else if (filter === "previous") result = result.filter(t => !!t.auszug)
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase()
-      result = result.filter(t =>
-        t.name.toLowerCase().includes(q) ||
-        (t.email && t.email.toLowerCase().includes(q)) ||
-        (t.telefonnummer && t.telefonnummer.toLowerCase().includes(q)) ||
-        (t.wohnung_id && t.wohnung_id.toLowerCase().includes(q))
-      )
+    let result = enrichedTenants
+    if (filter === 'active') {
+      result = result.filter(t => t.status === 'aktiv')
+    } else if (filter === 'inactive') {
+      result = result.filter(t => t.status === 'inaktiv')
     }
     return result
-  }, [tenants, filter, searchQuery])
+  }, [enrichedTenants, filter])
 
-  // Map wohnung_id to wohnung name
-  const wohnungsMap = useMemo(() => {
-    const map: Record<string, string> = {}
-    wohnungen?.forEach(w => { map[w.id] = w.name })
-    return map
-  }, [wohnungen])
+  const columns = useMemo(() => [
+    { key: "name", header: "Mieter", className: "w-[250px]" },
+    { key: "wohnungName", header: "Wohnung" },
+    { key: "einzug", header: "Einzug" },
+    { key: "auszug", header: "Auszug" },
+    { key: "status", header: "Status" },
+  ], [])
+
+  const renderRow = useCallback((tenant: any) => (
+    <TenantContextMenu
+      key={tenant.id}
+      tenant={tenant}
+      onEdit={() => onEdit(tenant)}
+      onRefresh={onRefresh}
+    >
+      <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit(tenant)}>
+        <TableCell className="font-medium">{tenant.name}</TableCell>
+        <TableCell>{tenant.wohnungName}</TableCell>
+        <TableCell>{tenant.einzug ? new Date(tenant.einzug).toLocaleDateString() : "-"}</TableCell>
+        <TableCell>{tenant.auszug ? new Date(tenant.auszug).toLocaleDateString() : "-"}</TableCell>
+        <TableCell>
+          {tenant.status === 'aktiv' ? (
+            <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">
+              Aktiv
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">
+              Inaktiv
+            </Badge>
+          )}
+        </TableCell>
+      </TableRow>
+    </TenantContextMenu>
+  ), [onEdit, onRefresh])
 
   return (
-    <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-[250px]">Name</TableHead>
-            <TableHead>E-Mail</TableHead>
-            <TableHead>Telefon</TableHead>
-            <TableHead>Wohnung</TableHead>
-            <TableHead>Nebenkosten</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredData.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="h-24 text-center">
-                Keine Mieter gefunden.
-              </TableCell>
-            </TableRow>
-          ) : (
-            filteredData.map((tenant) => (
-              <TenantContextMenu
-                key={tenant.id}
-                tenant={tenant}
-                onEdit={() => onEdit?.(tenant)}
-                onRefresh={() => router.refresh()}
-              >
-                <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(tenant)}>
-                  <TableCell className="font-medium">{tenant.name}</TableCell>
-                  <TableCell>{tenant.email}</TableCell>
-                  <TableCell>{tenant.telefonnummer}</TableCell>
-                  <TableCell>{tenant.wohnung_id ? wohnungsMap[tenant.wohnung_id] || '-' : '-'}</TableCell>
-                  <TableCell>
-                    {tenant.nebenkosten && tenant.nebenkosten.length > 0
-                      ? tenant.nebenkosten
-                          .slice(0, 3)
-                          .map(n => `${n.amount} €`)
-                          .join(', ') + (tenant.nebenkosten.length > 3 ? '...' : '')
-                      : '-'}
-                  </TableCell>
-                </TableRow>
-              </TenantContextMenu>
-            ))
-          )}
-        </TableBody>
-      </Table>
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
-            <AlertDialogDescription>Der Mieter "{tenantToDelete?.name}" wird gelöscht.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={async () => {
-              if (!tenantToDelete) return
-              setIsDeleting(true)
-              if (onDelete) await onDelete(tenantToDelete.id)
-              setIsDeleting(false)
-              setShowDeleteConfirm(false)
-            }} className="bg-red-600 hover:bg-red-700">{isDeleting ? "Lösche..." : "Löschen"}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+    <DataTable
+      data={filteredData}
+      columns={columns as any}
+      searchQuery={searchQuery}
+      filter={filter}
+      renderRow={renderRow}
+      onEdit={(item) => onEdit(item as Tenant)}
+      onDelete={() => {}} // No delete functionality for tenants in this table
+    />
   )
 }

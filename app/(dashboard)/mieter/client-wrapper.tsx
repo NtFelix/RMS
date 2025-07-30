@@ -110,6 +110,10 @@ export default function MieterClientView({
             filter={filter}
             searchQuery={searchQuery}
             onEdit={handleEditTenantInTable}
+            onRefresh={() => {
+              // a router refresh would be better here, but for now, we'll just reload the page
+              window.location.reload();
+            }}
           />
         </CardContent>
       </Card>

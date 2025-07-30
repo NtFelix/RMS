@@ -209,9 +209,7 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
       <FinanceTransactions 
         finances={finData} 
         onEdit={handleEdit} 
-        onAdd={handleAddFinance}
         loadFinances={refreshFinances} 
-        reloadRef={reloadRef}
       />
     </div>
   );
