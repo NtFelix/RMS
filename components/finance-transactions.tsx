@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download, Edit, Trash } from "lucide-react"
+import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +23,10 @@ interface Finanz {
   notiz?: string
   Wohnungen?: { name: string }
 }
+
+// Define sortable fields for finance table
+type FinanceSortKey = "name" | "wohnung" | "datum" | "betrag" | "typ"
+type SortDirection = "asc" | "desc"
 
 interface FinanceTransactionsProps {
   finances: Finanz[]
@@ -52,6 +56,8 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [sortKey, setSortKey] = useState<FinanceSortKey>("datum")
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
   // Get unique apartment list from finances data
   const apartments = ["Alle Wohnungen", ...new Set(finances
@@ -64,8 +70,8 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
     .map(f => f.datum!.split("-")[0])
     .sort((a, b) => parseInt(b) - parseInt(a)))]
 
-  useEffect(() => {
-    let result = finances
+  const sortedAndFilteredData = useMemo(() => {
+    let result = [...finances]
 
     // Filter by wohnung
     if (selectedApartment !== "Alle Wohnungen") {
@@ -97,14 +103,85 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
       )
     }
 
-    // Sort by date in descending order (newest first)
-    result = result.sort((a, b) => {
-      if (!a.datum || !b.datum) return 0
-      return new Date(b.datum).getTime() - new Date(a.datum).getTime()
-    })
+    // Apply sorting
+    if (sortKey) {
+      result.sort((a, b) => {
+        let valA, valB
 
-    setFilteredData(result)
-  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType]);
+        switch (sortKey) {
+          case 'name':
+            valA = a.name || ''
+            valB = b.name || ''
+            break
+          case 'wohnung':
+            valA = a.Wohnungen?.name || ''
+            valB = b.Wohnungen?.name || ''
+            break
+          case 'datum':
+            valA = a.datum ? new Date(a.datum).getTime() : 0
+            valB = b.datum ? new Date(b.datum).getTime() : 0
+            break
+          case 'betrag':
+            valA = a.betrag || 0
+            valB = b.betrag || 0
+            break
+          case 'typ':
+            valA = a.ist_einnahmen ? 1 : 0
+            valB = b.ist_einnahmen ? 1 : 0
+            break
+          default:
+            valA = ''
+            valB = ''
+        }
+
+        // Handle numeric comparisons
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          if (valA < valB) return sortDirection === "asc" ? -1 : 1
+          if (valA > valB) return sortDirection === "asc" ? 1 : -1
+          return 0
+        }
+
+        // Handle string comparisons
+        const strA = String(valA)
+        const strB = String(valB)
+        return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA)
+      })
+    }
+
+    return result
+  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType, sortKey, sortDirection])
+
+  const handleSort = (key: FinanceSortKey) => {
+    if (sortKey === key) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
+    } else {
+      setSortKey(key)
+      setSortDirection("asc")
+    }
+  }
+
+  const renderSortIcon = (key: FinanceSortKey) => {
+    if (sortKey !== key) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+    }
+    return sortDirection === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    )
+  }
+
+  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: FinanceSortKey, children: React.ReactNode, className?: string }) => (
+    <TableHead className={className}>
+      <div
+        onClick={() => handleSort(sortKey)}
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
+      >
+        {children}
+        {renderSortIcon(sortKey)}
+      </div>
+    </TableHead>
+  )
 
   // Track the last known finances to detect new entries
   const prevFinancesRef = useRef<Finanz[]>(finances);
@@ -112,38 +189,13 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
   useEffect(() => {
     // Only update if the finances array has actually changed
     if (JSON.stringify(prevFinancesRef.current) !== JSON.stringify(finances)) {
-      // Find new entries by comparing with previous state
-      const newEntries = finances.filter(
-        newItem => !prevFinancesRef.current.some(prevItem => prevItem.id === newItem.id)
-      );
-      
-      if (newEntries.length > 0) {
-        setFilteredData(prev => {
-          // Create a map of existing entries by ID for quick lookup
-          const existingEntries = new Map(prev.map(item => [item.id, item]));
-          
-          // Add new entries that don't exist in the current filtered data
-          newEntries.forEach(entry => {
-            if (!existingEntries.has(entry.id)) {
-              existingEntries.set(entry.id, entry);
-            }
-          });
-          
-          // Convert back to array and sort by date (newest first)
-          return Array.from(existingEntries.values()).sort((a, b) => {
-            if (!a.datum || !b.datum) return 0;
-            return new Date(b.datum).getTime() - new Date(a.datum).getTime();
-          });
-        });
-      }
-      
       // Update the ref for the next comparison
       prevFinancesRef.current = finances;
     }
   }, [finances]);
 
   // Calculate totals for filtered data
-  const totalBalance = filteredData.reduce((total, transaction) => {
+  const totalBalance = sortedAndFilteredData.reduce((total, transaction) => {
     const amount = Number(transaction.betrag)
     return transaction.ist_einnahmen ? total + amount : total - amount
   }, 0)
@@ -151,7 +203,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
   // Add CSV export function
   const handleExportCsv = () => {
     const header = ['Bezeichnung','Wohnung','Datum','Betrag','Typ','Notiz'];
-    const rows = filteredData.map(f => [
+    const rows = sortedAndFilteredData.map(f => [
       f.name,
       f.Wohnungen?.name||'',
       f.datum||'',
@@ -270,22 +322,22 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead style={{ width: '25%' }}>Bezeichnung</TableHead>
-                    <TableHead style={{ width: '20%' }}>Wohnung</TableHead>
-                    <TableHead style={{ width: '15%' }}>Datum</TableHead>
-                    <TableHead style={{ width: '15%' }} className="text-right">Betrag</TableHead>
-                    <TableHead style={{ width: '15%' }}>Typ</TableHead>
+                    <TableHeaderCell sortKey="name" className="w-[25%]">Bezeichnung</TableHeaderCell>
+                    <TableHeaderCell sortKey="wohnung" className="w-[20%]">Wohnung</TableHeaderCell>
+                    <TableHeaderCell sortKey="datum" className="w-[15%]">Datum</TableHeaderCell>
+                    <TableHeaderCell sortKey="betrag" className="w-[15%] text-right">Betrag</TableHeaderCell>
+                    <TableHeaderCell sortKey="typ" className="w-[15%]">Typ</TableHeaderCell>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredData.length === 0 ? (
+                  {sortedAndFilteredData.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="h-24 text-center">
                         Keine Transaktionen gefunden.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredData.map((finance) => (
+                    sortedAndFilteredData.map((finance) => (
                       <FinanceContextMenu
                         key={finance.id}
                         finance={finance}
