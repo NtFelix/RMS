@@ -8,7 +8,6 @@ interface HouseData {
   name: string;
   ort: string;
   strasse?: string | null;
-  plz?: string | null;
   groesse: number | null;
 }
 
@@ -27,12 +26,19 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
 
+    // Validate required fields
+    const name = formData.get('name')?.toString();
+    const ort = formData.get('ort')?.toString();
+
+    if (!name || !ort) {
+      return { success: false, error: { message: 'Name und Ort sind Pflichtfelder.' } };
+    }
+
     // Explicitly pick only the expected fields
-    const houseData: Partial<HouseData> = {
-      name: formData.get('name')?.toString() || '',
-      ort: formData.get('ort')?.toString() || '',
+    const houseData: HouseData = {
+      name,
+      ort,
       strasse: formData.get('strasse')?.toString() || null,
-      plz: formData.get('plz')?.toString() || null,
       groesse: processedGroesse,
     };
 
