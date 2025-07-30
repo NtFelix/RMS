@@ -30,7 +30,7 @@ export function CookieConsentBanner() {
 
   return (
     <div 
-      className="fixed bottom-4 right-4 max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+      className="fixed inset-x-4 bottom-4 sm:inset-x-auto sm:right-4 sm:max-w-md p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cookie-consent-title"
@@ -49,7 +49,7 @@ export function CookieConsentBanner() {
           <Button 
             variant="outline" 
             size="sm"
-            className="flex-1"
+            className="flex-1 h-auto sm:h-9 px-4 py-2"
             onClick={() => handleAccept('necessary')}
           >
             Nur notwendige
@@ -57,7 +57,7 @@ export function CookieConsentBanner() {
           <Button 
             variant="default" 
             size="sm"
-            className="flex-1"
+            className="flex-1 h-auto sm:h-9 px-4 py-2"
             onClick={() => handleAccept('all')}
           >
             Alle akzeptieren
