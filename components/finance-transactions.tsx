@@ -315,7 +315,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                     <TableHeaderCell sortKey="name" className="w-[25%]">Bezeichnung</TableHeaderCell>
                     <TableHeaderCell sortKey="wohnung" className="w-[20%]">Wohnung</TableHeaderCell>
                     <TableHeaderCell sortKey="datum" className="w-[15%]">Datum</TableHeaderCell>
-                    <TableHeaderCell sortKey="betrag" className="w-[15%] text-right">Betrag</TableHeaderCell>
+                    <TableHeaderCell sortKey="betrag" className="w-[15%]">Betrag</TableHeaderCell>
                     <TableHeaderCell sortKey="typ" className="w-[15%]">Typ</TableHeaderCell>
                   </TableRow>
                 </TableHeader>
@@ -374,7 +374,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                           <TableCell>{finance.name}</TableCell>
                           <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
                           <TableCell>{formatDate(finance.datum)}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell>
                             <span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>
                               {finance.betrag.toFixed(2).replace(".", ",")} €
                             </span>
