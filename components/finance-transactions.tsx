@@ -183,16 +183,6 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
     </TableHead>
   )
 
-  // Track the last known finances to detect new entries
-  const prevFinancesRef = useRef<Finanz[]>(finances);
-  
-  useEffect(() => {
-    // Only update if the finances array has actually changed
-    if (JSON.stringify(prevFinancesRef.current) !== JSON.stringify(finances)) {
-      // Update the ref for the next comparison
-      prevFinancesRef.current = finances;
-    }
-  }, [finances]);
 
   // Calculate totals for filtered data
   const totalBalance = sortedAndFilteredData.reduce((total, transaction) => {
