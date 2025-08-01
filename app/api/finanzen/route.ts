@@ -2,19 +2,106 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+// Interface for paginated response
+interface PaginatedFinanceResponse {
+  data: any[];
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
     const supabase = await createClient();
-    const { data, error } = await supabase
+    
+    // Parse pagination parameters
+    const offsetParam = url.searchParams.get('offset');
+    const limitParam = url.searchParams.get('limit');
+    
+    // Check if pagination is requested
+    const isPaginationRequested = offsetParam !== null || limitParam !== null;
+    
+    // Validate pagination parameters
+    const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
+    const limit = limitParam ? parseInt(limitParam, 10) : 25;
+    
+    if (offset < 0) {
+      return NextResponse.json({ error: 'Offset must be >= 0' }, { status: 400 });
+    }
+    
+    if (limit < 1 || limit > 50) {
+      return NextResponse.json({ error: 'Limit must be between 1 and 50' }, { status: 400 });
+    }
+    
+    // Parse filter parameters
+    const apartment = url.searchParams.get('apartment');
+    const year = url.searchParams.get('year');
+    const type = url.searchParams.get('type');
+    const search = url.searchParams.get('search');
+    
+    // Build base query
+    let query = supabase
       .from('Finanzen')
-      .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false });
+      .select('*, Wohnungen(name)', { count: 'exact' });
+    
+    // Apply filters
+    if (apartment) {
+      query = query.eq('wohnung_id', apartment);
+    }
+    
+    if (year) {
+      const yearInt = parseInt(year, 10);
+      if (!isNaN(yearInt)) {
+        query = query.gte('datum', `${yearInt}-01-01`).lt('datum', `${yearInt + 1}-01-01`);
+      }
+    }
+    
+    if (type === 'income') {
+      query = query.eq('ist_einnahmen', true);
+    } else if (type === 'expense') {
+      query = query.eq('ist_einnahmen', false);
+    }
+    
+    if (search && search.trim()) {
+      const searchTerm = `%${search.trim()}%`;
+      query = query.or(`name.ilike.${searchTerm},notiz.ilike.${searchTerm},Wohnungen.name.ilike.${searchTerm}`);
+    }
+    
+    // Apply pagination and ordering
+    query = query
+      .order('datum', { ascending: false })
+      .range(offset, offset + limit - 1);
+    
+    const { data, error, count } = await query;
       
     if (error) {
       console.error('GET /api/finanzen error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(data, { status: 200 });
+    
+    const total = count || 0;
+    const hasMore = offset + limit < total;
+    
+    // Return paginated response if pagination was requested, otherwise return legacy format
+    if (isPaginationRequested) {
+      const response: PaginatedFinanceResponse = {
+        data: data || [],
+        pagination: {
+          offset,
+          limit,
+          total,
+          hasMore
+        }
+      };
+      return NextResponse.json(response, { status: 200 });
+    } else {
+      // Legacy format for backward compatibility
+      return NextResponse.json(data || [], { status: 200 });
+    }
   } catch (e) {
     console.error('Server error GET /api/finanzen:', e);
     return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });
