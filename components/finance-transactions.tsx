@@ -1,18 +1,17 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useCallback, useTransition } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
+import { useIsMobile } from "@/hooks/use-mobile"
 
-// Interface for finance transactions
 interface Finanz {
   id: string
   wohnung_id?: string
@@ -22,218 +21,121 @@ interface Finanz {
   ist_einnahmen: boolean
   notiz?: string
   Wohnungen?: { name: string }
+  wohnung?: { name: string };
 }
 
-// Define sortable fields for finance table
-type FinanceSortKey = "name" | "wohnung" | "datum" | "betrag" | "typ"
-type SortDirection = "asc" | "desc"
+interface Wohnung { id: string; name: string; }
 
 interface FinanceTransactionsProps {
-  finances: Finanz[]
-  reloadRef?: any
-  onEdit?: (finance: Finanz) => void
-  onAdd?: (finance: Finanz) => void
-  loadFinances?: () => Promise<void>
+  initialWohnungen: Wohnung[]
+  onEdit: (finance: Finanz) => void
+  transactions: Finanz[]
+  totalCount: number
+  totals: { balance: number, income: number, expenses: number }
+  loading: boolean
+  loadingMore: boolean
+  error: string | null
+  filters: any
+  onFilterChange: (newFilters: any) => void
+  loadMore: () => void
 }
 
-// Helper function to format date in DD.MM.YYYY format
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '-'
   const date = new Date(dateString)
-  return date.toLocaleDateString('de-DE', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
+  return date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFinances }: FinanceTransactionsProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedApartment, setSelectedApartment] = useState("Alle Wohnungen")
-  const [selectedYear, setSelectedYear] = useState("Alle Jahre")
-  const [selectedType, setSelectedType] = useState("Alle Transaktionen")
-  const [filteredData, setFilteredData] = useState<Finanz[]>([])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [sortKey, setSortKey] = useState<FinanceSortKey>("datum")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+export function FinanceTransactions({
+  initialWohnungen,
+  onEdit,
+  transactions,
+  totalCount,
+  totals,
+  loading,
+  loadingMore,
+  error,
+  filters,
+  onFilterChange,
+  loadMore
+}: FinanceTransactionsProps) {
+  const loaderRef = useRef<HTMLDivElement>(null);
+  const [searchQuery, setSearchQuery] = useState(filters.searchQuery);
+  const [isPending, startTransition] = useTransition();
 
-  // Get unique apartment list from finances data
-  const apartments = ["Alle Wohnungen", ...new Set(finances
-    .filter(f => f.Wohnungen?.name)
-    .map(f => f.Wohnungen?.name || ""))]
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchQuery !== filters.searchQuery) {
+        onFilterChange({ searchQuery });
+      }
+    }, 300);
 
-  // Get unique years from finances data
-  const years = ["Alle Jahre", ...new Set(finances
-    .filter(f => f.datum)
-    .map(f => f.datum!.split("-")[0])
-    .sort((a, b) => parseInt(b) - parseInt(a)))]
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchQuery, filters.searchQuery, onFilterChange]);
 
-  const sortedAndFilteredData = useMemo(() => {
-    let result = [...finances]
+  const apartments = ["Alle Wohnungen", ...initialWohnungen.map(w => w.name)];
+  const years = ["Alle Jahre", ...Array.from({ length: 10 }, (_, i) => (new Date().getFullYear() - i).toString())];
 
-    // Filter by wohnung
-    if (selectedApartment !== "Alle Wohnungen") {
-      result = result.filter(f => f.Wohnungen?.name === selectedApartment)
+  useEffect(() => {
+    const observer = new IntersectionObserver((entries) => {
+      const target = entries[0];
+      if (target.isIntersecting && !loading && !loadingMore && transactions.length < totalCount) {
+        loadMore();
+      }
+    }, { threshold: 1.0 });
+
+    const currentLoaderRef = loaderRef.current;
+    if (currentLoaderRef) {
+      observer.observe(currentLoaderRef);
     }
 
-    // Filter by year
-    if (selectedYear !== "Alle Jahre") {
-      result = result.filter(f => {
-        if (!f.datum) return false
-        return f.datum.includes(selectedYear)
-      })
+    return () => {
+      if (currentLoaderRef) {
+        observer.unobserve(currentLoaderRef);
+      }
+    };
+  }, [loaderRef, loading, loadingMore, totalCount, transactions.length, loadMore]);
+
+  const handleSort = (key: string) => {
+    onFilterChange({
+      sortKey: key,
+      sortDirection: filters.sortKey === key && filters.sortDirection === 'asc' ? 'desc' : 'asc'
+    });
+  };
+
+  const handleStatusToggle = async (finance: Finanz) => {
+    try {
+      const response = await fetch(`/api/finanzen?id=${finance.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ist_einnahmen: !finance.ist_einnahmen }),
+      });
+      if (!response.ok) throw new Error("Status konnte nicht geändert werden.");
+      toast({
+        title: "Status geändert",
+        description: `Die Transaktion wurde als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
+      });
+      onFilterChange({}); // Refetch data
+    } catch (error) {
+      toast({ title: "Fehler", description: "Der Status konnte nicht geändert werden.", variant: "destructive" });
     }
+  };
 
-    // Filter by transaction type
-    if (selectedType !== "Alle Transaktionen") {
-      const isEinnahme = selectedType === "Einnahme"
-      result = result.filter(f => f.ist_einnahmen === isEinnahme)
-    }
+  const renderSortIcon = (key: string) => {
+    if (filters.sortKey !== key) return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />;
+    return filters.sortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
+  };
 
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(f => 
-        f.name.toLowerCase().includes(query) ||
-        (f.Wohnungen?.name || "").toLowerCase().includes(query) ||
-        (f.datum || "").includes(query) ||
-        (f.notiz || "").toLowerCase().includes(query)
-      )
-    }
-
-    // Apply sorting
-    if (sortKey) {
-      result.sort((a, b) => {
-        let valA, valB
-
-        switch (sortKey) {
-          case 'name':
-            valA = a.name || ''
-            valB = b.name || ''
-            break
-          case 'wohnung':
-            valA = a.Wohnungen?.name || ''
-            valB = b.Wohnungen?.name || ''
-            break
-          case 'datum':
-            valA = a.datum ? new Date(a.datum).getTime() : 0
-            valB = b.datum ? new Date(b.datum).getTime() : 0
-            break
-          case 'betrag':
-            valA = a.betrag || 0
-            valB = b.betrag || 0
-            break
-          case 'typ':
-            valA = a.ist_einnahmen ? 1 : 0
-            valB = b.ist_einnahmen ? 1 : 0
-            break
-          default:
-            valA = ''
-            valB = ''
-        }
-
-        // Handle numeric comparisons
-        if (typeof valA === 'number' && typeof valB === 'number') {
-          if (valA < valB) return sortDirection === "asc" ? -1 : 1
-          if (valA > valB) return sortDirection === "asc" ? 1 : -1
-          return 0
-        }
-
-        // Handle string comparisons
-        const strA = String(valA)
-        const strB = String(valB)
-        return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA)
-      })
-    }
-
-    return result
-  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType, sortKey, sortDirection])
-
-  const handleSort = (key: FinanceSortKey) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortKey(key)
-      setSortDirection("asc")
-    }
-  }
-
-  const renderSortIcon = (key: FinanceSortKey) => {
-    if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4" />
-    ) : (
-      <ArrowDown className="h-4 w-4" />
-    )
-  }
-
-  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: FinanceSortKey, children: React.ReactNode, className?: string }) => (
+  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: string, children: React.ReactNode, className?: string }) => (
     <TableHead className={className}>
-      <div
-        onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
-      >
+      <div onClick={() => handleSort(sortKey)} className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2">
         {children}
         {renderSortIcon(sortKey)}
       </div>
     </TableHead>
-  )
-
-
-  // Calculate totals for filtered data
-  const totalBalance = sortedAndFilteredData.reduce((total, transaction) => {
-    const amount = Number(transaction.betrag)
-    return transaction.ist_einnahmen ? total + amount : total - amount
-  }, 0)
-
-  // Add CSV export function
-  const handleExportCsv = () => {
-    const header = ['Bezeichnung','Wohnung','Datum','Betrag','Typ','Notiz'];
-    const rows = sortedAndFilteredData.map(f => [
-      f.name,
-      f.Wohnungen?.name||'',
-      f.datum||'',
-      f.betrag.toString(),
-      f.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
-      f.notiz||''
-    ]);
-    const csv = [header, ...rows].map(r => r.join(';')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'finanzen.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
-  // Delete finance
-  const handleDeleteConfirm = async () => {
-    if (!financeToDelete) return
-    setIsDeleting(true)
-    try {
-      const res = await fetch(`/api/finanzen?id=${financeToDelete.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast({ title: 'Gelöscht', description: 'Transaktion wurde entfernt.' })
-        loadFinances && loadFinances()
-        reloadRef?.current && reloadRef.current()
-      } else {
-        const err = await res.json()
-        toast({ title: 'Fehler', description: err.error || 'Löschen fehlgeschlagen', variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Fehler', description: 'Netzwerkfehler', variant: 'destructive' })
-    } finally {
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
-      setFinanceToDelete(null)
-    }
-  };
+  );
 
   return (
     <>
@@ -244,68 +146,40 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
+            {/* Filters */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
-                <Select value={selectedApartment} onValueChange={setSelectedApartment}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wohnung auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {apartments.map((apartment) => (
-                      <SelectItem key={apartment} value={apartment}>
-                        {apartment}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select value={filters.selectedApartment} onValueChange={(val) => onFilterChange({ selectedApartment: val })}>
+                  <SelectTrigger><SelectValue placeholder="Wohnung auswählen" /></SelectTrigger>
+                  <SelectContent>{apartments.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
                 </Select>
-
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Jahr auswählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {years.map((year) => (
-                      <SelectItem key={year} value={year}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
+                <Select value={filters.selectedYear} onValueChange={(val) => onFilterChange({ selectedYear: val })}>
+                  <SelectTrigger><SelectValue placeholder="Jahr auswählen" /></SelectTrigger>
+                  <SelectContent>{years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
                 </Select>
-
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Transaktionstyp auswählen" />
-                  </SelectTrigger>
+                <Select value={filters.selectedType} onValueChange={(val) => onFilterChange({ selectedType: val })}>
+                  <SelectTrigger><SelectValue placeholder="Typ auswählen" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Alle Transaktionen">Alle Transaktionen</SelectItem>
                     <SelectItem value="Einnahme">Einnahme</SelectItem>
                     <SelectItem value="Ausgabe">Ausgabe</SelectItem>
                   </SelectContent>
                 </Select>
-
                 <div className="relative col-span-1 sm:col-span-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Transaktion suchen..."
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+                  <Input type="search" placeholder="Suchen..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 mt-4 md:mt-0">
-                <Button variant="outline" size="sm" onClick={handleExportCsv}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Als CSV exportieren
-                </Button>
               </div>
             </div>
 
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Saldo</div>
-              <div className="text-xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
+            <div className="flex justify-between items-center">
+              <div className="text-sm text-muted-foreground">
+                Zeige {transactions.length} von {totalCount} Transaktionen
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Saldo</div>
+                <div className="text-xl font-bold">{totals.balance.toFixed(2).replace(".", ",")} €</div>
+              </div>
             </div>
 
             <div className="rounded-md border">
@@ -320,77 +194,21 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedAndFilteredData.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        Keine Transaktionen gefunden.
-                      </TableCell>
-                    </TableRow>
+                  {(loading || isPending) && transactions.length === 0 ? (
+                    Array.from({ length: 10 }).map((_, i) => (
+                      <TableRow key={i}><TableCell colSpan={5} className="p-4"><div className="h-4 bg-muted rounded animate-pulse"></div></TableCell></TableRow>
+                    ))
+                  ) : transactions.length === 0 ? (
+                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Keine Transaktionen gefunden.</TableCell></TableRow>
                   ) : (
-                    sortedAndFilteredData.map((finance) => (
-                      <FinanceContextMenu
-                        key={finance.id}
-                        finance={finance}
-                        onEdit={() => onEdit && onEdit(finance)}
-                        onStatusToggle={async () => {
-                          try {
-                            const response = await fetch(`/api/finanzen/${finance.id}`, {
-                              method: "PATCH",
-                              headers: {
-                                "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({ 
-                                ist_einnahmen: !finance.ist_einnahmen 
-                              }),
-                            })
-                            
-                            if (!response.ok) {
-                              throw new Error("Fehler beim Umschalten des Status")
-                            }
-                            
-                            toast({
-                              title: "Status geändert",
-                              description: `Die Transaktion wurde als ${!finance.ist_einnahmen ? "Einnahme" : "Ausgabe"} markiert.`,
-                            })
-                            
-                            // Aktualisieren der Daten
-                            loadFinances && loadFinances()
-                            reloadRef?.current && reloadRef.current()
-                          } catch (error) {
-                            console.error("Fehler beim Umschalten des Status:", error)
-                            toast({
-                              title: "Fehler",
-                              description: "Der Status konnte nicht geändert werden.",
-                              variant: "destructive",
-                            })
-                          }
-                        }}
-                        onRefresh={() => {
-                          loadFinances && loadFinances()
-                          reloadRef?.current && reloadRef.current()
-                        }}
-                      >
-                        <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit && onEdit(finance)}>
-                          <TableCell>{finance.name}</TableCell>
-                          <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
-                          <TableCell>{formatDate(finance.datum)}</TableCell>
-                          <TableCell>
-                            <span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>
-                              {finance.betrag.toFixed(2).replace(".", ",")} €
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                finance.ist_einnahmen
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-red-50 text-red-700"
-                              }
-                            >
-                              {finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}
-                            </Badge>
-                          </TableCell>
+                    transactions.map((t) => (
+                      <FinanceContextMenu key={t.id} finance={t} onEdit={() => onEdit(t)} onStatusToggle={() => handleStatusToggle(t)} onRefresh={() => onFilterChange({})}>
+                        <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit(t)}>
+                          <TableCell>{t.name}</TableCell>
+                          <TableCell>{t.wohnung?.name || t.Wohnungen?.name || '-'}</TableCell>
+                          <TableCell>{formatDate(t.datum)}</TableCell>
+                          <TableCell><span className={t.ist_einnahmen ? "text-green-600" : "text-red-600"}>{t.betrag.toFixed(2).replace(".", ",")} €</span></TableCell>
+                          <TableCell><Badge variant="outline" className={t.ist_einnahmen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>{t.ist_einnahmen ? "Einnahme" : "Ausgabe"}</Badge></TableCell>
                         </TableRow>
                       </FinanceContextMenu>
                     ))
@@ -398,23 +216,22 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                 </TableBody>
               </Table>
             </div>
+
+            <div ref={loaderRef} className="h-10 flex items-center justify-center">
+              {loadingMore && <Loader2 className="h-6 w-6 animate-spin" />}
+              {!loadingMore && error && (
+                <div className="text-center text-red-500">
+                  <p>Fehler beim Laden: {error}</p>
+                  <Button onClick={loadMore} variant="outline" size="sm" className="mt-2">Erneut versuchen</Button>
+                </div>
+              )}
+              {!loadingMore && !error && transactions.length > 0 && transactions.length >= totalCount && (
+                <p className="text-sm text-muted-foreground">Keine weiteren Transaktionen verfügbar.</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
-            <AlertDialogDescription>Möchten Sie diese Transaktion wirklich löschen? Dies kann nicht rückgängig gemacht werden.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600" disabled={isDeleting}>{isDeleting ? 'Löschen...' : 'Löschen'}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
