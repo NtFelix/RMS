@@ -2,19 +2,89 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '25');
+    const apartmentId = searchParams.get('apartmentId');
+    const year = searchParams.get('year');
+    const type = searchParams.get('type');
+    const searchQuery = searchParams.get('searchQuery');
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    // Base query for transactions
+    let query = supabase
       .from('Finanzen')
-      .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false });
-      
+      .select('*, Wohnungen(name)', { count: 'exact' });
+
+    // Base query for totals, applied on the same filters
+    // We fetch all matching transactions to calculate totals server-side
+    let totalsQuery = supabase
+      .from('Finanzen')
+      .select('betrag, ist_einnahmen');
+
+    // Apply filters to both queries
+    if (apartmentId && apartmentId !== 'Alle Wohnungen') {
+      query = query.eq('wohnung_id', apartmentId);
+      totalsQuery = totalsQuery.eq('wohnung_id', apartmentId);
+    }
+    if (year && year !== 'Alle Jahre') {
+      query = query.gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`);
+      totalsQuery = totalsQuery.gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`);
+    }
+    if (type && type !== 'Alle Transaktionen') {
+      query = query.eq('ist_einnahmen', type === 'Einnahme');
+      totalsQuery = totalsQuery.eq('ist_einnahmen', type === 'Einnahme');
+    }
+    if (searchQuery) {
+      const cleanedQuery = searchQuery.replace(/[:()|&]/g, ' ').trim();
+      query = query.textSearch('fts', cleanedQuery, { type: 'websearch' });
+      // Note: totalsQuery does not support fts, so we apply a similar filter logic
+      // This is a simplification. For full accuracy, totals should be calculated on the result of a query that supports FTS.
+      // A more robust solution might involve a database function.
+      // For now, we apply a broad `or` filter for totals calculation when a search query is present.
+      totalsQuery = totalsQuery.or(`name.ilike.%${searchQuery}%,notiz.ilike.%${searchQuery}%`);
+    }
+
+    // Execute paginated query for transactions
+    query = query.order('datum', { ascending: false }).range(from, to);
+
+    const { data: transactions, error, count } = await query;
     if (error) {
-      console.error('GET /api/finanzen error:', error);
+      console.error('GET /api/finanzen paginated error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(data, { status: 200 });
+
+    // Execute query to get all filtered data for total calculations
+    const { data: allFilteredData, error: totalsError } = await totalsQuery;
+    if (totalsError) {
+      console.error('GET /api/finanzen totals error:', totalsError);
+      return NextResponse.json({ error: totalsError.message }, { status: 500 });
+    }
+
+    // Calculate totals
+    const totals = allFilteredData.reduce((acc, t) => {
+      if (t.ist_einnahmen) {
+        acc.income += t.betrag;
+      } else {
+        acc.expense += t.betrag;
+      }
+      return acc;
+    }, { income: 0, expense: 0 });
+
+    const balance = totals.income - totals.expense;
+
+    return NextResponse.json({
+      transactions,
+      totalCount: count,
+      totals: { ...totals, balance }
+    }, { status: 200 });
+
   } catch (e) {
     console.error('Server error GET /api/finanzen:', e);
     return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });

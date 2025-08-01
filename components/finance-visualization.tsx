@@ -74,17 +74,7 @@ const staticExpenseCategories = [
   { name: "Sonstiges", value: 1400 },
 ]
 
-// Interface for finance transactions
-interface Finanz {
-  id: string
-  wohnung_id?: string
-  name: string
-  datum?: string
-  betrag: number
-  ist_einnahmen: boolean
-  notiz?: string
-  Wohnungen?: { name: string }
-}
+import { Finanz } from "@/types"
 
 interface FinanceVisualizationProps {
   finances: Finanz[]

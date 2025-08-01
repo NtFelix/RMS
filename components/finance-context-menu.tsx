@@ -22,20 +22,11 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { deleteFinanceAction } from "@/app/finanzen-actions"; // Added import
 
-interface Finance {
-  id: string
-  wohnung_id?: string
-  name: string
-  datum?: string
-  betrag: number
-  ist_einnahmen: boolean
-  notiz?: string
-  Wohnungen?: { name: string }
-}
+import { Finanz } from "@/types";
 
 interface FinanceContextMenuProps {
   children: React.ReactNode
-  finance: Finance
+  finance: Finanz
   onEdit: () => void
   onStatusToggle: () => void
   onRefresh: () => void
