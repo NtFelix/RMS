@@ -6,12 +6,9 @@ import { createClient } from "@/utils/supabase/server";
 
 export default async function FinanzenPage() {
   const supabase = await createClient();
-  // Wohnungen laden
   const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
   const wohnungen = wohnungenData ?? [];
-  // Finanzen laden
-  const { data: finanzenData } = await supabase.from('Finanzen').select('*, Wohnungen(name)');
-  const finances = finanzenData ?? [];
 
-  return <FinanzenClientWrapper finances={finances} wohnungen={wohnungen} />;
+  // Initial data fetch is now handled in the client wrapper
+  return <FinanzenClientWrapper initialFinances={[]} initialTotals={{ income: 0, expenses: 0, balance: 0 }} initialCount={0} wohnungen={wohnungen} />;
 }

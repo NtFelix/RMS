@@ -31,118 +31,90 @@ interface Finanz {
 
 interface Wohnung { id: string; name: string; }
 
+interface Finanz {
+  id: string;
+  wohnung_id?: string;
+  name: string;
+  datum?: string;
+  betrag: number;
+  ist_einnahmen: boolean;
+  notiz?: string;
+  Wohnungen?: { name: string };
+}
+
+interface Wohnung { id: string; name: string; }
+
+interface Totals {
+  income: number;
+  expenses: number;
+  balance: number;
+}
+
 interface FinanzenClientWrapperProps {
-  finances: Finanz[];
+  initialFinances: Finanz[];
+  initialTotals: Totals;
+  initialCount: number;
   wohnungen: Wohnung[];
 }
 
-export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenClientWrapperProps) {
-  // Local state for dialog (dialogOpen, editingId, formData) is removed
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-  // const [formData, setFormData] = useState({ 
-  //   wohnung_id: "", 
-  //   name: "", 
-  //   datum: "", 
-  //   betrag: "", 
-  //   ist_einnahmen: false, 
-  //   notiz: "" 
-  // });
-  const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
-  const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
+export default function FinanzenClientWrapper({ initialFinances, initialTotals, initialCount, wohnungen }: FinanzenClientWrapperProps) {
+  const [finances, setFinances] = useState<Finanz[]>(initialFinances);
+  const [totals, setTotals] = useState<Totals>(initialTotals);
+  const [totalCount, setTotalCount] = useState<number>(initialCount);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Add handler for new entries
-  const handleAddFinance = useCallback((newFinance: Finanz) => {
-    setFinData(prev => {
-      // Check if the entry already exists to prevent duplicates
-      const exists = prev.some(item => item.id === newFinance.id);
-      if (exists) {
-        // If it exists, update the existing entry
-        return prev.map(item => 
-          item.id === newFinance.id ? { ...item, ...newFinance } : item
-        );
+  const { openFinanceModal } = useModalStore();
+
+  const fetchFinances = useCallback(async (filters = {}, page = 1, limit = 25) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        ...filters,
+      });
+      const response = await fetch(`/api/finanzen?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch finances');
+      const data = await response.json();
+
+      if (page === 1) {
+        setFinances(data.transactions);
+      } else {
+        setFinances(prev => [...prev, ...data.transactions]);
       }
-      // If it's a new entry, add it to the beginning of the list
-      return [newFinance, ...prev];
-    });
+      setTotals(data.totals);
+      setTotalCount(data.count);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
-  
-  // Handle successful form submission
-  const handleSuccess = useCallback((data: any) => {
-    // The server returns the created/updated finance entry
-    if (data) {
-      handleAddFinance(data);
-    }
-  }, [handleAddFinance]);
 
-  // useEffect for 'open-add-finance-modal' event is removed.
-  // This will be handled by CommandMenu triggering useModalStore.
+  useEffect(() => {
+    fetchFinances();
+  }, [fetchFinances]);
 
-  // Werte berechnen (keep)
-  const currentYear = new Date().getFullYear();
-  const financesForCurrentYear = finData.filter(f => f.datum && new Date(f.datum).getFullYear() === currentYear);
+  const handleSuccess = useCallback(() => {
+    fetchFinances();
+  }, [fetchFinances]);
 
-  const monthlyData = financesForCurrentYear.reduce((acc, item) => {
-    const month = new Date(item.datum!).getMonth();
-    if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0 };
-    }
-    if (item.ist_einnahmen) {
-      acc[month].income += Number(item.betrag);
-    } else {
-      acc[month].expenses += Number(item.betrag);
-    }
-    return acc;
-  }, {} as Record<number, { income: number; expenses: number }>);
-
-  const monthlyEntries = Object.values(monthlyData);
-  const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
-  const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
-
-  // Improved average calculation - only consider months that have passed
-  const now = new Date();
-  const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
-  const monthsPassed = currentMonthIndex + 1;
-
-  const totalsForPassedMonths = Object.entries(monthlyData).reduce(
-    (acc, [monthKey, data]) => {
-      const monthIndex = Number(monthKey); // monthKey is already 0-based from getMonth()
-      if (monthIndex <= currentMonthIndex) {
-        acc.income += data.income;
-        acc.expenses += data.expenses;
-      }
-      return acc;
-    },
-    { income: 0, expenses: 0 }
-  );
-
-  const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
-  const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
-
-  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-  const yearlyProjection = averageMonthlyCashflow * 12;
-
-  // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
-  // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
   const handleEdit = useCallback((finance: Finanz) => {
-    useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
-  }, [wohnungen, handleSuccess]);
+    openFinanceModal(finance, wohnungen, handleSuccess);
+  }, [openFinanceModal, wohnungen, handleSuccess]);
 
   const handleAddTransaction = () => {
-    useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
+    openFinanceModal(undefined, wohnungen, handleSuccess);
   };
   
-  // Function to refresh finance data, can be called by FinanceTransactions or after modal operations
-  const refreshFinances = async () => {
-    // This logic was part of the old handleSubmit, adapt if still needed for table refresh
-    // For now, router.refresh() in the modal should handle revalidation.
-    // If specific client-side state update is needed without full page reload, this can be expanded.
-    const dataRes = await fetch('/api/finanzen'); // Or call a server action that just fetches
-    if (dataRes.ok) {
-      const newData = await dataRes.json();
-      setFinData(newData);
-    }
-  };
+  // Calculate summary card values from API totals
+  const currentYear = new Date().getFullYear();
+  const averageMonthlyIncome = totals.income / 12;
+  const averageMonthlyExpenses = totals.expenses / 12;
+  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
+  const yearlyProjection = totals.balance;
 
 
   return (
@@ -152,66 +124,65 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
           <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
         </div>
-        {/* Button to add a new transaction - now uses the global modal store */}
         <Button onClick={handleAddTransaction} className="sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
           Transaktion hinzufügen
         </Button>
-        {/* The local Dialog for add/edit is removed */}
       </div>
 
-      {/* Summary Cards (keep) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Cards remain the same */}
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamteinnahmen</CardTitle>
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
+            <div className="text-2xl font-bold">{totals.income.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Summe aller Einnahmen</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamtausgaben</CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
+            <div className="text-2xl font-bold">{totals.expenses.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Summe aller Ausgaben</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamtsaldo</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
+            <div className="text-2xl font-bold">{totals.balance.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Aktueller Gesamt-Saldo</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
+            <CardTitle className="text-sm font-medium">Anzahl Transaktionen</CardTitle>
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
+            <div className="text-2xl font-bold">{totalCount}</div>
+            <p className="text-xs text-muted-foreground">Anzahl der Transaktionen</p>
           </CardContent>
         </Card>
       </div>
 
-      <FinanceVisualization finances={finData} />
+      <FinanceVisualization finances={finances} />
       <FinanceTransactions 
-        finances={finData} 
-        onEdit={handleEdit} 
-        onAdd={handleAddFinance}
-        loadFinances={refreshFinances} 
-        reloadRef={reloadRef}
+        finances={finances}
+        totalCount={totalCount}
+        loadMore={fetchFinances}
+        isLoading={isLoading}
+        onEdit={handleEdit}
+        onAdd={handleSuccess}
+        loadFinances={fetchFinances}
+        wohnungen={wohnungen}
       />
     </div>
   );
