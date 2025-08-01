@@ -14,6 +14,17 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 1) Cache node modules
+      - name: Cache Node Modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
       # 2) Node.js installieren
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -32,41 +43,39 @@ jobs:
       # 4) Next.js Test-Build
       - name: Build Next.js
         run: npm run build
-        # oder: yarn build
 
-      
-
-      # 5) Built Next.js Application starten
-      - name: Serve Built Next.js Application
+      # 4 + 6) Start App, Lighthouse Audit & Cleanup
+      - name: Start, Audit & Cleanup
         run: |
+          # App im Hintergrund starten
           npm run start &
+          APP_PID=$!
+          # Warten bis App verfügbar ist
           npx wait-on http://localhost:3000
 
-      - name: Check Application Availability
-        run: curl -v http://localhost:3000
+          # Verzeichnisse für Reports anlegen
+          mkdir -p ./.lighthouseci/mobile ./.lighthouseci/desktop
 
-      # 6) Lighthouse Performance Audit
-      - name: Run Lighthouse CI
-        run: |
-          npm install -g @lhci/cli@0.13.0
-          mkdir -p ./.lighthouseci/mobile
-          mkdir -p ./.lighthouseci/desktop
-          lhci collect --url=http://localhost:3000 --settings.emulatedFormFactor=mobile --no-upload
-          mv ./.lighthouseci/lhr-*.html ./.lighthouseci/mobile/
-          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
-          lhci collect --url=http://localhost:3000 --settings.emulatedFormFactor=desktop --no-upload
-          mv ./.lighthouseci/lhr-*.html ./.lighthouseci/desktop/
-          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
+          # Mobile Audit
+          npx lhci collect \
+            --url=http://localhost:3000 \
+            --settings.emulatedFormFactor=mobile \
+            --no-upload \
+            --output ./.lighthouseci/mobile/lhr-mobile.json
 
-      - name: List Lighthouse reports
-        run: ls -la ./.lighthouseci
+          # Desktop Audit
+          npx lhci collect \
+            --url=http://localhost:3000 \
+            --settings.emulatedFormFactor=desktop \
+            --no-upload \
+            --output ./.lighthouseci/desktop/lhr-desktop.json
 
+          # Server beenden
+          kill $APP_PID || echo "App process already terminated"
+
+      # 7) Upload Lighthouse reports
       - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          path: |
-            ./.lighthouseci/mobile
-            ./.lighthouseci/desktop
-
-      
+          path: ./.lighthouseci
