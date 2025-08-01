@@ -9,9 +9,11 @@ jobs:
   build-and-lighthouse:
     runs-on: ubuntu-latest
     steps:
+      # 1) Code auschecken
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      # 2) Cache Node Modules  
       - name: Cache Node Modules
         uses: actions/cache@v4
         with:
@@ -22,11 +24,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      # 3) Node.js installieren
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
+      # 4) Abhängigkeiten installieren
       - name: Install Dependencies
         run: |
           if [ -f yarn.lock ]; then
@@ -35,37 +39,76 @@ jobs:
             npm ci
           fi
 
+      # 5) Performance Tools installieren
+      - name: Install Performance Tools
+        run: npm install -g @lhci/cli wait-on
+
+      # 6) Next.js Build
       - name: Build Next.js
         run: npm run build
 
+      # 7) Start, Audit & Cleanup
       - name: Start, Audit & Cleanup
         run: |
+          set -e  # Fehlerbehandlung
+          
+          # App im Hintergrund starten
           npm run start &
           APP_PID=$!
-          npx wait-on http://localhost:3000
-
+          
+          # Warten bis App verfügbar ist (mit Timeout)
+          npx wait-on http://localhost:3000 --timeout 60000
+          
+          # Verzeichnisse anlegen
+          mkdir -p ./.lighthouseci/mobile
+          mkdir -p ./.lighthouseci/desktop
+          
           # Mobile Audit
           npx lhci collect \
             --url=http://localhost:3000 \
             --settings.emulatedFormFactor=mobile \
             --no-upload
-          mkdir -p ./.lighthouseci/mobile
-          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
-
+          
+          # Sichere Datei-Bewegung für Mobile
+          if ls ./.lighthouseci/lhr-*.json 1> /dev/null 2>&1; then
+            mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
+          else
+            echo "Warning: No mobile lighthouse reports found"
+          fi
+          
           # Desktop Audit
           npx lhci collect \
             --url=http://localhost:3000 \
             --settings.emulatedFormFactor=desktop \
             --no-upload
-          mkdir -p ./.lighthouseci/desktop
-          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
+          
+          # Sichere Datei-Bewegung für Desktop
+          if ls ./.lighthouseci/lhr-*.json 1> /dev/null 2>&1; then
+            mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
+          else
+            echo "Warning: No desktop lighthouse reports found"
+          fi
+          
+          # Server beenden
+          kill $APP_PID || echo "App process already terminated"
 
-          kill $APP_PID || echo "Already stopped"
+      # 8) Debug: Verzeichnisse auflisten
+      - name: List Lighthouse reports
+        run: |
+          echo "=== Lighthouse directory structure ==="
+          ls -la ./.lighthouseci/ || echo "No .lighthouseci directory found"
+          echo "=== Mobile reports ==="
+          ls -la ./.lighthouseci/mobile/ || echo "No mobile reports found"
+          echo "=== Desktop reports ==="
+          ls -la ./.lighthouseci/desktop/ || echo "No desktop reports found"
 
+      # 9) Upload Lighthouse reports (mit Kondition)
       - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
+        if: always()  # Auch bei Warnings ausführen
         with:
           name: lighthouse-reports
           path: |
-            ./.lighthouseci/mobile/*.json
-            ./.lighthouseci/desktop/*.json
+            ./.lighthouseci/mobile
+            ./.lighthouseci/desktop
+          if-no-files-found: warn  # Nur warnen, nicht fehlschlagen
