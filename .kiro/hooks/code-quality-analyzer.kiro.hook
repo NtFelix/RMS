@@ -1,0 +1,19 @@
+{
+  "enabled": true,
+  "name": "Code Quality Analyzer",
+  "description": "Monitors source code files for changes and analyzes them for potential improvements including code smells, design patterns, and best practices. Provides suggestions for better readability, maintainability, and performance while preserving functionality.",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Analyze the modified code files for potential improvements. Focus on:\n\n1. **Code Smells**: Identify long functions, duplicate code, complex conditionals, and other anti-patterns\n2. **Design Patterns**: Suggest appropriate patterns that could improve the code structure\n3. **Best Practices**: Check for TypeScript/React/Next.js best practices adherence\n4. **Performance**: Look for optimization opportunities (memoization, lazy loading, etc.)\n5. **Readability**: Suggest improvements for variable names, function structure, and comments\n6. **Maintainability**: Identify areas that could be refactored for easier maintenance\n\nFor each suggestion, provide:\n- Clear explanation of the issue\n- Specific code example showing the improvement\n- Reasoning for why this change would be beneficial\n- Priority level (High/Medium/Low)\n\nConsider the project context: German property management SaaS using Next.js 15, TypeScript, Supabase, and follows the established patterns in the codebase."
+  }
+}
