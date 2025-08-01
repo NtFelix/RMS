@@ -1,6 +1,5 @@
 name: Build & Performance Check
 
-# Trigger auf Push in main und Pull-Requests
 on:
   push:
     branches: ["main", "v2.0"]
@@ -10,11 +9,9 @@ jobs:
   build-and-lighthouse:
     runs-on: ubuntu-latest
     steps:
-      # 1) Code auschecken
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 1) Cache node modules
       - name: Cache Node Modules
         uses: actions/cache@v4
         with:
@@ -25,13 +22,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # 2) Node.js installieren
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      # 3) Abhängigkeiten installieren
       - name: Install Dependencies
         run: |
           if [ -f yarn.lock ]; then
@@ -40,42 +35,37 @@ jobs:
             npm ci
           fi
 
-      # 4) Next.js Test-Build
       - name: Build Next.js
         run: npm run build
 
-      # 4 + 6) Start App, Lighthouse Audit & Cleanup
       - name: Start, Audit & Cleanup
         run: |
-          # App im Hintergrund starten
           npm run start &
           APP_PID=$!
-          # Warten bis App verfügbar ist
           npx wait-on http://localhost:3000
-
-          # Verzeichnisse für Reports anlegen
-          mkdir -p ./.lighthouseci/mobile ./.lighthouseci/desktop
 
           # Mobile Audit
           npx lhci collect \
             --url=http://localhost:3000 \
             --settings.emulatedFormFactor=mobile \
-            --no-upload \
-            --output ./.lighthouseci/mobile/lhr-mobile.json
+            --no-upload
+          mkdir -p ./.lighthouseci/mobile
+          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
 
           # Desktop Audit
           npx lhci collect \
             --url=http://localhost:3000 \
             --settings.emulatedFormFactor=desktop \
-            --no-upload \
-            --output ./.lighthouseci/desktop/lhr-desktop.json
+            --no-upload
+          mkdir -p ./.lighthouseci/desktop
+          mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
 
-          # Server beenden
-          kill $APP_PID || echo "App process already terminated"
+          kill $APP_PID || echo "Already stopped"
 
-      # 7) Upload Lighthouse reports
       - name: Upload Lighthouse reports
         uses: actions/upload-artifact@v4
         with:
           name: lighthouse-reports
-          path: ./.lighthouseci
+          path: |
+            ./.lighthouseci/mobile/*.json
+            ./.lighthouseci/desktop/*.json
