@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const selectedType = searchParams.get('selectedType');
 
     const supabase = await createClient();
-    let query = supabase.from('Finanzen').select('*, Wohnungen(name)');
+    let query = supabase.from('Finanzen').select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen(name)');
 
     if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
       query = query.eq('Wohnungen.name', selectedApartment);
@@ -40,7 +40,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const csv = Papa.unparse(data || []);
+    const formattedData = (data || []).map((item: any) => ({
+      'Bezeichnung': item.name,
+      'Wohnung': item.Wohnungen?.name || '-',
+      'Datum': item.datum,
+      'Betrag': item.betrag,
+      'Typ': item.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
+      'Notiz': item.notiz
+    }));
+
+    const csv = Papa.unparse(formattedData);
 
     return new NextResponse(csv, {
       status: 200,
