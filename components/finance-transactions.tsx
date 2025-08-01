@@ -62,6 +62,7 @@ export function FinanceTransactions({
   const loaderRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState(filters.searchQuery);
   const [isPending, startTransition] = useTransition();
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -123,6 +124,53 @@ export function FinanceTransactions({
     }
   };
 
+  const handleExportCsv = async () => {
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams({
+        sortBy: filters.sortKey,
+        sortDirection: filters.sortDirection,
+      });
+
+      if (filters.selectedApartment !== "Alle Wohnungen") {
+        const wohnung = initialWohnungen.find(w => w.name === filters.selectedApartment);
+        if (wohnung) params.append('wohnungId', wohnung.id);
+      }
+      if (filters.selectedYear !== "Alle Jahre") params.append('year', filters.selectedYear);
+      if (filters.selectedType !== "Alle Transaktionen") params.append('type', filters.selectedType);
+      if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
+
+      const response = await fetch(`/api/export/finanzen?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch data for export');
+
+      const data = await response.json();
+
+      const header = ['Bezeichnung','Wohnung','Datum','Betrag','Typ','Notiz'];
+      const rows = data.map((f: Finanz) => [
+        f.name,
+        f.wohnung?.name || f.Wohnungen?.name || '',
+        f.datum || '',
+        f.betrag.toString(),
+        f.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
+        f.notiz || ''
+      ]);
+      const csv = [header, ...rows].map(r => r.join(';')).join('\n');
+      const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'finanzen.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+    } catch (error) {
+      toast({ title: 'Fehler', description: 'Export fehlgeschlagen', variant: 'destructive' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const renderSortIcon = (key: string) => {
     if (filters.sortKey !== key) return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />;
     return filters.sortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />;
@@ -169,6 +217,12 @@ export function FinanceTransactions({
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input type="search" placeholder="Suchen..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
+              </div>
+              <div className="flex items-center gap-2 mt-4 md:mt-0">
+                <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={isExporting}>
+                  {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  Als CSV exportieren
+                </Button>
               </div>
             </div>
 
