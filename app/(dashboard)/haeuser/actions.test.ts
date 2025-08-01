@@ -3,6 +3,9 @@ jest.mock('@/utils/supabase/server');
 jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
 
+/**
+ * @jest-environment node
+ */
 import { handleSubmit, deleteHouseAction, getWasserzaehlerModalDataAction } from './actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
