@@ -105,6 +105,33 @@ export type Finanzen = {
   user_id: string;
 };
 
+// Interface for the totals response from the API
+export interface FinanceTotalsResponse {
+  totalBalance: number;
+  totalIncome: number;
+  totalExpenses: number;
+  transactionCount: number;
+}
+
+// Interface for filter parameters used in API calls
+export interface FinanceFilters {
+  apartment?: string;
+  year?: string;
+  type?: 'income' | 'expense';
+  search?: string;
+}
+
+// Interface for paginated response (for future use)
+export interface PaginatedFinanceResponse {
+  data: Finanzen[];
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
 export async function fetchHaeuser() {
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
