@@ -27,20 +27,12 @@ interface FinanzenClientWrapperProps {
   initialWohnungen: Wohnung[];
 }
 
-interface SummaryData {
-  averageMonthlyIncome: number;
-  averageMonthlyExpenses: number;
-  averageMonthlyCashflow: number;
-  yearlyProjection: number;
-}
-
 export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClientWrapperProps) {
   const { openFinanceModal } = useModalStore();
   const isMobile = useIsMobile();
 
   const [transactions, setTransactions] = useState<Finanz[]>([]);
   const [totals, setTotals] = useState({ balance: 0, income: 0, expenses: 0 });
-  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [chartData, setChartData] = useState([]);
   const [chartLoading, setChartLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -125,17 +117,6 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
     }
   }, [filters, initialWohnungen]);
 
-  const fetchSummary = useCallback(async () => {
-    try {
-      const response = await fetch('/api/finanzen/summary');
-      if (!response.ok) throw new Error('Failed to fetch summary');
-      const data = await response.json();
-      setSummaryData(data);
-    } catch (error) {
-      console.error(error);
-    }
-  }, []);
-
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setPage(1);
     const updatedFilters = { ...filters, ...newFilters };
@@ -146,15 +127,13 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
 
   useEffect(() => {
     fetchTransactions(filters, true);
-    fetchSummary();
     fetchChartData(filters);
   }, []);
 
   const handleSuccess = useCallback(() => {
     fetchTransactions(filters, true);
-    fetchSummary();
     fetchChartData(filters);
-  }, [fetchTransactions, fetchSummary, fetchChartData, filters]);
+  }, [fetchTransactions, fetchChartData, filters]);
 
   const handleEdit = useCallback((finance: Finanz) => {
     openFinanceModal(finance, initialWohnungen, handleSuccess);
@@ -163,6 +142,8 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
   const handleAddTransaction = () => {
     openFinanceModal(undefined, initialWohnungen, handleSuccess);
   };
+
+  const { income: totalIncome, expenses: totalExpenses, balance: totalBalance } = totals;
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -177,45 +158,35 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamteinnahmen</CardTitle>
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summaryData?.averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
+            <div className="text-2xl font-bold">{totalIncome.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Summe aller Einnahmen</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamtausgaben</CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summaryData?.averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
+            <div className="text-2xl font-bold">{totalExpenses.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Summe aller Ausgaben</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamtsaldo</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{summaryData?.averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{summaryData?.yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
+            <div className="text-2xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Aktueller Gesamtfinanzstatus</p>
           </CardContent>
         </Card>
       </div>
