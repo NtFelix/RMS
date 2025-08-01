@@ -10,7 +10,7 @@ export default async function FinanzenPage() {
   const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
   const wohnungen = wohnungenData ?? [];
   // Finanzen laden
-  const { data: finanzenData } = await supabase.from('Finanzen').select('*, Wohnungen(name)');
+  const { data: finanzenData } = await supabase.from('Finanzen').select('*, Wohnungen(name)').order('datum', { ascending: false }).range(0, 24);
   const finances = finanzenData ?? [];
 
   return <FinanzenClientWrapper finances={finances} wohnungen={wohnungen} />;

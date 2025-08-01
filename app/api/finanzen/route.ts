@@ -2,13 +2,21 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') ?? '1', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') ?? '25', 10);
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('Finanzen')
       .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false });
+      .order('datum', { ascending: false })
+      .range(from, to);
       
     if (error) {
       console.error('GET /api/finanzen error:', error);
