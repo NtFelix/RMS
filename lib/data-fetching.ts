@@ -162,18 +162,16 @@ export async function fetchAufgaben() {
   return data as Aufgabe[];
 }
 
-export async function fetchFinanzen() {
+export async function getFinanceYears(): Promise<string[]> {
   const supabase = createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("Finanzen")
-    .select('*');
-    
+  const { data, error } = await supabase.rpc('get_distinct_years_finanzen');
+
   if (error) {
-    console.error("Error fetching Finanzen:", error);
+    console.error("Error fetching distinct finance years:", error);
     return [];
   }
-  
-  return data as Finanzen[];
+  // The RPC returns an array of objects, e.g., [{year: 2023}, {year: 2024}]
+  return data.map((item: any) => item.year.toString()).sort((a: string, b: string) => b.localeCompare(a));
 }
 
 export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {

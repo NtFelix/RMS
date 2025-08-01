@@ -1,23 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react"; // useEffect might be removable if not used elsewhere
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useDebounce } from "use-debounce";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
-// Dialog, Input, Label, Select, DatePicker, toast, format are removed as they were for the local modal
-// If other parts of the component use them, they should be kept. For now, assuming they are modal-specific.
-// import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-// import { toast } from "@/components/ui/use-toast";
-// import { DatePicker } from "@/components/ui/date-picker";
-// import { format } from "date-fns";
+import { useModalStore } from "@/hooks/use-modal-store";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-import { useModalStore } from "@/hooks/use-modal-store"; // Added
-
+// Interfaces
 interface Finanz {
   id: string;
   wohnung_id?: string;
@@ -26,192 +19,222 @@ interface Finanz {
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string;
-  Wohnungen?: { name: string };
+  Wohnungen?: { id: string; name: string };
 }
 
 interface Wohnung { id: string; name: string; }
 
-interface FinanzenClientWrapperProps {
-  finances: Finanz[];
-  wohnungen: Wohnung[];
+interface Totals {
+  totalIncome: number;
+  totalExpenses: number;
 }
 
-export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenClientWrapperProps) {
-  // Local state for dialog (dialogOpen, editingId, formData) is removed
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-  // const [formData, setFormData] = useState({ 
-  //   wohnung_id: "", 
-  //   name: "", 
-  //   datum: "", 
-  //   betrag: "", 
-  //   ist_einnahmen: false, 
-  //   notiz: "" 
-  // });
-  const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
-  const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
+export default function FinanzenClientWrapper() {
+  // State Management
+  const [transactions, setTransactions] = useState<Finanz[]>([]);
+  const [wohnungen, setWohnungen] = useState<Wohnung[]>([]);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [totals, setTotals] = useState<Totals>({ totalIncome: 0, totalExpenses: 0 });
+  const [totalCount, setTotalCount] = useState(0);
 
-  // Add handler for new entries
-  const handleAddFinance = useCallback((newFinance: Finanz) => {
-    setFinData(prev => {
-      // Check if the entry already exists to prevent duplicates
-      const exists = prev.some(item => item.id === newFinance.id);
-      if (exists) {
-        // If it exists, update the existing entry
-        return prev.map(item => 
-          item.id === newFinance.id ? { ...item, ...newFinance } : item
-        );
-      }
-      // If it's a new entry, add it to the beginning of the list
-      return [newFinance, ...prev];
-    });
+  // Filters and Sorting State
+  const [filters, setFilters] = useState({
+    apartmentId: 'all',
+    year: 'all',
+    type: 'all',
+    searchQuery: '',
+  });
+  const [debouncedSearchQuery] = useDebounce(filters.searchQuery, 300);
+  const [sorting, setSorting] = useState({ key: 'datum', direction: 'desc' });
+
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const isMobile = useIsMobile();
+  const limit = isMobile ? 15 : 25;
+
+  // Loading and Error State
+  const [loading, setLoading] = useState<'initial' | 'loading' | 'error' | 'idle'>('initial');
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const fetchWohnungenAndYears = useCallback(async () => {
+    try {
+      // These are relatively static and can be fetched once.
+      const wohnungenRes = await fetch('/api/wohnungen');
+      const finanzenMetaRes = await fetch('/api/finanzen/meta'); // A new endpoint for meta data
+
+      const wohnungenData = await wohnungenRes.json();
+      const finanzenMetaData = await finanzenMetaRes.json();
+
+      setWohnungen(wohnungenData.wohnungen || []);
+      setAvailableYears(finanzenMetaData.years || []);
+
+    } catch (error) {
+      console.error("Failed to fetch initial data", error);
+    }
   }, []);
-  
-  // Handle successful form submission
-  const handleSuccess = useCallback((data: any) => {
-    // The server returns the created/updated finance entry
-    if (data) {
-      handleAddFinance(data);
-    }
-  }, [handleAddFinance]);
 
-  // useEffect for 'open-add-finance-modal' event is removed.
-  // This will be handled by CommandMenu triggering useModalStore.
+  useEffect(() => {
+    fetchWohnungenAndYears();
+  }, [fetchWohnungenAndYears]);
 
-  // Werte berechnen (keep)
-  const currentYear = new Date().getFullYear();
-  const financesForCurrentYear = finData.filter(f => f.datum && new Date(f.datum).getFullYear() === currentYear);
-
-  const monthlyData = financesForCurrentYear.reduce((acc, item) => {
-    const month = new Date(item.datum!).getMonth();
-    if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0 };
-    }
-    if (item.ist_einnahmen) {
-      acc[month].income += Number(item.betrag);
+  const fetchFinances = useCallback(async (isNewFilter = false) => {
+    if (isNewFilter) {
+      setLoading('loading');
+      setPage(1); // Reset page for new filters
     } else {
-      acc[month].expenses += Number(item.betrag);
+      setLoadingMore(true);
     }
-    return acc;
-  }, {} as Record<number, { income: number; expenses: number }>);
 
-  const monthlyEntries = Object.values(monthlyData);
-  const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
-  const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
+    try {
+      const params = new URLSearchParams({
+        page: isNewFilter ? '1' : String(page),
+        limit: String(limit),
+        sortKey: sorting.key,
+        sortDirection: sorting.direction,
+      });
 
-  // Improved average calculation - only consider months that have passed
-  const now = new Date();
-  const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
-  const monthsPassed = currentMonthIndex + 1;
+      if (filters.apartmentId !== 'all') params.append('apartmentId', filters.apartmentId);
+      if (filters.year !== 'all') params.append('year', filters.year);
+      if (filters.type !== 'all') params.append('type', filters.type);
+      if (debouncedSearchQuery) params.append('searchQuery', debouncedSearchQuery);
 
-  const totalsForPassedMonths = Object.entries(monthlyData).reduce(
-    (acc, [monthKey, data]) => {
-      const monthIndex = Number(monthKey); // monthKey is already 0-based from getMonth()
-      if (monthIndex <= currentMonthIndex) {
-        acc.income += data.income;
-        acc.expenses += data.expenses;
+      const res = await fetch(`/api/finanzen?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch finances');
+
+      const data = await res.json();
+
+      setTransactions(prev => isNewFilter ? data.transactions : [...prev, ...data.transactions]);
+      setHasMore(data.transactions.length === limit);
+
+      if (isNewFilter) {
+        setTotals({ totalIncome: data.totalIncome, totalExpenses: data.totalExpenses });
+        setTotalCount(data.total);
       }
-      return acc;
-    },
-    { income: 0, expenses: 0 }
-  );
 
-  const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
-  const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
+      setLoading('idle');
+    } catch (error) {
+      console.error(error);
+      setLoading('error');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [page, limit, sorting, filters, debouncedSearchQuery]);
 
-  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-  const yearlyProjection = averageMonthlyCashflow * 12;
+  // Effect for initial load and filter changes
+  useEffect(() => {
+    fetchFinances(true);
+  }, [filters.apartmentId, filters.year, filters.type, debouncedSearchQuery, sorting]);
 
-  // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
-  // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
-  const handleEdit = useCallback((finance: Finanz) => {
-    useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
-  }, [wohnungen, handleSuccess]);
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore && loading === 'idle') {
+      setPage(prevPage => prevPage + 1);
+    }
+  }, [loadingMore, hasMore, loading]);
+
+  useEffect(() => {
+    if (page > 1) {
+      fetchFinances(false);
+    }
+  }, [page]);
+
+
+  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [filterName]: value }));
+  };
+
+  const handleSortChange = (key: string) => {
+    setSorting(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+  
+  // Memoized values for summary cards
+  const summaryData = useMemo(() => {
+    const balance = totals.totalIncome - totals.totalExpenses;
+    return {
+      balance,
+      totalIncome: totals.totalIncome,
+      totalExpenses: totals.totalExpenses,
+    };
+  }, [totals]);
+
 
   const handleAddTransaction = () => {
-    useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
+    useModalStore.getState().openFinanceModal(undefined, wohnungen, () => fetchFinances(true));
   };
-  
-  // Function to refresh finance data, can be called by FinanceTransactions or after modal operations
-  const refreshFinances = async () => {
-    // This logic was part of the old handleSubmit, adapt if still needed for table refresh
-    // For now, router.refresh() in the modal should handle revalidation.
-    // If specific client-side state update is needed without full page reload, this can be expanded.
-    const dataRes = await fetch('/api/finanzen'); // Or call a server action that just fetches
-    if (dataRes.ok) {
-      const newData = await dataRes.json();
-      setFinData(newData);
-    }
-  };
+
+  const handleEdit = useCallback((finance: Finanz) => {
+    useModalStore.getState().openFinanceModal(finance, wohnungen, () => fetchFinances(true));
+  }, [wohnungen, fetchFinances]);
 
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-4 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
         </div>
-        {/* Button to add a new transaction - now uses the global modal store */}
         <Button onClick={handleAddTransaction} className="sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
           Transaktion hinzufügen
         </Button>
-        {/* The local Dialog for add/edit is removed */}
       </div>
 
-      {/* Summary Cards (keep) */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Cards remain the same */}
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamteinnahmen</CardTitle>
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
+            <div className="text-2xl font-bold">{summaryData.totalIncome.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Basierend auf den aktuellen Filtern</p>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
+            <CardTitle className="text-sm font-medium">Gesamtausgaben</CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
+            <div className="text-2xl font-bold">{summaryData.totalExpenses.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Basierend auf den aktuellen Filtern</p>
           </CardContent>
         </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
+        <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
+            <CardTitle className="text-sm font-medium">Saldo</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
+            <div className="text-2xl font-bold">{summaryData.balance.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Basierend auf den aktuellen Filtern</p>
           </CardContent>
         </Card>
       </div>
 
-      <FinanceVisualization finances={finData} />
+      <FinanceVisualization finances={transactions} />
       <FinanceTransactions 
-        finances={finData} 
-        onEdit={handleEdit} 
-        onAdd={handleAddFinance}
-        loadFinances={refreshFinances} 
-        reloadRef={reloadRef}
+        transactions={transactions}
+        onEdit={handleEdit}
+        onAdd={() => fetchFinances(true)}
+        loadFinances={() => fetchFinances(true)}
+        // Pass down new props for server-side handling
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        sorting={sorting}
+        onSortChange={handleSortChange}
+        wohnungen={wohnungen}
+        availableYears={availableYears}
+        // Infinite scroll props
+        loadMore={loadMore}
+        hasMore={hasMore}
+        totalCount={totalCount}
+        loading={loading}
+        loadingMore={loadingMore}
       />
     </div>
   );

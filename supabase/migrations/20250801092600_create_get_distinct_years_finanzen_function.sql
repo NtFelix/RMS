@@ -1,0 +1,10 @@
+CREATE OR REPLACE FUNCTION get_distinct_years_finanzen()
+RETURNS TABLE(year INT) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT EXTRACT(YEAR FROM datum)::INT AS year
+  FROM "Finanzen"
+  WHERE datum IS NOT NULL
+  ORDER BY year DESC;
+END;
+$$ LANGUAGE plpgsql;

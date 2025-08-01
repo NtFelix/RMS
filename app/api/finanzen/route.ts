@@ -1,25 +1,116 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
+import { getFinanceYears } from "@/lib/data-fetching";
 import { NextResponse } from "next/server";
+import { PostgrestFilterBuilder } from "@supabase/postgrest-js";
 
-export async function GET() {
+// Define a more specific type for our transactions to help with type safety
+type FinanzRow = {
+  betrag: number;
+  ist_einnahmen: boolean;
+  // Add other fields that might be present in totalsData if needed
+};
+
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
+    const { searchParams } = new URL(request.url);
+
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '25', 10);
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    const apartmentId = searchParams.get('apartmentId');
+    const year = searchParams.get('year');
+    const type = searchParams.get('type');
+    const searchQuery = searchParams.get('searchQuery');
+    const sortKey = searchParams.get('sortKey') || 'datum';
+    const sortDirection = searchParams.get('sortDirection') || 'desc';
+
+    // Base query for fetching transactions
+    let query = supabase
       .from('Finanzen')
-      .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false });
-      
-    if (error) {
-      console.error('GET /api/finanzen error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      .select('*, Wohnungen(id, name)', { count: 'exact' });
+
+    // Apply common filters
+    if (apartmentId && apartmentId !== 'all') {
+      query = query.eq('wohnung_id', apartmentId);
     }
-    return NextResponse.json(data, { status: 200 });
-  } catch (e) {
+    if (year && year !== 'all') {
+      query = query.gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`);
+    }
+    if (type && type !== 'all') {
+      query = query.eq('ist_einnahmen', type === 'einnahme');
+    }
+    if (searchQuery) {
+      const searchString = `%${searchQuery}%`;
+      query = query.or(`name.ilike.${searchString},notiz.ilike.${searchString},Wohnungen.name.ilike.${searchString}`);
+    }
+
+    // This query will be used for the final paginated result
+    const transactionsPromise = query
+      .order(sortKey, { ascending: sortDirection === 'asc' })
+      .range(from, to);
+
+    // --- Totals Query ---
+    // This query will be used to calculate the total income and expenses based on the same filters.
+    // It's intentionally not paginated.
+    let totalsQueryBuilder;
+    if (searchQuery) {
+        // If there's a search query, we need to join with Wohnungen to filter correctly
+        totalsQueryBuilder = supabase.from('Finanzen').select('betrag, ist_einnahmen, Wohnungen!inner(name)');
+        const searchString = `%${searchQuery}%`;
+        totalsQueryBuilder = totalsQueryBuilder.or(`name.ilike.${searchString},notiz.ilike.${searchString},Wohnungen.name.ilike.${searchString}`);
+    } else {
+        totalsQueryBuilder = supabase.from('Finanzen').select('betrag, ist_einnahmen');
+    }
+
+    // Apply common filters to totals query as well
+    if (apartmentId && apartmentId !== 'all') {
+        totalsQueryBuilder = totalsQueryBuilder.eq('wohnung_id', apartmentId);
+    }
+    if (year && year !== 'all') {
+        totalsQueryBuilder = totalsQueryBuilder.gte('datum', `${year}-01-01`).lte('datum', `${year}-12-31`);
+    }
+    if (type && type !== 'all') {
+        totalsQueryBuilder = totalsQueryBuilder.eq('ist_einnahmen', type === 'einnahme');
+    }
+
+    const totalsPromise = totalsQueryBuilder;
+    const yearsPromise = getFinanceYears();
+
+    const [
+      { data: transactions, error, count },
+      { data: totalsData, error: totalsError },
+      availableYears
+    ] = await Promise.all([
+      transactionsPromise,
+      totalsPromise,
+      yearsPromise
+    ]);
+
+    if (error) throw error;
+    if (totalsError) throw totalsError;
+
+    const typedTotalsData = totalsData as FinanzRow[];
+    const totalIncome = typedTotalsData.filter(t => t.ist_einnahmen).reduce((acc, t) => acc + t.betrag, 0);
+    const totalExpenses = typedTotalsData.filter(t => !t.ist_einnahmen).reduce((acc, t) => acc + t.betrag, 0);
+
+    return NextResponse.json({
+      transactions,
+      total: count,
+      totalIncome,
+      totalExpenses,
+      availableYears,
+    }, { status: 200 });
+
+  } catch (e: any) {
     console.error('Server error GET /api/finanzen:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });
+    return NextResponse.json({ error: e.message || 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });
   }
 }
+
 
 export async function POST(request: Request) {
   try {

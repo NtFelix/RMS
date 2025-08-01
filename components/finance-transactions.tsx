@@ -1,18 +1,19 @@
 "use client"
 
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useEffect, useRef } from "react"
+import { useInView } from 'react-intersection-observer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { Search, Download, Edit, ChevronsUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast"
 
-// Interface for finance transactions
+// Interfaces
 interface Finanz {
   id: string
   wohnung_id?: string
@@ -21,22 +22,32 @@ interface Finanz {
   betrag: number
   ist_einnahmen: boolean
   notiz?: string
-  Wohnungen?: { name: string }
+  Wohnungen?: { id: string; name: string }
 }
-
-// Define sortable fields for finance table
+interface Wohnung { id: string; name: string; }
 type FinanceSortKey = "name" | "wohnung" | "datum" | "betrag" | "typ"
 type SortDirection = "asc" | "desc"
 
 interface FinanceTransactionsProps {
-  finances: Finanz[]
-  reloadRef?: any
-  onEdit?: (finance: Finanz) => void
-  onAdd?: (finance: Finanz) => void
-  loadFinances?: () => Promise<void>
+  transactions: Finanz[]
+  onEdit: (finance: Finanz) => void
+  onAdd: () => void
+  loadFinances: () => Promise<void>
+  // New props for server-side controls
+  filters: { apartmentId: string; year: string; type: string; searchQuery: string; };
+  onFilterChange: (filterName: keyof FinanceTransactionsProps['filters'], value: string) => void;
+  sorting: { key: string; direction: string; };
+  onSortChange: (key: FinanceSortKey) => void;
+  wohnungen: Wohnung[];
+  availableYears: string[];
+  // Infinite scroll props
+  loadMore: () => void;
+  hasMore: boolean;
+  totalCount: number;
+  loading: 'initial' | 'loading' | 'error' | 'idle';
+  loadingMore: boolean;
 }
 
-// Helper function to format date in DD.MM.YYYY format
 const formatDate = (dateString: string | undefined): string => {
   if (!dateString) return '-'
   const date = new Date(dateString)
@@ -47,162 +58,43 @@ const formatDate = (dateString: string | undefined): string => {
   })
 }
 
-export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFinances }: FinanceTransactionsProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedApartment, setSelectedApartment] = useState("Alle Wohnungen")
-  const [selectedYear, setSelectedYear] = useState("Alle Jahre")
-  const [selectedType, setSelectedType] = useState("Alle Transaktionen")
-  const [filteredData, setFilteredData] = useState<Finanz[]>([])
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [sortKey, setSortKey] = useState<FinanceSortKey>("datum")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
+export function FinanceTransactions({
+  transactions,
+  onEdit,
+  onAdd,
+  loadFinances,
+  filters,
+  onFilterChange,
+  sorting,
+  onSortChange,
+  wohnungen,
+  availableYears,
+  loadMore,
+  hasMore,
+  totalCount,
+  loading,
+  loadingMore,
+}: FinanceTransactionsProps) {
+  const { ref, inView } = useInView({ threshold: 0, triggerOnce: false });
 
-  // Get unique apartment list from finances data
-  const apartments = ["Alle Wohnungen", ...new Set(finances
-    .filter(f => f.Wohnungen?.name)
-    .map(f => f.Wohnungen?.name || ""))]
-
-  // Get unique years from finances data
-  const years = ["Alle Jahre", ...new Set(finances
-    .filter(f => f.datum)
-    .map(f => f.datum!.split("-")[0])
-    .sort((a, b) => parseInt(b) - parseInt(a)))]
-
-  const sortedAndFilteredData = useMemo(() => {
-    let result = [...finances]
-
-    // Filter by wohnung
-    if (selectedApartment !== "Alle Wohnungen") {
-      result = result.filter(f => f.Wohnungen?.name === selectedApartment)
+  useEffect(() => {
+    if (inView && !loadingMore && hasMore) {
+      loadMore();
     }
+  }, [inView, loadMore, loadingMore, hasMore]);
 
-    // Filter by year
-    if (selectedYear !== "Alle Jahre") {
-      result = result.filter(f => {
-        if (!f.datum) return false
-        return f.datum.includes(selectedYear)
-      })
-    }
-
-    // Filter by transaction type
-    if (selectedType !== "Alle Transaktionen") {
-      const isEinnahme = selectedType === "Einnahme"
-      result = result.filter(f => f.ist_einnahmen === isEinnahme)
-    }
-
-    // Filter by search query
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(f => 
-        f.name.toLowerCase().includes(query) ||
-        (f.Wohnungen?.name || "").toLowerCase().includes(query) ||
-        (f.datum || "").includes(query) ||
-        (f.notiz || "").toLowerCase().includes(query)
-      )
-    }
-
-    // Apply sorting
-    if (sortKey) {
-      result.sort((a, b) => {
-        let valA, valB
-
-        switch (sortKey) {
-          case 'name':
-            valA = a.name || ''
-            valB = b.name || ''
-            break
-          case 'wohnung':
-            valA = a.Wohnungen?.name || ''
-            valB = b.Wohnungen?.name || ''
-            break
-          case 'datum':
-            valA = a.datum ? new Date(a.datum).getTime() : 0
-            valB = b.datum ? new Date(b.datum).getTime() : 0
-            break
-          case 'betrag':
-            valA = a.betrag || 0
-            valB = b.betrag || 0
-            break
-          case 'typ':
-            valA = a.ist_einnahmen ? 1 : 0
-            valB = b.ist_einnahmen ? 1 : 0
-            break
-          default:
-            valA = ''
-            valB = ''
-        }
-
-        // Handle numeric comparisons
-        if (typeof valA === 'number' && typeof valB === 'number') {
-          if (valA < valB) return sortDirection === "asc" ? -1 : 1
-          if (valA > valB) return sortDirection === "asc" ? 1 : -1
-          return 0
-        }
-
-        // Handle string comparisons
-        const strA = String(valA)
-        const strB = String(valB)
-        return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA)
-      })
-    }
-
-    return result
-  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType, sortKey, sortDirection])
-
-  const handleSort = (key: FinanceSortKey) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortKey(key)
-      setSortDirection("asc")
-    }
-  }
-
-  const renderSortIcon = (key: FinanceSortKey) => {
-    if (sortKey !== key) {
-      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-    }
-    return sortDirection === "asc" ? (
-      <ArrowUp className="h-4 w-4" />
-    ) : (
-      <ArrowDown className="h-4 w-4" />
-    )
-  }
-
-  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: FinanceSortKey, children: React.ReactNode, className?: string }) => (
-    <TableHead className={className}>
-      <div
-        onClick={() => handleSort(sortKey)}
-        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
-      >
-        {children}
-        {renderSortIcon(sortKey)}
-      </div>
-    </TableHead>
-  )
-
-
-  // Calculate totals for filtered data
-  const totalBalance = sortedAndFilteredData.reduce((total, transaction) => {
-    const amount = Number(transaction.betrag)
-    return transaction.ist_einnahmen ? total + amount : total - amount
-  }, 0)
-
-  // Add CSV export function
   const handleExportCsv = () => {
-    const header = ['Bezeichnung','Wohnung','Datum','Betrag','Typ','Notiz'];
-    const rows = sortedAndFilteredData.map(f => [
+    const header = ['Bezeichnung', 'Wohnung', 'Datum', 'Betrag', 'Typ', 'Notiz'];
+    const rows = transactions.map(f => [
       f.name,
-      f.Wohnungen?.name||'',
-      f.datum||'',
-      f.betrag.toString(),
+      f.Wohnungen?.name || '',
+      f.datum ? formatDate(f.datum) : '',
+      f.betrag.toString().replace('.', ','),
       f.ist_einnahmen ? 'Einnahme' : 'Ausgabe',
-      f.notiz||''
+      f.notiz || ''
     ]);
     const csv = [header, ...rows].map(r => r.join(';')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -212,59 +104,61 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
     document.body.removeChild(a);
   };
 
-  // Delete finance
-  const handleDeleteConfirm = async () => {
-    if (!financeToDelete) return
-    setIsDeleting(true)
-    try {
-      const res = await fetch(`/api/finanzen?id=${financeToDelete.id}`, { method: 'DELETE' })
-      if (res.ok) {
-        toast({ title: 'Gelöscht', description: 'Transaktion wurde entfernt.' })
-        loadFinances && loadFinances()
-        reloadRef?.current && reloadRef.current()
-      } else {
-        const err = await res.json()
-        toast({ title: 'Fehler', description: err.error || 'Löschen fehlgeschlagen', variant: 'destructive' })
-      }
-    } catch {
-      toast({ title: 'Fehler', description: 'Netzwerkfehler', variant: 'destructive' })
-    } finally {
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
-      setFinanceToDelete(null)
+  const renderSortIcon = (key: FinanceSortKey) => {
+    if (sorting.key !== key) {
+      return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
     }
-  };
+    return sorting.direction === "asc" ? (
+      <ArrowUp className="h-4 w-4" />
+    ) : (
+      <ArrowDown className="h-4 w-4" />
+    )
+  }
+
+  const TableHeaderCell = ({ sortKey, children, className }: { sortKey: FinanceSortKey, children: React.ReactNode, className?: string }) => (
+    <TableHead className={className}>
+      <div
+        onClick={() => onSortChange(sortKey)}
+        className="flex items-center gap-2 cursor-pointer rounded-md p-2 transition-colors hover:bg-muted/50 -ml-2"
+      >
+        {children}
+        {renderSortIcon(sortKey)}
+      </div>
+    </TableHead>
+  )
+
+  const balance = transactions.reduce((acc, t) => acc + (t.ist_einnahmen ? t.betrag : -t.betrag), 0);
 
   return (
     <>
       <Card>
         <CardHeader>
           <CardTitle>Finanzliste</CardTitle>
-          <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
+          <CardDescription>
+            {`Zeigt ${transactions.length} von ${totalCount} Transaktionen`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
-                <Select value={selectedApartment} onValueChange={setSelectedApartment}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Wohnung auswählen" />
-                  </SelectTrigger>
+                <Select value={filters.apartmentId} onValueChange={(val) => onFilterChange('apartmentId', val)}>
+                  <SelectTrigger><SelectValue placeholder="Wohnung auswählen" /></SelectTrigger>
                   <SelectContent>
-                    {apartments.map((apartment) => (
-                      <SelectItem key={apartment} value={apartment}>
-                        {apartment}
+                    <SelectItem value="all">Alle Wohnungen</SelectItem>
+                    {wohnungen.map((wohnung) => (
+                      <SelectItem key={wohnung.id} value={wohnung.id}>
+                        {wohnung.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Jahr auswählen" />
-                  </SelectTrigger>
+                <Select value={filters.year} onValueChange={(val) => onFilterChange('year', val)}>
+                  <SelectTrigger><SelectValue placeholder="Jahr auswählen" /></SelectTrigger>
                   <SelectContent>
-                    {years.map((year) => (
+                    <SelectItem value="all">Alle Jahre</SelectItem>
+                    {availableYears.map((year) => (
                       <SelectItem key={year} value={year}>
                         {year}
                       </SelectItem>
@@ -272,14 +166,12 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                   </SelectContent>
                 </Select>
 
-                <Select value={selectedType} onValueChange={setSelectedType}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Transaktionstyp auswählen" />
-                  </SelectTrigger>
+                <Select value={filters.type} onValueChange={(val) => onFilterChange('type', val)}>
+                  <SelectTrigger><SelectValue placeholder="Transaktionstyp" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Alle Transaktionen">Alle Transaktionen</SelectItem>
-                    <SelectItem value="Einnahme">Einnahme</SelectItem>
-                    <SelectItem value="Ausgabe">Ausgabe</SelectItem>
+                    <SelectItem value="all">Alle Transaktionen</SelectItem>
+                    <SelectItem value="einnahme">Einnahme</SelectItem>
+                    <SelectItem value="ausgabe">Ausgabe</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -289,12 +181,11 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                     type="search"
                     placeholder="Transaktion suchen..."
                     className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={filters.searchQuery}
+                    onChange={(e) => onFilterChange('searchQuery', e.target.value)}
                   />
                 </div>
               </div>
-
               <div className="flex items-center gap-2 mt-4 md:mt-0">
                 <Button variant="outline" size="sm" onClick={handleExportCsv}>
                   <Download className="mr-2 h-4 w-4" />
@@ -304,8 +195,8 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
             </div>
 
             <div className="text-right">
-              <div className="text-sm text-muted-foreground">Saldo</div>
-              <div className="text-xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
+                <div className="text-sm text-muted-foreground">Saldo (geladene Transaktionen)</div>
+                <div className="text-xl font-bold">{balance.toFixed(2).replace(".", ",")} €</div>
             </div>
 
             <div className="rounded-md border">
@@ -320,14 +211,24 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedAndFilteredData.length === 0 ? (
+                  {loading === 'initial' ? (
+                    Array.from({ length: 10 }).map((_, i) => (
+                      <TableRow key={i}>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                        <TableCell><Skeleton className="h-5 w-full" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : transactions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="h-24 text-center">
                         Keine Transaktionen gefunden.
                       </TableCell>
                     </TableRow>
                   ) : (
-                    sortedAndFilteredData.map((finance) => (
+                    transactions.map((finance) => (
                       <FinanceContextMenu
                         key={finance.id}
                         finance={finance}
@@ -355,7 +256,6 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                             
                             // Aktualisieren der Daten
                             loadFinances && loadFinances()
-                            reloadRef?.current && reloadRef.current()
                           } catch (error) {
                             console.error("Fehler beim Umschalten des Status:", error)
                             toast({
@@ -367,10 +267,9 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                         }}
                         onRefresh={() => {
                           loadFinances && loadFinances()
-                          reloadRef?.current && reloadRef.current()
                         }}
                       >
-                        <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit && onEdit(finance)}>
+                        <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => onEdit(finance)}>
                           <TableCell>{finance.name}</TableCell>
                           <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
                           <TableCell>{formatDate(finance.datum)}</TableCell>
@@ -380,14 +279,7 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                             </span>
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={
-                                finance.ist_einnahmen
-                                  ? "bg-green-50 text-green-700"
-                                  : "bg-red-50 text-red-700"
-                              }
-                            >
+                            <Badge variant="outline" className={finance.ist_einnahmen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>
                               {finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}
                             </Badge>
                           </TableCell>
@@ -398,23 +290,22 @@ export function FinanceTransactions({ finances, reloadRef, onEdit, onAdd, loadFi
                 </TableBody>
               </Table>
             </div>
+            {/* Loading/Error/End-of-data indicators */}
+            <div ref={ref} className="flex justify-center items-center p-4 h-14">
+              {loadingMore && <Loader2 className="h-6 w-6 animate-spin text-primary" />}
+              {!loadingMore && !hasMore && transactions.length > 0 && <p className="text-sm text-muted-foreground">Keine weiteren Transaktionen verfügbar</p>}
+              {loading === 'error' && (
+                <div className="text-center text-red-500">
+                  <p>Fehler beim Laden der Transaktionen.</p>
+                  <Button onClick={() => loadFinances()} variant="outline" size="sm" className="mt-2">
+                    Erneut versuchen
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sind Sie sicher?</AlertDialogTitle>
-            <AlertDialogDescription>Möchten Sie diese Transaktion wirklich löschen? Dies kann nicht rückgängig gemacht werden.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-red-600" disabled={isDeleting}>{isDeleting ? 'Löschen...' : 'Löschen'}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }
