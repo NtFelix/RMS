@@ -1,23 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react"; // useEffect might be removable if not used elsewhere
+import { useState, useRef, useCallback, useEffect } from "react";
+import { useDebounce } from "@/hooks/use-debounce";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
-// Dialog, Input, Label, Select, DatePicker, toast, format are removed as they were for the local modal
-// If other parts of the component use them, they should be kept. For now, assuming they are modal-specific.
-// import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-// import { toast } from "@/components/ui/use-toast";
-// import { DatePicker } from "@/components/ui/date-picker";
-// import { format } from "date-fns";
+import { useModalStore } from "@/hooks/use-modal-store";
+import { useIsVisible } from "@/hooks/use-is-visible";
 
-import { useModalStore } from "@/hooks/use-modal-store"; // Added
-
+// Interfaces from Design Doc
 interface Finanz {
   id: string;
   wohnung_id?: string;
@@ -29,189 +22,219 @@ interface Finanz {
   Wohnungen?: { name: string };
 }
 
-interface Wohnung { id: string; name: string; }
+interface Wohnung {
+  id: string;
+  name: string;
+}
+
+interface PaginatedFinanceResponse {
+  data: Finanz[];
+  pagination: {
+    offset: number;
+    limit: number;
+    total: number;
+    hasMore: boolean;
+  };
+}
+
+interface FinanceTotalsResponse {
+  totalBalance: number;
+  totalIncome: number;
+  totalExpenses: number;
+  transactionCount: number;
+}
+
+interface FinanceFilters {
+  apartment: string;
+  year: string;
+  type: string;
+  search: string;
+}
+
+interface PaginationState {
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  total: number;
+}
 
 interface FinanzenClientWrapperProps {
-  finances: Finanz[];
+  initialFinances: PaginatedFinanceResponse;
+  initialTotals: FinanceTotalsResponse;
   wohnungen: Wohnung[];
 }
 
-export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenClientWrapperProps) {
-  // Local state for dialog (dialogOpen, editingId, formData) is removed
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-  // const [formData, setFormData] = useState({ 
-  //   wohnung_id: "", 
-  //   name: "", 
-  //   datum: "", 
-  //   betrag: "", 
-  //   ist_einnahmen: false, 
-  //   notiz: "" 
-  // });
-  const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
-  const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
+const INITIAL_LIMIT = 25;
+const MOBILE_LIMIT = 15;
 
-  // Add handler for new entries
-  const handleAddFinance = useCallback((newFinance: Finanz) => {
-    setFinData(prev => {
-      // Check if the entry already exists to prevent duplicates
-      const exists = prev.some(item => item.id === newFinance.id);
-      if (exists) {
-        // If it exists, update the existing entry
-        return prev.map(item => 
-          item.id === newFinance.id ? { ...item, ...newFinance } : item
-        );
+export default function FinanzenClientWrapper({
+  initialFinances,
+  initialTotals,
+  wohnungen,
+}: FinanzenClientWrapperProps) {
+  const [transactions, setTransactions] = useState<Finanz[]>(initialFinances.data);
+  const [pagination, setPagination] = useState<PaginationState>(initialFinances.pagination);
+  const [totals, setTotals] = useState<FinanceTotalsResponse>(initialTotals);
+  const [filters, setFilters] = useState<FinanceFilters>({
+    apartment: "all",
+    year: "all",
+    type: "all",
+    search: "",
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const isMobile = useIsVisible(); // Simplified mobile detection
+  const debouncedSearch = useDebounce(filters.search, 300);
+
+  const buildQueryString = (currentFilters: FinanceFilters, offset = 0) => {
+    const params = new URLSearchParams();
+    const limit = isMobile ? MOBILE_LIMIT : INITIAL_LIMIT;
+    params.set("limit", String(limit));
+    params.set("offset", String(offset));
+    if (currentFilters.apartment !== "all") params.set("apartment", currentFilters.apartment);
+    if (currentFilters.year !== "all") params.set("year", currentFilters.year);
+    if (currentFilters.type !== "all") params.set("type", currentFilters.type);
+    if (currentFilters.search) params.set("search", currentFilters.search);
+    return params.toString();
+  };
+
+  const fetchData = useCallback(async (newFilters: FinanceFilters) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const queryString = buildQueryString(newFilters);
+      const [transactionsRes, totalsRes] = await Promise.all([
+        fetch(`/api/finanzen?${queryString}`),
+        fetch(`/api/finanzen/totals?${queryString}`),
+      ]);
+
+      if (!transactionsRes.ok || !totalsRes.ok) {
+        throw new Error("Failed to fetch data");
       }
-      // If it's a new entry, add it to the beginning of the list
-      return [newFinance, ...prev];
-    });
-  }, []);
-  
-  // Handle successful form submission
-  const handleSuccess = useCallback((data: any) => {
-    // The server returns the created/updated finance entry
-    if (data) {
-      handleAddFinance(data);
+
+      const transactionsPayload: PaginatedFinanceResponse = await transactionsRes.json();
+      const totalsPayload: FinanceTotalsResponse = await totalsRes.json();
+
+      setTransactions(transactionsPayload.data);
+      setPagination(transactionsPayload.pagination);
+      setTotals(totalsPayload);
+    } catch (err: any) {
+      setError(err.message || "An unknown error occurred");
+    } finally {
+      setIsLoading(false);
     }
-  }, [handleAddFinance]);
+  }, [isMobile]);
 
-  // useEffect for 'open-add-finance-modal' event is removed.
-  // This will be handled by CommandMenu triggering useModalStore.
+  useEffect(() => {
+    const newFilters = { ...filters, search: debouncedSearch };
+    fetchData(newFilters);
+  }, [debouncedSearch, filters.apartment, filters.year, filters.type, fetchData]);
 
-  // Werte berechnen (keep)
-  const currentYear = new Date().getFullYear();
-  const financesForCurrentYear = finData.filter(f => f.datum && new Date(f.datum).getFullYear() === currentYear);
+  const loadMore = useCallback(async () => {
+    if (isLoading || isLoadingMore || !pagination.hasMore) return;
 
-  const monthlyData = financesForCurrentYear.reduce((acc, item) => {
-    const month = new Date(item.datum!).getMonth();
-    if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0 };
+    setIsLoadingMore(true);
+    try {
+      const nextOffset = pagination.offset + pagination.limit;
+      const queryString = buildQueryString(filters, nextOffset);
+      const res = await fetch(`/api/finanzen?${queryString}`);
+
+      if (!res.ok) throw new Error("Failed to load more transactions");
+
+      const { data, pagination: newPagination }: PaginatedFinanceResponse = await res.json();
+      setTransactions((prev) => [...prev, ...data]);
+      setPagination(newPagination);
+    } catch (err: any) {
+      setError(err.message); // Show error for loading more
+    } finally {
+      setIsLoadingMore(false);
     }
-    if (item.ist_einnahmen) {
-      acc[month].income += Number(item.betrag);
-    } else {
-      acc[month].expenses += Number(item.betrag);
-    }
-    return acc;
-  }, {} as Record<number, { income: number; expenses: number }>);
+  }, [isLoading, isLoadingMore, pagination, filters, buildQueryString]);
 
-  const monthlyEntries = Object.values(monthlyData);
-  const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
-  const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
-
-  // Improved average calculation - only consider months that have passed
-  const now = new Date();
-  const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
-  const monthsPassed = currentMonthIndex + 1;
-
-  const totalsForPassedMonths = Object.entries(monthlyData).reduce(
-    (acc, [monthKey, data]) => {
-      const monthIndex = Number(monthKey); // monthKey is already 0-based from getMonth()
-      if (monthIndex <= currentMonthIndex) {
-        acc.income += data.income;
-        acc.expenses += data.expenses;
-      }
-      return acc;
-    },
-    { income: 0, expenses: 0 }
-  );
-
-  const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
-  const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
-
-  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-  const yearlyProjection = averageMonthlyCashflow * 12;
-
-  // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
-  // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
-  const handleEdit = useCallback((finance: Finanz) => {
-    useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
-  }, [wohnungen, handleSuccess]);
+  const handleFilterChange = <K extends keyof FinanceFilters>(key: K, value: FinanceFilters[K]) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   const handleAddTransaction = () => {
-    useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
+    useModalStore.getState().openFinanceModal(undefined, wohnungen, () => fetchData(filters));
   };
   
-  // Function to refresh finance data, can be called by FinanceTransactions or after modal operations
-  const refreshFinances = async () => {
-    // This logic was part of the old handleSubmit, adapt if still needed for table refresh
-    // For now, router.refresh() in the modal should handle revalidation.
-    // If specific client-side state update is needed without full page reload, this can be expanded.
-    const dataRes = await fetch('/api/finanzen'); // Or call a server action that just fetches
-    if (dataRes.ok) {
-      const newData = await dataRes.json();
-      setFinData(newData);
-    }
-  };
-
+  const handleEdit = useCallback((finance: Finanz) => {
+    useModalStore.getState().openFinanceModal(finance, wohnungen, () => fetchData(filters));
+  }, [wohnungen, filters, fetchData]);
 
   return (
-    <div className="flex flex-col gap-8 p-8">
+    <div className="flex flex-col gap-8 p-4 sm:p-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
         </div>
-        {/* Button to add a new transaction - now uses the global modal store */}
         <Button onClick={handleAddTransaction} className="sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
           Transaktion hinzufügen
         </Button>
-        {/* The local Dialog for add/edit is removed */}
       </div>
 
-      {/* Summary Cards (keep) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Cards remain the same */}
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
-            <ArrowUpCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gesamteinnahmen</CardTitle>
+                <ArrowUpCircle className="h-4 w-4 text-green-500" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{totals.totalIncome.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Basierend auf aktuellen Filtern</p>
+            </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
-            <ArrowDownCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gesamtausgaben</CardTitle>
+                <ArrowDownCircle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{totals.totalExpenses.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Basierend auf aktuellen Filtern</p>
+            </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Gesamtsaldo</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{totals.totalBalance.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Basierend auf aktuellen Filtern</p>
+            </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
-          </CardContent>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Anzahl Transaktionen</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{totals.transactionCount}</div>
+                <p className="text-xs text-muted-foreground">Basierend auf aktuellen Filtern</p>
+            </CardContent>
         </Card>
       </div>
 
-      <FinanceVisualization finances={finData} />
-      <FinanceTransactions 
-        finances={finData} 
-        onEdit={handleEdit} 
-        onAdd={handleAddFinance}
-        loadFinances={refreshFinances} 
-        reloadRef={reloadRef}
+      <FinanceVisualization finances={transactions} />
+      <FinanceTransactions
+        finances={transactions}
+        wohnungen={wohnungen}
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onEdit={handleEdit}
+        loadMore={loadMore}
+        hasMore={pagination.hasMore}
+        isLoading={isLoading}
+        isLoadingMore={isLoadingMore}
+        totalCount={pagination.total}
+        onAdd={() => fetchData(filters)}
       />
     </div>
   );

@@ -2,22 +2,75 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false });
-      
+    const { searchParams } = new URL(request.url);
+
+    // Pagination parameters
+    const offset = parseInt(searchParams.get("offset") ?? "0");
+    const limit = parseInt(searchParams.get("limit") ?? "25");
+
+    // Filter parameters
+    const apartmentId = searchParams.get("apartment");
+    const year = searchParams.get("year");
+    const type = searchParams.get("type");
+    const search = searchParams.get("search");
+
+    let query = supabase
+      .from("Finanzen")
+      .select("*, Wohnungen(name)", { count: "exact" });
+
+    // Apply filters
+    if (apartmentId && apartmentId !== "all") {
+      query = query.eq("wohnung_id", apartmentId);
+    }
+    if (year && year !== "all") {
+      query = query.gte("datum", `${year}-01-01`).lte("datum", `${year}-12-31`);
+    }
+    if (type) {
+      if (type === "income") {
+        query = query.eq("ist_einnahmen", true);
+      } else if (type === "expense") {
+        query = query.eq("ist_einnahmen", false);
+      }
+    }
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,notiz.ilike.%${search}%,Wohnungen.name.ilike.%${search}%`);
+    }
+
+    // Apply sorting and pagination
+    query = query
+      .order("datum", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
     if (error) {
-      console.error('GET /api/finanzen error:', error);
+      console.error("GET /api/finanzen error:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(data, { status: 200 });
-  } catch (e) {
-    console.error('Server error GET /api/finanzen:', e);
-    return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });
+
+    const total = count ?? 0;
+    const hasMore = offset + data.length < total;
+
+    const response = {
+      data,
+      pagination: {
+        offset,
+        limit,
+        total,
+        hasMore,
+      },
+    };
+
+    return NextResponse.json(response, { status: 200 });
+  } catch (e: any) {
+    console.error("Server error GET /api/finanzen:", e);
+    return NextResponse.json(
+      { error: "Serverfehler bei Finanzen-Abfrage." },
+      { status: 500 }
+    );
   }
 }
 
