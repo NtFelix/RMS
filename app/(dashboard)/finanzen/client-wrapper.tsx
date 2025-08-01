@@ -42,6 +42,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
   const [totals, setTotals] = useState({ balance: 0, income: 0, expenses: 0 });
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -101,6 +102,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
   }, [isMobile, page, filters, initialWohnungen]);
 
   const fetchChartData = useCallback(async (newFilters?: Partial<typeof filters>) => {
+    setChartLoading(true);
     const currentFilters = { ...filters, ...newFilters };
     try {
       const params = new URLSearchParams();
@@ -118,6 +120,8 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
       setChartData(data);
     } catch (error) {
       console.error(error);
+    } finally {
+      setChartLoading(false);
     }
   }, [filters, initialWohnungen]);
 
@@ -216,7 +220,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
         </Card>
       </div>
 
-      <FinanceVisualization finances={chartData} />
+      <FinanceVisualization finances={chartData} loading={chartLoading} />
 
       <FinanceTransactions 
         initialWohnungen={initialWohnungen}
