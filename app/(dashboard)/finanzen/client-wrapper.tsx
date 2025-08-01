@@ -41,6 +41,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
   const [transactions, setTransactions] = useState<Finanz[]>([]);
   const [totals, setTotals] = useState({ balance: 0, income: 0, expenses: 0 });
   const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+  const [chartData, setChartData] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -55,7 +56,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
     sortDirection: "desc",
   });
 
-  const fetchTransactionsCallback = useCallback(async (newFilters?: Partial<typeof filters>, reset = false) => {
+  const fetchTransactions = useCallback(async (newFilters?: Partial<typeof filters>, reset = false) => {
     const currentFilters = { ...filters, ...newFilters };
     const isInitialLoad = reset || page === 1;
 
@@ -99,6 +100,27 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
     }
   }, [isMobile, page, filters, initialWohnungen]);
 
+  const fetchChartData = useCallback(async (newFilters?: Partial<typeof filters>) => {
+    const currentFilters = { ...filters, ...newFilters };
+    try {
+      const params = new URLSearchParams();
+      if (currentFilters.selectedApartment !== "Alle Wohnungen") {
+        const wohnung = initialWohnungen.find(w => w.name === currentFilters.selectedApartment);
+        if (wohnung) params.append('wohnungId', wohnung.id);
+      }
+      if (currentFilters.selectedYear !== "Alle Jahre") params.append('year', currentFilters.selectedYear);
+      if (currentFilters.selectedType !== "Alle Transaktionen") params.append('type', currentFilters.selectedType);
+      if (currentFilters.searchQuery) params.append('searchQuery', currentFilters.searchQuery);
+
+      const response = await fetch(`/api/finanzen/chart?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch chart data');
+      const data = await response.json();
+      setChartData(data);
+    } catch (error) {
+      console.error(error);
+    }
+  }, [filters, initialWohnungen]);
+
   const fetchSummary = useCallback(async () => {
     try {
       const response = await fetch('/api/finanzen/summary');
@@ -114,18 +136,21 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
     setPage(1);
     const updatedFilters = { ...filters, ...newFilters };
     setFilters(updatedFilters);
-    fetchTransactionsCallback(updatedFilters, true);
+    fetchTransactions(updatedFilters, true);
+    fetchChartData(updatedFilters);
   };
 
   useEffect(() => {
-    fetchTransactionsCallback(filters, true);
+    fetchTransactions(filters, true);
     fetchSummary();
+    fetchChartData(filters);
   }, []);
 
   const handleSuccess = useCallback(() => {
-    fetchTransactionsCallback(filters, true);
+    fetchTransactions(filters, true);
     fetchSummary();
-  }, [fetchTransactionsCallback, fetchSummary, filters]);
+    fetchChartData(filters);
+  }, [fetchTransactions, fetchSummary, fetchChartData, filters]);
 
   const handleEdit = useCallback((finance: Finanz) => {
     openFinanceModal(finance, initialWohnungen, handleSuccess);
@@ -191,7 +216,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
         </Card>
       </div>
 
-      <FinanceVisualization finances={transactions} />
+      <FinanceVisualization finances={chartData} />
 
       <FinanceTransactions 
         initialWohnungen={initialWohnungen}
@@ -204,7 +229,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
         error={error}
         filters={filters}
         onFilterChange={handleFilterChange}
-        loadMore={() => fetchTransactionsCallback()}
+        loadMore={() => fetchTransactions()}
       />
     </div>
   );
