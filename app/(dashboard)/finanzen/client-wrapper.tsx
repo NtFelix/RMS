@@ -27,12 +27,20 @@ interface FinanzenClientWrapperProps {
   initialWohnungen: Wohnung[];
 }
 
+interface SummaryData {
+  averageMonthlyIncome: number;
+  averageMonthlyExpenses: number;
+  averageMonthlyCashflow: number;
+  yearlyProjection: number;
+}
+
 export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClientWrapperProps) {
   const { openFinanceModal } = useModalStore();
   const isMobile = useIsMobile();
 
   const [transactions, setTransactions] = useState<Finanz[]>([]);
   const [totals, setTotals] = useState({ balance: 0, income: 0, expenses: 0 });
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -47,7 +55,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
     sortDirection: "desc",
   });
 
-  const fetchTransactions = useCallback(async (newFilters?: Partial<typeof filters>, reset = false) => {
+  const fetchTransactionsCallback = useCallback(async (newFilters?: Partial<typeof filters>, reset = false) => {
     const currentFilters = { ...filters, ...newFilters };
     const isInitialLoad = reset || page === 1;
 
@@ -91,20 +99,33 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
     }
   }, [isMobile, page, filters, initialWohnungen]);
 
+  const fetchSummary = useCallback(async () => {
+    try {
+      const response = await fetch('/api/finanzen/summary');
+      if (!response.ok) throw new Error('Failed to fetch summary');
+      const data = await response.json();
+      setSummaryData(data);
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
   const handleFilterChange = (newFilters: Partial<typeof filters>) => {
     setPage(1);
     const updatedFilters = { ...filters, ...newFilters };
     setFilters(updatedFilters);
-    fetchTransactions(updatedFilters, true);
+    fetchTransactionsCallback(updatedFilters, true);
   };
 
   useEffect(() => {
-    fetchTransactions(filters, true);
-  }, []); // Fetch on initial mount
+    fetchTransactionsCallback(filters, true);
+    fetchSummary();
+  }, []);
 
   const handleSuccess = useCallback(() => {
-    fetchTransactions(filters, true);
-  }, [fetchTransactions, filters]);
+    fetchTransactionsCallback(filters, true);
+    fetchSummary();
+  }, [fetchTransactionsCallback, fetchSummary, filters]);
 
   const handleEdit = useCallback((finance: Finanz) => {
     openFinanceModal(finance, initialWohnungen, handleSuccess);
@@ -113,8 +134,6 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
   const handleAddTransaction = () => {
     openFinanceModal(undefined, initialWohnungen, handleSuccess);
   };
-
-  const { income: totalIncome, expenses: totalExpenses, balance: totalBalance } = totals;
 
   return (
     <div className="flex flex-col gap-8 p-8">
@@ -129,35 +148,45 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gesamteinnahmen</CardTitle>
+            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
             <ArrowUpCircle className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Summe aller gefilterten Einnahmen</p>
+            <div className="text-2xl font-bold">{summaryData?.averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gesamtausgaben</CardTitle>
+            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
             <ArrowDownCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Summe aller gefilterten Ausgaben</p>
+            <div className="text-2xl font-bold">{summaryData?.averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
           </CardContent>
         </Card>
         <Card className="overflow-hidden rounded-xl border-none shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Gesamtsaldo</CardTitle>
+            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
             <Wallet className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Aktueller Finanzstatus der Auswahl</p>
+            <div className="text-2xl font-bold">{summaryData?.averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
+          </CardContent>
+        </Card>
+        <Card className="overflow-hidden rounded-xl border-none shadow-md">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summaryData?.yearlyProjection.toFixed(2).replace(".", ",")} €</div>
+            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
           </CardContent>
         </Card>
       </div>
@@ -175,7 +204,7 @@ export default function FinanzenClientWrapper({ initialWohnungen }: FinanzenClie
         error={error}
         filters={filters}
         onFilterChange={handleFilterChange}
-        loadMore={() => fetchTransactions()}
+        loadMore={() => fetchTransactionsCallback()}
       />
     </div>
   );
