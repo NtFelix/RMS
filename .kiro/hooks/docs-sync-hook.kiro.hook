@@ -1,0 +1,31 @@
+{
+  "enabled": true,
+  "name": "Documentation Sync",
+  "description": "Listens to TypeScript source files, React components, API routes, and configuration files to automatically update README documentation when code changes",
+  "version": "1",
+  "when": {
+    "type": "userTriggered",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "app/**/*",
+      "components/**/*",
+      "lib/**/*",
+      "hooks/**/*",
+      "types/**/*",
+      "utils/**/*",
+      "supabase/**/*",
+      "package.json",
+      "tsconfig.json",
+      "next.config.js",
+      "next.config.mjs",
+      "tailwind.config.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Source code files have been modified in this TypeScript/Next.js property management application. Please review the changes and update the README.md file to reflect any new features, API changes, component updates, or architectural modifications. Focus on keeping the documentation accurate and helpful for developers working on this rent management system."
+  }
+}

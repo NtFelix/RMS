@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "TypeScript Test Creator",
+  "description": "Automatically creates a matching test file and runs tests when a new TypeScript file is created",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/*.ts",
+      "**/*.tsx"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new TypeScript file has been created. Please:\n\n1. Create a matching test file with the same name but with .test.ts or .test.tsx extension\n2. Generate appropriate test cases based on the file content and type (component, utility, API route, etc.)\n3. Follow the existing testing patterns in the codebase using Jest and Testing Library\n4. Run the test to ensure it passes\n5. For React components, include basic rendering tests and any key functionality tests\n6. For utility functions, test main functionality and edge cases\n7. For API routes, test different HTTP methods and response scenarios\n\nThe test file should be placed in the same directory as the source file and follow the project's testing conventions."
+  }
+}
