@@ -58,8 +58,8 @@ export async function GET(request: Request) {
         query = query.order('name', { ascending });
         break;
       case 'wohnung':
-        // For apartment sorting, we need to join and sort by apartment name
-        query = query.order('wohnung_id', { ascending });
+        // Sort by the apartment name from the related table, not by its ID
+        query = query.order('name', { foreignTable: 'Wohnungen', ascending });
         break;
       case 'betrag':
         query = query.order('betrag', { ascending });
