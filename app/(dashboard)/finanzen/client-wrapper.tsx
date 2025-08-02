@@ -21,13 +21,28 @@ interface Finanz {
 
 interface Wohnung { id: string; name: string; }
 
+interface SummaryData {
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  totalCashflow: number;
+  averageMonthlyIncome: number;
+  averageMonthlyExpenses: number;
+  averageMonthlyCashflow: number;
+  yearlyProjection: number;
+  monthsPassed: number;
+  monthlyData: Record<number, { income: number; expenses: number }>;
+}
+
 interface FinanzenClientWrapperProps {
   finances: Finanz[];
   wohnungen: Wohnung[];
+  summaryData: SummaryData | null;
 }
 
-export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen }: FinanzenClientWrapperProps) {
+export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(initialFinances);
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +70,19 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     }
   }, [page, hasMore, isLoading]);
 
+  const refreshSummaryData = useCallback(async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`/api/finanzen/summary?year=${currentYear}`);
+      if (response.ok) {
+        const newSummaryData = await response.json();
+        setSummaryData(newSummaryData);
+      }
+    } catch (error) {
+      console.error('Failed to refresh summary data:', error);
+    }
+  }, []);
+
   const handleAddFinance = useCallback((newFinance: Finanz) => {
     setFinData(prev => {
       const exists = prev.some(item => item.id === newFinance.id);
@@ -65,7 +93,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
       return [newFinance, ...prev];
     });
-  }, []);
+    
+    // Refresh summary data if the transaction is from current year
+    const currentYear = new Date().getFullYear();
+    if (newFinance.datum && new Date(newFinance.datum).getFullYear() === currentYear) {
+      refreshSummaryData();
+    }
+  }, [refreshSummaryData]);
 
   const handleSuccess = useCallback((data: any) => {
     if (data) {
@@ -73,47 +107,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     }
   }, [handleAddFinance]);
 
-  const currentYear = new Date().getFullYear();
-  const financesForCurrentYear = finData.filter(f => f.datum && new Date(f.datum).getFullYear() === currentYear);
-
-  const monthlyData = financesForCurrentYear.reduce((acc, item) => {
-    const month = new Date(item.datum!).getMonth();
-    if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0 };
-    }
-    if (item.ist_einnahmen) {
-      acc[month].income += Number(item.betrag);
-    } else {
-      acc[month].expenses += Number(item.betrag);
-    }
-    return acc;
-  }, {} as Record<number, { income: number; expenses: number }>);
-
-  const monthlyEntries = Object.values(monthlyData);
-  const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
-  const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
-
-  const now = new Date();
-  const currentMonthIndex = now.getMonth();
-  const monthsPassed = currentMonthIndex + 1;
-
-  const totalsForPassedMonths = Object.entries(monthlyData).reduce(
-    (acc, [monthKey, data]) => {
-      const monthIndex = Number(monthKey);
-      if (monthIndex <= currentMonthIndex) {
-        acc.income += data.income;
-        acc.expenses += data.expenses;
-      }
-      return acc;
-    },
-    { income: 0, expenses: 0 }
-  );
-
-  const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
-  const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
-
-  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-  const yearlyProjection = averageMonthlyCashflow * 12;
+  // Use server-provided summary data or fallback to default values
+  const averageMonthlyIncome = summaryData?.averageMonthlyIncome ?? 0;
+  const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
+  const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
+  const yearlyProjection = summaryData?.yearlyProjection ?? 0;
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -127,14 +125,24 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/finanzen?page=1&pageSize=25');
-      if (!response.ok) {
+      const [transactionsResponse, summaryResponse] = await Promise.all([
+        fetch('/api/finanzen?page=1&pageSize=25'),
+        fetch(`/api/finanzen/summary?year=${new Date().getFullYear()}`)
+      ]);
+      
+      if (!transactionsResponse.ok) {
         throw new Error('Failed to refresh transactions');
       }
-      const newData = await response.json();
+      
+      const newData = await transactionsResponse.json();
       setFinData(newData);
       setPage(1);
       setHasMore(newData.length > 0);
+      
+      if (summaryResponse.ok) {
+        const newSummaryData = await summaryResponse.json();
+        setSummaryData(newSummaryData);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -199,7 +207,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         </Card>
       </div>
 
-      <FinanceVisualization finances={finData} />
+      <FinanceVisualization finances={finData} summaryData={summaryData} />
       <FinanceTransactions
         finances={finData}
         onEdit={handleEdit}

@@ -86,14 +86,28 @@ interface Finanz {
   Wohnungen?: { name: string }
 }
 
+interface SummaryData {
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  totalCashflow: number;
+  averageMonthlyIncome: number;
+  averageMonthlyExpenses: number;
+  averageMonthlyCashflow: number;
+  yearlyProjection: number;
+  monthsPassed: number;
+  monthlyData: Record<number, { income: number; expenses: number }>;
+}
+
 interface FinanceVisualizationProps {
   finances: Finanz[]
+  summaryData?: SummaryData | null
 }
 
 // Farben für Pie Chart
 const COLORS = ["#2c3e50", "#34495e", "#16a34a", "#ca8a04", "#dc2626", "#2563eb"]
 
-export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
+export function FinanceVisualization({ finances, summaryData }: FinanceVisualizationProps) {
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString())
   const [selectedChart, setSelectedChart] = useState("apartment-income")
   
@@ -141,10 +155,30 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
   
   // Process monthly income/expense data
   const processMonthlyData = useMemo(() => {
-    // Create monthly map for income
+    const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+    const currentYear = new Date().getFullYear();
+    
+    // Use summary data if available and we're looking at current year
+    if (summaryData && parseInt(selectedYear) === currentYear && summaryData.year === currentYear) {
+      console.log('Using summary data for current year visualization');
+      
+      const monthlyIncome = monthNames.map((month, index) => ({
+        month,
+        einnahmen: summaryData.monthlyData[index]?.income || 0
+      }));
+      
+      const incomeExpenseRatio = monthNames.map((month, index) => ({
+        month,
+        einnahmen: summaryData.monthlyData[index]?.income || 0,
+        ausgaben: summaryData.monthlyData[index]?.expenses || 0
+      }));
+      
+      return { monthlyIncome, incomeExpenseRatio };
+    }
+    
+    // Fallback to processing from finances data
     const monthsIncome = new Map<string, number>();
     const monthsExpense = new Map<string, number>();
-    const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
     
     // Initialize with zeros
     monthNames.forEach(month => {
@@ -157,10 +191,7 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
     
     // Process data with dates
     finances.forEach(f => {
-      // Log to debug date formats
       if (f.datum) {
-        console.log('Processing datum:', f.datum, 'for amount:', f.betrag);
-        
         // Handle different possible date formats
         let monthIdx: number = -1;
         
@@ -187,8 +218,6 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
           const monthKey = monthNames[monthIdx];
           const amount = Number(f.betrag);
           
-          console.log('Assigning to month:', monthKey, 'amount:', amount, 'is income:', f.ist_einnahmen);
-          
           if (f.ist_einnahmen) {
             monthsIncome.set(monthKey, (monthsIncome.get(monthKey) || 0) + amount);
           } else {
@@ -211,7 +240,7 @@ export function FinanceVisualization({ finances }: FinanceVisualizationProps) {
     }));
     
     return { monthlyIncome, incomeExpenseRatio };
-  }, [finances, selectedYear]);
+  }, [finances, selectedYear, summaryData]);
   
   // Process expense categories
   const expenseCategories = useMemo(() => {
