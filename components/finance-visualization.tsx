@@ -111,6 +111,7 @@ interface ChartData {
 interface FinanceVisualizationProps {
   finances: Finanz[]
   summaryData?: SummaryData | null
+  availableYears: number[]
 }
 
 // Farben für Pie Chart
@@ -155,38 +156,12 @@ const EmptyChartState = ({ title, description }: { title: string; description: s
   </Card>
 )
 
-export function FinanceVisualization({ finances, summaryData }: FinanceVisualizationProps) {
+export function FinanceVisualization({ finances, summaryData, availableYears }: FinanceVisualizationProps) {
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString())
   const [selectedChart, setSelectedChart] = useState("apartment-income")
   const [chartData, setChartData] = useState<ChartData | null>(null)
-  const [availableYears, setAvailableYears] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Load available years on component mount
-  useEffect(() => {
-    const setFallbackYears = () => {
-      const currentYear = new Date().getFullYear();
-      setAvailableYears([currentYear, currentYear - 1, currentYear - 2, currentYear - 3]);
-    };
-
-    const loadAvailableYears = async () => {
-      try {
-        const response = await fetch('/api/finanzen/years')
-        if (response.ok) {
-          const years = await response.json()
-          setAvailableYears(years)
-        } else {
-          setFallbackYears();
-        }
-      } catch (err) {
-        console.error('Error loading available years:', err)
-        setFallbackYears();
-      }
-    }
-
-    loadAvailableYears()
-  }, [])
 
   // Load chart data for selected year
   useEffect(() => {
@@ -257,14 +232,11 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {availableYears.length > 0 
-                ? availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)
-                : (() => {
-                    const currentYear = new Date().getFullYear();
-                    return [currentYear, currentYear - 1, currentYear - 2, currentYear - 3]
-                      .map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>);
-                  })()
-              }
+              {availableYears.map((year: number) => (
+                <SelectItem key={year} value={year.toString()}>
+                  {year}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 

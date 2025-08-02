@@ -279,7 +279,12 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         )}
       </div>
 
-      <FinanceVisualization finances={finData} summaryData={summaryData} key={summaryData?.year} />
+      <FinanceVisualization 
+        finances={finData} 
+        summaryData={summaryData} 
+        availableYears={availableYears}
+        key={summaryData?.year} 
+      />
       <FinanceTransactions
         finances={finData}
         wohnungen={wohnungen}
