@@ -1,6 +1,7 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "../../../../utils/supabase/server";
 import { NextResponse } from "next/server";
+import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 
 export async function GET(request: Request) {
   try {
@@ -99,46 +100,16 @@ export async function GET(request: Request) {
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
 
-    // Calculate summary statistics
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth();
-    
-    let totalIncome = 0;
-    let totalExpenses = 0;
-    let incomeForPassedMonths = 0;
-    let expensesForPassedMonths = 0;
-
-    Object.entries(monthlyData).forEach(([monthKey, data]) => {
-      const monthIndex = Number(monthKey);
-      totalIncome += data.income;
-      totalExpenses += data.expenses;
-      
-      // Only count months that have passed for average calculation
-      if (year < currentYear || (year === currentYear && monthIndex <= currentMonth)) {
-        incomeForPassedMonths += data.income;
-        expensesForPassedMonths += data.expenses;
-      }
-    });
-
-    const monthsPassed = year === currentYear ? currentMonth + 1 : 12;
-    const averageMonthlyIncome = monthsPassed > 0 ? incomeForPassedMonths / monthsPassed : 0;
-    const averageMonthlyExpenses = monthsPassed > 0 ? expensesForPassedMonths / monthsPassed : 0;
-    const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-    const yearlyProjection = averageMonthlyCashflow * 12;
+    // Calculate summary statistics using the shared utility function
+    const summary = calculateFinancialSummary(
+      data || [],
+      year,
+      new Date()
+    );
 
     const response = {
       year,
-      summary: {
-        totalIncome,
-        totalExpenses,
-        totalCashflow: totalIncome - totalExpenses,
-        averageMonthlyIncome,
-        averageMonthlyExpenses,
-        averageMonthlyCashflow,
-        yearlyProjection,
-        monthsPassed
-      },
+      summary,
       charts: {
         monthlyIncome,
         incomeExpenseRatio,

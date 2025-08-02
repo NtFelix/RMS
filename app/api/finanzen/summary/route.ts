@@ -1,6 +1,7 @@
 export const runtime = 'edge';
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "../../../../utils/supabase/server";
 import { NextResponse } from "next/server";
+import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 
 export async function GET(request: Request) {
   try {
@@ -26,71 +27,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Calculate summary statistics
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth(); // 0-based
-    
-    // Group data by month
-    const monthlyData: Record<number, { income: number; expenses: number }> = {};
-    
-    (data || []).forEach(item => {
-      if (!item.datum) return;
-      
-      const itemDate = new Date(item.datum);
-      const month = itemDate.getMonth();
-      
-      if (!monthlyData[month]) {
-        monthlyData[month] = { income: 0, expenses: 0 };
-      }
-      
-      const amount = Number(item.betrag);
-      if (item.ist_einnahmen) {
-        monthlyData[month].income += amount;
-      } else {
-        monthlyData[month].expenses += amount;
-      }
-    });
-
-    // Calculate totals and averages
-    const monthsPassed = year === currentYear ? currentMonth + 1 : 12;
-    
-    let totalIncome = 0;
-    let totalExpenses = 0;
-    let incomeForPassedMonths = 0;
-    let expensesForPassedMonths = 0;
-
-    Object.entries(monthlyData).forEach(([monthKey, data]) => {
-      const monthIndex = Number(monthKey);
-      totalIncome += data.income;
-      totalExpenses += data.expenses;
-      
-      // Only count months that have passed for average calculation
-      if (year < currentYear || (year === currentYear && monthIndex <= currentMonth)) {
-        incomeForPassedMonths += data.income;
-        expensesForPassedMonths += data.expenses;
-      }
-    });
-
-    const averageMonthlyIncome = monthsPassed > 0 ? incomeForPassedMonths / monthsPassed : 0;
-    const averageMonthlyExpenses = monthsPassed > 0 ? expensesForPassedMonths / monthsPassed : 0;
-    const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-    const yearlyProjection = averageMonthlyCashflow * 12;
-
-    const summary = {
+    // Calculate summary statistics using the shared utility function
+    const summary = calculateFinancialSummary(
+      data || [],
       year,
-      totalIncome,
-      totalExpenses,
-      totalCashflow: totalIncome - totalExpenses,
-      averageMonthlyIncome,
-      averageMonthlyExpenses,
-      averageMonthlyCashflow,
-      yearlyProjection,
-      monthsPassed,
-      monthlyData
-    };
+      new Date()
+    );
+    
+    // Include monthlyData in the response
+    const { monthlyData, ...restSummary } = summary;
+    const summaryWithMonthlyData = { ...restSummary, monthlyData };
 
-    return NextResponse.json(summary, { status: 200 });
+    return NextResponse.json(summaryWithMonthlyData, { status: 200 });
   } catch (e) {
     console.error('Server error GET /api/finanzen/summary:', e);
     return NextResponse.json({ error: 'Serverfehler bei Finanzen-Zusammenfassung.' }, { status: 500 });
