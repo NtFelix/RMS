@@ -21,7 +21,6 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ChartSkeleton } from "@/components/chart-skeletons"
-import { LoadingState } from "@/components/loading-state"
 
 // Einnahmen nach Wohnung (simulierte Daten)
 const staticIncomeByApartment = [
@@ -217,21 +216,12 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
               }
             </SelectContent>
           </Select>
-          {isLoading && (
-            <div className="ml-2">
-              <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-            </div>
-          )}
+
         </div>
       </div>
       
       {isLoading && (
-        <div className="space-y-6">
-          <LoadingState 
-            message={`Lade Chart-Daten für ${selectedYear}...`}
-            size="lg"
-            className="h-32"
-          />
+        <div>
           {selectedChart === 'apartment-income' && (
             <ChartSkeleton 
               title="Einnahmen nach Wohnung" 
