@@ -207,7 +207,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         </Card>
       </div>
 
-      <FinanceVisualization finances={finData} summaryData={summaryData} />
+      <FinanceVisualization finances={finData} summaryData={summaryData} key={summaryData?.year} />
       <FinanceTransactions
         finances={finData}
         onEdit={handleEdit}
