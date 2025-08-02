@@ -125,6 +125,11 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
 
   // Load available years on component mount
   useEffect(() => {
+    const setFallbackYears = () => {
+      const currentYear = new Date().getFullYear();
+      setAvailableYears([currentYear, currentYear - 1, currentYear - 2, currentYear - 3]);
+    };
+
     const loadAvailableYears = async () => {
       try {
         const response = await fetch('/api/finanzen/years')
@@ -132,15 +137,11 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
           const years = await response.json()
           setAvailableYears(years)
         } else {
-          // Fallback to default years
-          const currentYear = new Date().getFullYear()
-          setAvailableYears([currentYear, currentYear - 1, currentYear - 2, currentYear - 3])
+          setFallbackYears();
         }
       } catch (err) {
         console.error('Error loading available years:', err)
-        // Fallback to default years
-        const currentYear = new Date().getFullYear()
-        setAvailableYears([currentYear, currentYear - 1, currentYear - 2, currentYear - 3])
+        setFallbackYears();
       }
     }
 
