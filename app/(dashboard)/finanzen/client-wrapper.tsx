@@ -8,6 +8,7 @@ import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
+import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
 
@@ -88,7 +89,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     try {
       const params = new URLSearchParams({
         page: targetPage.toString(),
-        pageSize: '25',
+        pageSize: PAGINATION.DEFAULT_PAGE_SIZE.toString(),
         searchQuery: debouncedSearchQuery,
         selectedApartment: filters.selectedApartment,
         selectedYear: filters.selectedYear,

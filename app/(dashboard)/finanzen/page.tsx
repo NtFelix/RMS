@@ -5,6 +5,7 @@ import FinanzenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
 
 import { calculateFinancialSummary } from "@/utils/financeCalculations";
+import { PAGINATION } from "@/constants";
 
 async function getSummaryData(year: number) {
   const supabase = await createClient();
@@ -45,12 +46,12 @@ export default async function FinanzenPage() {
   const { data: wohnungenData } = await supabase.from('Wohnungen').select('id,name');
   const wohnungen = wohnungenData ?? [];
   
-  // Initial Finanzen laden (nur erste 25 für die Transaktionsliste)
+  // Initial Finanzen laden (nur die erste Seite für die Transaktionsliste)
   const { data: finanzenData } = await supabase
     .from('Finanzen')
     .select('*, Wohnungen(name)')
     .order('datum', { ascending: false })
-    .range(0, 24);
+    .range(0, PAGINATION.INITIAL_ITEMS - 1);
   const finances = finanzenData ?? [];
 
   // Summary-Daten für das aktuelle Jahr laden

@@ -1,12 +1,13 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { PAGINATION } from "@/constants";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') ?? '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') ?? '25', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') ?? PAGINATION.DEFAULT_PAGE_SIZE.toString(), 10);
     const searchQuery = searchParams.get('searchQuery') || '';
     const selectedApartment = searchParams.get('selectedApartment') || '';
     const selectedYear = searchParams.get('selectedYear') || '';
