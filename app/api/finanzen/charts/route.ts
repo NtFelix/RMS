@@ -55,18 +55,16 @@ export async function GET(request: Request) {
         monthlyData[month].income += amount;
         
         // Update apartment income (only for income transactions)
+        let apartmentName: string | undefined;
         if (item.Wohnungen && Array.isArray(item.Wohnungen) && item.Wohnungen.length > 0) {
-          const apartmentName = item.Wohnungen[0].name;
-          if (apartmentName) {
-            const currentValue = apartmentIncomeMap.get(apartmentName) || 0;
-            apartmentIncomeMap.set(apartmentName, currentValue + amount);
-          }
+          apartmentName = item.Wohnungen[0].name;
         } else if (item.Wohnungen && typeof item.Wohnungen === 'object' && 'name' in item.Wohnungen) {
-          const apartmentName = (item.Wohnungen as any).name;
-          if (apartmentName) {
-            const currentValue = apartmentIncomeMap.get(apartmentName) || 0;
-            apartmentIncomeMap.set(apartmentName, currentValue + amount);
-          }
+          apartmentName = (item.Wohnungen as any).name;
+        }
+
+        if (apartmentName) {
+          const currentValue = apartmentIncomeMap.get(apartmentName) || 0;
+          apartmentIncomeMap.set(apartmentName, currentValue + amount);
         }
       } else {
         monthlyData[month].expenses += amount;
