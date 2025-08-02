@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
+import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { useModalStore } from "@/hooks/use-modal-store";
 
 interface Finanz {
@@ -43,6 +44,7 @@ interface FinanzenClientWrapperProps {
 export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(initialFinances);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,6 +73,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   }, [page, hasMore, isLoading]);
 
   const refreshSummaryData = useCallback(async () => {
+    setIsSummaryLoading(true);
     try {
       const currentYear = new Date().getFullYear();
       const response = await fetch(`/api/finanzen/summary?year=${currentYear}`);
@@ -80,6 +83,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
     } catch (error) {
       console.error('Failed to refresh summary data:', error);
+    } finally {
+      setIsSummaryLoading(false);
     }
   }, []);
 
@@ -123,6 +128,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   const refreshFinances = async () => {
     setIsLoading(true);
+    setIsSummaryLoading(true);
     setError(null);
     try {
       const [transactionsResponse, summaryResponse] = await Promise.all([
@@ -147,6 +153,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       setError(err.message);
     } finally {
       setIsLoading(false);
+      setIsSummaryLoading(false);
     }
   };
 
@@ -165,46 +172,69 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
-            <ArrowUpCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
-            <ArrowDownCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
-          </CardContent>
-        </Card>
+        {isSummaryLoading ? (
+          <>
+            <SummaryCardSkeleton 
+              title="Ø Monatliche Einnahmen" 
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Ø Monatliche Ausgaben" 
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Ø Monatlicher Cashflow" 
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Jahresprognose" 
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
+            />
+          </>
+        ) : (
+          <>
+            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
+                <ArrowUpCircle className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
+                <ArrowDownCircle className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
+              </CardContent>
+            </Card>
+            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
+                <BarChart3 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
+                <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <FinanceVisualization finances={finData} summaryData={summaryData} key={summaryData?.year} />

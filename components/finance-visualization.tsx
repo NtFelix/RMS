@@ -20,6 +20,8 @@ import {
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { ChartSkeleton } from "@/components/chart-skeletons"
+import { LoadingState } from "@/components/loading-state"
 
 // Einnahmen nach Wohnung (simulierte Daten)
 const staticIncomeByApartment = [
@@ -205,7 +207,7 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
         <div className="mt-4 md:mt-0 flex items-center gap-2">
           <label htmlFor="jahr-select" className="text-sm font-medium">Jahr:</label>
           <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isLoading}>
-            <SelectTrigger id="jahr-select" className="w-24">
+            <SelectTrigger id="jahr-select" className={`w-24 transition-all duration-200 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -215,23 +217,64 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
               }
             </SelectContent>
           </Select>
+          {isLoading && (
+            <div className="ml-2">
+              <div className="w-4 h-4 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+            </div>
+          )}
         </div>
       </div>
       
       {isLoading && (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-muted-foreground">Lade Chart-Daten für {selectedYear}...</div>
+        <div className="space-y-6">
+          <LoadingState 
+            message={`Lade Chart-Daten für ${selectedYear}...`}
+            size="lg"
+            className="h-32"
+          />
+          {selectedChart === 'apartment-income' && (
+            <ChartSkeleton 
+              title="Einnahmen nach Wohnung" 
+              description={`Verteilung der Mieteinnahmen nach Wohnungen in ${selectedYear}`}
+              type="pie" 
+            />
+          )}
+          {selectedChart === 'monthly-income' && (
+            <ChartSkeleton 
+              title="Monatliche Einnahmen" 
+              description={`Monatliche Einnahmen für das Jahr ${selectedYear}`}
+              type="line" 
+            />
+          )}
+          {selectedChart === 'income-expense' && (
+            <ChartSkeleton 
+              title="Einnahmen-Ausgaben-Verhältnis" 
+              description={`Vergleich von Einnahmen und Ausgaben im Jahr ${selectedYear}`}
+              type="bar" 
+            />
+          )}
+          {selectedChart === 'expense-categories' && (
+            <ChartSkeleton 
+              title="Ausgabenkategorien" 
+              description={`Verteilung der Ausgaben nach Kategorien in ${selectedYear}`}
+              type="pie" 
+            />
+          )}
         </div>
       )}
       
       {error && (
         <div className="flex items-center justify-center h-64">
-          <div className="text-red-500">Fehler beim Laden der Chart-Daten: {error}</div>
+          <div className="text-center space-y-2">
+            <div className="text-red-500 font-medium">Fehler beim Laden der Chart-Daten</div>
+            <div className="text-sm text-muted-foreground">{error}</div>
+            <div className="text-xs text-muted-foreground">Fallback-Daten werden verwendet</div>
+          </div>
         </div>
       )}
       
       {!isLoading && !error && (
-        <div>
+        <div className="animate-in fade-in-0 duration-500">
         {selectedChart === 'apartment-income' && (
           <Card>
             <CardHeader>
