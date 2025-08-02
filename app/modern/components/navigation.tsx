@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check } from "lucide-react"
 import { Button } from '@/components/ui/button' // Corrected import path
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
@@ -112,9 +113,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </button>
           </PillContainer>
           <Link href="/" className="flex items-center space-x-1 group">
-            <div className="w-6 h-6 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-              <span className="text-primary-foreground font-bold text-xs">IV</span>
-            </div>
+            <Image src="/mascot/normal.png" alt="ImmobilienVerwalter Mascot" width={24} height={24} className="group-hover:scale-110 transition-transform" />
             <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
               Immobilien<span className="text-primary">Verwalter</span>
             </span>
@@ -123,9 +122,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
         <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                <span className="text-primary-foreground font-bold text-xs sm:text-sm">IV</span>
-              </div>
+              <Image src="/mascot/normal.png" alt="ImmobilienVerwalter Mascot" width={32} height={32} className="group-hover:scale-110 transition-transform" />
               <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                 Immobilien<span className="text-primary">Verwalter</span>
               </span>
