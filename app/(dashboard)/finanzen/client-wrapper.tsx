@@ -45,6 +45,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [finData, setFinData] = useState<Finanz[]>(initialFinances);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,6 +81,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       if (response.ok) {
         const newSummaryData = await response.json();
         setSummaryData(newSummaryData);
+        setHasInitialData(true);
       }
     } catch (error) {
       console.error('Failed to refresh summary data:', error);
@@ -148,6 +150,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       if (summaryResponse.ok) {
         const newSummaryData = await summaryResponse.json();
         setSummaryData(newSummaryData);
+        setHasInitialData(true);
       }
     } catch (err: any) {
       setError(err.message);
@@ -172,7 +175,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {isSummaryLoading ? (
+        {isSummaryLoading && hasInitialData ? (
           <>
             <SummaryCardSkeleton 
               title="Ø Monatliche Einnahmen" 
@@ -193,7 +196,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           </>
         ) : (
           <>
-            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
                 <ArrowUpCircle className="h-4 w-4 text-green-500" />
@@ -202,8 +205,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                 <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
                 <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
               </CardContent>
+              {isSummaryLoading && (
+                <div className="absolute top-2 right-2">
+                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              )}
             </Card>
-            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
                 <ArrowDownCircle className="h-4 w-4 text-red-500" />
@@ -212,8 +220,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                 <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
                 <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
               </CardContent>
+              {isSummaryLoading && (
+                <div className="absolute top-2 right-2">
+                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              )}
             </Card>
-            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
                 <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -222,8 +235,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                 <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
                 <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
               </CardContent>
+              {isSummaryLoading && (
+                <div className="absolute top-2 right-2">
+                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              )}
             </Card>
-            <Card className="overflow-hidden rounded-xl border-none shadow-md">
+            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -232,6 +250,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
                 <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
                 <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
               </CardContent>
+              {isSummaryLoading && (
+                <div className="absolute top-2 right-2">
+                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              )}
             </Card>
           </>
         )}
