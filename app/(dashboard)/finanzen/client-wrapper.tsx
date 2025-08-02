@@ -7,6 +7,7 @@ import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "l
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
+import { SummaryCard } from "@/components/summary-card";
 import { useModalStore } from "@/hooks/use-modal-store";
 
 interface Finanz {
@@ -196,66 +197,34 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           </>
         ) : (
           <>
-            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
-                <ArrowUpCircle className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-                <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
-              </CardContent>
-              {isSummaryLoading && (
-                <div className="absolute top-2 right-2">
-                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
-                </div>
-              )}
-            </Card>
-            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
-                <ArrowDownCircle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-                <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
-              </CardContent>
-              {isSummaryLoading && (
-                <div className="absolute top-2 right-2">
-                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
-                </div>
-              )}
-            </Card>
-            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-                <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
-              </CardContent>
-              {isSummaryLoading && (
-                <div className="absolute top-2 right-2">
-                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
-                </div>
-              )}
-            </Card>
-            <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isSummaryLoading ? 'opacity-75' : 'opacity-100'}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
-                <BarChart3 className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-                <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
-              </CardContent>
-              {isSummaryLoading && (
-                <div className="absolute top-2 right-2">
-                  <div className="w-3 h-3 border border-primary/30 border-t-primary rounded-full animate-spin" />
-                </div>
-              )}
-            </Card>
+            <SummaryCard
+              title="Ø Monatliche Einnahmen"
+              value={averageMonthlyIncome}
+              description="Durchschnittliche monatliche Einnahmen"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Ø Monatliche Ausgaben"
+              value={averageMonthlyExpenses}
+              description="Durchschnittliche monatliche Ausgaben"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Ø Monatlicher Cashflow"
+              value={averageMonthlyCashflow}
+              description="Durchschnittlicher monatlicher Überschuss"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Jahresprognose"
+              value={yearlyProjection}
+              description="Geschätzter Jahresgewinn"
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+              isLoading={isSummaryLoading}
+            />
           </>
         )}
       </div>
