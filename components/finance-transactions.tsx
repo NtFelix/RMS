@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2 } from "lucide-react"
+import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -217,7 +217,21 @@ export function FinanceTransactions({
               <div className="text-sm text-muted-foreground">Saldo</div>
               <div className="text-xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
             </div>
-            <div className="rounded-md border">
+            <div className="rounded-md border relative">
+              {isFilterLoading && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex items-center justify-center">
+                  <div className="flex flex-col items-center gap-3 p-6">
+                    <div className="relative">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <div className="absolute inset-0 h-8 w-8 rounded-full border-2 border-primary/20 animate-pulse"></div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Filter className="h-4 w-4 text-primary" />
+                      Filter werden angewendet
+                    </div>
+                  </div>
+                </div>
+              )}
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -231,14 +245,46 @@ export function FinanceTransactions({
                 <TableBody>
                   {isFilterLoading && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                        <div className="text-sm text-muted-foreground mt-2">Filter werden angewendet...</div>
+                      <TableCell colSpan={5} className="text-center py-12">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="relative">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <div className="absolute inset-0 h-8 w-8 rounded-full border-2 border-primary/20 animate-pulse"></div>
+                          </div>
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                              <Filter className="h-4 w-4 text-primary" />
+                              Filter werden angewendet
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Transaktionen werden gefiltert und sortiert...
+                            </div>
+                          </div>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
                   {!isFilterLoading && sortedAndFilteredData.length === 0 && !isLoading ? (
-                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Keine Transaktionen gefunden.</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-16">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="relative">
+                            <Database className="h-12 w-12 text-muted-foreground/40" />
+                            <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-muted flex items-center justify-center">
+                              <Search className="h-2.5 w-2.5 text-muted-foreground" />
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center gap-2">
+                            <h3 className="text-sm font-medium text-foreground">Keine Transaktionen gefunden</h3>
+                            <p className="text-xs text-muted-foreground max-w-sm text-center">
+                              {filters.searchQuery || filters.selectedApartment !== 'Alle Wohnungen' || filters.selectedYear !== 'Alle Jahre' || filters.selectedType !== 'Alle Transaktionen'
+                                ? 'Versuchen Sie, Ihre Filter anzupassen oder zu entfernen.'
+                                : 'Es wurden noch keine Transaktionen erstellt.'}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ) : !isFilterLoading ? (
                     sortedAndFilteredData.map((finance, index) => {
                       const isLastElement = sortedAndFilteredData.length === index + 1;
@@ -275,13 +321,68 @@ export function FinanceTransactions({
                     })
                   ) : null}
                   {!isFilterLoading && isLoading && (
-                    <TableRow><TableCell colSpan={5} className="text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="relative">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                            <div className="absolute inset-0 h-6 w-6 rounded-full border border-primary/20 animate-ping"></div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Weitere Transaktionen werden geladen...
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )}
                   {!isFilterLoading && !isLoading && !hasMore && sortedAndFilteredData.length > 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Keine weiteren Transaktionen</TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="relative">
+                            <CheckCircle2 className="h-6 w-6 text-green-500" />
+                            <div className="absolute inset-0 h-6 w-6 rounded-full bg-green-500/10 animate-pulse"></div>
+                          </div>
+                          <div className="flex flex-col items-center gap-1">
+                            <div className="text-sm font-medium text-foreground">
+                              Alle Transaktionen geladen
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {sortedAndFilteredData.length} {sortedAndFilteredData.length === 1 ? 'Eintrag' : 'Einträge'} 
+                              {filters.searchQuery || filters.selectedApartment !== 'Alle Wohnungen' || filters.selectedYear !== 'Alle Jahre' || filters.selectedType !== 'Alle Transaktionen'
+                                ? ' entsprechen Ihren Filterkriterien'
+                                : ' insgesamt'}
+                            </div>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )}
                   {!isFilterLoading && error && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-red-500">{error}<Button onClick={loadFinances} variant="link">Retry</Button></TableCell></TableRow>
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="relative">
+                            <div className="h-12 w-12 rounded-full bg-red-50 flex items-center justify-center">
+                              <Search className="h-6 w-6 text-red-500" />
+                            </div>
+                            <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 flex items-center justify-center">
+                              <span className="text-white text-xs">!</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-center gap-2">
+                            <h3 className="text-sm font-medium text-red-600">Fehler beim Laden</h3>
+                            <p className="text-xs text-muted-foreground text-center max-w-sm">
+                              {error}
+                            </p>
+                            <Button onClick={loadFinances} variant="outline" size="sm" className="mt-2">
+                              <Loader2 className="mr-2 h-3 w-3" />
+                              Erneut versuchen
+                            </Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </TableBody>
               </Table>
