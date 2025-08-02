@@ -213,7 +213,11 @@ export function FinanceVisualization({ finances, summaryData }: FinanceVisualiza
             <SelectContent>
               {availableYears.length > 0 
                 ? availableYears.map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)
-                : ['2022','2023','2024','2025'].map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)
+                : (() => {
+                    const currentYear = new Date().getFullYear();
+                    return [currentYear, currentYear - 1, currentYear - 2, currentYear - 3]
+                      .map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>);
+                  })()
               }
             </SelectContent>
           </Select>
