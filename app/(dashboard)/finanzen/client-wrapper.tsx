@@ -9,6 +9,7 @@ import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface Finanz {
   id: string;
@@ -51,28 +52,60 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [filters, setFilters] = useState({
+    searchQuery: '',
+    selectedApartment: 'Alle Wohnungen',
+    selectedYear: 'Alle Jahre',
+    selectedType: 'Alle Transaktionen',
+    sortKey: 'datum',
+    sortDirection: 'desc'
+  });
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
 
   const reloadRef = useRef<(() => void) | null>(null);
+  const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
 
-  const loadMoreTransactions = useCallback(async () => {
-    if (isLoading || !hasMore) return;
+  const loadMoreTransactions = useCallback(async (resetData = false) => {
+    if (isLoading || (!hasMore && !resetData)) return;
     setIsLoading(true);
     setError(null);
+    
+    const targetPage = resetData ? 1 : page + 1;
+    
     try {
-      const response = await fetch(`/api/finanzen?page=${page + 1}&pageSize=25`);
+      const params = new URLSearchParams({
+        page: targetPage.toString(),
+        pageSize: '25',
+        searchQuery: debouncedSearchQuery,
+        selectedApartment: filters.selectedApartment,
+        selectedYear: filters.selectedYear,
+        selectedType: filters.selectedType,
+        sortKey: filters.sortKey,
+        sortDirection: filters.sortDirection
+      });
+      
+      const response = await fetch(`/api/finanzen?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to fetch transactions');
       }
       const newTransactions = await response.json();
-      setFinData(prev => [...prev, ...newTransactions]);
-      setPage(prev => prev + 1);
-      setHasMore(newTransactions.length > 0);
+      
+      if (resetData) {
+        setFinData(newTransactions);
+        setPage(1);
+      } else {
+        setFinData(prev => [...prev, ...newTransactions]);
+        setPage(prev => prev + 1);
+      }
+      
+      setHasMore(newTransactions.length === 25);
     } catch (err: any) {
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
-  }, [page, hasMore, isLoading]);
+  }, [page, hasMore, isLoading, filters, debouncedSearchQuery]);
 
   const refreshSummaryData = useCallback(async () => {
     setIsSummaryLoading(true);
@@ -130,36 +163,34 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   };
 
   const refreshFinances = async () => {
-    setIsLoading(true);
-    setIsSummaryLoading(true);
-    setError(null);
-    try {
-      const [transactionsResponse, summaryResponse] = await Promise.all([
-        fetch('/api/finanzen?page=1&pageSize=25'),
-        fetch(`/api/finanzen/summary?year=${new Date().getFullYear()}`)
-      ]);
-      
-      if (!transactionsResponse.ok) {
-        throw new Error('Failed to refresh transactions');
-      }
-      
-      const newData = await transactionsResponse.json();
-      setFinData(newData);
-      setPage(1);
-      setHasMore(newData.length > 0);
-      
-      if (summaryResponse.ok) {
-        const newSummaryData = await summaryResponse.json();
-        setSummaryData(newSummaryData);
-        setHasInitialData(true);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-      setIsSummaryLoading(false);
-    }
+    await loadMoreTransactions(true);
+    await refreshSummaryData();
   };
+
+  const fetchAvailableYears = useCallback(async () => {
+    try {
+      const response = await fetch('/api/finanzen/years');
+      if (response.ok) {
+        const years = await response.json();
+        setAvailableYears(years);
+      }
+    } catch (error) {
+      console.error('Failed to fetch available years:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAvailableYears();
+  }, [fetchAvailableYears]);
+
+  useEffect(() => {
+    setIsFilterLoading(true);
+    const timer = setTimeout(() => {
+      loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
 
 
   return (
@@ -232,14 +263,19 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       <FinanceVisualization finances={finData} summaryData={summaryData} key={summaryData?.year} />
       <FinanceTransactions
         finances={finData}
+        wohnungen={wohnungen}
+        availableYears={availableYears}
         onEdit={handleEdit}
         onAdd={handleAddFinance}
-        loadFinances={loadMoreTransactions}
+        loadFinances={() => loadMoreTransactions(false)}
         reloadRef={reloadRef}
         hasMore={hasMore}
         isLoading={isLoading}
+        isFilterLoading={isFilterLoading}
         error={error}
         fullReload={refreshFinances}
+        filters={filters}
+        onFiltersChange={setFilters}
       />
     </div>
   );

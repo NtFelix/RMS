@@ -7,16 +7,76 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') ?? '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') ?? '25', 10);
+    const searchQuery = searchParams.get('searchQuery') || '';
+    const selectedApartment = searchParams.get('selectedApartment') || '';
+    const selectedYear = searchParams.get('selectedYear') || '';
+    const selectedType = searchParams.get('selectedType') || '';
+    const sortKey = searchParams.get('sortKey') || 'datum';
+    const sortDirection = searchParams.get('sortDirection') || 'desc';
 
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
     const supabase = await createClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from('Finanzen')
-      .select('*, Wohnungen(name)')
-      .order('datum', { ascending: false })
-      .range(from, to);
+      .select('*, Wohnungen(name)');
+
+    // Apply filters
+    if (searchQuery) {
+      query = query.or(`name.ilike.%${searchQuery}%,notiz.ilike.%${searchQuery}%`);
+    }
+
+    if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
+      // First get the apartment ID
+      const { data: apartmentData } = await supabase
+        .from('Wohnungen')
+        .select('id')
+        .eq('name', selectedApartment)
+        .single();
+      
+      if (apartmentData) {
+        query = query.eq('wohnung_id', apartmentData.id);
+      }
+    }
+
+    if (selectedYear && selectedYear !== 'Alle Jahre') {
+      const startDate = `${selectedYear}-01-01`;
+      const endDate = `${selectedYear}-12-31`;
+      query = query.gte('datum', startDate).lte('datum', endDate);
+    }
+
+    if (selectedType && selectedType !== 'Alle Transaktionen') {
+      const isEinnahme = selectedType === 'Einnahme';
+      query = query.eq('ist_einnahmen', isEinnahme);
+    }
+
+    // Apply sorting
+    const ascending = sortDirection === 'asc';
+    switch (sortKey) {
+      case 'name':
+        query = query.order('name', { ascending });
+        break;
+      case 'wohnung':
+        // For apartment sorting, we need to join and sort by apartment name
+        query = query.order('wohnung_id', { ascending });
+        break;
+      case 'betrag':
+        query = query.order('betrag', { ascending });
+        break;
+      case 'typ':
+        query = query.order('ist_einnahmen', { ascending });
+        break;
+      case 'datum':
+      default:
+        query = query.order('datum', { ascending });
+        break;
+    }
+
+    // Apply pagination
+    query = query.range(from, to);
+      
+    const { data, error } = await query;
       
     if (error) {
       console.error('GET /api/finanzen error:', error);

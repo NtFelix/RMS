@@ -26,16 +26,32 @@ interface Finanz {
 type FinanceSortKey = "name" | "wohnung" | "datum" | "betrag" | "typ"
 type SortDirection = "asc" | "desc"
 
+interface Wohnung { id: string; name: string; }
+
+interface Filters {
+  searchQuery: string;
+  selectedApartment: string;
+  selectedYear: string;
+  selectedType: string;
+  sortKey: string;
+  sortDirection: string;
+}
+
 interface FinanceTransactionsProps {
   finances: Finanz[]
+  wohnungen: Wohnung[]
+  availableYears: number[]
   reloadRef?: any
   onEdit?: (finance: Finanz) => void
   onAdd?: (finance: Finanz) => void
   loadFinances?: () => void
   hasMore: boolean
   isLoading: boolean
+  isFilterLoading?: boolean
   error: string | null
   fullReload?: () => Promise<void>
+  filters: Filters
+  onFiltersChange: (filters: Filters) => void
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -50,24 +66,23 @@ const formatDate = (dateString: string | undefined): string => {
 
 export function FinanceTransactions({
   finances,
+  wohnungen,
+  availableYears,
   reloadRef,
   onEdit,
   onAdd,
   loadFinances,
   hasMore,
   isLoading,
+  isFilterLoading = false,
   error,
   fullReload,
+  filters,
+  onFiltersChange,
 }: FinanceTransactionsProps) {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedApartment, setSelectedApartment] = useState("Alle Wohnungen")
-  const [selectedYear, setSelectedYear] = useState("Alle Jahre")
-  const [selectedType, setSelectedType] = useState("Alle Transaktionen")
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [sortKey, setSortKey] = useState<FinanceSortKey>("datum")
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc")
 
   const observer = useRef<IntersectionObserver | null>(null)
   const lastTransactionElementRef = useCallback((node: HTMLTableRowElement) => {
@@ -81,82 +96,33 @@ export function FinanceTransactions({
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadFinances])
 
-  const apartments = ["Alle Wohnungen", ...new Set(finances
-    .filter(f => f.Wohnungen?.name)
-    .map(f => f.Wohnungen?.name || ""))]
+  const apartments = ["Alle Wohnungen", ...wohnungen.map(w => w.name)]
+  const years = ["Alle Jahre", ...availableYears.map(y => y.toString())]
 
-  const years = ["Alle Jahre", ...new Set(finances
-    .filter(f => f.datum)
-    .map(f => f.datum!.split("-")[0])
-    .sort((a, b) => parseInt(b) - parseInt(a)))]
-
-  const sortedAndFilteredData = useMemo(() => {
-    let result = [...finances]
-
-    if (selectedApartment !== "Alle Wohnungen") {
-      result = result.filter(f => f.Wohnungen?.name === selectedApartment)
-    }
-
-    if (selectedYear !== "Alle Jahre") {
-      result = result.filter(f => {
-        if (!f.datum) return false
-        return f.datum.includes(selectedYear)
-      })
-    }
-
-    if (selectedType !== "Alle Transaktionen") {
-      const isEinnahme = selectedType === "Einnahme"
-      result = result.filter(f => f.ist_einnahmen === isEinnahme)
-    }
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      result = result.filter(f =>
-        f.name.toLowerCase().includes(query) ||
-        (f.Wohnungen?.name || "").toLowerCase().includes(query) ||
-        (f.datum || "").includes(query) ||
-        (f.notiz || "").toLowerCase().includes(query)
-      )
-    }
-
-    if (sortKey) {
-      result.sort((a, b) => {
-        let valA, valB
-        switch (sortKey) {
-          case 'name': valA = a.name || ''; valB = b.name || ''; break
-          case 'wohnung': valA = a.Wohnungen?.name || ''; valB = b.Wohnungen?.name || ''; break
-          case 'datum': valA = a.datum ? new Date(a.datum).getTime() : 0; valB = b.datum ? new Date(b.datum).getTime() : 0; break
-          case 'betrag': valA = a.betrag || 0; valB = b.betrag || 0; break
-          case 'typ': valA = a.ist_einnahmen ? 1 : 0; valB = b.ist_einnahmen ? 1 : 0; break
-          default: valA = ''; valB = ''
-        }
-        if (typeof valA === 'number' && typeof valB === 'number') {
-          if (valA < valB) return sortDirection === "asc" ? -1 : 1
-          if (valA > valB) return sortDirection === "asc" ? 1 : -1
-          return 0
-        }
-        const strA = String(valA)
-        const strB = String(valB)
-        return sortDirection === "asc" ? strA.localeCompare(strB) : strB.localeCompare(strA)
-      })
-    }
-    return result
-  }, [finances, searchQuery, selectedApartment, selectedYear, selectedType, sortKey, sortDirection])
+  // Since filtering is now done server-side, we just use the finances directly
+  const sortedAndFilteredData = finances
 
   const handleSort = (key: FinanceSortKey) => {
-    if (sortKey === key) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc")
-    } else {
-      setSortKey(key)
-      setSortDirection("asc")
-    }
+    const newDirection = filters.sortKey === key && filters.sortDirection === "asc" ? "desc" : "asc"
+    onFiltersChange({
+      ...filters,
+      sortKey: key,
+      sortDirection: newDirection
+    })
   }
 
   const renderSortIcon = (key: FinanceSortKey) => {
-    if (sortKey !== key) {
+    if (filters.sortKey !== key) {
       return <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
     }
-    return sortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+    return filters.sortDirection === "asc" ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />
+  }
+
+  const handleFilterChange = (key: keyof Filters, value: string) => {
+    onFiltersChange({
+      ...filters,
+      [key]: value
+    })
   }
 
   const TableHeaderCell = ({ sortKey, children, className }: { sortKey: FinanceSortKey, children: React.ReactNode, className?: string }) => (
@@ -175,10 +141,10 @@ export function FinanceTransactions({
 
   const handleExportCsv = () => {
     const params = new URLSearchParams();
-    if (searchQuery) params.append('searchQuery', searchQuery);
-    if (selectedApartment) params.append('selectedApartment', selectedApartment);
-    if (selectedYear) params.append('selectedYear', selectedYear);
-    if (selectedType) params.append('selectedType', selectedType);
+    if (filters.searchQuery) params.append('searchQuery', filters.searchQuery);
+    if (filters.selectedApartment) params.append('selectedApartment', filters.selectedApartment);
+    if (filters.selectedYear) params.append('selectedYear', filters.selectedYear);
+    if (filters.selectedType) params.append('selectedType', filters.selectedType);
 
     const url = `/api/finanzen/export?${params.toString()}`;
     window.open(url, '_blank');
@@ -216,15 +182,15 @@ export function FinanceTransactions({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
-                <Select value={selectedApartment} onValueChange={setSelectedApartment}>
+                <Select value={filters.selectedApartment} onValueChange={(value) => handleFilterChange('selectedApartment', value)}>
                   <SelectTrigger><SelectValue placeholder="Wohnung auswählen" /></SelectTrigger>
                   <SelectContent>{apartments.map((apartment) => <SelectItem key={apartment} value={apartment}>{apartment}</SelectItem>)}</SelectContent>
                 </Select>
-                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <Select value={filters.selectedYear} onValueChange={(value) => handleFilterChange('selectedYear', value)}>
                   <SelectTrigger><SelectValue placeholder="Jahr auswählen" /></SelectTrigger>
                   <SelectContent>{years.map((year) => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent>
                 </Select>
-                <Select value={selectedType} onValueChange={setSelectedType}>
+                <Select value={filters.selectedType} onValueChange={(value) => handleFilterChange('selectedType', value)}>
                   <SelectTrigger><SelectValue placeholder="Transaktionstyp auswählen" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Alle Transaktionen">Alle Transaktionen</SelectItem>
@@ -234,7 +200,13 @@ export function FinanceTransactions({
                 </Select>
                 <div className="relative col-span-1 sm:col-span-2">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input type="search" placeholder="Transaktion suchen..." className="pl-8" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                  <Input 
+                    type="search" 
+                    placeholder="Transaktion suchen..." 
+                    className="pl-8" 
+                    value={filters.searchQuery} 
+                    onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
+                  />
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0">
@@ -257,9 +229,17 @@ export function FinanceTransactions({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedAndFilteredData.length === 0 && !isLoading ? (
+                  {isFilterLoading && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                        <div className="text-sm text-muted-foreground mt-2">Filter werden angewendet...</div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isFilterLoading && sortedAndFilteredData.length === 0 && !isLoading ? (
                     <TableRow><TableCell colSpan={5} className="h-24 text-center">Keine Transaktionen gefunden.</TableCell></TableRow>
-                  ) : (
+                  ) : !isFilterLoading ? (
                     sortedAndFilteredData.map((finance, index) => {
                       const isLastElement = sortedAndFilteredData.length === index + 1;
                       return (
@@ -293,14 +273,14 @@ export function FinanceTransactions({
                         </FinanceContextMenu>
                       )
                     })
-                  )}
-                  {isLoading && (
+                  ) : null}
+                  {!isFilterLoading && isLoading && (
                     <TableRow><TableCell colSpan={5} className="text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto" /></TableCell></TableRow>
                   )}
-                  {!isLoading && !hasMore && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No more transactions</TableCell></TableRow>
+                  {!isFilterLoading && !isLoading && !hasMore && sortedAndFilteredData.length > 0 && (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Keine weiteren Transaktionen</TableCell></TableRow>
                   )}
-                  {error && (
+                  {!isFilterLoading && error && (
                     <TableRow><TableCell colSpan={5} className="text-center text-red-500">{error}<Button onClick={loadFinances} variant="link">Retry</Button></TableCell></TableRow>
                   )}
                 </TableBody>
