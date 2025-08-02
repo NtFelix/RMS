@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import Image from "next/image"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -82,7 +83,13 @@ export function DashboardSidebar() {
         <div className="h-full w-full flex flex-col bg-background border-r border-border">
           <div className="border-b px-6 py-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <Building2 className="h-6 w-6" />
+              <Image
+                src="/mascot/normal.png"
+                alt="Property Manager Mascot"
+                width={24}
+                height={24}
+                className="h-6 w-6"
+              />
               <span>Property Manager</span>
             </Link>
           </div>

@@ -16,7 +16,7 @@ const features = [
       "Einfache Zuweisung von Mietern zu Objekten",
       "Historie aller Aktivitäten pro Mieter",
     ],
-    image: "/product-images/haus-page.png",
+    image: "/mascot/normal.png",
     image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
   },
   {
