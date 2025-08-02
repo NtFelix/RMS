@@ -244,7 +244,7 @@ export function FinanceTransactions({
                       const isLastElement = sortedAndFilteredData.length === index + 1;
                       return (
                         <FinanceContextMenu
-                          key={finance.id}
+                          key={`${finance.id}-${index}`}
                           finance={finance}
                           onEdit={() => onEdit && onEdit(finance)}
                           onStatusToggle={async () => {

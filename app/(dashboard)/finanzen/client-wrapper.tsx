@@ -43,8 +43,20 @@ interface FinanzenClientWrapperProps {
   summaryData: SummaryData | null;
 }
 
+// Utility function to remove duplicates based on ID
+const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
+  const seen = new Set<string>();
+  return finances.filter(finance => {
+    if (seen.has(finance.id)) {
+      return false;
+    }
+    seen.add(finance.id);
+    return true;
+  });
+};
+
 export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
-  const [finData, setFinData] = useState<Finanz[]>(initialFinances);
+  const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
@@ -92,10 +104,15 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       const newTransactions = await response.json();
       
       if (resetData) {
-        setFinData(newTransactions);
+        setFinData(deduplicateFinances(newTransactions));
         setPage(1);
       } else {
-        setFinData(prev => [...prev, ...newTransactions]);
+        setFinData(prev => {
+          // Create a Set of existing IDs to avoid duplicates
+          const existingIds = new Set(prev.map(item => item.id));
+          const uniqueNewTransactions = newTransactions.filter((transaction: Finanz) => !existingIds.has(transaction.id));
+          return [...prev, ...uniqueNewTransactions];
+        });
         setPage(prev => prev + 1);
       }
       
@@ -126,12 +143,14 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   const handleAddFinance = useCallback((newFinance: Finanz) => {
     setFinData(prev => {
-      const exists = prev.some(item => item.id === newFinance.id);
-      if (exists) {
-        return prev.map(item =>
-          item.id === newFinance.id ? { ...item, ...newFinance } : item
-        );
+      const existingIndex = prev.findIndex(item => item.id === newFinance.id);
+      if (existingIndex !== -1) {
+        // Update existing item
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], ...newFinance };
+        return updated;
       }
+      // Add new item at the beginning
       return [newFinance, ...prev];
     });
     
