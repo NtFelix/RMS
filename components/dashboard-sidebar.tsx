@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
+import { BarChart3, Building2, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,9 @@ import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
+const MascotIcon = ({ className }: { className: string }) => (
+  <Image src="/mascot/normal.png" alt="Mascot" width={16} height={16} className={className} />
+);
 const sidebarNavItems = [
   {
     title: "Dashboard",
@@ -26,7 +30,7 @@ const sidebarNavItems = [
   {
     title: "Wohnungen",
     href: "/wohnungen",
-    icon: Home,
+    icon: MascotIcon,
   },
   {
     title: "Mieter",
