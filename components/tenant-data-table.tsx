@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Check, X } from "lucide-react"
 import { toast } from "@/hooks/use-toast"
 import { DashboardTenantContextMenu } from "@/components/dashboard-tenant-context-menu"
+import { formatNumber } from "@/utils/format"
 
 type TenantDataItem = {
   id: string
@@ -105,9 +106,9 @@ export function TenantDataTable() {
           apartmentId: wohnung.id,
           apartment: wohnung.name || "Keine Wohnung",
           tenant: mieter.name,
-          size: groesse > 0 ? `${groesse.toFixed(2)} m²` : "-",
+          size: groesse > 0 ? `${formatNumber(groesse)} m²` : "-",
           rent: miete > 0 ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(miete) : "-",
-          pricePerSqm: pricePerSqm > 0 ? `${pricePerSqm.toFixed(2)} €/m²` : "-",
+          pricePerSqm: pricePerSqm > 0 ? `${formatNumber(pricePerSqm)} €/m²` : "-",
           status: mietStatus[wohnung.id] ? 'Miete bezahlt' : 'Miete unbezahlt',
           mieteRaw: miete
         }

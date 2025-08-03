@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FinanceContextMenu } from "@/components/finance-context-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
+import { formatCurrency } from "@/utils/format"
 
 interface Finanz {
   id: string
@@ -190,7 +191,7 @@ export function FinanceTransactions({
                     <span className="text-muted-foreground">Wird berechnet...</span>
                   </div>
                 ) : (
-                  `${totalBalance.toFixed(2).replace(".", ",")} €`
+                  formatCurrency(totalBalance)
                 )}
               </div>
             </div>
@@ -327,7 +328,7 @@ export function FinanceTransactions({
                             <TableCell>{finance.name}</TableCell>
                             <TableCell>{finance.Wohnungen?.name || '-'}</TableCell>
                             <TableCell>{formatDate(finance.datum)}</TableCell>
-                            <TableCell><span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>{finance.betrag.toFixed(2).replace(".", ",")} €</span></TableCell>
+                            <TableCell><span className={finance.ist_einnahmen ? "text-green-600" : "text-red-600"}>{formatCurrency(finance.betrag)}</span></TableCell>
                             <TableCell><Badge variant="outline" className={finance.ist_einnahmen ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}>{finance.ist_einnahmen ? "Einnahme" : "Ausgabe"}</Badge></TableCell>
                           </TableRow>
                         </FinanceContextMenu>

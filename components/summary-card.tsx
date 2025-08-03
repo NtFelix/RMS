@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Spinner } from "./ui/spinner";
 import { ReactNode } from "react";
+import { formatNumber } from "@/utils/format";
 
 interface SummaryCardProps {
   title: string;
@@ -27,7 +28,7 @@ export function SummaryCard({
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold">
-          {value.toFixed(2).replace(".", ",")} €
+          {formatNumber(value)} €
         </div>
         <p className="text-xs text-muted-foreground">{description}</p>
       </CardContent>

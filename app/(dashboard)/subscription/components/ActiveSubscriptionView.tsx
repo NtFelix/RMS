@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserSubscriptionProfile } from '../client-page'; // Corrected UserProfile type import
+import { formatNumber } from '@/utils/format';
 // Plan type is part of UserSubscriptionProfile.activePlan, no separate import needed if structure matches
 
 interface ActiveSubscriptionViewProps {
@@ -21,7 +22,7 @@ const ActiveSubscriptionView: React.FC<ActiveSubscriptionViewProps> = ({ profile
           You are currently subscribed to the <strong>{activePlan.name}</strong> plan.
         </p>
         {activePlan.price && activePlan.currency && (
-           <p className="mb-2">Price: <strong>{(activePlan.price / 100).toFixed(2)} {activePlan.currency.toUpperCase()}</strong> / month</p>
+           <p className="mb-2">Price: <strong>{formatNumber(activePlan.price / 100)} {activePlan.currency.toUpperCase()}</strong> / month</p>
         )}
         {currentPeriodEnd && (
           <p className="mb-2">

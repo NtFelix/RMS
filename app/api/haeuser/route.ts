@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
+import { formatNumber } from "@/utils/format"
 
 export async function POST(request: Request) {
   try {
@@ -75,9 +76,9 @@ export async function GET() {
       
       return {
         ...house,
-        rent: totalRent.toFixed(2),
-        size: totalSize.toFixed(2),
-        pricePerSqm: pricePerSqm.toFixed(2),
+        rent: formatNumber(totalRent),
+        size: formatNumber(totalSize),
+        pricePerSqm: formatNumber(pricePerSqm),
         totalApartments: houseApartments.length,
         freeApartments: freeApartments
       }

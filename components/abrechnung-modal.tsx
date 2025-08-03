@@ -11,6 +11,7 @@ import { useEffect, useState } from "react"; // Import useEffect and useState
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
+import { formatNumber } from "@/utils/format"; // New import for number formatting
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -548,7 +549,7 @@ export function AbrechnungModal({
       // it should be presented here as per the user's original example image.
       // Current data provides total consumption for the period.
       doc.text(`Gesamter Wasserverbrauch Mieter:`, 20, startY);
-      doc.text(`${singleTenantData.waterCost.consumption?.toFixed(2) || '0.00'} m³`, 100, startY);
+      doc.text(`${singleTenantData.waterCost.consumption ? formatNumber(singleTenantData.waterCost.consumption) : '0,00'} m³`, 100, startY);
       startY += 6;
 
       doc.text(`Kosten pro m³:`, 20, startY);
@@ -696,7 +697,7 @@ export function AbrechnungModal({
                     Anwesenheit im Abrechnungsjahr ({tenantData.daysOccupied} / {tenantData.daysInBillingYear} Tage)
                   </span>
                   <span className="text-sm font-medium text-gray-700">
-                    {tenantData.occupancyPercentage.toFixed(2)}%
+                    {formatNumber(tenantData.occupancyPercentage)}%
                   </span>
                 </div>
                 <Progress value={tenantData.occupancyPercentage} className="w-full h-2" />

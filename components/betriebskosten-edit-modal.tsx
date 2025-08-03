@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
+import { formatNumber } from "@/utils/format";
 import {
   Dialog,
   DialogContent,
@@ -699,9 +702,10 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
                                   <div className="pt-2 mt-2 border-t border-gray-300 flex justify-end">
                                       <p className="text-sm font-semibold text-gray-700">
                                           Summe Einzelbeträge: {
-                                              (rechnungen[item.id] || [])
-                                                  .reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0)
-                                                  .toFixed(2)
+                                              formatNumber(
+                                                  (rechnungen[item.id] || [])
+                                                      .reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0)
+                                              )
                                           } €
                                       </p>
                                   </div>

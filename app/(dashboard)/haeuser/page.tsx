@@ -3,6 +3,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server"; // For server-side data fetching
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
+import { formatNumber } from "@/utils/format";
 import { House } from "@/components/house-table"; // Type for enrichedHaeuser
 
 export default async function HaeuserPage() {
@@ -56,7 +57,7 @@ export default async function HaeuserPage() {
       freeApartments,
       size: displaySize,
       rent: totalRent.toString(),
-      pricePerSqm: avgRentPerSqm.toFixed(2),
+      pricePerSqm: formatNumber(avgRentPerSqm),
     };
   });
 
