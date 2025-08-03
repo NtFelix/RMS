@@ -29,7 +29,7 @@ import { createClient } from "@/utils/supabase/client"; // For fetching Wohnunge
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
 
 // Interfaces (can be moved to a types file if not already covered by store types)
-interface Finanz { // This should align with `financeInitialData` type from store
+interface Finanz {
   id: string;
   wohnung_id?: string | null;
   name: string;
@@ -37,6 +37,9 @@ interface Finanz { // This should align with `financeInitialData` type from stor
   betrag: number;
   ist_einnahmen: boolean;
   notiz?: string | null;
+  Wohnungen?: {
+    name: string;
+  };
 }
 
 interface Wohnung { // This should align with `financeModalWohnungen` items type from store

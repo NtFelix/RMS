@@ -1,12 +1,13 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { PAGINATION } from "@/constants";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') ?? '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') ?? '25', 10);
+    const pageSize = parseInt(searchParams.get('pageSize') ?? PAGINATION.DEFAULT_PAGE_SIZE.toString(), 10);
     const searchQuery = searchParams.get('searchQuery') || '';
     const selectedApartment = searchParams.get('selectedApartment') || '';
     const selectedYear = searchParams.get('selectedYear') || '';
@@ -58,8 +59,8 @@ export async function GET(request: Request) {
         query = query.order('name', { ascending });
         break;
       case 'wohnung':
-        // For apartment sorting, we need to join and sort by apartment name
-        query = query.order('wohnung_id', { ascending });
+        // Sort by the apartment name from the related table, not by its ID
+        query = query.order('name', { foreignTable: 'Wohnungen', ascending });
         break;
       case 'betrag':
         query = query.order('betrag', { ascending });
