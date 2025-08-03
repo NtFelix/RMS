@@ -52,6 +52,8 @@ interface FinanceTransactionsProps {
   fullReload?: () => Promise<void>
   filters: Filters
   onFiltersChange: (filters: Filters) => void
+  totalBalance?: number
+  balanceLoading?: boolean
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -79,6 +81,8 @@ export function FinanceTransactions({
   fullReload,
   filters,
   onFiltersChange,
+  totalBalance = 0,
+  balanceLoading = false,
 }: FinanceTransactionsProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
@@ -134,10 +138,7 @@ export function FinanceTransactions({
     </TableHead>
   )
 
-  const totalBalance = sortedAndFilteredData.reduce((total, transaction) => {
-    const amount = Number(transaction.betrag)
-    return transaction.ist_einnahmen ? total + amount : total - amount
-  }, 0)
+  // Balance is now calculated server-side and passed as a prop
 
   const handleExportCsv = () => {
     const params = new URLSearchParams();
@@ -182,7 +183,16 @@ export function FinanceTransactions({
             </div>
             <div className="text-right">
               <div className="text-sm text-muted-foreground">Saldo</div>
-              <div className="text-xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
+              <div className="text-xl font-bold">
+                {balanceLoading ? (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-muted-foreground">Wird berechnet...</span>
+                  </div>
+                ) : (
+                  `${totalBalance.toFixed(2).replace(".", ",")} €`
+                )}
+              </div>
             </div>
           </div>
         </CardHeader>

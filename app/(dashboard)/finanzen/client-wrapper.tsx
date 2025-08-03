@@ -75,9 +75,22 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     sortDirection: 'desc'
   });
   const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [totalBalance, setTotalBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   const reloadRef = useRef<(() => void) | null>(null);
   const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
+  const filtersRef = useRef(filters);
+  const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
+
+  // Update refs when values change
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  useEffect(() => {
+    debouncedSearchQueryRef.current = debouncedSearchQuery;
+  }, [debouncedSearchQuery]);
 
   const loadMoreTransactions = useCallback(async (resetData = false) => {
     if (isLoading || (!hasMore && !resetData)) return;
@@ -90,12 +103,12 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       const params = new URLSearchParams({
         page: targetPage.toString(),
         pageSize: PAGINATION.DEFAULT_PAGE_SIZE.toString(),
-        searchQuery: debouncedSearchQuery,
-        selectedApartment: filters.selectedApartment,
-        selectedYear: filters.selectedYear,
-        selectedType: filters.selectedType,
-        sortKey: filters.sortKey,
-        sortDirection: filters.sortDirection
+        searchQuery: debouncedSearchQueryRef.current,
+        selectedApartment: filtersRef.current.selectedApartment,
+        selectedYear: filtersRef.current.selectedYear,
+        selectedType: filtersRef.current.selectedType,
+        sortKey: filtersRef.current.sortKey,
+        sortDirection: filtersRef.current.sortDirection
       });
       
       const response = await fetch(`/api/finanzen?${params.toString()}`);
@@ -123,7 +136,29 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     } finally {
       setIsLoading(false);
     }
-  }, [page, hasMore, isLoading, filters, debouncedSearchQuery]);
+  }, [page, hasMore, isLoading]);
+
+  const fetchBalance = useCallback(async () => {
+    setBalanceLoading(true);
+    try {
+      const params = new URLSearchParams({
+        searchQuery: debouncedSearchQueryRef.current,
+        selectedApartment: filtersRef.current.selectedApartment,
+        selectedYear: filtersRef.current.selectedYear,
+        selectedType: filtersRef.current.selectedType
+      });
+      
+      const response = await fetch(`/api/finanzen/balance?${params.toString()}`);
+      if (response.ok) {
+        const { totalBalance } = await response.json();
+        setTotalBalance(totalBalance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch balance:', error);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, []); // No dependencies needed since we use refs
 
   const refreshSummaryData = useCallback(async () => {
     setIsSummaryLoading(true);
@@ -160,7 +195,10 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     if (newFinance.datum && new Date(newFinance.datum).getFullYear() === currentYear) {
       refreshSummaryData();
     }
-  }, [refreshSummaryData]);
+    
+    // Refresh balance to reflect the new/updated transaction
+    fetchBalance();
+  }, [refreshSummaryData, fetchBalance]);
 
   const handleSuccess = useCallback((data: any) => {
     if (data) {
@@ -185,6 +223,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const refreshFinances = async () => {
     await loadMoreTransactions(true);
     await refreshSummaryData();
+    await fetchBalance();
   };
 
   const fetchAvailableYears = useCallback(async () => {
@@ -201,12 +240,14 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   useEffect(() => {
     fetchAvailableYears();
-  }, [fetchAvailableYears]);
+    fetchBalance(); // Initial balance fetch
+  }, []); // Only run once on mount
 
   useEffect(() => {
     setIsFilterLoading(true);
     const timer = setTimeout(() => {
       loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
+      fetchBalance();
     }, 100);
     
     return () => clearTimeout(timer);
@@ -301,6 +342,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         fullReload={refreshFinances}
         filters={filters}
         onFiltersChange={setFilters}
+        totalBalance={totalBalance}
+        balanceLoading={balanceLoading}
       />
     </div>
   );
