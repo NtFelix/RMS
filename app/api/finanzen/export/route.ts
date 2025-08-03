@@ -78,7 +78,7 @@ export async function GET(request: Request) {
     while (hasMore) {
       let query = supabase
         .from('Finanzen')
-        .select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen!inner(name)')
+        .select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen!left(name)')
         .order('datum', { ascending: false })
         .range(offset, offset + BATCH_SIZE - 1);
 
