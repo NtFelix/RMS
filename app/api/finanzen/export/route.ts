@@ -58,7 +58,7 @@ export async function GET(request: Request) {
     }
     if (searchQuery) {
       countQuery.or(
-        `name.ilike.%${searchQuery}%,notiz.ilike.%${searchQuery}%,Wohnungen.name.ilike.%${searchQuery}%`
+        `name.ilike.%${searchQuery}%,notiz.ilike.%${searchQuery}%`
       );
     }
 
@@ -96,7 +96,7 @@ export async function GET(request: Request) {
       }
       if (searchQuery) {
         query = query.or(
-          `name.ilike.%${searchQuery}%,notiz.ilike.%${searchQuery}%,Wohnungen.name.ilike.%${searchQuery}%`
+          `name.ilike.%${searchQuery}%,notiz.ilike.%${searchQuery}%`
         );
       }
 
