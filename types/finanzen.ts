@@ -5,7 +5,7 @@ export interface Finanzen {
   datum: string;
   name?: string;
   wohnung_id?: string;
-  Wohnungen?: Array<{
+  Wohnungen?: {
     name: string;
-  }>;
+  } | null;
 }
