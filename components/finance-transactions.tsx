@@ -175,8 +175,16 @@ export function FinanceTransactions({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Finanzliste</CardTitle>
-          <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Finanzliste</CardTitle>
+              <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
+            </div>
+            <div className="text-right">
+              <div className="text-sm text-muted-foreground">Saldo</div>
+              <div className="text-xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
@@ -212,10 +220,6 @@ export function FinanceTransactions({
               <div className="flex items-center gap-2 mt-4 md:mt-0">
                 <Button variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</Button>
               </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Saldo</div>
-              <div className="text-xl font-bold">{totalBalance.toFixed(2).replace(".", ",")} €</div>
             </div>
             <div className="rounded-md border relative">
               {isFilterLoading && (
