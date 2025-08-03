@@ -56,7 +56,7 @@ export default async function HaeuserPage() {
       totalApartments,
       freeApartments,
       size: displaySize,
-      rent: totalRent.toString(),
+      rent: formatNumber(totalRent),
       pricePerSqm: formatNumber(avgRentPerSqm),
     };
   });
