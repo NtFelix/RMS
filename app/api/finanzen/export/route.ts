@@ -17,14 +17,37 @@ export async function GET(request: Request) {
     let offset = 0;
     let hasMore = true;
 
+    // Declare apartmentData variable in the outer scope
+    let apartmentData: { id: string } | null = null;
+
     // First, get the total count with the same filters
-    const countQuery = supabase
+    let countQuery = supabase
       .from('Finanzen')
       .select('*', { count: 'exact', head: true });
 
-    // Apply the same filters to the count query
+    // If apartment filter is selected, we need to join with Wohnungen
     if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
-      countQuery.eq('Wohnungen.name', selectedApartment);
+      // First get the apartment ID
+      const { data: apartment, error: apartmentError } = await supabase
+        .from('Wohnungen')
+        .select('id')
+        .eq('name', selectedApartment)
+        .single();
+      
+      if (apartmentError) {
+        console.error('Error fetching apartment:', apartmentError);
+        return NextResponse.json({ error: 'Fehler beim Abrufen der Wohnungsdaten' }, { status: 500 });
+      }
+      
+      if (!apartment) {
+        return NextResponse.json({ error: 'Wohnung nicht gefunden' }, { status: 404 });
+      }
+      
+      // Store the apartment data for later use
+      apartmentData = apartment;
+      
+      // Filter by apartment ID directly in the Finanzen table
+      countQuery = countQuery.eq('wohnung_id', apartmentData.id);
     }
     if (selectedYear && selectedYear !== 'Alle Jahre') {
       countQuery.gte('datum', `${selectedYear}-01-01`).lte('datum', `${selectedYear}-12-31`);
@@ -55,13 +78,14 @@ export async function GET(request: Request) {
     while (hasMore) {
       let query = supabase
         .from('Finanzen')
-        .select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen(name)')
+        .select('name, datum, betrag, ist_einnahmen, notiz, Wohnungen!inner(name)')
         .order('datum', { ascending: false })
         .range(offset, offset + BATCH_SIZE - 1);
 
       // Apply filters
-      if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
-        query = query.eq('Wohnungen.name', selectedApartment);
+      if (selectedApartment && selectedApartment !== 'Alle Wohnungen' && apartmentData) {
+        // We already have the apartment ID from the count query, so we can use it directly
+        query = query.eq('wohnung_id', apartmentData.id);
       }
       if (selectedYear && selectedYear !== 'Alle Jahre') {
         query = query.gte('datum', `${selectedYear}-01-01`).lte('datum', `${selectedYear}-12-31`);
