@@ -51,7 +51,7 @@ export default async function FinanzenPage() {
     .from('Finanzen')
     .select('*, Wohnungen(name)')
     .order('datum', { ascending: false })
-    .range(0, PAGINATION.INITIAL_ITEMS - 1);
+    .range(0, PAGINATION.DEFAULT_PAGE_SIZE - 1);
   const finances = finanzenData ?? [];
 
   // Summary-Daten für das aktuelle Jahr laden

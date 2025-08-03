@@ -1,5 +1,5 @@
 // Application-wide constants
 export const PAGINATION = {
+  // Default number of items to display per page and for initial data loading
   DEFAULT_PAGE_SIZE: 25,
-  INITIAL_ITEMS: 25, // Used for initial data loading in page.tsx
 };
