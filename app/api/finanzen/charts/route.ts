@@ -3,6 +3,38 @@ import { createClient } from "../../../../utils/supabase/server";
 import { NextResponse } from "next/server";
 import { calculateFinancialSummary } from "../../../../utils/financeCalculations";
 
+// Type definitions for the financial data structure
+interface WohnungData {
+  name: string;
+}
+
+interface FinancialItem {
+  id: string;
+  betrag: number;
+  ist_einnahmen: boolean;
+  datum: string;
+  name: string;
+  wohnung_id: string;
+  Wohnungen: WohnungData | WohnungData[] | null;
+}
+
+// Helper function to safely extract apartment name from Wohnungen data
+function getApartmentName(wohnungen: WohnungData | WohnungData[] | null): string | undefined {
+  if (!wohnungen) return undefined;
+  
+  // Handle array format (when Supabase returns joined data as array)
+  if (Array.isArray(wohnungen) && wohnungen.length > 0) {
+    return wohnungen[0]?.name;
+  }
+  
+  // Handle object format (when Supabase returns joined data as object)
+  if (typeof wohnungen === 'object' && 'name' in wohnungen) {
+    return wohnungen.name;
+  }
+  
+  return undefined;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -43,7 +75,7 @@ export async function GET(request: Request) {
     const expenseCategoriesMap = new Map<string, number>();
     
     // Process each transaction
-    (data || []).forEach(item => {
+    (data as FinancialItem[] || []).forEach(item => {
       if (!item.datum) return;
       
       const itemDate = new Date(item.datum);
@@ -55,12 +87,7 @@ export async function GET(request: Request) {
         monthlyData[month].income += amount;
         
         // Update apartment income (only for income transactions)
-        let apartmentName: string | undefined;
-        if (item.Wohnungen && Array.isArray(item.Wohnungen) && item.Wohnungen.length > 0) {
-          apartmentName = item.Wohnungen[0].name;
-        } else if (item.Wohnungen && typeof item.Wohnungen === 'object' && 'name' in item.Wohnungen) {
-          apartmentName = (item.Wohnungen as any).name;
-        }
+        const apartmentName = getApartmentName(item.Wohnungen);
 
         if (apartmentName) {
           const currentValue = apartmentIncomeMap.get(apartmentName) || 0;
@@ -99,10 +126,10 @@ export async function GET(request: Request) {
       .sort((a, b) => b.value - a.value);
 
     // Transform data to match the expected type
-    const transformedData = (data || []).map(item => ({
+    const transformedData = (data as FinancialItem[] || []).map(item => ({
       ...item,
-      Wohnungen: Array.isArray(item.Wohnungen) && item.Wohnungen.length > 0 
-        ? { name: item.Wohnungen[0].name } 
+      Wohnungen: getApartmentName(item.Wohnungen) 
+        ? { name: getApartmentName(item.Wohnungen)! } 
         : null
     }));
 
