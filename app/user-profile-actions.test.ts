@@ -55,6 +55,7 @@ describe('User Profile Actions', () => {
       stripe_customer_id: 'cus_123',
       stripe_subscription_id: 'sub_123',
       stripe_subscription_status: 'active',
+      stripe_price_id: 'price_123',
       subscription_tier: 'premium',
       trial_ends_at: null,
       created_at: '2024-01-01T00:00:00Z',

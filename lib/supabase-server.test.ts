@@ -56,8 +56,9 @@ describe('lib/supabase-server', () => {
         'test-anon-key',
         expect.objectContaining({
           cookies: expect.objectContaining({
-            getAll: expect.any(Function),
-            setAll: expect.any(Function)
+            get: expect.any(Function),
+            set: expect.any(Function),
+            remove: expect.any(Function)
           })
         })
       );
