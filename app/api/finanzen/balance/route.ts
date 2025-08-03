@@ -2,6 +2,36 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
+// Helper function to fetch all records with pagination
+async function fetchAllRecords(query: any) {
+  const pageSize = 1000; // Process 1000 records at a time
+  let page = 0;
+  let allRecords: any[] = [];
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error, count } = await query
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    
+    if (error) {
+      throw error;
+    }
+    
+    if (data && data.length > 0) {
+      allRecords = [...allRecords, ...data];
+      page++;
+      // If we got fewer records than the page size, we've reached the end
+      if (data.length < pageSize) {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+  
+  return allRecords;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,7 +43,7 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     let query = supabase
       .from('Finanzen')
-      .select('betrag, ist_einnahmen');
+      .select('betrag, ist_einnahmen, name, notiz, datum, wohnung_id', { count: 'exact' });
 
     // Apply the same filters as the main query
     if (searchQuery) {
@@ -44,22 +74,19 @@ export async function GET(request: Request) {
       query = query.eq('ist_einnahmen', isEinnahme);
     }
 
-    const { data, error } = await query;
-      
-    if (error) {
-      console.error('GET /api/finanzen/balance error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    // Fetch all records with pagination
+    const allRecords = await fetchAllRecords(query);
+    const transactionCount = allRecords.length;
 
     // Calculate the total balance server-side
-    const totalBalance = (data || []).reduce((total, transaction) => {
+    const totalBalance = allRecords.reduce((total, transaction) => {
       const amount = Number(transaction.betrag);
       return transaction.ist_einnahmen ? total + amount : total - amount;
     }, 0);
 
     return NextResponse.json({ 
       totalBalance,
-      transactionCount: data?.length || 0 
+      transactionCount
     }, { status: 200 });
   } catch (e) {
     console.error('Server error GET /api/finanzen/balance:', e);

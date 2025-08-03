@@ -3,6 +3,52 @@ import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import { PAGINATION } from "@/constants";
 
+// Helper function to fetch all records with pagination
+async function fetchPaginatedData(
+  query: any,
+  page: number,
+  pageSize: number,
+  sortKey: string,
+  sortDirection: 'asc' | 'desc'
+) {
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  
+  // Apply sorting
+  const ascending = sortDirection === 'asc';
+  
+  switch (sortKey) {
+    case 'name':
+      query = query.order('name', { ascending });
+      break;
+    case 'wohnung':
+      // Sort by the apartment name from the related table
+      query = query.order('name', { foreignTable: 'Wohnungen', ascending });
+      break;
+    case 'betrag':
+      query = query.order('betrag', { ascending });
+      break;
+    case 'typ':
+      query = query.order('ist_einnahmen', { ascending });
+      break;
+    case 'datum':
+    default:
+      query = query.order('datum', { ascending });
+      break;
+  }
+  
+  // Apply pagination
+  query = query.range(from, to);
+  
+  const { data, error, count } = await query;
+  
+  if (error) {
+    throw error;
+  }
+  
+  return { data, count: count || 0 };
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,15 +59,14 @@ export async function GET(request: Request) {
     const selectedYear = searchParams.get('selectedYear') || '';
     const selectedType = searchParams.get('selectedType') || '';
     const sortKey = searchParams.get('sortKey') || 'datum';
-    const sortDirection = searchParams.get('sortDirection') || 'desc';
-
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
+    const sortDirection = searchParams.get('sortDirection') as 'asc' | 'desc' || 'desc';
+    
     const supabase = await createClient();
+    
+    // Base query with only the fields we need
     let query = supabase
       .from('Finanzen')
-      .select('*, Wohnungen(name)');
+      .select('*, Wohnungen(name)', { count: 'exact' });
 
     // Apply filters
     if (searchQuery) {
@@ -51,39 +96,26 @@ export async function GET(request: Request) {
       const isEinnahme = selectedType === 'Einnahme';
       query = query.eq('ist_einnahmen', isEinnahme);
     }
-
-    // Apply sorting
-    const ascending = sortDirection === 'asc';
-    switch (sortKey) {
-      case 'name':
-        query = query.order('name', { ascending });
-        break;
-      case 'wohnung':
-        // Sort by the apartment name from the related table, not by its ID
-        query = query.order('name', { foreignTable: 'Wohnungen', ascending });
-        break;
-      case 'betrag':
-        query = query.order('betrag', { ascending });
-        break;
-      case 'typ':
-        query = query.order('ist_einnahmen', { ascending });
-        break;
-      case 'datum':
-      default:
-        query = query.order('datum', { ascending });
-        break;
+    
+    // Fetch paginated data
+    const { data: transactions, count } = await fetchPaginatedData(
+      query,
+      page,
+      pageSize,
+      sortKey,
+      sortDirection
+    );
+    
+    if (!transactions) {
+      return NextResponse.json([], { status: 200 });
     }
-
-    // Apply pagination
-    query = query.range(from, to);
-      
-    const { data, error } = await query;
-      
-    if (error) {
-      console.error('GET /api/finanzen error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-    return NextResponse.json(data, { status: 200 });
+    
+    return NextResponse.json(transactions, { 
+      status: 200,
+      headers: {
+        'X-Total-Count': count?.toString() || '0', // Add total count to headers
+      }
+    });
   } catch (e) {
     console.error('Server error GET /api/finanzen:', e);
     return NextResponse.json({ error: 'Serverfehler bei Finanzen-Abfrage.' }, { status: 500 });

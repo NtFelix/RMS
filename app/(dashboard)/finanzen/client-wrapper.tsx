@@ -116,6 +116,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         throw new Error('Failed to fetch transactions');
       }
       const newTransactions = await response.json();
+      const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
       
       if (resetData) {
         setFinData(deduplicateFinances(newTransactions));
@@ -130,7 +131,9 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         setPage(prev => prev + 1);
       }
       
-      setHasMore(newTransactions.length === 25);
+      // Check if there are more records to load
+      const loadedCount = resetData ? newTransactions.length : finData.length + newTransactions.length;
+      setHasMore(loadedCount < totalCount);
     } catch (err: any) {
       setError(err.message);
     } finally {
