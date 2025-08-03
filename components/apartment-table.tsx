@@ -181,8 +181,8 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
               >
                 <TableRow className="hover:bg-gray-50 cursor-pointer" onClick={() => onEdit?.(apt)}>
                   <TableCell className="font-medium">{apt.name}</TableCell>
-                  <TableCell>{apt.groesse} m²</TableCell>
-                  <TableCell>{apt.miete} €</TableCell>
+                  <TableCell>{formatNumber(apt.groesse)} m²</TableCell>
+                  <TableCell>{formatNumber(apt.miete)} €</TableCell>
                   <TableCell>{formatNumber(apt.miete / apt.groesse)} €/m²</TableCell>
                   <TableCell>{apt.Haeuser?.name || '-'}</TableCell>
                   <TableCell>
