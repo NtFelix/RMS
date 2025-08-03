@@ -134,8 +134,12 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       // Check if there are more records to load
       const loadedCount = resetData ? newTransactions.length : finData.length + newTransactions.length;
       setHasMore(loadedCount < totalCount);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred while loading transactions');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +162,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
+      if (error instanceof Error) {
+        setError(`Failed to fetch balance: ${error.message}`);
+      } else {
+        setError('An unknown error occurred while fetching balance');
+      }
     } finally {
       setBalanceLoading(false);
     }
@@ -175,6 +184,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
     } catch (error) {
       console.error('Failed to refresh summary data:', error);
+      if (error instanceof Error) {
+        setError(`Failed to refresh summary data: ${error.message}`);
+      } else {
+        setError('An unknown error occurred while refreshing summary data');
+      }
     } finally {
       setIsSummaryLoading(false);
     }
@@ -238,6 +252,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
     } catch (error) {
       console.error('Failed to fetch available years:', error);
+      if (error instanceof Error) {
+        setError(`Failed to fetch available years: ${error.message}`);
+      } else {
+        setError('An unknown error occurred while fetching available years');
+      }
     }
   }, []);
 
