@@ -1,22 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react"; // useEffect might be removable if not used elsewhere
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
-// Dialog, Input, Label, Select, DatePicker, toast, format are removed as they were for the local modal
-// If other parts of the component use them, they should be kept. For now, assuming they are modal-specific.
-// import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-// import { toast } from "@/components/ui/use-toast";
-// import { DatePicker } from "@/components/ui/date-picker";
-// import { format } from "date-fns";
-
-import { useModalStore } from "@/hooks/use-modal-store"; // Added
+import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
+import { SummaryCard } from "@/components/summary-card";
+import { PAGINATION } from "@/constants";
+import { useModalStore } from "@/hooks/use-modal-store";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface Finanz {
   id: string;
@@ -31,99 +25,210 @@ interface Finanz {
 
 interface Wohnung { id: string; name: string; }
 
+interface SummaryData {
+  year: number;
+  totalIncome: number;
+  totalExpenses: number;
+  totalCashflow: number;
+  averageMonthlyIncome: number;
+  averageMonthlyExpenses: number;
+  averageMonthlyCashflow: number;
+  yearlyProjection: number;
+  monthsPassed: number;
+  monthlyData: Record<number, { income: number; expenses: number }>;
+}
+
 interface FinanzenClientWrapperProps {
   finances: Finanz[];
   wohnungen: Wohnung[];
+  summaryData: SummaryData | null;
 }
 
-export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenClientWrapperProps) {
-  // Local state for dialog (dialogOpen, editingId, formData) is removed
-  // const [dialogOpen, setDialogOpen] = useState(false);
-  // const [editingId, setEditingId] = useState<string | null>(null);
-  // const [formData, setFormData] = useState({ 
-  //   wohnung_id: "", 
-  //   name: "", 
-  //   datum: "", 
-  //   betrag: "", 
-  //   ist_einnahmen: false, 
-  //   notiz: "" 
-  // });
-  const [finData, setFinData] = useState<Finanz[]>(finances); // Keep for display
-  const reloadRef = useRef<(() => void) | null>(null); // Keep for FinanceTransactions reload
+// Utility function to remove duplicates based on ID
+const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
+  const seen = new Set<string>();
+  return finances.filter(finance => {
+    if (seen.has(finance.id)) {
+      return false;
+    }
+    seen.add(finance.id);
+    return true;
+  });
+};
 
-  // Add handler for new entries
+export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
+  const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
+  const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
+  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [filters, setFilters] = useState({
+    searchQuery: '',
+    selectedApartment: 'Alle Wohnungen',
+    selectedYear: 'Alle Jahre',
+    selectedType: 'Alle Transaktionen',
+    sortKey: 'datum',
+    sortDirection: 'desc'
+  });
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [totalBalance, setTotalBalance] = useState(0);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+
+  const reloadRef = useRef<(() => void) | null>(null);
+  const debouncedSearchQuery = useDebounce(filters.searchQuery, 500);
+  const filtersRef = useRef(filters);
+  const debouncedSearchQueryRef = useRef(debouncedSearchQuery);
+
+  // Update refs when values change
+  useEffect(() => {
+    filtersRef.current = filters;
+  }, [filters]);
+
+  useEffect(() => {
+    debouncedSearchQueryRef.current = debouncedSearchQuery;
+  }, [debouncedSearchQuery]);
+
+  const loadMoreTransactions = useCallback(async (resetData = false) => {
+    if (isLoading || (!hasMore && !resetData)) return;
+    setIsLoading(true);
+    setError(null);
+    
+    const targetPage = resetData ? 1 : page + 1;
+    
+    try {
+      const params = new URLSearchParams({
+        page: targetPage.toString(),
+        pageSize: PAGINATION.DEFAULT_PAGE_SIZE.toString(),
+        searchQuery: debouncedSearchQueryRef.current,
+        selectedApartment: filtersRef.current.selectedApartment,
+        selectedYear: filtersRef.current.selectedYear,
+        selectedType: filtersRef.current.selectedType,
+        sortKey: filtersRef.current.sortKey,
+        sortDirection: filtersRef.current.sortDirection
+      });
+      
+      const response = await fetch(`/api/finanzen?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
+      const newTransactions = await response.json();
+      const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
+      
+      if (resetData) {
+        setFinData(deduplicateFinances(newTransactions));
+        setPage(1);
+      } else {
+        setFinData(prev => {
+          // Create a Set of existing IDs to avoid duplicates
+          const existingIds = new Set(prev.map(item => item.id));
+          const uniqueNewTransactions = newTransactions.filter((transaction: Finanz) => !existingIds.has(transaction.id));
+          return [...prev, ...uniqueNewTransactions];
+        });
+        setPage(prev => prev + 1);
+      }
+      
+      // Check if there are more records to load
+      const loadedCount = resetData ? newTransactions.length : finData.length + newTransactions.length;
+      setHasMore(loadedCount < totalCount);
+    } catch (error) {
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred while loading transactions');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, hasMore, isLoading]);
+
+  const fetchBalance = useCallback(async () => {
+    setBalanceLoading(true);
+    try {
+      const params = new URLSearchParams({
+        searchQuery: debouncedSearchQueryRef.current,
+        selectedApartment: filtersRef.current.selectedApartment,
+        selectedYear: filtersRef.current.selectedYear,
+        selectedType: filtersRef.current.selectedType
+      });
+      
+      const response = await fetch(`/api/finanzen/balance?${params.toString()}`);
+      if (response.ok) {
+        const { totalBalance } = await response.json();
+        setTotalBalance(totalBalance);
+      }
+    } catch (error) {
+      console.error('Failed to fetch balance:', error);
+      if (error instanceof Error) {
+        setError(`Failed to fetch balance: ${error.message}`);
+      } else {
+        setError('An unknown error occurred while fetching balance');
+      }
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, []); // No dependencies needed since we use refs
+
+  const refreshSummaryData = useCallback(async () => {
+    setIsSummaryLoading(true);
+    try {
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`/api/finanzen/summary?year=${currentYear}`);
+      if (response.ok) {
+        const newSummaryData = await response.json();
+        setSummaryData(newSummaryData);
+        setHasInitialData(true);
+      }
+    } catch (error) {
+      console.error('Failed to refresh summary data:', error);
+      if (error instanceof Error) {
+        setError(`Failed to refresh summary data: ${error.message}`);
+      } else {
+        setError('An unknown error occurred while refreshing summary data');
+      }
+    } finally {
+      setIsSummaryLoading(false);
+    }
+  }, []);
+
   const handleAddFinance = useCallback((newFinance: Finanz) => {
     setFinData(prev => {
-      // Check if the entry already exists to prevent duplicates
-      const exists = prev.some(item => item.id === newFinance.id);
-      if (exists) {
-        // If it exists, update the existing entry
-        return prev.map(item => 
-          item.id === newFinance.id ? { ...item, ...newFinance } : item
-        );
+      const existingIndex = prev.findIndex(item => item.id === newFinance.id);
+      if (existingIndex !== -1) {
+        // Update existing item
+        const updated = [...prev];
+        updated[existingIndex] = { ...updated[existingIndex], ...newFinance };
+        return updated;
       }
-      // If it's a new entry, add it to the beginning of the list
+      // Add new item at the beginning
       return [newFinance, ...prev];
     });
-  }, []);
-  
-  // Handle successful form submission
+    
+    // Refresh summary data if the transaction is from current year
+    const currentYear = new Date().getFullYear();
+    if (newFinance.datum && new Date(newFinance.datum).getFullYear() === currentYear) {
+      refreshSummaryData();
+    }
+    
+    // Refresh balance to reflect the new/updated transaction
+    fetchBalance();
+  }, [refreshSummaryData, fetchBalance]);
+
   const handleSuccess = useCallback((data: any) => {
-    // The server returns the created/updated finance entry
     if (data) {
       handleAddFinance(data);
     }
   }, [handleAddFinance]);
 
-  // useEffect for 'open-add-finance-modal' event is removed.
-  // This will be handled by CommandMenu triggering useModalStore.
+  // Use server-provided summary data or fallback to default values
+  const averageMonthlyIncome = summaryData?.averageMonthlyIncome ?? 0;
+  const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
+  const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
+  const yearlyProjection = summaryData?.yearlyProjection ?? 0;
 
-  // Werte berechnen (keep)
-  const currentYear = new Date().getFullYear();
-  const financesForCurrentYear = finData.filter(f => f.datum && new Date(f.datum).getFullYear() === currentYear);
-
-  const monthlyData = financesForCurrentYear.reduce((acc, item) => {
-    const month = new Date(item.datum!).getMonth();
-    if (!acc[month]) {
-      acc[month] = { income: 0, expenses: 0 };
-    }
-    if (item.ist_einnahmen) {
-      acc[month].income += Number(item.betrag);
-    } else {
-      acc[month].expenses += Number(item.betrag);
-    }
-    return acc;
-  }, {} as Record<number, { income: number; expenses: number }>);
-
-  const monthlyEntries = Object.values(monthlyData);
-  const totalIncome = monthlyEntries.reduce((sum, item) => sum + item.income, 0);
-  const totalExpenses = monthlyEntries.reduce((sum, item) => sum + item.expenses, 0);
-
-  // Improved average calculation - only consider months that have passed
-  const now = new Date();
-  const currentMonthIndex = now.getMonth(); // 0-based (0 = January)
-  const monthsPassed = currentMonthIndex + 1;
-
-  const totalsForPassedMonths = Object.entries(monthlyData).reduce(
-    (acc, [monthKey, data]) => {
-      const monthIndex = Number(monthKey); // monthKey is already 0-based from getMonth()
-      if (monthIndex <= currentMonthIndex) {
-        acc.income += data.income;
-        acc.expenses += data.expenses;
-      }
-      return acc;
-    },
-    { income: 0, expenses: 0 }
-  );
-
-  const averageMonthlyIncome = totalsForPassedMonths.income / monthsPassed;
-  const averageMonthlyExpenses = totalsForPassedMonths.expenses / monthsPassed;
-
-  const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-  const yearlyProjection = averageMonthlyCashflow * 12;
-
-  // handleOpenChange, handleChange, handleDateChange, and original handleSubmit are removed.
-  // The old handleEdit is also removed. A new one will be added in the next step for the global modal.
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
   }, [wohnungen, handleSuccess]);
@@ -131,18 +236,44 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
   const handleAddTransaction = () => {
     useModalStore.getState().openFinanceModal(undefined, wohnungen, handleSuccess);
   };
-  
-  // Function to refresh finance data, can be called by FinanceTransactions or after modal operations
+
   const refreshFinances = async () => {
-    // This logic was part of the old handleSubmit, adapt if still needed for table refresh
-    // For now, router.refresh() in the modal should handle revalidation.
-    // If specific client-side state update is needed without full page reload, this can be expanded.
-    const dataRes = await fetch('/api/finanzen'); // Or call a server action that just fetches
-    if (dataRes.ok) {
-      const newData = await dataRes.json();
-      setFinData(newData);
-    }
+    await loadMoreTransactions(true);
+    await refreshSummaryData();
+    await fetchBalance();
   };
+
+  const fetchAvailableYears = useCallback(async () => {
+    try {
+      const response = await fetch('/api/finanzen/years');
+      if (response.ok) {
+        const years = await response.json();
+        setAvailableYears(years);
+      }
+    } catch (error) {
+      console.error('Failed to fetch available years:', error);
+      if (error instanceof Error) {
+        setError(`Failed to fetch available years: ${error.message}`);
+      } else {
+        setError('An unknown error occurred while fetching available years');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAvailableYears();
+    fetchBalance(); // Initial balance fetch
+  }, []); // Only run once on mount
+
+  useEffect(() => {
+    setIsFilterLoading(true);
+    const timer = setTimeout(() => {
+      loadMoreTransactions(true).finally(() => setIsFilterLoading(false));
+      fetchBalance();
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [filters.selectedApartment, filters.selectedYear, filters.selectedType, filters.sortKey, filters.sortDirection, debouncedSearchQuery]);
 
 
   return (
@@ -152,66 +283,89 @@ export default function FinanzenClientWrapper({ finances, wohnungen }: FinanzenC
           <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
           <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
         </div>
-        {/* Button to add a new transaction - now uses the global modal store */}
         <Button onClick={handleAddTransaction} className="sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
           Transaktion hinzufügen
         </Button>
-        {/* The local Dialog for add/edit is removed */}
       </div>
 
-      {/* Summary Cards (keep) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Cards remain the same */}
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Einnahmen</CardTitle>
-            <ArrowUpCircle className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyIncome.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Einnahmen</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatliche Ausgaben</CardTitle>
-            <ArrowDownCircle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyExpenses.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittliche monatliche Ausgaben</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ø Monatlicher Cashflow</CardTitle>
-            <Wallet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageMonthlyCashflow.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Durchschnittlicher monatlicher Überschuss</p>
-          </CardContent>
-        </Card>
-        <Card className="overflow-hidden rounded-xl border-none shadow-md">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jahresprognose</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{yearlyProjection.toFixed(2).replace(".", ",")} €</div>
-            <p className="text-xs text-muted-foreground">Geschätzter Jahresgewinn</p>
-          </CardContent>
-        </Card>
+        {isSummaryLoading && hasInitialData ? (
+          <>
+            <SummaryCardSkeleton 
+              title="Ø Monatliche Einnahmen" 
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Ø Monatliche Ausgaben" 
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Ø Monatlicher Cashflow" 
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Jahresprognose" 
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
+            />
+          </>
+        ) : (
+          <>
+            <SummaryCard
+              title="Ø Monatliche Einnahmen"
+              value={averageMonthlyIncome}
+              description="Durchschnittliche monatliche Einnahmen"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Ø Monatliche Ausgaben"
+              value={averageMonthlyExpenses}
+              description="Durchschnittliche monatliche Ausgaben"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Ø Monatlicher Cashflow"
+              value={averageMonthlyCashflow}
+              description="Durchschnittlicher monatlicher Überschuss"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              isLoading={isSummaryLoading}
+            />
+            <SummaryCard
+              title="Jahresprognose"
+              value={yearlyProjection}
+              description="Geschätzter Jahresgewinn"
+              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+              isLoading={isSummaryLoading}
+            />
+          </>
+        )}
       </div>
 
-      <FinanceVisualization finances={finData} />
-      <FinanceTransactions 
+      <FinanceVisualization 
         finances={finData} 
-        onEdit={handleEdit} 
+        summaryData={summaryData} 
+        availableYears={availableYears}
+        key={summaryData?.year} 
+      />
+      <FinanceTransactions
+        finances={finData}
+        wohnungen={wohnungen}
+        availableYears={availableYears}
+        onEdit={handleEdit}
         onAdd={handleAddFinance}
-        loadFinances={refreshFinances} 
+        loadFinances={() => loadMoreTransactions(false)}
         reloadRef={reloadRef}
+        hasMore={hasMore}
+        isLoading={isLoading}
+        isFilterLoading={isFilterLoading}
+        error={error}
+        fullReload={refreshFinances}
+        filters={filters}
+        onFiltersChange={setFilters}
+        totalBalance={totalBalance}
+        balanceLoading={balanceLoading}
       />
     </div>
   );
