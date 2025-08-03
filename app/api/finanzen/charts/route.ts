@@ -98,9 +98,17 @@ export async function GET(request: Request) {
       .filter(item => item.value > 0)
       .sort((a, b) => b.value - a.value);
 
+    // Transform data to match the expected type
+    const transformedData = (data || []).map(item => ({
+      ...item,
+      Wohnungen: Array.isArray(item.Wohnungen) && item.Wohnungen.length > 0 
+        ? { name: item.Wohnungen[0].name } 
+        : null
+    }));
+
     // Calculate summary statistics using the shared utility function
     const summary = calculateFinancialSummary(
-      data || [],
+      transformedData,
       year,
       new Date()
     );
