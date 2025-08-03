@@ -113,9 +113,6 @@ jest.mock('@/app/betriebskosten-actions', () => ({
   deleteRechnungenByNebenkostenId: jest.fn(),
 }));
 
-jest.mock('@/app/mieter-actions', () => ({
-  getMieterByHausIdAction: jest.fn(),
-}));
 
 // Removed global mock for haeuser actions to allow proper testing
 
