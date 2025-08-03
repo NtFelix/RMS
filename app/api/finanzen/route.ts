@@ -29,16 +29,7 @@ export async function GET(request: Request) {
     }
 
     if (selectedApartment && selectedApartment !== 'Alle Wohnungen') {
-      // First get the apartment ID
-      const { data: apartmentData } = await supabase
-        .from('Wohnungen')
-        .select('id')
-        .eq('name', selectedApartment)
-        .single();
-      
-      if (apartmentData) {
-        query = query.eq('wohnung_id', apartmentData.id);
-      }
+      query = query.eq('Wohnungen.name', selectedApartment);
     }
 
     if (selectedYear && selectedYear !== 'Alle Jahre') {
