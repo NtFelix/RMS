@@ -172,14 +172,27 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
       try {
         const response = await fetch(`/api/finanzen/charts?year=${selectedYear}`)
         if (!response.ok) {
-          throw new Error('Failed to load chart data')
+          throw new Error(`Failed to load chart data: ${response.status} ${response.statusText}`)
         }
         
         const data = await response.json()
+        if (!data?.charts) {
+          throw new Error('Invalid chart data format received from server')
+        }
+        
         setChartData(data.charts)
-      } catch (err: any) {
-        console.error('Error loading chart data:', err)
-        setError(err.message)
+      } catch (error) {
+        let errorMessage = 'An unknown error occurred while loading chart data'
+        
+        if (error instanceof Error) {
+          console.error('Error loading chart data:', error)
+          errorMessage = error.message
+        } else if (typeof error === 'string') {
+          errorMessage = error
+        }
+        
+        setError(errorMessage)
+        
         // Fallback to static data on error
         setChartData({
           monthlyIncome: staticMonthlyIncome,
