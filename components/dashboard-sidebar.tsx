@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
-import Image from "next/image"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -84,13 +83,11 @@ export function DashboardSidebar() {
         <div className="h-full w-full flex flex-col bg-background border-r border-border">
           <div className="border-b px-6 py-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <Image 
-                src={MASCOT_IMAGE.src} 
-                alt={MASCOT_IMAGE.alt} 
-                width={MASCOT_IMAGE.width} 
-                height={MASCOT_IMAGE.height} 
-                priority 
-                className="group-hover:scale-110 transition-transform"
+              <img
+                src={MASCOT_IMAGE.src}
+                alt={MASCOT_IMAGE.alt}
+                className="w-8 h-8 group-hover:scale-110 transition-transform"
+                loading="eager"
               />
               <span>Property Manager</span>
             </Link>

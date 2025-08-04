@@ -13,10 +13,7 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
-    formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 60,
-    domains: [],
-    unoptimized: false,
+    unoptimized: true,
   },
   experimental: {
     optimizeCss: true,
