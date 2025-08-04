@@ -123,25 +123,20 @@ export default function WohnungenClientView({
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Wohnungen</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Wohnungen und Apartments</p>
-        </div>
-        <div> {/* Wrapper for button and tooltip */}
-          <Button onClick={handleAddWohnung} className="sm:w-auto" disabled={isAddButtonDisabled}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Wohnung hinzufügen
-          </Button>
-          {isAddButtonDisabled && buttonTooltipMessage && (
-            <p className="text-sm text-red-500 mt-1">{buttonTooltipMessage}</p>
-          )}
-        </div>
-      </div>
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
-          <CardTitle>Wohnungsverwaltung</CardTitle>
-          <CardDescription>Hier können Sie Ihre Wohnungen verwalten und filtern</CardDescription>
+          <div className="flex flex-row items-center justify-between">
+            <CardTitle>Wohnungsverwaltung</CardTitle>
+            <div> {/* Wrapper for button and tooltip */}
+              <Button onClick={handleAddWohnung} className="sm:w-auto" disabled={isAddButtonDisabled}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Wohnung hinzufügen
+              </Button>
+              {isAddButtonDisabled && buttonTooltipMessage && (
+                <p className="text-sm text-red-500 mt-1">{buttonTooltipMessage}</p>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
