@@ -81,9 +81,31 @@ describe('ApartmentTable Sorting', () => {
 
     // Check that apartments are sorted by size (50, 60, 75)
     const rows = screen.getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('50 m²')
-    expect(rows[2]).toHaveTextContent('60 m²')
-    expect(rows[3]).toHaveTextContent('75 m²')
+    
+    // Check individual cell contents for more robust testing
+    const row1Cells = rows[1].querySelectorAll('td')
+    expect(row1Cells[0]).toHaveTextContent('Apartment A')
+    expect(row1Cells[1]).toHaveTextContent('50,00 m²')
+    expect(row1Cells[2]).toHaveTextContent('800,00 €')
+    expect(row1Cells[3]).toHaveTextContent('16,00 €/m²')
+    expect(row1Cells[4]).toHaveTextContent('House 1')
+    expect(row1Cells[5]).toHaveTextContent('frei')
+    
+    const row2Cells = rows[2].querySelectorAll('td')
+    expect(row2Cells[0]).toHaveTextContent('Apartment C')
+    expect(row2Cells[1]).toHaveTextContent('60,00 m²')
+    expect(row2Cells[2]).toHaveTextContent('900,00 €')
+    expect(row2Cells[3]).toHaveTextContent('15,00 €/m²')
+    expect(row2Cells[4]).toHaveTextContent('House 1')
+    expect(row2Cells[5]).toHaveTextContent('frei')
+    
+    const row3Cells = rows[3].querySelectorAll('td')
+    expect(row3Cells[0]).toHaveTextContent('Apartment B')
+    expect(row3Cells[1]).toHaveTextContent('75,00 m²')
+    expect(row3Cells[2]).toHaveTextContent('1.200,00 €')
+    expect(row3Cells[3]).toHaveTextContent('16,00 €/m²')
+    expect(row3Cells[4]).toHaveTextContent('House 2')
+    expect(row3Cells[5]).toHaveTextContent('vermietet')
   })
 
   it('should sort by rent when clicking rent header', () => {
@@ -100,9 +122,9 @@ describe('ApartmentTable Sorting', () => {
 
     // Check that apartments are sorted by rent (800, 900, 1200)
     const rows = screen.getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('800 €')
-    expect(rows[2]).toHaveTextContent('900 €')
-    expect(rows[3]).toHaveTextContent('1200 €')
+    expect(rows[1]).toHaveTextContent('800,00 €')
+    expect(rows[2]).toHaveTextContent('900,00 €')
+    expect(rows[3]).toHaveTextContent('1.200,00 €')
   })
 
   it('should toggle sort direction when clicking same header', () => {
@@ -143,8 +165,30 @@ describe('ApartmentTable Sorting', () => {
 
     // Expected order by price per sqm: Apartment C (15.00), Apartment A (16.00), Apartment B (16.00)
     const rows = screen.getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('15.00 €/m²') // Apartment C: 900/60
-    expect(rows[2]).toHaveTextContent('16.00 €/m²') // Apartment A: 800/50
-    expect(rows[3]).toHaveTextContent('16.00 €/m²') // Apartment B: 1200/75
+    
+    // Check individual cell contents for more robust testing
+    const row1Cells = rows[1].querySelectorAll('td')
+    expect(row1Cells[0]).toHaveTextContent('Apartment C')
+    expect(row1Cells[1]).toHaveTextContent('60,00 m²')
+    expect(row1Cells[2]).toHaveTextContent('900,00 €')
+    expect(row1Cells[3]).toHaveTextContent('15,00 €/m²')
+    expect(row1Cells[4]).toHaveTextContent('House 1')
+    expect(row1Cells[5]).toHaveTextContent('frei')
+    
+    const row2Cells = rows[2].querySelectorAll('td')
+    expect(row2Cells[0]).toHaveTextContent('Apartment A')
+    expect(row2Cells[1]).toHaveTextContent('50,00 m²')
+    expect(row2Cells[2]).toHaveTextContent('800,00 €')
+    expect(row2Cells[3]).toHaveTextContent('16,00 €/m²')
+    expect(row2Cells[4]).toHaveTextContent('House 1')
+    expect(row2Cells[5]).toHaveTextContent('frei')
+    
+    const row3Cells = rows[3].querySelectorAll('td')
+    expect(row3Cells[0]).toHaveTextContent('Apartment B')
+    expect(row3Cells[1]).toHaveTextContent('75,00 m²')
+    expect(row3Cells[2]).toHaveTextContent('1.200,00 €')
+    expect(row3Cells[3]).toHaveTextContent('16,00 €/m²')
+    expect(row3Cells[4]).toHaveTextContent('House 2')
+    expect(row3Cells[5]).toHaveTextContent('vermietet')
   })
 })
