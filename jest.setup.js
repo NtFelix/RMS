@@ -6,6 +6,46 @@ const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Add Request/Response polyfills for Next.js server APIs
+global.Request = class Request {
+  constructor(input, init) {
+    this.url = typeof input === 'string' ? input : input.url;
+    this.method = init?.method || 'GET';
+    this.headers = new Map(Object.entries(init?.headers || {}));
+    this.body = init?.body;
+  }
+};
+
+global.Response = class Response {
+  constructor(body, init) {
+    this.body = body;
+    this.status = init?.status || 200;
+    this.statusText = init?.statusText || 'OK';
+    this.headers = new Map(Object.entries(init?.headers || {}));
+  }
+  
+  json() {
+    return Promise.resolve(JSON.parse(this.body));
+  }
+  
+  text() {
+    return Promise.resolve(this.body);
+  }
+};
+
+global.Headers = class Headers extends Map {
+  constructor(init) {
+    super();
+    if (init) {
+      if (Array.isArray(init)) {
+        init.forEach(([key, value]) => this.set(key, value));
+      } else if (typeof init === 'object') {
+        Object.entries(init).forEach(([key, value]) => this.set(key, value));
+      }
+    }
+  }
+};
+
 jest.mock('@supabase/ssr', () => {
   return {
     createBrowserClient: jest.fn(() => ({
@@ -26,36 +66,42 @@ jest.mock('next/navigation', () => ({
   }),
 }));
 
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: jest.fn().mockImplementation(query => ({
-    matches: false,
-    media: query,
-    onchange: null,
-    addListener: jest.fn(), // deprecated
-    removeListener: jest.fn(), // deprecated
-    addEventListener: jest.fn(),
-    removeEventListener: jest.fn(),
-    dispatchEvent: jest.fn(),
-  })),
-});
-
-// Add polyfill for hasPointerCapture which is missing in JSDOM
-if (!Element.prototype.hasPointerCapture) {
-  Element.prototype.hasPointerCapture = jest.fn(() => false);
+// Only define window properties if window exists (jsdom environment)
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: jest.fn().mockImplementation(query => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: jest.fn(), // deprecated
+      removeListener: jest.fn(), // deprecated
+      addEventListener: jest.fn(),
+      removeEventListener: jest.fn(),
+      dispatchEvent: jest.fn(),
+    })),
+  });
 }
 
-if (!Element.prototype.setPointerCapture) {
-  Element.prototype.setPointerCapture = jest.fn();
-}
+// Add polyfills for DOM methods only if Element exists (jsdom environment)
+if (typeof Element !== 'undefined') {
+  // Add polyfill for hasPointerCapture which is missing in JSDOM
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = jest.fn(() => false);
+  }
 
-if (!Element.prototype.releasePointerCapture) {
-  Element.prototype.releasePointerCapture = jest.fn();
-}
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = jest.fn();
+  }
 
-// Add scrollIntoView mock for Radix UI components
-if (!Element.prototype.scrollIntoView) {
-  Element.prototype.scrollIntoView = jest.fn();
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = jest.fn();
+  }
+
+  // Add scrollIntoView mock for Radix UI components
+  if (!Element.prototype.scrollIntoView) {
+    Element.prototype.scrollIntoView = jest.fn();
+  }
 }
 
 // Mock server actions to prevent actual imports during testing
@@ -67,15 +113,8 @@ jest.mock('@/app/betriebskosten-actions', () => ({
   deleteRechnungenByNebenkostenId: jest.fn(),
 }));
 
-jest.mock('@/app/mieter-actions', () => ({
-  getMieterByHausIdAction: jest.fn(),
-}));
 
-jest.mock('@/app/(dashboard)/haeuser/actions', () => ({
-  handleSubmit: jest.fn(),
-  deleteHouseAction: jest.fn(),
-  getWasserzaehlerModalDataAction: jest.fn(),
-}));
+// Removed global mock for haeuser actions to allow proper testing
 
 // Mock hooks to prevent actual imports during testing
 jest.mock('@/hooks/use-modal-store', () => ({

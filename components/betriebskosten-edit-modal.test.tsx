@@ -12,6 +12,8 @@ import {
 import { getMieterByHausIdAction } from '@/app/mieter-actions';
 import { useToast } from '@/hooks/use-toast';
 
+jest.mock('@/app/mieter-actions');
+
 // Mock dependencies are now handled globally in jest.setup.js
 
 // Mock constants

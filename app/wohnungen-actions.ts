@@ -1,7 +1,14 @@
 "use server";
 
-import { createClient } from "@/utils/supabase/server"; // Using @/ alias which should resolve correctly
+import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
+
+// Define subscription plan limits
+const SUBSCRIPTION_LIMITS = {
+  free: 1,
+  pro: 10,
+  business: 50
+} as const;
 
 interface WohnungPayload {
   name: string;
@@ -46,13 +53,64 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
   // }
 
   try {
+    // Get the current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) {
+      return { 
+        success: false, 
+        error: { message: "Benutzer nicht gefunden. Bitte melden Sie sich erneut an." } 
+      };
+    }
+    
+    // Get user's subscription
+    const { data: subscriptionData, error: subscriptionError } = await supabase
+      .rpc('get_user_subscription', { user_id: user.id });
+    
+    // If subscription check fails, default to free tier
+    const plan = subscriptionData?.plan_id || 'free';
+    const limit = SUBSCRIPTION_LIMITS[plan as keyof typeof SUBSCRIPTION_LIMITS] || 1;
+    
+    // Only check limits when creating a new apartment
+    if (!id) {
+      // Get current apartment count for the user
+      const { count, error: countError } = await supabase
+        .from('Wohnungen')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      
+      if (countError) throw countError;
+      
+      // Check if user has reached their limit
+      if (count !== null && count >= limit) {
+        return { 
+          success: false, 
+          error: { 
+            message: `Ihr aktueller Tarif erlaubt nur ${limit} Wohnung${limit !== 1 ? 'en' : ''}.` 
+          } 
+        };
+      }
+    }
+    
+    // Add user_id to the payload for new records
+    const fullPayload = { ...payload, user_id: user.id };
+    
     let dbResponse;
     if (id) {
       // Update existing record
-      dbResponse = await supabase.from("Wohnungen").update(payload).eq("id", id).select().single();
+      dbResponse = await supabase
+        .from("Wohnungen")
+        .update(fullPayload)
+        .eq("id", id)
+        .select()
+        .single();
     } else {
       // Create new record
-      dbResponse = await supabase.from("Wohnungen").insert(payload).select().single();
+      dbResponse = await supabase
+        .from("Wohnungen")
+        .insert(fullPayload)
+        .select()
+        .single();
     }
     
     if (dbResponse.error) throw dbResponse.error;
