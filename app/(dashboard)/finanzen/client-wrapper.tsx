@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
-import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
+import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, Loader2 } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
+
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
+import { formatCurrency } from "@/utils/format";
 
 interface Finanz {
   id: string;
@@ -278,17 +280,6 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
-        </div>
-        <Button onClick={handleAddTransaction} className="sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Transaktion hinzufügen
-        </Button>
-      </div>
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {isSummaryLoading && hasInitialData ? (
           <>
@@ -349,6 +340,27 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         availableYears={availableYears}
         key={summaryData?.year} 
       />
+      
+      <div className="flex flex-row items-center justify-between mb-4">
+        <div>
+          <div className="text-sm text-muted-foreground">Saldo</div>
+          <div className="text-xl font-bold">
+            {balanceLoading ? (
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-muted-foreground">Wird berechnet...</span>
+              </div>
+            ) : (
+              formatCurrency(totalBalance)
+            )}
+          </div>
+        </div>
+        <Button onClick={handleAddTransaction} className="sm:w-auto">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Transaktion hinzufügen
+        </Button>
+      </div>
+      
       <FinanceTransactions
         finances={finData}
         wohnungen={wohnungen}
@@ -364,8 +376,6 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         fullReload={refreshFinances}
         filters={filters}
         onFiltersChange={setFilters}
-        totalBalance={totalBalance}
-        balanceLoading={balanceLoading}
       />
     </div>
   );

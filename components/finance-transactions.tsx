@@ -53,8 +53,6 @@ interface FinanceTransactionsProps {
   fullReload?: () => Promise<void>
   filters: Filters
   onFiltersChange: (filters: Filters) => void
-  totalBalance?: number
-  balanceLoading?: boolean
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -82,8 +80,6 @@ export function FinanceTransactions({
   fullReload,
   filters,
   onFiltersChange,
-  totalBalance = 0,
-  balanceLoading = false,
 }: FinanceTransactionsProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
@@ -177,25 +173,8 @@ export function FinanceTransactions({
     <>
       <Card>
         <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>Finanzliste</CardTitle>
-              <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Saldo</div>
-              <div className="text-xl font-bold">
-                {balanceLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-muted-foreground">Wird berechnet...</span>
-                  </div>
-                ) : (
-                  formatCurrency(totalBalance)
-                )}
-              </div>
-            </div>
-          </div>
+          <CardTitle>Finanzliste</CardTitle>
+          <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
