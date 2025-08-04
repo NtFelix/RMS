@@ -13,15 +13,15 @@ jest.mock('@/hooks/use-toast', () => ({
 }))
 
 // Mock IntersectionObserver for infinite scroll
-window.IntersectionObserver = jest.fn().mockImplementation(() => {
+window.IntersectionObserver = jest.fn().mockImplementation((callback: IntersectionObserverCallback) => {
   return {
     observe: jest.fn().mockImplementation((element: Element) => {
-      const callback = jest.fn()
-      callback([{ isIntersecting: true, target: element }])
+      // Immediately trigger the intersection for testing purposes
+      callback([{ isIntersecting: true, target: element }], this as any);
     }),
     unobserve: jest.fn(),
     disconnect: jest.fn(),
-    takeRecords: jest.fn()
+    takeRecords: jest.fn().mockReturnValue([])
   }
 })
 
@@ -62,6 +62,8 @@ const mockFinances: Finanz[] = [
 describe('FinanceTransactions Basic Sorting', () => {
   describe('Core sorting functionality', () => {
     it('should render table with sortable headers', () => {
+      const mockOnFiltersChange = jest.fn()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -78,7 +80,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -90,6 +92,10 @@ describe('FinanceTransactions Basic Sorting', () => {
     })
 
     it('should sort by date in descending order by default', () => {
+      // This test is checking that the data is displayed as received
+      // The actual sorting is done server-side before passing to this component
+      const mockOnFiltersChange = jest.fn()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -106,18 +112,20 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
       const rows = screen.getAllByRole('row')
-      // Default sort is by date descending (February 10 before January 15)
+      // Data should be displayed in the order it's provided
       expect(rows[1]).toHaveTextContent('Rent Payment JanuaryApartment A15.01.20231.000,00 €Einnahme')
       expect(rows[2]).toHaveTextContent('Maintenance CostApartment B10.02.2023500,00 €Ausgabe')
     })
 
-    it('should sort by name when clicking name header', async () => {
+    it('should call onFiltersChange with correct parameters when clicking name header', async () => {
+      const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -134,21 +142,28 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
       const nameHeader = screen.getByText('Bezeichnung').closest('div')
       await user.click(nameHeader!)
 
-      const rows = screen.getAllByRole('row')
-      // Should sort alphabetically: Wartungskosten, Miete Januar
-      expect(rows[1]).toHaveTextContent('Rent Payment JanuaryApartment A15.01.20231.000,00 €Einnahme')
-      expect(rows[2]).toHaveTextContent('Maintenance CostApartment B10.02.2023500,00 €Ausgabe')
+      // Should call onFiltersChange with sortKey 'name' and sortDirection 'asc'
+      expect(mockOnFiltersChange).toHaveBeenCalledWith({
+        searchQuery: '',
+        selectedApartment: 'Alle Wohnungen',
+        selectedYear: 'Alle Jahre',
+        selectedType: '',
+        sortKey: 'name',
+        sortDirection: 'asc'
+      })
     })
 
-    it('should sort by amount when clicking amount header', async () => {
+    it('should call onFiltersChange with correct parameters when clicking amount header', async () => {
+      const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -165,21 +180,28 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
       const amountHeader = screen.getByText('Betrag').closest('div')
       await user.click(amountHeader!)
 
-      const rows = screen.getAllByRole('row')
-      // Should sort by amount ascending: 500, 1000
-      expect(rows[1]).toHaveTextContent('Rent Payment JanuaryApartment A15.01.20231.000,00 €Einnahme')
-      expect(rows[2]).toHaveTextContent('Maintenance CostApartment B10.02.2023500,00 €Ausgabe')
+      // Should call onFiltersChange with sortKey 'betrag' and sortDirection 'asc'
+      expect(mockOnFiltersChange).toHaveBeenCalledWith({
+        searchQuery: '',
+        selectedApartment: 'Alle Wohnungen',
+        selectedYear: 'Alle Jahre',
+        selectedType: '',
+        sortKey: 'betrag',
+        sortDirection: 'asc'
+      })
     })
 
     it('should handle header clicks for sorting', async () => {
+      const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -196,7 +218,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -208,12 +230,13 @@ describe('FinanceTransactions Basic Sorting', () => {
       // Click should not throw error
       await user.click(nameHeader!)
       
-      // Table should still render data
-      const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(4) // Header + 2 data rows + loaded message row
+      // Should call onFiltersChange
+      expect(mockOnFiltersChange).toHaveBeenCalled()
     })
 
     it('should display transaction types correctly', () => {
+      const mockOnFiltersChange = jest.fn()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -230,7 +253,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -239,6 +262,8 @@ describe('FinanceTransactions Basic Sorting', () => {
     })
 
     it('should format dates correctly', () => {
+      const mockOnFiltersChange = jest.fn()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -255,7 +280,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -264,6 +289,8 @@ describe('FinanceTransactions Basic Sorting', () => {
     })
 
     it('should handle empty dataset', () => {
+      const mockOnFiltersChange = jest.fn()
+      
       render(
         <FinanceTransactions
           finances={[]}
@@ -280,7 +307,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -290,6 +317,8 @@ describe('FinanceTransactions Basic Sorting', () => {
 
   describe('Visual indicators', () => {
     it('should apply hover effects to sortable headers', () => {
+      const mockOnFiltersChange = jest.fn()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -306,7 +335,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -316,7 +345,9 @@ describe('FinanceTransactions Basic Sorting', () => {
     })
 
     it('should display sort icons', async () => {
+      const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
+      
       render(
         <FinanceTransactions
           finances={mockFinances}
@@ -333,7 +364,7 @@ describe('FinanceTransactions Basic Sorting', () => {
             sortKey: 'datum',
             sortDirection: 'desc'
           }}
-          onFiltersChange={() => {}}
+          onFiltersChange={mockOnFiltersChange}
         />
       )
 
@@ -345,8 +376,8 @@ describe('FinanceTransactions Basic Sorting', () => {
       // Click to change sort direction
       await user.click(nameHeader!)
       
-      // Header should still be clickable
-      expect(nameHeader).toHaveClass('cursor-pointer')
+      // Should call onFiltersChange
+      expect(mockOnFiltersChange).toHaveBeenCalled()
     })
   })
 })
