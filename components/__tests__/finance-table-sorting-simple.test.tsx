@@ -17,7 +17,47 @@ window.IntersectionObserver = jest.fn().mockImplementation((callback: Intersecti
   return {
     observe: jest.fn().mockImplementation((element: Element) => {
       // Immediately trigger the intersection for testing purposes
-      callback([{ isIntersecting: true, target: element }], this as any);
+      callback([
+        {
+          isIntersecting: true,
+          target: element,
+          intersectionRatio: 1,
+          intersectionRect: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            toJSON: () => ({})
+          },
+          boundingClientRect: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            toJSON: () => ({})
+          },
+          rootBounds: {
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            toJSON: () => ({})
+          },
+          time: Date.now()
+        }
+      ], this as any);
     }),
     unobserve: jest.fn(),
     disconnect: jest.fn(),
