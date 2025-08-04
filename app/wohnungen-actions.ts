@@ -2,13 +2,8 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-
-// Define subscription plan limits
-const SUBSCRIPTION_LIMITS = {
-  free: 1,
-  pro: 10,
-  business: 50
-} as const;
+import { fetchUserProfile } from '@/lib/data-fetching';
+import { getPlanDetails } from '@/lib/stripe-server';
 
 interface WohnungPayload {
   name: string;
@@ -63,16 +58,65 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       };
     }
     
-    // Get user's subscription
-    const { data: subscriptionData, error: subscriptionError } = await supabase
-      .rpc('get_user_subscription', { user_id: user.id });
-    
-    // If subscription check fails, default to free tier
-    const plan = subscriptionData?.plan_id || 'free';
-    const limit = SUBSCRIPTION_LIMITS[plan as keyof typeof SUBSCRIPTION_LIMITS] || 1;
-    
     // Only check limits when creating a new apartment
     if (!id) {
+      // Get user profile for subscription details
+      const userProfile = await fetchUserProfile();
+      if (!userProfile) {
+        return { 
+          success: false, 
+          error: { message: "Benutzerprofil nicht gefunden." } 
+        };
+      }
+
+      const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
+      const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+
+      let userIsEligibleToAdd = false;
+      let effectiveApartmentLimit: number | typeof Infinity = 0;
+
+      if (isStripeTrial) {
+        userIsEligibleToAdd = true;
+        effectiveApartmentLimit = 5;
+        if (isPaidActiveSub && userProfile.stripe_price_id) {
+          try {
+            const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+            if (planDetails) {
+              if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
+              else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > effectiveApartmentLimit) {
+                effectiveApartmentLimit = planDetails.limitWohnungen;
+              }
+            }
+          } catch (error) { 
+            console.error('Error fetching plan details for active sub during trial:', error); 
+          }
+        }
+      } else if (isPaidActiveSub && userProfile.stripe_price_id) {
+        userIsEligibleToAdd = true;
+        try {
+          const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+          if (planDetails) {
+            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) effectiveApartmentLimit = planDetails.limitWohnungen;
+            else if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
+            else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; }
+          } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; }
+        } catch (error) { 
+          console.error('Error fetching plan details:', error); 
+          userIsEligibleToAdd = false; 
+          effectiveApartmentLimit = 0; 
+        }
+      } else { 
+        userIsEligibleToAdd = false; 
+        effectiveApartmentLimit = 0; 
+      }
+
+      if (!userIsEligibleToAdd) {
+        return { 
+          success: false, 
+          error: { message: "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen." } 
+        };
+      }
+
       // Get current apartment count for the user
       const { count, error: countError } = await supabase
         .from('Wohnungen')
@@ -82,13 +126,18 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       if (countError) throw countError;
       
       // Check if user has reached their limit
-      if (count !== null && count >= limit) {
-        return { 
-          success: false, 
-          error: { 
-            message: `Ihr aktueller Tarif erlaubt nur ${limit} Wohnung${limit !== 1 ? 'en' : ''}.` 
-          } 
-        };
+      if (effectiveApartmentLimit !== Infinity && count !== null && count >= effectiveApartmentLimit) {
+        if (isStripeTrial && effectiveApartmentLimit === 5) {
+          return { 
+            success: false, 
+            error: { message: `Maximale Anzahl an Wohnungen (${effectiveApartmentLimit}) für Ihre Testphase erreicht.` } 
+          };
+        } else {
+          return { 
+            success: false, 
+            error: { message: `Sie haben die maximale Anzahl an Wohnungen (${effectiveApartmentLimit}) für Ihr aktuelles Abonnement erreicht.` } 
+          };
+        }
       }
     }
     
