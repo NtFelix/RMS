@@ -135,7 +135,7 @@ const mockFinances = [
 window.IntersectionObserver = jest.fn().mockImplementation((callback: IntersectionObserverCallback, options?: IntersectionObserverInit) => {
   return {
     observe: jest.fn().mockImplementation((element: Element) => {
-      callback([{ isIntersecting: true, target: element }])
+      callback([{ isIntersecting: true, target: element }], this as any)
     }),
     unobserve: jest.fn(),
     disconnect: jest.fn(),
