@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
-import { BetriebskostenEditModal } from "@/components/betriebskosten-edit-modal";
+
 import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correct path
 import { deleteNebenkosten as deleteNebenkostenServerAction } from "../../../app/betriebskosten-actions"; // Ensure correct path
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
@@ -18,24 +18,14 @@ import { useRouter } from "next/navigation"; // Added import
 interface BetriebskostenClientViewProps {
   initialNebenkosten: Nebenkosten[];
   initialHaeuser: Haus[];
-  userId?: string;
   ownerName: string;
 }
 
-// AddBetriebskostenButton component (can be kept separate or integrated)
-function AddBetriebskostenButton({ onAdd }: { onAdd: () => void }) {
-  return (
-    <Button onClick={onAdd} className="sm:w-auto">
-      <PlusCircle className="mr-2 h-4 w-4" />
-      Betriebskostenabrechnung erstellen
-    </Button>
-  );
-}
+
 
 export default function BetriebskostenClientView({
   initialNebenkosten,
   initialHaeuser,
-  userId,
   ownerName,
 }: BetriebskostenClientViewProps) {
   const [filter, setFilter] = useState("all");
@@ -121,20 +111,15 @@ export default function BetriebskostenClientView({
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Betriebskosten</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Betriebskosten und Abrechnungen</p>
-        </div>
-        <AddBetriebskostenButton onAdd={handleOpenCreateModal} />
-      </div>
-
       {/* Main Content Area including Card, Table, Modals */}
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
-          <div>
+          <div className="flex flex-row items-center justify-between">
             <CardTitle>Betriebskostenübersicht</CardTitle>
-            <CardDescription>Hier können Sie Ihre Betriebskosten verwalten und abrechnen</CardDescription>
+            <Button onClick={handleOpenCreateModal} className="sm:w-auto">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Betriebskostenabrechnung erstellen
+            </Button>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
