@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle } from "lucide-react";
 import { TenantFilters } from "@/components/tenant-filters";
 import { TenantTable } from "@/components/tenant-table";
-import { TenantDialogWrapper } from "@/components/tenant-dialog-wrapper";
+
 
 import type { Tenant } from "@/types/Tenant";
 import type { Wohnung } from "@/types/Wohnung";
@@ -73,33 +73,11 @@ export default function MieterClientView({
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mieter</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Mieter und Mietverhältnisse</p>
-        </div>
-        <AddTenantButton onAdd={handleAddTenant} />
-      </div>
-
-      {/* TenantDialogWrapper is no longer needed here as TenantEditModal is global
-          and opened directly via useModalStore actions.
-      */}
-      {/*
-      <TenantDialogWrapper
-        wohnungen={initialWohnungen}
-        mieter={initialTenants}
-        serverAction={serverAction} // This prop is for TenantEditModal, not wrapper
-        open={dialogOpen}
-        editingId={editingId}
-        setOpen={setDialogOpen}
-        setEditingId={setEditingId}
-      />
-      */}
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
-          <div>
+          <div className="flex flex-row items-center justify-between">
             <CardTitle>Mieterverwaltung</CardTitle>
-            <CardDescription>Hier können Sie Ihre Mieter verwalten und filtern</CardDescription>
+            <AddTenantButton onAdd={handleAddTenant} />
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
