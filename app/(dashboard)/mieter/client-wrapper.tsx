@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { PlusCircle } from "lucide-react";
 import { TenantFilters } from "@/components/tenant-filters";
@@ -22,10 +22,10 @@ interface MieterClientViewProps {
 // Internal AddTenantButton (could be kept from previous step if preferred)
 function AddTenantButton({ onAdd }: { onAdd: () => void }) {
   return (
-    <Button onClick={onAdd} className="sm:w-auto">
+    <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
       <PlusCircle className="mr-2 h-4 w-4" />
       Mieter hinzufügen
-    </Button>
+    </ButtonWithTooltip>
   );
 }
 

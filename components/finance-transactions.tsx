@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip"
 import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database, PlusCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -181,10 +181,10 @@ export function FinanceTransactions({
               <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
             </div>
             {onAddTransaction && (
-              <Button onClick={onAddTransaction} className="sm:w-auto">
+              <ButtonWithTooltip onClick={onAddTransaction} className="sm:w-auto">
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Transaktion hinzufügen
-              </Button>
+              </ButtonWithTooltip>
             )}
           </div>
         </CardHeader>
@@ -220,7 +220,7 @@ export function FinanceTransactions({
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0">
-                <Button variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</Button>
+                <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</ButtonWithTooltip>
               </div>
             </div>
             <div className="rounded-md border relative min-h-[60vh]">
@@ -381,10 +381,10 @@ export function FinanceTransactions({
                             <p className="text-xs text-muted-foreground text-center max-w-sm">
                               {error}
                             </p>
-                            <Button onClick={loadFinances} variant="outline" size="sm" className="mt-2">
+                            <ButtonWithTooltip onClick={loadFinances} variant="outline" size="sm" className="mt-2">
                               <Loader2 className="mr-2 h-3 w-3" />
                               Erneut versuchen
-                            </Button>
+                            </ButtonWithTooltip>
                           </div>
                         </div>
                       </TableCell>

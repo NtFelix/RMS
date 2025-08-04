@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentTable } from "@/components/apartment-table";
@@ -127,15 +127,16 @@ export default function WohnungenClientView({
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Wohnungsverwaltung</CardTitle>
-            <div> {/* Wrapper for button and tooltip */}
-              <Button onClick={handleAddWohnung} className="sm:w-auto" disabled={isAddButtonDisabled}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Wohnung hinzufügen
-              </Button>
-              {isAddButtonDisabled && buttonTooltipMessage && (
-                <p className="text-sm text-red-500 mt-1">{buttonTooltipMessage}</p>
-              )}
-            </div>
+            <ButtonWithTooltip 
+              onClick={handleAddWohnung} 
+              className="sm:w-auto" 
+              disabled={isAddButtonDisabled}
+              tooltip={buttonTooltipMessage}
+              showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Wohnung hinzufügen
+            </ButtonWithTooltip>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">

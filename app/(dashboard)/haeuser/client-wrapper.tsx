@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle } from "lucide-react";
 import { HouseFilters } from "@/components/house-filters";
 import { HouseTable, House } from "@/components/house-table";
@@ -40,10 +40,10 @@ function HaeuserMainContentComponent({ // Renamed for clarity within this scope
       <CardHeader>
         <div className="flex flex-row items-center justify-between">
           <CardTitle>Hausliste</CardTitle>
-          <Button onClick={onAdd} className="sm:w-auto">
+          <ButtonWithTooltip onClick={onAdd} className="sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             Haus hinzufügen
-          </Button>
+          </ButtonWithTooltip>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
@@ -116,10 +116,10 @@ export default function BetriebskostenClientView({
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Betriebskostenübersicht</CardTitle>
-            <Button onClick={handleOpenCreateModal} className="sm:w-auto">
+            <ButtonWithTooltip onClick={handleOpenCreateModal} className="sm:w-auto">
               <PlusCircle className="mr-2 h-4 w-4" />
               Betriebskostenabrechnung erstellen
-            </Button>
+            </ButtonWithTooltip>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">

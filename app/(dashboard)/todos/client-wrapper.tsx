@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { PlusCircle } from "lucide-react";
 import { TaskFilters } from "@/components/task-filters";
 import { TaskBoard } from "@/components/task-board";
@@ -46,10 +46,10 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Aufgabenliste</CardTitle>
-            <Button className="sm:w-auto" onClick={handleAddTask}>
+            <ButtonWithTooltip className="sm:w-auto" onClick={handleAddTask}>
               <PlusCircle className="mr-2 h-4 w-4" />
               Aufgabe hinzufügen
-            </Button>
+            </ButtonWithTooltip>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
