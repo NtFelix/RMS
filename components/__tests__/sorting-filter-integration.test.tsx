@@ -131,6 +131,18 @@ const mockFinances = [
   }
 ]
 
+// Mock IntersectionObserver for infinite scroll
+window.IntersectionObserver = jest.fn().mockImplementation((callback: IntersectionObserverCallback, options?: IntersectionObserverInit) => {
+  return {
+    observe: jest.fn().mockImplementation((element: Element) => {
+      callback([{ isIntersecting: true, target: element }])
+    }),
+    unobserve: jest.fn(),
+    disconnect: jest.fn(),
+    takeRecords: jest.fn()
+  }
+})
+
 describe('Sorting and Filtering Integration', () => {
   describe('ApartmentTable Integration', () => {
     it('should maintain sort order when applying filters', () => {
@@ -304,6 +316,20 @@ describe('Sorting and Filtering Integration', () => {
       render(
         <FinanceTransactions
           finances={mockFinances}
+          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
+          availableYears={[2023, 2024]}
+          hasMore={false}
+          isLoading={false}
+          error={null}
+          filters={{
+            searchQuery: '',
+            selectedApartment: 'Alle Wohnungen',
+            selectedYear: 'Alle Jahre',
+            selectedType: '',
+            sortKey: 'betrag',
+            sortDirection: 'desc'
+          }}
+          onFiltersChange={() => {}}
         />
       )
 
@@ -313,7 +339,7 @@ describe('Sorting and Filtering Integration', () => {
 
       // The component should show all finances sorted by amount
       const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(4) // Header + 3 data rows
+      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
 
       // Check that all transactions are visible
       expect(screen.getByText('Rent Payment')).toBeInTheDocument()
@@ -325,6 +351,20 @@ describe('Sorting and Filtering Integration', () => {
       render(
         <FinanceTransactions
           finances={mockFinances}
+          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
+          availableYears={[2023, 2024]}
+          hasMore={false}
+          isLoading={false}
+          error={null}
+          filters={{
+            searchQuery: '',
+            selectedApartment: 'Alle Wohnungen',
+            selectedYear: 'Alle Jahre',
+            selectedType: '',
+            sortKey: 'betrag',
+            sortDirection: 'desc'
+          }}
+          onFiltersChange={() => {}}
         />
       )
 
@@ -335,13 +375,27 @@ describe('Sorting and Filtering Integration', () => {
       // The search functionality is internal to the component
       // We can verify the sorting works by checking the order
       const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(4) // Header + 3 data rows
+      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
     })
 
     it('should handle date sorting correctly', () => {
       render(
         <FinanceTransactions
           finances={mockFinances}
+          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
+          availableYears={[2023, 2024]}
+          hasMore={false}
+          isLoading={false}
+          error={null}
+          filters={{
+            searchQuery: '',
+            selectedApartment: 'Alle Wohnungen',
+            selectedYear: 'Alle Jahre',
+            selectedType: '',
+            sortKey: 'betrag',
+            sortDirection: 'desc'
+          }}
+          onFiltersChange={() => {}}
         />
       )
 
@@ -351,13 +405,27 @@ describe('Sorting and Filtering Integration', () => {
 
       // Should sort by date (default is descending for finance table)
       const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(4) // Header + 3 data rows
+      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
     })
 
     it('should handle type sorting correctly', () => {
       render(
         <FinanceTransactions
           finances={mockFinances}
+          wohnungen={[{ id: '1', name: 'Apartment 1' }, { id: '2', name: 'Apartment 2' }]}
+          availableYears={[2023, 2024]}
+          hasMore={false}
+          isLoading={false}
+          error={null}
+          filters={{
+            searchQuery: '',
+            selectedApartment: 'Alle Wohnungen',
+            selectedYear: 'Alle Jahre',
+            selectedType: '',
+            sortKey: 'betrag',
+            sortDirection: 'desc'
+          }}
+          onFiltersChange={() => {}}
         />
       )
 
@@ -367,7 +435,7 @@ describe('Sorting and Filtering Integration', () => {
 
       // Should sort by type (Einnahme vs Ausgabe)
       const rows = screen.getAllByRole('row')
-      expect(rows).toHaveLength(4) // Header + 3 data rows
+      expect(rows).toHaveLength(5) // Header + 3 data rows + loaded message row
       
       // Check that badges are rendered
       expect(screen.getByText('Einnahme')).toBeInTheDocument()

@@ -81,9 +81,9 @@ describe('ApartmentTable Sorting', () => {
 
     // Check that apartments are sorted by size (50, 60, 75)
     const rows = screen.getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('50 m²')
-    expect(rows[2]).toHaveTextContent('60 m²')
-    expect(rows[3]).toHaveTextContent('75 m²')
+    expect(rows[1]).toHaveTextContent('Apartment A50,00 m²800,00 €16,00 €/m²House 1frei')
+    expect(rows[2]).toHaveTextContent('Apartment C60,00 m²900,00 €15,00 €/m²House 1frei')
+    expect(rows[3]).toHaveTextContent('Apartment B75,00 m²1.200,00 €16,00 €/m²House 2vermietet')
   })
 
   it('should sort by rent when clicking rent header', () => {
@@ -100,9 +100,9 @@ describe('ApartmentTable Sorting', () => {
 
     // Check that apartments are sorted by rent (800, 900, 1200)
     const rows = screen.getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('800 €')
-    expect(rows[2]).toHaveTextContent('900 €')
-    expect(rows[3]).toHaveTextContent('1200 €')
+    expect(rows[1]).toHaveTextContent('800,00 €')
+    expect(rows[2]).toHaveTextContent('900,00 €')
+    expect(rows[3]).toHaveTextContent('1.200,00 €')
   })
 
   it('should toggle sort direction when clicking same header', () => {
@@ -143,8 +143,8 @@ describe('ApartmentTable Sorting', () => {
 
     // Expected order by price per sqm: Apartment C (15.00), Apartment A (16.00), Apartment B (16.00)
     const rows = screen.getAllByRole('row')
-    expect(rows[1]).toHaveTextContent('15.00 €/m²') // Apartment C: 900/60
-    expect(rows[2]).toHaveTextContent('16.00 €/m²') // Apartment A: 800/50
-    expect(rows[3]).toHaveTextContent('16.00 €/m²') // Apartment B: 1200/75
+    expect(rows[1]).toHaveTextContent('Apartment C60,00 m²900,00 €15,00 €/m²House 1frei')
+    expect(rows[2]).toHaveTextContent('Apartment A50,00 m²800,00 €16,00 €/m²House 1frei')
+    expect(rows[3]).toHaveTextContent('Apartment B75,00 m²1.200,00 €16,00 €/m²House 2vermietet')
   })
 })
