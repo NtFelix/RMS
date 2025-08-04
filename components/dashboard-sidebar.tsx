@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
+import { MASCOT_IMAGE } from "@/app/config/images"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -83,7 +84,14 @@ export function DashboardSidebar() {
         <div className="h-full w-full flex flex-col bg-background border-r border-border">
           <div className="border-b px-6 py-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <Image src="/mascot/normal.png" alt="ImmobilienVerwalter Mascot" width={24} height={24} />
+              <Image 
+                src={MASCOT_IMAGE.src} 
+                alt={MASCOT_IMAGE.alt} 
+                width={MASCOT_IMAGE.width} 
+                height={MASCOT_IMAGE.height} 
+                priority 
+                className="group-hover:scale-110 transition-transform"
+              />
               <span>Property Manager</span>
             </Link>
           </div>
