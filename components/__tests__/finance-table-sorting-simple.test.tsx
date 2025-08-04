@@ -99,30 +99,37 @@ const mockFinances: Finanz[] = [
   }
 ]
 
+// Helper function to render FinanceTransactions with default props
+const renderFinanceTransactions = (props: Partial<React.ComponentProps<typeof FinanceTransactions>> = {}) => {
+  const defaultProps: React.ComponentProps<typeof FinanceTransactions> = {
+    finances: mockFinances,
+    wohnungen: [{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }],
+    availableYears: [2023],
+    hasMore: false,
+    isLoading: false,
+    error: null,
+    filters: {
+      searchQuery: '',
+      selectedApartment: 'Alle Wohnungen',
+      selectedYear: 'Alle Jahre',
+      selectedType: '',
+      sortKey: 'datum',
+      sortDirection: 'desc'
+    },
+    onFiltersChange: () => {}
+  }
+
+  return render(<FinanceTransactions {...defaultProps} {...props} />)
+}
+
 describe('FinanceTransactions Basic Sorting', () => {
   describe('Core sorting functionality', () => {
     it('should render table with sortable headers', () => {
       const mockOnFiltersChange = jest.fn()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       expect(screen.getByText('Bezeichnung')).toBeInTheDocument()
       expect(screen.getByText('Wohnung')).toBeInTheDocument()
@@ -136,25 +143,9 @@ describe('FinanceTransactions Basic Sorting', () => {
       // The actual sorting is done server-side before passing to this component
       const mockOnFiltersChange = jest.fn()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       const rows = screen.getAllByRole('row')
       // Data should be displayed in the order it's provided
@@ -178,25 +169,9 @@ describe('FinanceTransactions Basic Sorting', () => {
       const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       const nameHeader = screen.getByText('Bezeichnung').closest('div')
       await user.click(nameHeader!)
@@ -216,25 +191,9 @@ describe('FinanceTransactions Basic Sorting', () => {
       const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       const amountHeader = screen.getByText('Betrag').closest('div')
       await user.click(amountHeader!)
@@ -254,25 +213,9 @@ describe('FinanceTransactions Basic Sorting', () => {
       const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       const nameHeader = screen.getByText('Bezeichnung').closest('div')
       
@@ -289,25 +232,9 @@ describe('FinanceTransactions Basic Sorting', () => {
     it('should display transaction types correctly', () => {
       const mockOnFiltersChange = jest.fn()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       expect(screen.getByText('Einnahme')).toBeInTheDocument()
       expect(screen.getByText('Ausgabe')).toBeInTheDocument()
@@ -316,25 +243,9 @@ describe('FinanceTransactions Basic Sorting', () => {
     it('should format dates correctly', () => {
       const mockOnFiltersChange = jest.fn()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       expect(screen.getByText('15.01.2023')).toBeInTheDocument()
       expect(screen.getByText('10.02.2023')).toBeInTheDocument()
@@ -343,25 +254,10 @@ describe('FinanceTransactions Basic Sorting', () => {
     it('should handle empty dataset', () => {
       const mockOnFiltersChange = jest.fn()
       
-      render(
-        <FinanceTransactions
-          finances={[]}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        finances: [],
+        onFiltersChange: mockOnFiltersChange
+      })
 
       expect(screen.getByText('Keine Transaktionen gefunden')).toBeInTheDocument()
     })
@@ -371,25 +267,9 @@ describe('FinanceTransactions Basic Sorting', () => {
     it('should apply hover effects to sortable headers', () => {
       const mockOnFiltersChange = jest.fn()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       const nameHeader = screen.getByText('Bezeichnung').closest('div')
       expect(nameHeader).toHaveClass('cursor-pointer')
@@ -400,25 +280,9 @@ describe('FinanceTransactions Basic Sorting', () => {
       const mockOnFiltersChange = jest.fn()
       const user = userEvent.setup()
       
-      render(
-        <FinanceTransactions
-          finances={mockFinances}
-          wohnungen={[{ id: '1', name: 'Apartment A' }, { id: '2', name: 'Apartment B' }]}
-          availableYears={[2023]}
-          hasMore={false}
-          isLoading={false}
-          error={null}
-          filters={{
-            searchQuery: '',
-            selectedApartment: 'Alle Wohnungen',
-            selectedYear: 'Alle Jahre',
-            selectedType: '',
-            sortKey: 'datum',
-            sortDirection: 'desc'
-          }}
-          onFiltersChange={mockOnFiltersChange}
-        />
-      )
+      renderFinanceTransactions({
+        onFiltersChange: mockOnFiltersChange
+      })
 
       const nameHeader = screen.getByText('Bezeichnung').closest('div')
       
