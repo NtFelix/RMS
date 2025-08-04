@@ -2,8 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-import { Button } from "@/components/ui/button";
-import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, Loader2 } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
@@ -12,7 +11,6 @@ import { SummaryCard } from "@/components/summary-card";
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency } from "@/utils/format";
 
 interface Finanz {
   id: string;
@@ -341,25 +339,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         key={summaryData?.year} 
       />
       
-      <div className="flex flex-row items-center justify-between mb-4">
-        <div>
-          <div className="text-sm text-muted-foreground">Saldo</div>
-          <div className="text-xl font-bold">
-            {balanceLoading ? (
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-muted-foreground">Wird berechnet...</span>
-              </div>
-            ) : (
-              formatCurrency(totalBalance)
-            )}
-          </div>
-        </div>
-        <Button onClick={handleAddTransaction} className="sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Transaktion hinzufügen
-        </Button>
-      </div>
+      <SummaryCard
+        title="Aktueller Saldo"
+        value={totalBalance}
+        description="Gesamtsaldo aller Transaktionen"
+        icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+        isLoading={balanceLoading}
+      />
       
       <FinanceTransactions
         finances={finData}
@@ -367,6 +353,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         availableYears={availableYears}
         onEdit={handleEdit}
         onAdd={handleAddFinance}
+        onAddTransaction={handleAddTransaction}
         loadFinances={() => loadMoreTransactions(false)}
         reloadRef={reloadRef}
         hasMore={hasMore}

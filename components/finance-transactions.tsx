@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database } from "lucide-react"
+import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database, PlusCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,6 +45,7 @@ interface FinanceTransactionsProps {
   reloadRef?: any
   onEdit?: (finance: Finanz) => void
   onAdd?: (finance: Finanz) => void
+  onAddTransaction?: () => void
   loadFinances?: () => void
   hasMore: boolean
   isLoading: boolean
@@ -72,6 +73,7 @@ export function FinanceTransactions({
   reloadRef,
   onEdit,
   onAdd,
+  onAddTransaction,
   loadFinances,
   hasMore,
   isLoading,
@@ -173,8 +175,18 @@ export function FinanceTransactions({
     <>
       <Card>
         <CardHeader>
-          <CardTitle>Finanzliste</CardTitle>
-          <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle>Finanzliste</CardTitle>
+              <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
+            </div>
+            {onAddTransaction && (
+              <Button onClick={onAddTransaction} className="sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Transaktion hinzufügen
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
