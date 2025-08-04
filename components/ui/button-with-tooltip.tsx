@@ -22,15 +22,21 @@ export const ButtonWithTooltip = React.forwardRef<
   if (!showTooltip || !tooltip || !disabled) {
     return button
   }
-
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          {button}
+          <div className="inline-block cursor-not-allowed">
+            {button}
+          </div>
         </TooltipTrigger>
-        <TooltipContent side="bottom" align="center">
-          <p className="max-w-xs text-sm">{tooltip}</p>
+        <TooltipContent 
+          side="bottom" 
+          align="center" 
+          className="z-50 bg-white text-black border border-gray-300 shadow-lg rounded-md px-3 py-2"
+          sideOffset={5}
+        >
+          <p className="max-w-xs text-sm font-medium">{tooltip}</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

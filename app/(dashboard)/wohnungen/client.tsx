@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
+import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
 import { PlusCircle } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentTable } from "@/components/apartment-table";
@@ -10,6 +10,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
 import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -42,6 +43,7 @@ export default function WohnungenClientView({
   useEffect(() => {
     let message = "";
     const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
+    
     if (!serverUserIsEligibleToAdd) {
       message = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
     } else if (limitReached) {
@@ -53,6 +55,7 @@ export default function WohnungenClientView({
         message = "Das Wohnungslimit ist erreicht.";
       }
     }
+    
     setButtonTooltipMessage(message);
     setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
   }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
@@ -127,7 +130,7 @@ export default function WohnungenClientView({
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Wohnungsverwaltung</CardTitle>
-            <ButtonWithTooltip 
+            <ButtonWithHoverCard 
               onClick={handleAddWohnung} 
               className="sm:w-auto" 
               disabled={isAddButtonDisabled}
@@ -136,7 +139,7 @@ export default function WohnungenClientView({
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Wohnung hinzufügen
-            </ButtonWithTooltip>
+            </ButtonWithHoverCard>
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
