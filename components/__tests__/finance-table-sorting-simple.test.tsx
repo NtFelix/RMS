@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FinanceTransactions } from '@/components/finance-transactions'
 
@@ -158,8 +158,20 @@ describe('FinanceTransactions Basic Sorting', () => {
 
       const rows = screen.getAllByRole('row')
       // Data should be displayed in the order it's provided
-      expect(rows[1]).toHaveTextContent('Rent Payment JanuaryApartment A15.01.20231.000,00 €Einnahme')
-      expect(rows[2]).toHaveTextContent('Maintenance CostApartment B10.02.2023500,00 €Ausgabe')
+      // Using within to scope queries to specific rows for more robust testing
+      const firstRow = within(rows[1])
+      expect(firstRow.getByText('Rent Payment January')).toBeInTheDocument()
+      expect(firstRow.getByText('Apartment A')).toBeInTheDocument()
+      expect(firstRow.getByText('15.01.2023')).toBeInTheDocument()
+      expect(firstRow.getByText('1.000,00 €')).toBeInTheDocument()
+      expect(firstRow.getByText('Einnahme')).toBeInTheDocument()
+      
+      const secondRow = within(rows[2])
+      expect(secondRow.getByText('Maintenance Cost')).toBeInTheDocument()
+      expect(secondRow.getByText('Apartment B')).toBeInTheDocument()
+      expect(secondRow.getByText('10.02.2023')).toBeInTheDocument()
+      expect(secondRow.getByText('500,00 €')).toBeInTheDocument()
+      expect(secondRow.getByText('Ausgabe')).toBeInTheDocument()
     })
 
     it('should call onFiltersChange with correct parameters when clicking name header', async () => {
