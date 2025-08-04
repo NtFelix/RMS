@@ -12,6 +12,16 @@ import { createClient } from "@/utils/supabase/client";
 import AuthModal from "@/components/auth-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { PillContainer } from "@/components/ui/pill-container";
+
+const MASCOT_IMAGE = {
+  src: "/mascot/normal.png",
+  alt: "ImmobilienVerwalter Mascot",
+  width: 24,
+  height: 24,
+  desktopWidth: 32,
+  desktopHeight: 32
+};
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -113,7 +123,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </button>
           </PillContainer>
           <Link href="/" className="flex items-center space-x-1 group">
-            <Image src="/mascot/normal.png" alt="ImmobilienVerwalter Mascot" width={24} height={24} className="group-hover:scale-110 transition-transform" />
+            <Image 
+              src={MASCOT_IMAGE.src} 
+              alt={MASCOT_IMAGE.alt} 
+              width={MASCOT_IMAGE.width} 
+              height={MASCOT_IMAGE.height} 
+              className="group-hover:scale-110 transition-transform" 
+              priority 
+            />
             <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
               Immobilien<span className="text-primary">Verwalter</span>
             </span>
@@ -122,7 +139,14 @@ export default function Navigation({ onLogin }: NavigationProps) {
         <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <Image src="/mascot/normal.png" alt="ImmobilienVerwalter Mascot" width={32} height={32} className="group-hover:scale-110 transition-transform" />
+              <Image 
+              src={MASCOT_IMAGE.src} 
+              alt={MASCOT_IMAGE.alt} 
+              width={MASCOT_IMAGE.desktopWidth} 
+              height={MASCOT_IMAGE.desktopHeight} 
+              className="group-hover:scale-110 transition-transform" 
+              priority 
+            />
               <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                 Immobilien<span className="text-primary">Verwalter</span>
               </span>
