@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
 import { PlusCircle, Home, Key, Euro, Ruler } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
@@ -11,10 +11,6 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
 import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
 import { StatCard } from "@/components/stat-card";
-import { useMemo } from "react";
-import { StatCard } from "@/components/stat-card";
-import { useMemo } from "react";
-
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -93,13 +89,12 @@ export default function WohnungenClientView({
     });
   }, []);
 
-  const refreshTable = useCallback(async (): Promise<void> => { // Explicitly set return type to Promise<void>
+  const refreshTable = useCallback(async (): Promise<void> => {
     try {
       const res = await fetch('/api/wohnungen');
       if (res.ok) {
         const data: Wohnung[] = await res.json();
         setApartments(data);
-        // No explicit return here
       } else {
         console.error('Failed to fetch wohnungen for refreshTable, status:', res.status);
       }
@@ -110,7 +105,7 @@ export default function WohnungenClientView({
 
   const handleSuccess = useCallback((data: Wohnung) => {
     updateApartmentInList(data);
-    refreshTable(); // This call is fine, refreshTable now returns Promise<void>
+    refreshTable();
   }, [updateApartmentInList, refreshTable]);
 
   const handleAddWohnung = useCallback(() => {
@@ -131,27 +126,6 @@ export default function WohnungenClientView({
       console.error('Fehler beim Laden der Wohnung für Bearbeitung:', error);
     }
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
-
-  // ======================= SUMMARY METRICS =======================
-  const summary = useMemo(() => {
-    const total = apartments.length;
-    const freeCount = apartments.filter((a) => a.status === "frei").length;
-    const rentedCount = total - freeCount;
-
-    // Average rent
-    const rentValues = apartments.map((a) => a.miete ?? 0).filter((v) => v > 0);
-    const avgRent = rentValues.length ? rentValues.reduce((s, v) => s + v, 0) / rentValues.length : 0;
-
-    // Average price per sqm
-    const pricePerSqmValues = apartments
-      .filter((a) => a.miete && a.groesse && a.groesse > 0)
-      .map((a) => (a.miete as number) / (a.groesse as number));
-    const avgPricePerSqm = pricePerSqmValues.length
-      ? pricePerSqmValues.reduce((s, v) => s + v, 0) / pricePerSqmValues.length
-      : 0;
-
-    return { total, freeCount, rentedCount, avgRent, avgPricePerSqm };
-  }, [apartments]);
 
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
@@ -206,31 +180,6 @@ export default function WohnungenClientView({
             <CardTitle>Wohnungsverwaltung</CardTitle>
             <ButtonWithHoverCard 
               onClick={handleAddWohnung} 
-              className="sm:w-auto" 
-              disabled={isAddButtonDisabled}
-              tooltip={buttonTooltipMessage}
-              showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Wohnung hinzufügen
-            </ButtonWithHoverCard>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <ApartmentTable
-            filter={filter}
-            searchQuery={searchQuery}
-            initialApartments={apartments}
-            onEdit={handleEditWohnung}
-            onTableRefresh={refreshTable}
-            reloadRef={reloadRef}
-          />
-        </CardContent>
-      </Card>
-    </div>
-  );
-} 
               className="sm:w-auto" 
               disabled={isAddButtonDisabled}
               tooltip={buttonTooltipMessage}
