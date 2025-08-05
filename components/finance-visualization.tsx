@@ -483,15 +483,6 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
             <div className="w-full">
               {/* Render maximized card (not compact) */}
               <div className="relative">
-                {/* Minimize button */}
-                <button
-                  aria-label="Minimieren"
-                  className="absolute top-2 right-2 z-20 bg-white rounded-full shadow p-1 border hover:bg-muted"
-                  onClick={() => setFocusedChart(null)}
-                >
-                  {/* Use Maximize2 but rotate 45deg for "Minimize" look */}
-                  <Maximize2 className="w-5 h-5 rotate-45 text-muted-foreground" />
-                </button>
                 {renderChart(focusedChart, false)}
               </div>
             </div>
