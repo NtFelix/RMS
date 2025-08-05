@@ -84,16 +84,16 @@ export function ApartmentContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
-            <Edit className="h-4 w-4" />
-            <span>Bearbeiten</span>
-          </ContextMenuItem>
           <ContextMenuItem
             onClick={() => setOverviewOpen(true)}
             className="flex items-center gap-2 cursor-pointer"
           >
             <Eye className="h-4 w-4" />
             <span>Schnellübersicht</span>
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
+            <Edit className="h-4 w-4" />
+            <span>Bearbeiten</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
