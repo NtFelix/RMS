@@ -1,7 +1,7 @@
-import { withPostHogConfig } from "@posthog/nextjs-config";
-import path from 'path';
-
 /** @type {import('next').NextConfig} */
+const { withPostHogConfig } = require("@posthog/nextjs-config");
+const path = require('path');
+
 const nextConfig = {
   reactStrictMode: true,
   productionBrowserSourceMaps: false,
@@ -55,7 +55,7 @@ const nextConfig = {
 };
 
 // Export with PostHog configuration
-export default withPostHogConfig(nextConfig, {
+module.exports = withPostHogConfig(nextConfig, {
   personalApiKey: process.env.POSTHOG_PERSONAL_API_KEY,
   envId: process.env.POSTHOG_ENV_ID,
   host: process.env.POSTHOG_HOST,
