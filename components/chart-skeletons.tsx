@@ -5,9 +5,10 @@ interface ChartSkeletonProps {
   title: string
   description: string
   type: "pie" | "line" | "bar"
+  className?: string
 }
 
-export function ChartSkeleton({ title, description, type }: ChartSkeletonProps) {
+export function ChartSkeleton({ title, description, type, className }: ChartSkeletonProps) {
   return (
     <Card>
       <CardHeader>
@@ -15,7 +16,7 @@ export function ChartSkeleton({ title, description, type }: ChartSkeletonProps) 
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="relative w-full h-auto min-h-[400px] flex items-center justify-center">
+        <div className={`relative w-full h-auto ${className ?? 'min-h-[400px]'} flex items-center justify-center`}>
           {type === "pie" && <PieChartSkeleton />}
           {type === "line" && <LineChartSkeleton />}
           {type === "bar" && <BarChartSkeleton />}
