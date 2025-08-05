@@ -25,7 +25,8 @@ export function StatCard({
   let displayValue: React.ReactNode;
   if (typeof value === "number") {
     const decimalPlaces = decimals ? 2 : 0;
-    displayValue = formatNumber(value, decimalPlaces) + unit;
+    const trimmedUnit = unit.trim();
+    displayValue = formatNumber(value, decimalPlaces) + (trimmedUnit ? ` ${trimmedUnit}` : "");
   } else {
     // value is a string, render as-is and ignore unit
     displayValue = value;
