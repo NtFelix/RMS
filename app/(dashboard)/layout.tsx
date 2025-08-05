@@ -26,6 +26,7 @@ import { updateKautionAction } from "@/app/mieter-actions"; // Added
 // We will check this during integration.
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
 import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
+import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -114,6 +115,9 @@ export default function DashboardRootLayout({
 
       {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
       <HausOverviewModal />
+
+      {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}
+      <WohnungOverviewModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
