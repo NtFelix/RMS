@@ -76,6 +76,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   });
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [filteredIncome, setFilteredIncome] = useState(0);
+  const [filteredExpenses, setFilteredExpenses] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
   const reloadRef = useRef<(() => void) | null>(null);
@@ -157,8 +159,10 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       
       const response = await fetch(`/api/finanzen/balance?${params.toString()}`);
       if (response.ok) {
-        const { totalBalance } = await response.json();
+        const { totalBalance, totalIncome, totalExpenses } = await response.json();
         setTotalBalance(totalBalance);
+        setFilteredIncome(totalIncome);
+        setFilteredExpenses(totalExpenses);
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
@@ -228,6 +232,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
+  const totalIncome = summaryData?.totalIncome ?? 0;
+  const totalExpenses = summaryData?.totalExpenses ?? 0;
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -339,13 +345,48 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         key={summaryData?.year} 
       />
       
-      <SummaryCard
-        title="Aktueller Saldo"
-        value={totalBalance}
-        description="Gesamtsaldo aller Transaktionen"
-        icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-        isLoading={balanceLoading}
-      />
+      <div className="grid gap-4 md:grid-cols-3">
+        {balanceLoading ? (
+          <>
+            <SummaryCardSkeleton 
+              title="Gefilterte Einnahmen" 
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Gefilterte Ausgaben" 
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Aktueller Saldo" 
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            />
+          </>
+        ) : (
+          <>
+            <SummaryCard
+              title="Gefilterte Einnahmen"
+              value={filteredIncome}
+              description="Einnahmen basierend auf aktuellen Filtern"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+              isLoading={balanceLoading}
+            />
+            <SummaryCard
+              title="Gefilterte Ausgaben"
+              value={filteredExpenses}
+              description="Ausgaben basierend auf aktuellen Filtern"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              isLoading={balanceLoading}
+            />
+            <SummaryCard
+              title="Aktueller Saldo"
+              value={totalBalance}
+              description="Gesamtsaldo aller Transaktionen"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              isLoading={balanceLoading}
+            />
+          </>
+        )}
+      </div>
       
       <FinanceTransactions
         finances={finData}
