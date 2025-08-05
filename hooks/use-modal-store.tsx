@@ -430,12 +430,24 @@ export const useModalStore = create<ModalState>((set, get) => {
         hausOverviewData: undefined
       });
 
+      // Create timeout promise for 2-second limit
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Das Laden dauert länger als erwartet. Bitte versuchen Sie es erneut.'));
+        }, 2000);
+      });
+
       try {
-        const response = await fetch(`/api/haeuser/${hausId}/overview`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch Haus overview data');
-        }
-        const data = await response.json();
+        const fetchPromise = fetch(`/api/haeuser/${hausId}/overview`).then(async (response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch Haus overview data');
+          }
+          return response.json();
+        });
+
+        // Race between fetch and timeout
+        const data = await Promise.race([fetchPromise, timeoutPromise]);
+        
         set({ 
           hausOverviewData: data,
           hausOverviewLoading: false 
@@ -463,12 +475,24 @@ export const useModalStore = create<ModalState>((set, get) => {
         wohnungOverviewData: undefined
       });
 
+      // Create timeout promise for 2-second limit
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error('Das Laden dauert länger als erwartet. Bitte versuchen Sie es erneut.'));
+        }, 2000);
+      });
+
       try {
-        const response = await fetch(`/api/wohnungen/${wohnungId}/overview`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch Wohnung overview data');
-        }
-        const data = await response.json();
+        const fetchPromise = fetch(`/api/wohnungen/${wohnungId}/overview`).then(async (response) => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch Wohnung overview data');
+          }
+          return response.json();
+        });
+
+        // Race between fetch and timeout
+        const data = await Promise.race([fetchPromise, timeoutPromise]);
+        
         set({ 
           wohnungOverviewData: data,
           wohnungOverviewLoading: false 

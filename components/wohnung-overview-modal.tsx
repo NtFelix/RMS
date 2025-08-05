@@ -9,10 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
-import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw } from "lucide-react";
+import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
 export function WohnungOverviewModal() {
   const {
@@ -26,6 +28,56 @@ export function WohnungOverviewModal() {
     setWohnungOverviewData,
     openTenantModal,
   } = useModalStore();
+
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [isSlowLoading, setIsSlowLoading] = useState(false);
+  const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+
+  // Enhanced loading progress tracking
+  useEffect(() => {
+    if (wohnungOverviewLoading) {
+      setLoadingStartTime(Date.now());
+      setLoadingProgress(0);
+      setIsSlowLoading(false);
+
+      // Progress simulation for better UX
+      const progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 90) return prev; // Don't complete until actual data loads
+          return prev + Math.random() * 15;
+        });
+      }, 200);
+
+      // Slow loading detection (after 1 second)
+      const slowLoadingTimeout = setTimeout(() => {
+        setIsSlowLoading(true);
+      }, 1000);
+
+      // 2-second timeout as per requirements
+      const timeoutId = setTimeout(() => {
+        if (wohnungOverviewLoading) {
+          setWohnungOverviewError('Das Laden dauert länger als erwartet. Bitte versuchen Sie es erneut.');
+          setWohnungOverviewLoading(false);
+        }
+      }, 2000);
+
+      return () => {
+        clearInterval(progressInterval);
+        clearTimeout(slowLoadingTimeout);
+        clearTimeout(timeoutId);
+      };
+    } else {
+      // Complete progress when loading finishes
+      if (loadingStartTime) {
+        setLoadingProgress(100);
+        setTimeout(() => {
+          setLoadingProgress(0);
+          setIsSlowLoading(false);
+          setLoadingStartTime(null);
+        }, 300);
+      }
+    }
+  }, [wohnungOverviewLoading, loadingStartTime]);
 
   const handleRetry = async () => {
     if (!wohnungOverviewData?.id) return;
@@ -75,43 +127,96 @@ export function WohnungOverviewModal() {
     }
   };
 
-  // Loading skeleton component
+  // Enhanced loading skeleton component with progress indicator
   const LoadingSkeleton = () => (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <Skeleton className="h-6 w-48" />
-        <Skeleton className="h-4 w-64" />
-        <Skeleton className="h-4 w-32" />
-      </div>
-      <div className="space-y-3">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center space-x-4">
-            <Skeleton className="h-4 w-32" />
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-6 w-20" />
-            <Skeleton className="h-8 w-16" />
+    <div className="space-y-6">
+      {/* Progress indicator for slow loading */}
+      {isSlowLoading && (
+        <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2 text-blue-700">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm font-medium">Mieter-Daten werden geladen...</span>
           </div>
-        ))}
+          <Progress value={loadingProgress} className="h-2" />
+          <p className="text-xs text-blue-600">
+            Dies kann bei umfangreichen Mieter-Historien etwas dauern.
+          </p>
+        </div>
+      )}
+
+      {/* Skeleton content */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-4 w-64" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        
+        {/* Table skeleton */}
+        <div className="rounded-md border">
+          <div className="p-4 border-b bg-gray-50">
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          </div>
+          <div className="space-y-3 p-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="flex items-center space-x-4">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-6 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-40" />
+                <Skeleton className="h-4 w-28" />
+                <div className="flex gap-1">
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
 
-  // Error state component
+  // Enhanced error state component
   const ErrorState = () => (
-    <div className="flex flex-col items-center justify-center py-8 space-y-4">
-      <AlertCircle className="h-12 w-12 text-red-500" />
-      <div className="text-center space-y-2">
-        <h3 className="text-lg font-semibold">Fehler beim Laden</h3>
-        <p className="text-sm text-muted-foreground max-w-md">
-          {wohnungOverviewError || 'Die Wohnungs-Übersicht konnte nicht geladen werden.'}
-        </p>
+    <div className="flex flex-col items-center justify-center py-12 space-y-6">
+      <div className="p-4 rounded-full bg-red-50">
+        <AlertCircle className="h-12 w-12 text-red-500" />
       </div>
-      <Button onClick={handleRetry} variant="outline" className="flex items-center gap-2">
-        <RefreshCw className="h-4 w-4" />
-        Erneut versuchen
-      </Button>
+      <div className="text-center space-y-3 max-w-md">
+        <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          {wohnungOverviewError || 'Die Wohnungs-Übersicht konnte nicht geladen werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'}
+        </p>
+        {loadingStartTime && (
+          <p className="text-xs text-gray-500">
+            Ladezeit überschritten (max. 2 Sekunden)
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button onClick={handleRetry} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Erneut versuchen
+        </Button>
+        <Button 
+          onClick={() => closeWohnungOverviewModal()} 
+          variant="ghost"
+          className="text-gray-600"
+        >
+          Schließen
+        </Button>
+      </div>
     </div>
   );
 
