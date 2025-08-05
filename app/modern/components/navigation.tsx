@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check } from "lucide-react"
+import Image from "next/image"
+import { IV_LOGO_URL } from "@/lib/constants"
 import { Button } from '@/components/ui/button' // Corrected import path
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -112,11 +114,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </button>
           </PillContainer>
           <Link href="/" className="flex items-center space-x-1 group">
-            <div className="w-6 h-6 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
-              <img 
-                src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" 
-                alt="IV Logo" 
-                className="w-full h-full object-cover"
+            <div className="relative w-6 h-6 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+              <Image
+                src={IV_LOGO_URL}
+                alt="IV Logo"
+                fill
+                className="object-cover"
+                sizes="24px"
               />
             </div>
             <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
@@ -127,11 +131,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
         <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform overflow-hidden">
-                <img 
-                  src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" 
-                  alt="IV Logo" 
-                  className="w-full h-full object-cover"
+              <div className="relative w-7 h-7 sm:w-8 sm:h-8 rounded-full group-hover:scale-110 transition-transform overflow-hidden">
+                <Image
+                  src={IV_LOGO_URL}
+                  alt="IV Logo"
+                  fill
+                  className="object-cover"
+                  sizes="32px"
                 />
               </div>
               <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
