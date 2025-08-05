@@ -111,7 +111,7 @@ describe('HausOverviewModal', () => {
 
     render(<HausOverviewModal />);
 
-    // Check if loading skeleton is rendered
+    // Check if loading skeleton is rendered with summary cards
     expect(screen.getByText('Gesamtfläche')).toBeInTheDocument();
     expect(screen.getByText('Wohnungen')).toBeInTheDocument();
     expect(screen.getByText('Mieter')).toBeInTheDocument();

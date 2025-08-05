@@ -112,7 +112,7 @@ describe('WohnungOverviewModal', () => {
 
     render(<WohnungOverviewModal />);
 
-    // Check if loading skeleton is rendered
+    // Check if loading skeleton is rendered with summary cards
     expect(screen.getByText('Wohnungsgröße')).toBeInTheDocument();
     expect(screen.getByText('Monatsmiete')).toBeInTheDocument();
     expect(screen.getByText('Mieter Status')).toBeInTheDocument();

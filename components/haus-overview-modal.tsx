@@ -12,11 +12,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
-import { Edit, Eye, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, MapPin } from "lucide-react";
+import { Edit, Eye, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, MapPin, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function HausOverviewModal() {
   const {
@@ -35,6 +52,9 @@ export function HausOverviewModal() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isSlowLoading, setIsSlowLoading] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [wohnungToDelete, setWohnungToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Enhanced loading progress tracking
   useEffect(() => {
@@ -143,6 +163,57 @@ export function HausOverviewModal() {
   const handleViewWohnungDetails = (wohnung: { id: string; name: string }) => {
     // Open the Wohnung overview modal to show tenant details
     openWohnungOverviewModal(wohnung.id);
+  };
+
+  const handleDeleteWohnung = (wohnung: { id: string; name: string }) => {
+    setWohnungToDelete(wohnung);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteWohnung = async () => {
+    if (!wohnungToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await fetch(`/api/wohnungen/${wohnungToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Erfolg",
+          description: `Die Wohnung "${wohnungToDelete.name}" wurde erfolgreich gelöscht.`,
+          variant: "default",
+        });
+        
+        // Refresh the overview data
+        if (hausOverviewData?.id) {
+          const refreshResponse = await fetch(`/api/haeuser/${hausOverviewData.id}/overview`);
+          if (refreshResponse.ok) {
+            const updatedData = await refreshResponse.json();
+            setHausOverviewData(updatedData);
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Fehler",
+          description: errorData.error || "Die Wohnung konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting wohnung:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setWohnungToDelete(null);
+    }
   };
 
   // Enhanced loading skeleton component with progress indicator
@@ -344,82 +415,139 @@ export function HausOverviewModal() {
             <div className="h-full overflow-auto space-y-6">
               <SummaryCards />
               <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[200px]">Wohnung</TableHead>
-                      <TableHead>Größe</TableHead>
-                      <TableHead>Miete</TableHead>
-                      <TableHead>Miete pro m²</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Aktueller Mieter</TableHead>
-                      <TableHead className="w-[120px]">Aktionen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {hausOverviewData.wohnungen.map((wohnung) => (
-                      <TableRow key={wohnung.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">{wohnung.name}</TableCell>
-                        <TableCell>{formatNumber(wohnung.groesse)} m²</TableCell>
-                        <TableCell>{formatCurrency(wohnung.miete)}</TableCell>
-                        <TableCell>{formatCurrency(wohnung.miete / wohnung.groesse)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              wohnung.status === 'vermietet'
-                                ? "bg-green-50 text-green-700 hover:bg-green-50"
-                                : "bg-blue-50 text-blue-700 hover:bg-blue-50"
-                            }
-                          >
-                            {wohnung.status === 'vermietet' ? 'vermietet' : 'frei'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {wohnung.currentTenant ? (
-                            <div className="space-y-1">
-                              <div className="font-medium">{wohnung.currentTenant.name}</div>
-                              {wohnung.currentTenant.einzug && (
-                                <div className="text-xs text-muted-foreground">
-                                  seit {new Date(wohnung.currentTenant.einzug).toLocaleDateString('de-DE')}
+                <div className="max-h-[400px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-white z-10">
+                      <TableRow>
+                        <TableHead className="w-[200px]">Wohnung</TableHead>
+                        <TableHead>Größe</TableHead>
+                        <TableHead>Miete</TableHead>
+                        <TableHead>Miete pro m²</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Aktueller Mieter</TableHead>
+                        <TableHead className="w-[120px]">Aktionen</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {hausOverviewData.wohnungen.map((wohnung) => (
+                        <ContextMenu key={wohnung.id}>
+                          <ContextMenuTrigger asChild>
+                            <TableRow className="hover:bg-gray-50 cursor-context-menu">
+                              <TableCell className="font-medium">{wohnung.name}</TableCell>
+                              <TableCell>{formatNumber(wohnung.groesse)} m²</TableCell>
+                              <TableCell>{formatCurrency(wohnung.miete)}</TableCell>
+                              <TableCell>{formatCurrency(wohnung.miete / wohnung.groesse)}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    wohnung.status === 'vermietet'
+                                      ? "bg-green-50 text-green-700 hover:bg-green-50"
+                                      : "bg-blue-50 text-blue-700 hover:bg-blue-50"
+                                  }
+                                >
+                                  {wohnung.status === 'vermietet' ? 'vermietet' : 'frei'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {wohnung.currentTenant ? (
+                                  <div className="space-y-1">
+                                    <div className="font-medium">{wohnung.currentTenant.name}</div>
+                                    {wohnung.currentTenant.einzug && (
+                                      <div className="text-xs text-muted-foreground">
+                                        seit {new Date(wohnung.currentTenant.einzug).toLocaleDateString('de-DE')}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditWohnung({ ...wohnung, haus_id: hausOverviewData.id });
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                    title="Wohnung bearbeiten"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewWohnungDetails(wohnung);
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                    title="Mieter-Übersicht anzeigen"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
                                 </div>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                              </TableCell>
+                            </TableRow>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent className="w-64">
+                            <ContextMenuItem 
                               onClick={() => handleEditWohnung({ ...wohnung, haus_id: hausOverviewData.id })}
-                              className="h-8 w-8 p-0"
-                              title="Wohnung bearbeiten"
+                              className="flex items-center gap-2 cursor-pointer"
                             >
                               <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                              <span>Bearbeiten</span>
+                            </ContextMenuItem>
+                            <ContextMenuItem 
                               onClick={() => handleViewWohnungDetails(wohnung)}
-                              className="h-8 w-8 p-0"
-                              title="Mieter-Übersicht anzeigen"
+                              className="flex items-center gap-2 cursor-pointer"
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                              <Users className="h-4 w-4" />
+                              <span>Mieter-Übersicht</span>
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem 
+                              onClick={() => handleDeleteWohnung(wohnung)}
+                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span>Löschen</span>
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           )}
         </div>
       </DialogContent>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wohnung löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie die Wohnung "{wohnungToDelete?.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteWohnung} 
+              disabled={isDeleting} 
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -12,11 +12,28 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
-import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, MapPin, Calendar } from "lucide-react";
+import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, Calendar, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export function WohnungOverviewModal() {
   const {
@@ -34,6 +51,9 @@ export function WohnungOverviewModal() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [isSlowLoading, setIsSlowLoading] = useState(false);
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [mieterToDelete, setMieterToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Enhanced loading progress tracking
   useEffect(() => {
@@ -182,6 +202,57 @@ export function WohnungOverviewModal() {
         description: `Für ${mieter.name} sind keine E-Mail-Adresse oder Telefonnummer hinterlegt.`,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteMieter = (mieter: { id: string; name: string }) => {
+    setMieterToDelete(mieter);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteMieter = async () => {
+    if (!mieterToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const response = await fetch(`/api/mieter/${mieterToDelete.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Erfolg",
+          description: `Der Mieter "${mieterToDelete.name}" wurde erfolgreich gelöscht.`,
+          variant: "default",
+        });
+        
+        // Refresh the overview data
+        if (wohnungOverviewData?.id) {
+          const refreshResponse = await fetch(`/api/wohnungen/${wohnungOverviewData.id}/overview`);
+          if (refreshResponse.ok) {
+            const updatedData = await refreshResponse.json();
+            setWohnungOverviewData(updatedData);
+          }
+        }
+      } else {
+        const errorData = await response.json();
+        toast({
+          title: "Fehler",
+          description: errorData.error || "Der Mieter konnte nicht gelöscht werden.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting mieter:", error);
+      toast({
+        title: "Systemfehler",
+        description: "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setMieterToDelete(null);
     }
   };
 
@@ -387,125 +458,192 @@ export function WohnungOverviewModal() {
             <div className="h-full overflow-auto space-y-6">
               <SummaryCards />
               <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[200px]">Name</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Einzug</TableHead>
-                      <TableHead>Auszug</TableHead>
-                      <TableHead>E-Mail</TableHead>
-                      <TableHead>Telefon</TableHead>
-                      <TableHead className="w-[140px]">Aktionen</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {wohnungOverviewData.mieter.map((mieter) => (
-                      <TableRow key={mieter.id} className="hover:bg-gray-50">
-                        <TableCell className="font-medium">{mieter.name}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              mieter.status === 'active'
-                                ? "bg-green-50 text-green-700 hover:bg-green-50"
-                                : "bg-gray-50 text-gray-700 hover:bg-gray-50"
-                            }
-                          >
-                            {mieter.status === 'active' ? 'aktiv' : 'ausgezogen'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {mieter.einzug ? (
-                            new Date(mieter.einzug).toLocaleDateString('de-DE')
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mieter.auszug ? (
-                            new Date(mieter.auszug).toLocaleDateString('de-DE')
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mieter.email ? (
-                            <a 
-                              href={`mailto:${mieter.email}`}
-                              className="text-blue-600 hover:text-blue-800 hover:underline"
-                            >
-                              {mieter.email}
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {mieter.telefon ? (
-                            <a 
-                              href={`tel:${mieter.telefon}`}
-                              className="text-blue-600 hover:text-blue-800 hover:underline"
-                            >
-                              {mieter.telefon}
-                            </a>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                <div className="max-h-[400px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-white z-10">
+                      <TableRow>
+                        <TableHead className="w-[200px]">Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Einzug</TableHead>
+                        <TableHead>Auszug</TableHead>
+                        <TableHead>E-Mail</TableHead>
+                        <TableHead>Telefon</TableHead>
+                        <TableHead className="w-[140px]">Aktionen</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {wohnungOverviewData.mieter.map((mieter) => (
+                        <ContextMenu key={mieter.id}>
+                          <ContextMenuTrigger asChild>
+                            <TableRow className="hover:bg-gray-50 cursor-context-menu">
+                              <TableCell className="font-medium">{mieter.name}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    mieter.status === 'active'
+                                      ? "bg-green-50 text-green-700 hover:bg-green-50"
+                                      : "bg-gray-50 text-gray-700 hover:bg-gray-50"
+                                  }
+                                >
+                                  {mieter.status === 'active' ? 'aktiv' : 'ausgezogen'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {mieter.einzug ? (
+                                  new Date(mieter.einzug).toLocaleDateString('de-DE')
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {mieter.auszug ? (
+                                  new Date(mieter.auszug).toLocaleDateString('de-DE')
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {mieter.email ? (
+                                  <a 
+                                    href={`mailto:${mieter.email}`}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {mieter.email}
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {mieter.telefon ? (
+                                  <a 
+                                    href={`tel:${mieter.telefon}`}
+                                    className="text-blue-600 hover:text-blue-800 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {mieter.telefon}
+                                  </a>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditMieter(mieter);
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                    title="Mieter bearbeiten"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleViewMieterDetails(mieter);
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                    title="Details anzeigen"
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleContactMieter(mieter);
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                    title={
+                                      mieter.email && mieter.email.trim() !== '' 
+                                        ? `E-Mail an ${mieter.email}` 
+                                        : mieter.telefon && mieter.telefon.trim() !== ''
+                                        ? `Anrufen: ${mieter.telefon}`
+                                        : "Keine Kontaktdaten verfügbar"
+                                    }
+                                    disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
+                                  >
+                                    {mieter.email && mieter.email.trim() !== '' ? (
+                                      <Mail className="h-4 w-4" />
+                                    ) : mieter.telefon && mieter.telefon.trim() !== '' ? (
+                                      <Phone className="h-4 w-4" />
+                                    ) : (
+                                      <Mail className="h-4 w-4 opacity-50" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent className="w-64">
+                            <ContextMenuItem 
                               onClick={() => handleEditMieter(mieter)}
-                              className="h-8 w-8 p-0"
-                              title="Mieter bearbeiten"
+                              className="flex items-center gap-2 cursor-pointer"
                             >
                               <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewMieterDetails(mieter)}
-                              className="h-8 w-8 p-0"
-                              title="Details anzeigen"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
+                              <span>Bearbeiten</span>
+                            </ContextMenuItem>
+                            <ContextMenuItem 
                               onClick={() => handleContactMieter(mieter)}
-                              className="h-8 w-8 p-0"
-                              title={
-                                mieter.email && mieter.email.trim() !== '' 
-                                  ? `E-Mail an ${mieter.email}` 
-                                  : mieter.telefon && mieter.telefon.trim() !== ''
-                                  ? `Anrufen: ${mieter.telefon}`
-                                  : "Keine Kontaktdaten verfügbar"
-                              }
+                              className="flex items-center gap-2 cursor-pointer"
                               disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
                             >
                               {mieter.email && mieter.email.trim() !== '' ? (
                                 <Mail className="h-4 w-4" />
-                              ) : mieter.telefon && mieter.telefon.trim() !== '' ? (
-                                <Phone className="h-4 w-4" />
                               ) : (
-                                <Mail className="h-4 w-4 opacity-50" />
+                                <Phone className="h-4 w-4" />
                               )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                              <span>Kontaktieren</span>
+                            </ContextMenuItem>
+                            <ContextMenuSeparator />
+                            <ContextMenuItem 
+                              onClick={() => handleDeleteMieter(mieter)}
+                              className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span>Löschen</span>
+                            </ContextMenuItem>
+                          </ContextMenuContent>
+                        </ContextMenu>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           )}
         </div>
       </DialogContent>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mieter löschen?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Möchten Sie den Mieter "{mieterToDelete?.name}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Abbrechen</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmDeleteMieter} 
+              disabled={isDeleting} 
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? "Löschen..." : "Löschen"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
