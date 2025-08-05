@@ -21,6 +21,64 @@ interface WohnungDbRecord {
   created_at: string;
 }
 
+interface ApartmentEligibility {
+  isEligible: boolean;
+  apartmentLimit: number | typeof Infinity;
+}
+
+async function determineApartmentEligibility(userProfile: any): Promise<ApartmentEligibility> {
+  const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
+  const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+  
+  // Default values for non-eligible users
+  const defaultIneligible = { isEligible: false, apartmentLimit: 0 };
+  
+  // Handle trial users
+  if (isStripeTrial) {
+    const result: ApartmentEligibility = { isEligible: true, apartmentLimit: 5 };
+    
+    // If user has both trial and active subscription, check for higher limits
+    if (isPaidActiveSub && userProfile.stripe_price_id) {
+      try {
+        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+        if (planDetails) {
+          if (planDetails.limitWohnungen === null) {
+            result.apartmentLimit = Infinity;
+          } else if (typeof planDetails.limitWohnungen === 'number' && 
+                     planDetails.limitWohnungen > result.apartmentLimit) {
+            result.apartmentLimit = planDetails.limitWohnungen;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching plan details for active sub during trial:', error);
+      }
+    }
+    return result;
+  }
+  
+  // Handle paid active subscribers
+  if (isPaidActiveSub && userProfile.stripe_price_id) {
+    try {
+      const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+      if (!planDetails) return defaultIneligible;
+      
+      if (planDetails.limitWohnungen === null) {
+        return { isEligible: true, apartmentLimit: Infinity };
+      } else if (typeof planDetails.limitWohnungen === 'number') {
+        return {
+          isEligible: planDetails.limitWohnungen > 0,
+          apartmentLimit: planDetails.limitWohnungen > 0 ? planDetails.limitWohnungen : 0
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching plan details:', error);
+    }
+  }
+  
+  // Default case for non-eligible users
+  return defaultIneligible;
+}
+
 export async function wohnungServerAction(id: string | null, data: WohnungPayload): Promise<{ success: boolean; error?: any; data?: WohnungDbRecord }> {
   const supabase = await createClient();
 
@@ -69,46 +127,10 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
         };
       }
 
-      const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
-      const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
-
-      let userIsEligibleToAdd = false;
-      let effectiveApartmentLimit: number | typeof Infinity = 0;
-
-      if (isStripeTrial) {
-        userIsEligibleToAdd = true;
-        effectiveApartmentLimit = 5;
-        if (isPaidActiveSub && userProfile.stripe_price_id) {
-          try {
-            const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-            if (planDetails) {
-              if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
-              else if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > effectiveApartmentLimit) {
-                effectiveApartmentLimit = planDetails.limitWohnungen;
-              }
-            }
-          } catch (error) { 
-            console.error('Error fetching plan details for active sub during trial:', error); 
-          }
-        }
-      } else if (isPaidActiveSub && userProfile.stripe_price_id) {
-        userIsEligibleToAdd = true;
-        try {
-          const planDetails = await getPlanDetails(userProfile.stripe_price_id);
-          if (planDetails) {
-            if (typeof planDetails.limitWohnungen === 'number' && planDetails.limitWohnungen > 0) effectiveApartmentLimit = planDetails.limitWohnungen;
-            else if (planDetails.limitWohnungen === null) effectiveApartmentLimit = Infinity;
-            else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; }
-          } else { userIsEligibleToAdd = false; effectiveApartmentLimit = 0; }
-        } catch (error) { 
-          console.error('Error fetching plan details:', error); 
-          userIsEligibleToAdd = false; 
-          effectiveApartmentLimit = 0; 
-        }
-      } else { 
-        userIsEligibleToAdd = false; 
-        effectiveApartmentLimit = 0; 
-      }
+      // Determine user's eligibility and apartment limit based on their subscription status
+      const { isEligible, apartmentLimit } = await determineApartmentEligibility(userProfile);
+      const userIsEligibleToAdd = isEligible;
+      const effectiveApartmentLimit = apartmentLimit;
 
       if (!userIsEligibleToAdd) {
         return { 
@@ -127,7 +149,7 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       
       // Check if user has reached their limit
       if (effectiveApartmentLimit !== Infinity && count !== null && count >= effectiveApartmentLimit) {
-        if (isStripeTrial && effectiveApartmentLimit === 5) {
+        if (userProfile.stripe_subscription_status === 'trialing' && effectiveApartmentLimit === 5) {
           return { 
             success: false, 
             error: { message: `Maximale Anzahl an Wohnungen (${effectiveApartmentLimit}) für Ihre Testphase erreicht.` } 
