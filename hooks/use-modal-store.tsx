@@ -2,6 +2,48 @@ import { create } from 'zustand';
 import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
 import { Tenant, KautionData } from '@/types/Tenant';
 
+// Overview Modal Types
+interface HausWithWohnungen {
+  id: string;
+  name: string;
+  strasse?: string;
+  ort: string;
+  size?: string;
+  wohnungen: WohnungOverviewData[];
+}
+
+interface WohnungOverviewData {
+  id: string;
+  name: string;
+  groesse: number;
+  miete: number;
+  status: 'frei' | 'vermietet';
+  currentTenant?: {
+    id: string;
+    name: string;
+    einzug?: string;
+  };
+}
+
+interface WohnungWithMieter {
+  id: string;
+  name: string;
+  groesse: number;
+  miete: number;
+  hausName: string;
+  mieter: MieterOverviewData[];
+}
+
+interface MieterOverviewData {
+  id: string;
+  name: string;
+  email?: string;
+  telefon?: string;
+  einzug?: string;
+  auszug?: string;
+  status: 'active' | 'moved_out';
+}
+
 interface ConfirmationModalConfig {
   title: string;
   description: string;
@@ -118,6 +160,28 @@ interface ModalState {
   closeKautionModal: (options?: CloseModalOptions) => void;
   setKautionModalDirty: (isDirty: boolean) => void;
 
+  // Haus Overview Modal State
+  isHausOverviewModalOpen: boolean;
+  hausOverviewData?: HausWithWohnungen;
+  hausOverviewLoading: boolean;
+  hausOverviewError?: string;
+  openHausOverviewModal: (hausId: string) => void;
+  closeHausOverviewModal: (options?: CloseModalOptions) => void;
+  setHausOverviewLoading: (loading: boolean) => void;
+  setHausOverviewError: (error?: string) => void;
+  setHausOverviewData: (data?: HausWithWohnungen) => void;
+
+  // Wohnung Overview Modal State
+  isWohnungOverviewModalOpen: boolean;
+  wohnungOverviewData?: WohnungWithMieter;
+  wohnungOverviewLoading: boolean;
+  wohnungOverviewError?: string;
+  openWohnungOverviewModal: (wohnungId: string) => void;
+  closeWohnungOverviewModal: (options?: CloseModalOptions) => void;
+  setWohnungOverviewLoading: (loading: boolean) => void;
+  setWohnungOverviewError: (error?: string) => void;
+  setWohnungOverviewData: (data?: WohnungWithMieter) => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -195,6 +259,20 @@ const initialKautionModalState = {
   isKautionModalDirty: false,
 };
 
+const initialHausOverviewModalState = {
+  isHausOverviewModalOpen: false,
+  hausOverviewData: undefined,
+  hausOverviewLoading: false,
+  hausOverviewError: undefined,
+};
+
+const initialWohnungOverviewModalState = {
+  isWohnungOverviewModalOpen: false,
+  wohnungOverviewData: undefined,
+  wohnungOverviewLoading: false,
+  wohnungOverviewError: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -204,6 +282,8 @@ const createInitialModalState = () => ({
   ...initialBetriebskostenModalState,
   ...initialWasserzaehlerModalState,
   ...initialKautionModalState,
+  ...initialHausOverviewModalState,
+  ...initialWohnungOverviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -340,6 +420,72 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeKautionModal: createCloseHandler('isKautionModalDirty', initialKautionModalState),
     setKautionModalDirty: (isDirty) => set({ isKautionModalDirty: isDirty }),
+
+    // Haus Overview Modal
+    openHausOverviewModal: async (hausId: string) => {
+      set({ 
+        isHausOverviewModalOpen: true,
+        hausOverviewLoading: true,
+        hausOverviewError: undefined,
+        hausOverviewData: undefined
+      });
+
+      try {
+        const response = await fetch(`/api/haeuser/${hausId}/overview`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch Haus overview data');
+        }
+        const data = await response.json();
+        set({ 
+          hausOverviewData: data,
+          hausOverviewLoading: false 
+        });
+      } catch (error) {
+        set({ 
+          hausOverviewError: error instanceof Error ? error.message : 'An error occurred',
+          hausOverviewLoading: false 
+        });
+      }
+    },
+    closeHausOverviewModal: (options?: CloseModalOptions) => {
+      set(initialHausOverviewModalState);
+    },
+    setHausOverviewLoading: (loading: boolean) => set({ hausOverviewLoading: loading }),
+    setHausOverviewError: (error?: string) => set({ hausOverviewError: error }),
+    setHausOverviewData: (data?: HausWithWohnungen) => set({ hausOverviewData: data }),
+
+    // Wohnung Overview Modal
+    openWohnungOverviewModal: async (wohnungId: string) => {
+      set({ 
+        isWohnungOverviewModalOpen: true,
+        wohnungOverviewLoading: true,
+        wohnungOverviewError: undefined,
+        wohnungOverviewData: undefined
+      });
+
+      try {
+        const response = await fetch(`/api/wohnungen/${wohnungId}/overview`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch Wohnung overview data');
+        }
+        const data = await response.json();
+        set({ 
+          wohnungOverviewData: data,
+          wohnungOverviewLoading: false 
+        });
+      } catch (error) {
+        set({ 
+          wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
+          wohnungOverviewLoading: false 
+        });
+      }
+    },
+    closeWohnungOverviewModal: (options?: CloseModalOptions) => {
+      set(initialWohnungOverviewModalState);
+    },
+    setWohnungOverviewLoading: (loading: boolean) => set({ wohnungOverviewLoading: loading }),
+    setWohnungOverviewError: (error?: string) => set({ wohnungOverviewError: error }),
+    setWohnungOverviewData: (data?: WohnungWithMieter) => set({ wohnungOverviewData: data }),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,
