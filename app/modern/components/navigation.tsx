@@ -115,11 +115,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
             </button>
           </PillContainer>
           <Link href="/" className="flex items-center space-x-1 group">
-            <img
+            <Image
               src={MASCOT_IMAGE.src}
               alt={MASCOT_IMAGE.alt}
-              className="w-6 h-6 group-hover:scale-110 transition-transform"
-              loading="eager"
+              width={24}
+              height={24}
+              className="group-hover:scale-110 transition-transform"
+              priority
             />
             <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
               Immobilien<span className="text-primary">Verwalter</span>
@@ -129,11 +131,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
         <div className="hidden md:flex flex-shrink-0 z-10">
           <PillContainer>
             <Link href="/" className="flex items-center space-x-1 sm:space-x-2 group">
-              <img
+              <Image
                 src={MASCOT_IMAGE.src}
                 alt={MASCOT_IMAGE.alt}
-                className="w-8 h-8 group-hover:scale-110 transition-transform"
-                loading="eager"
+                width={32}
+                height={32}
+                className="group-hover:scale-110 transition-transform"
+                priority
               />
               <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
                 Immobilien<span className="text-primary">Verwalter</span>
