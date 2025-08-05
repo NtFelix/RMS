@@ -8,7 +8,7 @@ import { ApartmentTable } from "@/components/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
 import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
 import { StatCard } from "@/components/stat-card";
 
@@ -148,30 +148,44 @@ export default function WohnungenClientView({
     <div className="flex flex-col gap-8 p-8">
       {/* Summary cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Wohnungen gesamt"
-          value={summary.total}
-          icon={<Home className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Frei / Vermietet"
-          value={`${summary.freeCount} / ${summary.rentedCount}`}
-          icon={<Key className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Ø Miete"
-          value={summary.avgRent}
-          unit=" €"
-          decimals
-          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Ø Preis pro m²"
-          value={summary.avgPricePerSqm}
-          unit=" €/m²"
-          decimals
-          icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
-        />
+        {useMemo(() => {
+          const summaryCards = [
+            {
+              title: "Wohnungen gesamt",
+              value: summary.total,
+              icon: <Home className="h-4 w-4 text-muted-foreground" />,
+            },
+            {
+              title: "Frei / Vermietet",
+              value: `${summary.freeCount} / ${summary.rentedCount}`,
+              icon: <Key className="h-4 w-4 text-muted-foreground" />,
+            },
+            {
+              title: "Ø Miete",
+              value: summary.avgRent,
+              unit: " €",
+              decimals: true,
+              icon: <Euro className="h-4 w-4 text-muted-foreground" />,
+            },
+            {
+              title: "Ø Preis pro m²",
+              value: summary.avgPricePerSqm,
+              unit: " €/m²",
+              decimals: true,
+              icon: <Ruler className="h-4 w-4 text-muted-foreground" />,
+            },
+          ];
+          return summaryCards.map((card, idx) => (
+            <StatCard
+              key={card.title}
+              title={card.title}
+              value={card.value}
+              icon={card.icon}
+              unit={card.unit}
+              decimals={card.decimals}
+            />
+          ));
+        }, [summary])}
       </div>
 
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
