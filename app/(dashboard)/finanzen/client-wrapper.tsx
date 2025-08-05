@@ -289,7 +289,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-wrap gap-4">
         {isSummaryLoading && hasInitialData ? (
           <>
             <SummaryCardSkeleton 
@@ -350,7 +350,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         key={summaryData?.year} 
       />
       
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="flex flex-wrap gap-4">
         {balanceLoading ? (
           <>
             <SummaryCardSkeleton 

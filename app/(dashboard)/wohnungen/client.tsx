@@ -147,7 +147,7 @@ export default function WohnungenClientView({
   return (
     <div className="flex flex-col gap-8 p-8">
       {/* Summary cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="flex flex-wrap gap-4">
         <StatCard
           title="Wohnungen gesamt"
           value={summary.total}
