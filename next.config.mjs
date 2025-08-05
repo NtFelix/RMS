@@ -1,4 +1,5 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
+import path from 'path';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -16,23 +17,37 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
     unoptimized: false,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ocubnwzybybcbrhsnqqs.supabase.co',
+        port: '',
+        pathname: '/**',
+      },
+    ],
   },
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
   },
-  webpack: (config, { webpack }) => {
+  webpack(config, { isServer, webpack }) {
+    // Add path aliases
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(__dirname, './'),
+      '@/components': path.resolve(__dirname, './components'),
+      '@/app': path.resolve(__dirname, './app'),
+    };
+
+    // Add any additional webpack configurations here
+    if (!isServer) {
+      // Client-side only configurations
+    }
+
     // Stub and ignore 'ws' module in all builds
-    config.resolve = {
-      ...(config.resolve || {}),
-      alias: {
-        ...(config.resolve.alias || {}),
-        ws: false,
-      },
-      fallback: {
-        ...(config.resolve.fallback || {}),
-        ws: false,
-      },
+    config.resolve.fallback = {
+      ...(config.resolve.fallback || {}),
+      ws: false,
     };
     config.plugins = config.plugins || [];
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^ws$/ }));
