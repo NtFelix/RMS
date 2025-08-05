@@ -3,13 +3,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
 interface WohnungOverviewResponse {
-  wohnung: {
-    id: string;
-    name: string;
-    groesse: number;
-    miete: number;
-    hausName: string;
-  };
+  id: string;
+  name: string;
+  groesse: number;
+  miete: number;
+  hausName: string;
   mieter: MieterOverviewData[];
 }
 
@@ -46,7 +44,8 @@ export async function GET(
         name, 
         groesse, 
         miete,
-        Haeuser!inner(name)
+        haus_id,
+        Haeuser(name)
       `)
       .eq('id', wohnungId)
       .single();
@@ -98,13 +97,11 @@ export async function GET(
     });
 
     const response: WohnungOverviewResponse = {
-      wohnung: {
-        id: wohnungData.id,
-        name: wohnungData.name,
-        groesse: wohnungData.groesse,
-        miete: wohnungData.miete,
-        hausName: (wohnungData.Haeuser as any)?.name || 'Unbekannt'
-      },
+      id: wohnungData.id,
+      name: wohnungData.name,
+      groesse: wohnungData.groesse,
+      miete: wohnungData.miete,
+      hausName: (wohnungData.Haeuser as any)?.name || 'Unbekannt',
       mieter
     };
 

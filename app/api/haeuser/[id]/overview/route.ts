@@ -3,13 +3,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
 interface HausOverviewResponse {
-  haus: {
-    id: string;
-    name: string;
-    strasse?: string;
-    ort: string;
-    size?: number;
-  };
+  id: string;
+  name: string;
+  strasse?: string;
+  ort: string;
+  size?: number;
   wohnungen: WohnungOverviewData[];
 }
 
@@ -118,13 +116,11 @@ export async function GET(
     const totalSize = wohnungenData.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
 
     const response: HausOverviewResponse = {
-      haus: {
-        id: hausData.id,
-        name: hausData.name,
-        strasse: hausData.strasse || undefined,
-        ort: hausData.ort,
-        size: totalSize > 0 ? totalSize : (hausData.groesse || undefined)
-      },
+      id: hausData.id,
+      name: hausData.name,
+      strasse: hausData.strasse || undefined,
+      ort: hausData.ort,
+      size: totalSize > 0 ? totalSize : (hausData.groesse || undefined),
       wohnungen
     };
 

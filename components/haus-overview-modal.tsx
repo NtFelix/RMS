@@ -253,7 +253,7 @@ export function HausOverviewModal() {
 
   return (
     <Dialog open={isHausOverviewModalOpen} onOpenChange={(open) => !open && closeHausOverviewModal()}>
-      <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] flex flex-col">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl">
             {hausOverviewData ? `Haus-Übersicht: ${hausOverviewData.name}` : 'Haus-Übersicht'}
