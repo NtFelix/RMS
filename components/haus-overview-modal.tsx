@@ -27,6 +27,7 @@ export function HausOverviewModal() {
     setHausOverviewError,
     setHausOverviewData,
     openWohnungModal,
+    openWohnungOverviewModal,
   } = useModalStore();
 
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -99,18 +100,47 @@ export function HausOverviewModal() {
     }
   };
 
-  const handleEditWohnung = (wohnung: { id: string; name: string; groesse: number; miete: number }) => {
-    // Open the existing Wohnung edit modal
-    openWohnungModal(wohnung);
+  const handleEditWohnung = (wohnung: { id: string; name: string; groesse: number; miete: number; haus_id?: string }) => {
+    // Prepare the wohnung data for the edit modal
+    const wohnungData = {
+      id: wohnung.id,
+      name: wohnung.name,
+      groesse: wohnung.groesse,
+      miete: wohnung.miete,
+      haus_id: wohnung.haus_id || hausOverviewData?.id || null
+    };
+
+    // Prepare haeuser list (current house should be included)
+    const haeuser = hausOverviewData ? [{
+      id: hausOverviewData.id,
+      name: hausOverviewData.name
+    }] : [];
+
+    // Define success callback to refresh overview data
+    const onSuccess = async () => {
+      if (hausOverviewData?.id) {
+        try {
+          setHausOverviewLoading(true);
+          const response = await fetch(`/api/haeuser/${hausOverviewData.id}/overview`);
+          if (response.ok) {
+            const updatedData = await response.json();
+            setHausOverviewData(updatedData);
+          }
+        } catch (error) {
+          console.error('Failed to refresh overview data:', error);
+        } finally {
+          setHausOverviewLoading(false);
+        }
+      }
+    };
+
+    // Open the Wohnung edit modal with the prepared data
+    openWohnungModal(wohnungData, haeuser, onSuccess);
   };
 
   const handleViewWohnungDetails = (wohnung: { id: string; name: string }) => {
-    // For now, just show a toast - this could be extended to navigate to a detail view
-    toast({
-      title: "Wohnung Details",
-      description: `Details für Wohnung "${wohnung.name}" werden angezeigt.`,
-      variant: "default",
-    });
+    // Open the Wohnung overview modal to show tenant details
+    openWohnungOverviewModal(wohnung.id);
   };
 
   // Enhanced loading skeleton component with progress indicator
@@ -304,7 +334,7 @@ export function HausOverviewModal() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleEditWohnung(wohnung)}
+                              onClick={() => handleEditWohnung({ ...wohnung, haus_id: hausOverviewData.id })}
                               className="h-8 w-8 p-0"
                               title="Wohnung bearbeiten"
                             >
@@ -315,7 +345,7 @@ export function HausOverviewModal() {
                               size="sm"
                               onClick={() => handleViewWohnungDetails(wohnung)}
                               className="h-8 w-8 p-0"
-                              title="Details anzeigen"
+                              title="Mieter-Übersicht anzeigen"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>

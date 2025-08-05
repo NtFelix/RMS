@@ -151,7 +151,21 @@ describe('WohnungOverviewModal', () => {
     const editButtons = screen.getAllByTitle('Mieter bearbeiten');
     fireEvent.click(editButtons[0]);
     
-    expect(mockOpenTenantModal).toHaveBeenCalledWith(mockWohnungData.mieter[0]);
+    // Check that the modal is called with the transformed data structure
+    expect(mockOpenTenantModal).toHaveBeenCalledWith(
+      {
+        id: '1',
+        name: 'Max Mustermann',
+        email: 'max@example.com',
+        telefonnummer: '+49123456789',
+        einzug: '2023-01-01',
+        auszug: '',
+        wohnung_id: '1',
+        notiz: '',
+        nebenkosten: []
+      },
+      [{ id: '1', name: 'Wohnung 1A' }]
+    );
   });
 
   it('handles view mieter details action', () => {
@@ -168,7 +182,7 @@ describe('WohnungOverviewModal', () => {
     
     expect(mockToast).toHaveBeenCalledWith({
       title: "Mieter Details",
-      description: 'Details für Mieter "Max Mustermann" werden angezeigt.',
+      description: 'Detailansicht für "Max Mustermann" wird geöffnet.',
       variant: "default",
     });
   });
@@ -182,7 +196,7 @@ describe('WohnungOverviewModal', () => {
 
     render(<WohnungOverviewModal />);
     
-    const contactButtons = screen.getAllByTitle('Kontaktieren');
+    const contactButtons = screen.getAllByTitle(/E-Mail an/);
     
     // Test that the button is enabled for mieter with email
     expect(contactButtons[0]).not.toBeDisabled();
@@ -209,7 +223,7 @@ describe('WohnungOverviewModal', () => {
 
     render(<WohnungOverviewModal />);
     
-    const contactButtons = screen.getAllByTitle('Kontaktieren');
+    const contactButtons = screen.getAllByTitle('Keine Kontaktdaten verfügbar');
     // The button should be disabled when no contact data exists
     expect(contactButtons[0]).toBeDisabled();
   });

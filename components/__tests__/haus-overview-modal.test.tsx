@@ -20,6 +20,7 @@ describe('HausOverviewModal', () => {
   const mockSetError = jest.fn();
   const mockSetData = jest.fn();
   const mockOpenWohnungModal = jest.fn();
+  const mockOpenWohnungOverviewModal = jest.fn();
 
   const mockHausData = {
     id: '1',
@@ -64,6 +65,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: jest.fn(),
     } as any);
   });
 
@@ -83,6 +85,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);
@@ -102,6 +105,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);
@@ -121,6 +125,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);
@@ -139,6 +144,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);
@@ -170,6 +176,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);
@@ -177,10 +184,22 @@ describe('HausOverviewModal', () => {
     const editButtons = screen.getAllByTitle('Wohnung bearbeiten');
     fireEvent.click(editButtons[0]);
     
-    expect(mockOpenWohnungModal).toHaveBeenCalledWith(mockHausData.wohnungen[0]);
+    // Check that the modal is called with the transformed data structure
+    expect(mockOpenWohnungModal).toHaveBeenCalledWith(
+      {
+        id: '1',
+        name: 'Wohnung 1',
+        groesse: 80,
+        miete: 1200,
+        haus_id: '1'
+      },
+      [{ id: '1', name: 'Test Haus' }],
+      expect.any(Function) // onSuccess callback
+    );
   });
 
-  it('should show toast when view details button is clicked', () => {
+  it('should open wohnung overview modal when view details button is clicked', () => {
+    const mockOpenWohnungOverviewModal = jest.fn();
     mockUseModalStore.mockReturnValue({
       isHausOverviewModalOpen: true,
       hausOverviewData: mockHausData,
@@ -191,18 +210,15 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);
     
-    const viewButtons = screen.getAllByTitle('Details anzeigen');
+    const viewButtons = screen.getAllByTitle('Mieter-Übersicht anzeigen');
     fireEvent.click(viewButtons[0]);
     
-    expect(mockToast).toHaveBeenCalledWith({
-      title: "Wohnung Details",
-      description: 'Details für Wohnung "Wohnung 1" werden angezeigt.',
-      variant: "default",
-    });
+    expect(mockOpenWohnungOverviewModal).toHaveBeenCalledWith('1');
   });
 
   it('should handle retry functionality', async () => {
@@ -222,6 +238,7 @@ describe('HausOverviewModal', () => {
       setHausOverviewError: mockSetError,
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
+      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
     } as any);
 
     render(<HausOverviewModal />);

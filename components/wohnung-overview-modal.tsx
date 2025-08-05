@@ -99,29 +99,85 @@ export function WohnungOverviewModal() {
     }
   };
 
-  const handleEditMieter = (mieter: { id: string; name: string; email?: string; telefon?: string }) => {
-    // Open the existing Tenant edit modal
-    openTenantModal(mieter);
+  const handleEditMieter = (mieter: { id: string; name: string; email?: string; telefon?: string; einzug?: string; auszug?: string }) => {
+    // Prepare the mieter data for the edit modal
+    const mieterData = {
+      id: mieter.id,
+      name: mieter.name,
+      email: mieter.email || '',
+      telefonnummer: mieter.telefon || '',
+      einzug: mieter.einzug || '',
+      auszug: mieter.auszug || '',
+      wohnung_id: wohnungOverviewData?.id || '',
+      notiz: '', // Not available in overview data
+      nebenkosten: [] // Not available in overview data
+    };
+
+    // Prepare wohnungen list (current wohnung should be included)
+    const wohnungen = wohnungOverviewData ? [{
+      id: wohnungOverviewData.id,
+      name: wohnungOverviewData.name
+    }] : [];
+
+    // Define success callback to refresh overview data
+    const onSuccess = async () => {
+      if (wohnungOverviewData?.id) {
+        try {
+          setWohnungOverviewLoading(true);
+          const response = await fetch(`/api/wohnungen/${wohnungOverviewData.id}/overview`);
+          if (response.ok) {
+            const updatedData = await response.json();
+            setWohnungOverviewData(updatedData);
+          }
+        } catch (error) {
+          console.error('Failed to refresh overview data:', error);
+        } finally {
+          setWohnungOverviewLoading(false);
+        }
+      }
+    };
+
+    // Open the Tenant edit modal with the prepared data
+    openTenantModal(mieterData, wohnungen);
   };
 
   const handleViewMieterDetails = (mieter: { id: string; name: string }) => {
-    // For now, just show a toast - this could be extended to navigate to a detail view
+    // Show detailed information about the tenant
     toast({
       title: "Mieter Details",
-      description: `Details für Mieter "${mieter.name}" werden angezeigt.`,
+      description: `Detailansicht für "${mieter.name}" wird geöffnet.`,
       variant: "default",
     });
+    // This could be extended to navigate to a dedicated detail page
+    // or open a detailed modal in the future
   };
 
   const handleContactMieter = (mieter: { id: string; name: string; email?: string; telefon?: string }) => {
-    if (mieter.email) {
-      window.location.href = `mailto:${mieter.email}`;
-    } else if (mieter.telefon) {
+    // Prioritize email over phone for contact
+    if (mieter.email && mieter.email.trim() !== '') {
+      // Open email client
+      const subject = encodeURIComponent(`Betreff: Wohnung ${wohnungOverviewData?.name || ''}`);
+      const body = encodeURIComponent(`Hallo ${mieter.name},\n\n`);
+      window.location.href = `mailto:${mieter.email}?subject=${subject}&body=${body}`;
+      
+      toast({
+        title: "E-Mail wird geöffnet",
+        description: `E-Mail an ${mieter.name} wird in Ihrem Standard-E-Mail-Programm geöffnet.`,
+        variant: "default",
+      });
+    } else if (mieter.telefon && mieter.telefon.trim() !== '') {
+      // Open phone dialer
       window.location.href = `tel:${mieter.telefon}`;
+      
+      toast({
+        title: "Telefon wird gewählt",
+        description: `Telefonnummer ${mieter.telefon} wird gewählt.`,
+        variant: "default",
+      });
     } else {
       toast({
-        title: "Keine Kontaktdaten",
-        description: `Für Mieter "${mieter.name}" sind keine Kontaktdaten hinterlegt.`,
+        title: "Keine Kontaktdaten verfügbar",
+        description: `Für ${mieter.name} sind keine E-Mail-Adresse oder Telefonnummer hinterlegt.`,
         variant: "destructive",
       });
     }
@@ -361,13 +417,21 @@ export function WohnungOverviewModal() {
                               size="sm"
                               onClick={() => handleContactMieter(mieter)}
                               className="h-8 w-8 p-0"
-                              title="Kontaktieren"
-                              disabled={!mieter.email && !mieter.telefon}
+                              title={
+                                mieter.email && mieter.email.trim() !== '' 
+                                  ? `E-Mail an ${mieter.email}` 
+                                  : mieter.telefon && mieter.telefon.trim() !== ''
+                                  ? `Anrufen: ${mieter.telefon}`
+                                  : "Keine Kontaktdaten verfügbar"
+                              }
+                              disabled={(!mieter.email || mieter.email.trim() === '') && (!mieter.telefon || mieter.telefon.trim() === '')}
                             >
-                              {mieter.email ? (
+                              {mieter.email && mieter.email.trim() !== '' ? (
                                 <Mail className="h-4 w-4" />
-                              ) : (
+                              ) : mieter.telefon && mieter.telefon.trim() !== '' ? (
                                 <Phone className="h-4 w-4" />
+                              ) : (
+                                <Mail className="h-4 w-4 opacity-50" />
                               )}
                             </Button>
                           </div>
