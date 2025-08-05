@@ -265,7 +265,7 @@ export function HausOverviewModal() {
                 {hausOverviewData.ort}
               </p>
               {hausOverviewData.size && (
-                <p>Größe: {hausOverviewData.size}</p>
+                <p>Größe: {formatNumber(hausOverviewData.size)} m²</p>
               )}
               <p className="font-medium">
                 Wohnungen gesamt: {hausOverviewData.wohnungen?.length || 0}

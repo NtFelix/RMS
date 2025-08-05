@@ -152,7 +152,7 @@ describe('HausOverviewModal', () => {
     // Check header information
     expect(screen.getByText('Haus-Übersicht: Test Haus')).toBeInTheDocument();
     expect(screen.getByText('Teststraße 1, Teststadt')).toBeInTheDocument();
-    expect(screen.getByText('Größe: 200 m²')).toBeInTheDocument();
+    expect(screen.getByText('Größe: 200,00 m²')).toBeInTheDocument();
     expect(screen.getByText('Wohnungen gesamt: 2')).toBeInTheDocument();
 
     // Check table content

@@ -8,7 +8,7 @@ interface HausWithWohnungen {
   name: string;
   strasse?: string;
   ort: string;
-  size?: string;
+  size?: number;
   wohnungen: WohnungOverviewData[];
 }
 

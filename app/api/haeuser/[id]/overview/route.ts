@@ -8,7 +8,7 @@ interface HausOverviewResponse {
     name: string;
     strasse?: string;
     ort: string;
-    size?: string;
+    size?: number;
   };
   wohnungen: WohnungOverviewData[];
 }
@@ -44,7 +44,7 @@ export async function GET(
     // Fetch Haus with all Wohnungen and current tenant status
     const { data: hausData, error: hausError } = await supabase
       .from('Haeuser')
-      .select('id, name, strasse, ort, size')
+      .select('id, name, strasse, ort, groesse')
       .eq('id', hausId)
       .single();
 
@@ -114,13 +114,16 @@ export async function GET(
       };
     });
 
+    // Calculate total size from all Wohnungen
+    const totalSize = wohnungenData.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
+
     const response: HausOverviewResponse = {
       haus: {
         id: hausData.id,
         name: hausData.name,
         strasse: hausData.strasse || undefined,
         ort: hausData.ort,
-        size: hausData.size || undefined
+        size: totalSize > 0 ? totalSize : (hausData.groesse || undefined)
       },
       wohnungen
     };
