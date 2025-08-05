@@ -161,14 +161,14 @@ export default function WohnungenClientView({
         <StatCard
           title="Ø Miete"
           value={summary.avgRent}
-          unit=" €"
+          unit="€"
           decimals
           icon={<Euro className="h-4 w-4 text-muted-foreground" />}
         />
         <StatCard
           title="Ø Preis pro m²"
           value={summary.avgPricePerSqm}
-          unit=" €/m²"
+          unit="€/m²"
           decimals
           icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
         />
