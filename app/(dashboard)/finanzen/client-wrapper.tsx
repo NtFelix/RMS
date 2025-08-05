@@ -2,11 +2,12 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, ListOrdered } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
+import { StatCard } from "@/components/stat-card";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -58,6 +59,7 @@ const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
 
 export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
+  const [totalTransactions, setTotalTransactions] = useState(finData.length);
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
   const [hasInitialData, setHasInitialData] = useState(initialSummaryData !== null);
@@ -119,10 +121,12 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
       const newTransactions = await response.json();
       const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
-      
+      setTotalTransactions(totalCount);
+
       if (resetData) {
         setFinData(deduplicateFinances(newTransactions));
         setPage(1);
+        setTotalTransactions(totalCount);
       } else {
         setFinData(prev => {
           // Create a Set of existing IDs to avoid duplicates
@@ -131,6 +135,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           return [...prev, ...uniqueNewTransactions];
         });
         setPage(prev => prev + 1);
+        setTotalTransactions(totalCount);
       }
       
       // Check if there are more records to load
@@ -345,9 +350,13 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         key={summaryData?.year} 
       />
       
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         {balanceLoading ? (
           <>
+            <SummaryCardSkeleton 
+              title="Transaktionen" 
+              icon={<ListOrdered className="h-4 w-4 text-muted-foreground" />} 
+            />
             <SummaryCardSkeleton 
               title="Gefilterte Einnahmen" 
               icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
@@ -363,6 +372,11 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
           </>
         ) : (
           <>
+            <StatCard
+              title="Transaktionen"
+              value={totalTransactions}
+              icon={<ListOrdered className="h-4 w-4 text-muted-foreground" />}
+            />
             <SummaryCard
               title="Gefilterte Einnahmen"
               value={filteredIncome}
