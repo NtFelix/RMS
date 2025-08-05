@@ -246,6 +246,30 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
     }
   }
 
+  // Chart metadata for rendering
+  const CHART_META: Record<string, { title: string, description: (year: string) => string, type: "pie" | "line" | "bar" }> = {
+    "apartment-income": {
+      title: "Einnahmen nach Wohnung",
+      description: (year: string) => `Verteilung der Mieteinnahmen nach Wohnungen in ${year}`,
+      type: "pie",
+    },
+    "monthly-income": {
+      title: "Monatliche Einnahmen",
+      description: (year: string) => `Monatliche Einnahmen für das Jahr ${year}`,
+      type: "line",
+    },
+    "income-expense": {
+      title: "Einnahmen-Ausgaben-Verhältnis",
+      description: (year: string) => `Vergleich von Einnahmen und Ausgaben im Jahr ${year}`,
+      type: "bar",
+    },
+    "expense-categories": {
+      title: "Ausgabenkategorien",
+      description: (year: string) => `Verteilung der Ausgaben nach Kategorien in ${year}`,
+      type: "pie",
+    },
+  }
+
   const chartOptions = [
     { value: "apartment-income", label: CHART_META["apartment-income"].title },
     { value: "monthly-income", label: CHART_META["monthly-income"].title },
