@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, Home, Trash2 } from "lucide-react"
+import { Edit, Eye, Home, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
+import { useModalStore } from "@/hooks/use-modal-store"
 
 export interface House {
   id: string
@@ -48,6 +49,11 @@ export function HouseContextMenu({
 }: HouseContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const { openHausOverviewModal } = useModalStore()
+
+  const handleOverview = () => {
+    openHausOverviewModal(house.id);
+  };
 
   const handleDelete = async () => {
     try {
@@ -88,6 +94,11 @@ export function HouseContextMenu({
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-64">
+          <ContextMenuItem onClick={handleOverview} className="flex items-center gap-2 cursor-pointer">
+            <Eye className="h-4 w-4" />
+            <span>Übersicht</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
