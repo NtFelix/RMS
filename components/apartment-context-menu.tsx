@@ -89,7 +89,7 @@ export function ApartmentContextMenu({
             className="flex items-center gap-2 cursor-pointer"
           >
             <Eye className="h-4 w-4" />
-            <span>Schnellübersicht</span>
+            <span>Übersicht</span>
           </ContextMenuItem>
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
