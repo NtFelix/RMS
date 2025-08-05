@@ -21,7 +21,8 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ChartSkeleton } from "@/components/chart-skeletons"
-import { BarChart3, AlertTriangle } from "lucide-react"
+import { BarChart3, AlertTriangle, Maximize2 } from "lucide-react"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 
 // Einnahmen nach Wohnung (simulierte Daten)
 const staticIncomeByApartment = [
@@ -157,8 +158,10 @@ const EmptyChartState = ({ title, description }: { title: string; description: s
 )
 
 export function FinanceVisualization({ finances, summaryData, availableYears }: FinanceVisualizationProps) {
+  // State management for year, selected charts, focused chart, loading, error
   const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear().toString())
-  const [selectedChart, setSelectedChart] = useState("apartment-income")
+  const [selectedCharts, setSelectedCharts] = useState<string[]>(["apartment-income", "monthly-income"])
+  const [focusedChart, setFocusedChart] = useState<string | null>(null)
   const [chartData, setChartData] = useState<ChartData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -204,7 +207,6 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         setIsLoading(false)
       }
     }
-
     loadChartData()
   }, [selectedYear])
 
@@ -213,8 +215,6 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
     if (chartData) {
       return chartData
     }
-    
-    // Fallback to static data if no chart data is available
     return {
       incomeByApartment: staticIncomeByApartment,
       monthlyIncome: staticMonthlyIncome,
@@ -229,10 +229,231 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
     return !isChartDataEmpty(chartData)
   }, [chartData])
 
+  // Chart toggle logic (max 2, order-preserving)
+  const handleChartToggle = (value: string[]) => {
+    let newArr = value
+    if (value.length > 2) {
+      // Remove oldest selection(s) to keep only last two
+      newArr = value.slice(value.length - 2)
+    }
+    setSelectedCharts(newArr)
+  }
+
+  // Chart metadata for rendering
+  const CHART_META: Record<string, { title: string, description: (year: string) => string, type: "pie" | "line" | "bar" }> = {
+    "apartment-income": {
+      title: "Einnahmen nach Wohnung",
+      description: (year: string) => `Verteilung der Mieteinnahmen nach Wohnungen in ${year}`,
+      type: "pie",
+    },
+    "monthly-income": {
+      title: "Monatliche Einnahmen",
+      description: (year: string) => `Monatliche Einnahmen für das Jahr ${year}`,
+      type: "line",
+    },
+    "income-expense": {
+      title: "Einnahmen-Ausgaben-Verhältnis",
+      description: (year: string) => `Vergleich von Einnahmen und Ausgaben im Jahr ${year}`,
+      type: "bar",
+    },
+    "expense-categories": {
+      title: "Ausgabenkategorien",
+      description: (year: string) => `Verteilung der Ausgaben nach Kategorien in ${year}`,
+      type: "pie",
+    },
+  }
+
+  // Abstracted chart rendering
+  function renderChart(chartKey: string, compact: boolean = false) {
+    const meta = CHART_META[chartKey]
+    const minH = compact
+      ? meta.type === "pie"
+        ? "min-h-[300px]"
+        : "min-h-[300px]"
+      : meta.type === "pie"
+        ? "min-h-[400px]"
+        : "min-h-[400px]"
+    // Chart content
+    if (isLoading) {
+      return (
+        <ChartSkeleton
+          title={meta.title}
+          description={meta.description(selectedYear)}
+          type={meta.type}
+          className={minH}
+        />
+      )
+    }
+    if (error) {
+      return (
+        <div className={`flex items-center justify-center ${compact ? "h-48" : "h-64"}`}>
+          <div className="text-center space-y-2">
+            <div className="text-red-500 font-medium">Fehler beim Laden der Chart-Daten</div>
+            <div className="text-sm text-muted-foreground">{error}</div>
+            <div className="text-xs text-muted-foreground">Fallback-Daten werden verwendet</div>
+          </div>
+        </div>
+      )
+    }
+    if (!hasUserData) {
+      return (
+        <EmptyChartState
+          title={meta.title}
+          description={meta.description(selectedYear)}
+        />
+      )
+    }
+
+    // Success rendering
+    switch (chartKey) {
+      case "apartment-income":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>{meta.title}</CardTitle>
+              <CardDescription>{meta.description(selectedYear)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className={`relative w-full h-auto ${minH}`}>
+                <ResponsiveContainer width="100%" aspect={compact ? 16/9 : 16/9}>
+                  <PieChart>
+                    <Pie
+                      data={displayData.incomeByApartment}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={true}
+                      outerRadius={compact ? 110 : 150}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {displayData.incomeByApartment.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} €`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      case "monthly-income":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>{meta.title}</CardTitle>
+              <CardDescription>{meta.description(selectedYear)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className={`relative w-full h-auto ${minH}`}>
+                <ChartContainer
+                  config={{
+                    einnahmen: {
+                      label: "Einnahmen",
+                      color: "hsl(var(--chart-1))",
+                    },
+                  }}
+                >
+                  <ResponsiveContainer width="100%" aspect={compact ? 16/9 : 16/9}>
+                    <LineChart data={displayData.monthlyIncome}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend />
+                      <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      case "income-expense":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>{meta.title}</CardTitle>
+              <CardDescription>{meta.description(selectedYear)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className={`relative w-full h-auto ${minH}`}>
+                <ChartContainer
+                  config={{
+                    einnahmen: {
+                      label: "Einnahmen",
+                      color: "hsl(var(--chart-1))",
+                    },
+                    ausgaben: {
+                      label: "Ausgaben",
+                      color: "hsl(var(--chart-2))",
+                    },
+                  }}
+                >
+                  <ResponsiveContainer width="100%" aspect={compact ? 16/9 : 16/9}>
+                    <BarChart data={displayData.incomeExpenseRatio}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Legend />
+                      <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+                      <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ChartContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      case "expense-categories":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>{meta.title}</CardTitle>
+              <CardDescription>{meta.description(selectedYear)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className={`relative w-full h-auto ${minH}`}>
+                <ResponsiveContainer width="100%" aspect={compact ? 16/9 : 16/9}>
+                  <PieChart>
+                    <Pie
+                      data={displayData.expenseCategories}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={true}
+                      outerRadius={compact ? 110 : 150}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {displayData.expenseCategories.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} €`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        )
+      default:
+        return null
+    }
+  }
+
+  // Main render
   return (
     <Card className="p-4">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <ToggleGroup type="single" value={selectedChart} onValueChange={setSelectedChart} className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <ToggleGroup
+          type="multiple"
+          value={selectedCharts}
+          onValueChange={handleChartToggle}
+          className="grid grid-cols-2 md:grid-cols-4 gap-2"
+        >
           <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
           <ToggleGroupItem value="monthly-income">Monatlich</ToggleGroupItem>
           <ToggleGroupItem value="income-expense">Vergleich</ToggleGroupItem>
@@ -252,214 +473,65 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
               ))}
             </SelectContent>
           </Select>
-
         </div>
       </div>
-      
-      {isLoading && (
-        <div>
-          {selectedChart === 'apartment-income' && (
-            <ChartSkeleton 
-              title="Einnahmen nach Wohnung" 
-              description={`Verteilung der Mieteinnahmen nach Wohnungen in ${selectedYear}`}
-              type="pie" 
-            />
+
+      {/* Focused Chart Modal */}
+      <Dialog open={!!focusedChart} onOpenChange={open => { if (!open) setFocusedChart(null) }}>
+        <DialogContent className="w-full max-w-3xl p-0 bg-transparent border-none shadow-none">
+          {focusedChart && (
+            <div className="w-full">
+              {/* Render maximized card (not compact) */}
+              <div className="relative">
+                {/* Minimize button */}
+                <button
+                  aria-label="Minimieren"
+                  className="absolute top-2 right-2 z-20 bg-white rounded-full shadow p-1 border hover:bg-muted"
+                  onClick={() => setFocusedChart(null)}
+                >
+                  {/* Use Maximize2 but rotate 45deg for "Minimize" look */}
+                  <Maximize2 className="w-5 h-5 rotate-45 text-muted-foreground" />
+                </button>
+                {renderChart(focusedChart, false)}
+              </div>
+            </div>
           )}
-          {selectedChart === 'monthly-income' && (
-            <ChartSkeleton 
-              title="Monatliche Einnahmen" 
-              description={`Monatliche Einnahmen für das Jahr ${selectedYear}`}
-              type="line" 
-            />
-          )}
-          {selectedChart === 'income-expense' && (
-            <ChartSkeleton 
-              title="Einnahmen-Ausgaben-Verhältnis" 
-              description={`Vergleich von Einnahmen und Ausgaben im Jahr ${selectedYear}`}
-              type="bar" 
-            />
-          )}
-          {selectedChart === 'expense-categories' && (
-            <ChartSkeleton 
-              title="Ausgabenkategorien" 
-              description={`Verteilung der Ausgaben nach Kategorien in ${selectedYear}`}
-              type="pie" 
-            />
-          )}
-        </div>
-      )}
-      
-      {error && (
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center space-y-2">
-            <div className="text-red-500 font-medium">Fehler beim Laden der Chart-Daten</div>
-            <div className="text-sm text-muted-foreground">{error}</div>
-            <div className="text-xs text-muted-foreground">Fallback-Daten werden verwendet</div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Charts Grid */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {selectedCharts.length === 0 && (
+          <div className="col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Keine Charts ausgewählt</CardTitle>
+                <CardDescription>Bitte wählen Sie bis zu zwei Diagramme aus.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex justify-center items-center min-h-[150px] text-muted-foreground">
+                  Keine Auswahl
+                </div>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      )}
-      
-      {!isLoading && !error && (
-        <div className="animate-in fade-in-0 duration-500">
-        {selectedChart === 'apartment-income' && (
-          hasUserData ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Einnahmen nach Wohnung</CardTitle>
-                <CardDescription>Verteilung der Mieteinnahmen nach Wohnungen in {selectedYear}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative w-full h-auto min-h-[400px]">
-                  <ResponsiveContainer width="100%" aspect={16/9}>
-                    <PieChart>
-                      <Pie
-                        data={displayData.incomeByApartment}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        outerRadius={150}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {displayData.incomeByApartment.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => `${value} €`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <EmptyChartState 
-              title="Einnahmen nach Wohnung" 
-              description={`Verteilung der Mieteinnahmen nach Wohnungen in ${selectedYear}`} 
-            />
-          )
         )}
-        {selectedChart === 'monthly-income' && (
-          hasUserData ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Monatliche Einnahmen</CardTitle>
-                <CardDescription>Monatliche Einnahmen für das Jahr {selectedYear}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative w-full h-auto min-h-[400px]">
-                  <ChartContainer
-                    config={{
-                      einnahmen: {
-                        label: "Einnahmen",
-                        color: "hsl(var(--chart-1))",
-                      },
-                    }}
-                  >
-                    <ResponsiveContainer width="100%" aspect={16/9}>
-                      <LineChart data={displayData.monthlyIncome}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Legend />
-                        <Line type="monotone" dataKey="einnahmen" stroke="var(--color-einnahmen)" strokeWidth={2} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <EmptyChartState 
-              title="Monatliche Einnahmen" 
-              description={`Monatliche Einnahmen für das Jahr ${selectedYear}`} 
-            />
-          )
-        )}
-        {selectedChart === 'income-expense' && (
-          hasUserData ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Einnahmen-Ausgaben-Verhältnis</CardTitle>
-                <CardDescription>Vergleich von Einnahmen und Ausgaben im Jahr {selectedYear}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative w-full h-auto min-h-[400px]">
-                  <ChartContainer
-                    config={{
-                      einnahmen: {
-                        label: "Einnahmen",
-                        color: "hsl(var(--chart-1))",
-                      },
-                      ausgaben: {
-                        label: "Ausgaben",
-                        color: "hsl(var(--chart-2))",
-                      },
-                    }}
-                  >
-                    <ResponsiveContainer width="100%" aspect={16/9}>
-                      <BarChart data={displayData.incomeExpenseRatio}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis dataKey="month" />
-                        <YAxis />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Legend />
-                        <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                        <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </ChartContainer>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <EmptyChartState 
-              title="Einnahmen-Ausgaben-Verhältnis" 
-              description={`Vergleich von Einnahmen und Ausgaben im Jahr ${selectedYear}`} 
-            />
-          )
-        )}
-        {selectedChart === 'expense-categories' && (
-          hasUserData ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Ausgabenkategorien</CardTitle>
-                <CardDescription>Verteilung der Ausgaben nach Kategorien in {selectedYear}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="relative w-full h-auto min-h-[400px]">
-                  <ResponsiveContainer width="100%" aspect={16/9}>
-                    <PieChart>
-                      <Pie
-                        data={displayData.expenseCategories}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={true}
-                        outerRadius={150}
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
-                      >
-                        {displayData.expenseCategories.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => `${value} €`} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <EmptyChartState 
-              title="Ausgabenkategorien" 
-              description={`Verteilung der Ausgaben nach Kategorien in ${selectedYear}`} 
-            />
-          )
-        )}
-        </div>
-      )}
+        {selectedCharts.map((chartKey) => (
+          <div key={chartKey} className="relative">
+            {/* Maximize button */}
+            <button
+              aria-label="Maximieren"
+              className="absolute top-2 right-2 z-10 bg-white rounded-full shadow p-1 border hover:bg-muted"
+              onClick={() => setFocusedChart(chartKey)}
+              tabIndex={0}
+            >
+              <Maximize2 className="w-5 h-5 text-muted-foreground" />
+            </button>
+            {/* Compact chart card */}
+            {renderChart(chartKey, true)}
+          </div>
+        ))}
+      </div>
     </Card>
   )
 }
