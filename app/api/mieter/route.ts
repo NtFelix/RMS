@@ -2,15 +2,22 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const wohnung_id = url.searchParams.get("wohnung_id");
     const supabase = await createClient();
-    const { data, error } = await supabase.from('Mieter').select('*');
+    let query = supabase.from('Mieter').select('*');
+    if (wohnung_id) {
+      query = query.eq('wohnung_id', wohnung_id);
+    }
+    const { data, error } = await query;
     if (error) {
       console.error('GET /api/mieter error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json(data, { status: 200 });
+    // Always wrap in { mieter: [...] } for compatibility
+    return NextResponse.json({ mieter: data }, { status: 200 });
   } catch (e) {
     console.error('Server error GET /api/mieter:', e);
     return NextResponse.json({ error: 'Serverfehler bei Mieter-Abfrage.' }, { status: 500 });

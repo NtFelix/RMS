@@ -9,6 +9,15 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { Edit, Home, Trash2 } from "lucide-react"
+import * as React from "react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { Edit, Eye, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,12 +27,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { toast } from "@/hooks/use-toast"
-import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
+} from "@/components/ui/alert-dialog";
+import { toast } from "@/hooks/use-toast";
+import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 import { HouseOverviewModal } from "./house-overview-modal";
-import { Eye } from "lucide-react";
-import * as React from "react";
 
 export interface House {
   id: string
@@ -118,7 +125,7 @@ export function HouseContextMenu({
         open={overviewOpen}
         onClose={() => setOverviewOpen(false)}
         houseId={house.id}
-        houseName={house.name}
+        house={house}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

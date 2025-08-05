@@ -50,7 +50,7 @@ export function ApartmentOverviewModal({
     setIsLoading(true);
     fetch(`/api/mieter?wohnung_id=${apartmentId}`)
       .then((r) => r.json())
-      .then((data) => setMieter(data.mieter || []))
+      .then((data) => setMieter(Array.isArray(data) ? data : data.mieter || []))
       .finally(() => setIsLoading(false));
   }, [open, apartmentId]);
 

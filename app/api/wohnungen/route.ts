@@ -105,57 +105,68 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
-  
+  const url = new URL(request.url);
+  const haus_id = url.searchParams.get("haus_id");
+
   // Join Haeuser to get house name
   const { data: apartments, error } = await supabase
     .from('Wohnungen')
     .select('id, name, groesse, miete, haus_id, Haeuser(name)');
-  
+
   if (error) {
     console.error("Supabase Select Error (Wohnungen):", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  
-  // Get tenants to determine occupation status
+
+  // Get tenants to determine occupation status and count per wohnung
   const { data: tenants, error: tenantsError } = await supabase
     .from('Mieter')
     .select('id, wohnung_id, auszug, einzug, name');
-  
+
   if (tenantsError) {
     console.error("Supabase Select Error (Mieter):", tenantsError);
     return NextResponse.json({ error: tenantsError.message }, { status: 500 });
   }
-  
-  // Add status and tenant information
+
   const today = new Date();
+  // Add status and tenant info, and mieterCount
   const enrichedApartments = apartments.map(apt => {
-    // Find tenant for this apartment
-    const tenant = tenants.find(t => t.wohnung_id === apt.id);
-    
-    // Determine if apartment is free or rented
+    const wohnungTenants = tenants.filter(t => t.wohnung_id === apt.id);
+    const tenant = wohnungTenants.find(t => !t.auszug || new Date(t.auszug) > today);
+
     let status = 'frei';
     if (tenant) {
-      // If tenant exists with no move-out date or move-out date is in the future
-      if (!tenant.auszug || new Date(tenant.auszug) > today) {
-        status = 'vermietet';
-      }
+      status = 'vermietet';
     }
-    
+
     return {
       ...apt,
-      status: status,
-      tenant: tenant ? { 
-        id: tenant.id, 
-        name: tenant.name, 
-        einzug: tenant.einzug, 
-        auszug: tenant.auszug 
-      } : null
+      status,
+      tenant: tenant
+        ? {
+            id: tenant.id,
+            name: tenant.name,
+            einzug: tenant.einzug,
+            auszug: tenant.auszug,
+          }
+        : null,
+      mieterCount: wohnungTenants.length,
     };
   });
-  
-  return NextResponse.json(enrichedApartments, { status: 200 });
+
+  // If haus_id is present, filter apartments and always wrap in { wohnungen: [...] }
+  if (haus_id) {
+    const filtered = enrichedApartments.filter(a => String(a.haus_id) === String(haus_id));
+    return NextResponse.json({ wohnungen: filtered }, { status: 200 });
+  }
+
+  // Otherwise, return both the array and wrapper (for backward compatibility)
+  return NextResponse.json(
+    Object.assign([...enrichedApartments], { wohnungen: enrichedApartments }),
+    { status: 200 }
+  );
 }
 
 export async function DELETE(request: Request) {

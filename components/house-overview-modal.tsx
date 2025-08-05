@@ -31,13 +31,6 @@ interface HouseEntity {
   status?: string;
   [key: string]: any;
 }
-interface Wohnung {
-  id: string;
-  name: string;
-  groesse?: number;
-  miete?: number;
-  mieterCount?: number;
-}
 
 interface HouseOverviewModalProps {
   open: boolean;
@@ -63,7 +56,7 @@ export function HouseOverviewModal({
     setIsLoading(true);
     fetch(`/api/wohnungen?haus_id=${houseId}`)
       .then((r) => r.json())
-      .then((data) => setWohnungen(data.wohnungen || []))
+      .then((data) => setWohnungen(Array.isArray(data) ? data : data.wohnungen || []))
       .finally(() => setIsLoading(false));
   }, [open, houseId]);
 
