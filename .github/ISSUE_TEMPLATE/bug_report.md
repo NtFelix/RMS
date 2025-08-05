@@ -2,8 +2,8 @@
 name: Bug Report
 about: Report a bug to help us improve
 title: "[Bug]: "
-labels: ["bug", "triage"]
-assignees: ''
+labels: bug
+assignees: NtFelix
 
 ---
 
