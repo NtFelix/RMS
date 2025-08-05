@@ -1,18 +1,13 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu"
-import { Edit, Building, Trash2 } from "lucide-react"
-"use client";
-
-import * as React from "react";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
+} from "@/components/ui/context-menu";
 import { Edit, Trash2, Eye } from "lucide-react";
 import {
   AlertDialog,
