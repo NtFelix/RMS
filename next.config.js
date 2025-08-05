@@ -21,16 +21,6 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-
-  // Experimental features
-  experimental: {
-    optimizeCss: true,
-    scrollRestoration: true,
-    // Disable Edge Runtime for the entire application
-    disableOptimizedLoading: true,
-    // Disable Edge Runtime for API routes
-    disableEdgeRuntime: true,
-  },
   
   // Use standalone output for better compatibility
   output: 'standalone',
@@ -39,13 +29,12 @@ const nextConfig = {
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
-    // Disable Edge Runtime by default
+    // Disable optimized loading for better compatibility
     disableOptimizedLoading: true,
-    // Disable Edge Runtime for API routes
-    disableEdgeRuntime: true,
-    // External packages for server components
-    serverComponentsExternalPackages: ['@supabase/supabase-js'],
   },
+  
+  // External packages for server components (moved from experimental)
+  serverExternalPackages: ['@supabase/supabase-js'],
   
   // Configure page configurations
   pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'mdx'],
@@ -75,29 +64,24 @@ const nextConfig = {
         '@': path.resolve(__dirname, './'),
         '@/components': path.resolve(__dirname, './components'),
         '@/app': path.resolve(__dirname, './app'),
-        ws: false,
+        // Use WebSocket mock for server-side rendering
+        ws: isServer ? path.resolve(__dirname, 'ws.mock.js') : 'ws'
       },
       fallback: {
         ...(config.resolve.fallback || {}),
-        ws: false,
-      },
-    };
-
-    // Handle WebSocket module
-    config.resolve.alias.ws = path.resolve(__dirname, 'ws.mock.js');
-    
-    // Add fallback for WebSocket
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      ws: require.resolve('ws')
+        // Use WebSocket mock for server-side fallback
+        ws: isServer ? path.resolve(__dirname, 'ws.mock.js') : false
+      }
     };
     
     // Add externals for WebSocket to prevent bundling issues
-    config.externals = config.externals || [];
-    config.externals.push({
-      'ws': 'ws',  // Use the 'ws' module from node_modules
-      'isomorphic-ws': 'ws'  // Alias isomorphic-ws to ws
-    });
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({
+        'ws': 'ws',
+        'isomorphic-ws': 'ws'
+      });
+    }
     
     return config;
   },
