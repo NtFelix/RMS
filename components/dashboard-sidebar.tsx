@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
-import { IV_LOGO_URL } from "@/lib/constants"
+import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -86,7 +86,7 @@ export function DashboardSidebar() {
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <div className="relative w-6 h-6 rounded-full overflow-hidden">
                 <Image
-                  src={IV_LOGO_URL}
+                  src={LOGO_URL}
                   alt="IV Logo"
                   fill
                   className="object-cover"
