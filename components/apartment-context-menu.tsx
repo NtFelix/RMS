@@ -22,6 +22,9 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 import type { Apartment } from "./apartment-table"; // Import the shared type
+import { ApartmentOverviewModal } from "./apartment-overview-modal";
+import { Eye } from "lucide-react";
+import * as React from "react";
 
 // Remove local Apartment interface definition
 
@@ -40,6 +43,7 @@ export function ApartmentContextMenu({
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [overviewOpen, setOverviewOpen] = React.useState(false);
 
   const handleDelete = async () => {
     try {
@@ -84,6 +88,13 @@ export function ApartmentContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => setOverviewOpen(true)}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Eye className="h-4 w-4" />
+            <span>Schnellübersicht</span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setDeleteDialogOpen(true)}
@@ -94,6 +105,13 @@ export function ApartmentContextMenu({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      <ApartmentOverviewModal
+        open={overviewOpen}
+        onClose={() => setOverviewOpen(false)}
+        apartmentId={apartment.id}
+        apartmentName={apartment.name}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

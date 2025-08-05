@@ -21,6 +21,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions"; // Added import
+import { HouseOverviewModal } from "./house-overview-modal";
+import { Eye } from "lucide-react";
+import * as React from "react";
 
 export interface House {
   id: string
@@ -48,6 +51,7 @@ export function HouseContextMenu({
 }: HouseContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
+  const [overviewOpen, setOverviewOpen] = React.useState(false);
 
   const handleDelete = async () => {
     try {
@@ -92,6 +96,13 @@ export function HouseContextMenu({
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
           </ContextMenuItem>
+          <ContextMenuItem
+            onClick={() => setOverviewOpen(true)}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            <Eye className="h-4 w-4" />
+            <span>Schnellübersicht</span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 
             onClick={() => setDeleteDialogOpen(true)}
@@ -102,6 +113,13 @@ export function HouseContextMenu({
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+
+      <HouseOverviewModal
+        open={overviewOpen}
+        onClose={() => setOverviewOpen(false)}
+        houseId={house.id}
+        houseName={house.name}
+      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
