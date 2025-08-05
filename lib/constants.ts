@@ -9,4 +9,5 @@ export type BerechnungsartValue = typeof BERECHNUNGSART_OPTIONS[number]['value']
 // You can also export an array of the values if that's useful
 export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value);
 
-export const LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL || 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png';
+// Logo URL configured via NEXT_PUBLIC_LOGO_URL environment variable
+export const LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL!;
