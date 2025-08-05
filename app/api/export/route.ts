@@ -1,11 +1,12 @@
-// Use Node.js runtime for this API route
-export const runtime = 'nodejs';
+// Use Edge Runtime for this API route
+export const runtime = 'edge';
+
+export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
-import { Readable } from 'stream';
 
 // Define the tables and columns to export based on the LATEST provided schema.
 // Exclude ALL ID columns (primary and foreign keys) as requested.
@@ -67,27 +68,27 @@ export async function GET() {
       });
     }
 
-    // Generate the zip file as a buffer
-    const zipBuffer = await zip.generateAsync({
-      type: 'nodebuffer',
-      platform: 'UNIX',
+    // Generate the zip file as a Blob for Edge Runtime
+    const zipBlob = await zip.generateAsync({
+      type: 'blob',
       compression: 'DEFLATE',
-      compressionOptions: { level: 6 }
+      compressionOptions: {
+        level: 9,
+      },
     });
-    
-    // Create a readable stream from the buffer
-    const stream = new Readable();
-    stream.push(zipBuffer);
-    stream.push(null);
-    
-    // Create a response with the stream
-    return new NextResponse(stream as any, {
+
+    // Convert Blob to ArrayBuffer for Edge Runtime
+    const zipArrayBuffer = await zipBlob.arrayBuffer();
+    const zipBuffer = Buffer.from(zipArrayBuffer);
+
+    // Return the zip file as a response
+    return new NextResponse(zipBuffer, {
       status: 200,
-      headers: {
-        'Content-Disposition': 'attachment; filename="datenexport.zip"',
+      headers: new Headers({
         'Content-Type': 'application/zip',
         'Content-Length': zipBuffer.length.toString(),
-      },
+        'Content-Disposition': 'attachment; filename=export.zip',
+      }),
     });
   } catch (error) {
     console.error('Error during data export process:', error);
