@@ -12,15 +12,7 @@ import { createClient } from "@/utils/supabase/client";
 import AuthModal from "@/components/auth-modal";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { PillContainer } from "@/components/ui/pill-container";
-
-const MASCOT_IMAGE = {
-  src: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png",
-  alt: "ImmobilienVerwalter Mascot",
-  width: 24,
-  height: 24,
-  desktopWidth: 32,
-  desktopHeight: 32
-};
+import { MASCOT_IMAGE } from "@/app/config/images";
 
 import {
   DropdownMenu,
