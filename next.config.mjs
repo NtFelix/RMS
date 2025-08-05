@@ -13,7 +13,14 @@ const nextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
-    unoptimized: true,
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 60,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'ocubnwzybybcbrhsnqqs.supabase.co',
+      },
+    ],
   },
   experimental: {
     optimizeCss: true,
