@@ -3,6 +3,9 @@ const path = require('path');
 
 const nextConfig = {
   reactStrictMode: true,
+  images: {
+    domains: ['ocubnwzybybcbrhsnqqs.supabase.co'],
+  },
   experimental: {
     optimizeCss: true,
     scrollRestoration: true,
