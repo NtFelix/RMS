@@ -288,7 +288,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
 
   return (
-    {/* Header Section */}
+    <>
     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 px-2">
       <div>
         <div className="text-3xl lg:text-4xl font-semibold">Guten Morgen, Nutzer</div>
@@ -472,6 +472,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         />
       </TabsContent>
     </Tabs>
+    </>
   );
 }
 
