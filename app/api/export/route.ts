@@ -1,8 +1,11 @@
-export const runtime = 'edge';
+// Use Node.js runtime for this API route
+export const runtime = 'nodejs';
+
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
+import { Readable } from 'stream';
 
 // Define the tables and columns to export based on the LATEST provided schema.
 // Exclude ALL ID columns (primary and foreign keys) as requested.
@@ -64,13 +67,26 @@ export async function GET() {
       });
     }
 
-    const zipContent = await zip.generateAsync({ type: 'nodebuffer' });
-
-    return new NextResponse(zipContent, {
+    // Generate the zip file as a buffer
+    const zipBuffer = await zip.generateAsync({
+      type: 'nodebuffer',
+      platform: 'UNIX',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 }
+    });
+    
+    // Create a readable stream from the buffer
+    const stream = new Readable();
+    stream.push(zipBuffer);
+    stream.push(null);
+    
+    // Create a response with the stream
+    return new NextResponse(stream as any, {
       status: 200,
       headers: {
-        'Content-Disposition': `attachment; filename="datenexport.zip"`,
+        'Content-Disposition': 'attachment; filename="datenexport.zip"',
         'Content-Type': 'application/zip',
+        'Content-Length': zipBuffer.length.toString(),
       },
     });
   } catch (error) {

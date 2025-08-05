@@ -43,6 +43,7 @@
     "@stripe/stripe-js": "^7.3.1",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "latest",
+    "@types/stripe": "^8.0.417",
     "autoprefixer": "^10.4.20",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -52,6 +53,7 @@
     "framer-motion": "^12.16.0",
     "immer": "latest",
     "input-otp": "1.4.1",
+    "isomorphic-ws": "^5.0.0",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "jszip": "^3.10.1",
@@ -73,7 +75,6 @@
     "tailwindcss-animate": "^1.0.7",
     "use-sync-external-store": "latest",
     "vaul": "^0.9.6",
-    "ws": "^8.18.2",
     "zod": "^3.24.1",
     "zustand": "latest"
   },
@@ -96,7 +97,8 @@
     "ts-node": "^10.9.2",
     "typescript": "^5",
     "wait-on": "^7.2.0",
-    "whatwg-fetch": "^3.6.20"
+    "whatwg-fetch": "^3.6.20",
+    "ws": "^8.18.3"
   },
   "overrides": {
     "test-exclude": "7.0.1"

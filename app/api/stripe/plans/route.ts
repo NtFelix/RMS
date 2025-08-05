@@ -25,7 +25,7 @@ export async function GET() {
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-06-30.basil', // Use your desired API version
+    apiVersion: '2025-07-30.basil', // Use the latest API version
   });
 
   try {
