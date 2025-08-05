@@ -17,7 +17,6 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Edit, Eye, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Edit, Home, Trash2, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { deleteHouseAction } from "@/app/(dashboard)/haeuser/actions";
 import { HouseOverviewModal } from "./house-overview-modal";

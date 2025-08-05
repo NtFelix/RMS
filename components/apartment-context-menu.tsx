@@ -17,7 +17,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { Edit, Eye, Trash2 } from "lucide-react";
+import { Edit, Trash2, Eye } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
