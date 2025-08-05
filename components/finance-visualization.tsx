@@ -267,12 +267,8 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
   function renderChart(chartKey: string, compact: boolean = false) {
     const meta = CHART_META[chartKey]
     const minH = compact
-      ? meta.type === "pie"
-        ? "min-h-[300px]"
-        : "min-h-[300px]"
-      : meta.type === "pie"
-        ? "min-h-[400px]"
-        : "min-h-[400px]"
+      ? "min-h-[300px]"
+      : "min-h-[600px]"
     // Chart content
     if (isLoading) {
       return (
@@ -315,14 +311,14 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
             </CardHeader>
             <CardContent>
               <div className={`relative w-full h-auto ${minH}`}>
-                <ResponsiveContainer width="100%" aspect={compact ? 16/9 : 16/9}>
+                <ResponsiveContainer width="100%" aspect={16/9}>
                   <PieChart>
                     <Pie
                       data={displayData.incomeByApartment}
                       cx="50%"
                       cy="50%"
                       labelLine={true}
-                      outerRadius={compact ? 110 : 150}
+                      outerRadius={compact ? 110 : 200}
                       fill="#8884d8"
                       dataKey="value"
                       label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -416,14 +412,14 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
             </CardHeader>
             <CardContent>
               <div className={`relative w-full h-auto ${minH}`}>
-                <ResponsiveContainer width="100%" aspect={compact ? 16/9 : 16/9}>
+                <ResponsiveContainer width="100%" aspect={16/9}>
                   <PieChart>
                     <Pie
                       data={displayData.expenseCategories}
                       cx="50%"
                       cy="50%"
                       labelLine={true}
-                      outerRadius={compact ? 110 : 150}
+                      outerRadius={compact ? 110 : 200}
                       fill="#8884d8"
                       dataKey="value"
                       label={({ name, percent }: {name: string, percent: number}) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -478,7 +474,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
 
       {/* Focused Chart Modal */}
       <Dialog open={!!focusedChart} onOpenChange={open => { if (!open) setFocusedChart(null) }}>
-        <DialogContent className="w-full max-w-3xl p-0 bg-transparent border-none shadow-none">
+        <DialogContent className="w-full max-w-6xl p-0 bg-transparent border-none shadow-none">
           {focusedChart && (
             <div className="w-full">
               {/* Render maximized card (not compact) */}
