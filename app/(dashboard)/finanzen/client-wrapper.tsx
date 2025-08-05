@@ -2,13 +2,16 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 
-import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, Upload, Share2, Printer, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
-import { SummaryCard } from "@/components/summary-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { cn } from "@/lib/utils";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -285,65 +288,116 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
 
   return (
-    <Tabs defaultValue="overview" className="flex flex-col gap-8 p-8">
-      <TabsList className="w-fit self-start mb-4">
-        <TabsTrigger value="overview">Übersicht</TabsTrigger>
-        <TabsTrigger value="data">Daten</TabsTrigger>
-      </TabsList>
-      <TabsContent value="overview" className="flex flex-col gap-8">
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {isSummaryLoading && hasInitialData ? (
-            <>
-              <SummaryCardSkeleton 
-                title="Ø Monatliche Einnahmen" 
-                icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
-              />
-              <SummaryCardSkeleton 
-                title="Ø Monatliche Ausgaben" 
-                icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
-              />
-              <SummaryCardSkeleton 
-                title="Ø Monatlicher Cashflow" 
-                icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
-              />
-              <SummaryCardSkeleton 
-                title="Jahresprognose" 
-                icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
-              />
-            </>
-          ) : (
-            <>
-              <SummaryCard
-                title="Ø Monatliche Einnahmen"
-                value={averageMonthlyIncome}
-                description="Durchschnittliche monatliche Einnahmen"
-                icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-                isLoading={isSummaryLoading}
-              />
-              <SummaryCard
-                title="Ø Monatliche Ausgaben"
-                value={averageMonthlyExpenses}
-                description="Durchschnittliche monatliche Ausgaben"
-                icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-                isLoading={isSummaryLoading}
-              />
-              <SummaryCard
-                title="Ø Monatlicher Cashflow"
-                value={averageMonthlyCashflow}
-                description="Durchschnittlicher monatlicher Überschuss"
-                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-                isLoading={isSummaryLoading}
-              />
-              <SummaryCard
-                title="Jahresprognose"
-                value={yearlyProjection}
-                description="Geschätzter Jahresgewinn"
-                icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-                isLoading={isSummaryLoading}
-              />
-            </>
-          )}
+    {/* Header Section */}
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 px-2">
+      <div>
+        <div className="text-3xl lg:text-4xl font-semibold">Guten Morgen, Nutzer</div>
+        <div className="text-muted-foreground mt-1">Ihre Performance diese Woche</div>
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-wrap">
+        <Select defaultValue="all">
+          <SelectTrigger className="w-36">
+            <SelectValue placeholder="Kategorie" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle Kategorien</SelectItem>
+            <SelectItem value="miete">Miete</SelectItem>
+            <SelectItem value="betriebskosten">Betriebskosten</SelectItem>
+          </SelectContent>
+        </Select>
+        <DatePicker mode="single" className="w-full sm:w-auto" />
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Share2 className="w-4 h-4" /> Teilen
+          </Button>
+          <Button variant="outline" size="sm" className="flex items-center gap-2">
+            <Printer className="w-4 h-4" /> Drucken
+          </Button>
+          <Button variant="default" size="sm" className="flex items-center gap-2">
+            <Upload className="w-4 h-4" /> Export
+          </Button>
         </div>
+      </div>
+    </div>
+    <Tabs defaultValue="overview" className="flex flex-col gap-8 p-8">
+      <TabsList className={cn(
+        "shadow-inner bg-transparent border-b border-border flex gap-2 pb-1 mb-6 mt-6"
+      )}>
+        <TabsTrigger
+          value="overview"
+          className={cn(
+            "px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none",
+            "transition-colors data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+          )}
+        >
+          Übersicht
+        </TabsTrigger>
+        <TabsTrigger
+          value="data"
+          className={cn(
+            "px-4 py-2 data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none",
+            "transition-colors data-[state=active]:text-foreground data-[state=inactive]:text-muted-foreground"
+          )}
+        >
+          Daten
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview" className="flex flex-col gap-10">
+        <section className="mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {isSummaryLoading && hasInitialData ? (
+              <>
+                <SummaryCardSkeleton 
+                  title="Ø Monatliche Einnahmen" 
+                  icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+                />
+                <SummaryCardSkeleton 
+                  title="Ø Monatliche Ausgaben" 
+                  icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+                />
+                <SummaryCardSkeleton 
+                  title="Ø Monatlicher Cashflow" 
+                  icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+                />
+                <SummaryCardSkeleton 
+                  title="Jahresprognose" 
+                  icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
+                />
+              </>
+            ) : (
+              <>
+                <MetricCard
+                  title="Ø Monatliche Einnahmen"
+                  value={averageMonthlyIncome}
+                  delta={0}
+                  isCurrency
+                  isLoading={isSummaryLoading}
+                />
+                <MetricCard
+                  title="Ø Monatliche Ausgaben"
+                  value={averageMonthlyExpenses}
+                  delta={0}
+                  isCurrency
+                  isLoading={isSummaryLoading}
+                />
+                <MetricCard
+                  title="Ø Monatlicher Cashflow"
+                  value={averageMonthlyCashflow}
+                  delta={0}
+                  isCurrency
+                  isLoading={isSummaryLoading}
+                />
+                <MetricCard
+                  title="Jahresprognose"
+                  value={yearlyProjection}
+                  delta={0}
+                  isCurrency
+                  isLoading={isSummaryLoading}
+                />
+              </>
+            )}
+          </div>
+        </section>
         <div className="grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <FinanceVisualization 
@@ -418,6 +472,50 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         />
       </TabsContent>
     </Tabs>
+  );
+}
+
+/* --- MetricCard component --- */
+function MetricCard({
+  title,
+  value,
+  delta,
+  isCurrency,
+  isLoading,
+}: {
+  title: string;
+  value: number;
+  delta: number;
+  isCurrency?: boolean;
+  isLoading?: boolean;
+}) {
+  const isPositive = delta > 0;
+  const isNegative = delta < 0;
+  return (
+    <Card className="bg-white shadow flex flex-col justify-between h-full">
+      <CardHeader className="pb-2">
+        <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-1">{title}</div>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-1 items-start">
+        <div className="text-2xl lg:text-3xl font-bold text-foreground">
+          {isLoading
+            ? <span className="inline-block h-7 w-24 bg-muted rounded animate-pulse" />
+            : isCurrency
+              ? value.toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+              : value}
+        </div>
+        <div className={cn(
+          "text-sm flex items-center gap-1",
+          isPositive && "text-green-600",
+          isNegative && "text-red-600",
+          !isPositive && !isNegative && "text-muted-foreground"
+        )}>
+          {isPositive && <ArrowUpRight className="w-4 h-4" />}
+          {isNegative && <ArrowDownRight className="w-4 h-4" />}
+          {delta === 0 ? "±0%" : `${isPositive ? "+" : ""}${delta}%`}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
