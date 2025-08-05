@@ -25,6 +25,7 @@ import { updateKautionAction } from "@/app/mieter-actions"; // Added
 // as it seemed to handle its actions internally or via imported functions.
 // We will check this during integration.
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Added
+import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -110,6 +111,9 @@ export default function DashboardRootLayout({
 
       {/* KautionModal - Handles kaution management */}
       <KautionModal serverAction={updateKautionAction} />
+
+      {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
+      <HausOverviewModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
