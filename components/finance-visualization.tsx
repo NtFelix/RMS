@@ -19,7 +19,6 @@ import {
 } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ChartSkeleton } from "@/components/chart-skeletons"
 import { BarChart3, AlertTriangle, Maximize2 } from "lucide-react"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -229,15 +228,30 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
     return !isChartDataEmpty(chartData)
   }, [chartData])
 
-  // Chart toggle logic (max 2, order-preserving)
-  const handleChartToggle = (value: string[]) => {
-    let newArr = value
-    if (value.length > 2) {
-      // Remove oldest selection(s) to keep only last two
-      newArr = value.slice(value.length - 2)
+  // Handlers for selecting left and right charts, ensuring uniqueness and swap-on-duplicate
+  const handleLeftChartChange = (value: string) => {
+    if (value === selectedCharts[1]) {
+      // Swap values
+      setSelectedCharts(([left, right]) => [right, left])
+    } else {
+      setSelectedCharts(([_, right]) => [value, right])
     }
-    setSelectedCharts(newArr)
   }
+  const handleRightChartChange = (value: string) => {
+    if (value === selectedCharts[0]) {
+      // Swap values
+      setSelectedCharts(([left, right]) => [right, left])
+    } else {
+      setSelectedCharts(([left, _]) => [left, value])
+    }
+  }
+
+  const chartOptions = [
+    { value: "apartment-income", label: CHART_META["apartment-income"].title },
+    { value: "monthly-income", label: CHART_META["monthly-income"].title },
+    { value: "income-expense", label: CHART_META["income-expense"].title },
+    { value: "expense-categories", label: CHART_META["expense-categories"].title },
+  ]
 
   // Chart metadata for rendering
   const CHART_META: Record<string, { title: string, description: (year: string) => string, type: "pie" | "line" | "bar" }> = {
@@ -443,19 +457,52 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
   // Main render
   return (
     <Card className="p-4">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <ToggleGroup
-          type="multiple"
-          value={selectedCharts}
-          onValueChange={handleChartToggle}
-          className="grid grid-cols-2 md:grid-cols-4 gap-2"
-        >
-          <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
-          <ToggleGroupItem value="monthly-income">Monatlich</ToggleGroupItem>
-          <ToggleGroupItem value="income-expense">Vergleich</ToggleGroupItem>
-          <ToggleGroupItem value="expense-categories">Kategorien</ToggleGroupItem>
-        </ToggleGroup>
-        <div className="mt-4 md:mt-0 flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 w-full md:w-auto">
+          <div>
+            <label htmlFor="left-chart-select" className="block text-sm font-medium mb-1">
+              Linkes Diagramm
+            </label>
+            <Select
+              value={selectedCharts[0]}
+              onValueChange={handleLeftChartChange}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="left-chart-select" className="w-full md:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {chartOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label htmlFor="right-chart-select" className="block text-sm font-medium mb-1">
+              Rechtes Diagramm
+            </label>
+            <Select
+              value={selectedCharts[1]}
+              onValueChange={handleRightChartChange}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="right-chart-select" className="w-full md:w-64">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {chartOptions.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-end md:self-auto">
           <label htmlFor="jahr-select" className="text-sm font-medium">Jahr:</label>
           <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isLoading}>
             <SelectTrigger id="jahr-select" className={`w-24 transition-all duration-200 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}`}>
