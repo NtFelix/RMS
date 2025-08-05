@@ -50,8 +50,14 @@ export default function MieterClientView({
     // Average utility cost (use last nebenkosten entry of each tenant if available)
     const utilityValues = initialTenants
       .map(t => {
-        const lastEntry = t.nebenkosten && t.nebenkosten.length > 0 ? t.nebenkosten[t.nebenkosten.length - 1] : null;
-        return lastEntry ? parseFloat(lastEntry.amount) : undefined;
+        if (!t.nebenkosten || t.nebenkosten.length === 0) return undefined;
+
+        // Find latest entry by date (ISO string)
+        const latestEntry = t.nebenkosten.reduce((latest, current) => {
+          return new Date(current.date) > new Date(latest.date) ? current : latest;
+        });
+
+        return parseFloat(latestEntry.amount);
       })
       .filter((v): v is number => typeof v === "number" && !isNaN(v));
     const avgUtilities = utilityValues.length ? utilityValues.reduce((s, v) => s + v, 0) / utilityValues.length : 0;
