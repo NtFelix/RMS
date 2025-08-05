@@ -19,10 +19,6 @@ jest.mock('@/hooks/use-modal-store', () => ({
   }),
 }));
 
-jest.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: jest.fn() }),
-}));
-
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ refresh: jest.fn() }),
 }));
