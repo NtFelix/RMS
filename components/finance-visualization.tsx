@@ -22,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ChartSkeleton } from "@/components/chart-skeletons"
 import { BarChart3, AlertTriangle, Maximize2 } from "lucide-react"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 
 // Einnahmen nach Wohnung (simulierte Daten)
 const staticIncomeByApartment = [
@@ -475,14 +475,18 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
       {/* Focused Chart Modal */}
       <Dialog open={!!focusedChart} onOpenChange={open => { if (!open) setFocusedChart(null) }}>
         <DialogContent className="w-full max-w-6xl p-0 bg-transparent border-none shadow-none">
-          {focusedChart && (
-            <div className="w-full">
-              {/* Render maximized card (not compact) */}
-              <div className="relative">
-                {renderChart(focusedChart, false)}
+          {focusedChart && (() => {
+            const metaTitle = CHART_META[focusedChart].title
+            return (
+              <div className="w-full">
+                <DialogTitle className="sr-only">{metaTitle}</DialogTitle>
+                {/* Render maximized card (not compact) */}
+                <div className="relative">
+                  {renderChart(focusedChart, false)}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </DialogContent>
       </Dialog>
 
