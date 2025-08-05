@@ -1,10 +1,6 @@
 import { cn } from "@/lib/utils"
-
-// Directly define the image URL here as a fallback
-const MASCOT_IMAGE = {
-  src: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png",
-  alt: "ImmobilienVerwalter Mascot"
-}
+import { MASCOT_IMAGE } from "@/app/config/images"
+import Image from "next/image"
 
 interface IVLogoProps {
   className?: string
@@ -45,14 +41,16 @@ export function IVLogo({
         "relative rounded-full overflow-hidden group-hover:scale-110 transition-transform",
         sizeClasses.container
       )}>
-        <img
+        <Image
           src={MASCOT_IMAGE.src}
           alt={MASCOT_IMAGE.alt}
+          width={MASCOT_IMAGE.width}
+          height={MASCOT_IMAGE.height}
           className={cn(
             "object-cover w-full h-full",
             imageClassName
           )}
-          loading="eager"
+          priority
         />
       </div>
       {showText && (
