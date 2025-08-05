@@ -113,7 +113,7 @@ export default function MieterClientView({
         <StatCard
           title="Ø Nebenkosten"
           value={summary.avgUtilities}
-          unit=" €"
+          unit="€"
           decimals
           icon={<Euro className="h-4 w-4 text-muted-foreground" />}
         />
