@@ -148,44 +148,30 @@ export default function WohnungenClientView({
     <div className="flex flex-col gap-8 p-8">
       {/* Summary cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {useMemo(() => {
-          const summaryCards = [
-            {
-              title: "Wohnungen gesamt",
-              value: summary.total,
-              icon: <Home className="h-4 w-4 text-muted-foreground" />,
-            },
-            {
-              title: "Frei / Vermietet",
-              value: `${summary.freeCount} / ${summary.rentedCount}`,
-              icon: <Key className="h-4 w-4 text-muted-foreground" />,
-            },
-            {
-              title: "Ø Miete",
-              value: summary.avgRent,
-              unit: " €",
-              decimals: true,
-              icon: <Euro className="h-4 w-4 text-muted-foreground" />,
-            },
-            {
-              title: "Ø Preis pro m²",
-              value: summary.avgPricePerSqm,
-              unit: " €/m²",
-              decimals: true,
-              icon: <Ruler className="h-4 w-4 text-muted-foreground" />,
-            },
-          ];
-          return summaryCards.map((card, idx) => (
-            <StatCard
-              key={card.title}
-              title={card.title}
-              value={card.value}
-              icon={card.icon}
-              unit={card.unit}
-              decimals={card.decimals}
-            />
-          ));
-        }, [summary])}
+        <StatCard
+          title="Wohnungen gesamt"
+          value={summary.total}
+          icon={<Home className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Frei / Vermietet"
+          value={`${summary.freeCount} / ${summary.rentedCount}`}
+          icon={<Key className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Ø Miete"
+          value={summary.avgRent}
+          unit=" €"
+          decimals
+          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Ø Preis pro m²"
+          value={summary.avgPricePerSqm}
+          unit=" €/m²"
+          decimals
+          icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+        />
       </div>
 
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
