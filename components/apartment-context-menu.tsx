@@ -9,6 +9,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { Edit, Building, Trash2 } from "lucide-react"
+"use client";
+
 import * as React from "react";
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
 import { Edit, Trash2, Eye } from "lucide-react";
@@ -26,8 +28,6 @@ import { toast } from "@/hooks/use-toast";
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions";
 import type { Apartment } from "./apartment-table";
 import { ApartmentOverviewModal } from "./apartment-overview-modal";
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "@/components/ui/context-menu";
-import { Edit, Trash2, Eye } from "lucide-react";
 
 interface ApartmentContextMenuProps {
   children: React.ReactNode;
