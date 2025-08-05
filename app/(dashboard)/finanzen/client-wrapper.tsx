@@ -7,6 +7,7 @@ import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -283,128 +284,133 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
 
   return (
-    <div className="flex flex-col gap-8 p-8">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {isSummaryLoading && hasInitialData ? (
-          <>
-            <SummaryCardSkeleton 
-              title="Ø Monatliche Einnahmen" 
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Ø Monatliche Ausgaben" 
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Ø Monatlicher Cashflow" 
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Jahresprognose" 
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              title="Ø Monatliche Einnahmen"
-              value={averageMonthlyIncome}
-              description="Durchschnittliche monatliche Einnahmen"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Ø Monatliche Ausgaben"
-              value={averageMonthlyExpenses}
-              description="Durchschnittliche monatliche Ausgaben"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Ø Monatlicher Cashflow"
-              value={averageMonthlyCashflow}
-              description="Durchschnittlicher monatlicher Überschuss"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              isLoading={isSummaryLoading}
-            />
-            <SummaryCard
-              title="Jahresprognose"
-              value={yearlyProjection}
-              description="Geschätzter Jahresgewinn"
-              icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
-              isLoading={isSummaryLoading}
-            />
-          </>
-        )}
-      </div>
-
-      <FinanceVisualization 
-        finances={finData} 
-        summaryData={summaryData} 
-        availableYears={availableYears}
-        key={summaryData?.year} 
-      />
-      
-      <div className="grid gap-4 md:grid-cols-3">
-        {balanceLoading ? (
-          <>
-            <SummaryCardSkeleton 
-              title="Gefilterte Einnahmen" 
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Gefilterte Ausgaben" 
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
-            />
-            <SummaryCardSkeleton 
-              title="Aktueller Saldo" 
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
-            />
-          </>
-        ) : (
-          <>
-            <SummaryCard
-              title="Gefilterte Einnahmen"
-              value={filteredIncome}
-              description="Einnahmen basierend auf aktuellen Filtern"
-              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
-              isLoading={balanceLoading}
-            />
-            <SummaryCard
-              title="Gefilterte Ausgaben"
-              value={filteredExpenses}
-              description="Ausgaben basierend auf aktuellen Filtern"
-              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
-              isLoading={balanceLoading}
-            />
-            <SummaryCard
-              title="Aktueller Saldo"
-              value={totalBalance}
-              description="Gesamtsaldo aller Transaktionen"
-              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
-              isLoading={balanceLoading}
-            />
-          </>
-        )}
-      </div>
-      
-      <FinanceTransactions
-        finances={finData}
-        wohnungen={wohnungen}
-        availableYears={availableYears}
-        onEdit={handleEdit}
-        onAdd={handleAddFinance}
-        onAddTransaction={handleAddTransaction}
-        loadFinances={() => loadMoreTransactions(false)}
-        reloadRef={reloadRef}
-        hasMore={hasMore}
-        isLoading={isLoading}
-        isFilterLoading={isFilterLoading}
-        error={error}
-        fullReload={refreshFinances}
-        filters={filters}
-        onFiltersChange={setFilters}
-      />
-    </div>
+    <Tabs defaultValue="overview" className="flex flex-col gap-8 p-8">
+      <TabsList className="w-fit self-start mb-4">
+        <TabsTrigger value="overview">Übersicht</TabsTrigger>
+        <TabsTrigger value="data">Daten</TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview" className="flex flex-col gap-8">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {isSummaryLoading && hasInitialData ? (
+            <>
+              <SummaryCardSkeleton 
+                title="Ø Monatliche Einnahmen" 
+                icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+              />
+              <SummaryCardSkeleton 
+                title="Ø Monatliche Ausgaben" 
+                icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+              />
+              <SummaryCardSkeleton 
+                title="Ø Monatlicher Cashflow" 
+                icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+              />
+              <SummaryCardSkeleton 
+                title="Jahresprognose" 
+                icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />} 
+              />
+            </>
+          ) : (
+            <>
+              <SummaryCard
+                title="Ø Monatliche Einnahmen"
+                value={averageMonthlyIncome}
+                description="Durchschnittliche monatliche Einnahmen"
+                icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                isLoading={isSummaryLoading}
+              />
+              <SummaryCard
+                title="Ø Monatliche Ausgaben"
+                value={averageMonthlyExpenses}
+                description="Durchschnittliche monatliche Ausgaben"
+                icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                isLoading={isSummaryLoading}
+              />
+              <SummaryCard
+                title="Ø Monatlicher Cashflow"
+                value={averageMonthlyCashflow}
+                description="Durchschnittlicher monatlicher Überschuss"
+                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                isLoading={isSummaryLoading}
+              />
+              <SummaryCard
+                title="Jahresprognose"
+                value={yearlyProjection}
+                description="Geschätzter Jahresgewinn"
+                icon={<BarChart3 className="h-4 w-4 text-muted-foreground" />}
+                isLoading={isSummaryLoading}
+              />
+            </>
+          )}
+        </div>
+        <FinanceVisualization 
+          finances={finData} 
+          summaryData={summaryData} 
+          availableYears={availableYears}
+          key={summaryData?.year} 
+        />
+      </TabsContent>
+      <TabsContent value="data" className="flex flex-col gap-8">
+        <div className="grid gap-4 md:grid-cols-3">
+          {balanceLoading ? (
+            <>
+              <SummaryCardSkeleton 
+                title="Gefilterte Einnahmen" 
+                icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+              />
+              <SummaryCardSkeleton 
+                title="Gefilterte Ausgaben" 
+                icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+              />
+              <SummaryCardSkeleton 
+                title="Aktueller Saldo" 
+                icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+              />
+            </>
+          ) : (
+            <>
+              <SummaryCard
+                title="Gefilterte Einnahmen"
+                value={filteredIncome}
+                description="Einnahmen basierend auf aktuellen Filtern"
+                icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+                isLoading={balanceLoading}
+              />
+              <SummaryCard
+                title="Gefilterte Ausgaben"
+                value={filteredExpenses}
+                description="Ausgaben basierend auf aktuellen Filtern"
+                icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+                isLoading={balanceLoading}
+              />
+              <SummaryCard
+                title="Aktueller Saldo"
+                value={totalBalance}
+                description="Gesamtsaldo aller Transaktionen"
+                icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+                isLoading={balanceLoading}
+              />
+            </>
+          )}
+        </div>
+        <FinanceTransactions
+          finances={finData}
+          wohnungen={wohnungen}
+          availableYears={availableYears}
+          onEdit={handleEdit}
+          onAdd={handleAddFinance}
+          onAddTransaction={handleAddTransaction}
+          loadFinances={() => loadMoreTransactions(false)}
+          reloadRef={reloadRef}
+          hasMore={hasMore}
+          isLoading={isLoading}
+          isFilterLoading={isFilterLoading}
+          error={error}
+          fullReload={refreshFinances}
+          filters={filters}
+          onFiltersChange={setFilters}
+        />
+      </TabsContent>
+    </Tabs>
   );
 }
