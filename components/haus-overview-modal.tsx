@@ -12,9 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
-import { Edit, Eye, AlertCircle, RefreshCw, Clock } from "lucide-react";
+import { Edit, Eye, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, MapPin } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 
 export function HausOverviewModal() {
   const {
@@ -160,13 +162,16 @@ export function HausOverviewModal() {
         </div>
       )}
 
+      {/* Summary cards skeleton */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <SummaryCardSkeleton title="Gesamtfläche" icon={<Ruler className="h-5 w-5 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Wohnungen" icon={<Home className="h-5 w-5 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Mieter" icon={<Users className="h-5 w-5 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Gesamtmiete" icon={<Euro className="h-5 w-5 text-muted-foreground" />} />
+      </div>
+
       {/* Skeleton content */}
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-          <Skeleton className="h-4 w-32" />
-        </div>
         
         {/* Table skeleton */}
         <div className="rounded-md border">
@@ -235,6 +240,62 @@ export function HausOverviewModal() {
     </div>
   );
 
+  // Summary cards component
+  const SummaryCards = () => {
+    if (!hausOverviewData) return null;
+
+    const totalRent = hausOverviewData.wohnungen?.reduce((sum, w) => sum + w.miete, 0) || 0;
+    const totalArea = hausOverviewData.wohnungen?.reduce((sum, w) => sum + w.groesse, 0) || 0;
+    const occupiedCount = hausOverviewData.wohnungen?.filter(w => w.status === 'vermietet').length || 0;
+    const totalApartments = hausOverviewData.wohnungen?.length || 0;
+
+    const cards = [
+      {
+        title: "Gesamtfläche",
+        value: `${formatNumber(totalArea)} m²`,
+        description: `${formatNumber(hausOverviewData.size || 0)} m² Hausfläche`,
+        icon: <Ruler className="h-5 w-5 text-muted-foreground" />,
+      },
+      {
+        title: "Wohnungen",
+        value: `${totalApartments}`,
+        description: `${occupiedCount} vermietet, ${totalApartments - occupiedCount} frei`,
+        icon: <Home className="h-5 w-5 text-muted-foreground" />,
+      },
+      {
+        title: "Mieter",
+        value: `${occupiedCount}`,
+        description: `${((occupiedCount / Math.max(totalApartments, 1)) * 100).toFixed(0)}% Auslastung`,
+        icon: <Users className="h-5 w-5 text-muted-foreground" />,
+      },
+      {
+        title: "Gesamtmiete",
+        value: formatCurrency(totalRent),
+        description: totalArea > 0 ? `${formatCurrency(totalRent / totalArea)}/m²` : "Keine Fläche",
+        icon: <Euro className="h-5 w-5 text-muted-foreground" />,
+      },
+    ];
+
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {cards.map((card, index) => (
+          <Card key={index} className="overflow-hidden rounded-xl border-none shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+              <div className="h-5 w-5 text-muted-foreground">
+                {card.icon}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{card.value}</div>
+              <p className="text-xs text-muted-foreground">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   // Empty state component
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center py-8 space-y-4">
@@ -259,17 +320,12 @@ export function HausOverviewModal() {
             {hausOverviewData ? `Haus-Übersicht: ${hausOverviewData.name}` : 'Haus-Übersicht'}
           </DialogTitle>
           {hausOverviewData && (
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              <span>
                 {hausOverviewData.strasse && `${hausOverviewData.strasse}, `}
                 {hausOverviewData.ort}
-              </p>
-              {hausOverviewData.size && (
-                <p>Größe: {formatNumber(hausOverviewData.size)} m²</p>
-              )}
-              <p className="font-medium">
-                Wohnungen gesamt: {hausOverviewData.wohnungen?.length || 0}
-              </p>
+              </span>
             </div>
           )}
         </DialogHeader>
@@ -280,9 +336,13 @@ export function HausOverviewModal() {
           ) : hausOverviewError ? (
             <ErrorState />
           ) : !hausOverviewData?.wohnungen?.length ? (
-            <EmptyState />
+            <div className="space-y-6">
+              <SummaryCards />
+              <EmptyState />
+            </div>
           ) : (
-            <div className="h-full overflow-auto">
+            <div className="h-full overflow-auto space-y-6">
+              <SummaryCards />
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>

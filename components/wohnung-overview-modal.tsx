@@ -12,9 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { formatNumber, formatCurrency } from "@/utils/format";
-import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock } from "lucide-react";
+import { Edit, Eye, Phone, Mail, AlertCircle, RefreshCw, Clock, Home, Users, Ruler, Euro, MapPin, Calendar } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 
 export function WohnungOverviewModal() {
   const {
@@ -200,13 +202,16 @@ export function WohnungOverviewModal() {
         </div>
       )}
 
+      {/* Summary cards skeleton */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        <SummaryCardSkeleton title="Wohnungsgröße" icon={<Ruler className="h-5 w-5 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Monatsmiete" icon={<Euro className="h-5 w-5 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Mieter Status" icon={<Users className="h-5 w-5 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Belegung" icon={<Calendar className="h-5 w-5 text-muted-foreground" />} />
+      </div>
+
       {/* Skeleton content */}
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-4 w-64" />
-          <Skeleton className="h-4 w-32" />
-        </div>
         
         {/* Table skeleton */}
         <div className="rounded-md border">
@@ -276,6 +281,67 @@ export function WohnungOverviewModal() {
     </div>
   );
 
+  // Summary cards component
+  const SummaryCards = () => {
+    if (!wohnungOverviewData) return null;
+
+    const activeTenants = wohnungOverviewData.mieter?.filter(m => m.status === 'active').length || 0;
+    const totalTenants = wohnungOverviewData.mieter?.length || 0;
+    const pricePerSqm = wohnungOverviewData.groesse > 0 ? wohnungOverviewData.miete / wohnungOverviewData.groesse : 0;
+    
+    // Find current tenant for occupancy info
+    const currentTenant = wohnungOverviewData.mieter?.find(m => m.status === 'active');
+    const occupancyDays = currentTenant?.einzug 
+      ? Math.floor((Date.now() - new Date(currentTenant.einzug).getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+
+    const cards = [
+      {
+        title: "Wohnungsgröße",
+        value: `${formatNumber(wohnungOverviewData.groesse)} m²`,
+        description: `${formatCurrency(pricePerSqm)}/m²`,
+        icon: <Ruler className="h-5 w-5 text-muted-foreground" />,
+      },
+      {
+        title: "Monatsmiete",
+        value: formatCurrency(wohnungOverviewData.miete),
+        description: `${formatCurrency(wohnungOverviewData.miete * 12)}/Jahr`,
+        icon: <Euro className="h-5 w-5 text-muted-foreground" />,
+      },
+      {
+        title: "Mieter Status",
+        value: `${activeTenants}/${totalTenants}`,
+        description: activeTenants > 0 ? "Vermietet" : "Frei",
+        icon: <Users className="h-5 w-5 text-muted-foreground" />,
+      },
+      {
+        title: "Belegung",
+        value: occupancyDays > 0 ? `${occupancyDays} Tage` : "Leer",
+        description: currentTenant ? `seit ${new Date(currentTenant.einzug!).toLocaleDateString('de-DE')}` : "Keine aktiven Mieter",
+        icon: <Calendar className="h-5 w-5 text-muted-foreground" />,
+      },
+    ];
+
+    return (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+        {cards.map((card, index) => (
+          <Card key={index} className="overflow-hidden rounded-xl border-none shadow-md">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
+              <div className="h-5 w-5 text-muted-foreground">
+                {card.icon}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{card.value}</div>
+              <p className="text-xs text-muted-foreground">{card.description}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   // Empty state component
   const EmptyState = () => (
     <div className="flex flex-col items-center justify-center py-8 space-y-4">
@@ -300,18 +366,9 @@ export function WohnungOverviewModal() {
             {wohnungOverviewData ? `Wohnungs-Übersicht: ${wohnungOverviewData.name}` : 'Wohnungs-Übersicht'}
           </DialogTitle>
           {wohnungOverviewData && (
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>
-                Haus: {wohnungOverviewData.hausName}
-              </p>
-              <p>
-                Größe: {formatNumber(wohnungOverviewData.groesse)} m² • 
-                Miete: {formatCurrency(wohnungOverviewData.miete)} • 
-                Miete pro m²: {formatCurrency(wohnungOverviewData.miete / wohnungOverviewData.groesse)}
-              </p>
-              <p className="font-medium">
-                Mieter gesamt: {wohnungOverviewData.mieter?.length || 0}
-              </p>
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <Home className="h-4 w-4" />
+              <span>Haus: {wohnungOverviewData.hausName}</span>
             </div>
           )}
         </DialogHeader>
@@ -322,9 +379,13 @@ export function WohnungOverviewModal() {
           ) : wohnungOverviewError ? (
             <ErrorState />
           ) : !wohnungOverviewData?.mieter?.length ? (
-            <EmptyState />
+            <div className="space-y-6">
+              <SummaryCards />
+              <EmptyState />
+            </div>
           ) : (
-            <div className="h-full overflow-auto">
+            <div className="h-full overflow-auto space-y-6">
+              <SummaryCards />
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
