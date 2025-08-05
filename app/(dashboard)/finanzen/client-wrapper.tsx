@@ -6,6 +6,7 @@ import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet, Upload, Share2, Prin
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
+import { SummaryCard } from "@/components/summary-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
