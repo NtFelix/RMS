@@ -78,14 +78,25 @@ export async function GET(request: Request) {
     const allRecords = await fetchAllRecords(query);
     const transactionCount = allRecords.length;
 
-    // Calculate the total balance server-side
+    // Calculate the total balance, income, and expenses server-side
+    let totalIncome = 0;
+    let totalExpenses = 0;
+    
     const totalBalance = allRecords.reduce((total, transaction) => {
       const amount = Number(transaction.betrag);
-      return transaction.ist_einnahmen ? total + amount : total - amount;
+      if (transaction.ist_einnahmen) {
+        totalIncome += amount;
+        return total + amount;
+      } else {
+        totalExpenses += amount;
+        return total - amount;
+      }
     }, 0);
 
     return NextResponse.json({ 
       totalBalance,
+      totalIncome,
+      totalExpenses,
       transactionCount
     }, { status: 200 });
   } catch (e) {

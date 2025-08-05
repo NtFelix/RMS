@@ -13,7 +13,6 @@ import { Nebenkosten, Haus } from "../../../lib/data-fetching";
 export default async function BetriebskostenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const userId = user?.id;
   
   const nebenkostenData: Nebenkosten[] = await fetchNebenkostenList();
   const haeuserData: Haus[] = await fetchHaeuserServer();
@@ -33,8 +32,7 @@ export default async function BetriebskostenPage() {
     <BetriebskostenClientView
       initialNebenkosten={nebenkostenData}
       initialHaeuser={haeuserData}
-      userId={userId} // Pass userId, not serverUserId
-      ownerName={ownerName}    // Pass ownerName, not serverOwnerName
+      ownerName={ownerName}
     />
   );
 }

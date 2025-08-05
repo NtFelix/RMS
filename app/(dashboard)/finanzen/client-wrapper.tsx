@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { PlusCircle, ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
+
+import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
 import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
+
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -76,6 +76,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   });
   const [isFilterLoading, setIsFilterLoading] = useState(false);
   const [totalBalance, setTotalBalance] = useState(0);
+  const [filteredIncome, setFilteredIncome] = useState(0);
+  const [filteredExpenses, setFilteredExpenses] = useState(0);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
   const reloadRef = useRef<(() => void) | null>(null);
@@ -157,8 +159,10 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       
       const response = await fetch(`/api/finanzen/balance?${params.toString()}`);
       if (response.ok) {
-        const { totalBalance } = await response.json();
+        const { totalBalance, totalIncome, totalExpenses } = await response.json();
         setTotalBalance(totalBalance);
+        setFilteredIncome(totalIncome);
+        setFilteredExpenses(totalExpenses);
       }
     } catch (error) {
       console.error('Failed to fetch balance:', error);
@@ -228,6 +232,8 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const averageMonthlyExpenses = summaryData?.averageMonthlyExpenses ?? 0;
   const averageMonthlyCashflow = summaryData?.averageMonthlyCashflow ?? 0;
   const yearlyProjection = summaryData?.yearlyProjection ?? 0;
+  const totalIncome = summaryData?.totalIncome ?? 0;
+  const totalExpenses = summaryData?.totalExpenses ?? 0;
 
   const handleEdit = useCallback((finance: Finanz) => {
     useModalStore.getState().openFinanceModal(finance, wohnungen, handleSuccess);
@@ -278,17 +284,6 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
-        </div>
-        <Button onClick={handleAddTransaction} className="sm:w-auto">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Transaktion hinzufügen
-        </Button>
-      </div>
-
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {isSummaryLoading && hasInitialData ? (
           <>
@@ -349,12 +344,57 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         availableYears={availableYears}
         key={summaryData?.year} 
       />
+      
+      <div className="grid gap-4 md:grid-cols-3">
+        {balanceLoading ? (
+          <>
+            <SummaryCardSkeleton 
+              title="Gefilterte Einnahmen" 
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Gefilterte Ausgaben" 
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />} 
+            />
+            <SummaryCardSkeleton 
+              title="Aktueller Saldo" 
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />} 
+            />
+          </>
+        ) : (
+          <>
+            <SummaryCard
+              title="Gefilterte Einnahmen"
+              value={filteredIncome}
+              description="Einnahmen basierend auf aktuellen Filtern"
+              icon={<ArrowUpCircle className="h-4 w-4 text-green-500" />}
+              isLoading={balanceLoading}
+            />
+            <SummaryCard
+              title="Gefilterte Ausgaben"
+              value={filteredExpenses}
+              description="Ausgaben basierend auf aktuellen Filtern"
+              icon={<ArrowDownCircle className="h-4 w-4 text-red-500" />}
+              isLoading={balanceLoading}
+            />
+            <SummaryCard
+              title="Aktueller Saldo"
+              value={totalBalance}
+              description="Gesamtsaldo aller Transaktionen"
+              icon={<Wallet className="h-4 w-4 text-muted-foreground" />}
+              isLoading={balanceLoading}
+            />
+          </>
+        )}
+      </div>
+      
       <FinanceTransactions
         finances={finData}
         wohnungen={wohnungen}
         availableYears={availableYears}
         onEdit={handleEdit}
         onAdd={handleAddFinance}
+        onAddTransaction={handleAddTransaction}
         loadFinances={() => loadMoreTransactions(false)}
         reloadRef={reloadRef}
         hasMore={hasMore}
@@ -364,8 +404,6 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         fullReload={refreshFinances}
         filters={filters}
         onFiltersChange={setFilters}
-        totalBalance={totalBalance}
-        balanceLoading={balanceLoading}
       />
     </div>
   );

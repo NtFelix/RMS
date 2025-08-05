@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
 import { PlusCircle } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentTable } from "@/components/apartment-table";
@@ -10,6 +10,7 @@ import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
 import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+
 
 // Props for the main client view component, matching what page.tsx will pass
 interface WohnungenClientViewProps {
@@ -42,6 +43,7 @@ export default function WohnungenClientView({
   useEffect(() => {
     let message = "";
     const limitReached = serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity;
+    
     if (!serverUserIsEligibleToAdd) {
       message = "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen.";
     } else if (limitReached) {
@@ -53,6 +55,7 @@ export default function WohnungenClientView({
         message = "Das Wohnungslimit ist erreicht.";
       }
     }
+    
     setButtonTooltipMessage(message);
     setIsAddButtonDisabled(!serverUserIsEligibleToAdd || limitReached);
   }, [serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd, serverLimitReason]);
@@ -123,25 +126,21 @@ export default function WohnungenClientView({
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Wohnungen</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Wohnungen und Apartments</p>
-        </div>
-        <div> {/* Wrapper for button and tooltip */}
-          <Button onClick={handleAddWohnung} className="sm:w-auto" disabled={isAddButtonDisabled}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Wohnung hinzufügen
-          </Button>
-          {isAddButtonDisabled && buttonTooltipMessage && (
-            <p className="text-sm text-red-500 mt-1">{buttonTooltipMessage}</p>
-          )}
-        </div>
-      </div>
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
-          <CardTitle>Wohnungsverwaltung</CardTitle>
-          <CardDescription>Hier können Sie Ihre Wohnungen verwalten und filtern</CardDescription>
+          <div className="flex flex-row items-center justify-between">
+            <CardTitle>Wohnungsverwaltung</CardTitle>
+            <ButtonWithHoverCard 
+              onClick={handleAddWohnung} 
+              className="sm:w-auto" 
+              disabled={isAddButtonDisabled}
+              tooltip={buttonTooltipMessage}
+              showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Wohnung hinzufügen
+            </ButtonWithHoverCard>
+          </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
           <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />

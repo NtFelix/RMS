@@ -2,13 +2,8 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { revalidatePath } from "next/cache";
-
-// Define subscription plan limits
-const SUBSCRIPTION_LIMITS = {
-  free: 1,
-  pro: 10,
-  business: 50
-} as const;
+import { fetchUserProfile } from '@/lib/data-fetching';
+import { getPlanDetails } from '@/lib/stripe-server';
 
 interface WohnungPayload {
   name: string;
@@ -24,6 +19,64 @@ interface WohnungDbRecord {
   miete: number;
   haus_id?: string | null;
   created_at: string;
+}
+
+interface ApartmentEligibility {
+  isEligible: boolean;
+  apartmentLimit: number | typeof Infinity;
+}
+
+async function determineApartmentEligibility(userProfile: any): Promise<ApartmentEligibility> {
+  const isStripeTrial = userProfile.stripe_subscription_status === 'trialing';
+  const isPaidActiveSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
+  
+  // Default values for non-eligible users
+  const defaultIneligible = { isEligible: false, apartmentLimit: 0 };
+  
+  // Handle trial users
+  if (isStripeTrial) {
+    const result: ApartmentEligibility = { isEligible: true, apartmentLimit: 5 };
+    
+    // If user has both trial and active subscription, check for higher limits
+    if (isPaidActiveSub && userProfile.stripe_price_id) {
+      try {
+        const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+        if (planDetails) {
+          if (planDetails.limitWohnungen === null) {
+            result.apartmentLimit = Infinity;
+          } else if (typeof planDetails.limitWohnungen === 'number' && 
+                     planDetails.limitWohnungen > result.apartmentLimit) {
+            result.apartmentLimit = planDetails.limitWohnungen;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching plan details for active sub during trial:', error);
+      }
+    }
+    return result;
+  }
+  
+  // Handle paid active subscribers
+  if (isPaidActiveSub && userProfile.stripe_price_id) {
+    try {
+      const planDetails = await getPlanDetails(userProfile.stripe_price_id);
+      if (!planDetails) return defaultIneligible;
+      
+      if (planDetails.limitWohnungen === null) {
+        return { isEligible: true, apartmentLimit: Infinity };
+      } else if (typeof planDetails.limitWohnungen === 'number') {
+        return {
+          isEligible: planDetails.limitWohnungen > 0,
+          apartmentLimit: planDetails.limitWohnungen > 0 ? planDetails.limitWohnungen : 0
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching plan details:', error);
+    }
+  }
+  
+  // Default case for non-eligible users
+  return defaultIneligible;
 }
 
 export async function wohnungServerAction(id: string | null, data: WohnungPayload): Promise<{ success: boolean; error?: any; data?: WohnungDbRecord }> {
@@ -63,16 +116,29 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       };
     }
     
-    // Get user's subscription
-    const { data: subscriptionData, error: subscriptionError } = await supabase
-      .rpc('get_user_subscription', { user_id: user.id });
-    
-    // If subscription check fails, default to free tier
-    const plan = subscriptionData?.plan_id || 'free';
-    const limit = SUBSCRIPTION_LIMITS[plan as keyof typeof SUBSCRIPTION_LIMITS] || 1;
-    
     // Only check limits when creating a new apartment
     if (!id) {
+      // Get user profile for subscription details
+      const userProfile = await fetchUserProfile();
+      if (!userProfile) {
+        return { 
+          success: false, 
+          error: { message: "Benutzerprofil nicht gefunden." } 
+        };
+      }
+
+      // Determine user's eligibility and apartment limit based on their subscription status
+      const { isEligible, apartmentLimit } = await determineApartmentEligibility(userProfile);
+      const userIsEligibleToAdd = isEligible;
+      const effectiveApartmentLimit = apartmentLimit;
+
+      if (!userIsEligibleToAdd) {
+        return { 
+          success: false, 
+          error: { message: "Ein aktives Abonnement oder eine gültige Testphase ist erforderlich, um Wohnungen hinzuzufügen." } 
+        };
+      }
+
       // Get current apartment count for the user
       const { count, error: countError } = await supabase
         .from('Wohnungen')
@@ -82,13 +148,18 @@ export async function wohnungServerAction(id: string | null, data: WohnungPayloa
       if (countError) throw countError;
       
       // Check if user has reached their limit
-      if (count !== null && count >= limit) {
-        return { 
-          success: false, 
-          error: { 
-            message: `Ihr aktueller Tarif erlaubt nur ${limit} Wohnung${limit !== 1 ? 'en' : ''}.` 
-          } 
-        };
+      if (effectiveApartmentLimit !== Infinity && count !== null && count >= effectiveApartmentLimit) {
+        if (userProfile.stripe_subscription_status === 'trialing' && effectiveApartmentLimit === 5) {
+          return { 
+            success: false, 
+            error: { message: `Maximale Anzahl an Wohnungen (${effectiveApartmentLimit}) für Ihre Testphase erreicht.` } 
+          };
+        } else {
+          return { 
+            success: false, 
+            error: { message: `Sie haben die maximale Anzahl an Wohnungen (${effectiveApartmentLimit}) für Ihr aktuelles Abonnement erreicht.` } 
+          };
+        }
       }
     }
     

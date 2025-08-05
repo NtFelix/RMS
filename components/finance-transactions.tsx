@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database } from "lucide-react"
+import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip"
+import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database, PlusCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -45,6 +45,7 @@ interface FinanceTransactionsProps {
   reloadRef?: any
   onEdit?: (finance: Finanz) => void
   onAdd?: (finance: Finanz) => void
+  onAddTransaction?: () => void
   loadFinances?: () => void
   hasMore: boolean
   isLoading: boolean
@@ -53,8 +54,6 @@ interface FinanceTransactionsProps {
   fullReload?: () => Promise<void>
   filters: Filters
   onFiltersChange: (filters: Filters) => void
-  totalBalance?: number
-  balanceLoading?: boolean
 }
 
 const formatDate = (dateString: string | undefined): string => {
@@ -74,6 +73,7 @@ export function FinanceTransactions({
   reloadRef,
   onEdit,
   onAdd,
+  onAddTransaction,
   loadFinances,
   hasMore,
   isLoading,
@@ -82,8 +82,6 @@ export function FinanceTransactions({
   fullReload,
   filters,
   onFiltersChange,
-  totalBalance = 0,
-  balanceLoading = false,
 }: FinanceTransactionsProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
@@ -182,19 +180,12 @@ export function FinanceTransactions({
               <CardTitle>Finanzliste</CardTitle>
               <CardDescription>Übersicht aller Einnahmen und Ausgaben</CardDescription>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-muted-foreground">Saldo</div>
-              <div className="text-xl font-bold">
-                {balanceLoading ? (
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="text-muted-foreground">Wird berechnet...</span>
-                  </div>
-                ) : (
-                  formatCurrency(totalBalance)
-                )}
-              </div>
-            </div>
+            {onAddTransaction && (
+              <ButtonWithTooltip onClick={onAddTransaction} className="sm:w-auto">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Transaktion hinzufügen
+              </ButtonWithTooltip>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -229,7 +220,7 @@ export function FinanceTransactions({
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0">
-                <Button variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</Button>
+                <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</ButtonWithTooltip>
               </div>
             </div>
             <div className="rounded-md border relative min-h-[60vh]">
@@ -390,10 +381,10 @@ export function FinanceTransactions({
                             <p className="text-xs text-muted-foreground text-center max-w-sm">
                               {error}
                             </p>
-                            <Button onClick={loadFinances} variant="outline" size="sm" className="mt-2">
+                            <ButtonWithTooltip onClick={loadFinances} variant="outline" size="sm" className="mt-2">
                               <Loader2 className="mr-2 h-3 w-3" />
                               Erneut versuchen
-                            </Button>
+                            </ButtonWithTooltip>
                           </div>
                         </div>
                       </TableCell>

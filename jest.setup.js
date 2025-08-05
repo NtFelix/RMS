@@ -6,6 +6,14 @@ const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Add IntersectionObserver polyfill
+global.IntersectionObserver = class IntersectionObserver {
+  constructor() {}
+  disconnect() {}
+  observe() {}
+  unobserve() {}
+};
+
 // Add Request/Response polyfills for Next.js server APIs
 global.Request = class Request {
   constructor(input, init) {
