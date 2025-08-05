@@ -8,6 +8,7 @@ import { FinanceTransactions } from "@/components/finance-transactions";
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
 import { SummaryCard } from "@/components/summary-card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 import { PAGINATION } from "@/constants";
 import { useModalStore } from "@/hooks/use-modal-store";
@@ -343,15 +344,20 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
             </>
           )}
         </div>
-        <FinanceVisualization 
-          finances={finData} 
-          summaryData={summaryData} 
-          availableYears={availableYears}
-          key={summaryData?.year} 
-        />
+        <div className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <FinanceVisualization 
+              finances={finData} 
+              summaryData={summaryData} 
+              availableYears={availableYears}
+              key={summaryData?.year} 
+            />
+          </div>
+          <StatusSummaryCard yearlyProjection={yearlyProjection} totalBalance={totalBalance} />
+        </div>
       </TabsContent>
       <TabsContent value="data" className="flex flex-col gap-8">
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {balanceLoading ? (
             <>
               <SummaryCardSkeleton 
@@ -412,5 +418,28 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         />
       </TabsContent>
     </Tabs>
+  );
+}
+
+/* --- StatusSummaryCard component --- */
+function StatusSummaryCard({ yearlyProjection, totalBalance }: { yearlyProjection: number, totalBalance: number }) {
+  return (
+    <Card className="bg-blue-600 text-white shadow-lg flex flex-col h-full justify-between">
+      <CardHeader>
+        <CardTitle className="text-white text-lg">Status Summary</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-start gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider opacity-80 mb-1">Jahresprognose</div>
+            <div className="text-3xl font-bold">{yearlyProjection.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</div>
+          </div>
+          <div>
+            <div className="text-xs uppercase tracking-wider opacity-80 mb-1">Aktueller Saldo</div>
+            <div className="text-2xl font-semibold">{totalBalance.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
