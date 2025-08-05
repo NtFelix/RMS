@@ -82,7 +82,13 @@ export function DashboardSidebar() {
         <div className="h-full w-full flex flex-col bg-background border-r border-border">
           <div className="border-b px-6 py-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <Building2 className="h-6 w-6" />
+              <div className="w-6 h-6 rounded-full overflow-hidden">
+                <img 
+                  src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" 
+                  alt="IV Logo" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <span>Property Manager</span>
             </Link>
           </div>
