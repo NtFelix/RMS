@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { ButtonWithHoverCard } from "@/components/ui/button-with-hover-card";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Home, Key, Euro, Ruler } from "lucide-react";
 import { ApartmentFilters } from "@/components/apartment-filters";
 import { ApartmentTable } from "@/components/apartment-table";
 import { createClient as createBrowserClient } from "@/utils/supabase/client";
@@ -10,6 +10,10 @@ import type { Wohnung } from "@/types/Wohnung";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"; // For layout
 import type { Apartment as ApartmentTableType } from "@/components/apartment-table";
+import { StatCard } from "@/components/stat-card";
+import { useMemo } from "react";
+import { StatCard } from "@/components/stat-card";
+import { useMemo } from "react";
 
 
 // Props for the main client view component, matching what page.tsx will pass
@@ -36,6 +40,27 @@ export default function WohnungenClientView({
   const reloadRef = useRef<(() => void) | null>(null);
   const [apartments, setApartments] = useState<Wohnung[]>(initialWohnungenData);
   const { openWohnungModal } = useModalStore();
+
+  // ======================= SUMMARY METRICS =======================
+  const summary = useMemo(() => {
+    const total = apartments.length;
+    const freeCount = apartments.filter((a) => a.status === "frei").length;
+    const rentedCount = total - freeCount;
+
+    // Average rent
+    const rentValues = apartments.map((a) => a.miete ?? 0).filter((v) => v > 0);
+    const avgRent = rentValues.length ? rentValues.reduce((s, v) => s + v, 0) / rentValues.length : 0;
+
+    // Average price per sqm
+    const pricePerSqmValues = apartments
+      .filter((a) => a.miete && a.groesse && a.groesse > 0)
+      .map((a) => (a.miete as number) / (a.groesse as number));
+    const avgPricePerSqm = pricePerSqmValues.length
+      ? pricePerSqmValues.reduce((s, v) => s + v, 0) / pricePerSqmValues.length
+      : 0;
+
+    return { total, freeCount, rentedCount, avgRent, avgPricePerSqm };
+  }, [apartments]);
 
   const [isAddButtonDisabled, setIsAddButtonDisabled] = useState(!serverUserIsEligibleToAdd || (serverApartmentCount >= serverApartmentLimit && serverApartmentLimit !== Infinity));
   const [buttonTooltipMessage, setButtonTooltipMessage] = useState("");
@@ -107,6 +132,27 @@ export default function WohnungenClientView({
     }
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
+  // ======================= SUMMARY METRICS =======================
+  const summary = useMemo(() => {
+    const total = apartments.length;
+    const freeCount = apartments.filter((a) => a.status === "frei").length;
+    const rentedCount = total - freeCount;
+
+    // Average rent
+    const rentValues = apartments.map((a) => a.miete ?? 0).filter((v) => v > 0);
+    const avgRent = rentValues.length ? rentValues.reduce((s, v) => s + v, 0) / rentValues.length : 0;
+
+    // Average price per sqm
+    const pricePerSqmValues = apartments
+      .filter((a) => a.miete && a.groesse && a.groesse > 0)
+      .map((a) => (a.miete as number) / (a.groesse as number));
+    const avgPricePerSqm = pricePerSqmValues.length
+      ? pricePerSqmValues.reduce((s, v) => s + v, 0) / pricePerSqmValues.length
+      : 0;
+
+    return { total, freeCount, rentedCount, avgRent, avgPricePerSqm };
+  }, [apartments]);
+
   useEffect(() => {
     const handleEditApartmentListener = async (event: Event) => {
       const customEvent = event as CustomEvent<{id: string}>;
@@ -126,12 +172,65 @@ export default function WohnungenClientView({
 
   return (
     <div className="flex flex-col gap-8 p-8">
+      {/* Summary cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Wohnungen gesamt"
+          value={summary.total}
+          icon={<Home className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Frei / Vermietet"
+          value={`${summary.freeCount} / ${summary.rentedCount}`}
+          icon={<Key className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Ø Miete"
+          value={summary.avgRent}
+          unit=" €"
+          decimals
+          icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Ø Preis pro m²"
+          value={summary.avgPricePerSqm}
+          unit=" €/m²"
+          decimals
+          icon={<Ruler className="h-4 w-4 text-muted-foreground" />}
+        />
+      </div>
+
       <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Wohnungsverwaltung</CardTitle>
             <ButtonWithHoverCard 
               onClick={handleAddWohnung} 
+              className="sm:w-auto" 
+              disabled={isAddButtonDisabled}
+              tooltip={buttonTooltipMessage}
+              showTooltip={isAddButtonDisabled && !!buttonTooltipMessage}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Wohnung hinzufügen
+            </ButtonWithHoverCard>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          <ApartmentFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
+          <ApartmentTable
+            filter={filter}
+            searchQuery={searchQuery}
+            initialApartments={apartments}
+            onEdit={handleEditWohnung}
+            onTableRefresh={refreshTable}
+            reloadRef={reloadRef}
+          />
+        </CardContent>
+      </Card>
+    </div>
+  );
+} 
               className="sm:w-auto" 
               disabled={isAddButtonDisabled}
               tooltip={buttonTooltipMessage}
