@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 interface SummaryCardSkeletonProps {
@@ -10,7 +10,7 @@ export function SummaryCardSkeleton({ title, icon }: SummaryCardSkeletonProps) {
   return (
     <Card className="overflow-hidden rounded-xl shadow-md flex-1">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Skeleton className="h-4 w-28" />
         {icon}
       </CardHeader>
       <CardContent>
