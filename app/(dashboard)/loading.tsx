@@ -10,7 +10,7 @@ export default function Loading() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <Card key={i} className="overflow-hidden rounded-xl border border-[#F1F3F3] shadow-md">
+          <Card key={i} className="overflow-hidden rounded-xl shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-4 w-4" />

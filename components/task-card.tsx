@@ -60,7 +60,7 @@ export function TaskCard({ task, onToggleStatus, onEdit, onTaskDeleted }: TaskCa
       onTaskDeleted={onTaskDeleted}
     >
       <Card 
-        className="overflow-hidden rounded-xl border border-[#F1F3F3] shadow-md hover:shadow-lg transition-all cursor-pointer" 
+        className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer" 
         onClick={handleEditClick}
       >
         <CardHeader className="pb-2">
