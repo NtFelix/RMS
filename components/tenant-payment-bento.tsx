@@ -8,6 +8,8 @@ type TenantBentoItem = {
   id: string
   tenant: string
   apartment: string
+  apartmentId: string
+  mieteRaw: number
   paid: boolean
 }
 
@@ -30,7 +32,8 @@ export function TenantPaymentBento() {
           auszug,
           Wohnungen:wohnung_id (
             id,
-            name
+            name,
+            miete
           )
         `)
         .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
@@ -67,11 +70,13 @@ export function TenantPaymentBento() {
       const formatted: TenantBentoItem[] = (mieterData || [])
         .filter(mieter => mieter.Wohnungen)
         .map(mieter => {
-          const wohnung = mieter.Wohnungen as unknown as { id: string; name: string }
+          const wohnung = mieter.Wohnungen as unknown as { id: string; name: string; miete: number }
           return {
             id: mieter.id,
             tenant: mieter.name,
             apartment: wohnung.name,
+            apartmentId: wohnung.id,
+            mieteRaw: Number(wohnung.miete) || 0,
             paid: paidWohnungen.has(wohnung.id),
           }
         })
@@ -82,6 +87,112 @@ export function TenantPaymentBento() {
 
     fetchData()
   }, [])
+
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
+  // Copy of toggleRentPayment logic from TenantDataTable
+  const toggleRentPayment = async (tenant: TenantBentoItem) => {
+    try {
+      setUpdatingStatus(tenant.id)
+      const supabase = createClient()
+
+      if (tenant.paid) {
+        // Remove Mietzahlung from Finanzen for current month
+        const currentDate = new Date()
+        const currentMonth = currentDate.getMonth() + 1
+        const currentYear = currentDate.getFullYear()
+        const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
+        const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+
+        await supabase
+          .from('Finanzen')
+          .delete()
+          .eq('wohnung_id', tenant.apartmentId)
+          .eq('ist_einnahmen', true)
+          .ilike('name', '%Mietzahlung%')
+          .gte('datum', startOfMonth)
+          .lte('datum', endOfMonth)
+      } else {
+        // Add Mietzahlung to Finanzen
+        const currentDate = new Date().toISOString().split('T')[0]
+
+        await supabase
+          .from('Finanzen')
+          .insert({
+            wohnung_id: tenant.apartmentId,
+            name: `Mietzahlung ${tenant.apartment}`,
+            datum: currentDate,
+            betrag: tenant.mieteRaw,
+            ist_einnahmen: true,
+            notiz: `Mietzahlung von ${tenant.tenant}`
+          })
+      }
+
+      // Refresh data
+      // re-fetch logic
+      setLoading(true)
+      const supabase2 = createClient()
+
+      const { data: mieterData, error: mieterError } = await supabase2
+        .from("Mieter")
+        .select(`
+          id,
+          name,
+          einzug,
+          auszug,
+          Wohnungen:wohnung_id (
+            id,
+            name,
+            miete
+          )
+        `)
+        .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
+
+      // Fetch payment info for current month again
+      const currentDate2 = new Date()
+      const currentMonth2 = currentDate2.getMonth() + 1
+      const currentYear2 = currentDate2.getFullYear()
+      const startOfMonth2 = new Date(currentYear2, currentMonth2 - 1, 1).toISOString().split('T')[0]
+      const endOfMonth2 = new Date(currentYear2, currentMonth2, 0).toISOString().split('T')[0]
+
+      const { data: finanzData2 } = await supabase2
+        .from("Finanzen")
+        .select('wohnung_id')
+        .eq('ist_einnahmen', true)
+        .gte('datum', startOfMonth2)
+        .lte('datum', endOfMonth2)
+        .ilike('name', '%Mietzahlung%')
+
+      const paidWohnungen2 = new Set<string>()
+      finanzData2?.forEach(finanz => {
+        if (finanz.wohnung_id) {
+          paidWohnungen2.add(finanz.wohnung_id)
+        }
+      })
+
+      const formatted2: TenantBentoItem[] = (mieterData || [])
+        .filter(mieter => mieter.Wohnungen)
+        .map(mieter => {
+          const wohnung = mieter.Wohnungen as unknown as { id: string; name: string; miete: number }
+          return {
+            id: mieter.id,
+            tenant: mieter.name,
+            apartment: wohnung.name,
+            apartmentId: wohnung.id,
+            mieteRaw: Number(wohnung.miete) || 0,
+            paid: paidWohnungen2.has(wohnung.id),
+          }
+        })
+
+      setData(formatted2)
+    } catch (error) {
+      // Optionally notify error
+      console.error("Fehler beim Aktualisieren des Mietstatus:", error)
+    } finally {
+      setUpdatingStatus(null)
+      setLoading(false)
+    }
+  }
 
   return (
     <Card>
@@ -107,15 +218,23 @@ export function TenantPaymentBento() {
                     <div className="text-sm text-muted-foreground">{tenant.apartment}</div>
                   </div>
                   <div className="mt-4">
-                    {tenant.paid ? (
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-50 text-green-700">
-                        Bezahlt
-                      </span>
-                    ) : (
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">
-                        Offen
-                      </span>
-                    )}
+                    <button
+                      type="button"
+                      className={
+                        "px-3 py-1 rounded-full text-xs font-medium border transition-colors duration-150 " +
+                        (tenant.paid
+                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                          : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100")
+                      }
+                      disabled={updatingStatus === tenant.id}
+                      onClick={() => toggleRentPayment(tenant)}
+                    >
+                      {updatingStatus === tenant.id
+                        ? "Aktualisiere..."
+                        : tenant.paid
+                        ? "Miete bezahlt"
+                        : "Miete unbezahlt"}
+                    </button>
                   </div>
                 </div>
               ))

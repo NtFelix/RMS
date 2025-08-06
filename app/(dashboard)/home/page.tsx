@@ -54,30 +54,6 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/finanzen">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
-              <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/betriebskosten">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
-              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
-              <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
-            </CardContent>
-          </Card>
-        </Link>
         <Link href="/todos">
           <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -96,7 +72,31 @@ export default async function Dashboard() {
         <div className="lg:col-span-8">
           <DashboardCharts />
         </div>
-        <div className="lg:col-span-4">
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          <Link href="/finanzen">
+            <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
+                <Wallet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+                <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/betriebskosten">
+            <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
+                <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+                <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
+              </CardContent>
+            </Card>
+          </Link>
           <TenantPaymentBento />
         </div>
       </div>
