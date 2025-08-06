@@ -7,7 +7,18 @@ interface HausOverviewResponse {
   name: string;
   strasse?: string;
   ort: string;
-  size?: number;
+  size?: string;
+  totalArea: number;
+  totalRent: number;
+  apartmentCount: number;
+  tenantCount: number;
+  summaryStats: {
+    averageRent: number;
+    medianRent: number;
+    averageSize: number;
+    medianSize: number;
+    occupancyRate: number;
+  };
   wohnungen: WohnungOverviewData[];
 }
 
@@ -112,15 +123,56 @@ export async function GET(
       };
     });
 
-    // Calculate total size from all Wohnungen
-    const totalSize = wohnungenData.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
+    // Calculate summary statistics
+    const totalArea = wohnungenData.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
+    const totalRent = wohnungen
+      .filter(w => w.status === 'vermietet')
+      .reduce((sum, wohnung) => sum + (wohnung.miete || 0), 0);
+    const apartmentCount = wohnungenData.length;
+    const tenantCount = wohnungen.filter(w => w.currentTenant).length;
+    
+    // Calculate averages and medians
+    const rentValues = wohnungenData.map(w => w.miete || 0).filter(rent => rent > 0);
+    const sizeValues = wohnungenData.map(w => w.groesse || 0).filter(size => size > 0);
+    
+    const averageRent = rentValues.length > 0 ? rentValues.reduce((sum, rent) => sum + rent, 0) / rentValues.length : 0;
+    const averageSize = sizeValues.length > 0 ? sizeValues.reduce((sum, size) => sum + size, 0) / sizeValues.length : 0;
+    
+    // Calculate medians
+    const sortedRents = [...rentValues].sort((a, b) => a - b);
+    const sortedSizes = [...sizeValues].sort((a, b) => a - b);
+    
+    const medianRent = sortedRents.length > 0 ? (
+      sortedRents.length % 2 === 0
+        ? (sortedRents[sortedRents.length / 2 - 1] + sortedRents[sortedRents.length / 2]) / 2
+        : sortedRents[Math.floor(sortedRents.length / 2)]
+    ) : 0;
+    
+    const medianSize = sortedSizes.length > 0 ? (
+      sortedSizes.length % 2 === 0
+        ? (sortedSizes[sortedSizes.length / 2 - 1] + sortedSizes[sortedSizes.length / 2]) / 2
+        : sortedSizes[Math.floor(sortedSizes.length / 2)]
+    ) : 0;
+    
+    const occupancyRate = apartmentCount > 0 ? (tenantCount / apartmentCount) * 100 : 0;
 
     const response: HausOverviewResponse = {
       id: hausData.id,
       name: hausData.name,
       strasse: hausData.strasse || undefined,
       ort: hausData.ort,
-      size: totalSize > 0 ? totalSize : (hausData.groesse || undefined),
+      size: hausData.groesse?.toString(),
+      totalArea,
+      totalRent,
+      apartmentCount,
+      tenantCount,
+      summaryStats: {
+        averageRent,
+        medianRent,
+        averageSize,
+        medianSize,
+        occupancyRate,
+      },
       wohnungen
     };
 

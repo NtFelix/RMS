@@ -30,6 +30,7 @@ interface ApartmentTenantRowContextMenuProps {
   }
   onEditApartment: () => void
   onEditTenant: () => void
+  onViewDetails: () => void
 }
 
 export function ApartmentTenantRowContextMenu({
@@ -40,11 +41,12 @@ export function ApartmentTenantRowContextMenu({
   tenantData,
   onEditApartment,
   onEditTenant,
+  onViewDetails,
 }: ApartmentTenantRowContextMenuProps) {
   const { openApartmentTenantDetailsModal } = useModalStore()
 
   const handleViewDetails = () => {
-    openApartmentTenantDetailsModal(apartmentId, tenantId)
+    onViewDetails()
   }
 
   const handleEditApartment = () => {
