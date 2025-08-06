@@ -2,6 +2,51 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
+interface ApartmentTenantDetailsResponse {
+  apartment: {
+    id: string;
+    name: string;
+    groesse: number;
+    miete: number;
+    hausName: string;
+    hausAddress?: string;
+    pricePerSqm?: number;
+    amenities?: string[];
+    condition?: string;
+    notes?: string;
+  };
+  tenant?: {
+    id: string;
+    name: string;
+    email?: string;
+    telefon?: string;
+    einzug?: string;
+    auszug?: string;
+    leaseTerms?: string;
+    paymentHistory?: PaymentRecord[];
+    notes?: string;
+    kautionData?: {
+      amount?: number;
+      paymentDate?: string;
+      status?: string;
+    };
+  };
+  financialInfo?: {
+    currentRent: number;
+    rentPerSqm: number;
+    totalPaidRent?: number;
+    outstandingAmount?: number;
+  };
+}
+
+interface PaymentRecord {
+  id: string;
+  amount: number;
+  date: string;
+  type: string;
+  status: string;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ apartmentId: string; tenantId: string }> }
@@ -10,8 +55,21 @@ export async function GET(
     const supabase = await createClient();
     const { apartmentId, tenantId } = await params;
 
+    // Enhanced input validation
     if (!apartmentId || !tenantId) {
-      return NextResponse.json({ error: "Apartment ID und Tenant ID sind erforderlich." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Apartment ID und Tenant ID sind erforderlich." }, 
+        { status: 400 }
+      );
+    }
+
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(apartmentId) || !uuidRegex.test(tenantId)) {
+      return NextResponse.json(
+        { error: "Ungültige ID-Formate." }, 
+        { status: 400 }
+      );
     }
 
     // Fetch apartment details with house information
@@ -23,17 +81,30 @@ export async function GET(
         groesse,
         miete,
         haus_id,
-        Haeuser!inner(name)
+        Haeuser!inner(
+          name,
+          strasse,
+          ort
+        )
       `)
       .eq('id', apartmentId)
       .single();
 
     if (apartmentError) {
       console.error("Error fetching apartment:", apartmentError);
-      return NextResponse.json({ error: "Wohnung nicht gefunden." }, { status: 404 });
+      if (apartmentError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: "Wohnung nicht gefunden." }, 
+          { status: 404 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Fehler beim Laden der Wohnungsdaten." }, 
+        { status: 500 }
+      );
     }
 
-    // Fetch specific tenant
+    // Fetch specific tenant with enhanced data
     const { data: tenant, error: tenantError } = await supabase
       .from('Mieter')
       .select('*')
@@ -43,17 +114,67 @@ export async function GET(
 
     if (tenantError) {
       console.error("Error fetching tenant:", tenantError);
-      return NextResponse.json({ error: "Mieter nicht gefunden." }, { status: 404 });
+      if (tenantError.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: "Mieter nicht gefunden oder nicht dieser Wohnung zugeordnet." }, 
+          { status: 404 }
+        );
+      }
+      return NextResponse.json(
+        { error: "Fehler beim Laden der Mieterdaten." }, 
+        { status: 500 }
+      );
+    }
+
+    // Calculate financial information
+    const currentRent = apartment.miete || 0;
+    const rentPerSqm = apartment.groesse > 0 ? currentRent / apartment.groesse : 0;
+    
+    // Calculate total paid rent (simplified calculation based on move-in date)
+    let totalPaidRent = 0;
+    if (tenant.einzug) {
+      const moveInDate = new Date(tenant.einzug);
+      const endDate = tenant.auszug ? new Date(tenant.auszug) : new Date();
+      const monthsRented = Math.max(0, 
+        (endDate.getFullYear() - moveInDate.getFullYear()) * 12 + 
+        (endDate.getMonth() - moveInDate.getMonth())
+      );
+      totalPaidRent = monthsRented * currentRent;
+    }
+
+    // Build house address string
+    const hausData = apartment.Haeuser as any;
+    const hausAddress = hausData?.strasse && hausData?.ort 
+      ? `${hausData.strasse}, ${hausData.ort}`
+      : hausData?.ort || undefined;
+
+    // Parse kaution data if available
+    let kautionData;
+    if (tenant.kaution) {
+      try {
+        const parsedKaution = typeof tenant.kaution === 'string' 
+          ? JSON.parse(tenant.kaution) 
+          : tenant.kaution;
+        kautionData = {
+          amount: parsedKaution.amount,
+          paymentDate: parsedKaution.paymentDate,
+          status: parsedKaution.status,
+        };
+      } catch (e) {
+        console.warn("Error parsing kaution data:", e);
+      }
     }
 
     // Transform the data to match the expected interface
-    const response = {
+    const response: ApartmentTenantDetailsResponse = {
       apartment: {
         id: apartment.id,
         name: apartment.name,
-        groesse: apartment.groesse,
-        miete: apartment.miete,
-        hausName: (apartment.Haeuser as any)?.name || 'Unbekannt',
+        groesse: apartment.groesse || 0,
+        miete: currentRent,
+        hausName: hausData?.name || 'Unbekannt',
+        hausAddress,
+        pricePerSqm: Math.round(rentPerSqm * 100) / 100,
         // Note: amenities, condition, notes are not in the current schema
         // These would need to be added to the database schema if required
         amenities: [],
@@ -63,19 +184,30 @@ export async function GET(
       tenant: {
         id: tenant.id,
         name: tenant.name,
-        email: tenant.email,
-        telefon: tenant.telefonnummer,
-        einzug: tenant.einzug,
-        auszug: tenant.auszug,
+        email: tenant.email || undefined,
+        telefon: tenant.telefonnummer || undefined,
+        einzug: tenant.einzug || undefined,
+        auszug: tenant.auszug || undefined,
         leaseTerms: undefined, // Not in current schema
         paymentHistory: [], // Would need separate table/implementation
-        notes: tenant.notiz,
+        notes: tenant.notiz || undefined,
+        kautionData,
+      },
+      financialInfo: {
+        currentRent,
+        rentPerSqm: Math.round(rentPerSqm * 100) / 100,
+        totalPaidRent: Math.round(totalPaidRent * 100) / 100,
+        outstandingAmount: 0, // Would need separate calculation based on payment records
       },
     };
 
     return NextResponse.json(response, { status: 200 });
+
   } catch (error) {
     console.error("GET /api/apartments/[apartmentId]/tenant/[tenantId]/details error:", error);
-    return NextResponse.json({ error: "Serverfehler beim Laden der Details." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Serverfehler beim Laden der Details." }, 
+      { status: 500 }
+    );
   }
 }
