@@ -1,14 +1,16 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SummaryCardSkeleton } from "@/components/summary-card-skeleton";
-import { Home, Key } from "lucide-react";
+import { Home, Key, Euro, Ruler } from "lucide-react";
 
 export default function Loading() {
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryCardSkeleton title="Wohnungen" icon={<Home className="h-4 w-4 text-muted-foreground" />} />
-        <SummaryCardSkeleton title="Freie Wohnungen" icon={<Key className="h-4 w-4 text-muted-foreground" />} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <SummaryCardSkeleton title="Wohnungen gesamt" icon={<Home className="h-4 w-4 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Frei / Vermietet" icon={<Key className="h-4 w-4 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Ø Miete" icon={<Euro className="h-4 w-4 text-muted-foreground" />} />
+        <SummaryCardSkeleton title="Ø Preis pro m²" icon={<Ruler className="h-4 w-4 text-muted-foreground" />} />
       </div>
       <Card className="overflow-hidden rounded-xl shadow-md">
         <CardHeader>
