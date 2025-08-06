@@ -8,16 +8,13 @@ import { ChartSkeleton } from "@/components/chart-skeletons"
 export default function Loading() {
   return (
     <div className="flex flex-col gap-8 p-8 animate-in fade-in-0 duration-300">
-      {/* Header */}
+      {/* Header Skeleton */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Finanzen</h1>
-          <p className="text-muted-foreground">Verwalten Sie Ihre Einnahmen und Ausgaben</p>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
         </div>
-        <Button disabled className="sm:w-auto opacity-50">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Transaktion hinzufügen
-        </Button>
+        <Skeleton className="h-10 w-48" />
       </div>
 
       {/* Summary Cards */}
