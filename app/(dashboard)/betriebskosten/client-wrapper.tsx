@@ -112,7 +112,7 @@ export default function BetriebskostenClientView({
   return (
     <div className="flex flex-col gap-8 p-8">
       {/* Main Content Area including Card, Table, Modals */}
-      <Card className="overflow-hidden rounded-xl border-none shadow-md">
+      <Card className="overflow-hidden rounded-xl border border-[#F1F3F3] shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Betriebskostenübersicht</CardTitle>

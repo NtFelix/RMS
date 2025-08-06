@@ -40,7 +40,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto bg-muted/10 p-6">{children}</main>
+        <main className="flex-1 p-6">
+          <div className="h-full w-full overflow-y-auto rounded-xl bg-white p-6 border border-[#F1F3F3] shadow-sm">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   )
