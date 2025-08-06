@@ -4,11 +4,13 @@ import * as React from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { AlertCircle, Home, RefreshCw, Building, Users, Euro, SquareIcon } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { AlertCircle, Home, RefreshCw, Building, Users, Euro, SquareIcon, Clock } from "lucide-react"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { SummaryCard } from "@/components/summary-card"
 import { ApartmentTenantRow } from "@/components/apartment-tenant-row"
 import { ApartmentTenantRowContextMenu } from "@/components/apartment-tenant-row-context-menu"
+import { ApartmentTenantRowSkeleton } from "@/components/apartment-tenant-row-skeleton"
 import { formatCurrency, formatNumber } from "@/utils/format"
 import { cn } from "@/lib/utils"
 
@@ -29,6 +31,47 @@ export function HausOverviewModal() {
     setHausOverviewLoading,
     setHausOverviewData,
   } = useModalStore()
+
+  const [loadingProgress, setLoadingProgress] = React.useState(0)
+  const [isSlowLoading, setIsSlowLoading] = React.useState(false)
+  const [loadingStartTime, setLoadingStartTime] = React.useState<number | null>(null)
+
+  // Enhanced loading progress tracking
+  React.useEffect(() => {
+    if (hausOverviewLoading) {
+      setLoadingStartTime(Date.now())
+      setLoadingProgress(0)
+      setIsSlowLoading(false)
+
+      // Progress simulation for better UX
+      const progressInterval = setInterval(() => {
+        setLoadingProgress((prev) => {
+          if (prev >= 90) return prev // Don't complete until actual data loads
+          return prev + Math.random() * 15
+        })
+      }, 200)
+
+      // Slow loading detection (after 1 second)
+      const slowLoadingTimeout = setTimeout(() => {
+        setIsSlowLoading(true)
+      }, 1000)
+
+      return () => {
+        clearInterval(progressInterval)
+        clearTimeout(slowLoadingTimeout)
+      }
+    } else {
+      // Complete progress when loading finishes
+      if (loadingStartTime) {
+        setLoadingProgress(100)
+        setTimeout(() => {
+          setLoadingProgress(0)
+          setIsSlowLoading(false)
+          setLoadingStartTime(null)
+        }, 300)
+      }
+    }
+  }, [hausOverviewLoading, loadingStartTime])
 
   const handleRetry = async () => {
     if (hausOverviewData?.id) {
@@ -109,9 +152,16 @@ export function HausOverviewModal() {
 
         <div className="p-6">
           {hausOverviewLoading ? (
-            <HausOverviewSkeleton />
+            <HausOverviewSkeleton 
+              isSlowLoading={isSlowLoading} 
+              loadingProgress={loadingProgress} 
+            />
           ) : hausOverviewError ? (
-            <ErrorState error={hausOverviewError} onRetry={handleRetry} />
+            <ErrorState 
+              error={hausOverviewError} 
+              onRetry={handleRetry} 
+              loadingStartTime={loadingStartTime}
+            />
           ) : hausOverviewData ? (
             <div className="space-y-6">
               {/* House Header Info */}
@@ -193,85 +243,85 @@ export function HausOverviewModal() {
   )
 }
 
-function HausOverviewSkeleton() {
+function HausOverviewSkeleton({ 
+  isSlowLoading, 
+  loadingProgress 
+}: { 
+  isSlowLoading: boolean
+  loadingProgress: number 
+}) {
   return (
     <div className="space-y-6">
-      {/* House Info Skeleton */}
-      <div className="text-center space-y-2">
-        <Skeleton className="w-16 h-16 mx-auto rounded-full" />
-        <Skeleton className="h-6 w-32 mx-auto" />
-        <Skeleton className="h-4 w-48 mx-auto" />
-      </div>
-
-      {/* Summary Cards Skeleton */}
-      <div className="grid grid-cols-2 gap-3">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="p-4 border rounded-lg">
-            <div className="flex justify-between items-start mb-2">
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-4" />
-            </div>
-            <Skeleton className="h-8 w-20 mb-1" />
-            <Skeleton className="h-3 w-12" />
+      {/* Progress indicator for slow loading */}
+      {isSlowLoading && (
+        <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2 text-blue-700">
+            <Clock className="h-4 w-4" />
+            <span className="text-sm font-medium">Haus-Übersicht wird geladen...</span>
           </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ApartmentTenantListSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="p-4 border rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-4 w-4" />
-                <div>
-                  <Skeleton className="h-4 w-20 mb-1" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-4 flex-1">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-4 w-4" />
-                <div>
-                  <Skeleton className="h-4 w-24 mb-1" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-4 w-4" />
-              <div>
-                <Skeleton className="h-4 w-16 mb-1" />
-                <Skeleton className="h-3 w-12" />
-              </div>
-            </div>
-          </div>
+          <Progress value={loadingProgress} className="h-2" />
+          <p className="text-xs text-blue-600">
+            Dies kann bei umfangreichen Wohnungsdaten etwas dauern.
+          </p>
         </div>
-      ))}
+      )}
+
+      {/* House Info Skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-64" />
+        <div className="flex gap-4">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-40" />
+        </div>
+      </div>
+
+      {/* Wohnungen Table Skeleton */}
+      <ApartmentTenantRowSkeleton count={5} showTitle={true} />
     </div>
   )
 }
 
-function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+
+
+function ErrorState({ 
+  error, 
+  onRetry, 
+  loadingStartTime 
+}: { 
+  error: string
+  onRetry: () => void
+  loadingStartTime: number | null 
+}) {
   return (
-    <div className="flex flex-col items-center justify-center space-y-4 p-8">
-      <AlertCircle className="h-12 w-12 text-destructive" />
-      <div className="text-center space-y-2">
-        <h3 className="font-semibold">Fehler beim Laden</h3>
-        <p className="text-sm text-muted-foreground max-w-md">
-          {error}
-        </p>
+    <div className="flex flex-col items-center justify-center py-12 space-y-6">
+      <div className="p-4 rounded-full bg-red-50">
+        <AlertCircle className="h-12 w-12 text-red-500" />
       </div>
-      <Button onClick={onRetry} variant="outline" size="sm">
-        <RefreshCw className="h-4 w-4 mr-2" />
-        Erneut versuchen
-      </Button>
+      <div className="text-center space-y-3 max-w-md">
+        <h3 className="text-lg font-semibold text-gray-900">Fehler beim Laden</h3>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          {error || 'Die Haus-Übersicht konnte nicht geladen werden. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'}
+        </p>
+        {loadingStartTime && (
+          <p className="text-xs text-gray-500">
+            Ladezeit überschritten (max. 2 Sekunden)
+          </p>
+        )}
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Button onClick={onRetry} variant="outline" className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4" />
+          Erneut versuchen
+        </Button>
+        <Button 
+          onClick={() => {}} 
+          variant="ghost"
+          className="text-gray-600"
+        >
+          Schließen
+        </Button>
+      </div>
     </div>
   )
 }
