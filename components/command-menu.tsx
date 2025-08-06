@@ -23,6 +23,11 @@ import {
 // Stelle sicher, dass der Mieter-Link im Command-Menü korrekt ist
 const navigationItems = [
   {
+    title: "Startseite",
+    href: "/",
+    icon: Home,
+  },
+  {
     title: "Dashboard",
     href: "/home",
     icon: BarChart3,
@@ -40,7 +45,7 @@ const navigationItems = [
   {
     title: "Wohnungen",
     href: "/wohnungen",
-    icon: Home,
+    icon: Building2,
   },
   {
     title: "Finanzen",
