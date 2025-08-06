@@ -113,9 +113,9 @@ export function CommandMenu() {
         description: 'Could not open subscription management. Please try again later.',
         variant: 'destructive',
       });
+      setOpen(false); // Close the menu only on error
     } finally {
       setIsLoadingSubscription(false);
-      setOpen(false);
     }
   };
 
