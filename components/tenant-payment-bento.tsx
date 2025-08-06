@@ -67,7 +67,7 @@ export function TenantPaymentBento() {
       const formatted: TenantBentoItem[] = (mieterData || [])
         .filter(mieter => mieter.Wohnungen)
         .map(mieter => {
-          const wohnung = mieter.Wohnungen as { id: string; name: string }
+          const wohnung = mieter.Wohnungen as unknown as { id: string; name: string }
           return {
             id: mieter.id,
             tenant: mieter.name,

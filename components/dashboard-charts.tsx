@@ -21,7 +21,6 @@ const initialOccupancyData = Array.from({ length: 12 }, (_, i) => ({
 export function DashboardCharts() {
   const [revenueData, setRevenueData] = useState(initialRevenueData)
   const [occupancyData, setOccupancyData] = useState(initialOccupancyData)
-  const [chartHeight, setChartHeight] = useState(250)
   
   useEffect(() => {
     const fetchData = async () => {
@@ -142,26 +141,6 @@ export function DashboardCharts() {
     }
     
     fetchData()
-    
-    // Event Listener für Anpassung der Chart-Höhe an Container
-    const updateDimensions = () => {
-      const chartContainer = document.querySelector('.chart-container')
-      if (chartContainer) {
-        const containerHeight = chartContainer.getBoundingClientRect().height
-        setChartHeight(containerHeight || 250) // Fallback auf 250px
-      }
-    }
-    
-    // Initial ausführen
-    updateDimensions()
-    
-    // Event Listener für Größenänderungen
-    window.addEventListener('resize', updateDimensions)
-    
-    // Cleanup
-    return () => {
-      window.removeEventListener('resize', updateDimensions)
-    }
   }, [])
   
   return (
