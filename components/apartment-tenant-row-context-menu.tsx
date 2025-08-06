@@ -8,63 +8,77 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, User, Eye, Home } from "lucide-react"
-
-interface WohnungOverviewData {
-  id: string;
-  name: string;
-  groesse: number;
-  miete: number;
-  status: 'frei' | 'vermietet';
-  currentTenant?: {
-    id: string;
-    name: string;
-    einzug?: string;
-  };
-}
+import { Edit, User, Eye } from "lucide-react"
+import { useModalStore } from "@/hooks/use-modal-store"
 
 interface ApartmentTenantRowContextMenuProps {
-  children: React.ReactNode;
-  apartment: WohnungOverviewData;
-  onEditApartment: () => void;
-  onEditTenant: () => void;
-  onViewDetails: () => void;
+  children: React.ReactNode
+  apartmentId: string
+  tenantId?: string
+  apartmentData?: {
+    id: string
+    name: string
+    groesse: number
+    miete: number
+  }
+  tenantData?: {
+    id: string
+    name: string
+    email?: string
+    telefon?: string
+    einzug?: string
+  }
+  onEditApartment: () => void
+  onEditTenant: () => void
 }
 
 export function ApartmentTenantRowContextMenu({
   children,
-  apartment,
+  apartmentId,
+  tenantId,
+  apartmentData,
+  tenantData,
   onEditApartment,
   onEditTenant,
-  onViewDetails,
 }: ApartmentTenantRowContextMenuProps) {
-  const hasTenant = apartment.status === 'vermietet' && apartment.currentTenant
+  const { openApartmentTenantDetailsModal } = useModalStore()
+
+  const handleViewDetails = () => {
+    openApartmentTenantDetailsModal(apartmentId, tenantId)
+  }
+
+  const handleEditApartment = () => {
+    onEditApartment()
+  }
+
+  const handleEditTenant = () => {
+    if (tenantId) {
+      onEditTenant()
+    }
+  }
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
       <ContextMenuContent className="w-64">
         <ContextMenuItem 
-          onClick={onEditApartment} 
+          onClick={handleEditApartment} 
           className="flex items-center gap-2 cursor-pointer"
         >
-          <Home className="h-4 w-4" />
+          <Edit className="h-4 w-4" />
           <span>Wohnung bearbeiten</span>
         </ContextMenuItem>
-        
         <ContextMenuItem 
-          onClick={onEditTenant} 
-          disabled={!hasTenant}
+          onClick={handleEditTenant}
+          disabled={!tenantId}
           className="flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <User className="h-4 w-4" />
           <span>Mieter bearbeiten</span>
         </ContextMenuItem>
-        
         <ContextMenuSeparator />
-        
         <ContextMenuItem 
-          onClick={onViewDetails} 
+          onClick={handleViewDetails} 
           className="flex items-center gap-2 cursor-pointer"
         >
           <Eye className="h-4 w-4" />
