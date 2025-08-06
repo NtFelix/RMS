@@ -2,14 +2,12 @@ export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
-interface WohnungOverviewResponse {
-  wohnung: {
-    id: string;
-    name: string;
-    groesse: number;
-    miete: number;
-    hausName: string;
-  };
+interface WohnungWithMieter {
+  id: string;
+  name: string;
+  groesse: number;
+  miete: number;
+  hausName: string;
   mieter: MieterOverviewData[];
 }
 
@@ -32,7 +30,7 @@ interface MieterOverviewData {
  * 
  * @param request - The HTTP request object
  * @param params - Route parameters containing the Wohnung ID
- * @returns WohnungOverviewResponse with Wohnung details and Mieter list
+ * @returns WohnungWithMieter with Wohnung details and Mieter list
  */
 export async function GET(
   request: Request,
@@ -124,15 +122,13 @@ export async function GET(
       };
     });
 
-    // Validate and structure the response data
-    const response: WohnungOverviewResponse = {
-      wohnung: {
-        id: wohnungData.id,
-        name: wohnungData.name || 'Unbekannt',
-        groesse: wohnungData.groesse || 0,
-        miete: wohnungData.miete || 0,
-        hausName: (wohnungData.Haeuser as any)?.name || 'Unbekannt'
-      },
+    // Validate and structure the response data to match WohnungWithMieter interface
+    const response = {
+      id: wohnungData.id,
+      name: wohnungData.name || 'Unbekannt',
+      groesse: wohnungData.groesse || 0,
+      miete: wohnungData.miete || 0,
+      hausName: (wohnungData.Haeuser as any)?.name || 'Unbekannt',
       mieter
     };
 
