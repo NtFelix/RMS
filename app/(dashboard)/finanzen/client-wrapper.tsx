@@ -119,7 +119,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
       }
       const newTransactions = await response.json();
       const totalCount = parseInt(response.headers.get('X-Total-Count') || '0', 10);
-      
+
       if (resetData) {
         setFinData(deduplicateFinances(newTransactions));
         setPage(1);
