@@ -5,7 +5,7 @@ import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { DashboardCharts } from "@/components/dashboard-charts"
-import { TenantDataTable } from "@/components/tenant-data-table"
+import { TenantPaymentBento } from "@/components/tenant-payment-bento"
 import { getDashboardSummary } from "@/lib/data-fetching"
 
 export default async function Dashboard() {
@@ -94,7 +94,7 @@ export default async function Dashboard() {
 
       <DashboardCharts />
 
-      <TenantDataTable />
+      <TenantPaymentBento />
     </div>
   )
 }

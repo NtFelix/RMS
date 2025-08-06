@@ -1,7 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { createClient } from "@/utils/supabase/client"
@@ -166,120 +165,112 @@ export function DashboardCharts() {
   }, [])
   
   return (
-    <Tabs defaultValue="einnahmen" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="einnahmen">Einnahmen & Ausgaben</TabsTrigger>
-        <TabsTrigger value="belegung">Belegung</TabsTrigger>
-        <TabsTrigger value="instandhaltung">Instandhaltung</TabsTrigger>
-      </TabsList>
-      <TabsContent value="einnahmen">
-        <Card>
-          <CardHeader>
-            <CardTitle>Einnahmen & Ausgaben</CardTitle>
-            <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
-          </CardHeader>
-          <CardContent className="chart-container">
-            <div className="h-full min-h-[400px] w-full">
-              <ChartContainer
-                config={{
-                  einnahmen: {
-                    label: "Einnahmen",
-                    color: "hsl(var(--chart-1))",
-                  },
-                  ausgaben: {
-                    label: "Ausgaben",
-                    color: "hsl(var(--chart-2))",
-                  },
-                }}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                    <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-      <TabsContent value="belegung">
-        <Card>
-          <CardHeader>
-            <CardTitle>Belegung</CardTitle>
-            <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
-          </CardHeader>
-          <CardContent className="chart-container">
-            <div className="h-full min-h-[400px] w-full">
-              <ChartContainer
-                config={{
-                  vermietet: {
-                    label: "Vermietet",
-                    color: "hsl(var(--chart-1))",
-                  },
-                  frei: {
-                    label: "Frei",
-                    color: "hsl(var(--chart-3))",
-                  },
-                }}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={occupancyData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Line type="monotone" dataKey="vermietet" stroke="var(--color-vermietet)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="frei" stroke="var(--color-frei)" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-      <TabsContent value="instandhaltung">
-        <Card>
-          <CardHeader>
-            <CardTitle>Instandhaltung</CardTitle>
-            <CardDescription>Monatliche Übersicht über Reparaturen und Renovierungen</CardDescription>
-          </CardHeader>
-          <CardContent className="chart-container">
-            <div className="h-full min-h-[400px] w-full">
-              <ChartContainer
-                config={{
-                  einnahmen: {
-                    label: "Einnahmen",
-                    color: "hsl(var(--chart-1))",
-                  },
-                  ausgaben: {
-                    label: "Ausgaben",
-                    color: "hsl(var(--chart-2))",
-                  },
-                }}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={revenueData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
-                    <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                    <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ChartContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </TabsContent>
-    </Tabs>
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {/* Einnahmen & Ausgaben */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Einnahmen & Ausgaben</CardTitle>
+          <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
+        </CardHeader>
+        <CardContent className="chart-container">
+          <div className="h-full min-h-[400px] w-full">
+            <ChartContainer
+              config={{
+                einnahmen: {
+                  label: "Einnahmen",
+                  color: "hsl(var(--chart-1))",
+                },
+                ausgaben: {
+                  label: "Ausgaben",
+                  color: "hsl(var(--chart-2))",
+                },
+              }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+                  <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+        </CardContent>
+      </Card>
+      {/* Belegung */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Belegung</CardTitle>
+          <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
+        </CardHeader>
+        <CardContent className="chart-container">
+          <div className="h-full min-h-[400px] w-full">
+            <ChartContainer
+              config={{
+                vermietet: {
+                  label: "Vermietet",
+                  color: "hsl(var(--chart-1))",
+                },
+                frei: {
+                  label: "Frei",
+                  color: "hsl(var(--chart-3))",
+                },
+              }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={occupancyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  <Line type="monotone" dataKey="vermietet" stroke="var(--color-vermietet)" strokeWidth={2} />
+                  <Line type="monotone" dataKey="frei" stroke="var(--color-frei)" strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+        </CardContent>
+      </Card>
+      {/* Instandhaltung */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Instandhaltung</CardTitle>
+          <CardDescription>Monatliche Übersicht über Reparaturen und Renovierungen</CardDescription>
+        </CardHeader>
+        <CardContent className="chart-container">
+          <div className="h-full min-h-[400px] w-full">
+            <ChartContainer
+              config={{
+                einnahmen: {
+                  label: "Einnahmen",
+                  color: "hsl(var(--chart-1))",
+                },
+                ausgaben: {
+                  label: "Ausgaben",
+                  color: "hsl(var(--chart-2))",
+                },
+              }}
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={revenueData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Legend />
+                  <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
+                  <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
