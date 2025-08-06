@@ -165,13 +165,6 @@ export function CommandMenu() {
             Rechnung erstellen
           </CommandItem>
           <CommandItem
-            onSelect={handleManageSubscription}
-            disabled={isLoadingSubscription}
-          >
-            <CreditCard className="mr-2 h-4 w-4" />
-            {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
-          </CommandItem>
-          <CommandItem
             disabled={isLoadingWohnungContext} // Added disabled state
             onSelect={async () => {
               setIsLoadingWohnungContext(true)
@@ -253,6 +246,13 @@ export function CommandMenu() {
           >
             <CheckSquare className="mr-2 h-4 w-4" />
             Aufgabe hinzufügen
+          </CommandItem>
+          <CommandItem
+            onSelect={handleManageSubscription}
+            disabled={isLoadingSubscription}
+          >
+            <CreditCard className="mr-2 h-4 w-4" />
+            {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
           </CommandItem>
         </CommandGroup>
       </CommandList>
