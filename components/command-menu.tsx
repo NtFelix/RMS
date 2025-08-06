@@ -10,7 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard, CreditCard } from "lucide-react"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast" // Added
@@ -68,6 +68,7 @@ export function CommandMenu() {
   const router = useRouter()
   const { open, setOpen } = useCommandMenu()
   const [isLoadingWohnungContext, setIsLoadingWohnungContext] = useState(false) // Added loading state
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false) // Loading state for subscription management
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -81,9 +82,42 @@ export function CommandMenu() {
     return () => document.removeEventListener("keydown", down)
   }, [setOpen])
 
+  const handleManageSubscription = async () => {
+    setIsLoadingSubscription(true);
+    try {
+      const response = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          return_url: window.location.href,
+        }),
+      });
+
+      const { url } = await response.json();
+      
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('No URL returned from server');
+      }
+    } catch (error) {
+      console.error('Error redirecting to customer portal:', error);
+      toast({
+        title: 'Error',
+        description: 'Could not open subscription management. Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoadingSubscription(false);
+      setOpen(false);
+    }
+  };
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Type a command or search..." />
+      <CommandInput placeholder="Befehl eingeben oder suchen..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigation">
@@ -124,12 +158,18 @@ export function CommandMenu() {
           <CommandItem
             onSelect={() => {
               setOpen(false)
-              // Use modal store to open finance modal for adding
               useModalStore.getState().openFinanceModal()
             }}
           >
             <Wallet className="mr-2 h-4 w-4" />
             Rechnung erstellen
+          </CommandItem>
+          <CommandItem
+            onSelect={handleManageSubscription}
+            disabled={isLoadingSubscription}
+          >
+            <CreditCard className="mr-2 h-4 w-4" />
+            {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
           </CommandItem>
           <CommandItem
             disabled={isLoadingWohnungContext} // Added disabled state
