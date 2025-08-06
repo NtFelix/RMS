@@ -10,7 +10,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard } from "lucide-react"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast" // Added
@@ -25,7 +25,7 @@ const navigationItems = [
   {
     title: "Startseite",
     href: "/",
-    icon: Home,
+    icon: LayoutDashboard,
   },
   {
     title: "Dashboard",
@@ -45,7 +45,7 @@ const navigationItems = [
   {
     title: "Wohnungen",
     href: "/wohnungen",
-    icon: Building2,
+    icon: Home,
   },
   {
     title: "Finanzen",
