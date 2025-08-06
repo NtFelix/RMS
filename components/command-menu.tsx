@@ -95,6 +95,10 @@ export function CommandMenu() {
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`Failed to create customer portal session: ${response.status} ${response.statusText}`);
+      }
+
       const { url } = await response.json();
       
       if (url) {
