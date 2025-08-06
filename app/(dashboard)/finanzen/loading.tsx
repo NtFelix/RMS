@@ -8,15 +8,6 @@ import { ChartSkeleton } from "@/components/chart-skeletons"
 export default function Loading() {
   return (
     <div className="flex flex-col gap-8 p-8 animate-in fade-in-0 duration-300">
-      {/* Header Skeleton */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-10 w-48" />
-      </div>
-
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <div className="animate-pulse" style={{ animationDelay: '0ms' }}>
