@@ -17,7 +17,7 @@ export default async function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 auto-rows-[120px] md:grid-cols-2 lg:grid-cols-4 grid-flow-dense">
         <Link href="/haeuser">
           <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -55,7 +55,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
         <Link href="/finanzen">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer lg:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -92,9 +92,14 @@ export default async function Dashboard() {
         </Link>
       </div>
 
-      <DashboardCharts />
-
-      <TenantPaymentBento />
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-8">
+          <DashboardCharts />
+        </div>
+        <div className="lg:col-span-4">
+          <TenantPaymentBento />
+        </div>
+      </div>
     </div>
   )
 }
