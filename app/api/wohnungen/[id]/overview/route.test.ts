@@ -27,8 +27,9 @@ describe('/api/wohnungen/[id]/overview', () => {
   });
 
   it('should return Wohnung overview with Mieter successfully', async () => {
+    const validUuid = '550e8400-e29b-41d4-a716-446655440000';
     const mockWohnungData = {
-      id: 'wohnung-1',
+      id: validUuid,
       name: 'Wohnung 1',
       groesse: 50,
       miete: 800,
@@ -70,13 +71,13 @@ describe('/api/wohnungen/[id]/overview', () => {
       })
     });
 
-    const request = new Request('http://localhost/api/wohnungen/wohnung-1/overview');
-    const response = await GET(request, { params: { id: 'wohnung-1' } });
+    const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
+    const response = await GET(request, { params: Promise.resolve({ id: validUuid }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.wohnung).toEqual({
-      id: 'wohnung-1',
+      id: validUuid,
       name: 'Wohnung 1',
       groesse: 50,
       miete: 800,
@@ -93,8 +94,9 @@ describe('/api/wohnungen/[id]/overview', () => {
       error: { code: 'PGRST116', message: 'No rows found' }
     });
 
-    const request = new Request('http://localhost/api/wohnungen/nonexistent/overview');
-    const response = await GET(request, { params: { id: 'nonexistent' } });
+    const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+    const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
+    const response = await GET(request, { params: Promise.resolve({ id: validUuid }) });
     const data = await response.json();
 
     expect(response.status).toBe(404);
@@ -103,11 +105,20 @@ describe('/api/wohnungen/[id]/overview', () => {
 
   it('should return 400 when no ID provided', async () => {
     const request = new Request('http://localhost/api/wohnungen//overview');
-    const response = await GET(request, { params: { id: '' } });
+    const response = await GET(request, { params: Promise.resolve({ id: '' }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
     expect(data.error).toBe('Wohnungs-ID ist erforderlich.');
+  });
+
+  it('should return 400 when invalid UUID format provided', async () => {
+    const request = new Request('http://localhost/api/wohnungen/invalid-uuid/overview');
+    const response = await GET(request, { params: Promise.resolve({ id: 'invalid-uuid' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data.error).toBe('Ungültige Wohnungs-ID Format.');
   });
 
   it('should handle database errors gracefully', async () => {
@@ -116,8 +127,9 @@ describe('/api/wohnungen/[id]/overview', () => {
       error: { code: 'PGRST000', message: 'Database error' }
     });
 
-    const request = new Request('http://localhost/api/wohnungen/wohnung-1/overview');
-    const response = await GET(request, { params: { id: 'wohnung-1' } });
+    const validUuid = '550e8400-e29b-41d4-a716-446655440000';
+    const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
+    const response = await GET(request, { params: Promise.resolve({ id: validUuid }) });
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -125,8 +137,9 @@ describe('/api/wohnungen/[id]/overview', () => {
   });
 
   it('should handle missing Haus name gracefully', async () => {
+    const validUuid = '550e8400-e29b-41d4-a716-446655440000';
     const mockWohnungData = {
-      id: 'wohnung-1',
+      id: validUuid,
       name: 'Wohnung 1',
       groesse: 50,
       miete: 800,
@@ -147,8 +160,8 @@ describe('/api/wohnungen/[id]/overview', () => {
       })
     });
 
-    const request = new Request('http://localhost/api/wohnungen/wohnung-1/overview');
-    const response = await GET(request, { params: { id: 'wohnung-1' } });
+    const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
+    const response = await GET(request, { params: Promise.resolve({ id: validUuid }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
