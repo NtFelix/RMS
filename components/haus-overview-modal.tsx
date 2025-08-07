@@ -273,10 +273,9 @@ export function HausOverviewModal() {
               </div>
 
               {/* Right Section - Apartment List (2/3 width) */}
-              <div className="w-2/3 space-y-3">
-
-              {/* Wohnungen Table */}
-              <div className="space-y-3" data-apartment-list>
+              <div className="w-2/3">
+                {/* Wohnungen Table with scrollable container */}
+                <div className="space-y-3 h-[calc(100vh-300px)] overflow-y-auto pr-2" data-apartment-list>
                 <h4 className="font-medium">Wohnungen</h4>
                 {hausOverviewData.wohnungen.length > 0 ? (
                   <div className="space-y-2">
