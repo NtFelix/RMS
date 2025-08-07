@@ -21,7 +21,7 @@ export default async function Dashboard() {
       </div>
       <div className="grid gap-4 grid-cols-3 auto-rows-[minmax(140px,auto)] grid-flow-dense">
         <Link href="/haeuser" className="col-span-1 row-span-1">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -33,7 +33,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
         <Link href="/wohnungen" className="col-span-1 row-span-1">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
               <Home className="h-4 w-4 text-muted-foreground" />
@@ -52,7 +52,7 @@ export default async function Dashboard() {
           <OccupancyChart />
         </div>
         <Link href="/mieter" className="col-span-1 row-span-1">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -68,7 +68,7 @@ export default async function Dashboard() {
           <RevenueExpensesChart />
         </div>
         <Link href="/todos" className="col-span-1 row-span-1">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
               <CheckSquare className="h-4 w-4 text-muted-foreground" />
@@ -83,7 +83,7 @@ export default async function Dashboard() {
           <MaintenanceDonutChart />
         </div>
         <Link href="/finanzen" className="col-span-1 row-span-1">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
               <Wallet className="h-4 w-4 text-muted-foreground" />
@@ -95,7 +95,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
         <Link href="/betriebskosten" className="col-span-1 row-span-1">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
               <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
