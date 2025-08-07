@@ -82,7 +82,7 @@ export function RevenueExpensesChart() {
         <CardTitle>Einnahmen & Ausgaben</CardTitle>
         <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
       </CardHeader>
-      <CardContent className="h-full p-0" ref={containerRef}>
+      <CardContent className="h-[300px] p-0 overflow-hidden" ref={containerRef}>
         <ChartContainer
           className="w-full h-full overflow-hidden aspect-auto"
           config={{
