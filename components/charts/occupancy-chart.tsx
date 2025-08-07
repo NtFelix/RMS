@@ -85,14 +85,17 @@ export function OccupancyChart() {
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={occupancyData}>
+            <LineChart
+              data={occupancyData}
+              margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
+              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} width={30} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
               <Line type="monotone" dataKey="vermietet" stroke="var(--color-vermietet)" strokeWidth={2} />
-              <Line type="monotone" dataKey="frei" stroke="var(--color-frei)" strokeWidth={2} />
+              <Line type="monotone" dataKey="frei" stroke="var(--chart-3)" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         </ChartContainer>

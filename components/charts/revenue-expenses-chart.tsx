@@ -78,12 +78,15 @@ export function RevenueExpensesChart() {
           }}
         >
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={revenueData}>
+            <BarChart
+              data={revenueData}
+              margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+            >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="month" />
-              <YAxis />
+              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} width={30} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
               <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
               <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
             </BarChart>
