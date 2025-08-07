@@ -203,7 +203,7 @@ export function TenantPaymentBento() {
       <CardContent className="flex-1 overflow-y-auto pr-2">
         {loading ? (
           <div className="flex justify-center items-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" />
           </div>
         ) : (
           <div className="flex flex-col gap-4">
@@ -221,19 +221,20 @@ export function TenantPaymentBento() {
                     <button
                       type="button"
                       className={
-                        "px-3 py-1 rounded-full text-xs font-medium border transition-colors duration-150 " +
-                        (tenant.paid
-                          ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                          : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100")
+                        `px-3 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
+                          tenant.paid
+                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                            : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                        }`
                       }
                       disabled={updatingStatus === tenant.id}
                       onClick={() => toggleRentPayment(tenant)}
                     >
                       {updatingStatus === tenant.id
-                        ? "Aktualisiere..."
+                        ? 'Aktualisiere...'
                         : tenant.paid
-                        ? "Miete bezahlt"
-                        : "Miete unbezahlt"}
+                        ? 'Miete bezahlt'
+                        : 'Miete unbezahlt'}
                     </button>
                   </div>
                 </div>
@@ -245,7 +246,7 @@ export function TenantPaymentBento() {
         )}
       </CardContent>
     </Card>
-  )
+  );
 }
       </CardContent>
     </Card>
