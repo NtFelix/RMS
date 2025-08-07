@@ -19,7 +19,7 @@ interface WohnungOverviewData {
   };
 }
 
-interface ApartmentTenantRowProps {
+interface ApartmentTenantRowProps extends React.HTMLAttributes<HTMLDivElement> {
   apartment: WohnungOverviewData;
   hausName: string;
   onEditApartment: () => void;
@@ -30,16 +30,23 @@ interface ApartmentTenantRowProps {
   className?: string;
 }
 
-export function ApartmentTenantRow({
-  apartment,
-  hausName,
-  onEditApartment,
-  onEditTenant,
-  onViewDetails,
-  expandable = false,
-  expandedContent,
-  className,
-}: ApartmentTenantRowProps) {
+export const ApartmentTenantRow = React.forwardRef<
+  HTMLDivElement,
+  ApartmentTenantRowProps
+>((
+  {
+    apartment,
+    hausName,
+    onEditApartment,
+    onEditTenant,
+    onViewDetails,
+    expandable = false,
+    expandedContent,
+    className,
+    ...props
+  },
+  ref
+) => {
   const [isExpanded, setIsExpanded] = React.useState(false)
   const isVacant = apartment.status === 'frei' || !apartment.currentTenant
 
@@ -56,11 +63,15 @@ export function ApartmentTenantRow({
   }
 
   const rowContent = (
-    <div className={cn(
-      "flex items-center justify-between p-4 border rounded-lg transition-colors hover:bg-muted/50",
-      isVacant && "border-dashed border-muted-foreground/30",
-      className
-    )}>
+    <div 
+      ref={!expandable ? ref : undefined}
+      className={cn(
+        "flex items-center justify-between p-4 border rounded-lg transition-colors hover:bg-muted/50",
+        isVacant && "border-dashed border-muted-foreground/30",
+        className
+      )}
+      {...(!expandable ? props : {})}
+    >
       {/* Left side - Apartment info */}
       <div className="flex items-center gap-4 flex-1">
         <div className="flex items-center gap-2">
@@ -134,7 +145,7 @@ export function ApartmentTenantRow({
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
       <CollapsibleTrigger asChild>
-        <div className="cursor-pointer">
+        <div ref={ref} className="cursor-pointer" {...props}>
           {rowContent}
         </div>
       </CollapsibleTrigger>
@@ -147,4 +158,6 @@ export function ApartmentTenantRow({
       )}
     </Collapsible>
   )
-}
+})
+
+ApartmentTenantRow.displayName = "ApartmentTenantRow"
