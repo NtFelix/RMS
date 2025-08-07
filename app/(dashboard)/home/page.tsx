@@ -44,7 +44,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <div className="col-span-1 row-span-6">
+        <div className="col-span-1 row-span-2">
           <TenantPaymentBento />
         </div>
 
