@@ -19,7 +19,7 @@ export default async function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
-      <div className="grid gap-4 grid-cols-3 auto-rows-[150px] grid-flow-dense">
+      <div className="grid gap-4 grid-cols-3 auto-rows-[200px] grid-flow-dense">
         <Link href="/haeuser" className="col-span-1 row-span-1">
           <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -44,11 +44,11 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <div className="col-span-1 row-span-4 lg:row-span-5">
+        <div className="col-span-1 row-span-6">
           <TenantPaymentBento />
         </div>
 
-        <div className="col-span-2 row-span-1">
+        <div className="col-span-2 row-span-2">
           <OccupancyChart />
         </div>
         <Link href="/mieter" className="col-span-1 row-span-1">
@@ -64,7 +64,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
 
-        <div className="col-span-2 row-span-2">
+        <div className="col-span-2 row-span-3">
           <RevenueExpensesChart />
         </div>
         <Link href="/todos" className="col-span-1 row-span-1">
@@ -79,7 +79,7 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <div className="col-span-1 row-span-1">
+        <div className="col-span-1 row-span-2">
           <MaintenanceDonutChart />
         </div>
         <Link href="/finanzen" className="col-span-1 row-span-1">
