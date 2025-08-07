@@ -67,12 +67,12 @@ export default async function Dashboard() {
           <OccupancyChart />
         </div>
 
-        {/* Row 5: Revenue Chart (3 cols, 3 rows) + Wider vertically stacked summary cards (3 cols, 3 rows) */}
-        <div className="col-span-3 row-span-3">
+        {/* Row 5: Revenue Chart (4 cols, 3 rows) + Vertically stacked summary cards (2 cols, 3 rows) */}
+        <div className="col-span-4 row-span-3">
           <RevenueExpensesChart />
         </div>
-        <div className="col-span-3 row-span-3">
-          {/* Container for wider vertically stacked summary cards - reaching to right side */}
+        <div className="col-span-2 row-span-3">
+          {/* Container for vertically stacked summary cards - 1/3 of page width */}
           <div className="h-full flex flex-col gap-4">
             <Link href="/todos" className="flex-1">
               <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
