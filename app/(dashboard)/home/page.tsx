@@ -4,9 +4,11 @@ export const dynamic = 'force-dynamic';
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
-import { DashboardCharts } from "@/components/dashboard-charts"
 import { TenantPaymentBento } from "@/components/tenant-payment-bento"
 import { getDashboardSummary } from "@/lib/data-fetching"
+import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
+import { OccupancyChart } from "@/components/charts/occupancy-chart"
+import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
 
 export default async function Dashboard() {
   // Fetch real data from database
@@ -17,9 +19,9 @@ export default async function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
-      <div className="grid gap-4 auto-rows-[120px] md:grid-cols-2 lg:grid-cols-4 grid-flow-dense">
-        <Link href="/haeuser">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+      <div className="grid gap-4 grid-cols-3 auto-rows-[150px] grid-flow-dense">
+        <Link href="/haeuser" className="col-span-1 row-span-1">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -30,8 +32,8 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/wohnungen">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+        <Link href="/wohnungen" className="col-span-1 row-span-1">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
               <Home className="h-4 w-4 text-muted-foreground" />
@@ -42,8 +44,15 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/mieter">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+        <div className="col-span-1 row-span-4 lg:row-span-5">
+          <TenantPaymentBento />
+        </div>
+
+        <div className="col-span-2 row-span-1">
+          <OccupancyChart />
+        </div>
+        <Link href="/mieter" className="col-span-1 row-span-1">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -54,8 +63,12 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <Link href="/todos">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
+
+        <div className="col-span-2 row-span-2">
+          <RevenueExpensesChart />
+        </div>
+        <Link href="/todos" className="col-span-1 row-span-1">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
               <CheckSquare className="h-4 w-4 text-muted-foreground" />
@@ -66,39 +79,33 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-8">
-          <DashboardCharts />
+        <div className="col-span-1 row-span-1">
+          <MaintenanceDonutChart />
         </div>
-        <div className="lg:col-span-4 flex flex-col gap-4">
-          <Link href="/finanzen">
-            <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
-                <Wallet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
-                <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link href="/betriebskosten">
-            <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
-                <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
-                <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
-              </CardContent>
-            </Card>
-          </Link>
-          <TenantPaymentBento />
-        </div>
+        <Link href="/finanzen" className="col-span-1 row-span-1">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
+              <Wallet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+              <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link href="/betriebskosten" className="col-span-1 row-span-1">
+          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer h-full">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
+              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+              <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
     </div>
   )
