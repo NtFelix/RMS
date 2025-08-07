@@ -53,11 +53,19 @@ export function SummaryCard({
   const CardWrapper = ({ children }: { children: ReactNode }) => {
     if (hoverDetails) {
       return (
-        <HoverCard>
-          <HoverCardTrigger asChild>
-            {children}
-          </HoverCardTrigger>
-          <HoverCardContent className="w-80">
+        <div className="relative group">
+          <HoverCard openDelay={0} closeDelay={0}>
+            <HoverCardTrigger asChild>
+              {children}
+            </HoverCardTrigger>
+            <HoverCardContent 
+              className="w-80 absolute left-full top-0 ml-2 h-auto min-h-full"
+              side="right"
+              align="start"
+              sideOffset={0}
+              alignOffset={0}
+              style={{ height: 'auto', minHeight: '100%' }}
+            >
             <div className="space-y-3">
               <div className="space-y-1">
                 <h4 className="text-sm font-semibold">{title} - Details</h4>
@@ -91,8 +99,9 @@ export function SummaryCard({
                 )}
               </div>
             </div>
-          </HoverCardContent>
-        </HoverCard>
+            </HoverCardContent>
+          </HoverCard>
+        </div>
       );
     }
     return <>{children}</>;
@@ -105,7 +114,7 @@ export function SummaryCard({
           "relative overflow-hidden rounded-xl border-none shadow-md transition-all duration-200 hover:shadow-lg",
           onClick && "cursor-pointer hover:scale-[1.02]",
           className
-        )}
+        )} 
         onClick={onClick}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
