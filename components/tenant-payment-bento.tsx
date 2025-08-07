@@ -129,7 +129,6 @@ export function TenantPaymentBento() {
       }
 
       // Refresh data
-      // re-fetch logic
       setLoading(true)
       const supabase2 = createClient()
 
@@ -244,10 +243,6 @@ export function TenantPaymentBento() {
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
-  );
-}
       </CardContent>
     </Card>
   );
