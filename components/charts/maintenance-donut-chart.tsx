@@ -14,12 +14,12 @@ const placeholderData = [
 export function MaintenanceDonutChart() {
   // TODO: Replace with dynamic data from Finanzen if needed
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Instandhaltung</CardTitle>
-        <CardDescription>Verteilung nach Kategorie</CardDescription>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0 pb-2">
+        <CardTitle className="text-sm">Instandhaltung</CardTitle>
+        <CardDescription className="text-xs">Verteilung nach Kategorie</CardDescription>
       </CardHeader>
-      <CardContent className="h-full p-0 overflow-hidden">
+      <CardContent className="flex-1 p-2 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -28,8 +28,8 @@ export function MaintenanceDonutChart() {
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius="50%"
-              outerRadius="80%"
+              innerRadius="40%"
+              outerRadius="70%"
               fill="#8884d8"
               paddingAngle={2}
             >
@@ -37,7 +37,7 @@ export function MaintenanceDonutChart() {
                 <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
               ))}
             </Pie>
-            <Legend />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
             <Tooltip />
           </PieChart>
         </ResponsiveContainer>

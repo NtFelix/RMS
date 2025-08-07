@@ -84,14 +84,14 @@ export function OccupancyChart() {
   }, []);
 
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <CardTitle>Belegung</CardTitle>
-        <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0 pb-2">
+        <CardTitle className="text-sm">Belegung</CardTitle>
+        <CardDescription className="text-xs">Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
       </CardHeader>
-      <CardContent className="h-[240px] p-0 overflow-hidden" ref={containerRef}>
+      <CardContent className="flex-1 p-2 min-h-0" ref={containerRef}>
         <ChartContainer
-          className="w-full h-full overflow-hidden aspect-auto"
+          className="w-full h-full"
           config={{
             vermietet: { label: "Vermietet", color: "hsl(var(--chart-1))" },
             frei: { label: "Frei", color: "hsl(var(--chart-3))" },
@@ -100,13 +100,13 @@ export function OccupancyChart() {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
               data={occupancyData}
-              margin={{ top: 8, right: 8, left: 8, bottom: 8 }}
+              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} width={30} tickCount={tickCount} />
+              <XAxis dataKey="month" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} width={25} tickCount={tickCount} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
               <Line type="monotone" dataKey="vermietet" stroke="var(--color-vermietet)" strokeWidth={2} />
               <Line type="monotone" dataKey="frei" stroke="var(--chart-3)" strokeWidth={2} />
             </LineChart>
