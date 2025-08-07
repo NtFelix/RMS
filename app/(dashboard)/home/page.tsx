@@ -67,50 +67,56 @@ export default async function Dashboard() {
           <OccupancyChart />
         </div>
 
-        {/* Row 5: Revenue Chart + Other cards */}
-        <div className="col-span-3 row-span-3">
+        {/* Row 5: Revenue Chart (4 cols, 3 rows) + Empty space for proper alignment */}
+        <div className="col-span-4 row-span-3">
           <RevenueExpensesChart />
         </div>
-        <Link href="/todos" className="col-span-1 row-span-1">
-          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.offeneAufgabenCount}</div>
-              <p className="text-xs text-muted-foreground">Offene Aufgaben</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        {/* Row 6: Finance cards */}
-        <Link href="/finanzen" className="col-span-1 row-span-1">
-          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
-              <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
-            </CardContent>
-          </Card>
-        </Link>
-
-        {/* Row 7: Betriebskosten card */}
-        <Link href="/betriebskosten" className="col-span-1 row-span-1">
-          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
-              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
-              <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
-            </CardContent>
-          </Card>
-        </Link>
+        <div className="col-span-1 row-span-3">
+          {/* Container for vertically stacked summary cards */}
+          <div className="h-full flex flex-col gap-4">
+            <Link href="/todos" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
+                  <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{summary.offeneAufgabenCount}</div>
+                  <p className="text-xs text-muted-foreground">Offene Aufgaben</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/finanzen" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
+                  <Wallet className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+                  <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/betriebskosten" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
+                  <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+                  <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
+        <div className="col-span-1 row-span-3">
+          {/* Empty space to maintain grid alignment */}
+        </div>
 
         {/* Row 8: Instandhaltung Chart - Full width row */}
         <div className="col-span-6 row-span-1">
