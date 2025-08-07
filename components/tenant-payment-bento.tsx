@@ -201,12 +201,6 @@ export function TenantPaymentBento() {
         <CardDescription>Bezahlt vs. offen</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto pr-2">
-    <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle>Mietzahlungen</CardTitle>
-        <CardDescription>Bezahlt vs. offen</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto pr-2">
         {loading ? (
           <div className="flex justify-center items-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
@@ -249,6 +243,10 @@ export function TenantPaymentBento() {
             )}
           </div>
         )}
+      </CardContent>
+    </Card>
+  )
+}
       </CardContent>
     </Card>
   )
