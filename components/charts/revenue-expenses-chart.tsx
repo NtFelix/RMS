@@ -71,7 +71,7 @@ export function RevenueExpensesChart() {
       </CardHeader>
       <CardContent className="h-full p-0">
         <ChartContainer
-          className="w-full h-full overflow-hidden"
+          className="w-full h-full overflow-hidden aspect-auto"
           config={{
             einnahmen: { label: "Einnahmen", color: "hsl(var(--chart-1))" },
             ausgaben: { label: "Ausgaben", color: "hsl(var(--chart-2))" },

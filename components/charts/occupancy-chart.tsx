@@ -78,7 +78,7 @@ export function OccupancyChart() {
       </CardHeader>
       <CardContent className="h-full p-0">
         <ChartContainer
-          className="w-full h-full overflow-hidden"
+          className="w-full h-full overflow-hidden aspect-auto"
           config={{
             vermietet: { label: "Vermietet", color: "hsl(var(--chart-1))" },
             frei: { label: "Frei", color: "hsl(var(--chart-3))" },
