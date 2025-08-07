@@ -89,7 +89,7 @@ export function OccupancyChart() {
         <CardTitle>Belegung</CardTitle>
         <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
       </CardHeader>
-      <CardContent className="h-full p-0 min-h-[240px]" ref={containerRef}>
+      <CardContent className="h-full p-0" ref={containerRef}>
         <ChartContainer
           className="w-full h-full overflow-hidden aspect-auto"
           config={{
