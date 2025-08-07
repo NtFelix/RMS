@@ -14,6 +14,19 @@ const initialRevenueData = Array.from({ length: 12 }, (_, i) => ({
 export function RevenueExpensesChart() {
   const [revenueData, setRevenueData] = useState(initialRevenueData);
 
+  // Dynamic tick count for Y axis
+  const [tickCount, setTickCount] = useState(5);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.contentRect.height;
+      setTickCount(Math.max(3, Math.floor(h / 50)));
+    });
+    if (containerRef.current) ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       const supabase = createClient();
@@ -69,7 +82,7 @@ export function RevenueExpensesChart() {
         <CardTitle>Einnahmen & Ausgaben</CardTitle>
         <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
       </CardHeader>
-      <CardContent className="h-full p-0">
+      <CardContent className="h-full p-0 min-h-[240px]" ref={containerRef}>
         <ChartContainer
           className="w-full h-full overflow-hidden aspect-auto"
           config={{
@@ -84,7 +97,7 @@ export function RevenueExpensesChart() {
             >
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} width={30} />
+              <YAxis tick={{ fontSize: 10 }} width={30} tickCount={tickCount} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />

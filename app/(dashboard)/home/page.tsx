@@ -64,7 +64,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
 
-        <div className="col-span-2 row-span-3">
+        <div className="col-span-2 row-span-4">
           <RevenueExpensesChart />
         </div>
         <Link href="/todos" className="col-span-1 row-span-1">
