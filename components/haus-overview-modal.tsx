@@ -174,9 +174,8 @@ export function HausOverviewModal() {
   return (
     <Dialog open={isHausOverviewModalOpen} onOpenChange={() => closeHausOverviewModal()}>
       <DialogContent className="max-w-6xl max-h-[90vh] p-0">
-        <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5" />
+        <DialogHeader>
+          <DialogTitle className="sr-only">
             {hausOverviewError ? (
               "Fehler beim Laden"
             ) : hausOverviewData ? (
@@ -186,7 +185,6 @@ export function HausOverviewModal() {
             )}
           </DialogTitle>
         </DialogHeader>
-
         <div className="p-6">
           {hausOverviewLoading ? (
             <HausOverviewSkeleton 
