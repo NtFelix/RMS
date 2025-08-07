@@ -250,5 +250,5 @@ export function TenantPaymentBento() {
 }
       </CardContent>
     </Card>
-  )
+  );
 }
