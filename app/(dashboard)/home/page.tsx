@@ -9,6 +9,7 @@ import { getDashboardSummary } from "@/lib/data-fetching"
 import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
 import { OccupancyChart } from "@/components/charts/occupancy-chart"
 import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
+import { LastTransactionsContainer } from "@/components/last-transactions-container"
 
 export default async function Dashboard() {
   // Fetch real data from database
@@ -115,8 +116,11 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Row 8: Instandhaltung Chart - Full width with increased height */}
-        <div className="col-span-6 row-span-3">
+        {/* Row 8: Last Transactions (left 50%) + Instandhaltung Chart (right 50%) */}
+        <div className="col-span-3 row-span-3">
+          <LastTransactionsContainer />
+        </div>
+        <div className="col-span-3 row-span-3">
           <MaintenanceDonutChart />
         </div>
       </div>
