@@ -20,7 +20,7 @@ export default async function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
       <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
-        {/* Row 1: Three narrow summary cards + tenant payment list */}
+        {/* Row 1: Three narrow summary cards + Tenant Payment List starts here */}
         <Link href="/haeuser" className="col-span-1 row-span-1">
           <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -57,16 +57,14 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <div className="col-span-3 row-span-1">
-          {/* Empty space for better layout */}
+        {/* Tenant Payment List now starts from row 1 and spans 4 rows */}
+        <div className="col-span-3 row-span-4">
+          <TenantPaymentBento />
         </div>
 
-        {/* Row 2: Belegung Chart (expanded height) + Tenant Payment List */}
+        {/* Row 2: Belegung Chart (expanded height) */}
         <div className="col-span-3 row-span-3">
           <OccupancyChart />
-        </div>
-        <div className="col-span-3 row-span-3">
-          <TenantPaymentBento />
         </div>
 
         {/* Row 5: Revenue Chart (expanded height) + Other cards */}
