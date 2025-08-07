@@ -20,7 +20,7 @@ export default async function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
       <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
-        {/* Row 1: Three summary cards (2/3 width) + Tenant Payment List (1/3 width) */}
+        {/* Row 1: Three summary cards using maximum 2/3 width (4 columns) + Tenant Payment List (1/3 width - 2 columns) */}
         <Link href="/haeuser" className="col-span-1 row-span-1">
           <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -58,7 +58,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
         <div className="col-span-1 row-span-1">
-          {/* Empty space for better layout */}
+          {/* Extra space to maximize summary cards width within 2/3 of page */}
         </div>
         {/* Tenant Payment List (1/3 width - 2 columns) */}
         <div className="col-span-2 row-span-4">
