@@ -115,8 +115,8 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        {/* Row 8: Instandhaltung Chart - Full width row */}
-        <div className="col-span-6 row-span-1">
+        {/* Row 8: Instandhaltung Chart - Full width with increased height */}
+        <div className="col-span-6 row-span-3">
           <MaintenanceDonutChart />
         </div>
       </div>
