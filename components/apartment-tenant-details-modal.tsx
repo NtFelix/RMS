@@ -160,16 +160,11 @@ export function ApartmentTenantDetailsModal() {
   return (
     <Dialog open={isApartmentTenantDetailsModalOpen} onOpenChange={() => closeApartmentTenantDetailsModal()}>
       <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-        <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle className="flex items-center gap-2">
-            <Building className="h-5 w-5" />
-            {apartmentTenantDetailsError ? (
-              "Fehler beim Laden"
-            ) : apartmentTenantDetailsData ? (
-              `${apartmentTenantDetailsData.apartment.name} - Details`
-            ) : (
-              "Wohnung-Mieter Details"
-            )}
+        <DialogHeader className="px-6 py-4">
+          <DialogTitle className="sr-only">
+            {apartmentTenantDetailsError 
+              ? "Fehler beim Laden" 
+              : "Wohnung-Mieter Details"}
           </DialogTitle>
         </DialogHeader>
 
