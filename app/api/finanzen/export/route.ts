@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const selectedType = searchParams.get('selectedType');
 
     const supabase = await createClient();
-    const BATCH_SIZE = 1000; // Process 1000 records at a time
+    const BATCH_SIZE = 5000; // Increased batch size for better performance
     let allData: any[] = [];
     let offset = 0;
     let hasMore = true;
@@ -114,8 +114,8 @@ export async function GET(request: Request) {
         offset += BATCH_SIZE;
       }
 
-      // Safety check to prevent infinite loops
-      if (offset >= 25000) { // Max 25,000 rows
+      // Safety check to prevent infinite loops - removed arbitrary limit
+      if (offset >= 100000) { // Increased safety limit to 100,000 rows
         hasMore = false;
       }
     }

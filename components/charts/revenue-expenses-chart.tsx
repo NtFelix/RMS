@@ -30,12 +30,37 @@ export function RevenueExpensesChart() {
   useEffect(() => {
     const fetchData = async () => {
       const supabase = createClient();
-      const { data: finanzenData, error } = await supabase
-        .from("Finanzen")
-        .select("*")
-        .order("datum", { ascending: true });
+      
+      // Fetch ALL finance data without any limits
+      let allFinanzenData: any[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) return;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from("Finanzen")
+          .select("*")
+          .order("datum", { ascending: true })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) {
+          console.error("Error fetching finance data:", error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          allFinanzenData = [...allFinanzenData, ...data];
+          page++;
+          if (data.length < pageSize) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const finanzenData = allFinanzenData;
 
       // Finanzdaten nach Monaten gruppieren
       type MonthlyData = { month: string; einnahmen: number; ausgaben: number; };
