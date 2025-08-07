@@ -19,8 +19,8 @@ export function MaintenanceDonutChart() {
         <CardTitle>Instandhaltung</CardTitle>
         <CardDescription>Verteilung nach Kategorie</CardDescription>
       </CardHeader>
-      <CardContent className="flex items-center justify-center h-[180px]">
-        <ResponsiveContainer width="100%" height={160}>
+      <CardContent className="h-full p-0 overflow-hidden">
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={placeholderData}
@@ -28,8 +28,8 @@ export function MaintenanceDonutChart() {
               nameKey="name"
               cx="50%"
               cy="50%"
-              innerRadius={36}
-              outerRadius={60}
+              innerRadius="50%"
+              outerRadius="80%"
               fill="#8884d8"
               paddingAngle={2}
             >

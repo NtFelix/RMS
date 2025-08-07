@@ -69,8 +69,9 @@ export function RevenueExpensesChart() {
         <CardTitle>Einnahmen & Ausgaben</CardTitle>
         <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
       </CardHeader>
-      <CardContent className="chart-container h-[280px]">
+      <CardContent className="h-full p-0">
         <ChartContainer
+          className="w-full h-full"
           config={{
             einnahmen: { label: "Einnahmen", color: "hsl(var(--chart-1))" },
             ausgaben: { label: "Ausgaben", color: "hsl(var(--chart-2))" },

@@ -76,8 +76,9 @@ export function OccupancyChart() {
         <CardTitle>Belegung</CardTitle>
         <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
       </CardHeader>
-      <CardContent className="chart-container h-[180px]">
+      <CardContent className="h-full p-0">
         <ChartContainer
+          className="w-full h-full"
           config={{
             vermietet: { label: "Vermietet", color: "hsl(var(--chart-1))" },
             frei: { label: "Frei", color: "hsl(var(--chart-3))" },
