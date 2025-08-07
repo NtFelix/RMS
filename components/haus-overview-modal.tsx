@@ -232,11 +232,21 @@ export function HausOverviewModal() {
                     onClick={() => handleSummaryCardClick('area')}
                   />
                   <SummaryCard
-                    title="Wohnungen"
-                    value={hausOverviewData.apartmentCount || hausOverviewData.wohnungen?.length || 0}
-                    icon={<Building className="h-4 w-4 text-muted-foreground" />}
-                    valueFormatter={(val) => `${val} Stk.`}
-                    onClick={() => handleSummaryCardClick('apartments')}
+                    title="Gesamtmiete"
+                    value={hausOverviewData.totalRent || 0}
+                    icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+                    hoverDetails={{
+                      average: hausOverviewData.summaryStats?.averageRent,
+                      median: hausOverviewData.summaryStats?.medianRent,
+                      breakdown: hausOverviewData.wohnungen
+                        .filter(w => w.status === 'vermietet')
+                        .map(w => ({
+                          label: w.name,
+                          value: w.miete
+                        })),
+                      isCurrency: true
+                    }}
+                    onClick={() => handleSummaryCardClick('rent')}
                   />
                   <SummaryCard
                     title="Mieter"
@@ -253,21 +263,11 @@ export function HausOverviewModal() {
                     onClick={() => handleSummaryCardClick('tenants')}
                   />
                   <SummaryCard
-                    title="Gesamtmiete"
-                    value={hausOverviewData.totalRent || 0}
-                    icon={<Euro className="h-4 w-4 text-muted-foreground" />}
-                    hoverDetails={{
-                      average: hausOverviewData.summaryStats?.averageRent,
-                      median: hausOverviewData.summaryStats?.medianRent,
-                      breakdown: hausOverviewData.wohnungen
-                        .filter(w => w.status === 'vermietet')
-                        .map(w => ({
-                          label: w.name,
-                          value: w.miete
-                        })),
-                      isCurrency: true
-                    }}
-                    onClick={() => handleSummaryCardClick('rent')}
+                    title="Wohnungen"
+                    value={hausOverviewData.apartmentCount || hausOverviewData.wohnungen?.length || 0}
+                    icon={<Building className="h-4 w-4 text-muted-foreground" />}
+                    valueFormatter={(val) => `${val} Stk.`}
+                    onClick={() => handleSummaryCardClick('apartments')}
                   />
                 </div>
               </div>
