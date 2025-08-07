@@ -173,7 +173,7 @@ export function HausOverviewModal() {
 
   return (
     <Dialog open={isHausOverviewModalOpen} onOpenChange={() => closeHausOverviewModal()}>
-      <DialogContent className="max-w-6xl max-h-[90vh] p-0">
+      <DialogContent className="max-w-7xl max-h-[90vh] p-0">
         <DialogHeader>
           <DialogTitle className="sr-only">
             {hausOverviewError ? (
@@ -213,8 +213,8 @@ export function HausOverviewModal() {
                   </p>
                 </div>
 
-                {/* Summary Cards Grid */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Summary Cards - Vertical Stack */}
+                <div className="space-y-3">
                   <SummaryCard
                     title="Gesamtfläche"
                     value={hausOverviewData.totalArea || 0}
