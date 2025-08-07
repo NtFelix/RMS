@@ -226,7 +226,8 @@ export function HausOverviewModal() {
                       breakdown: hausOverviewData.wohnungen.map(w => ({
                         label: w.name,
                         value: w.groesse
-                      }))
+                      })),
+                      isCurrency: false
                     }}
                     onClick={() => handleSummaryCardClick('area')}
                   />
@@ -246,7 +247,8 @@ export function HausOverviewModal() {
                       breakdown: [
                         { label: 'Vermietet', value: hausOverviewData.tenantCount || 0 },
                         { label: 'Frei', value: (hausOverviewData.apartmentCount || 0) - (hausOverviewData.tenantCount || 0) }
-                      ]
+                      ],
+                      isCurrency: false
                     }}
                     onClick={() => handleSummaryCardClick('tenants')}
                   />
@@ -262,7 +264,8 @@ export function HausOverviewModal() {
                         .map(w => ({
                           label: w.name,
                           value: w.miete
-                        }))
+                        })),
+                      isCurrency: true
                     }}
                     onClick={() => handleSummaryCardClick('rent')}
                   />

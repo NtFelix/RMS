@@ -11,6 +11,7 @@ interface SummaryCardHoverDetails {
   average?: number;
   median?: number;
   breakdown?: Array<{ label: string; value: number }>;
+  isCurrency?: boolean;
 }
 
 interface SummaryCardProps {
@@ -41,6 +42,14 @@ export function SummaryCard({
     return <SummaryCardSkeleton className={className} />;
   }
 
+  const formatHoverValue = (value: number) => {
+    if (hoverDetails?.isCurrency) {
+      return formatCurrency(value);
+    }
+    // For non-currency values, use the same formatter as the main value
+    return valueFormatter ? valueFormatter(value) : value.toString();
+  };
+
   const CardWrapper = ({ children }: { children: ReactNode }) => {
     if (hoverDetails) {
       return (
@@ -60,13 +69,13 @@ export function SummaryCard({
                 {hoverDetails.average !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Durchschnitt:</span>
-                    <span className="font-medium">{formatCurrency(hoverDetails.average)}</span>
+                    <span className="font-medium">{formatHoverValue(hoverDetails.average)}</span>
                   </div>
                 )}
                 {hoverDetails.median !== undefined && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Median:</span>
-                    <span className="font-medium">{formatCurrency(hoverDetails.median)}</span>
+                    <span className="font-medium">{formatHoverValue(hoverDetails.median)}</span>
                   </div>
                 )}
                 {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
@@ -75,7 +84,7 @@ export function SummaryCard({
                     {hoverDetails.breakdown.map((item, index) => (
                       <div key={index} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{item.label}:</span>
-                        <span className="font-medium">{formatCurrency(item.value)}</span>
+                        <span className="font-medium">{formatHoverValue(item.value)}</span>
                       </div>
                     ))}
                   </div>
