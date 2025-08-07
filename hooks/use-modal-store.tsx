@@ -212,6 +212,7 @@ interface ModalState {
   setHausOverviewLoading: (loading: boolean) => void;
   setHausOverviewError: (error?: string) => void;
   setHausOverviewData: (data?: HausWithWohnungen) => void;
+  refreshHausOverviewData: () => Promise<void>;
 
   // Wohnung Overview Modal State
   isWohnungOverviewModalOpen: boolean;
@@ -223,6 +224,7 @@ interface ModalState {
   setWohnungOverviewLoading: (loading: boolean) => void;
   setWohnungOverviewError: (error?: string) => void;
   setWohnungOverviewData: (data?: WohnungWithMieter) => void;
+  refreshWohnungOverviewData: () => Promise<void>;
 
   // Apartment-Tenant Details Modal State
   isApartmentTenantDetailsModalOpen: boolean;
@@ -234,6 +236,7 @@ interface ModalState {
   setApartmentTenantDetailsLoading: (loading: boolean) => void;
   setApartmentTenantDetailsError: (error?: string) => void;
   setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => void;
+  refreshApartmentTenantDetailsData: () => Promise<void>;
 
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
@@ -520,6 +523,26 @@ export const useModalStore = create<ModalState>((set, get) => {
         });
       }
     },
+    refreshHausOverviewData: async () => {
+      const state = get();
+      if (!state.hausOverviewData?.id) return;
+      
+      set({ hausOverviewLoading: true, hausOverviewError: undefined });
+      
+      try {
+        const response = await fetch(`/api/haeuser/${state.hausOverviewData.id}/overview`);
+        if (!response.ok) {
+          throw new Error('Failed to refresh Haus overview data');
+        }
+        const data = await response.json();
+        set({ hausOverviewData: data, hausOverviewLoading: false });
+      } catch (error) {
+        set({ 
+          hausOverviewError: error instanceof Error ? error.message : 'An error occurred',
+          hausOverviewLoading: false 
+        });
+      }
+    },
     closeHausOverviewModal: (options?: CloseModalOptions) => {
       set(initialHausOverviewModalState);
     },
@@ -558,6 +581,26 @@ export const useModalStore = create<ModalState>((set, get) => {
           wohnungOverviewData: data,
           wohnungOverviewLoading: false 
         });
+      } catch (error) {
+        set({ 
+          wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
+          wohnungOverviewLoading: false 
+        });
+      }
+    },
+    refreshWohnungOverviewData: async () => {
+      const state = get();
+      if (!state.wohnungOverviewData?.id) return;
+      
+      set({ wohnungOverviewLoading: true, wohnungOverviewError: undefined });
+      
+      try {
+        const response = await fetch(`/api/wohnungen/${state.wohnungOverviewData.id}/overview`);
+        if (!response.ok) {
+          throw new Error('Failed to refresh Wohnung overview data');
+        }
+        const data = await response.json();
+        set({ wohnungOverviewData: data, wohnungOverviewLoading: false });
       } catch (error) {
         set({ 
           wohnungOverviewError: error instanceof Error ? error.message : 'An error occurred',
@@ -607,6 +650,30 @@ export const useModalStore = create<ModalState>((set, get) => {
           apartmentTenantDetailsData: data,
           apartmentTenantDetailsLoading: false 
         });
+      } catch (error) {
+        set({ 
+          apartmentTenantDetailsError: error instanceof Error ? error.message : 'An error occurred',
+          apartmentTenantDetailsLoading: false 
+        });
+      }
+    },
+    refreshApartmentTenantDetailsData: async () => {
+      const state = get();
+      if (!state.apartmentTenantDetailsData?.apartment?.id) return;
+      
+      set({ apartmentTenantDetailsLoading: true, apartmentTenantDetailsError: undefined });
+      
+      try {
+        const url = state.apartmentTenantDetailsData.tenant
+          ? `/api/apartments/${state.apartmentTenantDetailsData.apartment.id}/tenant/${state.apartmentTenantDetailsData.tenant.id}/details`
+          : `/api/apartments/${state.apartmentTenantDetailsData.apartment.id}/details`;
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error('Failed to refresh apartment-tenant details');
+        }
+        const data = await response.json();
+        set({ apartmentTenantDetailsData: data, apartmentTenantDetailsLoading: false });
       } catch (error) {
         set({ 
           apartmentTenantDetailsError: error instanceof Error ? error.message : 'An error occurred',

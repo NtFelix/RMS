@@ -30,6 +30,7 @@ export function HausOverviewModal() {
     openWohnungOverviewModal,
     setHausOverviewLoading,
     setHausOverviewData,
+    refreshHausOverviewData,
   } = useModalStore()
 
   const [loadingProgress, setLoadingProgress] = React.useState(0)
@@ -108,8 +109,7 @@ export function HausOverviewModal() {
       const hausData = [{ id: hausOverviewData.id, name: hausOverviewData.name }]
       openWohnungModal(transformedApartment, hausData, () => {
         // Refresh data after successful edit
-        // Note: In a real implementation, we might want to refresh the data
-        // For now, we'll just close and reopen the modal
+        refreshHausOverviewData()
       })
     }
   }
@@ -117,19 +117,56 @@ export function HausOverviewModal() {
   const handleEditTenant = (tenantId: string) => {
     // Find the tenant data and open the edit modal
     const apartment = hausOverviewData?.wohnungen.find(w => w.currentTenant?.id === tenantId)
-    if (apartment?.currentTenant) {
-      openTenantModal(apartment.currentTenant, hausOverviewData?.wohnungen)
+    if (apartment?.currentTenant && hausOverviewData) {
+      // Transform tenant data to match expected format
+      const transformedTenant = {
+        id: apartment.currentTenant.id,
+        name: apartment.currentTenant.name,
+        email: '', // Not available in overview data
+        telefonnummer: '', // Not available in overview data
+        einzug: apartment.currentTenant.einzug || '',
+        auszug: '', // Not available in overview data
+        notiz: '', // Not available in overview data
+        wohnung_id: apartment.id
+      }
+      const wohnungen = hausOverviewData.wohnungen.map(w => ({ id: w.id, name: w.name }))
+      openTenantModal(transformedTenant, wohnungen)
     }
   }
 
   const handleViewDetails = (apartmentId: string, tenantId?: string) => {
-    // Open the Wohnung overview modal instead of apartment-tenant details
-    openWohnungOverviewModal(apartmentId)
+    // Open the apartment-tenant details modal for comprehensive information
+    openApartmentTenantDetailsModal(apartmentId, tenantId)
   }
 
   const handleSummaryCardClick = (cardType: 'area' | 'apartments' | 'tenants' | 'rent') => {
-    // Placeholder for future detailed view navigation
-    console.log(`Summary card clicked: ${cardType}`)
+    // Implement summary card click handlers for detailed information access
+    switch (cardType) {
+      case 'area':
+        // Show detailed area breakdown by apartment
+        console.log('Showing area breakdown by apartment')
+        // Could scroll to apartment list or highlight area information
+        break
+      case 'apartments':
+        // Highlight or filter the apartment list
+        console.log('Highlighting apartment list')
+        // Could scroll to apartment section
+        const apartmentSection = document.querySelector('[data-apartment-list]')
+        if (apartmentSection) {
+          apartmentSection.scrollIntoView({ behavior: 'smooth' })
+        }
+        break
+      case 'tenants':
+        // Show tenant-specific information or filtering
+        console.log('Showing tenant information')
+        // Could filter to show only occupied apartments
+        break
+      case 'rent':
+        // Display rent breakdown and financial details
+        console.log('Showing rent breakdown')
+        // Could show detailed financial information
+        break
+    }
   }
 
   if (!isHausOverviewModalOpen) return null
@@ -163,77 +200,119 @@ export function HausOverviewModal() {
               loadingStartTime={loadingStartTime}
             />
           ) : hausOverviewData ? (
-            <div className="space-y-6">
-              {/* House Header Info */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-lg">Haus-Übersicht: {hausOverviewData.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {hausOverviewData.strasse && `${hausOverviewData.strasse}, `}
-                  {hausOverviewData.ort}
-                </p>
-                <div className="flex gap-4 text-sm">
-                  <span>Größe: {hausOverviewData.size && typeof hausOverviewData.size === 'string' ? hausOverviewData.size.replace(/(\d+)/, (match) => formatNumber(parseInt(match))) : `${formatNumber(hausOverviewData.totalArea || 0)} m²`}</span>
-                  <span>Wohnungen gesamt: {hausOverviewData.apartmentCount || hausOverviewData.wohnungen?.length || 0}</span>
+            <div className="flex gap-6 h-full">
+              {/* Left Section - Summary (1/3 width) */}
+              <div className="w-1/3 space-y-6">
+                {/* House Header Info */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Home className="h-6 w-6 text-muted-foreground" />
+                    <h3 className="font-semibold text-lg">{hausOverviewData.name}</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {hausOverviewData.strasse && `${hausOverviewData.strasse}, `}
+                    {hausOverviewData.ort}
+                  </p>
+                </div>
+
+                {/* Summary Cards Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <SummaryCard
+                    title="Gesamtfläche"
+                    value={hausOverviewData.totalArea || 0}
+                    icon={<SquareIcon className="h-4 w-4 text-muted-foreground" />}
+                    valueFormatter={(val) => `${formatNumber(Number(val))} m²`}
+                    hoverDetails={{
+                      average: hausOverviewData.summaryStats?.averageSize,
+                      median: hausOverviewData.summaryStats?.medianSize,
+                      breakdown: hausOverviewData.wohnungen.map(w => ({
+                        label: w.name,
+                        value: w.groesse
+                      }))
+                    }}
+                    onClick={() => handleSummaryCardClick('area')}
+                  />
+                  <SummaryCard
+                    title="Wohnungen"
+                    value={hausOverviewData.apartmentCount || hausOverviewData.wohnungen?.length || 0}
+                    icon={<Building className="h-4 w-4 text-muted-foreground" />}
+                    valueFormatter={(val) => `${val} Stk.`}
+                    onClick={() => handleSummaryCardClick('apartments')}
+                  />
+                  <SummaryCard
+                    title="Mieter"
+                    value={hausOverviewData.tenantCount || 0}
+                    icon={<Users className="h-4 w-4 text-muted-foreground" />}
+                    valueFormatter={(val) => `${val} aktiv`}
+                    hoverDetails={{
+                      breakdown: [
+                        { label: 'Vermietet', value: hausOverviewData.tenantCount || 0 },
+                        { label: 'Frei', value: (hausOverviewData.apartmentCount || 0) - (hausOverviewData.tenantCount || 0) }
+                      ]
+                    }}
+                    onClick={() => handleSummaryCardClick('tenants')}
+                  />
+                  <SummaryCard
+                    title="Gesamtmiete"
+                    value={hausOverviewData.totalRent || 0}
+                    icon={<Euro className="h-4 w-4 text-muted-foreground" />}
+                    hoverDetails={{
+                      average: hausOverviewData.summaryStats?.averageRent,
+                      median: hausOverviewData.summaryStats?.medianRent,
+                      breakdown: hausOverviewData.wohnungen
+                        .filter(w => w.status === 'vermietet')
+                        .map(w => ({
+                          label: w.name,
+                          value: w.miete
+                        }))
+                    }}
+                    onClick={() => handleSummaryCardClick('rent')}
+                  />
                 </div>
               </div>
 
+              {/* Right Section - Apartment List (2/3 width) */}
+              <div className="w-2/3 space-y-3">
+
               {/* Wohnungen Table */}
-              <div className="space-y-3">
+              <div className="space-y-3" data-apartment-list>
                 <h4 className="font-medium">Wohnungen</h4>
                 {hausOverviewData.wohnungen.length > 0 ? (
                   <div className="space-y-2">
                     {hausOverviewData.wohnungen.map((apartment) => (
-                      <div key={apartment.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <div className="font-medium">{apartment.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {formatNumber(apartment.groesse)} m²
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <div className="font-medium">{formatCurrency(apartment.miete)}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {apartment.currentTenant ? apartment.currentTenant.name : 'frei'}
-                            </div>
-                          </div>
-                          <div className="text-sm">
-                            <span className={cn(
-                              "px-2 py-1 rounded-full text-xs",
-                              apartment.status === 'vermietet' 
-                                ? "bg-green-100 text-green-800" 
-                                : "bg-gray-100 text-gray-800"
-                            )}>
-                              {apartment.status === 'frei' ? 'leer' : apartment.status}
-                            </span>
-                          </div>
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="Wohnung bearbeiten"
-                              onClick={() => handleEditApartment(apartment.id)}
-                            >
-                              Bearbeiten
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              title="Mieter-Übersicht anzeigen"
-                              onClick={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
-                            >
-                              Details
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+                      <ApartmentTenantRowContextMenu
+                        key={apartment.id}
+                        apartmentId={apartment.id}
+                        tenantId={apartment.currentTenant?.id}
+                        apartmentData={{
+                          id: apartment.id,
+                          name: apartment.name,
+                          groesse: apartment.groesse,
+                          miete: apartment.miete
+                        }}
+                        tenantData={apartment.currentTenant ? {
+                          id: apartment.currentTenant.id,
+                          name: apartment.currentTenant.name,
+                          einzug: apartment.currentTenant.einzug
+                        } : undefined}
+                        onEditApartment={() => handleEditApartment(apartment.id)}
+                        onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
+                        onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
+                      >
+                        <ApartmentTenantRow
+                          apartment={apartment}
+                          hausName={hausOverviewData.name}
+                          onEditApartment={() => handleEditApartment(apartment.id)}
+                          onEditTenant={() => apartment.currentTenant && handleEditTenant(apartment.currentTenant.id)}
+                          onViewDetails={() => handleViewDetails(apartment.id, apartment.currentTenant?.id)}
+                        />
+                      </ApartmentTenantRowContextMenu>
                     ))}
                   </div>
                 ) : (
                   <EmptyState />
                 )}
+              </div>
               </div>
             </div>
           ) : null}

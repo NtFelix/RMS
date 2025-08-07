@@ -37,6 +37,7 @@ export function ApartmentTenantDetailsModal() {
     // Modal opening functions for edit actions
     openWohnungModal,
     openTenantModal,
+    refreshApartmentTenantDetailsData,
   } = useModalStore()
 
   const [loadingProgress, setLoadingProgress] = React.useState(0)
@@ -119,7 +120,7 @@ export function ApartmentTenantDetailsModal() {
       // We don't have house data readily available, so pass empty array
       openWohnungModal(transformedApartment, [], () => {
         // Refresh data after successful edit
-        handleRetry()
+        refreshApartmentTenantDetailsData()
       })
     }
   }
@@ -131,14 +132,17 @@ export function ApartmentTenantDetailsModal() {
       const transformedTenant = {
         id: tenant.id,
         name: tenant.name,
-        email: tenant.email,
-        telefonnummer: tenant.telefon,
-        einzug: tenant.einzug,
-        auszug: tenant.auszug,
-        notiz: tenant.notes,
+        email: tenant.email || '',
+        telefonnummer: tenant.telefon || '',
+        einzug: tenant.einzug || '',
+        auszug: tenant.auszug || '',
+        notiz: tenant.notes || '',
         wohnung_id: apartmentTenantDetailsData.apartment.id
       }
-      openTenantModal(transformedTenant, [])
+      const wohnungen = [{ id: apartmentTenantDetailsData.apartment.id, name: apartmentTenantDetailsData.apartment.name }]
+      // Note: The tenant modal doesn't currently support success callbacks, 
+      // so we'll need to rely on the modal closing to trigger a refresh
+      openTenantModal(transformedTenant, wohnungen)
     }
   }
 
