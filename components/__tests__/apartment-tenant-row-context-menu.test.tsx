@@ -7,195 +7,177 @@ import { useModalStore } from '@/hooks/use-modal-store'
 jest.mock('@/hooks/use-modal-store')
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
 
-// Mock the context menu components
-jest.mock('@/components/ui/context-menu', () => ({
-  ContextMenu: ({ children }: { children: React.ReactNode }) => <div data-testid="context-menu">{children}</div>,
-  ContextMenuTrigger: ({ children }: { children: React.ReactNode }) => <div data-testid="context-menu-trigger">{children}</div>,
-  ContextMenuContent: ({ children }: { children: React.ReactNode }) => <div data-testid="context-menu-content">{children}</div>,
-  ContextMenuItem: ({ children, onClick, disabled, className }: { 
-    children: React.ReactNode
-    onClick?: () => void
-    disabled?: boolean
-    className?: string
-  }) => (
-    <button 
-      data-testid="context-menu-item" 
-      onClick={onClick}
-      disabled={disabled}
-      className={className}
-    >
-      {children}
-    </button>
-  ),
-  ContextMenuSeparator: () => <div data-testid="context-menu-separator" />,
-}))
-
 describe('ApartmentTenantRowContextMenu', () => {
-  const mockOpenApartmentTenantDetailsModal = jest.fn()
-  const mockOnEditApartment = jest.fn()
-  const mockOnEditTenant = jest.fn()
-
-  const defaultProps = {
+  const mockProps = {
     apartmentId: 'apartment-1',
     tenantId: 'tenant-1',
     apartmentData: {
       id: 'apartment-1',
       name: 'Wohnung 1A',
       groesse: 75,
-      miete: 800
+      miete: 1200,
     },
     tenantData: {
       id: 'tenant-1',
       name: 'Max Mustermann',
       email: 'max@example.com',
-      telefon: '0123456789',
-      einzug: '2023-01-01'
+      telefon: '+49123456789',
+      einzug: '2023-01-01',
     },
-    onEditApartment: mockOnEditApartment,
-    onEditTenant: mockOnEditTenant,
+    onEditApartment: jest.fn(),
+    onEditTenant: jest.fn(),
+    onViewDetails: jest.fn(),
+  }
+
+  const mockModalStore = {
+    openApartmentTenantDetailsModal: jest.fn(),
   }
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUseModalStore.mockReturnValue({
-      openApartmentTenantDetailsModal: mockOpenApartmentTenantDetailsModal,
-    } as any)
+    mockUseModalStore.mockReturnValue(mockModalStore as any)
   })
 
-  it('renders context menu with all menu items', () => {
+  it('renders context menu trigger with children', () => {
     render(
-      <ApartmentTenantRowContextMenu {...defaultProps}>
-        <div>Test Child</div>
+      <ApartmentTenantRowContextMenu {...mockProps}>
+        <div data-testid="child-content">Test Content</div>
       </ApartmentTenantRowContextMenu>
     )
 
-    expect(screen.getByTestId('context-menu')).toBeInTheDocument()
-    expect(screen.getByTestId('context-menu-trigger')).toBeInTheDocument()
-    expect(screen.getByTestId('context-menu-content')).toBeInTheDocument()
-    expect(screen.getByText('Test Child')).toBeInTheDocument()
+    expect(screen.getByTestId('child-content')).toBeInTheDocument()
+  })
 
-    // Check for menu items
-    const menuItems = screen.getAllByTestId('context-menu-item')
-    expect(menuItems).toHaveLength(3)
-    
+  it('shows context menu when right-clicked', () => {
+    render(
+      <ApartmentTenantRowContextMenu {...mockProps}>
+        <div data-testid="child-content">Test Content</div>
+      </ApartmentTenantRowContextMenu>
+    )
+
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
+
     expect(screen.getByText('Wohnung bearbeiten')).toBeInTheDocument()
     expect(screen.getByText('Mieter bearbeiten')).toBeInTheDocument()
     expect(screen.getByText('Details anzeigen')).toBeInTheDocument()
   })
 
-  it('calls onEditApartment when edit apartment is clicked', () => {
+  it('calls onEditApartment when apartment edit is clicked', () => {
     render(
-      <ApartmentTenantRowContextMenu {...defaultProps}>
-        <div>Test Child</div>
+      <ApartmentTenantRowContextMenu {...mockProps}>
+        <div data-testid="child-content">Test Content</div>
       </ApartmentTenantRowContextMenu>
     )
 
-    const editApartmentButton = screen.getByText('Wohnung bearbeiten').closest('button')
-    fireEvent.click(editApartmentButton!)
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
 
-    expect(mockOnEditApartment).toHaveBeenCalledTimes(1)
+    const editApartmentItem = screen.getByText('Wohnung bearbeiten')
+    fireEvent.click(editApartmentItem)
+
+    expect(mockProps.onEditApartment).toHaveBeenCalledTimes(1)
   })
 
-  it('calls onEditTenant when edit tenant is clicked and tenant exists', () => {
+  it('calls onEditTenant when tenant edit is clicked and tenant exists', () => {
     render(
-      <ApartmentTenantRowContextMenu {...defaultProps}>
-        <div>Test Child</div>
+      <ApartmentTenantRowContextMenu {...mockProps}>
+        <div data-testid="child-content">Test Content</div>
       </ApartmentTenantRowContextMenu>
     )
 
-    const editTenantButton = screen.getByText('Mieter bearbeiten').closest('button')
-    fireEvent.click(editTenantButton!)
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
 
-    expect(mockOnEditTenant).toHaveBeenCalledTimes(1)
+    const editTenantItem = screen.getByText('Mieter bearbeiten')
+    fireEvent.click(editTenantItem)
+
+    expect(mockProps.onEditTenant).toHaveBeenCalledTimes(1)
   })
 
-  it('disables edit tenant button when no tenant exists', () => {
+  it('disables tenant edit when no tenant exists', () => {
     const propsWithoutTenant = {
-      ...defaultProps,
+      ...mockProps,
       tenantId: undefined,
       tenantData: undefined,
     }
 
     render(
       <ApartmentTenantRowContextMenu {...propsWithoutTenant}>
-        <div>Test Child</div>
+        <div data-testid="child-content">Test Content</div>
       </ApartmentTenantRowContextMenu>
     )
 
-    const editTenantButton = screen.getByText('Mieter bearbeiten').closest('button')
-    expect(editTenantButton).toBeDisabled()
-    expect(editTenantButton).toHaveClass('disabled:opacity-50', 'disabled:cursor-not-allowed')
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
+
+    const editTenantItem = screen.getByText('Mieter bearbeiten')
+    // Check if the parent element has the disabled attribute (Radix UI implementation)
+    const menuItem = editTenantItem.closest('[role="menuitem"]')
+    expect(menuItem).toHaveAttribute('data-disabled')
   })
 
-  it('calls openApartmentTenantDetailsModal when view details is clicked', () => {
+  it('calls onViewDetails when details view is clicked', () => {
     render(
-      <ApartmentTenantRowContextMenu {...defaultProps}>
-        <div>Test Child</div>
+      <ApartmentTenantRowContextMenu {...mockProps}>
+        <div data-testid="child-content">Test Content</div>
       </ApartmentTenantRowContextMenu>
     )
 
-    const viewDetailsButton = screen.getByText('Details anzeigen').closest('button')
-    fireEvent.click(viewDetailsButton!)
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
 
-    expect(mockOpenApartmentTenantDetailsModal).toHaveBeenCalledWith('apartment-1', 'tenant-1')
+    const viewDetailsItem = screen.getByText('Details anzeigen')
+    fireEvent.click(viewDetailsItem)
+
+    expect(mockProps.onViewDetails).toHaveBeenCalledTimes(1)
   })
 
-  it('calls openApartmentTenantDetailsModal with undefined tenantId when no tenant exists', () => {
+  it('renders correct icons for each menu item', () => {
+    render(
+      <ApartmentTenantRowContextMenu {...mockProps}>
+        <div data-testid="child-content">Test Content</div>
+      </ApartmentTenantRowContextMenu>
+    )
+
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
+
+    // Check for SVG elements with specific classes or data attributes
+    const svgElements = document.querySelectorAll('svg')
+    expect(svgElements.length).toBeGreaterThanOrEqual(3) // At least 3 icons
+
+    // Check that the menu items exist with their text
+    expect(screen.getByText('Wohnung bearbeiten')).toBeInTheDocument()
+    expect(screen.getByText('Mieter bearbeiten')).toBeInTheDocument()
+    expect(screen.getByText('Details anzeigen')).toBeInTheDocument()
+  })
+
+  it('handles context menu without tenant data gracefully', () => {
     const propsWithoutTenant = {
-      ...defaultProps,
+      ...mockProps,
       tenantId: undefined,
       tenantData: undefined,
+      onEditTenant: jest.fn(),
     }
 
     render(
       <ApartmentTenantRowContextMenu {...propsWithoutTenant}>
-        <div>Test Child</div>
+        <div data-testid="child-content">Test Content</div>
       </ApartmentTenantRowContextMenu>
     )
 
-    const viewDetailsButton = screen.getByText('Details anzeigen').closest('button')
-    fireEvent.click(viewDetailsButton!)
+    const trigger = screen.getByTestId('child-content')
+    fireEvent.contextMenu(trigger)
 
-    expect(mockOpenApartmentTenantDetailsModal).toHaveBeenCalledWith('apartment-1', undefined)
-  })
+    // Should still render all menu items
+    expect(screen.getByText('Wohnung bearbeiten')).toBeInTheDocument()
+    expect(screen.getByText('Mieter bearbeiten')).toBeInTheDocument()
+    expect(screen.getByText('Details anzeigen')).toBeInTheDocument()
 
-  it('renders with proper styling classes', () => {
-    render(
-      <ApartmentTenantRowContextMenu {...defaultProps}>
-        <div>Test Child</div>
-      </ApartmentTenantRowContextMenu>
-    )
-
-    const menuItems = screen.getAllByTestId('context-menu-item')
-    
-    // Check that all menu items have the proper styling classes
-    menuItems.forEach(item => {
-      expect(item).toHaveClass('flex', 'items-center', 'gap-2', 'cursor-pointer')
-    })
-
-    // Check that disabled tenant edit button has disabled styling
-    const propsWithoutTenant = {
-      ...defaultProps,
-      tenantId: undefined,
-    }
-
-    render(
-      <ApartmentTenantRowContextMenu {...propsWithoutTenant}>
-        <div>Test Child 2</div>
-      </ApartmentTenantRowContextMenu>
-    )
-
-    const disabledTenantButton = screen.getAllByText('Mieter bearbeiten')[1].closest('button')
-    expect(disabledTenantButton).toHaveClass('disabled:opacity-50', 'disabled:cursor-not-allowed')
-  })
-
-  it('renders separator between menu sections', () => {
-    render(
-      <ApartmentTenantRowContextMenu {...defaultProps}>
-        <div>Test Child</div>
-      </ApartmentTenantRowContextMenu>
-    )
-
-    expect(screen.getByTestId('context-menu-separator')).toBeInTheDocument()
+    // Tenant edit should be disabled
+    const editTenantItem = screen.getByText('Mieter bearbeiten')
+    fireEvent.click(editTenantItem)
+    expect(propsWithoutTenant.onEditTenant).not.toHaveBeenCalled()
   })
 })

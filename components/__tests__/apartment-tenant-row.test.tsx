@@ -168,4 +168,96 @@ describe('ApartmentTenantRow', () => {
     // Should not show "Seit" text when no date is available
     expect(screen.queryByText(/Seit/)).not.toBeInTheDocument()
   })
+
+  it('applies custom className', () => {
+    const { container } = render(
+      <ApartmentTenantRow
+        apartment={mockApartmentWithTenant}
+        {...mockProps}
+        className="custom-row-class"
+      />
+    )
+
+    const rowElement = container.querySelector('.custom-row-class')
+    expect(rowElement).toBeInTheDocument()
+  })
+
+  it('calculates rent per square meter correctly', () => {
+    render(
+      <ApartmentTenantRow
+        apartment={mockApartmentWithTenant}
+        {...mockProps}
+      />
+    )
+
+    // 1200 / 75 = 16.00
+    expect(screen.getByText('16,00 €/m²')).toBeInTheDocument()
+  })
+
+  it('handles zero square meters gracefully', () => {
+    const apartmentWithZeroSize = {
+      ...mockApartmentWithTenant,
+      groesse: 0,
+    }
+
+    render(
+      <ApartmentTenantRow
+        apartment={apartmentWithZeroSize}
+        {...mockProps}
+      />
+    )
+
+    expect(screen.getByText('0 m² • Musterstraße 123')).toBeInTheDocument()
+    // Should handle division by zero gracefully (shows infinity symbol)
+    expect(screen.getByText('∞ €/m²')).toBeInTheDocument()
+  })
+
+  it('shows chevron down when expanded', () => {
+    const expandedContent = <div>Additional details</div>
+
+    render(
+      <ApartmentTenantRow
+        apartment={mockApartmentWithTenant}
+        {...mockProps}
+        expandable={true}
+        expandedContent={expandedContent}
+      />
+    )
+
+    const trigger = document.querySelector('.cursor-pointer')
+    fireEvent.click(trigger!)
+
+    // Should show chevron down when expanded
+    const chevronDown = document.querySelector('.lucide-chevron-down')
+    expect(chevronDown).toBeInTheDocument()
+  })
+
+  it('does not show expand indicator when not expandable', () => {
+    render(
+      <ApartmentTenantRow
+        apartment={mockApartmentWithTenant}
+        {...mockProps}
+        expandable={false}
+      />
+    )
+
+    expect(document.querySelector('.lucide-chevron-right')).not.toBeInTheDocument()
+    expect(document.querySelector('.lucide-chevron-down')).not.toBeInTheDocument()
+  })
+
+  it('renders without expandable content when expandable is true but no content provided', () => {
+    render(
+      <ApartmentTenantRow
+        apartment={mockApartmentWithTenant}
+        {...mockProps}
+        expandable={true}
+      />
+    )
+
+    const trigger = document.querySelector('.cursor-pointer')
+    fireEvent.click(trigger!)
+
+    // Should not crash and should not show any expanded content
+    expect(screen.queryByText('Additional details')).not.toBeInTheDocument()
+  })
 })
