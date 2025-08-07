@@ -206,12 +206,12 @@ export function TenantPaymentBento() {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 auto-rows-[minmax(120px,1fr)]">
+          <div className="flex flex-col gap-4">
             {data.length > 0 ? (
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className="flex flex-col justify-between p-4 rounded-lg shadow-md bg-white border"
+                  className="w-full flex flex-col justify-between p-4 rounded-lg shadow-md bg-white border"
                 >
                   <div>
                     <div className="font-semibold">{tenant.tenant}</div>
@@ -239,7 +239,7 @@ export function TenantPaymentBento() {
                 </div>
               ))
             ) : (
-              <div className="col-span-full text-center text-muted-foreground py-6">Keine aktiven Mieter gefunden.</div>
+              <div className="text-center text-muted-foreground py-6">Keine aktiven Mieter gefunden.</div>
             )}
           </div>
         )}
