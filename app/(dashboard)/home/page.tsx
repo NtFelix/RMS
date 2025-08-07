@@ -19,8 +19,8 @@ export default async function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
-      <div className="grid gap-4 grid-cols-3 auto-rows-[140px] h-[calc(100vh-200px)]">
-        {/* Row 1: Small cards + Tenant Payment (spans 2 rows) */}
+      <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
+        {/* Row 1: Three narrow summary cards + tenant payment list */}
         <Link href="/haeuser" className="col-span-1 row-span-1">
           <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -45,11 +45,6 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <div className="col-span-1 row-span-2">
-          <TenantPaymentBento />
-        </div>
-
-        {/* Row 2: Mieter card + Occupancy Chart */}
         <Link href="/mieter" className="col-span-1 row-span-1">
           <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -62,12 +57,20 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-        <div className="col-span-1 row-span-1">
-          <OccupancyChart />
+        <div className="col-span-3 row-span-1">
+          {/* Empty space for better layout */}
         </div>
 
-        {/* Row 3: Revenue Chart (spans 2 cols, 2 rows) + Todos */}
-        <div className="col-span-2 row-span-2">
+        {/* Row 2: Belegung Chart (expanded height) + Tenant Payment List */}
+        <div className="col-span-3 row-span-3">
+          <OccupancyChart />
+        </div>
+        <div className="col-span-3 row-span-3">
+          <TenantPaymentBento />
+        </div>
+
+        {/* Row 5: Revenue Chart (expanded height) + Other cards */}
+        <div className="col-span-4 row-span-3">
           <RevenueExpensesChart />
         </div>
         <Link href="/todos" className="col-span-1 row-span-1">
@@ -82,11 +85,11 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
-
-        {/* Row 4: Maintenance Chart + Finance cards */}
-        <div className="col-span-1 row-span-1">
+        <div className="col-span-1 row-span-2">
           <MaintenanceDonutChart />
         </div>
+
+        {/* Row 6: Finance cards */}
         <Link href="/finanzen" className="col-span-1 row-span-1">
           <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -99,6 +102,8 @@ export default async function Dashboard() {
             </CardContent>
           </Card>
         </Link>
+
+        {/* Row 7: Betriebskosten card */}
         <Link href="/betriebskosten" className="col-span-1 row-span-1">
           <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer border border-black/80">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
