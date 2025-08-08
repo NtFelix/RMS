@@ -117,11 +117,11 @@ export function CommandMenu() {
     }
   }, [open, query, clearSearch])
 
-  // Handle search result selection
+  // Handle search result selection (main click)
   const handleSearchResultSelect = (result: SearchResult) => {
     setOpen(false)
     
-    // Navigate based on result type
+    // Navigate to the appropriate page based on result type
     switch (result.type) {
       case 'tenant':
         router.push('/mieter')
@@ -143,33 +143,325 @@ export function CommandMenu() {
     }
   }
 
-  // Handle search result actions (edit, view, etc.)
+  // Handle search result actions (edit, view, delete, etc.)
   const handleSearchResultAction = (result: SearchResult, actionIndex: number) => {
     const action = result.actions?.[actionIndex]
-    if (action) {
-      setOpen(false)
-      
-      // Open appropriate modal based on result type
-      switch (result.type) {
-        case 'tenant':
-          useModalStore.getState().openTenantModal(result.id)
-          break
-        case 'house':
-          useModalStore.getState().openHouseModal(result.id)
-          break
-        case 'apartment':
-          useModalStore.getState().openWohnungModal(result.id)
-          break
-        case 'finance':
-          useModalStore.getState().openFinanceModal(result.id)
-          break
-        case 'task':
-          useModalStore.getState().openAufgabeModal(result.id)
-          break
-        default:
-          break
-      }
+    if (!action) return
+
+    setOpen(false)
+    
+    // Handle actions based on result type and action label
+    switch (result.type) {
+      case 'tenant':
+        if (action.label === 'Bearbeiten') {
+          // Open tenant edit modal with the specific tenant data
+          // We need to fetch the full tenant data first
+          handleEditTenant(result.id)
+        } else if (action.label === 'Anzeigen') {
+          // Navigate to tenant page
+          router.push('/mieter')
+        }
+        break
+        
+      case 'house':
+        if (action.label === 'Bearbeiten') {
+          // Open house edit modal with the specific house data
+          handleEditHouse(result.id)
+        } else if (action.label === 'Anzeigen') {
+          // Navigate to house page
+          router.push('/haeuser')
+        }
+        break
+        
+      case 'apartment':
+        if (action.label === 'Bearbeiten') {
+          // Open apartment edit modal with the specific apartment data
+          handleEditApartment(result.id)
+        } else if (action.label === 'Anzeigen') {
+          // Navigate to apartment page
+          router.push('/wohnungen')
+        }
+        break
+        
+      case 'finance':
+        if (action.label === 'Bearbeiten') {
+          // Open finance edit modal with the specific finance data
+          handleEditFinance(result.id)
+        } else if (action.label === 'Anzeigen') {
+          // Navigate to finance page
+          router.push('/finanzen')
+        } else if (action.label === 'Löschen') {
+          // Handle delete action with confirmation
+          handleDeleteFinanceRecord(result)
+        }
+        break
+        
+      case 'task':
+        if (action.label === 'Bearbeiten') {
+          // Open task edit modal with the specific task data
+          handleEditTask(result.id)
+        } else if (action.label.includes('markieren')) {
+          // Handle task completion toggle
+          handleToggleTaskCompletion(result)
+        } else if (action.label === 'Löschen') {
+          // Handle delete action with confirmation
+          handleDeleteTask(result)
+        }
+        break
+        
+      default:
+        break
     }
+  }
+
+  // Helper functions to fetch full entity data and open modals
+  const handleEditTenant = async (tenantId: string) => {
+    try {
+      const response = await fetch(`/api/mieter`)
+      if (!response.ok) throw new Error('Failed to fetch tenants')
+      
+      const tenants = await response.json()
+      const tenant = tenants.find((t: any) => t.id === tenantId)
+      
+      if (tenant) {
+        // Also fetch wohnungen for the modal
+        const wohnungenResponse = await fetch(`/api/wohnungen`)
+        const wohnungen = wohnungenResponse.ok ? await wohnungenResponse.json() : []
+        
+        useModalStore.getState().openTenantModal(tenant, wohnungen)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Mieter nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Mieter konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditHouse = async (houseId: string) => {
+    try {
+      const response = await fetch(`/api/haeuser`)
+      if (!response.ok) throw new Error('Failed to fetch houses')
+      
+      const houses = await response.json()
+      const house = houses.find((h: any) => h.id === houseId)
+      
+      if (house) {
+        useModalStore.getState().openHouseModal(house)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Haus nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Haus konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditApartment = async (apartmentId: string) => {
+    try {
+      const response = await fetch(`/api/wohnungen`)
+      if (!response.ok) throw new Error('Failed to fetch apartments')
+      
+      const apartments = await response.json()
+      const apartment = apartments.find((a: any) => a.id === apartmentId)
+      
+      if (apartment) {
+        // Also fetch houses for the modal
+        const housesResponse = await fetch(`/api/haeuser`)
+        const houses = housesResponse.ok ? await housesResponse.json() : []
+        
+        useModalStore.getState().openWohnungModal(apartment, houses)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Wohnung nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Wohnung konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditFinance = async (financeId: string) => {
+    try {
+      const response = await fetch(`/api/finanzen`)
+      if (!response.ok) throw new Error('Failed to fetch finances')
+      
+      const finances = await response.json()
+      const finance = finances.find((f: any) => f.id === financeId)
+      
+      if (finance) {
+        // Also fetch wohnungen for the modal
+        const wohnungenResponse = await fetch(`/api/wohnungen`)
+        const wohnungen = wohnungenResponse.ok ? await wohnungenResponse.json() : []
+        
+        useModalStore.getState().openFinanceModal(finance, wohnungen)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Finanzeintrag nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Finanzeintrag konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleEditTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`/api/todos`)
+      if (!response.ok) throw new Error('Failed to fetch tasks')
+      
+      const tasks = await response.json()
+      const task = tasks.find((t: any) => t.id === taskId)
+      
+      if (task) {
+        useModalStore.getState().openAufgabeModal(task)
+      } else {
+        toast({
+          title: 'Fehler',
+          description: 'Aufgabe nicht gefunden.',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Aufgabe konnte nicht geladen werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Helper function to handle finance record deletion
+  const handleDeleteFinanceRecord = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Finanzeintrag löschen',
+      description: `Möchten Sie den Finanzeintrag "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/finanzen/${result.id}`, {
+            method: 'DELETE',
+          })
+          
+          if (response.ok) {
+            toast({
+              title: 'Erfolg',
+              description: 'Finanzeintrag wurde gelöscht.',
+            })
+            // Refresh the current page if we're on the finance page
+            if (window.location.pathname === '/finanzen') {
+              window.location.reload()
+            }
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          toast({
+            title: 'Fehler',
+            description: 'Finanzeintrag konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
+  }
+
+  // Helper function to handle task completion toggle
+  const handleToggleTaskCompletion = async (result: SearchResult) => {
+    const isCompleted = result.metadata?.completed
+    try {
+      const response = await fetch(`/api/todos/${result.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ist_erledigt: !isCompleted
+        })
+      })
+      
+      if (response.ok) {
+        toast({
+          title: 'Erfolg',
+          description: `Aufgabe wurde als ${!isCompleted ? 'erledigt' : 'offen'} markiert.`,
+        })
+        // Refresh the current page if we're on the tasks page
+        if (window.location.pathname === '/todos') {
+          window.location.reload()
+        }
+      } else {
+        throw new Error('Fehler beim Aktualisieren')
+      }
+    } catch (error) {
+      toast({
+        title: 'Fehler',
+        description: 'Aufgabe konnte nicht aktualisiert werden.',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  // Helper function to handle task deletion
+  const handleDeleteTask = (result: SearchResult) => {
+    useModalStore.getState().openConfirmationModal({
+      title: 'Aufgabe löschen',
+      description: `Möchten Sie die Aufgabe "${result.title}" wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.`,
+      confirmText: 'Löschen',
+      cancelText: 'Abbrechen',
+      onConfirm: async () => {
+        try {
+          const response = await fetch(`/api/todos/${result.id}`, {
+            method: 'DELETE',
+          })
+          
+          if (response.ok) {
+            toast({
+              title: 'Erfolg',
+              description: 'Aufgabe wurde gelöscht.',
+            })
+            // Refresh the current page if we're on the tasks page
+            if (window.location.pathname === '/todos') {
+              window.location.reload()
+            }
+          } else {
+            throw new Error('Fehler beim Löschen')
+          }
+        } catch (error) {
+          toast({
+            title: 'Fehler',
+            description: 'Aufgabe konnte nicht gelöscht werden.',
+            variant: 'destructive',
+          })
+        }
+      }
+    })
   }
 
   const handleManageSubscription = async () => {

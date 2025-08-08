@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDebounce } from './use-debounce';
-import type { SearchResult, SearchResponse, SearchCategory } from '@/types/search';
+import type { SearchResult, SearchResponse, SearchCategory, SearchResultAction } from '@/types/search';
+import { Edit, Eye, Trash2, User, Building2, Home, Wallet, CheckSquare } from 'lucide-react';
 
 interface SearchCache {
   [key: string]: {
@@ -128,6 +129,21 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
       // Convert tenants
       data.results.tenants.forEach(tenant => {
+        const actions: SearchResultAction[] = [
+          {
+            label: 'Bearbeiten',
+            icon: Edit,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: 'Anzeigen',
+            icon: Eye,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          }
+        ];
+
         searchResults.push({
           id: tenant.id,
           type: 'tenant',
@@ -140,12 +156,28 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             move_out_date: tenant.move_out_date,
             email: tenant.email,
             phone: tenant.phone
-          }
+          },
+          actions
         });
       });
 
       // Convert houses
       data.results.houses.forEach(house => {
+        const actions: SearchResultAction[] = [
+          {
+            label: 'Bearbeiten',
+            icon: Edit,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: 'Anzeigen',
+            icon: Eye,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          }
+        ];
+
         searchResults.push({
           id: house.id,
           type: 'house',
@@ -157,12 +189,28 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             total_rent: house.total_rent,
             free_apartments: house.free_apartments,
             address: house.address
-          }
+          },
+          actions
         });
       });
 
       // Convert apartments
       data.results.apartments.forEach(apartment => {
+        const actions: SearchResultAction[] = [
+          {
+            label: 'Bearbeiten',
+            icon: Edit,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: 'Anzeigen',
+            icon: Eye,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          }
+        ];
+
         searchResults.push({
           id: apartment.id,
           type: 'apartment',
@@ -177,13 +225,35 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             rent: apartment.rent,
             status: apartment.status,
             current_tenant: apartment.current_tenant
-          }
+          },
+          actions
         });
       });
 
       // Convert finances
       data.results.finances.forEach(finance => {
         const isIncome = finance.type === 'income';
+        const actions: SearchResultAction[] = [
+          {
+            label: 'Bearbeiten',
+            icon: Edit,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: 'Anzeigen',
+            icon: Eye,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: 'Löschen',
+            icon: Trash2,
+            action: () => {}, // Will be handled by command menu
+            variant: 'destructive'
+          }
+        ];
+
         searchResults.push({
           id: finance.id,
           type: 'finance',
@@ -198,12 +268,34 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             type: finance.type,
             apartment: finance.apartment,
             notes: finance.notes
-          }
+          },
+          actions
         });
       });
 
       // Convert tasks
       data.results.tasks.forEach(task => {
+        const actions: SearchResultAction[] = [
+          {
+            label: 'Bearbeiten',
+            icon: Edit,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: task.completed ? 'Als offen markieren' : 'Als erledigt markieren',
+            icon: CheckSquare,
+            action: () => {}, // Will be handled by command menu
+            variant: 'default'
+          },
+          {
+            label: 'Löschen',
+            icon: Trash2,
+            action: () => {}, // Will be handled by command menu
+            variant: 'destructive'
+          }
+        ];
+
         searchResults.push({
           id: task.id,
           type: 'task',
@@ -219,7 +311,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
             completed: task.completed,
             created_date: task.created_date,
             due_date: task.due_date
-          }
+          },
+          actions
         });
       });
 
