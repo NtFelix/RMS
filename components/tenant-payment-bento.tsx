@@ -211,23 +211,26 @@ export function TenantPaymentBento() {
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className="w-full flex flex-col justify-between p-4 rounded-lg shadow-md bg-white border"
+                  className="w-full flex items-center justify-between p-4 rounded-lg shadow-md bg-white border"
                 >
-                  <div>
+                  {/* Left side: Tenant name and apartment */}
+                  <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-1 font-semibold">
                       <User className="h-3.5 w-3.5" />
                       <span>{tenant.tenant}</span>
                     </div>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Home className="h-3.5 w-3.5" />
-                      <span className="mr-2">{tenant.apartment}</span>
-                      <span className={`flex items-center gap-1 ${tenant.paid ? 'text-green-600' : 'text-red-600'}`}>
-                        <Tag className="h-3 w-3" />
-                        <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
-                      </span>
+                      <span>{tenant.apartment}</span>
                     </div>
                   </div>
-                  <div className="mt-4">
+                  
+                  {/* Right side: Price and payment button */}
+                  <div className="flex flex-col items-end gap-2">
+                    <div className={`flex items-center gap-1 font-medium ${tenant.paid ? 'text-green-600' : 'text-red-600'}`}>
+                      <Tag className="h-3 w-3" />
+                      <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
+                    </div>
                     <button
                       type="button"
                       className={
