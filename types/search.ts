@@ -3,7 +3,7 @@
 // Core search interfaces
 export interface SearchResultAction {
   label: string;
-  icon: React.ComponentType;
+  icon: React.ComponentType<{ className?: string }>;
   action: () => void;
   variant?: 'default' | 'destructive';
 }
