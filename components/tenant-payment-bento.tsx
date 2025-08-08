@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
-import { Home } from "lucide-react"
+import { Home, User } from "lucide-react"
 
 type TenantBentoItem = {
   id: string
@@ -214,7 +214,10 @@ export function TenantPaymentBento() {
                   className="w-full flex flex-col justify-between p-4 rounded-lg shadow-md bg-white border"
                 >
                   <div>
-                    <div className="font-semibold">{tenant.tenant}</div>
+                    <div className="flex items-center gap-1 font-semibold">
+                      <User className="h-3.5 w-3.5" />
+                      <span>{tenant.tenant}</span>
+                    </div>
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <Home className="h-3.5 w-3.5" />
                       <span>{tenant.apartment}</span>
