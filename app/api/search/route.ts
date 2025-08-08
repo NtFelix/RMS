@@ -87,6 +87,11 @@ export async function GET(request: Request) {
     if (Math.random() < 0.1) { // 10% chance to clean up
       cleanupPatternCache();
     }
+
+    // Add request timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
+    });
     
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
@@ -130,16 +135,18 @@ export async function GET(request: Request) {
     // Search tenants (Mieter) - Optimized query with proper JOINs
     if (categories.includes('tenants')) {
       searchPromises.push(
-        supabase
-          .from('Mieter')
-          .select(`
-            id, name, email, telefonnummer, einzug, auszug,
-            Wohnungen!left(name, Haeuser!left(name))
-          `)
-          .or(`name.ilike.${searchPattern},email.ilike.${searchPattern},telefonnummer.ilike.${searchPattern}`)
-          .order('name')
-          .limit(limit)
-          .then(({ data, error }) => {
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('Mieter')
+              .select(`
+                id, name, email, telefonnummer, einzug, auszug,
+                Wohnungen!left(name, Haeuser!left(name))
+              `)
+              .or(`name.ilike.${searchPattern},email.ilike.${searchPattern},telefonnummer.ilike.${searchPattern}`)
+              .order('name')
+              .limit(limit);
+
             if (error) {
               console.error('Tenant search error:', error);
               return { type: 'tenants', data: [] };
@@ -149,14 +156,14 @@ export async function GET(request: Request) {
             
             const sortedTenants = sortByRelevance(data, query);
             
-            const tenantResults = sortedTenants.map(tenant => ({
+            const tenantResults = sortedTenants.map((tenant: any) => ({
               id: tenant.id,
               name: tenant.name,
               email: tenant.email || undefined,
               phone: tenant.telefonnummer || undefined,
-              apartment: tenant.Wohnungen ? {
+              apartment: tenant.Wohnungen && typeof tenant.Wohnungen === 'object' && !Array.isArray(tenant.Wohnungen) ? {
                 name: tenant.Wohnungen.name,
-                house_name: tenant.Wohnungen.Haeuser?.name || ''
+                house_name: tenant.Wohnungen.Haeuser && typeof tenant.Wohnungen.Haeuser === 'object' && !Array.isArray(tenant.Wohnungen.Haeuser) ? tenant.Wohnungen.Haeuser.name : ''
               } : undefined,
               status: tenant.auszug ? 'moved_out' : 'active',
               move_in_date: tenant.einzug || undefined,
@@ -164,27 +171,29 @@ export async function GET(request: Request) {
             }));
             
             return { type: 'tenants', data: tenantResults };
-          })
-          .catch(error => {
+          } catch (error) {
             console.error('Error searching tenants:', error);
             return { type: 'tenants', data: [] };
-          })
+          }
+        })()
       );
     }
     
     // Search houses (Haeuser) - Optimized with aggregated apartment data
     if (categories.includes('houses')) {
       searchPromises.push(
-        supabase
-          .from('Haeuser')
-          .select(`
-            id, name, strasse, ort,
-            Wohnungen!left(id, miete, Mieter!left(id, auszug))
-          `)
-          .or(`name.ilike.${searchPattern},strasse.ilike.${searchPattern},ort.ilike.${searchPattern}`)
-          .order('name')
-          .limit(limit)
-          .then(({ data, error }) => {
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('Haeuser')
+              .select(`
+                id, name, strasse, ort,
+                Wohnungen!left(id, miete, Mieter!left(id, auszug))
+              `)
+              .or(`name.ilike.${searchPattern},strasse.ilike.${searchPattern},ort.ilike.${searchPattern}`)
+              .order('name')
+              .limit(limit);
+
             if (error) {
               console.error('House search error:', error);
               return { type: 'houses', data: [] };
@@ -194,12 +203,12 @@ export async function GET(request: Request) {
             
             const sortedHouses = sortByRelevance(data, query);
             
-            const houseResults = sortedHouses.map(house => {
-              const apartments = Array.isArray(house.Wohnungen) ? house.Wohnungen : [];
-              const totalRent = apartments.reduce((sum, apt) => sum + (apt.miete || 0), 0);
-              const freeApartments = apartments.filter(apt => 
+            const houseResults = sortedHouses.map((house: any) => {
+              const apartments = Array.isArray(house.Wohnungen) ? house.Wohnungen : (house.Wohnungen ? [house.Wohnungen] : []);
+              const totalRent = apartments.reduce((sum: number, apt: any) => sum + (apt.miete || 0), 0);
+              const freeApartments = apartments.filter((apt: any) => 
                 !apt.Mieter || (Array.isArray(apt.Mieter) && apt.Mieter.length === 0) || 
-                (Array.isArray(apt.Mieter) && apt.Mieter.some(m => m.auszug))
+                (Array.isArray(apt.Mieter) && apt.Mieter.some((m: any) => m.auszug))
               ).length;
               
               return {
@@ -213,28 +222,30 @@ export async function GET(request: Request) {
             });
             
             return { type: 'houses', data: houseResults };
-          })
-          .catch(error => {
+          } catch (error) {
             console.error('Error searching houses:', error);
             return { type: 'houses', data: [] };
-          })
+          }
+        })()
       );
     }
     
     // Search apartments (Wohnungen) - Optimized with single query
     if (categories.includes('apartments')) {
       searchPromises.push(
-        supabase
-          .from('Wohnungen')
-          .select(`
-            id, name, groesse, miete,
-            Haeuser!left(name),
-            Mieter!left(name, einzug, auszug)
-          `)
-          .ilike('name', searchPattern)
-          .order('name')
-          .limit(limit)
-          .then(({ data, error }) => {
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('Wohnungen')
+              .select(`
+                id, name, groesse, miete,
+                Haeuser!left(name),
+                Mieter!left(name, einzug, auszug)
+              `)
+              .ilike('name', searchPattern)
+              .order('name')
+              .limit(limit);
+
             if (error) {
               console.error('Apartment search error:', error);
               return { type: 'apartments', data: [] };
@@ -244,14 +255,14 @@ export async function GET(request: Request) {
             
             const sortedApartments = sortByRelevance(data, query);
             
-            const apartmentResults = sortedApartments.map(apartment => {
-              const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : [];
-              const currentTenant = mieterArray.find(m => !m.auszug);
+            const apartmentResults = sortedApartments.map((apartment: any) => {
+              const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : (apartment.Mieter ? [apartment.Mieter] : []);
+              const currentTenant = mieterArray.find((m: any) => !m.auszug);
               
               return {
                 id: apartment.id,
                 name: apartment.name,
-                house_name: apartment.Haeuser?.name || '',
+                house_name: apartment.Haeuser && typeof apartment.Haeuser === 'object' && !Array.isArray(apartment.Haeuser) ? apartment.Haeuser.name : '',
                 size: apartment.groesse,
                 rent: apartment.miete,
                 status: currentTenant ? 'rented' : 'free',
@@ -263,11 +274,11 @@ export async function GET(request: Request) {
             });
             
             return { type: 'apartments', data: apartmentResults };
-          })
-          .catch(error => {
+          } catch (error) {
             console.error('Error searching apartments:', error);
             return { type: 'apartments', data: [] };
-          })
+          }
+        })()
       );
     }
     
@@ -292,8 +303,10 @@ export async function GET(request: Request) {
       }
       
       searchPromises.push(
-        financeQueryBuilder
-          .then(({ data, error }) => {
+        (async () => {
+          try {
+            const { data, error } = await financeQueryBuilder;
+
             if (error) {
               console.error('Finance search error:', error);
               return { type: 'finances', data: [] };
@@ -311,39 +324,41 @@ export async function GET(request: Request) {
               return new Date(b.datum).getTime() - new Date(a.datum).getTime();
             });
             
-            const financeResults = sortedFinances.map(finance => ({
+            const financeResults = sortedFinances.map((finance: any) => ({
               id: finance.id,
               name: finance.name,
               amount: finance.betrag,
               date: finance.datum,
               type: finance.ist_einnahmen ? 'income' : 'expense',
-              apartment: finance.Wohnungen ? {
+              apartment: finance.Wohnungen && typeof finance.Wohnungen === 'object' && !Array.isArray(finance.Wohnungen) ? {
                 name: finance.Wohnungen.name,
-                house_name: finance.Wohnungen.Haeuser?.name || ''
+                house_name: finance.Wohnungen.Haeuser && typeof finance.Wohnungen.Haeuser === 'object' && !Array.isArray(finance.Wohnungen.Haeuser) ? finance.Wohnungen.Haeuser.name : ''
               } : undefined,
               notes: finance.notiz || undefined
             }));
             
             return { type: 'finances', data: financeResults };
-          })
-          .catch(error => {
+          } catch (error) {
             console.error('Error searching finances:', error);
             return { type: 'finances', data: [] };
-          })
+          }
+        })()
       );
     }
     
     // Search tasks (Aufgaben) - Optimized with completion status ordering
     if (categories.includes('tasks')) {
       searchPromises.push(
-        supabase
-          .from('Aufgaben')
-          .select('id, name, beschreibung, ist_erledigt, erstellungsdatum')
-          .or(`name.ilike.${searchPattern},beschreibung.ilike.${searchPattern}`)
-          .order('ist_erledigt', { ascending: true }) // Incomplete tasks first
-          .order('erstellungsdatum', { ascending: false })
-          .limit(limit)
-          .then(({ data, error }) => {
+        (async () => {
+          try {
+            const { data, error } = await supabase
+              .from('Aufgaben')
+              .select('id, name, beschreibung, ist_erledigt, erstellungsdatum')
+              .or(`name.ilike.${searchPattern},beschreibung.ilike.${searchPattern}`)
+              .order('ist_erledigt', { ascending: true }) // Incomplete tasks first
+              .order('erstellungsdatum', { ascending: false })
+              .limit(limit);
+
             if (error) {
               console.error('Task search error:', error);
               return { type: 'tasks', data: [] };
@@ -353,7 +368,7 @@ export async function GET(request: Request) {
             
             const sortedTasks = sortByRelevance(data, query);
             
-            const taskResults = sortedTasks.map(task => ({
+            const taskResults = sortedTasks.map((task: any) => ({
               id: task.id,
               name: task.name,
               description: task.beschreibung,
@@ -362,24 +377,39 @@ export async function GET(request: Request) {
             }));
             
             return { type: 'tasks', data: taskResults };
-          })
-          .catch(error => {
+          } catch (error) {
             console.error('Error searching tasks:', error);
             return { type: 'tasks', data: [] };
-          })
+          }
+        })()
       );
     }
     
-    // Execute all searches in parallel
-    const searchResults = await Promise.allSettled(searchPromises);
+    // Execute all searches in parallel with timeout
+    const searchResults = await Promise.race([
+      Promise.allSettled(searchPromises),
+      timeoutPromise
+    ]) as PromiseSettledResult<any>[];
     
-    // Process results
+    // Process results with graceful degradation
+    let successfulSearches = 0;
+    let failedSearches = 0;
+    
     searchResults.forEach(result => {
       if (result.status === 'fulfilled' && result.value) {
         const { type, data } = result.value;
         (results as any)[type] = data;
+        successfulSearches++;
+      } else {
+        failedSearches++;
+        console.warn('Search failed for category:', result.status === 'rejected' ? result.reason : 'Unknown error');
       }
     });
+
+    // Log performance metrics
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Search completed: ${successfulSearches} successful, ${failedSearches} failed`);
+    }
     
     const totalCount = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
     const executionTime = Date.now() - startTime;
@@ -389,27 +419,61 @@ export async function GET(request: Request) {
       totalCount,
       executionTime
     };
-    
-    // Add response compression headers
+
+    // Add warning header if some searches failed but we have partial results
     const headers = new Headers({
       'Content-Type': 'application/json',
       'Cache-Control': 'public, max-age=60', // Cache for 1 minute
     });
     
+    if (failedSearches > 0 && successfulSearches > 0) {
+      headers.set('X-Partial-Results', 'true');
+      headers.set('X-Failed-Categories', failedSearches.toString());
+    }
+    
     // Add compression hint for larger responses
     if (totalCount > 10) {
       headers.set('Content-Encoding', 'gzip');
     }
-    
+
+    // Return partial results even if some categories failed
     return new NextResponse(JSON.stringify(response), { 
-      status: 200,
+      status: totalCount > 0 || successfulSearches > 0 ? 200 : 206, // 206 for partial content
       headers
     });
     
   } catch (error) {
     console.error('Search API error:', error);
+    
+    // Provide more specific error messages
+    let errorMessage = 'Serverfehler bei der Suche.';
+    let statusCode = 500;
+    
+    if (error instanceof Error) {
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Die Suche dauert zu lange. Bitte versuchen Sie es mit einem anderen Suchbegriff.';
+        statusCode = 408; // Request Timeout
+      } else if (error.message.includes('database') || error.message.includes('connection')) {
+        errorMessage = 'Datenbankverbindung nicht verfügbar. Bitte versuchen Sie es später erneut.';
+        statusCode = 503; // Service Unavailable
+      } else if (error.message.includes('memory') || error.message.includes('resource')) {
+        errorMessage = 'Server überlastet. Bitte versuchen Sie es in wenigen Sekunden erneut.';
+        statusCode = 503; // Service Unavailable
+      }
+    }
+    
+    const responseHeaders: Record<string, string> = {};
+    if (statusCode === 503) {
+      responseHeaders['Retry-After'] = '30'; // Suggest retry after 30 seconds for service unavailable
+    }
+
     return NextResponse.json({ 
-      error: 'Serverfehler bei der Suche.' 
-    }, { status: 500 });
+      error: errorMessage,
+      timestamp: new Date().toISOString(),
+      requestId: Math.random().toString(36).substring(7) // Simple request ID for debugging
+    }, { 
+      status: statusCode,
+      headers: responseHeaders
+    });
   }
 }

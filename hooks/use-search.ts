@@ -35,6 +35,10 @@ interface UseSearchReturn {
   executionTime: number;
   clearSearch: () => void;
   retry: () => void;
+  retryCount: number;
+  isOffline: boolean;
+  lastSuccessfulQuery: string | null;
+  getCacheMetrics?: () => any;
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -42,6 +46,8 @@ const DEFAULT_DEBOUNCE = 300; // 300ms
 const DEFAULT_LIMIT = 5;
 const DEFAULT_CATEGORIES: SearchCategory[] = ['tenant', 'house', 'apartment', 'finance', 'task'];
 const MAX_CACHE_SIZE = 100; // Maximum number of cached entries
+const MAX_RETRY_COUNT = 3; // Maximum number of retry attempts
+const RETRY_DELAY_BASE = 1000; // Base delay for exponential backoff (1 second)
 
 export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const {
@@ -60,6 +66,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [executionTime, setExecutionTime] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastSuccessfulQuery, setLastSuccessfulQuery] = useState<string | null>(null);
 
   // Cache for storing search results with LRU eviction
   const cacheRef = useRef<SearchCache>({});
@@ -75,8 +84,38 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     averageResponseTime: 0
   });
 
+  // Retry timeout reference
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Debounced query to reduce API calls
   const debouncedQuery = useDebounce(query, debounceMs);
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      // Retry last failed search if we were offline
+      if (error && debouncedQuery.trim()) {
+        performSearch(debouncedQuery);
+      }
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+      setError('Keine Internetverbindung verfügbar');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // Check initial online status
+    setIsOffline(!navigator.onLine);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [error, debouncedQuery]);
 
   // Cache management functions
   const cleanupCache = useCallback(() => {
@@ -131,13 +170,69 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
 
 
-  // Main search function
-  const performSearch = useCallback(async (searchQuery: string) => {
+  // Enhanced error classification
+  const classifyError = useCallback((error: Error): string => {
+    const message = error.message.toLowerCase();
+    
+    if (!navigator.onLine || message.includes('network') || message.includes('fetch')) {
+      return 'Keine Internetverbindung verfügbar. Bitte überprüfen Sie Ihre Netzwerkverbindung.';
+    }
+    
+    if (message.includes('timeout') || message.includes('aborted')) {
+      return 'Die Suche dauert zu lange. Bitte versuchen Sie es mit einem anderen Suchbegriff.';
+    }
+    
+    if (message.includes('400') || message.includes('bad request')) {
+      return 'Ungültige Suchanfrage. Bitte überprüfen Sie Ihre Eingabe.';
+    }
+    
+    if (message.includes('401') || message.includes('unauthorized') || message.includes('permission')) {
+      return 'Sie haben keine Berechtigung für diese Suche. Bitte melden Sie sich erneut an.';
+    }
+    
+    if (message.includes('403') || message.includes('forbidden')) {
+      return 'Zugriff verweigert. Bitte wenden Sie sich an den Administrator.';
+    }
+    
+    if (message.includes('404') || message.includes('not found')) {
+      return 'Suchservice nicht verfügbar. Bitte versuchen Sie es später erneut.';
+    }
+    
+    if (message.includes('429') || message.includes('rate limit')) {
+      return 'Zu viele Suchanfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
+    }
+    
+    if (message.includes('500') || message.includes('server error')) {
+      return 'Serverfehler bei der Suche. Bitte versuchen Sie es später erneut.';
+    }
+    
+    if (message.includes('503') || message.includes('service unavailable')) {
+      return 'Suchservice vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut.';
+    }
+    
+    return 'Bei der Suche ist ein unerwarteter Fehler aufgetreten. Bitte versuchen Sie es erneut.';
+  }, []);
+
+  // Exponential backoff delay calculation
+  const getRetryDelay = useCallback((attempt: number): number => {
+    return Math.min(RETRY_DELAY_BASE * Math.pow(2, attempt), 10000); // Max 10 seconds
+  }, []);
+
+  // Main search function with enhanced error handling
+  const performSearch = useCallback(async (searchQuery: string, isRetry: boolean = false) => {
     if (!searchQuery.trim()) {
       setResults([]);
       setTotalCount(0);
       setExecutionTime(0);
       setError(null);
+      setRetryCount(0);
+      return;
+    }
+
+    // Check if offline
+    if (!navigator.onLine) {
+      setError('Keine Internetverbindung verfügbar');
+      setIsOffline(true);
       return;
     }
 
@@ -187,23 +282,35 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         categories: memoizedCategories.join(',')
       });
 
+      // Add timeout to the fetch request
+      const timeoutId = setTimeout(() => {
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+      }, 10000); // 10 second timeout
+
       const response = await fetch(`/api/search?${searchParams}`, {
         signal,
         headers: {
           'Content-Type': 'application/json',
           'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache', // Prevent stale responses during errors
         },
       });
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        if (response.status === 400) {
+        let errorMessage: string;
+        
+        try {
           const errorData = await response.json();
-          throw new Error(errorData.error || 'Ungültige Suchanfrage');
-        } else if (response.status === 500) {
-          throw new Error('Serverfehler bei der Suche. Bitte versuchen Sie es später erneut.');
-        } else {
-          throw new Error(`Fehler bei der Suche: ${response.status}`);
+          errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         }
+        
+        throw new Error(errorMessage);
       }
 
       const data: SearchResponse = await response.json();
@@ -407,6 +514,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setTotalCount(data.totalCount);
       setExecutionTime(data.executionTime);
       setError(null);
+      setRetryCount(0); // Reset retry count on success
+      setLastSuccessfulQuery(searchQuery);
       
       // Update response time metrics
       const responseTime = Date.now() - requestStartTime;
@@ -421,29 +530,59 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           // Request was cancelled, don't update state
           return;
         }
-        setError(err.message);
+        
+        const classifiedError = classifyError(err);
+        
+        // Implement automatic retry for certain error types
+        const shouldRetry = !isRetry && 
+                           retryCount < MAX_RETRY_COUNT && 
+                           (err.message.includes('network') || 
+                            err.message.includes('timeout') || 
+                            err.message.includes('500') || 
+                            err.message.includes('503'));
+        
+        if (shouldRetry) {
+          const newRetryCount = retryCount + 1;
+          setRetryCount(newRetryCount);
+          
+          // Schedule retry with exponential backoff
+          const delay = getRetryDelay(newRetryCount - 1);
+          retryTimeoutRef.current = setTimeout(() => {
+            performSearch(searchQuery, true);
+          }, delay);
+          
+          setError(`${classifiedError} (Wiederholung ${newRetryCount}/${MAX_RETRY_COUNT}...)`);
+        } else {
+          setError(classifiedError);
+          setResults([]);
+          setTotalCount(0);
+          setExecutionTime(0);
+        }
       } else {
         setError('Ein unbekannter Fehler ist aufgetreten');
+        setResults([]);
+        setTotalCount(0);
+        setExecutionTime(0);
       }
-      setResults([]);
-      setTotalCount(0);
-      setExecutionTime(0);
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [limit, memoizedCategories, cacheTimeMs]);
+  }, [limit, memoizedCategories, cacheTimeMs, retryCount, classifyError, getRetryDelay]);
 
   // Effect to trigger search when debounced query changes
   useEffect(() => {
     performSearch(debouncedQuery);
   }, [debouncedQuery, performSearch]);
 
-  // Cleanup function to cancel ongoing requests
+  // Cleanup function to cancel ongoing requests and timeouts
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
       }
     };
   }, []);
@@ -455,16 +594,28 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     setTotalCount(0);
     setExecutionTime(0);
     setError(null);
+    setRetryCount(0);
     
-    // Cancel any ongoing request
+    // Cancel any ongoing request and retry timeout
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
   }, []);
 
-  // Retry function
+  // Enhanced retry function
   const retry = useCallback(() => {
     if (debouncedQuery.trim()) {
+      setError(null);
+      setRetryCount(0);
+      
+      // Cancel any pending retry
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+      }
+      
       performSearch(debouncedQuery);
     }
   }, [debouncedQuery, performSearch]);
@@ -494,6 +645,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     executionTime,
     clearSearch,
     retry,
+    retryCount,
+    isOffline,
+    lastSuccessfulQuery,
     getCacheMetrics
   };
 }

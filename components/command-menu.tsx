@@ -15,6 +15,13 @@ import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSearch } from "@/hooks/use-search"
 import { SearchResultGroup } from "@/components/search-result-group"
+import { SearchErrorBoundary } from "@/components/search-error-boundary"
+import { 
+  SearchLoadingIndicator, 
+  SearchEmptyState, 
+  SearchStatusBar,
+  NetworkStatusIndicator 
+} from "@/components/search-loading-states"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { SearchResult } from "@/types/search"
@@ -74,7 +81,7 @@ export function CommandMenu() {
   const [isLoadingWohnungContext, setIsLoadingWohnungContext] = useState(false)
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false)
   
-  // Search functionality
+  // Search functionality with enhanced error handling
   const {
     query,
     setQuery,
@@ -82,8 +89,12 @@ export function CommandMenu() {
     isLoading: isSearchLoading,
     error: searchError,
     totalCount,
+    executionTime,
     clearSearch,
-    retry: retrySearch
+    retry: retrySearch,
+    retryCount,
+    isOffline,
+    lastSuccessfulQuery
   } = useSearch({
     debounceMs: 300,
     limit: 5
@@ -511,50 +522,58 @@ export function CommandMenu() {
   }, {} as Record<string, SearchResult[]>)
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput 
-        placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
-        value={query}
-        onValueChange={setQuery}
-      />
-      <CommandList>
+    <SearchErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('Search component error:', error, errorInfo)
+        toast({
+          title: 'Suchfehler',
+          description: 'Bei der Suche ist ein unerwarteter Fehler aufgetreten.',
+          variant: 'destructive',
+        })
+      }}
+    >
+      <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput 
+          placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
+          value={query}
+          onValueChange={setQuery}
+        />
+        
+        {/* Network Status Indicator */}
+        <NetworkStatusIndicator 
+          isOffline={isOffline} 
+          onRetry={retrySearch}
+        />
+        
+        <CommandList>
         {/* Search Results */}
         {showSearchResults && (
           <>
             {/* Loading State */}
             {isSearchLoading && (
-              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Suche läuft...
-              </div>
+              <SearchLoadingIndicator 
+                query={query}
+                isLoading={isSearchLoading}
+                retryCount={retryCount}
+                maxRetries={3}
+              />
             )}
 
-            {/* Error State */}
-            {searchError && !isSearchLoading && (
-              <div className="flex flex-col items-center justify-center py-6 text-sm text-muted-foreground">
-                <AlertCircle className="mb-2 h-8 w-8 text-destructive" />
-                <p className="mb-2 text-center">{searchError}</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={retrySearch}
-                  className="text-xs"
-                >
-                  Erneut versuchen
-                </Button>
-              </div>
+            {/* Search Status Bar */}
+            {!isSearchLoading && hasSearchResults && (
+              <SearchStatusBar
+                totalCount={totalCount}
+                executionTime={executionTime}
+                query={query}
+                isLoading={isSearchLoading}
+                retryCount={retryCount}
+                isOffline={isOffline}
+              />
             )}
 
             {/* Search Results */}
             {!isSearchLoading && !searchError && hasSearchResults && (
               <>
-                {/* Results Summary */}
-                <div className="px-2 py-1.5 text-xs text-muted-foreground border-b">
-                  <div className="flex items-center gap-2">
-                    <Search className="h-3 w-3" />
-                    <span>{totalCount} Ergebnisse für "{query}"</span>
-                  </div>
-                </div>
 
                 {/* Grouped Results */}
                 {groupedResults.tenant && (
@@ -613,14 +632,26 @@ export function CommandMenu() {
               </>
             )}
 
+            {/* Error State */}
+            {searchError && !isSearchLoading && (
+              <SearchEmptyState
+                query={query}
+                hasError={true}
+                isOffline={isOffline}
+                onRetry={retrySearch}
+                suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
+              />
+            )}
+
             {/* No Results */}
             {!isSearchLoading && !searchError && !hasSearchResults && (
               <CommandEmpty>
-                <div className="flex flex-col items-center justify-center py-6 text-sm text-muted-foreground">
-                  <Search className="mb-2 h-8 w-8" />
-                  <p>Keine Ergebnisse für "{query}"</p>
-                  <p className="text-xs mt-1">Versuchen Sie andere Suchbegriffe</p>
-                </div>
+                <SearchEmptyState
+                  query={query}
+                  hasError={false}
+                  isOffline={isOffline}
+                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
+                />
               </CommandEmpty>
             )}
           </>
@@ -760,5 +791,6 @@ export function CommandMenu() {
         )}
       </CommandList>
     </CommandDialog>
+    </SearchErrorBoundary>
   )
 }

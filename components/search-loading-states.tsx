@@ -1,0 +1,279 @@
+"use client"
+
+import React from 'react'
+import { Loader2, Search, Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
+
+interface SearchLoadingProps {
+  query: string
+  isLoading: boolean
+  retryCount?: number
+  maxRetries?: number
+}
+
+export function SearchLoadingIndicator({ 
+  query, 
+  isLoading, 
+  retryCount = 0, 
+  maxRetries = 3 
+}: SearchLoadingProps) {
+  if (!isLoading) return null
+
+  return (
+    <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2">
+        <Loader2 className="h-4 w-4 animate-spin" />
+        <span>
+          {retryCount > 0 ? (
+            `Wiederholung ${retryCount}/${maxRetries}...`
+          ) : (
+            `Suche nach "${query}"...`
+          )}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+interface SearchSkeletonProps {
+  count?: number
+  showGroupHeaders?: boolean
+}
+
+export function SearchResultsSkeleton({ count = 5, showGroupHeaders = true }: SearchSkeletonProps) {
+  return (
+    <div className="space-y-4 p-2">
+      {showGroupHeaders && (
+        <div className="space-y-3">
+          {/* Group header skeleton */}
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Skeleton className="h-3 w-3 rounded-full" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-4 ml-auto" />
+          </div>
+          
+          {/* Result items skeleton */}
+          {Array.from({ length: count }).map((_, index) => (
+            <div key={index} className="flex items-start gap-3 p-3 rounded-md">
+              <Skeleton className="h-4 w-4 rounded-full flex-shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+                <Skeleton className="h-3 w-2/3" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-3 w-3 rounded-full" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="flex gap-1">
+                <Skeleton className="h-6 w-6 rounded" />
+                <Skeleton className="h-6 w-6 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface NetworkStatusProps {
+  isOffline: boolean
+  onRetry?: () => void
+  className?: string
+}
+
+export function NetworkStatusIndicator({ isOffline, onRetry, className }: NetworkStatusProps) {
+  if (!isOffline) return null
+
+  return (
+    <Alert variant="destructive" className={cn("mx-2 my-4", className)}>
+      <WifiOff className="h-4 w-4" />
+      <AlertDescription className="flex items-center justify-between">
+        <span>Keine Internetverbindung</span>
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            className="ml-2 h-6 text-xs"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />
+            Erneut versuchen
+          </Button>
+        )}
+      </AlertDescription>
+    </Alert>
+  )
+}
+
+interface SearchEmptyStateProps {
+  query: string
+  hasError?: boolean
+  isOffline?: boolean
+  onRetry?: () => void
+  suggestions?: string[]
+}
+
+export function SearchEmptyState({ 
+  query, 
+  hasError = false, 
+  isOffline = false,
+  onRetry,
+  suggestions = []
+}: SearchEmptyStateProps) {
+  if (hasError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-sm text-muted-foreground">
+        <AlertCircle className="mb-2 h-8 w-8 text-destructive" />
+        <p className="text-center mb-2">
+          {isOffline 
+            ? 'Suche nicht verfügbar (offline)'
+            : 'Bei der Suche ist ein Fehler aufgetreten'
+          }
+        </p>
+        {onRetry && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRetry}
+            className="text-xs"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />
+            Erneut versuchen
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-sm text-muted-foreground">
+      <Search className="mb-2 h-8 w-8" />
+      <p className="text-center mb-1">Keine Ergebnisse für "{query}"</p>
+      
+      {suggestions.length > 0 && (
+        <div className="mt-3 text-center">
+          <p className="text-xs mb-2">Versuchen Sie:</p>
+          <div className="flex flex-wrap gap-1 justify-center">
+            {suggestions.map((suggestion, index) => (
+              <span 
+                key={index}
+                className="px-2 py-1 bg-muted rounded text-xs cursor-pointer hover:bg-muted/80"
+              >
+                {suggestion}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      <div className="mt-4 text-xs text-center space-y-1">
+        <p>Tipps für bessere Ergebnisse:</p>
+        <ul className="text-muted-foreground/80 space-y-0.5">
+          <li>• Überprüfen Sie die Rechtschreibung</li>
+          <li>• Verwenden Sie weniger spezifische Begriffe</li>
+          <li>• Versuchen Sie andere Suchbegriffe</li>
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+interface SearchStatusBarProps {
+  totalCount: number
+  executionTime: number
+  query: string
+  isLoading?: boolean
+  retryCount?: number
+  isOffline?: boolean
+}
+
+export function SearchStatusBar({ 
+  totalCount, 
+  executionTime, 
+  query, 
+  isLoading = false,
+  retryCount = 0,
+  isOffline = false
+}: SearchStatusBarProps) {
+  return (
+    <div className="px-2 py-1.5 text-xs text-muted-foreground border-b bg-muted/20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isLoading ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : isOffline ? (
+            <WifiOff className="h-3 w-3 text-destructive" />
+          ) : (
+            <Search className="h-3 w-3" />
+          )}
+          
+          <span>
+            {isLoading ? (
+              retryCount > 0 ? `Wiederholung ${retryCount}...` : 'Suche läuft...'
+            ) : isOffline ? (
+              'Offline'
+            ) : (
+              `${totalCount} Ergebnisse für "${query}"`
+            )}
+          </span>
+        </div>
+        
+        {!isLoading && !isOffline && executionTime > 0 && (
+          <span className="text-muted-foreground/60">
+            {executionTime}ms
+          </span>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Progressive loading component for search results
+interface ProgressiveSearchLoadingProps {
+  isInitialLoad: boolean
+  isLoadingMore?: boolean
+  hasMore?: boolean
+  onLoadMore?: () => void
+}
+
+export function ProgressiveSearchLoading({ 
+  isInitialLoad, 
+  isLoadingMore = false, 
+  hasMore = false,
+  onLoadMore 
+}: ProgressiveSearchLoadingProps) {
+  if (isInitialLoad) {
+    return <SearchResultsSkeleton count={3} showGroupHeaders={true} />
+  }
+
+  if (isLoadingMore) {
+    return (
+      <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        Weitere Ergebnisse werden geladen...
+      </div>
+    )
+  }
+
+  if (hasMore && onLoadMore) {
+    return (
+      <div className="flex items-center justify-center py-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onLoadMore}
+          className="text-xs"
+        >
+          Weitere Ergebnisse laden
+        </Button>
+      </div>
+    )
+  }
+
+  return null
+}
