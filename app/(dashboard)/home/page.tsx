@@ -83,14 +83,14 @@ export default async function Dashboard() {
           <div className="h-full flex flex-col gap-4">
             <Link href="/todos" className="flex-1">
               <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
                     <CheckSquare className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-center pt-0">
-                  <div className="flex items-baseline gap-2">
+                <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+                  <div className="flex items-center gap-2 mt-1">
                     <div className="text-2xl font-bold leading-none">{summary.offeneAufgabenCount}</div>
                     {summary.offeneAufgabenCount > 0 && (
                       <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
@@ -98,47 +98,47 @@ export default async function Dashboard() {
                       </div>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Offene Aufgaben</p>
+                  <p className="text-xs text-muted-foreground">Offene Aufgaben</p>
                 </CardContent>
               </Card>
             </Link>
             
             <Link href="/finanzen" className="flex-1">
               <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
                     <Wallet className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-center pt-0">
-                  <div className="flex items-baseline gap-2 flex-wrap">
+                <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+                  <div className="flex items-center gap-2 mt-1">
                     <div className="text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
                     <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                       /Monat
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Monatliche Mieteinnahmen</p>
+                  <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
                 </CardContent>
               </Card>
             </Link>
             
             <Link href="/betriebskosten" className="flex-1">
               <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
                     <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-center pt-0">
-                  <div className="flex items-baseline gap-2 flex-wrap">
+                <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+                  <div className="flex items-center gap-2 mt-1">
                     <div className="text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
                     <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
                       /Jahr
                     </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">Jährliche Ausgaben</p>
+                  <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
                 </CardContent>
               </Card>
             </Link>
