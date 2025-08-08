@@ -79,3 +79,9 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  .summary-card {
+    @apply border-2 border-border;
+  }
+}
