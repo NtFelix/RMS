@@ -211,11 +211,15 @@ export function TenantPaymentBento() {
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className="w-full flex items-center justify-between p-4 rounded-lg shadow-md bg-white border"
+                  className={`w-full flex items-center justify-between p-4 rounded-lg shadow-md bg-white border transition-colors duration-200 ${
+                    tenant.paid
+                      ? 'border-green-200 hover:bg-green-50/50'
+                      : 'border-red-200 hover:bg-red-50/50'
+                  }`}
                 >
                   {/* Left side: Tenant name and apartment */}
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1 font-semibold">
+                    <div className="flex items-center gap-1 font-semibold text-foreground">
                       <User className="h-3.5 w-3.5" />
                       <span>{tenant.tenant}</span>
                     </div>
@@ -227,7 +231,9 @@ export function TenantPaymentBento() {
                   
                   {/* Right side: Price and payment button */}
                   <div className="flex flex-col items-end gap-2">
-                    <div className={`flex items-center gap-1 font-medium ${tenant.paid ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className={`flex items-center gap-1 font-medium ${
+                      tenant.paid ? 'text-green-600' : 'text-red-600'
+                    }`}>
                       <Tag className="h-3 w-3" />
                       <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
                     </div>
