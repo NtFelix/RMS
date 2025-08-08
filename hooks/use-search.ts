@@ -8,7 +8,14 @@ interface SearchCache {
     data: SearchResult[];
     timestamp: number;
     totalCount: number;
+    executionTime: number;
   };
+}
+
+interface SearchMetrics {
+  totalRequests: number;
+  cacheHits: number;
+  averageResponseTime: number;
 }
 
 interface UseSearchOptions {
@@ -34,6 +41,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const DEFAULT_DEBOUNCE = 300; // 300ms
 const DEFAULT_LIMIT = 5;
 const DEFAULT_CATEGORIES: SearchCategory[] = ['tenant', 'house', 'apartment', 'finance', 'task'];
+const MAX_CACHE_SIZE = 100; // Maximum number of cached entries
 
 export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const {
@@ -53,14 +61,73 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [totalCount, setTotalCount] = useState(0);
   const [executionTime, setExecutionTime] = useState(0);
 
-  // Cache for storing search results
+  // Cache for storing search results with LRU eviction
   const cacheRef = useRef<SearchCache>({});
+  const cacheKeysRef = useRef<string[]>([]);
   
   // AbortController for request cancellation
   const abortControllerRef = useRef<AbortController | null>(null);
+  
+  // Search metrics for performance monitoring
+  const metricsRef = useRef<SearchMetrics>({
+    totalRequests: 0,
+    cacheHits: 0,
+    averageResponseTime: 0
+  });
 
   // Debounced query to reduce API calls
   const debouncedQuery = useDebounce(query, debounceMs);
+
+  // Cache management functions
+  const cleanupCache = useCallback(() => {
+    const now = Date.now();
+    const validKeys: string[] = [];
+    
+    Object.keys(cacheRef.current).forEach(key => {
+      if (now - cacheRef.current[key].timestamp < cacheTimeMs) {
+        validKeys.push(key);
+      } else {
+        delete cacheRef.current[key];
+      }
+    });
+    
+    cacheKeysRef.current = validKeys;
+  }, [cacheTimeMs]);
+
+  const evictLRUCache = useCallback(() => {
+    if (cacheKeysRef.current.length >= MAX_CACHE_SIZE) {
+      // Remove oldest entries (LRU eviction)
+      const keysToRemove = cacheKeysRef.current.splice(0, Math.floor(MAX_CACHE_SIZE * 0.2));
+      keysToRemove.forEach(key => {
+        delete cacheRef.current[key];
+      });
+    }
+  }, []);
+
+  const updateCache = useCallback((key: string, data: SearchResult[], totalCount: number, executionTime: number) => {
+    // Clean up expired entries periodically
+    if (Math.random() < 0.1) {
+      cleanupCache();
+    }
+    
+    // Evict old entries if cache is full
+    evictLRUCache();
+    
+    // Add new entry
+    cacheRef.current[key] = {
+      data,
+      timestamp: Date.now(),
+      totalCount,
+      executionTime
+    };
+    
+    // Update LRU order
+    const existingIndex = cacheKeysRef.current.indexOf(key);
+    if (existingIndex > -1) {
+      cacheKeysRef.current.splice(existingIndex, 1);
+    }
+    cacheKeysRef.current.push(key);
+  }, [cleanupCache, evictLRUCache]);
 
 
 
@@ -81,7 +148,19 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     if (cached && Date.now() - cached.timestamp < cacheTimeMs) {
       setResults(cached.data);
       setTotalCount(cached.totalCount);
+      setExecutionTime(cached.executionTime);
       setError(null);
+      
+      // Update cache hit metrics
+      metricsRef.current.cacheHits++;
+      
+      // Update LRU order
+      const keyIndex = cacheKeysRef.current.indexOf(cacheKey);
+      if (keyIndex > -1) {
+        cacheKeysRef.current.splice(keyIndex, 1);
+        cacheKeysRef.current.push(cacheKey);
+      }
+      
       return;
     }
 
@@ -96,6 +175,10 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
     setIsLoading(true);
     setError(null);
+    
+    // Update request metrics
+    metricsRef.current.totalRequests++;
+    const requestStartTime = Date.now();
 
     try {
       const searchParams = new URLSearchParams({
@@ -108,6 +191,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         signal,
         headers: {
           'Content-Type': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
         },
       });
 
@@ -316,17 +400,20 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         });
       });
 
-      // Cache the results
-      cacheRef.current[cacheKey] = {
-        data: searchResults,
-        timestamp: Date.now(),
-        totalCount: data.totalCount
-      };
+      // Update cache with new results
+      updateCache(cacheKey, searchResults, data.totalCount, data.executionTime);
 
       setResults(searchResults);
       setTotalCount(data.totalCount);
       setExecutionTime(data.executionTime);
       setError(null);
+      
+      // Update response time metrics
+      const responseTime = Date.now() - requestStartTime;
+      const currentAvg = metricsRef.current.averageResponseTime;
+      const totalRequests = metricsRef.current.totalRequests;
+      metricsRef.current.averageResponseTime = 
+        (currentAvg * (totalRequests - 1) + responseTime) / totalRequests;
 
     } catch (err) {
       if (err instanceof Error) {
@@ -382,6 +469,21 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     }
   }, [debouncedQuery, performSearch]);
 
+  // Expose cache metrics for debugging (development only)
+  const getCacheMetrics = useCallback(() => {
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        cacheSize: Object.keys(cacheRef.current).length,
+        cacheHitRate: metricsRef.current.totalRequests > 0 
+          ? (metricsRef.current.cacheHits / metricsRef.current.totalRequests * 100).toFixed(2) + '%'
+          : '0%',
+        averageResponseTime: metricsRef.current.averageResponseTime.toFixed(2) + 'ms',
+        totalRequests: metricsRef.current.totalRequests
+      };
+    }
+    return null;
+  }, []);
+
   return {
     query,
     setQuery,
@@ -391,6 +493,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     totalCount,
     executionTime,
     clearSearch,
-    retry
+    retry,
+    getCacheMetrics
   };
 }

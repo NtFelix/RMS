@@ -10,26 +10,84 @@ import type {
   SearchResponse
 } from "@/types/search";
 
+// Cache for storing compiled search patterns
+const searchPatternCache = new Map<string, { pattern: string; exact: string; timestamp: number }>();
+const PATTERN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 // Helper function to sanitize search query
 function sanitizeQuery(query: string): string {
   return query.trim().replace(/[%_]/g, '\\$&');
 }
 
-// Helper function to create search pattern
-function createSearchPattern(query: string): string {
+// Helper function to create search patterns with caching
+function getSearchPatterns(query: string): { pattern: string; exact: string } {
+  const cacheKey = query.toLowerCase();
+  const cached = searchPatternCache.get(cacheKey);
+  
+  if (cached && Date.now() - cached.timestamp < PATTERN_CACHE_TTL) {
+    return { pattern: cached.pattern, exact: cached.exact };
+  }
+  
   const sanitized = sanitizeQuery(query);
-  return `%${sanitized}%`;
+  const pattern = `%${sanitized}%`;
+  const exact = sanitized;
+  
+  searchPatternCache.set(cacheKey, {
+    pattern,
+    exact,
+    timestamp: Date.now()
+  });
+  
+  return { pattern, exact };
 }
 
-// Helper function to create exact match pattern
-function createExactPattern(query: string): string {
-  return sanitizeQuery(query);
+// Helper function to clean up expired cache entries
+function cleanupPatternCache(): void {
+  const now = Date.now();
+  for (const [key, value] of searchPatternCache.entries()) {
+    if (now - value.timestamp > PATTERN_CACHE_TTL) {
+      searchPatternCache.delete(key);
+    }
+  }
+}
+
+// Helper function to sort results by relevance
+function sortByRelevance<T extends { name?: string; title?: string }>(
+  results: T[], 
+  query: string
+): T[] {
+  const queryLower = query.toLowerCase();
+  
+  return results.sort((a, b) => {
+    const aName = (a.name || (a as any).title || '').toLowerCase();
+    const bName = (b.name || (b as any).title || '').toLowerCase();
+    
+    // Exact matches first
+    const aExact = aName === queryLower;
+    const bExact = bName === queryLower;
+    if (aExact && !bExact) return -1;
+    if (!aExact && bExact) return 1;
+    
+    // Starts with query second
+    const aStarts = aName.startsWith(queryLower);
+    const bStarts = bName.startsWith(queryLower);
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    
+    // Alphabetical order for the rest
+    return aName.localeCompare(bName);
+  });
 }
 
 export async function GET(request: Request) {
   const startTime = Date.now();
   
   try {
+    // Clean up expired cache entries periodically
+    if (Math.random() < 0.1) { // 10% chance to clean up
+      cleanupPatternCache();
+    }
+    
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const limit = parseInt(searchParams.get('limit') || '5', 10);
@@ -56,7 +114,7 @@ export async function GET(request: Request) {
     }
     
     const supabase = await createClient();
-    const searchPattern = createSearchPattern(query);
+    const { pattern: searchPattern, exact: exactPattern } = getSearchPatterns(query);
     
     const results: SearchResponse['results'] = {
       tenants: [],
@@ -66,247 +124,262 @@ export async function GET(request: Request) {
       tasks: []
     };
     
-    // Search tenants (Mieter)
+    // Use Promise.allSettled for parallel execution with error isolation
+    const searchPromises = [];
+    
+    // Search tenants (Mieter) - Optimized query with proper JOINs
     if (categories.includes('tenants')) {
-      try {
-        const { data: tenantData, error: tenantError } = await supabase
+      searchPromises.push(
+        supabase
           .from('Mieter')
           .select(`
             id, name, email, telefonnummer, einzug, auszug,
-            Wohnungen(name, Haeuser(name))
+            Wohnungen!left(name, Haeuser!left(name))
           `)
           .or(`name.ilike.${searchPattern},email.ilike.${searchPattern},telefonnummer.ilike.${searchPattern}`)
           .order('name')
-          .limit(limit);
-          
-        if (tenantError) {
-          console.error('Tenant search error:', tenantError);
-        } else if (tenantData) {
-          // Sort by relevance: exact matches first, then partial matches
-          const sortedTenants = tenantData.sort((a, b) => {
-            const aExact = a.name.toLowerCase() === query.toLowerCase();
-            const bExact = b.name.toLowerCase() === query.toLowerCase();
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-            return a.name.localeCompare(b.name);
-          });
-          
-          results.tenants = sortedTenants.map(tenant => ({
-            id: tenant.id,
-            name: tenant.name,
-            email: tenant.email || undefined,
-            phone: tenant.telefonnummer || undefined,
-            apartment: tenant.Wohnungen && Array.isArray(tenant.Wohnungen) && tenant.Wohnungen.length > 0 ? {
-              name: tenant.Wohnungen[0].name,
-              house_name: tenant.Wohnungen[0].Haeuser && Array.isArray(tenant.Wohnungen[0].Haeuser) && tenant.Wohnungen[0].Haeuser.length > 0 
-                ? tenant.Wohnungen[0].Haeuser[0].name 
-                : ''
-            } : undefined,
-            status: tenant.auszug ? 'moved_out' : 'active',
-            move_in_date: tenant.einzug || undefined,
-            move_out_date: tenant.auszug || undefined
-          }));
-        }
-      } catch (error) {
-        console.error('Error searching tenants:', error);
-      }
+          .limit(limit)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Tenant search error:', error);
+              return { type: 'tenants', data: [] };
+            }
+            
+            if (!data) return { type: 'tenants', data: [] };
+            
+            const sortedTenants = sortByRelevance(data, query);
+            
+            const tenantResults = sortedTenants.map(tenant => ({
+              id: tenant.id,
+              name: tenant.name,
+              email: tenant.email || undefined,
+              phone: tenant.telefonnummer || undefined,
+              apartment: tenant.Wohnungen ? {
+                name: tenant.Wohnungen.name,
+                house_name: tenant.Wohnungen.Haeuser?.name || ''
+              } : undefined,
+              status: tenant.auszug ? 'moved_out' : 'active',
+              move_in_date: tenant.einzug || undefined,
+              move_out_date: tenant.auszug || undefined
+            }));
+            
+            return { type: 'tenants', data: tenantResults };
+          })
+          .catch(error => {
+            console.error('Error searching tenants:', error);
+            return { type: 'tenants', data: [] };
+          })
+      );
     }
     
-    // Search houses (Haeuser)
+    // Search houses (Haeuser) - Optimized with aggregated apartment data
     if (categories.includes('houses')) {
-      try {
-        const { data: houseData, error: houseError } = await supabase
+      searchPromises.push(
+        supabase
           .from('Haeuser')
           .select(`
-            id, name, strasse, ort, groesse,
-            Wohnungen(id, miete, Mieter(id, auszug))
+            id, name, strasse, ort,
+            Wohnungen!left(id, miete, Mieter!left(id, auszug))
           `)
           .or(`name.ilike.${searchPattern},strasse.ilike.${searchPattern},ort.ilike.${searchPattern}`)
           .order('name')
-          .limit(limit);
-          
-        if (houseError) {
-          console.error('House search error:', houseError);
-        } else if (houseData) {
-          // Sort by relevance
-          const sortedHouses = houseData.sort((a, b) => {
-            const aExact = a.name.toLowerCase() === query.toLowerCase();
-            const bExact = b.name.toLowerCase() === query.toLowerCase();
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-            return a.name.localeCompare(b.name);
-          });
-          
-          results.houses = sortedHouses.map(house => {
-            const apartments = Array.isArray(house.Wohnungen) ? house.Wohnungen : [];
-            const totalRent = apartments.reduce((sum, apt) => sum + (apt.miete || 0), 0);
-            const freeApartments = apartments.filter(apt => 
-              !apt.Mieter || (Array.isArray(apt.Mieter) && apt.Mieter.length === 0) || 
-              (Array.isArray(apt.Mieter) && apt.Mieter.some(m => m.auszug))
-            ).length;
+          .limit(limit)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('House search error:', error);
+              return { type: 'houses', data: [] };
+            }
             
-            return {
-              id: house.id,
-              name: house.name,
-              address: [house.strasse, house.ort].filter(Boolean).join(', '),
-              apartment_count: apartments.length,
-              total_rent: totalRent,
-              free_apartments: freeApartments
-            };
-          });
-        }
-      } catch (error) {
-        console.error('Error searching houses:', error);
-      }
+            if (!data) return { type: 'houses', data: [] };
+            
+            const sortedHouses = sortByRelevance(data, query);
+            
+            const houseResults = sortedHouses.map(house => {
+              const apartments = Array.isArray(house.Wohnungen) ? house.Wohnungen : [];
+              const totalRent = apartments.reduce((sum, apt) => sum + (apt.miete || 0), 0);
+              const freeApartments = apartments.filter(apt => 
+                !apt.Mieter || (Array.isArray(apt.Mieter) && apt.Mieter.length === 0) || 
+                (Array.isArray(apt.Mieter) && apt.Mieter.some(m => m.auszug))
+              ).length;
+              
+              return {
+                id: house.id,
+                name: house.name,
+                address: [house.strasse, house.ort].filter(Boolean).join(', '),
+                apartment_count: apartments.length,
+                total_rent: totalRent,
+                free_apartments: freeApartments
+              };
+            });
+            
+            return { type: 'houses', data: houseResults };
+          })
+          .catch(error => {
+            console.error('Error searching houses:', error);
+            return { type: 'houses', data: [] };
+          })
+      );
     }
     
-    // Search apartments (Wohnungen)
+    // Search apartments (Wohnungen) - Optimized with single query
     if (categories.includes('apartments')) {
-      try {
-        const { data: apartmentData, error: apartmentError } = await supabase
+      searchPromises.push(
+        supabase
           .from('Wohnungen')
           .select(`
             id, name, groesse, miete,
-            Haeuser(name),
-            Mieter(name, einzug, auszug)
+            Haeuser!left(name),
+            Mieter!left(name, einzug, auszug)
           `)
           .ilike('name', searchPattern)
           .order('name')
-          .limit(limit);
-          
-        if (apartmentError) {
-          console.error('Apartment search error:', apartmentError);
-        } else if (apartmentData) {
-          // Sort by relevance
-          const sortedApartments = apartmentData.sort((a, b) => {
-            const aExact = a.name.toLowerCase() === query.toLowerCase();
-            const bExact = b.name.toLowerCase() === query.toLowerCase();
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-            return a.name.localeCompare(b.name);
-          });
-          
-          results.apartments = sortedApartments.map(apartment => {
-            const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : [];
-            const currentTenant = mieterArray.find(m => !m.auszug);
-            const haeuser = Array.isArray(apartment.Haeuser) ? apartment.Haeuser[0] : apartment.Haeuser;
+          .limit(limit)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Apartment search error:', error);
+              return { type: 'apartments', data: [] };
+            }
             
-            return {
-              id: apartment.id,
-              name: apartment.name,
-              house_name: haeuser?.name || '',
-              size: apartment.groesse,
-              rent: apartment.miete,
-              status: currentTenant ? 'rented' : 'free',
-              current_tenant: currentTenant ? {
-                name: currentTenant.name,
-                move_in_date: currentTenant.einzug || ''
-              } : undefined
-            };
-          });
-        }
-      } catch (error) {
-        console.error('Error searching apartments:', error);
-      }
+            if (!data) return { type: 'apartments', data: [] };
+            
+            const sortedApartments = sortByRelevance(data, query);
+            
+            const apartmentResults = sortedApartments.map(apartment => {
+              const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : [];
+              const currentTenant = mieterArray.find(m => !m.auszug);
+              
+              return {
+                id: apartment.id,
+                name: apartment.name,
+                house_name: apartment.Haeuser?.name || '',
+                size: apartment.groesse,
+                rent: apartment.miete,
+                status: currentTenant ? 'rented' : 'free',
+                current_tenant: currentTenant ? {
+                  name: currentTenant.name,
+                  move_in_date: currentTenant.einzug || ''
+                } : undefined
+              };
+            });
+            
+            return { type: 'apartments', data: apartmentResults };
+          })
+          .catch(error => {
+            console.error('Error searching apartments:', error);
+            return { type: 'apartments', data: [] };
+          })
+      );
     }
     
-    // Search finances (Finanzen)
+    // Search finances (Finanzen) - Optimized with conditional numeric search
     if (categories.includes('finances')) {
-      try {
-        // Handle numeric search for amount
-        const isNumericQuery = !isNaN(parseFloat(query));
-        let financeQuery = supabase
-          .from('Finanzen')
-          .select(`
-            id, name, betrag, datum, ist_einnahmen, notiz,
-            Wohnungen(name, Haeuser(name))
-          `)
-          .order('datum', { ascending: false })
-          .limit(limit);
-          
-        if (isNumericQuery) {
-          const amount = parseFloat(query);
-          financeQuery = financeQuery.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
-        } else {
-          financeQuery = financeQuery.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
-        }
+      const isNumericQuery = !isNaN(parseFloat(query));
+      
+      let financeQueryBuilder = supabase
+        .from('Finanzen')
+        .select(`
+          id, name, betrag, datum, ist_einnahmen, notiz,
+          Wohnungen!left(name, Haeuser!left(name))
+        `)
+        .order('datum', { ascending: false })
+        .limit(limit);
         
-        const { data: financeData, error: financeError } = await financeQuery;
-          
-        if (financeError) {
-          console.error('Finance search error:', financeError);
-        } else if (financeData) {
-          // Sort by relevance
-          const sortedFinances = financeData.sort((a, b) => {
-            const aExact = a.name.toLowerCase() === query.toLowerCase();
-            const bExact = b.name.toLowerCase() === query.toLowerCase();
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-            // Then by date (most recent first)
-            return new Date(b.datum).getTime() - new Date(a.datum).getTime();
-          });
-          
-          results.finances = sortedFinances.map(finance => {
-            const wohnung = Array.isArray(finance.Wohnungen) ? finance.Wohnungen[0] : finance.Wohnungen;
-            const haus = wohnung?.Haeuser ? (Array.isArray(wohnung.Haeuser) ? wohnung.Haeuser[0] : wohnung.Haeuser) : null;
+      if (isNumericQuery) {
+        const amount = parseFloat(query);
+        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
+      } else {
+        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+      }
+      
+      searchPromises.push(
+        financeQueryBuilder
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Finance search error:', error);
+              return { type: 'finances', data: [] };
+            }
             
-            return {
+            if (!data) return { type: 'finances', data: [] };
+            
+            // Custom sorting for finances: relevance first, then by date
+            const sortedFinances = data.sort((a, b) => {
+              const aExact = a.name.toLowerCase() === query.toLowerCase();
+              const bExact = b.name.toLowerCase() === query.toLowerCase();
+              if (aExact && !bExact) return -1;
+              if (!aExact && bExact) return 1;
+              // Then by date (most recent first)
+              return new Date(b.datum).getTime() - new Date(a.datum).getTime();
+            });
+            
+            const financeResults = sortedFinances.map(finance => ({
               id: finance.id,
               name: finance.name,
               amount: finance.betrag,
               date: finance.datum,
               type: finance.ist_einnahmen ? 'income' : 'expense',
-              apartment: wohnung ? {
-                name: wohnung.name,
-                house_name: haus?.name || ''
+              apartment: finance.Wohnungen ? {
+                name: finance.Wohnungen.name,
+                house_name: finance.Wohnungen.Haeuser?.name || ''
               } : undefined,
               notes: finance.notiz || undefined
-            };
-          });
-        }
-      } catch (error) {
-        console.error('Error searching finances:', error);
-      }
+            }));
+            
+            return { type: 'finances', data: financeResults };
+          })
+          .catch(error => {
+            console.error('Error searching finances:', error);
+            return { type: 'finances', data: [] };
+          })
+      );
     }
     
-    // Search tasks (Aufgaben)
+    // Search tasks (Aufgaben) - Optimized with completion status ordering
     if (categories.includes('tasks')) {
-      try {
-        const { data: taskData, error: taskError } = await supabase
+      searchPromises.push(
+        supabase
           .from('Aufgaben')
           .select('id, name, beschreibung, ist_erledigt, erstellungsdatum')
           .or(`name.ilike.${searchPattern},beschreibung.ilike.${searchPattern}`)
+          .order('ist_erledigt', { ascending: true }) // Incomplete tasks first
           .order('erstellungsdatum', { ascending: false })
-          .limit(limit);
-          
-        if (taskError) {
-          console.error('Task search error:', taskError);
-        } else if (taskData) {
-          // Sort by relevance
-          const sortedTasks = taskData.sort((a, b) => {
-            const aExact = a.name.toLowerCase() === query.toLowerCase();
-            const bExact = b.name.toLowerCase() === query.toLowerCase();
-            if (aExact && !bExact) return -1;
-            if (!aExact && bExact) return 1;
-            // Then by completion status (incomplete first) and date
-            if (a.ist_erledigt !== b.ist_erledigt) {
-              return a.ist_erledigt ? 1 : -1;
+          .limit(limit)
+          .then(({ data, error }) => {
+            if (error) {
+              console.error('Task search error:', error);
+              return { type: 'tasks', data: [] };
             }
-            return new Date(b.erstellungsdatum).getTime() - new Date(a.erstellungsdatum).getTime();
-          });
-          
-          results.tasks = sortedTasks.map(task => ({
-            id: task.id,
-            name: task.name,
-            description: task.beschreibung,
-            completed: task.ist_erledigt,
-            created_date: task.erstellungsdatum
-          }));
-        }
-      } catch (error) {
-        console.error('Error searching tasks:', error);
-      }
+            
+            if (!data) return { type: 'tasks', data: [] };
+            
+            const sortedTasks = sortByRelevance(data, query);
+            
+            const taskResults = sortedTasks.map(task => ({
+              id: task.id,
+              name: task.name,
+              description: task.beschreibung,
+              completed: task.ist_erledigt,
+              created_date: task.erstellungsdatum
+            }));
+            
+            return { type: 'tasks', data: taskResults };
+          })
+          .catch(error => {
+            console.error('Error searching tasks:', error);
+            return { type: 'tasks', data: [] };
+          })
+      );
     }
+    
+    // Execute all searches in parallel
+    const searchResults = await Promise.allSettled(searchPromises);
+    
+    // Process results
+    searchResults.forEach(result => {
+      if (result.status === 'fulfilled' && result.value) {
+        const { type, data } = result.value;
+        (results as any)[type] = data;
+      }
+    });
     
     const totalCount = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
     const executionTime = Date.now() - startTime;
@@ -317,7 +390,21 @@ export async function GET(request: Request) {
       executionTime
     };
     
-    return NextResponse.json(response, { status: 200 });
+    // Add response compression headers
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      'Cache-Control': 'public, max-age=60', // Cache for 1 minute
+    });
+    
+    // Add compression hint for larger responses
+    if (totalCount > 10) {
+      headers.set('Content-Encoding', 'gzip');
+    }
+    
+    return new NextResponse(JSON.stringify(response), { 
+      status: 200,
+      headers
+    });
     
   } catch (error) {
     console.error('Search API error:', error);
