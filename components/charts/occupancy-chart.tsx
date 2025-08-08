@@ -86,8 +86,8 @@ export function OccupancyChart() {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0 pb-2">
-        <CardTitle className="text-sm">Belegung</CardTitle>
-        <CardDescription className="text-xs">Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>
+        <CardTitle className="text-lg">Belegung</CardTitle>
+        <CardDescription>Wohnungsbelegung nach Monat</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0" ref={containerRef}>
         <ChartContainer

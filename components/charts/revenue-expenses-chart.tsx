@@ -103,9 +103,9 @@ export function RevenueExpensesChart() {
 
   return (
     <Card className="h-full flex flex-col">
-      <CardHeader className="flex-shrink-0 pb-3">
-        <CardTitle>Einnahmen & Ausgaben</CardTitle>
-        <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
+      <CardHeader className="flex-shrink-0 pb-2">
+        <CardTitle className="text-lg">Einnahmen & Ausgaben</CardTitle>
+        <CardDescription>Monatliche Übersicht der Finanzen</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-3 min-h-0" ref={containerRef}>
         <ChartContainer

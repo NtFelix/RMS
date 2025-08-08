@@ -127,10 +127,8 @@ export function MaintenanceDonutChart() {
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="flex-shrink-0 pb-2">
-        <CardTitle className="text-sm">Ausgaben nach Kategorie</CardTitle>
-        <CardDescription className="text-xs">
-          {loading ? "Lade Daten..." : "Verteilung der Ausgaben"}
-        </CardDescription>
+        <CardTitle className="text-lg">Ausgaben nach Kategorie</CardTitle>
+        <CardDescription>Verteilung der Betriebskosten</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 p-2 min-h-0">
         {loading ? (

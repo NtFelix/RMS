@@ -196,8 +196,8 @@ export function TenantPaymentBento() {
 
   return (
     <Card className="h-full flex flex-col">
-      <CardHeader>
-        <CardTitle>Mietzahlungen</CardTitle>
+      <CardHeader className="flex-shrink-0 pb-2">
+        <CardTitle className="text-lg">Mietzahlungen</CardTitle>
         <CardDescription>Bezahlt vs. offen</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 overflow-y-auto pr-2">
