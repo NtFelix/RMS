@@ -1,77 +1,14 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
-
-// Search result interfaces
-interface TenantSearchResult {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  apartment?: {
-    name: string;
-    house_name: string;
-  };
-  status: 'active' | 'moved_out';
-  move_in_date?: string;
-  move_out_date?: string;
-}
-
-interface HouseSearchResult {
-  id: string;
-  name: string;
-  address: string;
-  apartment_count: number;
-  total_rent: number;
-  free_apartments: number;
-}
-
-interface ApartmentSearchResult {
-  id: string;
-  name: string;
-  house_name: string;
-  size: number;
-  rent: number;
-  status: 'free' | 'rented';
-  current_tenant?: {
-    name: string;
-    move_in_date: string;
-  };
-}
-
-interface FinanceSearchResult {
-  id: string;
-  name: string;
-  amount: number;
-  date: string;
-  type: 'income' | 'expense';
-  apartment?: {
-    name: string;
-    house_name: string;
-  };
-  notes?: string;
-}
-
-interface TaskSearchResult {
-  id: string;
-  name: string;
-  description: string;
-  completed: boolean;
-  created_date: string;
-  due_date?: string;
-}
-
-interface SearchResponse {
-  results: {
-    tenants: TenantSearchResult[];
-    houses: HouseSearchResult[];
-    apartments: ApartmentSearchResult[];
-    finances: FinanceSearchResult[];
-    tasks: TaskSearchResult[];
-  };
-  totalCount: number;
-  executionTime: number;
-}
+import type {
+  TenantSearchResult,
+  HouseSearchResult,
+  ApartmentSearchResult,
+  FinanceSearchResult,
+  TaskSearchResult,
+  SearchResponse
+} from "@/types/search";
 
 // Helper function to sanitize search query
 function sanitizeQuery(query: string): string {
