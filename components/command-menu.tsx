@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
+"use client"
+
+import React, { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
-import React from "react"
-import { SearchErrorBoundary } from "@/components/search-error-boundary"
 import {
   CommandDialog,
   CommandEmpty,
@@ -12,7 +12,17 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard, CreditCard } from "lucide-react"
+import {
+  BarChart3,
+  Building2,
+  Home,
+  Users,
+  Wallet,
+  FileSpreadsheet,
+  CheckSquare,
+  LayoutDashboard,
+  CreditCard,
+} from "lucide-react"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSearch } from "@/hooks/use-search"
@@ -21,23 +31,7 @@ import { SearchEmptyState } from "@/components/search-loading-states"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { SearchResult } from "@/types/search"
-import React from "react"
 import { SearchErrorBoundary } from "@/components/search-error-boundary"
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard, CreditCard } from "lucide-react"
-import { useCommandMenu } from "@/hooks/use-command-menu"
-import { useModalStore } from "@/hooks/use-modal-store"
-import { useSearch } from "@/hooks/use-search"
-import { useSearchModalIntegration } from "@/hooks/use-search-modal-integration"
-import { SearchEmptyState } from "@/components/search-loading-states"
-import { Button } from "@/components/ui/button"
 import {
   getUserSubscriptionContext,
   getPlanApartmentLimit,
