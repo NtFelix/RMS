@@ -187,6 +187,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
   return (
     <CommandItem
       key={result.id}
+      tabIndex={0}
       onSelect={() => onSelect(result)}
       className="group flex items-center justify-between p-3 hover:bg-accent/50 cursor-pointer"
     >
