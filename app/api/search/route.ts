@@ -143,7 +143,7 @@ export async function GET(request: Request) {
                 id, name, email, telefonnummer, einzug, auszug,
                 Wohnungen!left(name, Haeuser!left(name))
               `)
-              .or(`name.ilike.${searchPattern},email.ilike.${searchPattern},telefonnummer.ilike.${searchPattern}`)
+              .or(`name.ILIKE.${searchPattern},email.ILIKE.${searchPattern},telefonnummer.ILIKE.${searchPattern}`)
               .order('name')
               .limit(limit);
 
@@ -190,7 +190,7 @@ export async function GET(request: Request) {
                 id, name, strasse, ort,
                 Wohnungen!left(id, miete, Mieter!left(id, auszug))
               `)
-              .or(`name.ilike.${searchPattern},strasse.ilike.${searchPattern},ort.ilike.${searchPattern}`)
+              .or(`name.ILIKE.${searchPattern},strasse.ILIKE.${searchPattern},ort.ILIKE.${searchPattern}`)
               .order('name')
               .limit(limit);
 
@@ -297,9 +297,9 @@ export async function GET(request: Request) {
         
       if (isNumericQuery) {
         const amount = parseFloat(query);
-        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
+        financeQueryBuilder = financeQueryBuilder.or(`name.ILIKE.${searchPattern},notiz.ILIKE.${searchPattern},betrag.eq.${amount}`);
       } else {
-        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+        financeQueryBuilder = financeQueryBuilder.or(`name.ILIKE.${searchPattern},notiz.ILIKE.${searchPattern}`);
       }
       
       searchPromises.push(
@@ -354,7 +354,7 @@ export async function GET(request: Request) {
             const { data, error } = await supabase
               .from('Aufgaben')
               .select('id, name, beschreibung, ist_erledigt, erstellungsdatum')
-              .or(`name.ilike.${searchPattern},beschreibung.ilike.${searchPattern}`)
+              .or(`name.ILIKE.${searchPattern},beschreibung.ILIKE.${searchPattern}`)
               .order('ist_erledigt', { ascending: true }) // Incomplete tasks first
               .order('erstellungsdatum', { ascending: false })
               .limit(limit);
