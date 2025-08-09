@@ -96,8 +96,36 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const limit = parseInt(searchParams.get('limit') || '5', 10);
-    const categories = searchParams.get('categories')?.split(',') || ['tenants', 'houses', 'apartments', 'finances', 'tasks'];
-    
+
+    // --- Category normalization so both singular/plural keys are supported ---
+    // Maps all accepted singular/plural keys to canonical plural category names
+    const CATEGORY_ALIAS: Record<string, string> = {
+      tenant: 'tenants', tenants: 'tenants',
+      house: 'houses', houses: 'houses',
+      apartment: 'apartments', apartments: 'apartments',
+      finance: 'finances', finances: 'finances',
+      task: 'tasks', tasks: 'tasks'
+    };
+    let categoriesRaw = searchParams.get('categories');
+    let categories: string[];
+    if (!categoriesRaw || categoriesRaw.trim() === '') {
+      categories = ['tenants', 'houses', 'apartments', 'finances', 'tasks'];
+    } else {
+      categories = Array.from(
+        new Set(
+          categoriesRaw
+            .split(',')
+            .map(c => c.toLowerCase().trim())
+            .map(c => CATEGORY_ALIAS[c])
+            .filter(Boolean)
+        )
+      );
+      if (categories.length === 0) {
+        categories = ['tenants', 'houses', 'apartments', 'finances', 'tasks'];
+      }
+    }
+    // ------------------------------------------------------------------------
+
     // Validate query parameter
     if (!query || query.trim().length === 0) {
       return NextResponse.json({ 
@@ -132,18 +160,28 @@ export async function GET(request: Request) {
     // Use Promise.allSettled for parallel execution with error isolation
     const searchPromises = [];
     
-    // Search tenants (Mieter) - Optimized query with proper JOINs
+    // Search tenants (Mieter) - include apartment/house names in search
     if (categories.includes('tenants')) {
       searchPromises.push(
         (async () => {
           try {
+            // Add Wohnungen.name and Wohnungen.Haeuser.name to .or for cross-relevance
+            // This allows tenant search to match by related apartment or house name as well as name/email/phone
             const { data, error } = await supabase
               .from('Mieter')
               .select(`
                 id, name, email, telefonnummer, einzug, auszug,
                 Wohnungen!left(name, Haeuser!left(name))
               `)
-              .or(`name.ilike.${searchPattern},email.ilike.${searchPattern},telefonnummer.ilike.${searchPattern}`)
+              .or(
+                [
+                  `name.ilike.${searchPattern}`,
+                  `email.ilike.${searchPattern}`,
+                  `telefonnummer.ilike.${searchPattern}`,
+                  `Wohnungen.name.ilike.${searchPattern}`,
+                  `Wohnungen.Haeuser.name.ilike.${searchPattern}`
+                ].join(',')
+              )
               .order('name')
               .limit(limit);
 
@@ -230,11 +268,13 @@ export async function GET(request: Request) {
       );
     }
     
-    // Search apartments (Wohnungen) - Optimized with single query
+    // Search apartments (Wohnungen) - match by apartment or related house name
     if (categories.includes('apartments')) {
       searchPromises.push(
         (async () => {
           try {
+            // --- OR filter for apartment name and related house name (case-insensitive partial match) ---
+            // Allows search like "woh" to match Wohnung or Haus names
             const { data, error } = await supabase
               .from('Wohnungen')
               .select(`
@@ -242,7 +282,12 @@ export async function GET(request: Request) {
                 Haeuser!left(name),
                 Mieter!left(name, einzug, auszug)
               `)
-              .ilike('name', searchPattern)
+              .or(
+                [
+                  `name.ilike.${searchPattern}`,
+                  `Haeuser.name.ilike.${searchPattern}`
+                ].join(',')
+              )
               .order('name')
               .limit(limit);
 
@@ -282,7 +327,7 @@ export async function GET(request: Request) {
       );
     }
     
-    // Search finances (Finanzen) - Optimized with conditional numeric search
+    // Search finances (Finanzen) - include apartment/house names in search if possible
     if (categories.includes('finances')) {
       const isNumericQuery = !isNaN(parseFloat(query));
       
@@ -294,14 +339,20 @@ export async function GET(request: Request) {
         `)
         .order('datum', { ascending: false })
         .limit(limit);
-        
+
+      // Attempt to include Wohnungen.name and Wohnungen.Haeuser.name in OR if supported
+      let orFilters: string[] = [
+        `name.ilike.${searchPattern}`,
+        `notiz.ilike.${searchPattern}`,
+        `Wohnungen.name.ilike.${searchPattern}`,
+        `Wohnungen.Haeuser.name.ilike.${searchPattern}`
+      ];
       if (isNumericQuery) {
         const amount = parseFloat(query);
-        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
-      } else {
-        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+        orFilters.push(`betrag.eq.${amount}`);
       }
-      
+      financeQueryBuilder = financeQueryBuilder.or(orFilters.join(','));
+
       searchPromises.push(
         (async () => {
           try {
