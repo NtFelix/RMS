@@ -87,16 +87,13 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   // Retry timeout reference
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debounced query to reduce API calls
-  const debouncedQuery = useDebounce(query, debounceMs);
-
   // Network status monitoring
   useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
       // Retry last failed search if we were offline
-      if (error && debouncedQuery.trim()) {
-        performSearch(debouncedQuery);
+      if (error && query.trim()) {
+        performSearch(query);
       }
     };
 
@@ -115,7 +112,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [error, debouncedQuery]);
+  }, [error, query]);
 
   // Cache management functions
   const cleanupCache = useCallback(() => {
@@ -572,8 +569,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   // Effect to trigger search when debounced query changes
   useEffect(() => {
-    performSearch(debouncedQuery);
-  }, [debouncedQuery, performSearch]);
+    performSearch(query);
+  }, [query, performSearch]);
 
   // Cleanup function to cancel ongoing requests and timeouts
   useEffect(() => {
@@ -607,7 +604,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   // Enhanced retry function
   const retry = useCallback(() => {
-    if (debouncedQuery.trim()) {
+    if (query.trim()) {
       setError(null);
       setRetryCount(0);
       
@@ -616,9 +613,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
         clearTimeout(retryTimeoutRef.current);
       }
       
-      performSearch(debouncedQuery);
+      performSearch(query);
     }
-  }, [debouncedQuery, performSearch]);
+  }, [query, performSearch]);
 
   // Expose cache metrics for debugging (development only)
   const getCacheMetrics = useCallback(() => {
