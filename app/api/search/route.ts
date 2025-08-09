@@ -205,7 +205,7 @@ export async function GET(request: Request) {
     }
     
     // Search houses (Haeuser) - Optimized with aggregated apartment data
-    if (categories.includes('houses')) {
+    if (normalizedCategories.includes('houses')) {
       searchPromises.push(
         (async () => {
           try {
@@ -256,7 +256,7 @@ export async function GET(request: Request) {
     }
     
     // Search apartments (Wohnungen) - Optimized with single query
-    if (categories.includes('apartments')) {
+    if (normalizedCategories.includes('apartments')) {
       searchPromises.push(
         (async () => {
           try {
@@ -308,7 +308,7 @@ export async function GET(request: Request) {
     }
     
     // Search finances (Finanzen) - Optimized with conditional numeric search
-    if (categories.includes('finances')) {
+    if (normalizedCategories.includes('finances')) {
       const isNumericQuery = !isNaN(parseFloat(query));
       
       let financeQueryBuilder = supabase
@@ -372,7 +372,7 @@ export async function GET(request: Request) {
     }
     
     // Search tasks (Aufgaben) - Optimized with completion status ordering
-    if (categories.includes('tasks')) {
+    if (normalizedCategories.includes('tasks')) {
       searchPromises.push(
         (async () => {
           try {
