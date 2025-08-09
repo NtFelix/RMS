@@ -96,8 +96,33 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const limit = parseInt(searchParams.get('limit') || '5', 10);
-    const categories = searchParams.get('categories')?.split(',') || ['tenants', 'houses', 'apartments', 'finances', 'tasks'];
     
+    // Category normalization: accept both singular and plural forms, map to internal plural keys
+    const categoryMap: Record<string, 'tenants'|'houses'|'apartments'|'finances'|'tasks'> = {
+      tenant: 'tenants', tenants: 'tenants',
+      house: 'houses', houses: 'houses',
+      apartment: 'apartments', apartments: 'apartments',
+      finance: 'finances', finances: 'finances',
+      task: 'tasks', tasks: 'tasks',
+    };
+    let rawCategories = searchParams.get('categories');
+    let normalizedCategories: ('tenants'|'houses'|'apartments'|'finances'|'tasks')[] = [];
+
+    if (rawCategories) {
+      normalizedCategories = Array.from(
+        new Set(
+          rawCategories
+            .split(',')
+            .map(cat => categoryMap[cat.trim().toLowerCase()])
+            .filter(Boolean)
+        )
+      );
+    }
+    // Default to all categories if none provided or normalization results in empty array
+    if (!normalizedCategories.length) {
+      normalizedCategories = ['tenants', 'houses', 'apartments', 'finances', 'tasks'];
+    }
+
     // Validate query parameter
     if (!query || query.trim().length === 0) {
       return NextResponse.json({ 
@@ -133,7 +158,7 @@ export async function GET(request: Request) {
     const searchPromises = [];
     
     // Search tenants (Mieter) - Optimized query with proper JOINs
-    if (categories.includes('tenants')) {
+    if (normalizedCategories.includes('tenants')) {
       searchPromises.push(
         (async () => {
           try {
