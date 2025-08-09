@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   CommandDialog,
@@ -14,6 +14,7 @@ import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSearch } from "@/hooks/use-search"
+import { useSearchModalIntegration } from "@/hooks/use-search-modal-integration"
 import { SearchResultGroup } from "@/components/search-result-group"
 import { SearchErrorBoundary } from "@/components/search-error-boundary"
 import { 
@@ -128,6 +129,154 @@ export function CommandMenu() {
     }
   }, [open, query, clearSearch])
 
+  // Centralized function to refresh search results after modal actions
+  const refreshSearchResults = useCallback(() => {
+    if (query.trim()) {
+      const currentQuery = query
+      clearSearch()
+      setTimeout(() => setQuery(currentQuery), 100)
+    }
+  }, [query, clearSearch, setQuery])
+
+  // Function to invalidate entity cache
+  const invalidateEntityCache = useCallback((entityType?: string) => {
+    if (entityType) {
+      delete entityCache.current[entityType]
+    } else {
+      // Clear all cache
+      entityCache.current = {}
+    }
+  }, [])
+
+  // Integrate search with modal operations
+  useSearchModalIntegration({
+    onEntityUpdated: (entityType, entityName) => {
+      // Refresh search results when entity is updated through modal
+      refreshSearchResults()
+      
+      // Show success toast if not already shown by modal
+      if (query.trim()) {
+        toast({
+          title: 'Suche aktualisiert',
+          description: `${entityName} wurde aktualisiert. Suchergebnisse wurden aktualisiert.`,
+        })
+      }
+    },
+    onCacheInvalidate: (entityType) => {
+      // Invalidate cache when entity is updated
+      invalidateEntityCache(entityType)
+      
+      // Also invalidate related entity caches
+      switch (entityType) {
+        case 'mieter':
+          invalidateEntityCache('wohnungen')
+          break
+        case 'wohnungen':
+          invalidateEntityCache('mieter')
+          invalidateEntityCache('haeuser')
+          break
+        case 'haeuser':
+          invalidateEntityCache('wohnungen')
+          break
+        case 'finanzen':
+          invalidateEntityCache('wohnungen')
+          break
+      }
+    }
+  })
+
+  // Centralized function to create onSuccess callbacks for modals
+  const createModalSuccessCallback = useCallback((entityName: string, entityType?: string) => {
+    return (updatedData?: any) => {
+      // Invalidate cache for the specific entity type and related entities
+      if (entityType) {
+        invalidateEntityCache(entityType)
+        
+        // Invalidate related entity caches based on relationships
+        switch (entityType) {
+          case 'mieter':
+            // When tenant is updated, also invalidate apartments cache
+            invalidateEntityCache('wohnungen')
+            break
+          case 'wohnungen':
+            // When apartment is updated, also invalidate tenants and houses cache
+            invalidateEntityCache('mieter')
+            invalidateEntityCache('haeuser')
+            break
+          case 'haeuser':
+            // When house is updated, also invalidate apartments cache
+            invalidateEntityCache('wohnungen')
+            break
+          case 'finanzen':
+            // Finance updates might affect apartment data
+            invalidateEntityCache('wohnungen')
+            break
+        }
+      } else {
+        // If no specific entity type, clear all cache
+        entityCache.current = {}
+      }
+      
+      // Refresh search results to show updated data
+      refreshSearchResults()
+      
+      // Show success message
+      toast({
+        title: 'Erfolg',
+        description: `${entityName} wurde erfolgreich aktualisiert.`,
+      })
+      
+      // If we're on the relevant page, trigger a page refresh for immediate UI update
+      const currentPath = window.location.pathname
+      const shouldRefreshPage = (
+        (entityType === 'mieter' && currentPath === '/mieter') ||
+        (entityType === 'haeuser' && currentPath === '/haeuser') ||
+        (entityType === 'wohnungen' && currentPath === '/wohnungen') ||
+        (entityType === 'finanzen' && currentPath === '/finanzen') ||
+        (entityType === 'todos' && currentPath === '/todos')
+      )
+      
+      if (shouldRefreshPage) {
+        // Use a small delay to allow modal to close first
+        setTimeout(() => {
+          window.location.reload()
+        }, 300)
+      }
+    }
+  }, [refreshSearchResults, invalidateEntityCache])
+
+  // Centralized entity fetcher with caching
+  const entityCache = useRef<Record<string, { data: any[], timestamp: number }>>({})
+  const ENTITY_CACHE_DURATION = 2 * 60 * 1000 // 2 minutes
+
+  const fetchEntityData = useCallback(async (entityType: string, forceRefresh = false) => {
+    const cacheKey = entityType
+    const cached = entityCache.current[cacheKey]
+    
+    // Return cached data if it's still valid and not forcing refresh
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < ENTITY_CACHE_DURATION) {
+      return cached.data
+    }
+
+    try {
+      const response = await fetch(`/api/${entityType}`)
+      if (!response.ok) throw new Error(`Failed to fetch ${entityType}`)
+      
+      const data = await response.json()
+      
+      // Cache the data
+      entityCache.current[cacheKey] = {
+        data,
+        timestamp: Date.now()
+      }
+      
+      return data
+    } catch (error) {
+      console.error(`Error fetching ${entityType}:`, error)
+      throw error
+    }
+  }, [])
+
   // Handle search result selection (main click)
   const handleSearchResultSelect = (result: SearchResult) => {
     setOpen(false)
@@ -165,57 +314,44 @@ export function CommandMenu() {
     switch (result.type) {
       case 'tenant':
         if (action.label === 'Bearbeiten') {
-          // Open tenant edit modal with the specific tenant data
-          // We need to fetch the full tenant data first
-          handleEditTenant(result.id)
+          handleEditTenant(result.id, result)
         } else if (action.label === 'Anzeigen') {
-          // Navigate to tenant page
           router.push('/mieter')
         }
         break
         
       case 'house':
         if (action.label === 'Bearbeiten') {
-          // Open house edit modal with the specific house data
-          handleEditHouse(result.id)
+          handleEditHouse(result.id, result)
         } else if (action.label === 'Anzeigen') {
-          // Navigate to house page
           router.push('/haeuser')
         }
         break
         
       case 'apartment':
         if (action.label === 'Bearbeiten') {
-          // Open apartment edit modal with the specific apartment data
-          handleEditApartment(result.id)
+          handleEditApartment(result.id, result)
         } else if (action.label === 'Anzeigen') {
-          // Navigate to apartment page
           router.push('/wohnungen')
         }
         break
         
       case 'finance':
         if (action.label === 'Bearbeiten') {
-          // Open finance edit modal with the specific finance data
-          handleEditFinance(result.id)
+          handleEditFinance(result.id, result)
         } else if (action.label === 'Anzeigen') {
-          // Navigate to finance page
           router.push('/finanzen')
         } else if (action.label === 'Löschen') {
-          // Handle delete action with confirmation
           handleDeleteFinanceRecord(result)
         }
         break
         
       case 'task':
         if (action.label === 'Bearbeiten') {
-          // Open task edit modal with the specific task data
-          handleEditTask(result.id)
+          handleEditTask(result.id, result)
         } else if (action.label.includes('markieren')) {
-          // Handle task completion toggle
           handleToggleTaskCompletion(result)
         } else if (action.label === 'Löschen') {
-          // Handle delete action with confirmation
           handleDeleteTask(result)
         }
         break
@@ -225,21 +361,30 @@ export function CommandMenu() {
     }
   }
 
-  // Helper functions to fetch full entity data and open modals
-  const handleEditTenant = async (tenantId: string) => {
+  // Helper functions to fetch full entity data and open modals with search context
+  const handleEditTenant = async (tenantId: string, searchResult?: SearchResult) => {
     try {
-      const response = await fetch(`/api/mieter`)
-      if (!response.ok) throw new Error('Failed to fetch tenants')
+      const [tenants, wohnungen] = await Promise.all([
+        fetchEntityData('mieter'),
+        fetchEntityData('wohnungen')
+      ])
       
-      const tenants = await response.json()
       const tenant = tenants.find((t: any) => t.id === tenantId)
       
       if (tenant) {
-        // Also fetch wohnungen for the modal
-        const wohnungenResponse = await fetch(`/api/wohnungen`)
-        const wohnungen = wohnungenResponse.ok ? await wohnungenResponse.json() : []
+        // Add search context to the modal data if available
+        const tenantWithContext = searchResult ? {
+          ...tenant,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : tenant
         
-        useModalStore.getState().openTenantModal(tenant, wohnungen)
+        useModalStore.getState().openTenantModal(tenantWithContext, wohnungen)
+        
+        // Success handling is done through the useSearchModalIntegration hook
       } else {
         toast({
           title: 'Fehler',
@@ -248,6 +393,7 @@ export function CommandMenu() {
         })
       }
     } catch (error) {
+      console.error('Error loading tenant for edit:', error)
       toast({
         title: 'Fehler',
         description: 'Mieter konnte nicht geladen werden.',
@@ -256,16 +402,25 @@ export function CommandMenu() {
     }
   }
 
-  const handleEditHouse = async (houseId: string) => {
+  const handleEditHouse = async (houseId: string, searchResult?: SearchResult) => {
     try {
-      const response = await fetch(`/api/haeuser`)
-      if (!response.ok) throw new Error('Failed to fetch houses')
-      
-      const houses = await response.json()
+      const houses = await fetchEntityData('haeuser')
       const house = houses.find((h: any) => h.id === houseId)
       
       if (house) {
-        useModalStore.getState().openHouseModal(house)
+        const onSuccess = createModalSuccessCallback('Haus', 'haeuser')
+        
+        // Add search context to the modal data if available
+        const houseWithContext = searchResult ? {
+          ...house,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : house
+        
+        useModalStore.getState().openHouseModal(houseWithContext, onSuccess)
       } else {
         toast({
           title: 'Fehler',
@@ -274,6 +429,7 @@ export function CommandMenu() {
         })
       }
     } catch (error) {
+      console.error('Error loading house for edit:', error)
       toast({
         title: 'Fehler',
         description: 'Haus konnte nicht geladen werden.',
@@ -282,20 +438,36 @@ export function CommandMenu() {
     }
   }
 
-  const handleEditApartment = async (apartmentId: string) => {
+  const handleEditApartment = async (apartmentId: string, searchResult?: SearchResult) => {
     try {
-      const response = await fetch(`/api/wohnungen`)
-      if (!response.ok) throw new Error('Failed to fetch apartments')
+      const [apartments, houses] = await Promise.all([
+        fetchEntityData('wohnungen'),
+        fetchEntityData('haeuser')
+      ])
       
-      const apartments = await response.json()
       const apartment = apartments.find((a: any) => a.id === apartmentId)
       
       if (apartment) {
-        // Also fetch houses for the modal
-        const housesResponse = await fetch(`/api/haeuser`)
-        const houses = housesResponse.ok ? await housesResponse.json() : []
+        const onSuccess = createModalSuccessCallback('Wohnung', 'wohnungen')
         
-        useModalStore.getState().openWohnungModal(apartment, houses)
+        // Add search context to the modal data if available
+        const apartmentWithContext = searchResult ? {
+          ...apartment,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : apartment
+        
+        useModalStore.getState().openWohnungModal(
+          apartmentWithContext, 
+          houses, 
+          onSuccess,
+          undefined, // apartmentCount
+          undefined, // apartmentLimit
+          undefined  // isActiveSubscription
+        )
       } else {
         toast({
           title: 'Fehler',
@@ -304,6 +476,7 @@ export function CommandMenu() {
         })
       }
     } catch (error) {
+      console.error('Error loading apartment for edit:', error)
       toast({
         title: 'Fehler',
         description: 'Wohnung konnte nicht geladen werden.',
@@ -312,20 +485,29 @@ export function CommandMenu() {
     }
   }
 
-  const handleEditFinance = async (financeId: string) => {
+  const handleEditFinance = async (financeId: string, searchResult?: SearchResult) => {
     try {
-      const response = await fetch(`/api/finanzen`)
-      if (!response.ok) throw new Error('Failed to fetch finances')
+      const [finances, wohnungen] = await Promise.all([
+        fetchEntityData('finanzen'),
+        fetchEntityData('wohnungen')
+      ])
       
-      const finances = await response.json()
       const finance = finances.find((f: any) => f.id === financeId)
       
       if (finance) {
-        // Also fetch wohnungen for the modal
-        const wohnungenResponse = await fetch(`/api/wohnungen`)
-        const wohnungen = wohnungenResponse.ok ? await wohnungenResponse.json() : []
+        const onSuccess = createModalSuccessCallback('Finanzeintrag', 'finanzen')
         
-        useModalStore.getState().openFinanceModal(finance, wohnungen)
+        // Add search context to the modal data if available
+        const financeWithContext = searchResult ? {
+          ...finance,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : finance
+        
+        useModalStore.getState().openFinanceModal(financeWithContext, wohnungen, onSuccess)
       } else {
         toast({
           title: 'Fehler',
@@ -334,6 +516,7 @@ export function CommandMenu() {
         })
       }
     } catch (error) {
+      console.error('Error loading finance record for edit:', error)
       toast({
         title: 'Fehler',
         description: 'Finanzeintrag konnte nicht geladen werden.',
@@ -342,16 +525,25 @@ export function CommandMenu() {
     }
   }
 
-  const handleEditTask = async (taskId: string) => {
+  const handleEditTask = async (taskId: string, searchResult?: SearchResult) => {
     try {
-      const response = await fetch(`/api/todos`)
-      if (!response.ok) throw new Error('Failed to fetch tasks')
-      
-      const tasks = await response.json()
+      const tasks = await fetchEntityData('todos')
       const task = tasks.find((t: any) => t.id === taskId)
       
       if (task) {
-        useModalStore.getState().openAufgabeModal(task)
+        const onSuccess = createModalSuccessCallback('Aufgabe', 'todos')
+        
+        // Add search context to the modal data if available
+        const taskWithContext = searchResult ? {
+          ...task,
+          _searchContext: {
+            query,
+            resultType: searchResult.type,
+            resultTitle: searchResult.title
+          }
+        } : task
+        
+        useModalStore.getState().openAufgabeModal(taskWithContext, onSuccess)
       } else {
         toast({
           title: 'Fehler',
@@ -360,6 +552,7 @@ export function CommandMenu() {
         })
       }
     } catch (error) {
+      console.error('Error loading task for edit:', error)
       toast({
         title: 'Fehler',
         description: 'Aufgabe konnte nicht geladen werden.',
@@ -382,18 +575,29 @@ export function CommandMenu() {
           })
           
           if (response.ok) {
+            // Invalidate finance cache and related caches
+            invalidateEntityCache('finanzen')
+            invalidateEntityCache('wohnungen')
+            
             toast({
               title: 'Erfolg',
               description: 'Finanzeintrag wurde gelöscht.',
             })
+            
+            // Refresh search results if we have an active query
+            refreshSearchResults()
+            
             // Refresh the current page if we're on the finance page
             if (window.location.pathname === '/finanzen') {
-              window.location.reload()
+              setTimeout(() => {
+                window.location.reload()
+              }, 300)
             }
           } else {
             throw new Error('Fehler beim Löschen')
           }
         } catch (error) {
+          console.error('Error deleting finance record:', error)
           toast({
             title: 'Fehler',
             description: 'Finanzeintrag konnte nicht gelöscht werden.',
@@ -419,18 +623,28 @@ export function CommandMenu() {
       })
       
       if (response.ok) {
+        // Invalidate tasks cache
+        invalidateEntityCache('todos')
+        
         toast({
           title: 'Erfolg',
           description: `Aufgabe wurde als ${!isCompleted ? 'erledigt' : 'offen'} markiert.`,
         })
+        
+        // Refresh search results if we have an active query
+        refreshSearchResults()
+        
         // Refresh the current page if we're on the tasks page
         if (window.location.pathname === '/todos') {
-          window.location.reload()
+          setTimeout(() => {
+            window.location.reload()
+          }, 300)
         }
       } else {
         throw new Error('Fehler beim Aktualisieren')
       }
     } catch (error) {
+      console.error('Error toggling task completion:', error)
       toast({
         title: 'Fehler',
         description: 'Aufgabe konnte nicht aktualisiert werden.',
@@ -453,18 +667,28 @@ export function CommandMenu() {
           })
           
           if (response.ok) {
+            // Invalidate tasks cache
+            invalidateEntityCache('todos')
+            
             toast({
               title: 'Erfolg',
               description: 'Aufgabe wurde gelöscht.',
             })
+            
+            // Refresh search results if we have an active query
+            refreshSearchResults()
+            
             // Refresh the current page if we're on the tasks page
             if (window.location.pathname === '/todos') {
-              window.location.reload()
+              setTimeout(() => {
+                window.location.reload()
+              }, 300)
             }
           } else {
             throw new Error('Fehler beim Löschen')
           }
         } catch (error) {
+          console.error('Error deleting task:', error)
           toast({
             title: 'Fehler',
             description: 'Aufgabe konnte nicht gelöscht werden.',
