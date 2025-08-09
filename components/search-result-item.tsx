@@ -224,7 +224,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       
       {/* Actions */}
       {result.actions && result.actions.length > 0 && (
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity">
           {result.actions.slice(0, 2).map((action, index) => (
             <Button
               key={index}
