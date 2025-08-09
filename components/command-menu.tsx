@@ -17,10 +17,7 @@ import { useSearch } from "@/hooks/use-search"
 import { useSearchModalIntegration } from "@/hooks/use-search-modal-integration"
 import { SearchErrorBoundary } from "@/components/search-error-boundary"
 import { 
-  SearchLoadingIndicator, 
-  SearchEmptyState, 
-  SearchStatusBar,
-  NetworkStatusIndicator 
+  SearchEmptyState
 } from "@/components/search-loading-states"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
@@ -763,203 +760,90 @@ export function CommandMenu() {
           onValueChange={setQuery}
         />
         
-        {/* Network Status Indicator */}
-        <NetworkStatusIndicator 
-          isOffline={isOffline} 
-          onRetry={retrySearch}
-        />
-
-        {/* Moved UI outside CommandList */}
-        {showSearchResults && isSearchLoading && (
-          <SearchLoadingIndicator
-            query={query}
-            isLoading={isSearchLoading}
-            retryCount={retryCount}
-            maxRetries={3}
-          />
-        )}
-        {showSearchResults && !isSearchLoading && hasSearchResults && (
-          <SearchStatusBar
-            totalCount={totalCount}
-            executionTime={executionTime}
-            query={query}
-            isLoading={isSearchLoading}
-            retryCount={retryCount}
-            isOffline={isOffline}
-          />
-        )}
-        {showSearchResults && !isSearchLoading && searchError && (
-          <SearchEmptyState
-            query={query}
-            hasError={true}
-            isOffline={isOffline}
-            onRetry={retrySearch}
-            suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
-          />
-        )}
-
         <CommandList>
-          {/* Search Results */}
-          {showSearchResults && (
+          {showSearchResults && isSearchLoading && (
+            <CommandEmpty>
+              Lade Ergebnisse …
+            </CommandEmpty>
+          )}
+
+          {showSearchResults && !isSearchLoading && searchError && (
+            <CommandEmpty>
+              <SearchEmptyState
+                query={query}
+                hasError={true}
+                isOffline={isOffline}
+                onRetry={retrySearch}
+                suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
+              />
+            </CommandEmpty>
+          )}
+
+          {showSearchResults && !isSearchLoading && hasSearchResults && (
             <>
-              {/* Grouped Results (inline, no wrappers) */}
-              {!isSearchLoading && !searchError && hasSearchResults && (() => {
-                // Split results by type
-                const tenants = results.filter(r => r.type === 'tenant');
-                const houses = results.filter(r => r.type === 'house');
-                const apartments = results.filter(r => r.type === 'apartment');
-                const finances = results.filter(r => r.type === 'finance');
-                const tasks = results.filter(r => r.type === 'task');
-                return (
-                  <>
-                    {tenants.length > 0 && (
-                      <CommandGroup heading={`Mieter (${tenants.length})`}>
-                        {tenants.map((r) => (
-                          <CommandItem
-                            key={`${r.type}:${r.id}`}
-                            onSelect={() => handleSearchResultSelect(r)}
-                            className="group flex items-center justify-between p-3"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{r.title}</div>
-                              {r.subtitle && <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>}
-                              {r.context && <div className="text-xs text-muted-foreground/80 truncate">{r.context}</div>}
-                            </div>
-                            {r.actions?.length ? (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 data-[selected=true]:opacity-100 transition-opacity">
-                                {r.actions.slice(0,2).map((a, idx) => (
-                                  <Button key={idx} variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleSearchResultAction(r, idx); }}>
-                                    {React.createElement(a.icon, { className: 'h-3 w-3' })}
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : null}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                    {houses.length > 0 && (
-                      <CommandGroup heading={`Häuser (${houses.length})`}>
-                        {houses.map((r) => (
-                          <CommandItem
-                            key={`${r.type}:${r.id}`}
-                            onSelect={() => handleSearchResultSelect(r)}
-                            className="group flex items-center justify-between p-3"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{r.title}</div>
-                              {r.subtitle && <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>}
-                              {r.context && <div className="text-xs text-muted-foreground/80 truncate">{r.context}</div>}
-                            </div>
-                            {r.actions?.length ? (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 data-[selected=true]:opacity-100 transition-opacity">
-                                {r.actions.slice(0,2).map((a, idx) => (
-                                  <Button key={idx} variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleSearchResultAction(r, idx); }}>
-                                    {React.createElement(a.icon, { className: 'h-3 w-3' })}
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : null}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                    {apartments.length > 0 && (
-                      <CommandGroup heading={`Wohnungen (${apartments.length})`}>
-                        {apartments.map((r) => (
-                          <CommandItem
-                            key={`${r.type}:${r.id}`}
-                            onSelect={() => handleSearchResultSelect(r)}
-                            className="group flex items-center justify-between p-3"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{r.title}</div>
-                              {r.subtitle && <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>}
-                              {r.context && <div className="text-xs text-muted-foreground/80 truncate">{r.context}</div>}
-                            </div>
-                            {r.actions?.length ? (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 data-[selected=true]:opacity-100 transition-opacity">
-                                {r.actions.slice(0,2).map((a, idx) => (
-                                  <Button key={idx} variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleSearchResultAction(r, idx); }}>
-                                    {React.createElement(a.icon, { className: 'h-3 w-3' })}
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : null}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                    {finances.length > 0 && (
-                      <CommandGroup heading={`Finanzen (${finances.length})`}>
-                        {finances.map((r) => (
-                          <CommandItem
-                            key={`${r.type}:${r.id}`}
-                            onSelect={() => handleSearchResultSelect(r)}
-                            className="group flex items-center justify-between p-3"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{r.title}</div>
-                              {r.subtitle && <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>}
-                              {r.context && <div className="text-xs text-muted-foreground/80 truncate">{r.context}</div>}
-                            </div>
-                            {r.actions?.length ? (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 data-[selected=true]:opacity-100 transition-opacity">
-                                {r.actions.slice(0,2).map((a, idx) => (
-                                  <Button key={idx} variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleSearchResultAction(r, idx); }}>
-                                    {React.createElement(a.icon, { className: 'h-3 w-3' })}
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : null}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                    {tasks.length > 0 && (
-                      <CommandGroup heading={`Aufgaben (${tasks.length})`}>
-                        {tasks.map((r) => (
-                          <CommandItem
-                            key={`${r.type}:${r.id}`}
-                            onSelect={() => handleSearchResultSelect(r)}
-                            className="group flex items-center justify-between p-3"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium text-sm truncate">{r.title}</div>
-                              {r.subtitle && <div className="text-xs text-muted-foreground truncate">{r.subtitle}</div>}
-                              {r.context && <div className="text-xs text-muted-foreground/80 truncate">{r.context}</div>}
-                            </div>
-                            {r.actions?.length ? (
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 data-[selected=true]:opacity-100 transition-opacity">
-                                {r.actions.slice(0,2).map((a, idx) => (
-                                  <Button key={idx} variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={(e) => { e.stopPropagation(); handleSearchResultAction(r, idx); }}>
-                                    {React.createElement(a.icon, { className: 'h-3 w-3' })}
-                                  </Button>
-                                ))}
-                              </div>
-                            ) : null}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    )}
-                  </>
-                );
-              })()}
-              {/* No Results */}
-              {!isSearchLoading && !searchError && !hasSearchResults && (
-                <CommandEmpty>
-                  <SearchEmptyState
-                    query={query}
-                    hasError={false}
-                    isOffline={isOffline}
-                    suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
-                  />
-                </CommandEmpty>
+              {groupedResults.tenant && (
+                <SearchResultGroup
+                  title="Mieter"
+                  type="tenant"
+                  results={groupedResults.tenant}
+                  onSelect={handleSearchResultSelect}
+                  onAction={handleSearchResultAction}
+                />
+              )}
+              {groupedResults.house && (
+                <SearchResultGroup
+                  title="Häuser"
+                  type="house"
+                  results={groupedResults.house}
+                  onSelect={handleSearchResultSelect}
+                  onAction={handleSearchResultAction}
+                  showSeparator={!!groupedResults.tenant}
+                />
+              )}
+              {groupedResults.apartment && (
+                <SearchResultGroup
+                  title="Wohnungen"
+                  type="apartment"
+                  results={groupedResults.apartment}
+                  onSelect={handleSearchResultSelect}
+                  onAction={handleSearchResultAction}
+                  showSeparator={!!(groupedResults.tenant || groupedResults.house)}
+                />
+              )}
+              {groupedResults.finance && (
+                <SearchResultGroup
+                  title="Finanzen"
+                  type="finance"
+                  results={groupedResults.finance}
+                  onSelect={handleSearchResultSelect}
+                  onAction={handleSearchResultAction}
+                  showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment)}
+                />
+              )}
+              {groupedResults.task && (
+                <SearchResultGroup
+                  title="Aufgaben"
+                  type="task"
+                  results={groupedResults.task}
+                  onSelect={handleSearchResultSelect}
+                  onAction={handleSearchResultAction}
+                  showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment || groupedResults.finance)}
+                />
               )}
             </>
           )}
 
-          {/* Navigation and Actions (shown when not searching) */}
+          {showSearchResults && !isSearchLoading && !searchError && !hasSearchResults && (
+            <CommandEmpty>
+              <SearchEmptyState
+                query={query}
+                hasError={false}
+                isOffline={isOffline}
+                suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
+              />
+            </CommandEmpty>
+          )}
+
           {!showSearchResults && (
             <>
               <CommandEmpty>Keine Befehle gefunden.</CommandEmpty>
