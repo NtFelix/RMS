@@ -79,3 +79,15 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Command menu item selection styling override */
+  [cmdk-item][data-selected="true"] {
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--muted-foreground)) !important;
+  }
+  
+  [cmdk-item]:hover {
+    background-color: hsl(var(--muted) / 0.5) !important;
+  }
+}
