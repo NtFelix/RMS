@@ -19,6 +19,7 @@ import { SearchEmptyState } from "@/components/search-loading-states"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { SearchResult } from "@/types/search"
+import { SearchErrorBoundary } from "@/components/search-error-boundary"
 import React from "react"
 import { SearchErrorBoundary } from "@/components/search-error-boundary"
 import {
