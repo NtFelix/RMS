@@ -403,6 +403,20 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
       const data: SearchResponse = await response.json();
       
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Received search response:', {
+          totalCount: data.totalCount,
+          executionTime: data.executionTime,
+          resultCounts: {
+            tenant: data.results.tenant.length,
+            house: data.results.house.length,
+            apartment: data.results.apartment.length,
+            finance: data.results.finance.length,
+            task: data.results.task.length
+          }
+        });
+      }
+      
       // Convert API response to SearchResult[]
       const searchResults: SearchResult[] = [];
 
@@ -597,6 +611,15 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
       // Update cache with new results
       updateCache(cacheKey, searchResults, data.totalCount, data.executionTime);
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`Converted ${searchResults.length} search results:`, searchResults.map(r => ({ 
+          type: r.type, 
+          title: r.title, 
+          subtitle: r.subtitle,
+          context: r.context 
+        })));
+      }
 
       setResults(searchResults);
       setTotalCount(data.totalCount);

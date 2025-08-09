@@ -72,61 +72,82 @@ const formatMetadata = (result: SearchResult) => {
   switch (type) {
     case 'tenant':
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {metadata?.email && (
-            <div className="flex items-center gap-1">
-              <Mail className="h-3 w-3" />
-              <span>{metadata.email}</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {metadata?.email && (
+              <div className="flex items-center gap-1">
+                <Mail className="h-3 w-3" />
+                <span>{metadata.email}</span>
+              </div>
+            )}
+            {metadata?.phone && (
+              <div className="flex items-center gap-1">
+                <Phone className="h-3 w-3" />
+                <span>{metadata.phone}</span>
+              </div>
+            )}
+            {metadata?.status && (
+              <Badge variant={metadata.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                {metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
+              </Badge>
+            )}
+          </div>
+          {metadata?.move_in_date && (
+            <div className="text-xs text-muted-foreground/60">
+              Eingezogen: {new Date(metadata.move_in_date).toLocaleDateString('de-DE')}
             </div>
-          )}
-          {metadata?.phone && (
-            <div className="flex items-center gap-1">
-              <Phone className="h-3 w-3" />
-              <span>{metadata.phone}</span>
-            </div>
-          )}
-          {metadata?.status && (
-            <Badge variant={metadata.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-              {metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
-            </Badge>
           )}
         </div>
       )
     
     case 'house':
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {metadata?.address && (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-3 w-3" />
-              <span>{metadata.address}</span>
-            </div>
-          )}
-          {metadata?.apartment_count && (
-            <span>{metadata.apartment_count} Wohnungen</span>
-          )}
-          {metadata?.free_apartments !== undefined && (
-            <span>{metadata.free_apartments} frei</span>
-          )}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {metadata?.address && (
+              <div className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                <span>{metadata.address}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+            {metadata?.apartment_count && (
+              <span>{metadata.apartment_count} Wohnungen</span>
+            )}
+            {metadata?.free_apartments !== undefined && (
+              <span>{metadata.free_apartments} frei</span>
+            )}
+            {metadata?.total_rent && (
+              <span>Gesamtmiete: {metadata.total_rent}€</span>
+            )}
+          </div>
         </div>
       )
     
     case 'apartment':
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {metadata?.size && (
-            <span>{metadata.size}m²</span>
-          )}
-          {metadata?.rent && (
-            <div className="flex items-center gap-1">
-              <Euro className="h-3 w-3" />
-              <span>{metadata.rent}€</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {metadata?.size && (
+              <span>{metadata.size}m²</span>
+            )}
+            {metadata?.rent && (
+              <div className="flex items-center gap-1">
+                <Euro className="h-3 w-3" />
+                <span>{metadata.rent}€/Monat</span>
+              </div>
+            )}
+            {metadata?.status && (
+              <Badge variant={metadata.status === 'free' ? 'secondary' : 'default'} className="text-xs">
+                {metadata.status === 'free' ? 'Frei' : 'Vermietet'}
+              </Badge>
+            )}
+          </div>
+          {metadata?.current_tenant && (
+            <div className="text-xs text-muted-foreground/60">
+              Mieter: {metadata.current_tenant.name}
             </div>
-          )}
-          {metadata?.status && (
-            <Badge variant={metadata.status === 'free' ? 'secondary' : 'default'} className="text-xs">
-              {metadata.status === 'free' ? 'Frei' : 'Vermietet'}
-            </Badge>
           )}
         </div>
       )
@@ -216,6 +237,11 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
               {result.context}
             </div>
           )}
+          
+          {/* Enhanced Details */}
+          <div className="text-xs text-muted-foreground/60 mt-1">
+            ID: {result.id.substring(0, 8)}...
+          </div>
           
           {/* Metadata */}
           {formatMetadata(result)}

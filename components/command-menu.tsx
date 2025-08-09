@@ -814,6 +814,13 @@ export function CommandMenu() {
                 isLoading={isSearchLoading}
                 retryCount={retryCount}
                 isOffline={isOffline}
+                resultBreakdown={{
+                  tenant: groupedResults.tenant?.length || 0,
+                  house: groupedResults.house?.length || 0,
+                  apartment: groupedResults.apartment?.length || 0,
+                  finance: groupedResults.finance?.length || 0,
+                  task: groupedResults.task?.length || 0
+                }}
               />
             )}
 

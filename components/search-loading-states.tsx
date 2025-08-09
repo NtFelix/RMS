@@ -190,6 +190,13 @@ interface SearchStatusBarProps {
   isLoading?: boolean
   retryCount?: number
   isOffline?: boolean
+  resultBreakdown?: {
+    tenant: number
+    house: number
+    apartment: number
+    finance: number
+    task: number
+  }
 }
 
 export function SearchStatusBar({ 
@@ -198,7 +205,8 @@ export function SearchStatusBar({
   query, 
   isLoading = false,
   retryCount = 0,
-  isOffline = false
+  isOffline = false,
+  resultBreakdown
 }: SearchStatusBarProps) {
   return (
     <div className="px-2 py-1.5 text-xs text-muted-foreground border-b bg-muted/20">
@@ -221,6 +229,17 @@ export function SearchStatusBar({
               `${totalCount} Ergebnisse für "${query}"`
             )}
           </span>
+          
+          {/* Show breakdown of results by type */}
+          {!isLoading && !isOffline && resultBreakdown && totalCount > 0 && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground/60">
+              {resultBreakdown.tenant > 0 && <span>Mieter: {resultBreakdown.tenant}</span>}
+              {resultBreakdown.house > 0 && <span>Häuser: {resultBreakdown.house}</span>}
+              {resultBreakdown.apartment > 0 && <span>Wohnungen: {resultBreakdown.apartment}</span>}
+              {resultBreakdown.finance > 0 && <span>Finanzen: {resultBreakdown.finance}</span>}
+              {resultBreakdown.task > 0 && <span>Aufgaben: {resultBreakdown.task}</span>}
+            </div>
+          )}
         </div>
         
         {!isLoading && !isOffline && executionTime > 0 && (

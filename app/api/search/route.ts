@@ -200,6 +200,14 @@ export async function GET(request: Request) {
             
             if (process.env.NODE_ENV === 'development') {
               console.log(`Tenant search found ${data.length} results for query "${query}"`);
+              if (data.length > 0) {
+                console.log('Sample tenant result:', {
+                  id: data[0].id,
+                  name: data[0].name,
+                  email: data[0].email,
+                  telefonnummer: data[0].telefonnummer
+                });
+              }
             }
             
             const sortedTenants = sortByRelevance(data, query);
@@ -217,6 +225,10 @@ export async function GET(request: Request) {
               move_in_date: tenant.einzug || undefined,
               move_out_date: tenant.auszug || undefined
             }));
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Returning ${tenantResults.length} tenant results:`, tenantResults.map(t => ({ id: t.id, name: t.name, email: t.email })));
+            }
             
             return { type: 'tenant', data: tenantResults };
           } catch (error) {
@@ -275,6 +287,18 @@ export async function GET(request: Request) {
             
             if (!data) return { type: 'house', data: [] };
             
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`House search found ${data.length} results for query "${query}"`);
+              if (data.length > 0) {
+                console.log('Sample house result:', {
+                  id: data[0].id,
+                  name: data[0].name,
+                  strasse: data[0].strasse,
+                  ort: data[0].ort
+                });
+              }
+            }
+            
             const sortedHouses = sortByRelevance(data, query);
             
             const houseResults = sortedHouses.map((house: any) => {
@@ -294,6 +318,10 @@ export async function GET(request: Request) {
                 free_apartments: freeApartments
               };
             });
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Returning ${houseResults.length} house results:`, houseResults.map(h => ({ id: h.id, name: h.name, address: h.address })));
+            }
             
             return { type: 'house', data: houseResults };
           } catch (error) {
@@ -536,26 +564,30 @@ export async function GET(request: Request) {
       console.log(`Total promises created: ${searchPromises.length}`);
       console.log(`Categories: ${categories.join(', ')}`);
       console.log(`Query: "${query}"`);
+      console.log('Final results summary:', {
+        tenant: results.tenant.length,
+        house: results.house.length,
+        apartment: results.apartment.length,
+        finance: results.finance.length,
+        task: results.task.length
+      });
+      if (Object.values(results).some(arr => arr.length > 0)) {
+        console.log('Sample results:', {
+          tenant: results.tenant[0] || null,
+          house: results.house[0] || null,
+          apartment: results.apartment[0] || null,
+          finance: results.finance[0] || null,
+          task: results.task[0] || null
+        });
+      }
     }
     
     const totalCount = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
     const executionTime = Date.now() - startTime;
     
-    // Add test data if no results found (for debugging)
-    if (totalCount === 0 && process.env.NODE_ENV === 'development') {
-      results.tenant = [{
-        id: 'test-tenant-1',
-        name: 'Test Mieter',
-        email: 'test@example.com',
-        phone: '123456789',
-        status: 'active',
-        move_in_date: '2024-01-01'
-      }];
-    }
-    
     const response: SearchResponse = {
       results,
-      totalCount: Object.values(results).reduce((sum, arr) => sum + arr.length, 0),
+      totalCount,
       executionTime
     };
 
