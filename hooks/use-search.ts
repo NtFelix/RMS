@@ -407,7 +407,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       const searchResults: SearchResult[] = [];
 
       // Convert tenants
-      data.results.tenants.forEach(tenant => {
+      data.results.tenant.forEach(tenant => {
         const actions: SearchResultAction[] = [
           {
             label: 'Bearbeiten',
@@ -441,7 +441,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       });
 
       // Convert houses
-      data.results.houses.forEach(house => {
+      data.results.house.forEach(house => {
         const actions: SearchResultAction[] = [
           {
             label: 'Bearbeiten',
@@ -474,7 +474,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       });
 
       // Convert apartments
-      data.results.apartments.forEach(apartment => {
+      data.results.apartment.forEach(apartment => {
         const actions: SearchResultAction[] = [
           {
             label: 'Bearbeiten',
@@ -510,7 +510,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       });
 
       // Convert finances
-      data.results.finances.forEach(finance => {
+      data.results.finance.forEach(finance => {
         const isIncome = finance.type === 'income';
         const actions: SearchResultAction[] = [
           {
@@ -553,7 +553,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       });
 
       // Convert tasks
-      data.results.tasks.forEach(task => {
+      data.results.task.forEach(task => {
         const actions: SearchResultAction[] = [
           {
             label: 'Bearbeiten',

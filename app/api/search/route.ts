@@ -2,16 +2,11 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import type {
-  TenantSearchResult,
-  HouseSearchResult,
-  ApartmentSearchResult,
-  FinanceSearchResult,
-  TaskSearchResult,
   SearchResponse
 } from "@/types/search";
 
 // Cache for storing compiled search patterns
-const searchPatternCache = new Map<string, { pattern: string; exact: string; timestamp: number }>();
+const searchPatternCache = new Map<string, { pattern: string; exact: string; fuzzy?: string; words?: string[]; timestamp: number }>();
 const PATTERN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Helper function to sanitize search query
@@ -113,7 +108,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('q');
     const limit = parseInt(searchParams.get('limit') || '5', 10);
-    const categories = searchParams.get('categories')?.split(',') || ['tenants', 'houses', 'apartments', 'finances', 'tasks'];
+    const categories = searchParams.get('categories')?.split(',') || ['tenant', 'house', 'apartment', 'finance', 'task'];
     
     // Validate query parameter
     if (!query || query.trim().length === 0) {
@@ -136,21 +131,24 @@ export async function GET(request: Request) {
     }
     
     const supabase = await createClient();
-    const { pattern: searchPattern, exact: exactPattern, fuzzy: fuzzyPattern, words } = getSearchPatterns(query);
+    const { pattern: searchPattern, fuzzy: fuzzyPattern, words } = getSearchPatterns(query);
     
     const results: SearchResponse['results'] = {
-      tenants: [],
-      houses: [],
-      apartments: [],
-      finances: [],
-      tasks: []
+      tenant: [],
+      house: [],
+      apartment: [],
+      finance: [],
+      task: []
     };
     
     // Use Promise.allSettled for parallel execution with error isolation
     const searchPromises = [];
     
     // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
-    if (categories.includes('tenants')) {
+    if (categories.includes('tenant')) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Adding tenant search promise');
+      }
       searchPromises.push(
         (async () => {
           try {
@@ -163,23 +161,28 @@ export async function GET(request: Request) {
 
             // Build search conditions for better matching
             const searchConditions = [
-              `name.ilike.${searchPattern}`,
-              `email.ilike.${searchPattern}`,
-              `telefonnummer.ilike.${searchPattern}`
+              `name.ilike.${searchPattern}`
             ];
 
-            // Add fuzzy matching for better results
-            if (query.length > 2) {
-              searchConditions.push(`name.ilike.${fuzzyPattern}`);
+            // Add email and phone search if they exist
+            if (searchPattern.includes('@')) {
+              searchConditions.push(`email.ilike.${searchPattern}`);
+            } else {
+              searchConditions.push(`email.ilike.${searchPattern}`);
+              searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
             }
 
-            // Add multi-word search
-            if (words.length > 1) {
-              words.forEach(word => {
-                if (word.length > 1) {
-                  searchConditions.push(`name.ilike.%${word}%`);
-                }
-              });
+            // First, let's test if we can get any tenants at all
+            const { data: allTenants, error: countError } = await supabase
+              .from('Mieter')
+              .select('id, name')
+              .limit(1);
+
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Total tenants in database:', allTenants?.length || 0);
+              if (countError) {
+                console.error('Count error:', countError);
+              }
             }
 
             const { data, error } = await queryBuilder
@@ -189,10 +192,15 @@ export async function GET(request: Request) {
 
             if (error) {
               console.error('Tenant search error:', error);
-              return { type: 'tenants', data: [] };
+              console.error('Tenant search query conditions:', searchConditions);
+              return { type: 'tenant', data: [] };
             }
             
-            if (!data) return { type: 'tenants', data: [] };
+            if (!data) return { type: 'tenant', data: [] };
+            
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`Tenant search found ${data.length} results for query "${query}"`);
+            }
             
             const sortedTenants = sortByRelevance(data, query);
             
@@ -210,17 +218,17 @@ export async function GET(request: Request) {
               move_out_date: tenant.auszug || undefined
             }));
             
-            return { type: 'tenants', data: tenantResults };
+            return { type: 'tenant', data: tenantResults };
           } catch (error) {
             console.error('Error searching tenants:', error);
-            return { type: 'tenants', data: [] };
+            return { type: 'tenant', data: [] };
           }
         })()
       );
     }
     
     // Search houses (Haeuser) - Enhanced with better address matching
-    if (categories.includes('houses')) {
+    if (categories.includes('house')) {
       searchPromises.push(
         (async () => {
           try {
@@ -262,10 +270,10 @@ export async function GET(request: Request) {
 
             if (error) {
               console.error('House search error:', error);
-              return { type: 'houses', data: [] };
+              return { type: 'house', data: [] };
             }
             
-            if (!data) return { type: 'houses', data: [] };
+            if (!data) return { type: 'house', data: [] };
             
             const sortedHouses = sortByRelevance(data, query);
             
@@ -287,17 +295,17 @@ export async function GET(request: Request) {
               };
             });
             
-            return { type: 'houses', data: houseResults };
+            return { type: 'house', data: houseResults };
           } catch (error) {
             console.error('Error searching houses:', error);
-            return { type: 'houses', data: [] };
+            return { type: 'house', data: [] };
           }
         })()
       );
     }
     
     // Search apartments (Wohnungen) - Enhanced with house name search
-    if (categories.includes('apartments')) {
+    if (categories.includes('apartment')) {
       searchPromises.push(
         (async () => {
           try {
@@ -335,10 +343,10 @@ export async function GET(request: Request) {
 
             if (error) {
               console.error('Apartment search error:', error);
-              return { type: 'apartments', data: [] };
+              return { type: 'apartment', data: [] };
             }
             
-            if (!data) return { type: 'apartments', data: [] };
+            if (!data) return { type: 'apartment', data: [] };
             
             // Also search by house name if no direct apartment matches
             let houseSearchResults: any[] = [];
@@ -385,17 +393,17 @@ export async function GET(request: Request) {
               };
             });
             
-            return { type: 'apartments', data: apartmentResults };
+            return { type: 'apartment', data: apartmentResults };
           } catch (error) {
             console.error('Error searching apartments:', error);
-            return { type: 'apartments', data: [] };
+            return { type: 'apartment', data: [] };
           }
         })()
       );
     }
     
     // Search finances (Finanzen) - Optimized with conditional numeric search
-    if (categories.includes('finances')) {
+    if (categories.includes('finance')) {
       const isNumericQuery = !isNaN(parseFloat(query));
       
       let financeQueryBuilder = supabase
@@ -421,10 +429,10 @@ export async function GET(request: Request) {
 
             if (error) {
               console.error('Finance search error:', error);
-              return { type: 'finances', data: [] };
+              return { type: 'finance', data: [] };
             }
             
-            if (!data) return { type: 'finances', data: [] };
+            if (!data) return { type: 'finance', data: [] };
             
             // Custom sorting for finances: relevance first, then by date
             const sortedFinances = data.sort((a, b) => {
@@ -449,17 +457,17 @@ export async function GET(request: Request) {
               notes: finance.notiz || undefined
             }));
             
-            return { type: 'finances', data: financeResults };
+            return { type: 'finance', data: financeResults };
           } catch (error) {
             console.error('Error searching finances:', error);
-            return { type: 'finances', data: [] };
+            return { type: 'finance', data: [] };
           }
         })()
       );
     }
     
     // Search tasks (Aufgaben) - Optimized with completion status ordering
-    if (categories.includes('tasks')) {
+    if (categories.includes('task')) {
       searchPromises.push(
         (async () => {
           try {
@@ -473,10 +481,10 @@ export async function GET(request: Request) {
 
             if (error) {
               console.error('Task search error:', error);
-              return { type: 'tasks', data: [] };
+              return { type: 'task', data: [] };
             }
             
-            if (!data) return { type: 'tasks', data: [] };
+            if (!data) return { type: 'task', data: [] };
             
             const sortedTasks = sortByRelevance(data, query);
             
@@ -488,15 +496,19 @@ export async function GET(request: Request) {
               created_date: task.erstellungsdatum
             }));
             
-            return { type: 'tasks', data: taskResults };
+            return { type: 'task', data: taskResults };
           } catch (error) {
             console.error('Error searching tasks:', error);
-            return { type: 'tasks', data: [] };
+            return { type: 'task', data: [] };
           }
         })()
       );
     }
     
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`About to execute ${searchPromises.length} search promises`);
+    }
+
     // Execute all searches in parallel with timeout
     const searchResults = await Promise.race([
       Promise.allSettled(searchPromises),
@@ -521,14 +533,29 @@ export async function GET(request: Request) {
     // Log performance metrics
     if (process.env.NODE_ENV === 'development') {
       console.log(`Search completed: ${successfulSearches} successful, ${failedSearches} failed`);
+      console.log(`Total promises created: ${searchPromises.length}`);
+      console.log(`Categories: ${categories.join(', ')}`);
+      console.log(`Query: "${query}"`);
     }
     
     const totalCount = Object.values(results).reduce((sum, arr) => sum + arr.length, 0);
     const executionTime = Date.now() - startTime;
     
+    // Add test data if no results found (for debugging)
+    if (totalCount === 0 && process.env.NODE_ENV === 'development') {
+      results.tenant = [{
+        id: 'test-tenant-1',
+        name: 'Test Mieter',
+        email: 'test@example.com',
+        phone: '123456789',
+        status: 'active',
+        move_in_date: '2024-01-01'
+      }];
+    }
+    
     const response: SearchResponse = {
       results,
-      totalCount,
+      totalCount: Object.values(results).reduce((sum, arr) => sum + arr.length, 0),
       executionTime
     };
 

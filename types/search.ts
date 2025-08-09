@@ -87,11 +87,11 @@ export interface TaskSearchResult {
 // API response interface
 export interface SearchResponse {
   results: {
-    tenants: TenantSearchResult[];
-    houses: HouseSearchResult[];
-    apartments: ApartmentSearchResult[];
-    finances: FinanceSearchResult[];
-    tasks: TaskSearchResult[];
+    tenant: TenantSearchResult[];
+    house: HouseSearchResult[];
+    apartment: ApartmentSearchResult[];
+    finance: FinanceSearchResult[];
+    task: TaskSearchResult[];
   };
   totalCount: number;
   executionTime: number;
