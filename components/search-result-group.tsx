@@ -90,29 +90,15 @@ export function SearchResultGroup({
   return (
     <>
       {showSeparator && <CommandSeparator />}
-      <CommandGroup>
-        {/* Group Header */}
-        <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-muted-foreground">
-          {GroupIcon && (
-            <GroupIcon className={cn("h-3 w-3", groupColor)} />
-          )}
-          <span>{groupTitle}</span>
-          <span className="ml-auto text-xs text-muted-foreground/60">
-            {results.length}
-          </span>
-        </div>
-        
-        {/* Results */}
-        <div className="space-y-0">
-          {results.map((result) => (
-            <SearchResultItem
-              key={result.id}
-              result={result}
-              onSelect={onSelect}
-              onAction={onAction}
-            />
-          ))}
-        </div>
+      <CommandGroup heading={`${groupTitle} (${results.length})`}>
+        {results.map((result) => (
+          <SearchResultItem
+            key={result.id}
+            result={result}
+            onSelect={onSelect}
+            onAction={onAction}
+          />
+        ))}
       </CommandGroup>
     </>
   )
