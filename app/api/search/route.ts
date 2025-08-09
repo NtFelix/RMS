@@ -29,7 +29,7 @@ function getSearchPatterns(query: string): { pattern: string; exact: string } {
   }
 
   const sanitized = sanitizeQuery(query);
-  const pattern = `%${sanitized}%`;
+  const pattern = `%${sanitized.toLowerCase()}%`;
   const exact = sanitized;
 
   searchPatternCache.set(cacheKey, {
