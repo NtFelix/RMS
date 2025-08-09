@@ -98,7 +98,6 @@ export function HouseContextMenu({
             <Eye className="h-4 w-4" />
             <span>Übersicht</span>
           </ContextMenuItem>
-          <ContextMenuSeparator />
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
