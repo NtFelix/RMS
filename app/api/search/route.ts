@@ -32,7 +32,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from('Mieter')
-      .select('id, name, email')
+      .select('id, name, email, telefonnummer, einzug, auszug')
       .ilike('name', `%${query}%`);
 
     console.log("Supabase query data:", data);
@@ -43,6 +43,11 @@ export async function GET(request: Request) {
         id: tenant.id,
         name: tenant.name,
         email: tenant.email || undefined,
+        phone: tenant.telefonnummer || undefined,
+        apartment: undefined,
+        status: tenant.auszug ? 'moved_out' : 'active',
+        move_in_date: tenant.einzug || undefined,
+        move_out_date: tenant.auszug || undefined
       }));
     }
     
