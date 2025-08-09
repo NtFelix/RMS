@@ -772,7 +772,7 @@ export function CommandMenu() {
         <CommandList className="max-h-[70vh] overflow-y-auto">
         {/* Search Results */}
         {showSearchResults && (
-          </>
+          <>
             {/* Loading State */}
             {isSearchLoading && (
               <SearchLoadingIndicator 
