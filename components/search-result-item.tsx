@@ -209,7 +209,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between p-3 hover:bg-muted/50 cursor-pointer"
+      className="group flex items-center justify-between p-3 hover:bg-secondary/20 cursor-pointer"
     >
 
       
