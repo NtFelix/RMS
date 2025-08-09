@@ -66,8 +66,11 @@ export const ApartmentTenantRow = React.forwardRef<
     <div 
       ref={!expandable ? ref : undefined}
       className={cn(
-        "flex items-center justify-between p-4 border rounded-lg transition-colors hover:bg-muted/50",
-        isVacant && "border-dashed border-muted-foreground/30",
+        "flex items-center justify-between p-4 border rounded-lg transition-all duration-200 ease-in-out",
+        "hover:bg-muted/60 hover:shadow-sm hover:-translate-y-0.5 hover:border-primary/30",
+        "active:translate-y-0 active:shadow-none",
+        isVacant ? "border-dashed border-muted-foreground/30" : "border-muted-foreground/20",
+        "group",
         className
       )}
       {...(!expandable ? props : {})}
@@ -75,10 +78,12 @@ export const ApartmentTenantRow = React.forwardRef<
       {/* Left side - Apartment info */}
       <div className="flex items-center gap-4 flex-1">
         <div className="flex items-center gap-2">
-          <Home className="h-4 w-4 text-muted-foreground" />
+          <Home className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
           <div>
-            <div className="font-medium">{apartment.name}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="font-medium group-hover:text-foreground transition-colors">
+              {apartment.name}
+            </div>
+            <div className="text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors">
               {apartment.groesse} m² • {hausName}
             </div>
           </div>
@@ -89,7 +94,7 @@ export const ApartmentTenantRow = React.forwardRef<
       <div className="flex items-center gap-4 flex-1">
         {isVacant ? (
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
+            <User className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
             <div>
               <Badge variant="outline" className="text-muted-foreground">
                 Frei
@@ -101,10 +106,12 @@ export const ApartmentTenantRow = React.forwardRef<
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
+            <User className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
             <div>
-              <div className="font-medium">{apartment.currentTenant?.name}</div>
-              <div className="text-sm text-muted-foreground">
+              <div className="font-medium group-hover:text-foreground transition-colors">
+                {apartment.currentTenant?.name}
+              </div>
+              <div className="text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors">
                 {apartment.currentTenant?.einzug && `Seit ${formatDate(apartment.currentTenant.einzug)}`}
               </div>
             </div>
@@ -115,10 +122,12 @@ export const ApartmentTenantRow = React.forwardRef<
       {/* Right side - Rent info */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Euro className="h-4 w-4 text-muted-foreground" />
+          <Euro className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
           <div className="text-right">
-            <div className="font-medium">{formatCurrency(apartment.miete)}</div>
-            <div className="text-sm text-muted-foreground">
+            <div className="font-medium group-hover:text-foreground transition-colors">
+              {formatCurrency(apartment.miete)}
+            </div>
+            <div className="text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors">
               {formatCurrency(apartment.miete / apartment.groesse)}/m²
             </div>
           </div>
