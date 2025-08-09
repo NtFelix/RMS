@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { SearchResult } from "@/types/search"
 import React from "react"
-import React from "react"
 import {
   getUserSubscriptionContext,
   getPlanApartmentLimit,
