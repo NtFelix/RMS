@@ -23,10 +23,27 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
+// Helper function to highlight search matches
+const highlightMatch = (text: string, query: string) => {
+  if (!query.trim() || query.length < 2) return text;
+  
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  
+  return parts.map((part, index) => 
+    regex.test(part) ? (
+      <mark key={index} className="bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded">
+        {part}
+      </mark>
+    ) : part
+  );
+};
+
 interface SearchResultItemProps {
   result: SearchResult
   onSelect: (result: SearchResult) => void
   onAction?: (result: SearchResult, actionIndex: number) => void
+  searchQuery?: string
 }
 
 // Icon mapping for different entity types
@@ -180,7 +197,7 @@ const formatMetadata = (result: SearchResult) => {
   }
 }
 
-export function SearchResultItem({ result, onSelect, onAction }: SearchResultItemProps) {
+export function SearchResultItem({ result, onSelect, onAction, searchQuery = '' }: SearchResultItemProps) {
   const EntityIcon = getEntityIcon(result.type)
   const entityColor = getEntityColor(result.type)
 
@@ -200,20 +217,20 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
         <div className="flex-1 min-w-0 space-y-1">
           {/* Title */}
           <div className="font-medium text-sm truncate">
-            {result.title}
+            {highlightMatch(result.title, searchQuery)}
           </div>
           
           {/* Subtitle */}
           {result.subtitle && (
             <div className="text-xs text-muted-foreground truncate">
-              {result.subtitle}
+              {highlightMatch(result.subtitle, searchQuery)}
             </div>
           )}
           
           {/* Context */}
           {result.context && (
             <div className="text-xs text-muted-foreground/80 truncate">
-              {result.context}
+              {highlightMatch(result.context, searchQuery)}
             </div>
           )}
           

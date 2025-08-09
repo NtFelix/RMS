@@ -95,7 +95,10 @@ export function CommandMenu() {
     retry: retrySearch,
     retryCount,
     isOffline,
-    lastSuccessfulQuery
+    lastSuccessfulQuery,
+    suggestions,
+    recentSearches,
+    addToRecentSearches
   } = useSearch({
     debounceMs: 300,
     limit: 5
@@ -116,11 +119,30 @@ export function CommandMenu() {
         e.preventDefault()
         clearSearch()
       }
+      // Quick search shortcuts when menu is open
+      if (open && !query.trim()) {
+        if (e.key === "m" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          setQuery("Mieter")
+        }
+        if (e.key === "h" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          setQuery("Haus")
+        }
+        if (e.key === "w" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          setQuery("Wohnung")
+        }
+        if (e.key === "f" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          setQuery("Finanzen")
+        }
+      }
     }
 
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
-  }, [setOpen, open, query, clearSearch])
+  }, [setOpen, open, query, clearSearch, setQuery])
 
   // Clear search when menu is closed
   useEffect(() => {
@@ -795,6 +817,16 @@ export function CommandMenu() {
               />
             )}
 
+            {/* Quick Search Tips */}
+            {!isSearchLoading && !hasSearchResults && !searchError && query.trim().length >= 3 && (
+              <div className="px-4 py-2 text-xs text-muted-foreground border-t">
+                <div className="flex items-center gap-2">
+                  <Search className="h-3 w-3" />
+                  <span>Tipp: Versuchen Sie es mit Teilwörtern oder anderen Begriffen</span>
+                </div>
+              </div>
+            )}
+
             {/* Search Results */}
             {!isSearchLoading && !searchError && hasSearchResults && (
               <>
@@ -807,6 +839,7 @@ export function CommandMenu() {
                     results={groupedResults.tenant}
                     onSelect={handleSearchResultSelect}
                     onAction={handleSearchResultAction}
+                    searchQuery={query}
                   />
                 )}
                 
@@ -818,6 +851,7 @@ export function CommandMenu() {
                     onSelect={handleSearchResultSelect}
                     onAction={handleSearchResultAction}
                     showSeparator={!!groupedResults.tenant}
+                    searchQuery={query}
                   />
                 )}
                 
@@ -829,6 +863,7 @@ export function CommandMenu() {
                     onSelect={handleSearchResultSelect}
                     onAction={handleSearchResultAction}
                     showSeparator={!!(groupedResults.tenant || groupedResults.house)}
+                    searchQuery={query}
                   />
                 )}
                 
@@ -840,6 +875,7 @@ export function CommandMenu() {
                     onSelect={handleSearchResultSelect}
                     onAction={handleSearchResultAction}
                     showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment)}
+                    searchQuery={query}
                   />
                 )}
                 
@@ -851,6 +887,7 @@ export function CommandMenu() {
                     onSelect={handleSearchResultSelect}
                     onAction={handleSearchResultAction}
                     showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment || groupedResults.finance)}
+                    searchQuery={query}
                   />
                 )}
               </>
@@ -881,9 +918,65 @@ export function CommandMenu() {
           </>
         )}
 
-        {/* Navigation and Actions (shown when not searching) */}
-        {!showSearchResults && (
+        {/* Search Suggestions and Recent Searches */}
+        {query.trim().length > 0 && query.trim().length < 3 && !isSearchLoading && (
           <>
+            {/* Recent Searches */}
+            {recentSearches.length > 0 && (
+              <CommandGroup heading="Letzte Suchen">
+                {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                  <CommandItem
+                    key={`recent-${index}`}
+                    onSelect={() => {
+                      setQuery(recentQuery)
+                    }}
+                  >
+                    <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {recentQuery}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {/* Search Suggestions */}
+            {suggestions.length > 0 && (
+              <CommandGroup heading="Vorschläge">
+                {suggestions.map((suggestion, index) => (
+                  <CommandItem
+                    key={`suggestion-${index}`}
+                    onSelect={() => {
+                      setQuery(suggestion)
+                    }}
+                  >
+                    <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {suggestion}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </>
+        )}
+
+        {/* Navigation and Actions (shown when not searching) */}
+        {!showSearchResults && query.trim().length === 0 && (
+          <>
+            {/* Recent Searches */}
+            {recentSearches.length > 0 && (
+              <CommandGroup heading="Letzte Suchen">
+                {recentSearches.slice(0, 3).map((recentQuery, index) => (
+                  <CommandItem
+                    key={`recent-nav-${index}`}
+                    onSelect={() => {
+                      setQuery(recentQuery)
+                    }}
+                  >
+                    <Search className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {recentQuery}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
             <CommandEmpty>Keine Befehle gefunden.</CommandEmpty>
             <CommandGroup heading="Navigation">
               {navigationItems.map((item) => (
@@ -1014,6 +1107,23 @@ export function CommandMenu() {
           </>
         )}
       </CommandList>
+      
+      {/* Keyboard Shortcuts Hint */}
+      {!showSearchResults && query.trim().length === 0 && (
+        <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>Schnellsuche:</span>
+            <div className="flex gap-2">
+              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘M</kbd>
+              <span>Mieter</span>
+              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘H</kbd>
+              <span>Häuser</span>
+              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘W</kbd>
+              <span>Wohnungen</span>
+            </div>
+          </div>
+        </div>
+      )}
     </CommandDialog>
     </SearchErrorBoundary>
   )

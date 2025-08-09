@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useDebounce } from './use-debounce';
+import { useSearchAnalytics } from './use-search-analytics';
 import type { SearchResult, SearchResponse, SearchCategory, SearchResultAction } from '@/types/search';
 import { Edit, Eye, Trash2, User, Building2, Home, Wallet, CheckSquare } from 'lucide-react';
 
@@ -39,6 +40,9 @@ interface UseSearchReturn {
   isOffline: boolean;
   lastSuccessfulQuery: string | null;
   getCacheMetrics?: () => any;
+  suggestions: string[];
+  recentSearches: string[];
+  addToRecentSearches: (query: string) => void;
 }
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
@@ -69,6 +73,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [retryCount, setRetryCount] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   const [lastSuccessfulQuery, setLastSuccessfulQuery] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   // Cache for storing search results with LRU eviction
   const cacheRef = useRef<SearchCache>({});
@@ -86,9 +92,91 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   // Retry timeout reference
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Recent searches management
+  const RECENT_SEARCHES_KEY = 'rms-recent-searches';
+  const MAX_RECENT_SEARCHES = 5;
+  
+  // Search analytics
+  const { trackSearch } = useSearchAnalytics();
 
   // Debounced query to reduce API calls
   const debouncedQuery = useDebounce(query, debounceMs);
+
+  // Load recent searches from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setRecentSearches(parsed.slice(0, MAX_RECENT_SEARCHES));
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to load recent searches:', error);
+    }
+  }, []);
+
+  // Function to add search to recent searches
+  const addToRecentSearches = useCallback((searchQuery: string) => {
+    if (!searchQuery.trim() || searchQuery.length < 2) return;
+    
+    setRecentSearches(prev => {
+      const filtered = prev.filter(s => s.toLowerCase() !== searchQuery.toLowerCase());
+      const updated = [searchQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES);
+      
+      try {
+        localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
+      } catch (error) {
+        console.warn('Failed to save recent searches:', error);
+      }
+      
+      return updated;
+    });
+  }, []);
+
+  // Generate search suggestions based on query
+  useEffect(() => {
+    if (!query.trim() || query.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const queryLower = query.toLowerCase();
+    const newSuggestions: string[] = [];
+
+    // Add recent searches that match
+    recentSearches.forEach(recent => {
+      if (recent.toLowerCase().includes(queryLower) && recent.toLowerCase() !== queryLower) {
+        newSuggestions.push(recent);
+      }
+    });
+
+    // Add common search patterns
+    const commonSuggestions = [
+      'Mieter',
+      'Wohnung',
+      'Haus',
+      'Rechnung',
+      'Aufgabe',
+      'Einnahmen',
+      'Ausgaben',
+      'Betriebskosten',
+      'Kaution',
+      'Nebenkosten'
+    ];
+
+    commonSuggestions.forEach(suggestion => {
+      if (suggestion.toLowerCase().includes(queryLower) && 
+          suggestion.toLowerCase() !== queryLower &&
+          !newSuggestions.includes(suggestion)) {
+        newSuggestions.push(suggestion);
+      }
+    });
+
+    setSuggestions(newSuggestions.slice(0, 3));
+  }, [query, recentSearches]);
 
   // Network status monitoring
   useEffect(() => {
@@ -517,12 +605,26 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setRetryCount(0); // Reset retry count on success
       setLastSuccessfulQuery(searchQuery);
       
+      // Add to recent searches on successful search
+      if (searchResults.length > 0) {
+        addToRecentSearches(searchQuery);
+      }
+      
       // Update response time metrics
       const responseTime = Date.now() - requestStartTime;
       const currentAvg = metricsRef.current.averageResponseTime;
       const totalRequests = metricsRef.current.totalRequests;
       metricsRef.current.averageResponseTime = 
         (currentAvg * (totalRequests - 1) + responseTime) / totalRequests;
+
+      // Track search analytics
+      trackSearch({
+        query: searchQuery,
+        responseTime,
+        resultCount: searchResults.length,
+        wasError: false,
+        wasCacheHit: !!cached
+      });
 
     } catch (err) {
       if (err instanceof Error) {
@@ -557,12 +659,30 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           setResults([]);
           setTotalCount(0);
           setExecutionTime(0);
+          
+          // Track error analytics
+          trackSearch({
+            query: searchQuery,
+            responseTime: Date.now() - requestStartTime,
+            resultCount: 0,
+            wasError: true,
+            wasCacheHit: false
+          });
         }
       } else {
         setError('Ein unbekannter Fehler ist aufgetreten');
         setResults([]);
         setTotalCount(0);
         setExecutionTime(0);
+        
+        // Track unknown error analytics
+        trackSearch({
+          query: searchQuery,
+          responseTime: Date.now() - requestStartTime,
+          resultCount: 0,
+          wasError: true,
+          wasCacheHit: false
+        });
       }
     } finally {
       setIsLoading(false);
@@ -648,6 +768,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     retryCount,
     isOffline,
     lastSuccessfulQuery,
-    getCacheMetrics
+    getCacheMetrics,
+    suggestions,
+    recentSearches,
+    addToRecentSearches
   };
 }

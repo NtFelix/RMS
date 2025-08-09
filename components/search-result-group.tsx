@@ -19,6 +19,7 @@ interface SearchResultGroupProps {
   onSelect: (result: SearchResult) => void
   onAction?: (result: SearchResult, actionIndex: number) => void
   showSeparator?: boolean
+  searchQuery?: string
 }
 
 // Icon mapping for group headers
@@ -76,7 +77,8 @@ export function SearchResultGroup({
   results, 
   onSelect, 
   onAction,
-  showSeparator = false 
+  showSeparator = false,
+  searchQuery = ''
 }: SearchResultGroupProps) {
   // Don't render if no results
   if (!results || results.length === 0) {
@@ -110,6 +112,7 @@ export function SearchResultGroup({
               result={result}
               onSelect={onSelect}
               onAction={onAction}
+              searchQuery={searchQuery}
             />
           ))}
         </div>

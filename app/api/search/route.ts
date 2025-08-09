@@ -19,26 +19,43 @@ function sanitizeQuery(query: string): string {
   return query.trim().replace(/[%_]/g, '\\$&');
 }
 
-// Helper function to create search patterns with caching
-function getSearchPatterns(query: string): { pattern: string; exact: string } {
+// Helper function to create search patterns with caching and fuzzy matching
+function getSearchPatterns(query: string): { pattern: string; exact: string; fuzzy: string; words: string[] } {
   const cacheKey = query.toLowerCase();
   const cached = searchPatternCache.get(cacheKey);
   
   if (cached && Date.now() - cached.timestamp < PATTERN_CACHE_TTL) {
-    return { pattern: cached.pattern, exact: cached.exact };
+    return { 
+      pattern: cached.pattern, 
+      exact: cached.exact,
+      fuzzy: cached.fuzzy || cached.pattern,
+      words: cached.words || [cached.exact]
+    };
   }
   
   const sanitized = sanitizeQuery(query);
   const pattern = `%${sanitized}%`;
   const exact = sanitized;
   
-  searchPatternCache.set(cacheKey, {
+  // Create fuzzy pattern for better matching
+  const fuzzy = sanitized.split('').join('%');
+  
+  // Split into words for multi-word search
+  const words = sanitized.split(/\s+/).filter(word => word.length > 0);
+  
+  const patterns = {
     pattern,
     exact,
+    fuzzy: `%${fuzzy}%`,
+    words
+  };
+  
+  searchPatternCache.set(cacheKey, {
+    ...patterns,
     timestamp: Date.now()
   });
   
-  return { pattern, exact };
+  return patterns;
 }
 
 // Helper function to clean up expired cache entries
@@ -119,7 +136,7 @@ export async function GET(request: Request) {
     }
     
     const supabase = await createClient();
-    const { pattern: searchPattern, exact: exactPattern } = getSearchPatterns(query);
+    const { pattern: searchPattern, exact: exactPattern, fuzzy: fuzzyPattern, words } = getSearchPatterns(query);
     
     const results: SearchResponse['results'] = {
       tenants: [],
@@ -132,18 +149,41 @@ export async function GET(request: Request) {
     // Use Promise.allSettled for parallel execution with error isolation
     const searchPromises = [];
     
-    // Search tenants (Mieter) - Optimized query with proper JOINs
+    // Search tenants (Mieter) - Enhanced with fuzzy matching and multi-word search
     if (categories.includes('tenants')) {
       searchPromises.push(
         (async () => {
           try {
-            const { data, error } = await supabase
+            let queryBuilder = supabase
               .from('Mieter')
               .select(`
                 id, name, email, telefonnummer, einzug, auszug,
                 Wohnungen!left(name, Haeuser!left(name))
-              `)
-              .or(`name.ilike.${searchPattern},email.ilike.${searchPattern},telefonnummer.ilike.${searchPattern}`)
+              `);
+
+            // Build search conditions for better matching
+            const searchConditions = [
+              `name.ilike.${searchPattern}`,
+              `email.ilike.${searchPattern}`,
+              `telefonnummer.ilike.${searchPattern}`
+            ];
+
+            // Add fuzzy matching for better results
+            if (query.length > 2) {
+              searchConditions.push(`name.ilike.${fuzzyPattern}`);
+            }
+
+            // Add multi-word search
+            if (words.length > 1) {
+              words.forEach(word => {
+                if (word.length > 1) {
+                  searchConditions.push(`name.ilike.%${word}%`);
+                }
+              });
+            }
+
+            const { data, error } = await queryBuilder
+              .or(searchConditions.join(','))
               .order('name')
               .limit(limit);
 
@@ -179,18 +219,44 @@ export async function GET(request: Request) {
       );
     }
     
-    // Search houses (Haeuser) - Optimized with aggregated apartment data
+    // Search houses (Haeuser) - Enhanced with better address matching
     if (categories.includes('houses')) {
       searchPromises.push(
         (async () => {
           try {
-            const { data, error } = await supabase
+            let queryBuilder = supabase
               .from('Haeuser')
               .select(`
                 id, name, strasse, ort,
                 Wohnungen!left(id, miete, Mieter!left(id, auszug))
-              `)
-              .or(`name.ilike.${searchPattern},strasse.ilike.${searchPattern},ort.ilike.${searchPattern}`)
+              `);
+
+            // Enhanced search conditions for houses
+            const searchConditions = [
+              `name.ilike.${searchPattern}`,
+              `strasse.ilike.${searchPattern}`,
+              `ort.ilike.${searchPattern}`
+            ];
+
+            // Add fuzzy matching for better results
+            if (query.length > 2) {
+              searchConditions.push(`name.ilike.${fuzzyPattern}`);
+              searchConditions.push(`strasse.ilike.${fuzzyPattern}`);
+            }
+
+            // Multi-word search for addresses
+            if (words.length > 1) {
+              words.forEach(word => {
+                if (word.length > 1) {
+                  searchConditions.push(`name.ilike.%${word}%`);
+                  searchConditions.push(`strasse.ilike.%${word}%`);
+                  searchConditions.push(`ort.ilike.%${word}%`);
+                }
+              });
+            }
+
+            const { data, error } = await queryBuilder
+              .or(searchConditions.join(','))
               .order('name')
               .limit(limit);
 
@@ -230,19 +296,40 @@ export async function GET(request: Request) {
       );
     }
     
-    // Search apartments (Wohnungen) - Optimized with single query
+    // Search apartments (Wohnungen) - Enhanced with house name search
     if (categories.includes('apartments')) {
       searchPromises.push(
         (async () => {
           try {
-            const { data, error } = await supabase
+            let queryBuilder = supabase
               .from('Wohnungen')
               .select(`
                 id, name, groesse, miete,
                 Haeuser!left(name),
                 Mieter!left(name, einzug, auszug)
-              `)
-              .ilike('name', searchPattern)
+              `);
+
+            // Enhanced search for apartments including house names
+            const searchConditions = [
+              `name.ilike.${searchPattern}`
+            ];
+
+            // Add fuzzy matching
+            if (query.length > 2) {
+              searchConditions.push(`name.ilike.${fuzzyPattern}`);
+            }
+
+            // Multi-word search
+            if (words.length > 1) {
+              words.forEach(word => {
+                if (word.length > 1) {
+                  searchConditions.push(`name.ilike.%${word}%`);
+                }
+              });
+            }
+
+            const { data, error } = await queryBuilder
+              .or(searchConditions.join(','))
               .order('name')
               .limit(limit);
 
@@ -253,7 +340,32 @@ export async function GET(request: Request) {
             
             if (!data) return { type: 'apartments', data: [] };
             
-            const sortedApartments = sortByRelevance(data, query);
+            // Also search by house name if no direct apartment matches
+            let houseSearchResults: any[] = [];
+            if (data.length < limit) {
+              try {
+                const { data: houseData, error: houseError } = await supabase
+                  .from('Wohnungen')
+                  .select(`
+                    id, name, groesse, miete,
+                    Haeuser!left(name),
+                    Mieter!left(name, einzug, auszug)
+                  `)
+                  .not('id', 'in', `(${data.map(d => d.id).join(',') || 'null'})`)
+                  .or(`Haeuser.name.ilike.${searchPattern}`)
+                  .order('name')
+                  .limit(limit - data.length);
+
+                if (!houseError && houseData) {
+                  houseSearchResults = houseData;
+                }
+              } catch (houseSearchError) {
+                console.warn('House name search for apartments failed:', houseSearchError);
+              }
+            }
+
+            const allResults = [...data, ...houseSearchResults];
+            const sortedApartments = sortByRelevance(allResults, query);
             
             const apartmentResults = sortedApartments.map((apartment: any) => {
               const mieterArray = Array.isArray(apartment.Mieter) ? apartment.Mieter : (apartment.Mieter ? [apartment.Mieter] : []);
