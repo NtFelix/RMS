@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -767,6 +768,8 @@ export function CommandMenu() {
     return acc
   }, {} as Record<string, SearchResult[]>)
 
+
+
   return (
     <SearchErrorBoundary
       onError={(error, errorInfo) => {
@@ -779,11 +782,12 @@ export function CommandMenu() {
       }}
     >
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput 
-          placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
-          value={query}
-          onValueChange={setQuery}
-        />
+        <Command shouldFilter={false}>
+          <CommandInput 
+            placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
+            value={query}
+            onValueChange={setQuery}
+          />
         
         {/* Network Status Indicator */}
         <NetworkStatusIndicator 
@@ -837,6 +841,7 @@ export function CommandMenu() {
             {/* Search Results */}
             {!isSearchLoading && !searchError && hasSearchResults && (
               <>
+
 
                 {/* Grouped Results */}
                 {groupedResults.tenant && (
@@ -984,7 +989,6 @@ export function CommandMenu() {
               </CommandGroup>
             )}
 
-            <CommandEmpty>Keine Befehle gefunden.</CommandEmpty>
             <CommandGroup heading="Navigation">
               {navigationItems.map((item) => (
                 <CommandItem
@@ -1131,6 +1135,7 @@ export function CommandMenu() {
           </div>
         </div>
       )}
+        </Command>
     </CommandDialog>
     </SearchErrorBoundary>
   )

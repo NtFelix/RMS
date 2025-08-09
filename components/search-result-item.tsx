@@ -211,6 +211,8 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       onSelect={() => onSelect(result)}
       className="group flex items-center justify-between p-3 hover:bg-accent/50 cursor-pointer"
     >
+
+      
       <div className="flex items-start gap-3 flex-1 min-w-0">
         {/* Entity Icon */}
         <div className={cn("flex-shrink-0 mt-0.5", entityColor)}>

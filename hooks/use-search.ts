@@ -421,6 +421,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       const searchResults: SearchResult[] = [];
 
       // Convert tenants
+
       data.results.tenant.forEach(tenant => {
         const actions: SearchResultAction[] = [
           {

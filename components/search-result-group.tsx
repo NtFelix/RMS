@@ -93,6 +93,7 @@ export function SearchResultGroup({
     <>
       {showSeparator && <CommandSeparator />}
       <CommandGroup>
+
         {/* Group Header */}
         <div className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-muted-foreground">
           {GroupIcon && (
