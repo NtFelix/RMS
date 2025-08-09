@@ -768,252 +768,241 @@ export function CommandMenu() {
           isOffline={isOffline} 
           onRetry={retrySearch}
         />
-        
-        <CommandList className="max-h-[70vh] overflow-y-auto">
-        {/* Search Results */}
-        {showSearchResults && (
-          <>
-            {/* Loading State */}
-            {isSearchLoading && (
-              <SearchLoadingIndicator 
-                query={query}
-                isLoading={isSearchLoading}
-                retryCount={retryCount}
-                maxRetries={3}
-              />
-            )}
 
-            {/* Search Status Bar */}
-            {!isSearchLoading && hasSearchResults && (
-              <SearchStatusBar
-                totalCount={totalCount}
-                executionTime={executionTime}
-                query={query}
-                isLoading={isSearchLoading}
-                retryCount={retryCount}
-                isOffline={isOffline}
-              />
-            )}
-
-            {/* Search Results */}
-            {!isSearchLoading && !searchError && hasSearchResults && (
-              <>
-
-                {/* Grouped Results */}
-                {groupedResults.tenant && (
-                  <SearchResultGroup
-                    title="Mieter"
-                    type="tenant"
-                    results={groupedResults.tenant}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                  />
-                )}
-                
-                {groupedResults.house && (
-                  <SearchResultGroup
-                    title="Häuser"
-                    type="house"
-                    results={groupedResults.house}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!groupedResults.tenant}
-                  />
-                )}
-                
-                {groupedResults.apartment && (
-                  <SearchResultGroup
-                    title="Wohnungen"
-                    type="apartment"
-                    results={groupedResults.apartment}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!(groupedResults.tenant || groupedResults.house)}
-                  />
-                )}
-                
-                {groupedResults.finance && (
-                  <SearchResultGroup
-                    title="Finanzen"
-                    type="finance"
-                    results={groupedResults.finance}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment)}
-                  />
-                )}
-                
-                {groupedResults.task && (
-                  <SearchResultGroup
-                    title="Aufgaben"
-                    type="task"
-                    results={groupedResults.task}
-                    onSelect={handleSearchResultSelect}
-                    onAction={handleSearchResultAction}
-                    showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment || groupedResults.finance)}
-                  />
-                )}
-              </>
-            )}
-
-            {/* Error State */}
-            {searchError && !isSearchLoading && (
-              <SearchEmptyState
-                query={query}
-                hasError={true}
-                isOffline={isOffline}
-                onRetry={retrySearch}
-                suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
-              />
-            )}
-
-            {/* No Results */}
-            {!isSearchLoading && !searchError && !hasSearchResults && (
-              <CommandEmpty>
-                <SearchEmptyState
-                  query={query}
-                  hasError={false}
-                  isOffline={isOffline}
-                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
-                />
-              </CommandEmpty>
-            )}
-          </>
+        {/* Moved UI outside CommandList */}
+        {showSearchResults && isSearchLoading && (
+          <SearchLoadingIndicator
+            query={query}
+            isLoading={isSearchLoading}
+            retryCount={retryCount}
+            maxRetries={3}
+          />
+        )}
+        {showSearchResults && !isSearchLoading && hasSearchResults && (
+          <SearchStatusBar
+            totalCount={totalCount}
+            executionTime={executionTime}
+            query={query}
+            isLoading={isSearchLoading}
+            retryCount={retryCount}
+            isOffline={isOffline}
+          />
+        )}
+        {showSearchResults && !isSearchLoading && searchError && (
+          <SearchEmptyState
+            query={query}
+            hasError={true}
+            isOffline={isOffline}
+            onRetry={retrySearch}
+            suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
+          />
         )}
 
-        {/* Navigation and Actions (shown when not searching) */}
-        {!showSearchResults && (
-          <>
-            <CommandEmpty>Keine Befehle gefunden.</CommandEmpty>
-            <CommandGroup heading="Navigation">
-              {navigationItems.map((item) => (
+        <CommandList>
+          {/* Search Results */}
+          {showSearchResults && (
+            <>
+              {/* Grouped Results */}
+              {!isSearchLoading && !searchError && hasSearchResults && (
+                <>
+                  {groupedResults.tenant && (
+                    <SearchResultGroup
+                      title="Mieter"
+                      type="tenant"
+                      results={groupedResults.tenant}
+                      onSelect={handleSearchResultSelect}
+                      onAction={handleSearchResultAction}
+                    />
+                  )}
+                  {groupedResults.house && (
+                    <SearchResultGroup
+                      title="Häuser"
+                      type="house"
+                      results={groupedResults.house}
+                      onSelect={handleSearchResultSelect}
+                      onAction={handleSearchResultAction}
+                      showSeparator={!!groupedResults.tenant}
+                    />
+                  )}
+                  {groupedResults.apartment && (
+                    <SearchResultGroup
+                      title="Wohnungen"
+                      type="apartment"
+                      results={groupedResults.apartment}
+                      onSelect={handleSearchResultSelect}
+                      onAction={handleSearchResultAction}
+                      showSeparator={!!(groupedResults.tenant || groupedResults.house)}
+                    />
+                  )}
+                  {groupedResults.finance && (
+                    <SearchResultGroup
+                      title="Finanzen"
+                      type="finance"
+                      results={groupedResults.finance}
+                      onSelect={handleSearchResultSelect}
+                      onAction={handleSearchResultAction}
+                      showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment)}
+                    />
+                  )}
+                  {groupedResults.task && (
+                    <SearchResultGroup
+                      title="Aufgaben"
+                      type="task"
+                      results={groupedResults.task}
+                      onSelect={handleSearchResultSelect}
+                      onAction={handleSearchResultAction}
+                      showSeparator={!!(groupedResults.tenant || groupedResults.house || groupedResults.apartment || groupedResults.finance)}
+                    />
+                  )}
+                </>
+              )}
+              {/* No Results */}
+              {!isSearchLoading && !searchError && !hasSearchResults && (
+                <CommandEmpty>
+                  <SearchEmptyState
+                    query={query}
+                    hasError={false}
+                    isOffline={isOffline}
+                    suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
+                  />
+                </CommandEmpty>
+              )}
+            </>
+          )}
+
+          {/* Navigation and Actions (shown when not searching) */}
+          {!showSearchResults && (
+            <>
+              <CommandEmpty>Keine Befehle gefunden.</CommandEmpty>
+              <CommandGroup heading="Navigation">
+                {navigationItems.map((item) => (
+                  <CommandItem
+                    key={item.href}
+                    onSelect={() => {
+                      router.push(item.href)
+                      setOpen(false)
+                    }}
+                  >
+                    <item.icon className="mr-2 h-4 w-4" />
+                    {item.title}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+              <CommandGroup heading="Aktionen">
                 <CommandItem
-                  key={item.href}
                   onSelect={() => {
-                    router.push(item.href)
                     setOpen(false)
+                    useModalStore.getState().openTenantModal()
                   }}
                 >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.title}
+                  <Users className="mr-2 h-4 w-4" />
+                  Mieter hinzufügen
                 </CommandItem>
-              ))}
-            </CommandGroup>
-            <CommandGroup heading="Aktionen">
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openTenantModal()
-                }}
-              >
-                <Users className="mr-2 h-4 w-4" />
-                Mieter hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openHouseModal()
-                }}
-              >
-                <Building2 className="mr-2 h-4 w-4" />
-                Haus hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openFinanceModal()
-                }}
-              >
-                <Wallet className="mr-2 h-4 w-4" />
-                Rechnung erstellen
-              </CommandItem>
-              <CommandItem
-                disabled={isLoadingWohnungContext}
-                onSelect={async () => {
-                  setIsLoadingWohnungContext(true)
-                  toast({ title: "Lade...", description: "Wohnungslimit wird geprüft." })
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false)
+                    useModalStore.getState().openHouseModal()
+                  }}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Haus hinzufügen
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false)
+                    useModalStore.getState().openFinanceModal()
+                  }}
+                >
+                  <Wallet className="mr-2 h-4 w-4" />
+                  Rechnung erstellen
+                </CommandItem>
+                <CommandItem
+                  disabled={isLoadingWohnungContext}
+                  onSelect={async () => {
+                    setIsLoadingWohnungContext(true)
+                    toast({ title: "Lade...", description: "Wohnungslimit wird geprüft." })
 
-                  let apartmentLimit: number | typeof Infinity | undefined = undefined
-                  let isActiveSubscription: boolean | undefined = undefined
-                  let apartmentCount: number | undefined = undefined
+                    let apartmentLimit: number | typeof Infinity | undefined = undefined
+                    let isActiveSubscription: boolean | undefined = undefined
+                    let apartmentCount: number | undefined = undefined
 
-                  try {
-                    const subContext = await getUserSubscriptionContext()
+                    try {
+                      const subContext = await getUserSubscriptionContext()
 
-                    if (subContext.error || !subContext.stripe_price_id || !subContext.stripe_subscription_status) {
-                      isActiveSubscription = false
-                      toast({
-                        title: "Fehler",
-                        description: "Abonnementdetails konnten nicht vollständig geladen werden. Modal wird geöffnet.",
-                        variant: "destructive",
-                      })
-                    } else {
-                      isActiveSubscription = subContext.stripe_subscription_status === "active"
-                      if (isActiveSubscription && subContext.stripe_price_id) {
-                        const limitResult = await getPlanApartmentLimit(subContext.stripe_price_id)
-                        if (limitResult.error || limitResult.limitWohnungen === undefined || limitResult.limitWohnungen === null) {
-                          apartmentLimit = undefined
-                          toast({
-                            title: "Fehler",
-                            description: "Wohnungslimit konnte nicht geladen werden.",
-                            variant: "destructive",
-                          })
-                        } else {
-                          apartmentLimit = limitResult.limitWohnungen
+                      if (subContext.error || !subContext.stripe_price_id || !subContext.stripe_subscription_status) {
+                        isActiveSubscription = false
+                        toast({
+                          title: "Fehler",
+                          description: "Abonnementdetails konnten nicht vollständig geladen werden. Modal wird geöffnet.",
+                          variant: "destructive",
+                        })
+                      } else {
+                        isActiveSubscription = subContext.stripe_subscription_status === "active"
+                        if (isActiveSubscription && subContext.stripe_price_id) {
+                          const limitResult = await getPlanApartmentLimit(subContext.stripe_price_id)
+                          if (limitResult.error || limitResult.limitWohnungen === undefined || limitResult.limitWohnungen === null) {
+                            apartmentLimit = undefined
+                            toast({
+                              title: "Fehler",
+                              description: "Wohnungslimit konnte nicht geladen werden.",
+                              variant: "destructive",
+                            })
+                          } else {
+                            apartmentLimit = limitResult.limitWohnungen
+                          }
                         }
                       }
-                    }
 
-                    const countResult = await getUserApartmentCount()
-                    if (countResult.error || countResult.count === undefined) {
-                      apartmentCount = undefined
+                      const countResult = await getUserApartmentCount()
+                      if (countResult.error || countResult.count === undefined) {
+                        apartmentCount = undefined
+                        toast({
+                          title: "Fehler",
+                          description: "Aktuelle Wohnungsanzahl konnte nicht geladen werden.",
+                          variant: "destructive",
+                        })
+                      } else {
+                        apartmentCount = countResult.count
+                      }
+                    } catch (e) {
+                      console.error("Error in Wohnung hinzufügen onSelect:", e)
                       toast({
-                        title: "Fehler",
-                        description: "Aktuelle Wohnungsanzahl konnte nicht geladen werden.",
+                        title: "Unerwarteter Fehler",
+                        description: "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
                         variant: "destructive",
                       })
-                    } else {
-                      apartmentCount = countResult.count
+                    } finally {
+                      setOpen(false)
+                      useModalStore
+                        .getState()
+                        .openWohnungModal(undefined, [], undefined, apartmentCount, apartmentLimit, isActiveSubscription)
+                      setIsLoadingWohnungContext(false)
                     }
-                  } catch (e) {
-                    console.error("Error in Wohnung hinzufügen onSelect:", e)
-                    toast({
-                      title: "Unerwarteter Fehler",
-                      description: "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
-                      variant: "destructive",
-                    })
-                  } finally {
+                  }}
+                >
+                  <Home className="mr-2 h-4 w-4" />
+                  Wohnung hinzufügen
+                </CommandItem>
+                <CommandItem
+                  onSelect={() => {
                     setOpen(false)
-                    useModalStore
-                      .getState()
-                      .openWohnungModal(undefined, [], undefined, apartmentCount, apartmentLimit, isActiveSubscription)
-                    setIsLoadingWohnungContext(false)
-                  }
-                }}
-              >
-                <Home className="mr-2 h-4 w-4" />
-                Wohnung hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={() => {
-                  setOpen(false)
-                  useModalStore.getState().openAufgabeModal()
-                }}
-              >
-                <CheckSquare className="mr-2 h-4 w-4" />
-                Aufgabe hinzufügen
-              </CommandItem>
-              <CommandItem
-                onSelect={handleManageSubscription}
-                disabled={isLoadingSubscription}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
-              </CommandItem>
-            </CommandGroup>
-          </>
-        )}
-      </CommandList>
+                    useModalStore.getState().openAufgabeModal()
+                  }}
+                >
+                  <CheckSquare className="mr-2 h-4 w-4" />
+                  Aufgabe hinzufügen
+                </CommandItem>
+                <CommandItem
+                  onSelect={handleManageSubscription}
+                  disabled={isLoadingSubscription}
+                >
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  {isLoadingSubscription ? 'Lade...' : 'Abonnement verwalten'}
+                </CommandItem>
+              </CommandGroup>
+            </>
+          )}
+        </CommandList>
     </CommandDialog>
     </SearchErrorBoundary>
   )
