@@ -1,5 +1,4 @@
 "use client"
-
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useSearchStore } from "@/hooks/use-search-store"
@@ -157,7 +156,93 @@ export function CommandMenu() {
       clearSearch()
     }
   }, [open, query, clearSearch])
-  
+
+  useEffect(() => {
+    if (!open && query.trim().length > 0) {
+      clearSearch()
+    }
+  }, [open, query, clearSearch])
+
+  // Extracted handler: open Add Apartment modal with subscription checks
+  const handleAddApartment = useCallback(async () => {
+    setIsLoadingWohnungContext(true)
+    toast({ title: "Lade...", description: "Wohnungslimit wird geprüft." })
+
+    let apartmentLimit: number | typeof Infinity | undefined = undefined
+    let isActiveSubscription: boolean | undefined = undefined
+    let apartmentCount: number | undefined = undefined
+
+    try {
+      const subContext = await getUserSubscriptionContext()
+
+      if (
+        subContext.error ||
+        !subContext.stripe_price_id ||
+        !subContext.stripe_subscription_status
+      ) {
+        isActiveSubscription = false
+        toast({
+          title: "Fehler",
+          description:
+            "Abonnementdetails konnten nicht vollständig geladen werden. Modal wird geöffnet.",
+          variant: "destructive",
+        })
+      } else {
+        isActiveSubscription = subContext.stripe_subscription_status === "active"
+        if (isActiveSubscription && subContext.stripe_price_id) {
+          const limitResult = await getPlanApartmentLimit(subContext.stripe_price_id)
+          if (
+            limitResult.error ||
+            limitResult.limitWohnungen === undefined ||
+            limitResult.limitWohnungen === null
+          ) {
+            apartmentLimit = undefined
+            toast({
+              title: "Fehler",
+              description: "Wohnungslimit konnte nicht geladen werden.",
+              variant: "destructive",
+            })
+          } else {
+            apartmentLimit = limitResult.limitWohnungen
+          }
+        }
+      }
+
+      const countResult = await getUserApartmentCount()
+      if (countResult.error || countResult.count === undefined) {
+        apartmentCount = undefined
+        toast({
+          title: "Fehler",
+          description: "Aktuelle Wohnungsanzahl konnte nicht geladen werden.",
+          variant: "destructive",
+        })
+      } else {
+        apartmentCount = countResult.count
+      }
+    } catch (e) {
+      console.error("Error in Wohnung hinzufügen onSelect:", e)
+      toast({
+        title: "Unerwarteter Fehler",
+        description:
+          "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      })
+    } finally {
+      setOpen(false)
+      useModalStore
+        .getState()
+        .openWohnungModal(
+          undefined,
+          [],
+          undefined,
+          apartmentCount,
+          apartmentLimit,
+          isActiveSubscription
+        )
+      setIsLoadingWohnungContext(false)
+    }
+  }, [setOpen])
+
   // Get the current query from the store
   const storeQuery = useSearchStore((state) => state.query);
   
@@ -1083,67 +1168,7 @@ export function CommandMenu() {
               </CommandItem>
               <CommandItem
                 disabled={isLoadingWohnungContext}
-                onSelect={async () => {
-                  setIsLoadingWohnungContext(true)
-                  toast({ title: "Lade...", description: "Wohnungslimit wird geprüft." })
-
-                  let apartmentLimit: number | typeof Infinity | undefined = undefined
-                  let isActiveSubscription: boolean | undefined = undefined
-                  let apartmentCount: number | undefined = undefined
-
-                  try {
-                    const subContext = await getUserSubscriptionContext()
-
-                    if (subContext.error || !subContext.stripe_price_id || !subContext.stripe_subscription_status) {
-                      isActiveSubscription = false
-                      toast({
-                        title: "Fehler",
-                        description: "Abonnementdetails konnten nicht vollständig geladen werden. Modal wird geöffnet.",
-                        variant: "destructive",
-                      })
-                    } else {
-                      isActiveSubscription = subContext.stripe_subscription_status === "active"
-                      if (isActiveSubscription && subContext.stripe_price_id) {
-                        const limitResult = await getPlanApartmentLimit(subContext.stripe_price_id)
-                        if (limitResult.error || limitResult.limitWohnungen === undefined || limitResult.limitWohnungen === null) {
-                          apartmentLimit = undefined
-                          toast({
-                            title: "Fehler",
-                            description: "Wohnungslimit konnte nicht geladen werden.",
-                            variant: "destructive",
-                          })
-                        } else {
-                          apartmentLimit = limitResult.limitWohnungen
-                        }
-                      }
-                    }
-
-                    const countResult = await getUserApartmentCount()
-                    if (countResult.error || countResult.count === undefined) {
-                      apartmentCount = undefined
-                      toast({
-                        title: "Fehler",
-                        description: "Aktuelle Wohnungsanzahl konnte nicht geladen werden.",
-                        variant: "destructive",
-                      })
-                    } else {
-                      apartmentCount = countResult.count
-                    }
-                  } catch (e) {
-                    console.error("Error in Wohnung hinzufügen onSelect:", e)
-                    toast({
-                      title: "Unerwarteter Fehler",
-                      description: "Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
-                      variant: "destructive",
-                    })
-                  } finally {
-                    setOpen(false)
-                    useModalStore
-                      .getState()
-                      .openWohnungModal(undefined, [], undefined, apartmentCount, apartmentLimit, isActiveSubscription)
-                    setIsLoadingWohnungContext(false)
-                  }
-                }}
+                onSelect={handleAddApartment}
               >
                 <Home className="mr-2 h-4 w-4" />
                 Wohnung hinzufügen
