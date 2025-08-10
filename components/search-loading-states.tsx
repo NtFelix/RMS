@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { 
   Loader2, 
   Search, 
@@ -33,69 +33,84 @@ export function SearchLoadingIndicator({
   retryCount = 0, 
   maxRetries = 3 
 }: SearchLoadingProps) {
-  if (!isLoading) return null
+  const [visible, setVisible] = useState(isLoading);
+  const [progress, setProgress] = useState(isLoading ? 10 : 0);
 
   const isRetrying = retryCount > 0;
-  
-  return (
-    <div className="w-full py-8 px-4">
-      <div className="max-w-md mx-auto space-y-6">
-        {/* Animated progress bar */}
-        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary/80 rounded-full animate-pulse"
-            style={{
-              width: isRetrying ? `${(retryCount / maxRetries) * 100}%` : '70%',
-              transition: 'width 0.3s ease-out',
-            }}
-          />
-        </div>
 
+  useEffect(() => {
+    if (isLoading) {
+      setVisible(true);
+      const target = 90; // cap while loading, complete to 100% on finish
+      const interval = setInterval(() => {
+        setProgress((prev) => {
+          if (prev < target) {
+            const increment = Math.max(0.5, (target - prev) * 0.1); // ease-out
+            return Math.min(prev + increment, target);
+          }
+          return prev;
+        });
+      }, 100);
+      return () => clearInterval(interval);
+    } else {
+      // Finish the bar to 100% then hide shortly after
+      setProgress(100);
+      const timeout = setTimeout(() => {
+        setVisible(false);
+        setProgress(0);
+      }, 300);
+      return () => clearTimeout(timeout);
+    }
+  }, [isLoading]);
+
+  if (!visible) return null;
+
+  return (
+    <div className="w-full py-4 px-3">
+      <div className="max-w-md mx-auto space-y-4">
         {/* Main content */}
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="relative">
-            <div className="absolute -inset-1.5 bg-primary/10 rounded-full blur-sm" />
+          <div className="relative inline-flex">
+            <div className="absolute -inset-1 bg-primary/10 rounded-full blur-sm" />
             <div className="relative p-3 bg-background rounded-full border border-border shadow-sm">
-              <Loader2 className="h-6 w-6 text-primary animate-spin" />
+              <Loader2 className={`h-6 w-6 text-primary animate-spin ${isRetrying ? 'opacity-75' : ''}`} />
             </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             <h3 className="text-lg font-medium">
               {isRetrying 
                 ? `Wiederhole Suche (${retryCount}/${maxRetries})`
                 : 'Suche wird durchgeführt...'}
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground max-w-xs">
               {isRetrying 
-                ? 'Versuche erneut, die Ergebnisse abzurufen'
-                : `"${query}" wird durchsucht...`}
+                ? 'Versuche erneut, die Ergebnisse abzurufen...'
+                : `"${query}" wird durchsucht`}
             </p>
           </div>
 
-          {/* Progress dots animation */}
-          <div className="flex items-center justify-center space-x-1.5 pt-2">
-            {[1, 2, 3].map((dot) => (
-              <div 
-                key={dot}
-                className="h-2 w-2 rounded-full bg-muted"
-                style={{
-                  animation: `pulse 1.5s ease-in-out ${dot * 0.2}s infinite`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Additional status message */}
-          <p className="text-xs text-muted-foreground/70 pt-4">
+          {/* Single status message */}
+          <p className="text-xs text-muted-foreground/70">
             {isRetrying 
-              ? 'Bitte warten, während wir es erneut versuchen...'
+              ? 'Bitte einen Moment Geduld'
               : 'Dies kann einen Moment dauern'}
           </p>
         </div>
+        {/* Animated progress bar (moved below to keep icon position consistent with no-results) */}
+        <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-primary/80 rounded-full"
+            style={{
+              width: `${Math.max(0, Math.min(progress, 100))}%`,
+              transition: 'width 0.4s ease-out',
+              animation: isRetrying ? 'pulse 2s ease-in-out infinite' : 'none'
+            }}
+          />
+        </div>
       </div>
 
-      {/* Add keyframe animation for the dots */}
+      {/* Keyframe animation for the pulse effect */}
       <style jsx global>{`
         @keyframes pulse {
           0%, 100% { opacity: 0.3; transform: scale(0.8); }
