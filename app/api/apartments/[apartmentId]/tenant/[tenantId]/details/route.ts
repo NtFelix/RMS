@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { createRequestLogger } from "@/utils/logger";
 
 interface ApartmentTenantDetailsResponse {
   apartment: {
@@ -51,9 +52,15 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ apartmentId: string; tenantId: string }> }
 ) {
+  // Extract IDs at the start of the function to ensure they're in scope for error handling
+  let apartmentId: string | undefined;
+  let tenantId: string | undefined;
   try {
     const supabase = await createClient();
-    const { apartmentId, tenantId } = await params;
+    // Get the parameters
+    const paramsData = await params;
+    apartmentId = paramsData.apartmentId;
+    tenantId = paramsData.tenantId;
 
     // Enhanced input validation
     if (!apartmentId || !tenantId) {
@@ -91,7 +98,13 @@ export async function GET(
       .single();
 
     if (apartmentError) {
-      console.error("Error fetching apartment:", apartmentError);
+      const logger = createRequestLogger(request);
+      logger.error("Error fetching apartment", new Error(apartmentError.message), {
+        apartmentId,
+        errorCode: apartmentError.code,
+        details: apartmentError.details
+      });
+      
       if (apartmentError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." }, 
@@ -113,7 +126,14 @@ export async function GET(
       .single();
 
     if (tenantError) {
-      console.error("Error fetching tenant:", tenantError);
+      const logger = createRequestLogger(request);
+      logger.error("Error fetching tenant", new Error(tenantError.message), {
+        tenantId,
+        apartmentId,
+        errorCode: tenantError.code,
+        details: tenantError.details
+      });
+      
       if (tenantError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Mieter nicht gefunden oder nicht dieser Wohnung zugeordnet." }, 
@@ -161,7 +181,12 @@ export async function GET(
           status: parsedKaution.status,
         };
       } catch (e) {
-        console.warn("Error parsing kaution data:", e);
+        const logger = createRequestLogger(request);
+        logger.warn("Error parsing kaution data", {
+          tenantId,
+          apartmentId,
+          error: e instanceof Error ? e.message : 'Unknown error'
+        });
       }
     }
 
@@ -204,7 +229,19 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("GET /api/apartments/[apartmentId]/tenant/[tenantId]/details error:", error);
+    const logger = createRequestLogger(request);
+    const errorContext: Record<string, any> = {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      // Add IDs if they were successfully extracted
+      ...(apartmentId && { apartmentId }),
+      ...(tenantId && { tenantId })
+    };
+    
+    logger.error("Failed to fetch apartment/tenant details", 
+      error instanceof Error ? error : new Error(String(error)),
+      errorContext
+    );
+    
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Details." }, 
       { status: 500 }
