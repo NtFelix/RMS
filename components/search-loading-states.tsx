@@ -1,7 +1,20 @@
 "use client"
 
 import React from 'react'
-import { Loader2, Search, Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react'
+import { 
+  Loader2, 
+  Search, 
+  Wifi, 
+  WifiOff, 
+  AlertCircle, 
+  RefreshCw,
+  Users,
+  Home,
+  Building2,
+  Wallet,
+  CheckSquare,
+  FileText
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -244,29 +257,48 @@ export function SearchEmptyState({
                   <p className="text-xs text-muted-foreground">Vielleicht suchen Sie nach:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {suggestions.map((suggestion, index) => {
-                      const filterMap: {[key: string]: string} = {
-                        'Mieter': 'M-',
-                        'Wohnung': 'W-',
-                        'Haus': 'H-',
-                        'Finanzen': 'F-',
-                        'Aufgabe': 'A-',
-                        'Mietvertrag': 'V-'
+                      const filterMap: {[key: string]: {prefix: string, icon: React.ReactNode}} = {
+                        'Mieter': {
+                          prefix: 'M-',
+                          icon: <Users className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                        },
+                        'Wohnung': {
+                          prefix: 'W-',
+                          icon: <Home className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                        },
+                        'Haus': {
+                          prefix: 'H-',
+                          icon: <Building2 className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                        },
+                        'Finanzen': {
+                          prefix: 'F-',
+                          icon: <Wallet className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                        },
+                        'Aufgabe': {
+                          prefix: 'A-',
+                          icon: <CheckSquare className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                        },
+                        'Mietvertrag': {
+                          prefix: 'V-',
+                          icon: <FileText className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
+                        }
                       };
                       
                       const displayText = suggestion === 'Rechnung' ? 'Finanzen' : suggestion;
-                      const filterPrefix = filterMap[displayText] || '';
+                      const filterInfo = filterMap[displayText] || { prefix: '', icon: null };
                       
                       return (
                         <button
                           key={index}
                           onClick={() => {
                             const event = new CustomEvent('update-search-query', { 
-                              detail: filterPrefix 
+                              detail: filterInfo.prefix 
                             });
                             window.dispatchEvent(event);
                           }}
-                          className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150"
+                          className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150 flex items-center"
                         >
+                          {filterInfo.icon}
                           {displayText}
                         </button>
                       );
