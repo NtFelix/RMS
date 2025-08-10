@@ -133,7 +133,7 @@ export function CommandMenu() {
         }
         if (e.key === "a" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          setQuery("W-")
+          setQuery("T-")
         }
         if (e.key === "f" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
@@ -141,7 +141,7 @@ export function CommandMenu() {
         }
         if (e.key === "t" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          setQuery("T-")
+          setQuery("W-")
         }
       }
     }
@@ -1020,7 +1020,7 @@ export function CommandMenu() {
               >
                 <Home className="mr-2 h-4 w-4" />
                 <span>Wohnungen suchen</span>
-                <CommandShortcut>⌘A</CommandShortcut>
+                <CommandShortcut>⌘T</CommandShortcut>
               </CommandItem>
               <CommandItem
                 onSelect={() => {
@@ -1038,7 +1038,7 @@ export function CommandMenu() {
               >
                 <CheckSquare className="mr-2 h-4 w-4" />
                 <span>Aufgaben suchen</span>
-                <CommandShortcut>⌘T</CommandShortcut>
+                <CommandShortcut>⌘A</CommandShortcut>
               </CommandItem>
             </CommandGroup>
             
