@@ -18,6 +18,7 @@ import {
   Ruler,
   CheckCircle,
   Circle,
+  FileText,
   MoreHorizontal
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -185,24 +186,41 @@ const formatMetadata = (result: SearchResult) => {
     
     case 'finance':
       return (
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
-          {metadata?.amount && (
-            <div className="flex items-center gap-1.5">
-              <Euro className="h-3.5 w-3.5" />
-              <span
-                className={cn(
-                  'font-semibold',
-                  metadata.type === 'income' ? 'text-green-600 text-base' : 'text-red-600 text-base'
-                )}
-              >
-                {metadata.type === 'income' ? '+' : '-'}{Math.abs(metadata.amount)}€
-              </span>
+        <div className="space-y-2">
+          {metadata?.apartment && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Home className="h-3.5 w-3.5" />
+              <span className="font-medium">{metadata.apartment.name}</span>
+              <span className="text-muted-foreground/60">•</span>
+              <Building2 className="h-3 w-3 text-muted-foreground/80" />
+              <span className="text-muted-foreground/80">{metadata.apartment.house_name}</span>
             </div>
           )}
-          {metadata?.date && (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
+          <div className="flex items-center gap-4">
+            {metadata?.date && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>{new Date(metadata.date).toLocaleDateString('de-DE')}</span>
+              </div>
+            )}
+            {metadata?.amount && (
+              <div className="flex items-center gap-1.5">
+                <Euro className="h-3.5 w-3.5 text-muted-foreground" />
+                <span
+                  className={cn(
+                    'font-semibold',
+                    metadata.type === 'income' ? 'text-green-600' : 'text-red-600'
+                  )}
+                >
+                  {metadata.type === 'income' ? '+' : '-'}{Math.abs(metadata.amount)}€
+                </span>
+              </div>
+            )}
+          </div>
+          {metadata?.notes && (
+            <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground/80">
+              <FileText className="h-3 w-3 flex-shrink-0 text-muted-foreground/60" />
+              <span className="line-clamp-2">{metadata.notes}</span>
             </div>
           )}
         </div>

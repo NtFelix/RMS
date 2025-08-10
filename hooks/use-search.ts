@@ -596,10 +596,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: finance.id,
           type: 'finance',
           title: finance.name,
-          subtitle: `${isIncome ? '+' : '-'}${finance.amount}€`,
-          context: finance.apartment 
-            ? `${finance.apartment.name} - ${finance.apartment.house_name}` 
-            : new Date(finance.date).toLocaleDateString('de-DE'),
           metadata: {
             amount: finance.amount,
             date: finance.date,
