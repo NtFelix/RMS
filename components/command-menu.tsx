@@ -139,7 +139,7 @@ export function CommandMenu() {
           e.preventDefault()
           setQuery("F-")
         }
-        if (e.key === "t" && (e.metaKey || e.ctrlKey)) {
+        if (e.key === "j" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
           setQuery("W-")
         }
@@ -1020,7 +1020,7 @@ export function CommandMenu() {
               >
                 <Home className="mr-2 h-4 w-4" />
                 <span>Wohnungen suchen</span>
-                <CommandShortcut>⌘T</CommandShortcut>
+                <CommandShortcut>⌘J</CommandShortcut>
               </CommandItem>
               <CommandItem
                 onSelect={() => {
@@ -1182,7 +1182,7 @@ export function CommandMenu() {
               <span>Mieter</span>
               <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘H</kbd>
               <span>Häuser</span>
-              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘T</kbd>
+              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘J</kbd>
               <span>Wohnungen</span>
             </div>
           </div>
