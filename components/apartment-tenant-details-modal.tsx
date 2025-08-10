@@ -200,8 +200,9 @@ export function ApartmentTenantDetailsModal() {
           ) : apartmentTenantDetailsError ? (
             <ErrorState 
               error={apartmentTenantDetailsError} 
-              onRetry={handleRetry} 
+              onRetry={handleRetry}
               loadingStartTime={loadingStartTime}
+              onClose={closeApartmentTenantDetailsModal}
             />
           ) : apartmentTenantDetailsData ? (
             <div className="space-y-6">
@@ -543,11 +544,13 @@ function ApartmentTenantDetailsSkeleton({
 function ErrorState({ 
   error, 
   onRetry, 
-  loadingStartTime 
+  loadingStartTime,
+  onClose
 }: { 
   error: string
   onRetry: () => void
-  loadingStartTime: number | null 
+  loadingStartTime: number | null
+  onClose: () => void
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 space-y-6">
@@ -571,7 +574,7 @@ function ErrorState({
           Erneut versuchen
         </Button>
         <Button 
-          onClick={() => {}} 
+          onClick={onClose}
           variant="ghost"
           className="text-gray-600"
         >
