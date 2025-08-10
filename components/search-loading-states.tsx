@@ -264,18 +264,37 @@ export function SearchEmptyState({
                 <div className="space-y-2 pt-2">
                   <p className="text-sm text-muted-foreground">Vielleicht suchen Sie nach:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {suggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => {
-                          const event = new CustomEvent('search-suggestion', { detail: suggestion });
-                          window.dispatchEvent(event);
-                        }}
-                        className="px-3 py-1.5 text-sm font-medium bg-muted hover:bg-muted/80 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
+                    {suggestions.map((suggestion, index) => {
+                      // Map suggestion text to filter prefix
+                      const filterMap: {[key: string]: string} = {
+                        'Mieter': 'M-',
+                        'Wohnung': 'W-',
+                        'Haus': 'H-',
+                        'Finanzen': 'F-',  // Changed from 'Rechnung' to 'Finanzen'
+                        'Aufgabe': 'A-',
+                        'Mietvertrag': 'V-'
+                      };
+                      
+                      // Map 'Rechnung' to 'Finanzen' for backward compatibility
+                      const displayText = suggestion === 'Rechnung' ? 'Finanzen' : suggestion;
+                      const filterPrefix = filterMap[displayText] || '';
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            // Apply the filter directly by updating the search query
+                            const event = new CustomEvent('update-search-query', { 
+                              detail: filterPrefix 
+                            });
+                            window.dispatchEvent(event);
+                          }}
+                          className="px-3 py-1.5 text-sm font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2"
+                        >
+                          {suggestion}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

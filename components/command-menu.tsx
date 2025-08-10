@@ -156,6 +156,30 @@ export function CommandMenu() {
       clearSearch()
     }
   }, [open, query, clearSearch])
+  
+  // Handle update-search-query events from suggestion clicks
+  useEffect(() => {
+    const handleUpdateSearchQuery = (event: CustomEvent) => {
+      const filterPrefix = event.detail;
+      if (filterPrefix && typeof filterPrefix === 'string') {
+        setQuery(filterPrefix);
+        // Focus the search input after updating the query
+        const searchInput = document.querySelector('input[cmdk-input]') as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }
+    };
+
+    // Add event listener for custom update-search-query event
+    // @ts-ignore - CustomEvent type issue
+    window.addEventListener('update-search-query', handleUpdateSearchQuery);
+    
+    return () => {
+      // @ts-ignore - CustomEvent type issue
+      window.removeEventListener('update-search-query', handleUpdateSearchQuery);
+    };
+  }, [setQuery]);
 
   // Centralized function to refresh search results after modal actions
   const refreshSearchResults = useCallback(() => {
@@ -921,7 +945,7 @@ export function CommandMenu() {
                   query={query}
                   hasError={false}
                   isOffline={isOffline}
-                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
+                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Finanzen']}
                 />
               </CommandEmpty>
             )}
