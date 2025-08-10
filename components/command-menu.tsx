@@ -833,15 +833,7 @@ export function CommandMenu() {
               />
             )}
 
-            {/* Quick Search Tips */}
-            {!isSearchLoading && !hasSearchResults && !searchError && query.trim().length >= 3 && (
-              <div className="px-4 py-2 text-xs text-muted-foreground border-t">
-                <div className="flex items-center gap-2">
-                  <Search className="h-3 w-3" />
-                  <span>Tipp: Versuchen Sie es mit Teilwörtern oder anderen Begriffen</span>
-                </div>
-              </div>
-            )}
+            {/* Quick Search Tips - Removed as per user request */}
 
             {/* Search Results */}
             {!isSearchLoading && !searchError && hasSearchResults && (
