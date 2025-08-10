@@ -34,6 +34,25 @@ import {
   getUserApartmentCount,
 } from "@/app/user-actions"
 
+// Reusable info bar component for consistent layout
+function QuickSearchInfoBar() {
+  return (
+    <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+      <div className="flex items-center justify-between">
+        <span>Schnellsuche:</span>
+        <div className="flex gap-2">
+          <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘M</kbd>
+          <span>Mieter</span>
+          <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘H</kbd>
+          <span>Häuser</span>
+          <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘J</kbd>
+          <span>Wohnungen</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Stelle sicher, dass der Mieter-Link im Command-Menü korrekt ist
 const navigationItems = [
   {
@@ -806,12 +825,16 @@ export function CommandMenu() {
           <>
             {/* Loading State */}
             {isSearchLoading && (
-              <SearchLoadingIndicator 
-                query={query}
-                isLoading={isSearchLoading}
-                retryCount={retryCount}
-                maxRetries={3}
-              />
+              <>
+                <SearchLoadingIndicator 
+                  query={query}
+                  isLoading={isSearchLoading}
+                  retryCount={retryCount}
+                  maxRetries={3}
+                />
+                
+                <QuickSearchInfoBar />
+              </>
             )}
 
             {/* Search Status Bar */}
@@ -835,12 +858,16 @@ export function CommandMenu() {
 
             {/* Quick Search Tips */}
             {!isSearchLoading && !hasSearchResults && !searchError && query.trim().length >= 3 && (
-              <div className="px-4 py-2 text-xs text-muted-foreground border-t">
-                <div className="flex items-center gap-2">
-                  <Search className="h-3 w-3" />
-                  <span>Tipp: Versuchen Sie es mit Teilwörtern oder anderen Begriffen</span>
+              <>
+                <div className="px-4 py-2 text-xs text-muted-foreground border-t">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-3 w-3" />
+                    <span>Tipp: Versuchen Sie es mit Teilwörtern oder anderen Begriffen</span>
+                  </div>
                 </div>
-              </div>
+                
+                <QuickSearchInfoBar />
+              </>
             )}
 
             {/* Search Results */}
@@ -907,30 +934,40 @@ export function CommandMenu() {
                     searchQuery={query}
                   />
                 )}
+                
+                <QuickSearchInfoBar />
               </>
             )}
 
             {/* Error State */}
             {searchError && !isSearchLoading && (
-              <SearchEmptyState
-                query={query}
-                hasError={true}
-                isOffline={isOffline}
-                onRetry={retrySearch}
-                suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
-              />
+              <>
+                <SearchEmptyState
+                  query={query}
+                  hasError={true}
+                  isOffline={isOffline}
+                  onRetry={retrySearch}
+                  suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
+                />
+                
+                <QuickSearchInfoBar />
+              </>
             )}
 
             {/* No Results */}
             {!isSearchLoading && !searchError && !hasSearchResults && (
-              <CommandEmpty>
-                <SearchEmptyState
-                  query={query}
-                  hasError={false}
-                  isOffline={isOffline}
-                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
-                />
-              </CommandEmpty>
+              <>
+                <CommandEmpty>
+                  <SearchEmptyState
+                    query={query}
+                    hasError={false}
+                    isOffline={isOffline}
+                    suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
+                  />
+                </CommandEmpty>
+                
+                <QuickSearchInfoBar />
+              </>
             )}
           </>
         )}
@@ -971,6 +1008,8 @@ export function CommandMenu() {
                 ))}
               </CommandGroup>
             )}
+            
+            <QuickSearchInfoBar />
           </>
         )}
 
@@ -1174,19 +1213,7 @@ export function CommandMenu() {
       
       {/* Keyboard Shortcuts Hint */}
       {!showSearchResults && query.trim().length === 0 && (
-        <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-          <div className="flex items-center justify-between">
-            <span>Schnellsuche:</span>
-            <div className="flex gap-2">
-              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘M</kbd>
-              <span>Mieter</span>
-              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘H</kbd>
-              <span>Häuser</span>
-              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘J</kbd>
-              <span>Wohnungen</span>
-            </div>
-          </div>
-        </div>
+        <QuickSearchInfoBar />
       )}
         </Command>
     </CommandDialog>
