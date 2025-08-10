@@ -131,7 +131,12 @@ export async function GET(request: Request) {
     }
     
     const supabase = await createClient();
-    const { pattern: searchPattern, fuzzy: fuzzyPattern, words } = getSearchPatterns(query);
+    
+    // Handle special "*" query for showing all results
+    const isShowAllQuery = query.trim() === '*';
+    const { pattern: searchPattern, fuzzy: fuzzyPattern, words } = isShowAllQuery ? 
+      { pattern: '%', fuzzy: '%', words: [] } : 
+      getSearchPatterns(query);
     
     const results: SearchResponse['results'] = {
       tenant: [],
@@ -160,16 +165,25 @@ export async function GET(request: Request) {
               `);
 
             // Build search conditions for better matching
-            const searchConditions = [
-              `name.ilike.${searchPattern}`
-            ];
-
-            // Add email and phone search if they exist
-            if (searchPattern.includes('@')) {
-              searchConditions.push(`email.ilike.${searchPattern}`);
+            let queryBuilderWithConditions;
+            
+            if (isShowAllQuery) {
+              // Show all tenants when using "*" query
+              queryBuilderWithConditions = queryBuilder;
             } else {
-              searchConditions.push(`email.ilike.${searchPattern}`);
-              searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
+              const searchConditions = [
+                `name.ilike.${searchPattern}`
+              ];
+
+              // Add email and phone search if they exist
+              if (searchPattern.includes('@')) {
+                searchConditions.push(`email.ilike.${searchPattern}`);
+              } else {
+                searchConditions.push(`email.ilike.${searchPattern}`);
+                searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
+              }
+              
+              queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
             }
 
             // First, let's test if we can get any tenants at all
@@ -185,14 +199,15 @@ export async function GET(request: Request) {
               }
             }
 
-            const { data, error } = await queryBuilder
-              .or(searchConditions.join(','))
+            const { data, error } = await queryBuilderWithConditions
               .order('name')
               .limit(limit);
 
             if (error) {
               console.error('Tenant search error:', error);
-              console.error('Tenant search query conditions:', searchConditions);
+              if (!isShowAllQuery) {
+                console.error('Tenant search query conditions:', searchConditions);
+              }
               return { type: 'tenant', data: [] };
             }
             
@@ -252,31 +267,39 @@ export async function GET(request: Request) {
               `);
 
             // Enhanced search conditions for houses
-            const searchConditions = [
-              `name.ilike.${searchPattern}`,
-              `strasse.ilike.${searchPattern}`,
-              `ort.ilike.${searchPattern}`
-            ];
+            let queryBuilderWithConditions;
+            
+            if (isShowAllQuery) {
+              // Show all houses when using "*" query
+              queryBuilderWithConditions = queryBuilder;
+            } else {
+              const searchConditions = [
+                `name.ilike.${searchPattern}`,
+                `strasse.ilike.${searchPattern}`,
+                `ort.ilike.${searchPattern}`
+              ];
 
-            // Add fuzzy matching for better results
-            if (query.length > 2) {
-              searchConditions.push(`name.ilike.${fuzzyPattern}`);
-              searchConditions.push(`strasse.ilike.${fuzzyPattern}`);
+              // Add fuzzy matching for better results
+              if (query.length > 2) {
+                searchConditions.push(`name.ilike.${fuzzyPattern}`);
+                searchConditions.push(`strasse.ilike.${fuzzyPattern}`);
+              }
+
+              // Multi-word search for addresses
+              if (words.length > 1) {
+                words.forEach(word => {
+                  if (word.length > 1) {
+                    searchConditions.push(`name.ilike.%${word}%`);
+                    searchConditions.push(`strasse.ilike.%${word}%`);
+                    searchConditions.push(`ort.ilike.%${word}%`);
+                  }
+                });
+              }
+              
+              queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
             }
 
-            // Multi-word search for addresses
-            if (words.length > 1) {
-              words.forEach(word => {
-                if (word.length > 1) {
-                  searchConditions.push(`name.ilike.%${word}%`);
-                  searchConditions.push(`strasse.ilike.%${word}%`);
-                  searchConditions.push(`ort.ilike.%${word}%`);
-                }
-              });
-            }
-
-            const { data, error } = await queryBuilder
-              .or(searchConditions.join(','))
+            const { data, error } = await queryBuilderWithConditions
               .order('name')
               .limit(limit);
 
@@ -346,26 +369,34 @@ export async function GET(request: Request) {
               `);
 
             // Enhanced search for apartments including house names
-            const searchConditions = [
-              `name.ilike.${searchPattern}`
-            ];
+            let queryBuilderWithConditions;
+            
+            if (isShowAllQuery) {
+              // Show all apartments when using "*" query
+              queryBuilderWithConditions = queryBuilder;
+            } else {
+              const searchConditions = [
+                `name.ilike.${searchPattern}`
+              ];
 
-            // Add fuzzy matching
-            if (query.length > 2) {
-              searchConditions.push(`name.ilike.${fuzzyPattern}`);
+              // Add fuzzy matching
+              if (query.length > 2) {
+                searchConditions.push(`name.ilike.${fuzzyPattern}`);
+              }
+
+              // Multi-word search
+              if (words.length > 1) {
+                words.forEach(word => {
+                  if (word.length > 1) {
+                    searchConditions.push(`name.ilike.%${word}%`);
+                  }
+                });
+              }
+              
+              queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
             }
 
-            // Multi-word search
-            if (words.length > 1) {
-              words.forEach(word => {
-                if (word.length > 1) {
-                  searchConditions.push(`name.ilike.%${word}%`);
-                }
-              });
-            }
-
-            const { data, error } = await queryBuilder
-              .or(searchConditions.join(','))
+            const { data, error } = await queryBuilderWithConditions
               .order('name')
               .limit(limit);
 
@@ -376,9 +407,9 @@ export async function GET(request: Request) {
             
             if (!data) return { type: 'apartment', data: [] };
             
-            // Also search by house name if no direct apartment matches
+            // Also search by house name if no direct apartment matches (skip for show-all query)
             let houseSearchResults: any[] = [];
-            if (data.length < limit) {
+            if (!isShowAllQuery && data.length < limit) {
               try {
                 const { data: houseData, error: houseError } = await supabase
                   .from('Wohnungen')
@@ -432,7 +463,7 @@ export async function GET(request: Request) {
     
     // Search finances (Finanzen) - Optimized with conditional numeric search
     if (categories.includes('finance')) {
-      const isNumericQuery = !isNaN(parseFloat(query));
+      const isNumericQuery = !isShowAllQuery && !isNaN(parseFloat(query));
       
       let financeQueryBuilder = supabase
         .from('Finanzen')
@@ -443,11 +474,13 @@ export async function GET(request: Request) {
         .order('datum', { ascending: false })
         .limit(limit);
         
-      if (isNumericQuery) {
-        const amount = parseFloat(query);
-        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
-      } else {
-        financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+      if (!isShowAllQuery) {
+        if (isNumericQuery) {
+          const amount = parseFloat(query);
+          financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern},betrag.eq.${amount}`);
+        } else {
+          financeQueryBuilder = financeQueryBuilder.or(`name.ilike.${searchPattern},notiz.ilike.${searchPattern}`);
+        }
       }
       
       searchPromises.push(
@@ -499,10 +532,15 @@ export async function GET(request: Request) {
       searchPromises.push(
         (async () => {
           try {
-            const { data, error } = await supabase
+            let taskQueryBuilder = supabase
               .from('Aufgaben')
-              .select('id, name, beschreibung, ist_erledigt, erstellungsdatum')
-              .or(`name.ilike.${searchPattern},beschreibung.ilike.${searchPattern}`)
+              .select('id, name, beschreibung, ist_erledigt, erstellungsdatum');
+              
+            if (!isShowAllQuery) {
+              taskQueryBuilder = taskQueryBuilder.or(`name.ilike.${searchPattern},beschreibung.ilike.${searchPattern}`);
+            }
+            
+            const { data, error } = await taskQueryBuilder
               .order('ist_erledigt', { ascending: true }) // Incomplete tasks first
               .order('erstellungsdatum', { ascending: false })
               .limit(limit);

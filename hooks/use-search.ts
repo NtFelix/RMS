@@ -317,6 +317,42 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return;
     }
 
+    // Handle keyword-based filtering
+    let filteredCategories = memoizedCategories;
+    let actualQuery = searchQuery;
+    
+    if (searchQuery.startsWith('M-')) {
+      filteredCategories = ['tenant'];
+      actualQuery = searchQuery.substring(2).trim();
+      if (!actualQuery) {
+        actualQuery = '*'; // Show all tenants
+      }
+    } else if (searchQuery.startsWith('H-')) {
+      filteredCategories = ['house'];
+      actualQuery = searchQuery.substring(2).trim();
+      if (!actualQuery) {
+        actualQuery = '*'; // Show all houses
+      }
+    } else if (searchQuery.startsWith('W-')) {
+      filteredCategories = ['apartment'];
+      actualQuery = searchQuery.substring(2).trim();
+      if (!actualQuery) {
+        actualQuery = '*'; // Show all apartments
+      }
+    } else if (searchQuery.startsWith('F-')) {
+      filteredCategories = ['finance'];
+      actualQuery = searchQuery.substring(2).trim();
+      if (!actualQuery) {
+        actualQuery = '*'; // Show all finance records
+      }
+    } else if (searchQuery.startsWith('T-')) {
+      filteredCategories = ['task'];
+      actualQuery = searchQuery.substring(2).trim();
+      if (!actualQuery) {
+        actualQuery = '*'; // Show all tasks
+      }
+    }
+
     // Check if offline
     if (!navigator.onLine) {
       setError('Keine Internetverbindung verfügbar');
@@ -324,7 +360,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return;
     }
 
-    const cacheKey = `${searchQuery}:${limit}:${memoizedCategories.sort().join(',')}`;
+    const cacheKey = `${searchQuery}:${limit}:${filteredCategories.sort().join(',')}`;
     
     // Check cache first
     const cached = cacheRef.current[cacheKey];
@@ -365,9 +401,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
     try {
       const searchParams = new URLSearchParams({
-        q: searchQuery,
+        q: actualQuery,
         limit: limit.toString(),
-        categories: memoizedCategories.join(',')
+        categories: filteredCategories.join(',')
       });
 
       // Add timeout to the fetch request

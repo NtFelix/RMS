@@ -10,6 +10,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandShortcut,
 } from "@/components/ui/command"
 import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard, CreditCard, Search, Loader2, AlertCircle } from "lucide-react"
 import { useCommandMenu } from "@/hooks/use-command-menu"
@@ -124,19 +125,23 @@ export function CommandMenu() {
       if (open && !query.trim()) {
         if (e.key === "m" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          setQuery("Mieter")
+          setQuery("M-")
         }
         if (e.key === "h" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          setQuery("Haus")
+          setQuery("H-")
         }
-        if (e.key === "w" && (e.metaKey || e.ctrlKey)) {
+        if (e.key === "a" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          setQuery("Wohnung")
+          setQuery("W-")
         }
         if (e.key === "f" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault()
-          setQuery("Finanzen")
+          setQuery("F-")
+        }
+        if (e.key === "t" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault()
+          setQuery("T-")
         }
       }
     }
@@ -989,6 +994,54 @@ export function CommandMenu() {
               </CommandGroup>
             )}
 
+            <CommandGroup heading="Schnellsuche">
+              <CommandItem
+                onSelect={() => {
+                  setQuery("M-")
+                }}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                <span>Mieter suchen</span>
+                <CommandShortcut>⌘M</CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setQuery("H-")
+                }}
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                <span>Häuser suchen</span>
+                <CommandShortcut>⌘H</CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setQuery("W-")
+                }}
+              >
+                <Home className="mr-2 h-4 w-4" />
+                <span>Wohnungen suchen</span>
+                <CommandShortcut>⌘A</CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setQuery("F-")
+                }}
+              >
+                <Wallet className="mr-2 h-4 w-4" />
+                <span>Finanzen suchen</span>
+                <CommandShortcut>⌘F</CommandShortcut>
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  setQuery("T-")
+                }}
+              >
+                <CheckSquare className="mr-2 h-4 w-4" />
+                <span>Aufgaben suchen</span>
+                <CommandShortcut>⌘T</CommandShortcut>
+              </CommandItem>
+            </CommandGroup>
+            
             <CommandGroup heading="Navigation">
               {navigationItems.map((item) => (
                 <CommandItem
