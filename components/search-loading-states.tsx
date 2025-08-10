@@ -5,7 +5,6 @@ import { useSearchStore } from '@/hooks/use-search-store';
 import { 
   Loader2, 
   Search, 
-  Wifi, 
   WifiOff, 
   AlertCircle, 
   RefreshCw,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 
 interface SearchLoadingProps {
@@ -122,47 +120,7 @@ export function SearchLoadingIndicator({
   )
 }
 
-interface SearchSkeletonProps {
-  count?: number
-  showGroupHeaders?: boolean
-}
-
-export function SearchResultsSkeleton({ count = 5, showGroupHeaders = true }: SearchSkeletonProps) {
-  return (
-    <div className="space-y-4 p-2">
-      {showGroupHeaders && (
-        <div className="space-y-3">
-          {/* Group header skeleton */}
-          <div className="flex items-center gap-2 px-2 py-1.5">
-            <Skeleton className="h-3 w-3 rounded-full" />
-            <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-3 w-4 ml-auto" />
-          </div>
-          
-          {/* Result items skeleton */}
-          {Array.from({ length: count }).map((_, index) => (
-            <div key={index} className="flex items-start gap-3 p-3 rounded-md">
-              <Skeleton className="h-4 w-4 rounded-full flex-shrink-0 mt-0.5" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-3/4" />
-                <Skeleton className="h-3 w-1/2" />
-                <Skeleton className="h-3 w-2/3" />
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-3 w-3 rounded-full" />
-                  <Skeleton className="h-3 w-20" />
-                </div>
-              </div>
-              <div className="flex gap-1">
-                <Skeleton className="h-6 w-6 rounded" />
-                <Skeleton className="h-6 w-6 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
+ 
 
 interface NetworkStatusProps {
   isOffline: boolean
@@ -396,47 +354,4 @@ export function SearchStatusBar({
   )
 }
 
-// Progressive loading component for search results
-interface ProgressiveSearchLoadingProps {
-  isInitialLoad: boolean
-  isLoadingMore?: boolean
-  hasMore?: boolean
-  onLoadMore?: () => void
-}
-
-export function ProgressiveSearchLoading({ 
-  isInitialLoad, 
-  isLoadingMore = false, 
-  hasMore = false,
-  onLoadMore 
-}: ProgressiveSearchLoadingProps) {
-  if (isInitialLoad) {
-    return <SearchResultsSkeleton count={3} showGroupHeaders={true} />
-  }
-
-  if (isLoadingMore) {
-    return (
-      <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-        Weitere Ergebnisse werden geladen...
-      </div>
-    )
-  }
-
-  if (hasMore && onLoadMore) {
-    return (
-      <div className="flex items-center justify-center py-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onLoadMore}
-          className="text-xs"
-        >
-          Weitere Ergebnisse laden
-        </Button>
-      </div>
-    )
-  }
-
-  return null
-}
+// (Removed) ProgressiveSearchLoading and SearchResultsSkeleton were unused and have been deleted to reduce dead code.
