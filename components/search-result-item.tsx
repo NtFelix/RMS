@@ -122,30 +122,30 @@ const formatMetadata = (result: SearchResult) => {
     
     case 'house':
       return (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {metadata?.address && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <MapPin className="h-3.5 w-3.5" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground/80">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {metadata?.apartment_count && (
-              <div className="flex items-center gap-1">
-                <Home className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <Home className="h-3.5 w-3.5" />
                 <span>{metadata.apartment_count} Wohnungen</span>
               </div>
             )}
             {metadata?.free_apartments !== undefined && (
-              <div className="flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <CheckCircle className="h-3.5 w-3.5" />
                 <span>{metadata.free_apartments} frei</span>
               </div>
             )}
           </div>
           {metadata?.total_rent && (
-            <div className="flex items-center gap-1 text-xs text-muted-foreground/80 pt-1">
-              <Euro className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Euro className="h-3.5 w-3.5" />
               <span>Gesamtmiete: {metadata.total_rent}€</span>
             </div>
           )}
@@ -156,27 +156,27 @@ const formatMetadata = (result: SearchResult) => {
       return (
         <div className="space-y-1">
           {metadata?.current_tenant && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Users className="h-3 w-3" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
               <span>{metadata.current_tenant.name}</span>
             </div>
           )}
           {metadata?.house_name && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Building2 className="h-3 w-3" />
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Building2 className="h-3.5 w-3.5" />
               <span className="truncate">{metadata.house_name}</span>
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {metadata?.size && (
-              <div className="flex items-center gap-1">
-                <Ruler className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <Ruler className="h-3.5 w-3.5" />
                 <span>{metadata.size}m²</span>
               </div>
             )}
             {metadata?.rent && (
-              <div className="flex items-center gap-1">
-                <Euro className="h-3 w-3" />
+              <div className="flex items-center gap-1.5">
+                <Euro className="h-3.5 w-3.5" />
                 <span>{metadata.rent}€/Monat</span>
               </div>
             )}
@@ -218,8 +218,8 @@ const formatMetadata = (result: SearchResult) => {
             )}
           </div>
           {metadata?.notes && (
-            <div className="flex items-center gap-2 pt-1 text-xs text-muted-foreground/80">
-              <FileText className="h-3 w-3 flex-shrink-0 text-muted-foreground/60" />
+            <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground/90">
+              <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
               <span className="line-clamp-2">{metadata.notes}</span>
             </div>
           )}
