@@ -71,8 +71,8 @@ function sortByRelevance<T extends { name?: string; title?: string }>(
   const queryLower = query.toLowerCase();
   
   return results.sort((a, b) => {
-    const aName = (a.name || (a as any).title || '').toLowerCase();
-    const bName = (b.name || (b as any).title || '').toLowerCase();
+    const aName = (a.name || a.title || '').toLowerCase();
+    const bName = (b.name || b.title || '').toLowerCase();
     
     // Exact matches first
     const aExact = aName === queryLower;
