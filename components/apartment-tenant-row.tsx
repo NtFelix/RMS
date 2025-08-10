@@ -128,7 +128,7 @@ export const ApartmentTenantRow = React.forwardRef<
               {formatCurrency(apartment.miete)}
             </div>
             <div className="text-sm text-muted-foreground group-hover:text-foreground/80 transition-colors">
-              {formatCurrency(apartment.miete / apartment.groesse)}/m²
+              {apartment.groesse > 0 ? `${formatCurrency(apartment.miete / apartment.groesse)}/m²` : 'N/A'}
             </div>
           </div>
         </div>
