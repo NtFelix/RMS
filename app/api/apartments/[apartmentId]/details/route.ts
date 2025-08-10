@@ -30,7 +30,13 @@ export async function GET(
 
     if (apartmentError) {
       console.error("Error fetching apartment:", apartmentError);
-      return NextResponse.json({ error: "Wohnung nicht gefunden." }, { status: 404 });
+      if (apartmentError.code === 'PGRST116' || apartmentError.message?.includes('No rows returned')) {
+        return NextResponse.json({ error: "Wohnung nicht gefunden." }, { status: 404 });
+      }
+      return NextResponse.json(
+        { error: "Fehler beim Laden der Wohnungsdaten." }, 
+        { status: 500 }
+      );
     }
 
     // Fetch current tenant (if any)
