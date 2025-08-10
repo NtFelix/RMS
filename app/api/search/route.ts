@@ -187,13 +187,14 @@ export async function GET(request: Request) {
               queryBuilderWithConditions = queryBuilder.or(searchConditions.join(','));
             }
 
-            // First, let's test if we can get any tenants at all
-            const { data: allTenants, error: countError } = await supabase
-              .from('Mieter')
-              .select('id, name')
-              .limit(1);
-
+            // Debug logging in development only
             if (process.env.NODE_ENV === 'development') {
+              // Test if we can get any tenants at all (development only)
+              const { data: allTenants, error: countError } = await supabase
+                .from('Mieter')
+                .select('id, name')
+                .limit(1);
+                
               console.log('Total tenants in database:', allTenants?.length || 0);
               if (countError) {
                 console.error('Count error:', countError);
