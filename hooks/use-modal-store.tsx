@@ -116,7 +116,7 @@ interface KautionModalData {
   suggestedAmount?: number;
 }
 
-interface ModalState {
+export interface ModalState {
   // Tenant Modal State
   isTenantModalOpen: boolean;
   tenantInitialData?: any;

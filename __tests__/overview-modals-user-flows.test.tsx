@@ -2,12 +2,53 @@ import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useModalStore } from '@/hooks/use-modal-store'
+import type { ModalState } from '@/hooks/use-modal-store'
 import { HausOverviewModal } from '@/components/haus-overview-modal'
 import { ApartmentTenantDetailsModal } from '@/components/apartment-tenant-details-modal'
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store')
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
+
+// Define the mock store type
+type MockModalStore = Partial<{
+  [K in keyof ModalState]: ModalState[K] extends (...args: any[]) => any 
+    ? jest.Mock<ReturnType<ModalState[K]>, Parameters<ModalState[K]>> 
+    : ModalState[K];
+}> & {
+  // Add any additional mock functions not in ModalState
+  [key: string]: unknown;
+};
+
+// Create a properly typed mock store with all required properties
+const mockModalStore: MockModalStore = {
+  // Haus Overview Modal
+  isHausOverviewModalOpen: false,
+  hausOverviewData: undefined,
+  hausOverviewLoading: false,
+  hausOverviewError: undefined,
+  openHausOverviewModal: jest.fn(),
+  closeHausOverviewModal: jest.fn(),
+  setHausOverviewLoading: jest.fn(),
+  setHausOverviewError: jest.fn(),
+  setHausOverviewData: jest.fn(),
+  refreshHausOverviewData: jest.fn(),
+
+  // Apartment Tenant Details Modal
+  apartmentTenantDetailsData: undefined,
+  apartmentTenantDetailsLoading: false,
+  apartmentTenantDetailsError: undefined,
+  openApartmentTenantDetailsModal: jest.fn(),
+  closeApartmentTenantDetailsModal: jest.fn(),
+  setApartmentTenantDetailsLoading: jest.fn(),
+  setApartmentTenantDetailsError: jest.fn(),
+  setApartmentTenantDetailsData: jest.fn(),
+  refreshApartmentTenantDetailsData: jest.fn(),
+
+  // Edit modals
+  openWohnungModal: jest.fn(),
+  openTenantModal: jest.fn(),
+}
 
 // Mock fetch for API calls
 global.fetch = jest.fn()
@@ -130,19 +171,7 @@ describe('Overview Modals User Flows', () => {
     setHausOverviewData: jest.fn(),
     refreshHausOverviewData: jest.fn(),
 
-    // Wohnung Overview Modal
-    isWohnungOverviewModalOpen: false,
-    wohnungOverviewData: undefined,
-    wohnungOverviewLoading: false,
-    wohnungOverviewError: undefined,
-    openWohnungOverviewModal: jest.fn(),
-    closeWohnungOverviewModal: jest.fn(),
-    setWohnungOverviewLoading: jest.fn(),
-    setWohnungOverviewError: jest.fn(),
-    setWohnungOverviewData: jest.fn(),
-
     // Apartment Tenant Details Modal
-    isApartmentTenantDetailsModalOpen: false,
     apartmentTenantDetailsData: undefined,
     apartmentTenantDetailsLoading: false,
     apartmentTenantDetailsError: undefined,
@@ -151,6 +180,7 @@ describe('Overview Modals User Flows', () => {
     setApartmentTenantDetailsLoading: jest.fn(),
     setApartmentTenantDetailsError: jest.fn(),
     setApartmentTenantDetailsData: jest.fn(),
+    refreshApartmentTenantDetailsData: jest.fn(),
 
     // Edit modals
     openWohnungModal: jest.fn(),
@@ -159,7 +189,10 @@ describe('Overview Modals User Flows', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUseModalStore.mockReturnValue(mockModalStore as any)
+    // Properly type the mock implementation
+    mockUseModalStore.mockImplementation(
+      () => mockModalStore as unknown as ReturnType<typeof useModalStore>
+    )
     mockFetch.mockClear()
   })
 
@@ -188,10 +221,10 @@ describe('Overview Modals User Flows', () => {
     })
 
     it('does not render when modal is closed', () => {
-      mockUseModalStore.mockReturnValue({
+      mockUseModalStore.mockImplementation(() => ({
         ...mockModalStore,
         isHausOverviewModalOpen: false,
-      } as any)
+      } as unknown as ReturnType<typeof useModalStore>))
 
       render(<HausOverviewModal />)
 
@@ -201,11 +234,11 @@ describe('Overview Modals User Flows', () => {
 
   describe('Details Modal Integration', () => {
     it('renders apartment tenant details modal when open', () => {
-      mockUseModalStore.mockReturnValue({
+      mockUseModalStore.mockImplementation(() => ({
         ...mockModalStore,
         isApartmentTenantDetailsModalOpen: true,
         apartmentTenantDetailsData: mockApartmentTenantDetails,
-      } as any)
+      } as unknown as ReturnType<typeof useModalStore>))
 
       render(<ApartmentTenantDetailsModal />)
 
@@ -220,11 +253,11 @@ describe('Overview Modals User Flows', () => {
         tenant: undefined,
       }
 
-      mockUseModalStore.mockReturnValue({
+      mockUseModalStore.mockImplementation(() => ({
         ...mockModalStore,
         isApartmentTenantDetailsModalOpen: true,
         apartmentTenantDetailsData: vacantApartmentData,
-      } as any)
+      } as unknown as ReturnType<typeof useModalStore>))
 
       render(<ApartmentTenantDetailsModal />)
 
@@ -235,11 +268,11 @@ describe('Overview Modals User Flows', () => {
 
   describe('Loading and Error States', () => {
     it('shows loading state for Haus overview', () => {
-      mockUseModalStore.mockReturnValue({
+      mockUseModalStore.mockImplementation(() => ({
         ...mockModalStore,
         isHausOverviewModalOpen: true,
         hausOverviewLoading: true,
-      } as any)
+      } as unknown as ReturnType<typeof useModalStore>))
 
       render(<HausOverviewModal />)
 
