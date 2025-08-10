@@ -33,12 +33,13 @@ interface DialogContentProps
   extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   isDirty?: boolean
   onAttemptClose?: () => void // Changed: no event argument needed
+  hideCloseButton?: boolean
 }
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   DialogContentProps
->(({ className, children, isDirty, onAttemptClose, ...props }, ref) => {
+>(({ className, children, isDirty, onAttemptClose, hideCloseButton, ...props }, ref) => {
 
   const handleInteraction = (
     event: Parameters<NonNullable<React.ComponentProps<typeof DialogPrimitive.Content>['onInteractOutside']>>[0]
@@ -77,13 +78,15 @@ const DialogContent = React.forwardRef<
         {...props}
       >
         {children}
-        <DialogPrimitive.Close
-          onClick={handleCloseButtonClick}
-          className="absolute right-4 top-4 rounded-full p-3 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
-        >
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
+        {!hideCloseButton && (
+          <DialogPrimitive.Close
+            onClick={handleCloseButtonClick}
+            className="absolute right-4 top-4 rounded-full p-3 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPortal>
   )
