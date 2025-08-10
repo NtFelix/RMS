@@ -56,7 +56,10 @@ export async function GET(
         name: apartment.name,
         groesse: apartment.groesse,
         miete: apartment.miete,
-        hausName: (apartment.Haeuser as any)?.name || 'Unbekannt',
+        haus_id: apartment.haus_id,
+        hausName: Array.isArray(apartment.Haeuser) && apartment.Haeuser.length > 0 
+          ? apartment.Haeuser[0].name 
+          : 'Unbekannt',
         // Note: amenities, condition, notes are not in the current schema
         // These would need to be added to the database schema if required
         amenities: [],

@@ -105,23 +105,46 @@ export function ApartmentTenantDetailsModal() {
     }
   }
 
-  const handleEditApartment = () => {
-    if (apartmentTenantDetailsData?.apartment) {
-      const apartment = apartmentTenantDetailsData.apartment
-      // Transform the apartment data to match the expected format for the edit modal
+  const handleEditApartment = async () => {
+    if (!apartmentTenantDetailsData?.apartment) return;
+    
+    const apartment = apartmentTenantDetailsData.apartment;
+    
+    // Fetch house data to ensure we have the latest information
+    try {
+      const response = await fetch('/api/haeuser');
+      if (!response.ok) {
+        throw new Error('Failed to fetch houses');
+      }
+      const houses = await response.json();
+      
+      // Transform the apartment data for the edit modal
       const transformedApartment = {
         id: apartment.id,
         name: apartment.name,
         groesse: apartment.groesse,
         miete: apartment.miete,
-        // Note: We don't have haus_id in the response, so we'll need to handle this
-        haus_id: undefined
-      }
-      // We don't have house data readily available, so pass empty array
-      openWohnungModal(transformedApartment, [], () => {
+        haus_id: apartment.haus_id // Use the haus_id from the API response
+      };
+      
+      // Pass the houses data to the modal
+      openWohnungModal(transformedApartment, houses, () => {
         // Refresh data after successful edit
-        refreshApartmentTenantDetailsData()
-      })
+        refreshApartmentTenantDetailsData();
+      });
+    } catch (error) {
+      console.error('Error fetching houses:', error);
+      // Fallback to the old behavior if fetching houses fails
+      const transformedApartment = {
+        id: apartment.id,
+        name: apartment.name,
+        groesse: apartment.groesse,
+        miete: apartment.miete,
+        haus_id: apartment.haus_id
+      };
+      openWohnungModal(transformedApartment, [], () => {
+        refreshApartmentTenantDetailsData();
+      });
     }
   }
 

@@ -62,6 +62,7 @@ interface ApartmentTenantDetailsData {
     name: string;
     groesse: number;
     miete: number;
+    haus_id?: string; // Add haus_id to the interface
     hausName: string;
     amenities?: string[];
     condition?: string;
