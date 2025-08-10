@@ -490,14 +490,16 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: tenant.id,
           type: 'tenant',
           title: tenant.name,
-          subtitle: tenant.email || tenant.phone,
-          context: tenant.apartment ? `${tenant.apartment.name} - ${tenant.apartment.house_name}` : undefined,
           metadata: {
             status: tenant.status,
             move_in_date: tenant.move_in_date,
             move_out_date: tenant.move_out_date,
             email: tenant.email,
-            phone: tenant.phone
+            phone: tenant.phone,
+            apartment: tenant.apartment ? {
+              name: tenant.apartment.name,
+              house_name: tenant.apartment.house_name
+            } : undefined
           },
           actions
         });
@@ -524,7 +526,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: house.id,
           type: 'house',
           title: house.name,
-          subtitle: house.address,
           metadata: {
             apartment_count: house.apartment_count,
             total_rent: house.total_rent,
@@ -556,10 +557,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: apartment.id,
           type: 'apartment',
           title: apartment.name,
-          subtitle: apartment.house_name,
-          context: apartment.current_tenant 
-            ? `Vermietet an ${apartment.current_tenant.name}` 
-            : `Frei • ${apartment.rent}€/Monat`,
           metadata: {
             house_name: apartment.house_name,
             size: apartment.size,

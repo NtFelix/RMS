@@ -154,6 +154,18 @@ const formatMetadata = (result: SearchResult) => {
     case 'apartment':
       return (
         <div className="space-y-1">
+          {metadata?.current_tenant && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Users className="h-3 w-3" />
+              <span>{metadata.current_tenant.name}</span>
+            </div>
+          )}
+          {metadata?.house_name && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Building2 className="h-3 w-3" />
+              <span className="truncate">{metadata.house_name}</span>
+            </div>
+          )}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             {metadata?.size && (
               <div className="flex items-center gap-1">
@@ -167,18 +179,7 @@ const formatMetadata = (result: SearchResult) => {
                 <span>{metadata.rent}€/Monat</span>
               </div>
             )}
-            {metadata?.status && (
-              <Badge variant={metadata.status === 'free' ? 'secondary' : 'default'} className="text-[10px] h-5">
-                {metadata.status === 'free' ? 'Frei' : 'Vermietet'}
-              </Badge>
-            )}
           </div>
-          {metadata?.current_tenant && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
-              <Users className="h-3 w-3" />
-              <span>Mieter: {metadata.current_tenant.name}</span>
-            </div>
-          )}
         </div>
       )
     
@@ -255,7 +256,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
         
         {/* Content */}
         <div className="flex-1 min-w-0 space-y-1">
-          {/* Title with status badge for tenants */}
+          {/* Title with status badge */}
           <div className="font-medium text-sm truncate flex items-center gap-2">
             <span className="truncate">{result.title}</span>
             {result.type === 'tenant' && result.metadata?.status ? (
@@ -264,6 +265,13 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
                 className="text-[10px] px-1.5 py-0 h-5"
               >
                 {result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
+              </Badge>
+            ) : result.type === 'apartment' && result.metadata?.status ? (
+              <Badge 
+                variant={result.metadata.status === 'free' ? 'secondary' : 'default'} 
+                className="text-[10px] px-1.5 py-0 h-5"
+              >
+                {result.metadata.status === 'free' ? 'Frei' : 'Vermietet'}
               </Badge>
             ) : entityLabel && (
               <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5", entityColor)}>
