@@ -116,13 +116,6 @@ const formatMetadata = (result: SearchResult) => {
               <span>Eingezogen: {new Date(metadata.move_in_date).toLocaleDateString('de-DE')}</span>
             </div>
           )}
-          {metadata?.status && (
-            <div className="pt-0.5">
-              <Badge variant={metadata.status === 'active' ? 'default' : 'secondary'} className="text-[10px] h-5">
-                {metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
-              </Badge>
-            </div>
-          )}
         </div>
       )
     
@@ -262,18 +255,25 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
         
         {/* Content */}
         <div className="flex-1 min-w-0 space-y-1">
-          {/* Title */}
+          {/* Title with status badge for tenants */}
           <div className="font-medium text-sm truncate flex items-center gap-2">
             <span className="truncate">{result.title}</span>
-            {entityLabel && (
+            {result.type === 'tenant' && result.metadata?.status ? (
+              <Badge 
+                variant={result.metadata.status === 'active' ? 'default' : 'secondary'} 
+                className="text-[10px] px-1.5 py-0 h-5"
+              >
+                {result.metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
+              </Badge>
+            ) : entityLabel && (
               <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5", entityColor)}>
                 {entityLabel}
               </Badge>
             )}
           </div>
           
-          {/* Subtitle */}
-          {result.subtitle && (
+          {/* Subtitle - hidden for tenant to avoid duplicating email */}
+          {result.type !== 'tenant' && result.subtitle && (
             <div className="text-xs text-muted-foreground truncate">
               {result.subtitle}
             </div>
