@@ -634,12 +634,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: task.id,
           type: 'task',
           title: task.name,
-          subtitle: task.description,
-          context: task.completed 
-            ? 'Erledigt' 
-            : task.due_date 
-              ? `Fällig: ${new Date(task.due_date).toLocaleDateString('de-DE')}` 
-              : 'Offen',
           metadata: {
             description: task.description,
             completed: task.completed,

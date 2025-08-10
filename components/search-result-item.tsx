@@ -228,21 +228,31 @@ const formatMetadata = (result: SearchResult) => {
     
     case 'task':
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {metadata?.completed !== undefined && (
-            <div className="flex items-center gap-1">
-              {metadata.completed ? (
-                <CheckCircle className="h-3 w-3 text-green-600" />
-              ) : (
-                <Circle className="h-3 w-3" />
-              )}
-              <span>{metadata.completed ? 'Erledigt' : 'Offen'}</span>
-            </div>
-          )}
-          {metadata?.created_date && (
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3 w-3" />
-              <span>{new Date(metadata.created_date).toLocaleDateString('de-DE')}</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            {metadata?.completed !== undefined && (
+              <div className="flex items-center gap-1.5">
+                {metadata.completed ? (
+                  <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                ) : (
+                  <Circle className="h-3.5 w-3.5 text-muted-foreground/70" />
+                )}
+                <span className="text-sm font-medium">
+                  {metadata.completed ? 'Erledigt' : 'Offen'}
+                </span>
+              </div>
+            )}
+            {metadata?.due_date && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Calendar className="h-3.5 w-3.5" />
+                <span>Fällig: {new Date(metadata.due_date).toLocaleDateString('de-DE')}</span>
+              </div>
+            )}
+          </div>
+          {metadata?.description && (
+            <div className="flex items-center gap-2 pt-1 text-sm text-muted-foreground/90">
+              <FileText className="h-3.5 w-3.5 flex-shrink-0 text-muted-foreground/60" />
+              <span className="line-clamp-2">{metadata.description}</span>
             </div>
           )}
         </div>
