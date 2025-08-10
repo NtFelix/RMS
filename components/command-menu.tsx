@@ -1182,7 +1182,7 @@ export function CommandMenu() {
               <span>Mieter</span>
               <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘H</kbd>
               <span>Häuser</span>
-              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘W</kbd>
+              <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘T</kbd>
               <span>Wohnungen</span>
             </div>
           </div>
