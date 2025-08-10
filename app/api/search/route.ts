@@ -642,10 +642,7 @@ export async function GET(request: Request) {
       headers.set('X-Failed-Categories', failedSearches.toString());
     }
     
-    // Add compression hint for larger responses
-    if (totalCount > 10) {
-      headers.set('Content-Encoding', 'gzip');
-    }
+    // Compression is handled automatically by the hosting platform based on the client's Accept-Encoding header
 
     // Return partial results even if some categories failed
     return new NextResponse(JSON.stringify(response), { 
