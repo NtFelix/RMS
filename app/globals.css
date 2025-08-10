@@ -81,13 +81,25 @@
 }
 
 @layer components {
-  /* Command menu item selection styling override */
+  /* Command menu item selection styling */
+  [cmdk-item] {
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  [cmdk-item]:hover,
   [cmdk-item][data-selected="true"] {
     background-color: hsl(var(--muted)) !important;
     color: hsl(var(--foreground)) !important;
   }
-  
-  [cmdk-item]:hover {
-    background-color: hsl(var(--secondary) / 0.2) !important;
+
+  /* Ensure consistent appearance for selected items on hover */
+  [cmdk-item][data-selected="true"]:hover {
+    background-color: hsl(var(--muted)) !important;
+  }
+
+  /* Style for active state (when clicked) */
+  [cmdk-item][aria-selected="true"] {
+    background-color: hsl(var(--muted)) !important;
+    color: hsl(var(--foreground)) !important;
   }
 }
