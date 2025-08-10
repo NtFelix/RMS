@@ -15,6 +15,7 @@ import {
   MapPin,
   Phone,
   Mail,
+  Ruler,
   CheckCircle,
   Circle,
   MoreHorizontal
@@ -65,6 +66,24 @@ const getEntityColor = (type: SearchResult['type']) => {
   }
 }
 
+// Localized label for entity type (for a compact badge)
+const getEntityLabel = (type: SearchResult['type']) => {
+  switch (type) {
+    case 'tenant':
+      return 'Mieter'
+    case 'house':
+      return 'Haus'
+    case 'apartment':
+      return 'Wohnung'
+    case 'finance':
+      return 'Finanzen'
+    case 'task':
+      return 'Aufgabe'
+    default:
+      return ''
+  }
+}
+
 // Format metadata for display based on entity type
 const formatMetadata = (result: SearchResult) => {
   const { type, metadata } = result
@@ -73,28 +92,35 @@ const formatMetadata = (result: SearchResult) => {
     case 'tenant':
       return (
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {metadata?.email && (
-              <div className="flex items-center gap-1">
-                <Mail className="h-3 w-3" />
-                <span>{metadata.email}</span>
-              </div>
-            )}
-            {metadata?.phone && (
-              <div className="flex items-center gap-1">
-                <Phone className="h-3 w-3" />
-                <span>{metadata.phone}</span>
-              </div>
-            )}
-            {metadata?.status && (
-              <Badge variant={metadata.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+          {metadata?.email && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Mail className="h-3 w-3" />
+              <a href={`mailto:${metadata.email}`} className="hover:underline truncate">{metadata.email}</a>
+            </div>
+          )}
+          {metadata?.address && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3" />
+              <span className="truncate">{metadata.address}</span>
+            </div>
+          )}
+          {metadata?.phone && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Phone className="h-3 w-3" />
+              <a href={`tel:${metadata.phone}`} className="hover:underline truncate">{metadata.phone}</a>
+            </div>
+          )}
+          {metadata?.move_in_date && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Calendar className="h-3 w-3" />
+              <span>Eingezogen: {new Date(metadata.move_in_date).toLocaleDateString('de-DE')}</span>
+            </div>
+          )}
+          {metadata?.status && (
+            <div className="pt-0.5">
+              <Badge variant={metadata.status === 'active' ? 'default' : 'secondary'} className="text-[10px] h-5">
                 {metadata.status === 'active' ? 'Aktiv' : 'Ausgezogen'}
               </Badge>
-            )}
-          </div>
-          {metadata?.move_in_date && (
-            <div className="text-xs text-muted-foreground/60">
-              Eingezogen: {new Date(metadata.move_in_date).toLocaleDateString('de-DE')}
             </div>
           )}
         </div>
@@ -103,23 +129,30 @@ const formatMetadata = (result: SearchResult) => {
     case 'house':
       return (
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {metadata?.address && (
+          {metadata?.address && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3" />
+              <span className="truncate">{metadata.address}</span>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground/80">
+            {metadata?.apartment_count && (
               <div className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                <span>{metadata.address}</span>
+                <Home className="h-3 w-3" />
+                <span>{metadata.apartment_count} Wohnungen</span>
               </div>
             )}
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
-            {metadata?.apartment_count && (
-              <span>{metadata.apartment_count} Wohnungen</span>
-            )}
             {metadata?.free_apartments !== undefined && (
-              <span>{metadata.free_apartments} frei</span>
+              <div className="flex items-center gap-1">
+                <CheckCircle className="h-3 w-3" />
+                <span>{metadata.free_apartments} frei</span>
+              </div>
             )}
             {metadata?.total_rent && (
-              <span>Gesamtmiete: {metadata.total_rent}€</span>
+              <div className="flex items-center gap-1">
+                <Euro className="h-3 w-3" />
+                <span>Gesamtmiete: {metadata.total_rent}€</span>
+              </div>
             )}
           </div>
         </div>
@@ -128,9 +161,12 @@ const formatMetadata = (result: SearchResult) => {
     case 'apartment':
       return (
         <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             {metadata?.size && (
-              <span>{metadata.size}m²</span>
+              <div className="flex items-center gap-1">
+                <Ruler className="h-3 w-3" />
+                <span>{metadata.size}m²</span>
+              </div>
             )}
             {metadata?.rent && (
               <div className="flex items-center gap-1">
@@ -139,14 +175,15 @@ const formatMetadata = (result: SearchResult) => {
               </div>
             )}
             {metadata?.status && (
-              <Badge variant={metadata.status === 'free' ? 'secondary' : 'default'} className="text-xs">
+              <Badge variant={metadata.status === 'free' ? 'secondary' : 'default'} className="text-[10px] h-5">
                 {metadata.status === 'free' ? 'Frei' : 'Vermietet'}
               </Badge>
             )}
           </div>
           {metadata?.current_tenant && (
-            <div className="text-xs text-muted-foreground/60">
-              Mieter: {metadata.current_tenant.name}
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+              <Users className="h-3 w-3" />
+              <span>Mieter: {metadata.current_tenant.name}</span>
             </div>
           )}
         </div>
@@ -154,13 +191,16 @@ const formatMetadata = (result: SearchResult) => {
     
     case 'finance':
       return (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
           {metadata?.amount && (
-            <div className="flex items-center gap-1">
-              <Euro className="h-3 w-3" />
-              <span className={cn(
-                metadata.type === 'income' ? 'text-green-600' : 'text-red-600'
-              )}>
+            <div className="flex items-center gap-1.5">
+              <Euro className="h-3.5 w-3.5" />
+              <span
+                className={cn(
+                  'font-semibold',
+                  metadata.type === 'income' ? 'text-green-600 text-base' : 'text-red-600 text-base'
+                )}
+              >
                 {metadata.type === 'income' ? '+' : '-'}{Math.abs(metadata.amount)}€
               </span>
             </div>
@@ -204,12 +244,13 @@ const formatMetadata = (result: SearchResult) => {
 export function SearchResultItem({ result, onSelect, onAction }: SearchResultItemProps) {
   const EntityIcon = getEntityIcon(result.type)
   const entityColor = getEntityColor(result.type)
+  const entityLabel = getEntityLabel(result.type)
 
   return (
     <CommandItem
       key={result.id}
       onSelect={() => onSelect(result)}
-      className="group flex items-center justify-between p-3 hover:bg-secondary/20 cursor-pointer"
+      className="group flex items-center justify-between p-3 rounded-md hover:bg-secondary/25 focus:bg-secondary/25 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer transition-colors"
     >
 
       
@@ -222,8 +263,13 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
         {/* Content */}
         <div className="flex-1 min-w-0 space-y-1">
           {/* Title */}
-          <div className="font-medium text-sm truncate">
-            {result.title}
+          <div className="font-medium text-sm truncate flex items-center gap-2">
+            <span className="truncate">{result.title}</span>
+            {entityLabel && (
+              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5", entityColor)}>
+                {entityLabel}
+              </Badge>
+            )}
           </div>
           
           {/* Subtitle */}
@@ -241,9 +287,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
           )}
           
           {/* Enhanced Details */}
-          <div className="text-xs text-muted-foreground/60 mt-1">
-            ID: {result.id.substring(0, 8)}...
-          </div>
+          {/* Removed visible ID as it is irrelevant to the user */}
           
           {/* Metadata */}
           {formatMetadata(result)}
