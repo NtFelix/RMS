@@ -141,13 +141,13 @@ const formatMetadata = (result: SearchResult) => {
                 <span>{metadata.free_apartments} frei</span>
               </div>
             )}
-            {metadata?.total_rent && (
-              <div className="flex items-center gap-1">
-                <Euro className="h-3 w-3" />
-                <span>Gesamtmiete: {metadata.total_rent}€</span>
-              </div>
-            )}
           </div>
+          {metadata?.total_rent && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground/80 pt-1">
+              <Euro className="h-3 w-3" />
+              <span>Gesamtmiete: {metadata.total_rent}€</span>
+            </div>
+          )}
         </div>
       )
     
@@ -272,8 +272,8 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
             )}
           </div>
           
-          {/* Subtitle - hidden for tenant to avoid duplicating email */}
-          {result.type !== 'tenant' && result.subtitle && (
+          {/* Subtitle - hidden for tenant and house to avoid duplicating information */}
+          {result.type !== 'tenant' && result.type !== 'house' && result.subtitle && (
             <div className="text-xs text-muted-foreground truncate">
               {result.subtitle}
             </div>

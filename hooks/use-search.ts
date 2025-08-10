@@ -525,7 +525,6 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           type: 'house',
           title: house.name,
           subtitle: house.address,
-          context: `${house.apartment_count} Wohnungen • ${house.free_apartments} frei`,
           metadata: {
             apartment_count: house.apartment_count,
             total_rent: house.total_rent,
