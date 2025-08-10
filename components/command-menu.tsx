@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useSearchStore } from "@/hooks/use-search-store"
 import {
   Command,
   CommandDialog,
@@ -157,29 +158,20 @@ export function CommandMenu() {
     }
   }, [open, query, clearSearch])
   
-  // Handle update-search-query events from suggestion clicks
+  // Get the current query from the store
+  const storeQuery = useSearchStore((state) => state.query);
+  
+  // Update local query when store query changes
   useEffect(() => {
-    const handleUpdateSearchQuery = (event: CustomEvent) => {
-      const filterPrefix = event.detail;
-      if (filterPrefix && typeof filterPrefix === 'string') {
-        setQuery(filterPrefix);
-        // Focus the search input after updating the query
-        const searchInput = document.querySelector('input[cmdk-input]') as HTMLInputElement;
-        if (searchInput) {
-          searchInput.focus();
-        }
+    if (storeQuery && storeQuery !== query) {
+      setQuery(storeQuery);
+      // Focus the search input after updating the query
+      const searchInput = document.querySelector('input[cmdk-input]') as HTMLInputElement;
+      if (searchInput) {
+        searchInput.focus();
       }
-    };
-
-    // Add event listener for custom update-search-query event
-    // @ts-ignore - CustomEvent type issue
-    window.addEventListener('update-search-query', handleUpdateSearchQuery);
-    
-    return () => {
-      // @ts-ignore - CustomEvent type issue
-      window.removeEventListener('update-search-query', handleUpdateSearchQuery);
-    };
-  }, [setQuery]);
+    }
+  }, [storeQuery, query, setQuery]);
 
   // Centralized function to refresh search results after modal actions
   const refreshSearchResults = useCallback(() => {

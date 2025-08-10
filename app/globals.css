@@ -87,19 +87,9 @@
   }
 
   [cmdk-item]:hover,
-  [cmdk-item][data-selected="true"] {
-    background-color: hsl(var(--muted)) !important;
-    color: hsl(var(--foreground)) !important;
-  }
-
-  /* Ensure consistent appearance for selected items on hover */
-  [cmdk-item][data-selected="true"]:hover {
-    background-color: hsl(var(--muted)) !important;
-  }
-
-  /* Style for active state (when clicked) */
+  [cmdk-item][data-selected="true"],
   [cmdk-item][aria-selected="true"] {
-    background-color: hsl(var(--muted)) !important;
-    color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
   }
 }

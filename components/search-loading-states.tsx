@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
+import { useSearchStore } from '@/hooks/use-search-store';
 import { 
   Loader2, 
   Search, 
@@ -306,10 +307,7 @@ export function SearchEmptyState({
                         <button
                           key={index}
                           onClick={() => {
-                            const event = new CustomEvent('update-search-query', { 
-                              detail: filterInfo.prefix 
-                            });
-                            window.dispatchEvent(event);
+                            useSearchStore.getState().setQuery(filterInfo.prefix);
                           }}
                           className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150 flex items-center"
                         >
