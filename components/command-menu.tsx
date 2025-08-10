@@ -408,34 +408,27 @@ export function CommandMenu() {
   // Helper functions to fetch full entity data and open modals with search context
   const handleEditTenant = async (tenantId: string, searchResult?: SearchResult) => {
     try {
-      const [tenants, wohnungen] = await Promise.all([
-        fetchEntityData('mieter'),
-        fetchEntityData('wohnungen')
-      ])
+      // First fetch the specific tenant directly by ID
+      const tenantResponse = await fetch(`/api/mieter/${tenantId}`);
+      if (!tenantResponse.ok) throw new Error('Tenant not found');
+      const tenant = await tenantResponse.json();
       
-      const tenant = tenants.find((t: any) => t.id === tenantId)
+      // Only fetch wohnungen if we need them for the modal
+      const wohnungen = await fetchEntityData('wohnungen');
       
-      if (tenant) {
-        // Add search context to the modal data if available
-        const tenantWithContext = searchResult ? {
-          ...tenant,
-          _searchContext: {
-            query,
-            resultType: searchResult.type,
-            resultTitle: searchResult.title
-          }
-        } : tenant
-        
-        useModalStore.getState().openTenantModal(tenantWithContext, wohnungen)
-        
-        // Success handling is done through the useSearchModalIntegration hook
-      } else {
-        toast({
-          title: 'Fehler',
-          description: 'Mieter nicht gefunden.',
-          variant: 'destructive',
-        })
-      }
+      // Add search context to the modal data if available
+      const tenantWithContext = searchResult ? {
+        ...tenant,
+        _searchContext: {
+          query,
+          resultType: searchResult.type,
+          resultTitle: searchResult.title
+        }
+      } : tenant;
+      
+      useModalStore.getState().openTenantModal(tenantWithContext, wohnungen);
+      
+      // Success handling is done through the useSearchModalIntegration hook
     } catch (error) {
       console.error('Error loading tenant for edit:', error)
       toast({
@@ -448,30 +441,24 @@ export function CommandMenu() {
 
   const handleEditHouse = async (houseId: string, searchResult?: SearchResult) => {
     try {
-      const houses = await fetchEntityData('haeuser')
-      const house = houses.find((h: any) => h.id === houseId)
+      // Fetch only the specific house by ID
+      const response = await fetch(`/api/haeuser/${houseId}`);
+      if (!response.ok) throw new Error('House not found');
+      const house = await response.json();
       
-      if (house) {
-        const onSuccess = createModalSuccessCallback('Haus', 'haeuser')
-        
-        // Add search context to the modal data if available
-        const houseWithContext = searchResult ? {
-          ...house,
-          _searchContext: {
-            query,
-            resultType: searchResult.type,
-            resultTitle: searchResult.title
-          }
-        } : house
-        
-        useModalStore.getState().openHouseModal(houseWithContext, onSuccess)
-      } else {
-        toast({
-          title: 'Fehler',
-          description: 'Haus nicht gefunden.',
-          variant: 'destructive',
-        })
-      }
+      const onSuccess = createModalSuccessCallback('Haus', 'haeuser');
+      
+      // Add search context to the modal data if available
+      const houseWithContext = searchResult ? {
+        ...house,
+        _searchContext: {
+          query,
+          resultType: searchResult.type,
+          resultTitle: searchResult.title
+        }
+      } : house;
+      
+      useModalStore.getState().openHouseModal(houseWithContext, onSuccess);
     } catch (error) {
       console.error('Error loading house for edit:', error)
       toast({
