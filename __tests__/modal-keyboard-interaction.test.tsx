@@ -90,13 +90,14 @@ describe('Modal Keyboard and Click Interactions', () => {
   });
 
   describe('HausOverviewModal', () => {
-    it('calls close function when modal open state changes', () => {
-      const { rerender } = render(<HausOverviewModal />);
+    it('does not call close function on initial render', () => {
+      render(<HausOverviewModal />);
       
-      // Initially closed
+      // Initially closed, should not call close function
       expect(mockCloseHausOverview).not.toHaveBeenCalled();
-      
-      // Open the modal
+    });
+
+    it('calls close function when close button is clicked', () => {
       mockUseModalStore.mockReturnValue({
         ...mockModalStore,
         isHausOverviewModalOpen: true,
@@ -119,15 +120,55 @@ describe('Modal Keyboard and Click Interactions', () => {
         }
       });
       
-      rerender(<HausOverviewModal />);
+      render(<HausOverviewModal />);
       
-      // Find the dialog and simulate onOpenChange
+      // Find the dialog and close button
       const dialog = screen.getByRole('dialog');
       expect(dialog).toBeInTheDocument();
       
-      // The Dialog component should call onOpenChange when closed
-      // This is handled by Radix UI internally, but we can test our handler
-      expect(mockCloseHausOverview).not.toHaveBeenCalled();
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      expect(closeButton).toBeInTheDocument();
+      
+      // Click the close button
+      fireEvent.click(closeButton);
+      
+      // Verify the close function was called
+      expect(mockCloseHausOverview).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls close function when ESC key is pressed', () => {
+      mockUseModalStore.mockReturnValue({
+        ...mockModalStore,
+        isHausOverviewModalOpen: true,
+        hausOverviewData: {
+          id: '1',
+          name: 'Test Haus',
+          ort: 'Test City',
+          totalArea: 100,
+          totalRent: 1000,
+          apartmentCount: 2,
+          tenantCount: 1,
+          summaryStats: {
+            averageRent: 500,
+            medianRent: 500,
+            averageSize: 50,
+            medianSize: 50,
+            occupancyRate: 0.5,
+          },
+          wohnungen: []
+        }
+      });
+      
+      render(<HausOverviewModal />);
+      
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      
+      // Press ESC key
+      fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' });
+      
+      // Verify the close function was called
+      expect(mockCloseHausOverview).toHaveBeenCalledTimes(1);
     });
 
     it('renders modal when open with data', () => {
@@ -167,10 +208,67 @@ describe('Modal Keyboard and Click Interactions', () => {
   });
 
   describe('WohnungOverviewModal', () => {
-    it('calls close function when modal open state changes', () => {
+    it('does not call close function on initial render', () => {
       render(<WohnungOverviewModal />);
       
+      // Initially closed, should not call close function
       expect(mockCloseWohnungOverview).not.toHaveBeenCalled();
+    });
+
+    it('calls close function when close button is clicked', () => {
+      mockUseModalStore.mockReturnValue({
+        ...mockModalStore,
+        isWohnungOverviewModalOpen: true,
+        wohnungOverviewData: {
+          id: '1',
+          name: 'Test Wohnung',
+          groesse: 50,
+          miete: 500,
+          hausName: 'Test Haus',
+          mieter: []
+        }
+      });
+
+      render(<WohnungOverviewModal />);
+      
+      // Find the dialog and close button
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      expect(closeButton).toBeInTheDocument();
+      
+      // Click the close button
+      fireEvent.click(closeButton);
+      
+      // Verify the close function was called
+      expect(mockCloseWohnungOverview).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls close function when ESC key is pressed', () => {
+      mockUseModalStore.mockReturnValue({
+        ...mockModalStore,
+        isWohnungOverviewModalOpen: true,
+        wohnungOverviewData: {
+          id: '1',
+          name: 'Test Wohnung',
+          groesse: 50,
+          miete: 500,
+          hausName: 'Test Haus',
+          mieter: []
+        }
+      });
+
+      render(<WohnungOverviewModal />);
+      
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      
+      // Press ESC key
+      fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' });
+      
+      // Verify the close function was called
+      expect(mockCloseWohnungOverview).toHaveBeenCalledTimes(1);
     });
 
     it('renders modal when open with data', () => {
@@ -195,10 +293,69 @@ describe('Modal Keyboard and Click Interactions', () => {
   });
 
   describe('ApartmentTenantDetailsModal', () => {
-    it('calls close function when modal open state changes', () => {
+    it('does not call close function on initial render', () => {
       render(<ApartmentTenantDetailsModal />);
       
+      // Initially closed, should not call close function
       expect(mockCloseApartmentTenantDetails).not.toHaveBeenCalled();
+    });
+
+    it('calls close function when close button is clicked', () => {
+      mockUseModalStore.mockReturnValue({
+        ...mockModalStore,
+        isApartmentTenantDetailsModalOpen: true,
+        apartmentTenantDetailsData: {
+          apartment: {
+            id: '1',
+            name: 'Test Apartment',
+            groesse: 50,
+            miete: 500,
+            hausName: 'Test Haus'
+          }
+        }
+      });
+
+      render(<ApartmentTenantDetailsModal />);
+      
+      // Find the dialog and close button
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      
+      const closeButton = screen.getByRole('button', { name: /close/i });
+      expect(closeButton).toBeInTheDocument();
+      
+      // Click the close button
+      fireEvent.click(closeButton);
+      
+      // Verify the close function was called
+      expect(mockCloseApartmentTenantDetails).toHaveBeenCalledTimes(1);
+    });
+
+    it('calls close function when ESC key is pressed', () => {
+      mockUseModalStore.mockReturnValue({
+        ...mockModalStore,
+        isApartmentTenantDetailsModalOpen: true,
+        apartmentTenantDetailsData: {
+          apartment: {
+            id: '1',
+            name: 'Test Apartment',
+            groesse: 50,
+            miete: 500,
+            hausName: 'Test Haus'
+          }
+        }
+      });
+
+      render(<ApartmentTenantDetailsModal />);
+      
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      
+      // Press ESC key
+      fireEvent.keyDown(dialog, { key: 'Escape', code: 'Escape' });
+      
+      // Verify the close function was called
+      expect(mockCloseApartmentTenantDetails).toHaveBeenCalledTimes(1);
     });
 
     it('renders modal when open with data', () => {
