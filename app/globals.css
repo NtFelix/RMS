@@ -79,3 +79,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Command menu item selection styling */
+  [cmdk-item] {
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  [cmdk-item]:hover,
+  [cmdk-item][data-selected="true"],
+  [cmdk-item][aria-selected="true"] {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+  }
+}
