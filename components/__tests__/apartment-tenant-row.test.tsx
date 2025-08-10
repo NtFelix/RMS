@@ -208,8 +208,8 @@ describe('ApartmentTenantRow', () => {
     )
 
     expect(screen.getByText('0 m² • Musterstraße 123')).toBeInTheDocument()
-    // Should handle division by zero gracefully (shows infinity symbol)
-    expect(screen.getByText('∞ €/m²')).toBeInTheDocument()
+    // Should handle division by zero gracefully (shows N/A)
+    expect(screen.getByText('N/A')).toBeInTheDocument()
   })
 
   it('shows chevron down when expanded', () => {
