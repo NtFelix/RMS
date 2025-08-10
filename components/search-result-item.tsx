@@ -49,23 +49,8 @@ const getEntityIcon = (type: SearchResult['type']) => {
   }
 }
 
-// Color mapping for different entity types
-const getEntityColor = (type: SearchResult['type']) => {
-  switch (type) {
-    case 'tenant':
-      return 'text-blue-600'
-    case 'house':
-      return 'text-green-600'
-    case 'apartment':
-      return 'text-purple-600'
-    case 'finance':
-      return 'text-orange-600'
-    case 'task':
-      return 'text-gray-600'
-    default:
-      return 'text-gray-500'
-  }
-}
+// Color mapping for different entity types (all using primary color)
+const getEntityColor = () => 'text-primary'
 
 // Localized label for entity type (for a compact badge)
 const getEntityLabel = (type: SearchResult['type']) => {
@@ -95,25 +80,25 @@ const formatMetadata = (result: SearchResult) => {
         <div className="space-y-1">
           {metadata?.email && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Mail className="h-3 w-3" />
+              <Mail className="h-3 w-3 text-primary" />
               <a href={`mailto:${metadata.email}`} className="hover:underline truncate">{metadata.email}</a>
             </div>
           )}
           {metadata?.address && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <MapPin className="h-3 w-3" />
+              <MapPin className="h-3 w-3 text-primary" />
               <span className="truncate">{metadata.address}</span>
             </div>
           )}
           {metadata?.phone && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Phone className="h-3 w-3" />
+              <Phone className="h-3 w-3 text-primary" />
               <a href={`tel:${metadata.phone}`} className="hover:underline truncate">{metadata.phone}</a>
             </div>
           )}
           {metadata?.move_in_date && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />
+              <Calendar className="h-3 w-3 text-primary" />
               <span>Eingezogen: {new Date(metadata.move_in_date).toLocaleDateString('de-DE')}</span>
             </div>
           )}
@@ -132,20 +117,20 @@ const formatMetadata = (result: SearchResult) => {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {metadata?.apartment_count && (
               <div className="flex items-center gap-1.5">
-                <Home className="h-3.5 w-3.5" />
+                <Home className="h-3.5 w-3.5 text-primary" />
                 <span>{metadata.apartment_count} Wohnungen</span>
               </div>
             )}
             {metadata?.free_apartments !== undefined && (
               <div className="flex items-center gap-1.5">
-                <CheckCircle className="h-3.5 w-3.5" />
+                <CheckCircle className="h-3.5 w-3.5 text-primary" />
                 <span>{metadata.free_apartments} frei</span>
               </div>
             )}
           </div>
           {metadata?.total_rent && (
             <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Euro className="h-3.5 w-3.5" />
+              <Euro className="h-3.5 w-3.5 text-primary" />
               <span>Gesamtmiete: {metadata.total_rent}€</span>
             </div>
           )}
@@ -157,26 +142,26 @@ const formatMetadata = (result: SearchResult) => {
         <div className="space-y-1">
           {metadata?.current_tenant && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="h-3.5 w-3.5" />
+              <Users className="h-3.5 w-3.5 text-primary" />
               <span>{metadata.current_tenant.name}</span>
             </div>
           )}
           {metadata?.house_name && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Building2 className="h-3.5 w-3.5" />
+              <Building2 className="h-3.5 w-3.5 text-primary" />
               <span className="truncate">{metadata.house_name}</span>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
             {metadata?.size && (
               <div className="flex items-center gap-1.5">
-                <Ruler className="h-3.5 w-3.5" />
+                <Ruler className="h-3.5 w-3.5 text-primary" />
                 <span>{metadata.size}m²</span>
               </div>
             )}
             {metadata?.rent && (
               <div className="flex items-center gap-1.5">
-                <Euro className="h-3.5 w-3.5" />
+                <Euro className="h-3.5 w-3.5 text-primary" />
                 <span>{metadata.rent}€/Monat</span>
               </div>
             )}
@@ -189,7 +174,7 @@ const formatMetadata = (result: SearchResult) => {
         <div className="space-y-2">
           {metadata?.apartment && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Home className="h-3.5 w-3.5" />
+              <Home className="h-3.5 w-3.5 text-primary" />
               <span className="font-medium">{metadata.apartment.name}</span>
               <span className="text-muted-foreground/60">•</span>
               <Building2 className="h-3 w-3 text-muted-foreground/80" />
@@ -265,7 +250,7 @@ const formatMetadata = (result: SearchResult) => {
 
 export function SearchResultItem({ result, onSelect, onAction }: SearchResultItemProps) {
   const EntityIcon = getEntityIcon(result.type)
-  const entityColor = getEntityColor(result.type)
+  const entityColor = getEntityColor()
   const entityLabel = getEntityLabel(result.type)
 
   return (
@@ -278,7 +263,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       
       <div className="flex items-start gap-3 flex-1 min-w-0">
         {/* Entity Icon */}
-        <div className={cn("flex-shrink-0 mt-0.5", entityColor)}>
+        <div className="flex-shrink-0 mt-0.5 text-primary">
           <EntityIcon className="h-4 w-4" />
         </div>
         
@@ -302,7 +287,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
                 {result.metadata.status === 'free' ? 'Frei' : 'Vermietet'}
               </Badge>
             ) : entityLabel && (
-              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-5", entityColor)}>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-primary border-primary/40">
                 {entityLabel}
               </Badge>
             )}

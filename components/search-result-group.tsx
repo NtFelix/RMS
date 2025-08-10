@@ -40,23 +40,8 @@ const getGroupIcon = (type: SearchResult['type']) => {
   }
 }
 
-// Color mapping for group headers
-const getGroupColor = (type: SearchResult['type']) => {
-  switch (type) {
-    case 'tenant':
-      return 'text-blue-600'
-    case 'house':
-      return 'text-green-600'
-    case 'apartment':
-      return 'text-purple-600'
-    case 'finance':
-      return 'text-orange-600'
-    case 'task':
-      return 'text-gray-600'
-    default:
-      return 'text-gray-500'
-  }
-}
+// Color mapping for group headers (all using primary color for consistency)
+const getGroupColor = () => 'text-primary'
 
 // German translations for entity types
 const getGroupTitle = (type: SearchResult['type'], count: number) => {
@@ -86,7 +71,7 @@ export function SearchResultGroup({
   }
 
   const GroupIcon = getGroupIcon(type)
-  const groupColor = getGroupColor(type)
+  const groupColor = getGroupColor()
   const groupTitle = title || getGroupTitle(type, results.length)
 
   return (
