@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, Building, Trash2, Users } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,8 +22,6 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 import type { Apartment } from "./apartment-table"; // Import the shared type
-import { useModalStore } from "@/hooks/use-modal-store"
-
 // Remove local Apartment interface definition
 
 interface ApartmentContextMenuProps {
@@ -41,11 +39,6 @@ export function ApartmentContextMenu({
 }: ApartmentContextMenuProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [isDeleting, setIsDeleting] = React.useState(false)
-  const { openWohnungOverviewModal } = useModalStore()
-
-  const handleOverview = () => {
-    openWohnungOverviewModal(apartment.id);
-  };
 
   const handleDelete = async () => {
     try {
@@ -89,10 +82,6 @@ export function ApartmentContextMenu({
           <ContextMenuItem onClick={onEdit} className="flex items-center gap-2 cursor-pointer">
             <Edit className="h-4 w-4" />
             <span>Bearbeiten</span>
-          </ContextMenuItem>
-          <ContextMenuItem onClick={handleOverview} className="flex items-center gap-2 cursor-pointer">
-            <Users className="h-4 w-4" />
-            <span>Mieter-Übersicht</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem 

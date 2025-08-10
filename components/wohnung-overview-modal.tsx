@@ -45,6 +45,7 @@ export function WohnungOverviewModal() {
     setWohnungOverviewLoading,
     setWohnungOverviewError,
     setWohnungOverviewData,
+    refreshWohnungOverviewData,
     openTenantModal,
   } = useModalStore();
 
@@ -142,21 +143,8 @@ export function WohnungOverviewModal() {
     }] : [];
 
     // Define success callback to refresh overview data
-    const onSuccess = async () => {
-      if (wohnungOverviewData?.id) {
-        try {
-          setWohnungOverviewLoading(true);
-          const response = await fetch(`/api/wohnungen/${wohnungOverviewData.id}/overview`);
-          if (response.ok) {
-            const updatedData = await response.json();
-            setWohnungOverviewData(updatedData);
-          }
-        } catch (error) {
-          console.error('Failed to refresh overview data:', error);
-        } finally {
-          setWohnungOverviewLoading(false);
-        }
-      }
+    const onSuccess = () => {
+      refreshWohnungOverviewData();
     };
 
     // Open the Tenant edit modal with the prepared data
@@ -227,13 +215,7 @@ export function WohnungOverviewModal() {
         });
         
         // Refresh the overview data
-        if (wohnungOverviewData?.id) {
-          const refreshResponse = await fetch(`/api/wohnungen/${wohnungOverviewData.id}/overview`);
-          if (refreshResponse.ok) {
-            const updatedData = await refreshResponse.json();
-            setWohnungOverviewData(updatedData);
-          }
-        }
+        refreshWohnungOverviewData();
       } else {
         const errorData = await response.json();
         toast({

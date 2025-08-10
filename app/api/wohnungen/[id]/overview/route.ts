@@ -2,7 +2,7 @@ export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
-interface WohnungOverviewResponse {
+interface WohnungWithMieter {
   id: string;
   name: string;
   groesse: number;
@@ -21,6 +21,17 @@ interface MieterOverviewData {
   status: 'active' | 'moved_out';
 }
 
+/**
+ * GET /api/wohnungen/[id]/overview
+ * 
+ * Fetches overview data for a specific Wohnung including all associated Mieter
+ * (both current and historical). This endpoint supports the WohnungOverviewModal
+ * component as specified in the property overview modals feature.
+ * 
+ * @param request - The HTTP request object
+ * @param params - Route parameters containing the Wohnung ID
+ * @returns WohnungWithMieter with Wohnung details and Mieter list
+ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -29,9 +40,19 @@ export async function GET(
     const supabase = await createClient();
     const { id: wohnungId } = await params;
 
-    if (!wohnungId) {
+    // Validate input parameters
+    if (!wohnungId || wohnungId.trim() === '') {
       return NextResponse.json(
         { error: "Wohnungs-ID ist erforderlich." },
+        { status: 400 }
+      );
+    }
+
+    // Basic UUID format validation
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(wohnungId)) {
+      return NextResponse.json(
+        { error: "Ungültige Wohnungs-ID Format." },
         { status: 400 }
       );
     }
@@ -79,15 +100,20 @@ export async function GET(
       );
     }
 
-    // Process Mieter with status
+    // Process Mieter with status and validate data
     const today = new Date();
-    const mieter: MieterOverviewData[] = mieterData.map(mieterItem => {
+    const mieter: MieterOverviewData[] = (mieterData || []).map(mieterItem => {
+      // Validate required fields
+      if (!mieterItem.id || !mieterItem.name) {
+        console.warn('Invalid Mieter data:', mieterItem);
+      }
+
       // Determine if tenant is active or moved out
       const isActive = !mieterItem.auszug || new Date(mieterItem.auszug) > today;
 
       return {
         id: mieterItem.id,
-        name: mieterItem.name,
+        name: mieterItem.name || 'Unbekannt',
         email: mieterItem.email || undefined,
         telefon: mieterItem.telefonnummer || undefined,
         einzug: mieterItem.einzug || undefined,
@@ -96,11 +122,12 @@ export async function GET(
       };
     });
 
-    const response: WohnungOverviewResponse = {
+    // Validate and structure the response data to match WohnungWithMieter interface
+    const response = {
       id: wohnungData.id,
-      name: wohnungData.name,
-      groesse: wohnungData.groesse,
-      miete: wohnungData.miete,
+      name: wohnungData.name || 'Unbekannt',
+      groesse: wohnungData.groesse || 0,
+      miete: wohnungData.miete || 0,
       hausName: (wohnungData.Haeuser as any)?.name || 'Unbekannt',
       mieter
     };
