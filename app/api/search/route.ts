@@ -166,12 +166,13 @@ export async function GET(request: Request) {
 
             // Build search conditions for better matching
             let queryBuilderWithConditions;
+            let searchConditions: string[] = [];
             
             if (isShowAllQuery) {
               // Show all tenants when using "*" query
               queryBuilderWithConditions = queryBuilder;
             } else {
-              const searchConditions = [
+              searchConditions = [
                 `name.ilike.${searchPattern}`
               ];
 

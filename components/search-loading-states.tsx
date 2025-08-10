@@ -130,59 +130,71 @@ export function SearchEmptyState({
   onRetry,
   suggestions = []
 }: SearchEmptyStateProps) {
-  if (hasError) {
-    return (
-      <div className="flex flex-col items-center justify-center py-8 text-sm text-muted-foreground">
-        <AlertCircle className="mb-2 h-8 w-8 text-destructive" />
-        <p className="text-center mb-2">
-          {isOffline 
-            ? 'Suche nicht verfügbar (offline)'
-            : 'Bei der Suche ist ein Fehler aufgetreten'
-          }
-        </p>
-        {onRetry && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRetry}
-            className="text-xs"
-          >
-            <RefreshCw className="h-3 w-3 mr-1" />
-            Erneut versuchen
-          </Button>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col items-center justify-center py-8 text-sm text-muted-foreground">
-      <Search className="mb-2 h-8 w-8" />
-      <p className="text-center mb-1">Keine Ergebnisse für "{query}"</p>
-      
-      {suggestions.length > 0 && (
-        <div className="mt-3 text-center">
-          <p className="text-xs mb-2">Versuchen Sie:</p>
-          <div className="flex flex-wrap gap-1 justify-center">
-            {suggestions.map((suggestion, index) => (
-              <span 
-                key={index}
-                className="px-2 py-1 bg-muted rounded text-xs cursor-pointer hover:bg-muted/80"
-              >
-                {suggestion}
-              </span>
-            ))}
-          </div>
+    <div className="flex flex-col h-[300px] w-full px-4">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center">
+          {hasError ? (
+            <>
+              <AlertCircle className="h-10 w-10 text-destructive" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  {isOffline 
+                    ? 'Suche nicht verfügbar (offline)'
+                    : 'Bei der Suche ist ein Fehler aufgetreten'
+                  }
+                </p>
+                {onRetry && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onRetry}
+                    className="mt-2"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    Erneut versuchen
+                  </Button>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              <Search className="h-10 w-10 text-muted-foreground/60" />
+              <div className="space-y-4">
+                <p className="text-sm font-medium">Keine Ergebnisse für "{query}"</p>
+                
+                {suggestions.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">Versuchen Sie:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {suggestions.map((suggestion, index) => (
+                        <span 
+                          key={index}
+                          className="px-2.5 py-1 bg-muted rounded-md text-xs font-medium cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => {
+                            const event = new CustomEvent('search-suggestion', { detail: suggestion });
+                            window.dispatchEvent(event);
+                          }}
+                        >
+                          {suggestion}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="text-xs text-muted-foreground/70 space-y-1.5 pt-2">
+                  <p>Tipps für bessere Ergebnisse:</p>
+                  <ul className="space-y-0.5">
+                    <li>• Überprüfen Sie die Rechtschreibung</li>
+                    <li>• Verwenden Sie weniger spezifische Begriffe</li>
+                    <li>• Suchen Sie nach Teilwörtern</li>
+                  </ul>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      )}
-      
-      <div className="mt-4 text-xs text-center space-y-1">
-        <p>Tipps für bessere Ergebnisse:</p>
-        <ul className="text-muted-foreground/80 space-y-0.5">
-          <li>• Überprüfen Sie die Rechtschreibung</li>
-          <li>• Verwenden Sie weniger spezifische Begriffe</li>
-          <li>• Versuchen Sie andere Suchbegriffe</li>
-        </ul>
       </div>
     </div>
   )
