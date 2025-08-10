@@ -22,23 +22,73 @@ export function SearchLoadingIndicator({
 }: SearchLoadingProps) {
   if (!isLoading) return null
 
+  const isRetrying = retryCount > 0;
+  
   return (
-    <div className="flex flex-col h-[300px] w-full px-2">
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <p className="text-sm font-medium">
-            {retryCount > 0 ? (
-              `Wiederholung ${retryCount}/${maxRetries}...`
-            ) : (
-              `Suche nach "${query}"...`
-            )}
-          </p>
-          <p className="text-xs text-muted-foreground/70">
-            Bitte warten, während wir nach Ergebnissen suchen
+    <div className="w-full py-8 px-4">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Animated progress bar */}
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+          <div 
+            className="h-full bg-primary/80 rounded-full animate-pulse"
+            style={{
+              width: isRetrying ? `${(retryCount / maxRetries) * 100}%` : '70%',
+              transition: 'width 0.3s ease-out',
+            }}
+          />
+        </div>
+
+        {/* Main content */}
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="relative">
+            <div className="absolute -inset-1.5 bg-primary/10 rounded-full blur-sm" />
+            <div className="relative p-3 bg-background rounded-full border border-border shadow-sm">
+              <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <h3 className="text-lg font-medium">
+              {isRetrying 
+                ? `Wiederhole Suche (${retryCount}/${maxRetries})`
+                : 'Suche wird durchgeführt...'}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {isRetrying 
+                ? 'Versuche erneut, die Ergebnisse abzurufen'
+                : `"${query}" wird durchsucht...`}
+            </p>
+          </div>
+
+          {/* Progress dots animation */}
+          <div className="flex items-center justify-center space-x-1.5 pt-2">
+            {[1, 2, 3].map((dot) => (
+              <div 
+                key={dot}
+                className="h-2 w-2 rounded-full bg-muted"
+                style={{
+                  animation: `pulse 1.5s ease-in-out ${dot * 0.2}s infinite`,
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Additional status message */}
+          <p className="text-xs text-muted-foreground/70 pt-4">
+            {isRetrying 
+              ? 'Bitte warten, während wir es erneut versuchen...'
+              : 'Dies kann einen Moment dauern'}
           </p>
         </div>
       </div>
+
+      {/* Add keyframe animation for the dots */}
+      <style jsx global>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.3; transform: scale(0.8); }
+          50% { opacity: 1; transform: scale(1.1); }
+        }
+      `}</style>
     </div>
   )
 }
