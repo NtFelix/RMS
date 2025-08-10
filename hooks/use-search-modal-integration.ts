@@ -102,6 +102,51 @@ export function useSearchModalIntegration(options: SearchModalIntegrationOptions
     triggerEntityUpdate: (entityType: string, entityName: string) => {
       options.onEntityUpdated?.(entityType, entityName)
       options.onCacheInvalidate?.(entityType)
-    }
+    },
+    // Wrap a given onSuccess to also notify search integration and show a toast
+    withEntityUpdate: <T,>(
+      entityType: string,
+      entityName: string,
+      onSuccess?: (data: T) => void
+    ) => {
+      return (data: T) => {
+        try {
+          onSuccess?.(data)
+        } finally {
+          options.onEntityUpdated?.(entityType, entityName)
+          options.onCacheInvalidate?.(entityType)
+          toast({
+            title: 'Aktualisiert',
+            description: `${entityName} erfolgreich gespeichert.`,
+          })
+        }
+      }
+    },
+    // Pre-configured success handlers for common entities
+    onTenantSuccess: (data?: any) => {
+      options.onEntityUpdated?.('mieter', 'Mieter')
+      options.onCacheInvalidate?.('mieter')
+      toast({ title: 'Aktualisiert', description: 'Mieter erfolgreich gespeichert.' })
+    },
+    onHouseSuccess: (data?: any) => {
+      options.onEntityUpdated?.('haeuser', 'Haus')
+      options.onCacheInvalidate?.('haeuser')
+      toast({ title: 'Aktualisiert', description: 'Haus erfolgreich gespeichert.' })
+    },
+    onWohnungSuccess: (data?: any) => {
+      options.onEntityUpdated?.('wohnungen', 'Wohnung')
+      options.onCacheInvalidate?.('wohnungen')
+      toast({ title: 'Aktualisiert', description: 'Wohnung erfolgreich gespeichert.' })
+    },
+    onFinanceSuccess: (data?: any) => {
+      options.onEntityUpdated?.('finanzen', 'Finanzeintrag')
+      options.onCacheInvalidate?.('finanzen')
+      toast({ title: 'Aktualisiert', description: 'Finanzeintrag erfolgreich gespeichert.' })
+    },
+    onAufgabeSuccess: (data?: any) => {
+      options.onEntityUpdated?.('todos', 'Aufgabe')
+      options.onCacheInvalidate?.('todos')
+      toast({ title: 'Aktualisiert', description: 'Aufgabe erfolgreich gespeichert.' })
+    },
   }
 }
