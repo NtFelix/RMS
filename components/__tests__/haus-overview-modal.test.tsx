@@ -163,7 +163,7 @@ describe('HausOverviewModal', () => {
     expect(screen.getByText('€1,200.00')).toBeInTheDocument();
     expect(screen.getByText('Max Mustermann')).toBeInTheDocument();
     expect(screen.getByText('vermietet')).toBeInTheDocument();
-    expect(screen.getByText('leer')).toBeInTheDocument(); // Changed from 'frei' to 'leer'
+    expect(screen.getByText('Frei')).toBeInTheDocument(); // Changed from 'leer' to 'Frei' to match component
   });
 
   it('should call openWohnungModal when edit button is clicked', () => {
