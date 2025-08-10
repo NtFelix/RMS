@@ -644,20 +644,25 @@ export async function GET(request: Request) {
     
     // Compression is handled automatically by the hosting platform based on the client's Accept-Encoding header
 
-    // Determine the appropriate status code
-    let statusCode = 200; // Default to success
-    
+    // Set error headers if any searches failed
     if (successfulSearches === 0) {
       // All searches failed
-      statusCode = 503; // Service Unavailable
       headers.set('X-Error', 'All search operations failed');
+      return new NextResponse(JSON.stringify({ 
+        error: 'Service unavailable',
+        details: 'All search operations failed'
+      }), { 
+        status: 503, // Service Unavailable
+        headers
+      });
     } else if (failedSearches > 0) {
       // Some searches failed but we have partial results
-      statusCode = 206; // Partial Content
+      headers.set('X-Partial-Results', 'true');
+      headers.set('X-Failed-Categories', failedSearches.toString());
     }
     
     return new NextResponse(JSON.stringify(response), { 
-      status: statusCode,
+      status: 200, // Always return 200 for successful responses
       headers
     });
     
