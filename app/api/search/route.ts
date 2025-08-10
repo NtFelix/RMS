@@ -329,10 +329,11 @@ export async function GET(request: Request) {
             const houseResults = sortedHouses.map((house: any) => {
               const apartments = Array.isArray(house.Wohnungen) ? house.Wohnungen : (house.Wohnungen ? [house.Wohnungen] : []);
               const totalRent = apartments.reduce((sum: number, apt: any) => sum + (apt.miete || 0), 0);
-              const freeApartments = apartments.filter((apt: any) => 
-                !apt.Mieter || (Array.isArray(apt.Mieter) && apt.Mieter.length === 0) || 
-                (Array.isArray(apt.Mieter) && apt.Mieter.some((m: any) => m.auszug))
-              ).length;
+              const freeApartments = apartments.filter((apt: any) => {
+                const tenants = Array.isArray(apt.Mieter) ? apt.Mieter : (apt.Mieter ? [apt.Mieter] : []);
+                const hasActiveTenant = tenants.some((m: any) => !m.auszug);
+                return !hasActiveTenant;
+              }).length;
               
               return {
                 id: house.id,
