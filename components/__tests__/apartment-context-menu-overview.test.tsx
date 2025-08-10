@@ -1,11 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ApartmentContextMenu } from '../apartment-context-menu';
-import { useModalStore } from '@/hooks/use-modal-store';
-
-// Mock the modal store
-jest.mock('@/hooks/use-modal-store');
-const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 
 // Mock the server action
 jest.mock('@/app/(dashboard)/wohnungen/actions', () => ({
@@ -17,8 +12,7 @@ jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
 }));
 
-describe('ApartmentContextMenu - Overview Functionality', () => {
-  const mockOpenWohnungOverviewModal = jest.fn();
+describe('ApartmentContextMenu', () => {
   const mockApartment = {
     id: 'test-apartment-id',
     name: 'Test Apartment',
@@ -26,70 +20,22 @@ describe('ApartmentContextMenu - Overview Functionality', () => {
     miete: 800,
     haus_id: 'test-house-id',
     hausName: 'Test House',
+    status: 'frei' as const,
   };
+
+  const mockOnEdit = jest.fn();
+  const mockOnRefresh = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    mockUseModalStore.mockReturnValue({
-      openWohnungOverviewModal: mockOpenWohnungOverviewModal,
-    } as any);
   });
 
-  it('should render the Mieter-Übersicht menu item with Users icon', () => {
+  it('should render the context menu with correct items', () => {
     render(
       <ApartmentContextMenu
         apartment={mockApartment}
-        onEdit={jest.fn()}
-        onRefresh={jest.fn()}
-      >
-        <div>Test Child</div>
-      </ApartmentContextMenu>
-    );
-
-    // Right-click to open context menu
-    const trigger = screen.getByText('Test Child');
-    fireEvent.contextMenu(trigger);
-
-    // Check if the overview menu item exists
-    const overviewMenuItem = screen.getByText('Mieter-Übersicht');
-    expect(overviewMenuItem).toBeInTheDocument();
-
-    // Check if the Users icon is present
-    const usersIcon = overviewMenuItem.parentElement?.querySelector('svg');
-    expect(usersIcon).toBeInTheDocument();
-  });
-
-  it('should call openWohnungOverviewModal with correct apartment ID when overview is clicked', () => {
-    render(
-      <ApartmentContextMenu
-        apartment={mockApartment}
-        onEdit={jest.fn()}
-        onRefresh={jest.fn()}
-      >
-        <div>Test Child</div>
-      </ApartmentContextMenu>
-    );
-
-    // Right-click to open context menu
-    const trigger = screen.getByText('Test Child');
-    fireEvent.contextMenu(trigger);
-
-    // Click the overview menu item
-    const overviewMenuItem = screen.getByText('Mieter-Übersicht');
-    fireEvent.click(overviewMenuItem);
-
-    // Verify that the modal store function was called with the correct apartment ID
-    expect(mockOpenWohnungOverviewModal).toHaveBeenCalledWith(mockApartment.id);
-    expect(mockOpenWohnungOverviewModal).toHaveBeenCalledTimes(1);
-  });
-
-  it('should have the correct menu structure with overview option', () => {
-    render(
-      <ApartmentContextMenu
-        apartment={mockApartment}
-        onEdit={jest.fn()}
-        onRefresh={jest.fn()}
+        onEdit={mockOnEdit}
+        onRefresh={mockOnRefresh}
       >
         <div>Test Child</div>
       </ApartmentContextMenu>
@@ -101,7 +47,53 @@ describe('ApartmentContextMenu - Overview Functionality', () => {
 
     // Check that all expected menu items are present
     expect(screen.getByText('Bearbeiten')).toBeInTheDocument();
-    expect(screen.getByText('Mieter-Übersicht')).toBeInTheDocument();
     expect(screen.getByText('Löschen')).toBeInTheDocument();
+    
+    // Check that the menu items have the correct icons
+    const editItem = screen.getByText('Bearbeiten').closest('div');
+    expect(editItem).toContainElement(document.querySelector('svg[data-icon="edit"]'));
+    
+    const deleteItem = screen.getByText('Löschen').closest('div');
+    expect(deleteItem).toContainElement(document.querySelector('svg[data-icon="trash-2"]'));
+  });
+
+  it('should call onEdit when edit menu item is clicked', () => {
+    render(
+      <ApartmentContextMenu
+        apartment={mockApartment}
+        onEdit={mockOnEdit}
+        onRefresh={mockOnRefresh}
+      >
+        <div>Test Child</div>
+      </ApartmentContextMenu>
+    );
+
+    // Open context menu and click edit
+    const trigger = screen.getByText('Test Child');
+    fireEvent.contextMenu(trigger);
+    fireEvent.click(screen.getByText('Bearbeiten'));
+
+    expect(mockOnEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it('should open delete confirmation dialog when delete is clicked', () => {
+    render(
+      <ApartmentContextMenu
+        apartment={mockApartment}
+        onEdit={mockOnEdit}
+        onRefresh={mockOnRefresh}
+      >
+        <div>Test Child</div>
+      </ApartmentContextMenu>
+    );
+
+    // Open context menu and click delete
+    const trigger = screen.getByText('Test Child');
+    fireEvent.contextMenu(trigger);
+    fireEvent.click(screen.getByText('Löschen'));
+
+    // Check that the delete confirmation dialog is shown
+    expect(screen.getByText('Wohnung löschen?')).toBeInTheDocument();
+    expect(screen.getByText(`Möchten Sie die Wohnung "${mockApartment.name}" wirklich löschen?`)).toBeInTheDocument();
   });
 });
