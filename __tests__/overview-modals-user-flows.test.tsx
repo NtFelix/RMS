@@ -20,36 +20,6 @@ type MockModalStore = Partial<{
   [key: string]: unknown;
 };
 
-// Create a properly typed mock store with all required properties
-const mockModalStore: MockModalStore = {
-  // Haus Overview Modal
-  isHausOverviewModalOpen: false,
-  hausOverviewData: undefined,
-  hausOverviewLoading: false,
-  hausOverviewError: undefined,
-  openHausOverviewModal: jest.fn(),
-  closeHausOverviewModal: jest.fn(),
-  setHausOverviewLoading: jest.fn(),
-  setHausOverviewError: jest.fn(),
-  setHausOverviewData: jest.fn(),
-  refreshHausOverviewData: jest.fn(),
-
-  // Apartment Tenant Details Modal
-  apartmentTenantDetailsData: undefined,
-  apartmentTenantDetailsLoading: false,
-  apartmentTenantDetailsError: undefined,
-  openApartmentTenantDetailsModal: jest.fn(),
-  closeApartmentTenantDetailsModal: jest.fn(),
-  setApartmentTenantDetailsLoading: jest.fn(),
-  setApartmentTenantDetailsError: jest.fn(),
-  setApartmentTenantDetailsData: jest.fn(),
-  refreshApartmentTenantDetailsData: jest.fn(),
-
-  // Edit modals
-  openWohnungModal: jest.fn(),
-  openTenantModal: jest.fn(),
-}
-
 // Mock fetch for API calls
 global.fetch = jest.fn()
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>
