@@ -825,16 +825,12 @@ export function CommandMenu() {
           <>
             {/* Loading State */}
             {isSearchLoading && (
-              <>
-                <SearchLoadingIndicator 
-                  query={query}
-                  isLoading={isSearchLoading}
-                  retryCount={retryCount}
-                  maxRetries={3}
-                />
-                
-                <QuickSearchInfoBar />
-              </>
+              <SearchLoadingIndicator 
+                query={query}
+                isLoading={isSearchLoading}
+                retryCount={retryCount}
+                maxRetries={3}
+              />
             )}
 
             {/* Search Status Bar */}
@@ -858,16 +854,12 @@ export function CommandMenu() {
 
             {/* Quick Search Tips */}
             {!isSearchLoading && !hasSearchResults && !searchError && query.trim().length >= 3 && (
-              <>
-                <div className="px-4 py-2 text-xs text-muted-foreground border-t">
-                  <div className="flex items-center gap-2">
-                    <Search className="h-3 w-3" />
-                    <span>Tipp: Versuchen Sie es mit Teilwörtern oder anderen Begriffen</span>
-                  </div>
+              <div className="px-4 py-2 text-xs text-muted-foreground border-t">
+                <div className="flex items-center gap-2">
+                  <Search className="h-3 w-3" />
+                  <span>Tipp: Versuchen Sie es mit Teilwörtern oder anderen Begriffen</span>
                 </div>
-                
-                <QuickSearchInfoBar />
-              </>
+              </div>
             )}
 
             {/* Search Results */}
@@ -941,33 +933,25 @@ export function CommandMenu() {
 
             {/* Error State */}
             {searchError && !isSearchLoading && (
-              <>
-                <SearchEmptyState
-                  query={query}
-                  hasError={true}
-                  isOffline={isOffline}
-                  onRetry={retrySearch}
-                  suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
-                />
-                
-                <QuickSearchInfoBar />
-              </>
+              <SearchEmptyState
+                query={query}
+                hasError={true}
+                isOffline={isOffline}
+                onRetry={retrySearch}
+                suggestions={lastSuccessfulQuery ? [lastSuccessfulQuery] : []}
+              />
             )}
 
             {/* No Results */}
             {!isSearchLoading && !searchError && !hasSearchResults && (
-              <>
-                <CommandEmpty>
-                  <SearchEmptyState
-                    query={query}
-                    hasError={false}
-                    isOffline={isOffline}
-                    suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
-                  />
-                </CommandEmpty>
-                
-                <QuickSearchInfoBar />
-              </>
+              <CommandEmpty>
+                <SearchEmptyState
+                  query={query}
+                  hasError={false}
+                  isOffline={isOffline}
+                  suggestions={['Mieter', 'Wohnung', 'Haus', 'Rechnung']}
+                />
+              </CommandEmpty>
             )}
           </>
         )}
@@ -1211,10 +1195,8 @@ export function CommandMenu() {
         )}
       </CommandList>
       
-      {/* Keyboard Shortcuts Hint */}
-      {!showSearchResults && query.trim().length === 0 && (
-        <QuickSearchInfoBar />
-      )}
+      {/* Keyboard Shortcuts Hint - Always show at bottom */}
+      <QuickSearchInfoBar />
         </Command>
     </CommandDialog>
     </SearchErrorBoundary>
