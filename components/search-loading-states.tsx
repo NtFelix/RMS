@@ -181,26 +181,26 @@ export function SearchEmptyState({
   suggestions = []
 }: SearchEmptyStateProps) {
   return (
-    <div className="w-full py-8 px-4">
-      <div className="max-w-md mx-auto space-y-6">
+    <div className="w-full py-4 px-3">
+      <div className="space-y-4">
         {/* Error State */}
         {hasError ? (
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-3">
             <div className="relative inline-flex">
               <div className="absolute -inset-1 bg-destructive/20 rounded-full blur-sm" />
-              <div className="relative p-4 bg-background rounded-full border border-destructive/20 shadow-sm">
-                <AlertCircle className="h-8 w-8 text-destructive" />
+              <div className="relative p-3 bg-background rounded-full border border-destructive/20 shadow-sm">
+                <AlertCircle className="h-6 w-6 text-destructive" />
               </div>
             </div>
             
-            <div className="space-y-3">
-              <h3 className="text-lg font-medium">
+            <div className="space-y-2">
+              <h3 className="text-base font-medium">
                 {isOffline 
                   ? 'Keine Internetverbindung'
                   : 'Fehler bei der Suche'
                 }
               </h3>
-              <p className="text-muted-foreground text-sm">
+              <p className="text-muted-foreground text-xs">
                 {isOffline
                   ? 'Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'
                   : 'Bei der Suche ist ein unerwarteter Fehler aufgetreten.'
@@ -212,70 +212,47 @@ export function SearchEmptyState({
                   variant="outline"
                   size="sm"
                   onClick={onRetry}
-                  className="mt-2 gap-1.5"
+                  className="mt-1 h-8 gap-1.5 text-xs"
                 >
-                  <RefreshCw className="h-3.5 w-3.5" />
+                  <RefreshCw className="h-3 w-3" />
                   Erneut versuchen
                 </Button>
               )}
             </div>
           </div>
         ) : (
-          /* No Results State */
-          <div className="text-center space-y-6">
+          /* No Results State - Reordered for better flow */
+          <div className="text-center space-y-4">
             <div className="relative inline-flex">
               <div className="absolute -inset-1 bg-primary/10 rounded-full blur-sm" />
-              <div className="relative p-4 bg-background rounded-full border border-border shadow-sm">
-                <Search className="h-8 w-8 text-primary" />
+              <div className="relative p-3 bg-background rounded-full border border-border shadow-sm">
+                <Search className="h-6 w-6 text-primary" />
               </div>
             </div>
             
             <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-medium">Keine Ergebnisse gefunden</h3>
-                <p className="text-muted-foreground text-sm">
+                <h3 className="text-base font-medium">Keine Ergebnisse gefunden</h3>
+                <p className="text-muted-foreground text-xs">
                   Keine Ergebnisse für <span className="font-medium text-foreground">"{query}"</span> gefunden.
                 </p>
               </div>
               
-              {/* Search Tips */}
-              <div className="bg-muted/30 rounded-lg p-4 text-left space-y-3">
-                <h4 className="text-sm font-medium flex items-center gap-2">
-                  <span className="text-primary">💡</span> Tipps für bessere Ergebnisse:
-                </h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Überprüfen Sie die Rechtschreibung</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Verwenden Sie weniger spezifische Begriffe</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    <span>Probieren Sie Teilwörter aus</span>
-                  </li>
-                </ul>
-              </div>
-              
-              {/* Suggestions */}
+              {/* Suggestions - Moved up as primary action */}
               {suggestions.length > 0 && (
-                <div className="space-y-2 pt-2">
-                  <p className="text-sm text-muted-foreground">Vielleicht suchen Sie nach:</p>
+                <div className="space-y-2">
+                  <p className="text-xs text-muted-foreground">Vielleicht suchen Sie nach:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {suggestions.map((suggestion, index) => {
-                      // Map suggestion text to filter prefix
                       const filterMap: {[key: string]: string} = {
                         'Mieter': 'M-',
                         'Wohnung': 'W-',
                         'Haus': 'H-',
-                        'Finanzen': 'F-',  // Changed from 'Rechnung' to 'Finanzen'
+                        'Finanzen': 'F-',
                         'Aufgabe': 'A-',
                         'Mietvertrag': 'V-'
                       };
                       
-                      // Map 'Rechnung' to 'Finanzen' for backward compatibility
                       const displayText = suggestion === 'Rechnung' ? 'Finanzen' : suggestion;
                       const filterPrefix = filterMap[displayText] || '';
                       
@@ -283,15 +260,14 @@ export function SearchEmptyState({
                         <button
                           key={index}
                           onClick={() => {
-                            // Apply the filter directly by updating the search query
                             const event = new CustomEvent('update-search-query', { 
                               detail: filterPrefix 
                             });
                             window.dispatchEvent(event);
                           }}
-                          className="px-3 py-1.5 text-sm font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2"
+                          className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150"
                         >
-                          {suggestion}
+                          {displayText}
                         </button>
                       );
                     })}
