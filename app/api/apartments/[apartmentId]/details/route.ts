@@ -55,6 +55,11 @@ export async function GET(
       // Continue without tenant data
     }
 
+    // Add type assertion for the apartment with Haeuser
+    const apartmentWithHaeuser = apartment as typeof apartment & {
+      Haeuser: { name: string } | null;
+    };
+
     // Transform the data to match the expected interface
     const response = {
       apartment: {
@@ -63,9 +68,7 @@ export async function GET(
         groesse: apartment.groesse,
         miete: apartment.miete,
         haus_id: apartment.haus_id,
-        hausName: Array.isArray(apartment.Haeuser) && apartment.Haeuser.length > 0 
-          ? apartment.Haeuser[0].name 
-          : 'Unbekannt',
+        hausName: apartmentWithHaeuser.Haeuser?.name || 'Unbekannt',
         // Note: amenities, condition, notes are not in the current schema
         // These would need to be added to the database schema if required
         amenities: [],
