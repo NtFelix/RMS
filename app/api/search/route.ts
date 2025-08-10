@@ -2,10 +2,47 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 import type {
-  SearchResponse
-} from "@/types/search";
+  SearchResponse,
+  SearchResult as FrontendSearchResult
+} from "@/types/search"
 
-// Cache for storing compiled search patterns
+// Database record interfaces
+interface DbTenant {
+  id: string;
+  name: string;
+  email: string | null;
+  telefonnummer: string | null;
+  einzug: string | null;
+  auszug: string | null;
+  Wohnungen?: {
+    name: string;
+    Haeuser?: {
+      name: string;
+      [key: string]: any;
+    }[];
+    [key: string]: any;
+  }[];
+}
+
+interface DbApartment {
+  id: string;
+  name: string;
+  Haeuser?: DbHouse | null;
+  [key: string]: any; // For other properties we might not need to type explicitly
+}
+
+interface DbHouse {
+  id: string;
+  name: string;
+  [key: string]: any; // For other properties we might not need to type explicitly
+}
+
+interface SearchResult<T> {
+  type: 'tenant' | 'house' | 'apartment' | 'finance' | 'task';
+  data: T[];
+}
+
+// In-memory cache for search patterns with expiration
 const searchPatternCache = new Map<string, { pattern: string; exact: string; fuzzy?: string; words?: string[]; timestamp: number }>();
 const PATTERN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -210,7 +247,7 @@ export async function GET(request: Request) {
               if (!isShowAllQuery) {
                 console.error('Tenant search query conditions:', searchConditions);
               }
-              return { type: 'tenant', data: [] };
+              return { type: 'tenant' as const, data: [] };
             }
             
             if (!data) return { type: 'tenant', data: [] };
@@ -229,28 +266,33 @@ export async function GET(request: Request) {
             
             const sortedTenants = sortByRelevance(data, query);
             
-            const tenantResults = sortedTenants.map((tenant: any) => ({
-              id: tenant.id,
-              name: tenant.name,
-              email: tenant.email || undefined,
-              phone: tenant.telefonnummer || undefined,
-              apartment: tenant.Wohnungen && typeof tenant.Wohnungen === 'object' && !Array.isArray(tenant.Wohnungen) ? {
-                name: tenant.Wohnungen.name,
-                house_name: tenant.Wohnungen.Haeuser && typeof tenant.Wohnungen.Haeuser === 'object' && !Array.isArray(tenant.Wohnungen.Haeuser) ? tenant.Wohnungen.Haeuser.name : ''
-              } : undefined,
-              status: tenant.auszug ? 'moved_out' : 'active',
-              move_in_date: tenant.einzug || undefined,
-              move_out_date: tenant.auszug || undefined
-            }));
+            const tenantResults = sortedTenants.map((tenant: DbTenant) => {
+              // Get the first apartment if available
+              const apartment = tenant.Wohnungen?.[0] ? {
+                name: tenant.Wohnungen[0].name || '',
+                house_name: tenant.Wohnungen[0].Haeuser?.[0]?.name || ''
+              } : undefined;
+
+              return {
+                id: tenant.id,
+                name: tenant.name,
+                email: tenant.email || undefined,
+                phone: tenant.telefonnummer || undefined,
+                apartment,
+                status: tenant.auszug ? 'moved_out' : 'active',
+                move_in_date: tenant.einzug || undefined,
+                move_out_date: tenant.auszug || undefined
+              };
+            });
             
             if (process.env.NODE_ENV === 'development') {
               console.log(`Returning ${tenantResults.length} tenant results:`, tenantResults.map(t => ({ id: t.id, name: t.name, email: t.email })));
             }
             
-            return { type: 'tenant', data: tenantResults };
+            return { type: 'tenant' as const, data: tenantResults };
           } catch (error) {
             console.error('Error searching tenants:', error);
-            return { type: 'tenant', data: [] };
+            return { type: 'tenant' as const, data: [] };
           }
         })()
       );
