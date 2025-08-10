@@ -181,70 +181,107 @@ export function SearchEmptyState({
   suggestions = []
 }: SearchEmptyStateProps) {
   return (
-    <div className="flex flex-col h-[300px] w-full px-4">
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          {hasError ? (
-            <>
-              <AlertCircle className="h-10 w-10 text-destructive" />
-              <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  {isOffline 
-                    ? 'Suche nicht verfügbar (offline)'
-                    : 'Bei der Suche ist ein Fehler aufgetreten'
-                  }
+    <div className="w-full py-8 px-4">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Error State */}
+        {hasError ? (
+          <div className="text-center space-y-4">
+            <div className="relative inline-flex">
+              <div className="absolute -inset-1 bg-destructive/20 rounded-full blur-sm" />
+              <div className="relative p-4 bg-background rounded-full border border-destructive/20 shadow-sm">
+                <AlertCircle className="h-8 w-8 text-destructive" />
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <h3 className="text-lg font-medium">
+                {isOffline 
+                  ? 'Keine Internetverbindung'
+                  : 'Fehler bei der Suche'
+                }
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                {isOffline
+                  ? 'Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'
+                  : 'Bei der Suche ist ein unerwarteter Fehler aufgetreten.'
+                }
+              </p>
+              
+              {onRetry && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetry}
+                  className="mt-2 gap-1.5"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Erneut versuchen
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* No Results State */
+          <div className="text-center space-y-6">
+            <div className="relative inline-flex">
+              <div className="absolute -inset-1 bg-primary/10 rounded-full blur-sm" />
+              <div className="relative p-4 bg-background rounded-full border border-border shadow-sm">
+                <Search className="h-8 w-8 text-primary" />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-medium">Keine Ergebnisse gefunden</h3>
+                <p className="text-muted-foreground text-sm">
+                  Keine Ergebnisse für <span className="font-medium text-foreground">"{query}"</span> gefunden.
                 </p>
-                {onRetry && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={onRetry}
-                    className="mt-2"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                    Erneut versuchen
-                  </Button>
-                )}
               </div>
-            </>
-          ) : (
-            <>
-              <Search className="h-10 w-10 text-muted-foreground/60" />
-              <div className="space-y-4">
-                <p className="text-sm font-medium">Keine Ergebnisse für "{query}"</p>
-                
-                {suggestions.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">Versuchen Sie:</p>
-                    <div className="flex flex-wrap gap-2 justify-center">
-                      {suggestions.map((suggestion, index) => (
-                        <span 
-                          key={index}
-                          className="px-2.5 py-1 bg-muted rounded-md text-xs font-medium cursor-pointer hover:bg-muted/80 transition-colors"
-                          onClick={() => {
-                            const event = new CustomEvent('search-suggestion', { detail: suggestion });
-                            window.dispatchEvent(event);
-                          }}
-                        >
-                          {suggestion}
-                        </span>
-                      ))}
-                    </div>
+              
+              {/* Search Tips */}
+              <div className="bg-muted/30 rounded-lg p-4 text-left space-y-3">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <span className="text-primary">💡</span> Tipps für bessere Ergebnisse:
+                </h4>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Überprüfen Sie die Rechtschreibung</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Verwenden Sie weniger spezifische Begriffe</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Probieren Sie Teilwörter aus</span>
+                  </li>
+                </ul>
+              </div>
+              
+              {/* Suggestions */}
+              {suggestions.length > 0 && (
+                <div className="space-y-2 pt-2">
+                  <p className="text-sm text-muted-foreground">Vielleicht suchen Sie nach:</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {suggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          const event = new CustomEvent('search-suggestion', { detail: suggestion });
+                          window.dispatchEvent(event);
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium bg-muted hover:bg-muted/80 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-2"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
                   </div>
-                )}
-                
-                <div className="text-xs text-muted-foreground/70 space-y-1.5 pt-2">
-                  <p>Tipps für bessere Ergebnisse:</p>
-                  <ul className="space-y-0.5">
-                    <li>• Überprüfen Sie die Rechtschreibung</li>
-                    <li>• Verwenden Sie weniger spezifische Begriffe</li>
-                    <li>• Suchen Sie nach Teilwörtern</li>
-                  </ul>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
