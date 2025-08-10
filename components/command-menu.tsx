@@ -34,25 +34,6 @@ import {
   getUserApartmentCount,
 } from "@/app/user-actions"
 
-// Reusable info bar component for consistent layout
-function QuickSearchInfoBar() {
-  return (
-    <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-      <div className="flex items-center justify-between">
-        <span>Schnellsuche:</span>
-        <div className="flex gap-2">
-          <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘M</kbd>
-          <span>Mieter</span>
-          <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘H</kbd>
-          <span>Häuser</span>
-          <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded">⌘J</kbd>
-          <span>Wohnungen</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Stelle sicher, dass der Mieter-Link im Command-Menü korrekt ist
 const navigationItems = [
   {
@@ -926,8 +907,7 @@ export function CommandMenu() {
                     searchQuery={query}
                   />
                 )}
-                
-                <QuickSearchInfoBar />
+
               </>
             )}
 
@@ -992,8 +972,7 @@ export function CommandMenu() {
                 ))}
               </CommandGroup>
             )}
-            
-            <QuickSearchInfoBar />
+
           </>
         )}
 
@@ -1195,8 +1174,7 @@ export function CommandMenu() {
         )}
       </CommandList>
       
-      {/* Keyboard Shortcuts Hint - Always show at bottom */}
-      <QuickSearchInfoBar />
+      {/* Keyboard Shortcuts Hint - Removed as per user request */}
         </Command>
     </CommandDialog>
     </SearchErrorBoundary>
