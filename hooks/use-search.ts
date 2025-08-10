@@ -120,11 +120,23 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   // Function to add search to recent searches
   const addToRecentSearches = useCallback((searchQuery: string) => {
-    if (!searchQuery.trim() || searchQuery.length < 2) return;
+    // Normalize the query by trimming and converting to lowercase for comparison
+    const normalizedQuery = searchQuery.trim();
+    
+    // Skip if query is too short or empty
+    if (normalizedQuery.length < 2) return;
     
     setRecentSearches(prev => {
-      const filtered = prev.filter(s => s.toLowerCase() !== searchQuery.toLowerCase());
-      const updated = [searchQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES);
+      // Check if the query is already the most recent search
+      if (prev.length > 0 && prev[0].toLowerCase() === normalizedQuery.toLowerCase()) {
+        return prev; // No need to update if it's the same as the most recent search
+      }
+      
+      // Filter out any existing instances of this query (case-insensitive)
+      const filtered = prev.filter(s => s.toLowerCase() !== normalizedQuery.toLowerCase());
+      
+      // Add the new query to the beginning and limit the array size
+      const updated = [normalizedQuery, ...filtered].slice(0, MAX_RECENT_SEARCHES);
       
       try {
         localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
@@ -665,9 +677,13 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       setRetryCount(0); // Reset retry count on success
       setLastSuccessfulQuery(searchQuery);
       
-      // Add to recent searches on successful search
-      if (searchResults.length > 0) {
-        addToRecentSearches(searchQuery);
+      // Add to recent searches on successful search with results
+      // Only add if this is a new search (not a retry) and we have results
+      if (searchResults.length > 0 && !isRetry) {
+        // Only add if the query is different from the last successful query
+        if (!lastSuccessfulQuery || lastSuccessfulQuery.toLowerCase() !== searchQuery.toLowerCase()) {
+          addToRecentSearches(searchQuery);
+        }
       }
       
       // Update response time metrics
