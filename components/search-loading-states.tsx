@@ -23,16 +23,21 @@ export function SearchLoadingIndicator({
   if (!isLoading) return null
 
   return (
-    <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-      <div className="flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>
-          {retryCount > 0 ? (
-            `Wiederholung ${retryCount}/${maxRetries}...`
-          ) : (
-            `Suche nach "${query}"...`
-          )}
-        </span>
+    <div className="flex flex-col h-[300px] w-full px-2">
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <p className="text-sm font-medium">
+            {retryCount > 0 ? (
+              `Wiederholung ${retryCount}/${maxRetries}...`
+            ) : (
+              `Suche nach "${query}"...`
+            )}
+          </p>
+          <p className="text-xs text-muted-foreground/70">
+            Bitte warten, während wir nach Ergebnissen suchen
+          </p>
+        </div>
       </div>
     </div>
   )
