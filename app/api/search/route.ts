@@ -176,11 +176,11 @@ export async function GET(request: Request) {
                 `name.ilike.${searchPattern}`
               ];
 
-              // Add email and phone search if they exist
-              if (searchPattern.includes('@')) {
-                searchConditions.push(`email.ilike.${searchPattern}`);
-              } else {
-                searchConditions.push(`email.ilike.${searchPattern}`);
+              // Add email search (always)
+              searchConditions.push(`email.ilike.${searchPattern}`);
+              
+              // Add phone number search only for non-email patterns
+              if (!searchPattern.includes('@')) {
                 searchConditions.push(`telefonnummer.ilike.${searchPattern}`);
               }
               
