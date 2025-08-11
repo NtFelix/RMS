@@ -4,9 +4,12 @@ export const dynamic = 'force-dynamic';
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
-import { DashboardCharts } from "@/components/dashboard-charts"
-import { TenantDataTable } from "@/components/tenant-data-table"
+import { TenantPaymentBento } from "@/components/tenant-payment-bento"
 import { getDashboardSummary } from "@/lib/data-fetching"
+import { RevenueExpensesChart } from "@/components/charts/revenue-expenses-chart"
+import { OccupancyChart } from "@/components/charts/occupancy-chart"
+import { MaintenanceDonutChart } from "@/components/charts/maintenance-donut-chart"
+import { LastTransactionsContainer } from "@/components/last-transactions-container"
 
 export default async function Dashboard() {
   // Fetch real data from database
@@ -17,84 +20,139 @@ export default async function Dashboard() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Link href="/haeuser">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
+        {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
+        <Link href="/haeuser" className="col-span-1 row-span-1">
+          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-muted rounded-lg">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.haeuserCount}</div>
-              <p className="text-xs text-muted-foreground">Verwaltete Immobilien</p>
+            <CardContent className="flex-1 flex flex-col justify-center pt-0">
+              <div className="text-2xl font-bold leading-none">{summary.haeuserCount}</div>
+              <p className="text-xs text-muted-foreground mt-2">Verwaltete Immobilien</p>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/wohnungen">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Link href="/wohnungen" className="col-span-2 row-span-1">
+          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
-              <Home className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-muted rounded-lg">
+                <Home className="h-4 w-4 text-muted-foreground" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.wohnungenCount}</div>
-              <p className="text-xs text-muted-foreground">Verwaltete Einheiten</p>
+            <CardContent className="flex-1 flex flex-col justify-center pt-0">
+              <div className="text-2xl font-bold leading-none">{summary.wohnungenCount}</div>
+              <p className="text-xs text-muted-foreground mt-2">Verwaltete Einheiten</p>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/mieter">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Link href="/mieter" className="col-span-1 row-span-1">
+          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 bg-muted rounded-lg">
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.mieterCount}</div>
-              <p className="text-xs text-muted-foreground">Aktive Mietverhältnisse</p>
+            <CardContent className="flex-1 flex flex-col justify-center pt-0">
+              <div className="text-2xl font-bold leading-none">{summary.mieterCount}</div>
+              <p className="text-xs text-muted-foreground mt-2">Aktive Mietverhältnisse</p>
             </CardContent>
           </Card>
         </Link>
-        <Link href="/finanzen">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
-              <Wallet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
-              <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/betriebskosten">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
-              <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
-              <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href="/todos">
-          <Card className="overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
-              <CheckSquare className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{summary.offeneAufgabenCount}</div>
-              <p className="text-xs text-muted-foreground">Offene Aufgaben</p>
-            </CardContent>
-          </Card>
-        </Link>
+        {/* Tenant Payment List (1/3 width - 2 columns) */}
+        <div className="col-span-2 row-span-4">
+          <TenantPaymentBento />
+        </div>
+
+        {/* Row 2: Belegung Chart (2/3 width - 4 columns) */}
+        <div className="col-span-4 row-span-3">
+          <OccupancyChart />
+        </div>
+
+        {/* Row 5: Revenue Chart (4 cols, 3 rows) + Vertically stacked summary cards (2 cols, 3 rows) */}
+        <div className="col-span-4 row-span-3">
+          <RevenueExpensesChart />
+        </div>
+        <div className="col-span-2 row-span-3">
+          {/* Container for vertically stacked summary cards - 1/3 of page width */}
+          <div className="h-full flex flex-col gap-4">
+            <Link href="/todos" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
+                  <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
+                  <div className="p-2 bg-muted rounded-lg">
+                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="text-2xl font-bold leading-none">{summary.offeneAufgabenCount}</div>
+                    {summary.offeneAufgabenCount > 0 && (
+                      <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
+                        Offen
+                      </div>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">Offene Aufgaben</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/finanzen" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
+                  <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
+                  <div className="p-2 bg-muted rounded-lg">
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.monatlicheEinnahmen)}</div>
+                    <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
+                      /Monat
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Monatliche Mieteinnahmen</p>
+                </CardContent>
+              </Card>
+            </Link>
+            
+            <Link href="/betriebskosten" className="flex-1">
+              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
+                  <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
+                  <div className="p-2 bg-muted rounded-lg">
+                    <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col justify-between pt-0 pb-6">
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="text-2xl font-bold leading-none">{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(summary.jaehrlicheAusgaben)}</div>
+                    <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded-full">
+                      /Jahr
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Jährliche Ausgaben</p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
+
+        {/* Row 8: Last Transactions (left 50%) + Instandhaltung Chart (right 50%) */}
+        <div className="col-span-3 row-span-3">
+          <LastTransactionsContainer />
+        </div>
+        <div className="col-span-3 row-span-3">
+          <MaintenanceDonutChart />
+        </div>
       </div>
-
-      <DashboardCharts />
-
-      <TenantDataTable />
     </div>
   )
 }

@@ -16,7 +16,7 @@ async function getSummaryData(year: number) {
   
   let allTransactions: any[] = [];
   let page = 0;
-  const pageSize = 1000; // Process 1000 records at a time
+  const pageSize = 5000; // Increased batch size for better performance
   let hasMore = true;
   
   try {
