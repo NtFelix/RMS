@@ -51,26 +51,89 @@ export function WasserzaehlerModal() {
       setIsLoading(true);
       const processMieterList = async () => {
         try {
-          const newFormDataPromises = wasserzaehlerMieterList.map(async (mieter) => {
-            const existingReadingForMieter = wasserzaehlerExistingReadings?.find(
-              reading => reading.mieter_id === mieter.id
-            );
+          // Define types for our custom Promise.allSettled results
+          type MieterDataResult = {
+            mieter_id: string;
+            mieter_name: string;
+            ablese_datum: string;
+            zaehlerstand: string;
+            verbrauch: string;
+            previous_reading: Wasserzaehler | null;
+            warning: string;
+          };
 
-            const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id);
-            const previous_reading = previousReadingResponse.success ? (previousReadingResponse.data || null) : null;
+          type MieterError = {
+            mieter_id: string;
+            mieter_name: string;
+            error: Error;
+          };
 
-            return {
-              mieter_id: mieter.id,
-              mieter_name: mieter.name,
-              ablese_datum: existingReadingForMieter?.ablese_datum || '',
-              zaehlerstand: existingReadingForMieter?.zaehlerstand?.toString() || '',
-              verbrauch: existingReadingForMieter?.verbrauch?.toString() || '',
-              previous_reading,
-              warning: '',
-            };
+          // Process each mieter's data with individual error handling
+          const results = await Promise.allSettled(
+            wasserzaehlerMieterList.map(async (mieter) => {
+              try {
+                const existingReadingForMieter = wasserzaehlerExistingReadings?.find(
+                  reading => reading.mieter_id === mieter.id
+                );
+
+                const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id);
+                const previous_reading = previousReadingResponse.success 
+                  ? (previousReadingResponse.data || null) 
+                  : null;
+
+                return {
+                  mieter_id: mieter.id,
+                  mieter_name: mieter.name,
+                  ablese_datum: existingReadingForMieter?.ablese_datum || '',
+                  zaehlerstand: existingReadingForMieter?.zaehlerstand?.toString() || '',
+                  verbrauch: existingReadingForMieter?.verbrauch?.toString() || '',
+                  previous_reading,
+                  warning: '',
+                } as MieterDataResult;
+              } catch (error) {
+                console.error(`Error fetching data for mieter ${mieter.id}:`, error);
+                throw {
+                  mieter_id: mieter.id,
+                  mieter_name: mieter.name,
+                  error: error instanceof Error ? error : new Error(String(error))
+                } as MieterError;
+              }
+            })
+          );
+
+          // Process results and show warnings for any failures
+          const newFormData: ModalWasserzaehlerEntry[] = [];
+          const errorMessages: string[] = [];
+
+          results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+              newFormData.push(result.value);
+            } else {
+              const errorInfo = result.reason as MieterError;
+              const errorMessage = `Fehler beim Laden der Daten für Mieter ${errorInfo.mieter_name}`;
+              errorMessages.push(errorMessage);
+              
+              // Add the mieter with an error message
+              newFormData.push({
+                mieter_id: errorInfo.mieter_id,
+                mieter_name: errorInfo.mieter_name,
+                ablese_datum: '',
+                zaehlerstand: '',
+                verbrauch: '',
+                previous_reading: null,
+                warning: 'Fehler beim Laden der Vorjahresdaten',
+              });
+            }
           });
 
-          const newFormData = await Promise.all(newFormDataPromises);
+          // Show error toast if there were any failures
+          if (errorMessages.length > 0) {
+            toast({
+              title: "Hinweis",
+              description: `Es gab Probleme beim Laden einiger Vorjahresdaten. ${errorMessages.length} von ${results.length} Mietern betroffen.`,
+              variant: "default",
+            });
+          }
 
           setFormData(newFormData);
           setInitialFormData(JSON.parse(JSON.stringify(newFormData)));
