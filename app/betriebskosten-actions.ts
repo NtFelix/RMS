@@ -439,7 +439,7 @@ export async function saveWasserzaehlerData(
   const recordsToInsert = entries
     .filter(entry => {
       // Skip entries with missing required fields
-      const isValid = entry.mieter_id && !isNaN(parseFloat(entry.zaehlerstand as any));
+      const isValid = entry.mieter_id && !isNaN(parseFloat(String(entry.zaehlerstand)));
       if (!isValid) {
         console.warn('Skipping invalid entry:', entry);
       }

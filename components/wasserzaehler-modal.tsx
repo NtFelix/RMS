@@ -285,16 +285,17 @@ export function WasserzaehlerModal() {
     };
 
     try {
-      console.log("Saving data:", dataToSave);
-
-      // Call the save function using the typed handleSave
-      const result = await handleSave(dataToSave);
+      console.log('Saving Wasserzaehler data:', dataToSave);
       
-      if (result?.success) {
+      // Call the save function and handle the response
+      const result = await handleSave(dataToSave);
+
+      if (result.success) {
         // If we get here, the save was successful
         toast({
           title: "Erfolgreich gespeichert",
           description: `Die Wasserzählerstände für ${entriesToSave.length} Mieter wurden erfolgreich aktualisiert.`,
+          variant: "success"
         });
         
         // Close the modal after a short delay to show the success message
@@ -302,11 +303,8 @@ export function WasserzaehlerModal() {
           closeWasserzaehlerModal({ force: true });
         }, 1000);
       } else {
-        // Handle case where save was not successful but didn't throw an error
-        const errorMessage = result?.message || 'Die Wasserzählerstände konnten nicht gespeichert werden.';
-        throw new Error(errorMessage);
+        throw new Error(result.message || 'Die Wasserzählerstände konnten nicht gespeichert werden.');
       }
-      
     } catch (error) {
       console.error("Error saving Wasserzaehler data:", error);
       let errorMessage = "Die Wasserzählerstände konnten nicht gespeichert werden.";
