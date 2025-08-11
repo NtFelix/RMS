@@ -10,6 +10,8 @@ const nextConfig = {
     optimizeCss: true,
     scrollRestoration: true,
   },
+  compress: true, // Enable gzip compression
+  poweredByHeader: false, // Remove X-Powered-By header for security
   webpack: (config, { isServer }) => {
     // Add path aliases
     config.resolve.alias = {
