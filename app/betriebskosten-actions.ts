@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
+import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -303,6 +303,39 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
   } catch (error: any) {
     console.error('Unexpected error in getRechnungenForNebenkostenAction:', error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
+export async function getWasserzaehlerByHausAndYearAction(
+  hausId: string,
+  year: string
+): Promise<{ success: boolean; data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] }; message?: string }> {
+  try {
+    if (!hausId || !year) {
+      return { success: false, message: "Haus-ID und Jahr sind erforderlich." };
+    }
+
+    // Validate year format (basic check for YYYY)
+    if (!/^\d{4}$/.test(year)) {
+      return { success: false, message: "Ungültiges Jahr. Bitte verwenden Sie das Format YYYY." };
+    }
+
+    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
+    
+    return { 
+      success: true, 
+      data: { 
+        mieterList,
+        existingReadings 
+      } 
+    };
+
+  } catch (error: any) {
+    console.error('Error in getWasserzaehlerByHausAndYearAction:', error);
+    return { 
+      success: false, 
+      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${error.message || 'Unbekannter Fehler'}` 
+    };
   }
 }
 

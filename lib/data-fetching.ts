@@ -629,6 +629,95 @@ export type WasserzaehlerFormData = {
   nebenkosten_id: string; // To associate the readings with a Nebenkosten entry
 };
 
+/**
+ * Fetches Wasserzähler data for a specific house and year
+ * @param hausId The ID of the house
+ * @param year The year to fetch data for (e.g., '2024')
+ * @returns Object containing mieter list and existing readings for the specified house and year
+ */
+export async function fetchWasserzaehlerByHausAndYear(
+  hausId: string,
+  year: string
+): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+  const supabase = createSupabaseServerClient();
+
+  try {
+    // 1. Fetch Wohnungen for the specified house
+    const { data: wohnungenInHaus, error: wohnungenError } = await supabase
+      .from('Wohnungen')
+      .select('id')
+      .eq('haus_id', hausId);
+
+    if (wohnungenError || !wohnungenInHaus) {
+      console.error(`Error fetching Wohnungen for Haus ID ${hausId}:`, wohnungenError);
+      return { mieterList: [], existingReadings: [] };
+    }
+
+    if (wohnungenInHaus.length === 0) {
+      console.log(`No Wohnungen found for Haus ID ${hausId}.`);
+      return { mieterList: [], existingReadings: [] };
+    }
+
+    const wohnungIds = wohnungenInHaus.map(w => w.id);
+
+    // 2. Fetch Mieter for these Wohnungen
+    const { data: mieterForWohnungen, error: mieterError } = await supabase
+      .from('Mieter')
+      .select('*')
+      .in('wohnung_id', wohnungIds);
+
+    if (mieterError || !mieterForWohnungen) {
+      console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
+      return { mieterList: [], existingReadings: [] };
+    }
+
+    // Filter mieter based on the year (einzug/auszug dates)
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    
+    const relevantMieter = mieterForWohnungen.filter(mieter => {
+      const einzug = mieter.einzug || '';
+      const auszug = mieter.auszug || '9999-12-31';
+      return einzug <= yearEnd && auszug >= yearStart;
+    });
+
+    // 3. Fetch Wasserzaehler readings for these mieters in the specified year
+    let existingReadings: Wasserzaehler[] = [];
+    if (relevantMieter.length > 0) {
+      const mieterIds = relevantMieter.map(m => m.id);
+      const yearStartDate = new Date(`${year}-01-01`);
+      const yearEndDate = new Date(`${year}-12-31`);
+
+      const { data: readings, error: readingsError } = await supabase
+        .from('Wasserzaehler')
+        .select('*')
+        .in('mieter_id', mieterIds)
+        .gte('ablese_datum', yearStartDate.toISOString())
+        .lte('ablese_datum', yearEndDate.toISOString());
+
+      if (readingsError) {
+        console.error(`Error fetching Wasserzaehler readings for Haus ${hausId} in ${year}:`, readingsError);
+      } else if (readings) {
+        existingReadings = readings;
+      }
+    }
+
+    return { 
+      mieterList: relevantMieter,
+      existingReadings 
+    };
+
+  } catch (error) {
+    console.error('Unexpected error in fetchWasserzaehlerByHausAndYear:', error);
+    return { mieterList: [], existingReadings: [] };
+  }
+}
+
+/**
+ * Fetches Wasserzähler data for a specific Nebenkosten entry
+ * @param nebenkostenId The ID of the Nebenkosten entry
+ * @returns Object containing mieter list and existing readings for the specified Nebenkosten
+ */
 export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const supabase = createSupabaseServerClient();
 
@@ -652,88 +741,20 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
       return { mieterList: [], existingReadings: [] };
     }
 
-    // 2. Fetch Mieter List
-    let mieterList: Mieter[] = [];
-    const { data: allMieterForHaus, error: mieterError } = await supabase
-      .from('Mieter')
-      .select('*') // Select all fields for Mieter
-      .eq('haus_id', haeuser_id); // This assumes Mieter table has a direct haus_id reference.
-                                  // If not, you might need to fetch Wohnungen first, then Mieter.
-                                  // Based on current type Mieter does not have haus_id.
-                                  // Let's adjust to fetch Wohnungen first.
+    // 2. Use the new function to get data by house and year
+    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(haeuser_id, jahr);
 
-    // Adjustment: Fetch Wohnungen for the house, then Mieter for those Wohnungen
-    const { data: wohnungenInHaus, error: wohnungenError } = await supabase
-      .from('Wohnungen')
-      .select('id')
-      .eq('haus_id', haeuser_id);
+    // 3. Filter existingReadings to only include those for the current nebenkosten_id
+    //    This maintains backward compatibility with the existing code
+    const filteredReadings = existingReadings.filter(reading => reading.nebenkosten_id === nebenkostenId);
 
-    if (wohnungenError) {
-      console.error(`Error fetching Wohnungen for Haus ID ${haeuser_id}:`, wohnungenError);
-      return { mieterList: [], existingReadings: [] }; // Or throw
-    }
-
-    if (!wohnungenInHaus || wohnungenInHaus.length === 0) {
-      console.log(`No Wohnungen found for Haus ID ${haeuser_id}.`);
-      return { mieterList: [], existingReadings: [] };
-    }
-
-    const wohnungIds = wohnungenInHaus.map(w => w.id);
-
-    const { data: mieterForWohnungen, error: mieterForWohnungenError } = await supabase
-      .from('Mieter')
-      .select('*')
-      .in('wohnung_id', wohnungIds);
-
-
-    if (mieterForWohnungenError) {
-      console.error(`Error fetching Mieter for Wohnungen in Haus ID ${haeuser_id}:`, mieterForWohnungenError);
-      // Depending on desired behavior, you might return empty or throw
-      return { mieterList: [], existingReadings: [] };
-    }
-
-    if (mieterForWohnungen && mieterForWohnungen.length > 0) {
-      const yearNum = parseInt(jahr);
-      const yearStart = `${yearNum}-01-01`;
-      const yearEnd = `${yearNum}-12-31`;
-
-      mieterList = mieterForWohnungen.filter(mieter => {
-        const einzug = mieter.einzug || '';
-        // If auszug is null or empty, assume they are still a tenant (use a far future date for comparison)
-        const auszug = mieter.auszug || '9999-12-31';
-
-        // A mieter is relevant if:
-        // - Their move-in date is before or on the last day of the Nebenkosten year.
-        // - Their move-out date is on or after the first day of the Nebenkosten year.
-        return einzug && einzug <= yearEnd && auszug >= yearStart;
-      });
-    }
-
-    // 3. Fetch Existing Wasserzaehler Readings
-    let existingReadings: Wasserzaehler[] = [];
-    if (mieterList.length > 0) { // Only fetch readings if there are relevant mieters
-      const { data: readings, error: readingsError } = await supabase
-        .from('Wasserzaehler')
-        .select('*')
-        .eq('nebenkosten_id', nebenkostenId); // Corrected column name to match DB schema hint
-      // Optional: Further filter by mieter_ids if necessary, though nebenkosten_id should be specific enough.
-      // .in('mieter_id', mieterList.map(m => m.id));
-
-
-      if (readingsError) {
-        console.error(`Error fetching Wasserzaehler readings for Nebenkosten ID ${nebenkostenId}:`, readingsError);
-        // Decide if to throw or return partial data. For now, returning what we have.
-      } else if (readings) {
-        existingReadings = readings;
-      }
-    }
-
-    return { mieterList, existingReadings };
+    return { 
+      mieterList, 
+      existingReadings: filteredReadings 
+    };
 
   } catch (error) {
     console.error('Unexpected error in fetchWasserzaehlerModalData:', error);
-    // Depending on how you want to handle errors globally, you might re-throw or return a specific error object.
-    // For now, returning empty arrays as a fallback.
     return { mieterList: [], existingReadings: [] };
   }
 }
