@@ -668,26 +668,25 @@ export async function fetchWasserzaehlerByHausAndYear(
 
     const wohnungIds = wohnungenInHaus.map(w => w.id);
 
-    // 2. Fetch Mieter for these Wohnungen
-    const { data: mieterForWohnungen, error: mieterError } = await supabase
+    // 2. Fetch Mieter for these Wohnungen, filtered by year
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    
+    const { data: relevantMieter, error: mieterError } = await supabase
       .from('Mieter')
       .select('*')
-      .in('wohnung_id', wohnungIds);
+      .in('wohnung_id', wohnungIds)
+      .lte('einzug', yearEnd)
+      .or(`auszug.gte.${yearStart},auszug.is.null`);
 
-    if (mieterError || !mieterForWohnungen) {
+    if (mieterError) {
       console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
       return { mieterList: [], existingReadings: [] };
     }
 
-    // Filter mieter based on the year (einzug/auszug dates)
-    const yearStart = `${year}-01-01`;
-    const yearEnd = `${year}-12-31`;
-    
-    const relevantMieter = mieterForWohnungen.filter(mieter => {
-      const einzug = mieter.einzug || '';
-      const auszug = mieter.auszug || '9999-12-31';
-      return einzug <= yearEnd && auszug >= yearStart;
-    });
+    if (!relevantMieter) {
+      return { mieterList: [], existingReadings: [] };
+    }
 
     // 3. Fetch Wasserzaehler readings for these mieters in the specified year
     let existingReadings: Wasserzaehler[] = [];
