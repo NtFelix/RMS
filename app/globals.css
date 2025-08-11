@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 @layer base {
   :root {
     /* Neue Farbpalette */
@@ -28,7 +27,7 @@
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
+    --border: 180 6% 95%;
     --input: 214.3 31.8% 91.4%;
     --ring: 210 29% 24%;
     --radius: 1rem;
@@ -91,5 +90,11 @@
   [cmdk-item][aria-selected="true"] {
     background-color: hsl(var(--muted));
     color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .summary-card {
+    @apply border-2 border-border;
   }
 }

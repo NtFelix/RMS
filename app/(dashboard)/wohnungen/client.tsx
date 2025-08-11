@@ -174,7 +174,7 @@ export default function WohnungenClientView({
         />
       </div>
 
-      <Card className="overflow-hidden rounded-xl border-none shadow-md">
+      <Card className="overflow-hidden rounded-xl shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Wohnungsverwaltung</CardTitle>

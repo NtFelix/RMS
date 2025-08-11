@@ -2,15 +2,15 @@ export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
 
-// Helper function to fetch all records with pagination
+// Helper function to fetch all records with pagination - no limits
 async function fetchAllRecords(query: any) {
-  const pageSize = 1000; // Process 1000 records at a time
+  const pageSize = 5000; // Increased batch size for better performance
   let page = 0;
   let allRecords: any[] = [];
   let hasMore = true;
 
   while (hasMore) {
-    const { data, error, count } = await query
+    const { data, error } = await query
       .range(page * pageSize, (page + 1) * pageSize - 1);
     
     if (error) {

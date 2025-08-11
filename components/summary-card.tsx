@@ -21,7 +21,7 @@ export function SummaryCard({
   className = "",
 }: SummaryCardProps) {
   return (
-    <Card className={`relative overflow-hidden rounded-xl border-none shadow-md transition-opacity duration-200 ${isLoading ? 'opacity-75' : 'opacity-100'} ${className}`}>
+    <Card className={`relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card ${isLoading ? 'opacity-75' : 'opacity-100'} ${className}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         {icon}

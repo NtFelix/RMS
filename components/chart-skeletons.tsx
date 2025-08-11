@@ -11,9 +11,9 @@ export function ChartSkeleton({ title, description, type }: ChartSkeletonProps) 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
+    <Skeleton className="h-6 w-40 mb-2" />
+    <Skeleton className="h-4 w-64" />
+  </CardHeader>
       <CardContent>
         <div className="relative w-full h-auto min-h-[400px] flex items-center justify-center">
           {type === "pie" && <PieChartSkeleton />}
