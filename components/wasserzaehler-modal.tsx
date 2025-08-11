@@ -79,7 +79,11 @@ export function WasserzaehlerModal() {
                   reading => reading.mieter_id === mieter.id
                 );
 
-                const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id);
+                // Get the current year from the nebenkosten data
+                const currentYear = wasserzaehlerNebenkosten?.jahr;
+                
+                // Pass the current year to get the previous year's reading
+                const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id, currentYear);
                 const previous_reading = previousReadingResponse.success 
                   ? (previousReadingResponse.data || null) 
                   : null;

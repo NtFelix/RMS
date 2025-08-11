@@ -226,8 +226,18 @@ export async function getWasserzaehlerRecordsAction(
   }
 }
 
+/**
+ * Gets the previous Wasserzaehler record for a specific mieter.
+ * If currentYear is provided, it will first try to find a reading from the previous year.
+ * If no previous year reading is found, it falls back to the most recent reading regardless of year.
+ * 
+ * @param mieterId - The ID of the mieter to get the previous reading for
+ * @param currentYear - Optional. The current year as a string (e.g., '2024'). If provided, the function will first look for a reading from the previous year.
+ * @returns An object containing the success status, the previous Wasserzaehler record (if found), and an optional message
+ */
 export async function getPreviousWasserzaehlerRecordAction(
-  mieterId: string
+  mieterId: string,
+  currentYear?: string
 ): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
   "use server";
 
@@ -243,14 +253,41 @@ export async function getPreviousWasserzaehlerRecordAction(
   }
 
   try {
+    // First, try to get the reading from the previous year if currentYear is provided
+    if (currentYear) {
+      const currentYearNum = parseInt(currentYear, 10);
+      if (!isNaN(currentYearNum)) {
+        const previousYear = (currentYearNum - 1).toString();
+        
+        // Query for the last reading from the previous year
+        const { data: previousYearData, error: previousYearError } = await supabase
+          .from("Wasserzaehler")
+          .select("*, Nebenkosten!inner(jahr)")
+          .eq("mieter_id", mieterId)
+          .eq("user_id", user.id)
+          .eq("Nebenkosten.jahr", previousYear)
+          .order("ablese_datum", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (previousYearError && previousYearError.code !== 'PGRST116') {
+          console.error(`Error fetching previous year's Wasserzaehler record for mieter_id ${mieterId}:`, previousYearError);
+        } else if (previousYearData) {
+          // If we found a reading from the previous year, return it
+          return { success: true, data: previousYearData };
+        }
+      }
+    }
+
+    // If no previous year reading found, fall back to the most recent reading regardless of year
     const { data, error } = await supabase
       .from("Wasserzaehler")
       .select("*")
       .eq("mieter_id", mieterId)
-      .eq("user_id", user.id) // Add explicit user filter for security
+      .eq("user_id", user.id)
       .order("ablese_datum", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
 
     if (error) {
       if (error.code === 'PGRST116') { // PostgREST error code for "Not a single row was found"
