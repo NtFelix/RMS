@@ -375,7 +375,15 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
       }
     }
     
-    return nebendkostenWithArea as Nebenkosten[];
+    // Sort the results by year in descending order (newest first)
+    const sortedNebenkosten = nebendkostenWithArea.sort((a, b) => {
+      // Convert years to numbers for proper numeric comparison
+      const yearA = parseInt(a.jahr || '0', 10);
+      const yearB = parseInt(b.jahr || '0', 10);
+      return yearB - yearA; // Sort in descending order (newest first)
+    });
+    
+    return sortedNebenkosten as Nebenkosten[];
   } catch (error) {
     console.error('Unexpected error in fetchNebenkostenList:', error);
     return [];
