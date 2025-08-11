@@ -365,14 +365,45 @@ export async function saveWasserzaehlerData(
     return { success: true, message: "Alle vorhandenen Wasserzählerdaten für diese Nebenkostenabrechnung wurden entfernt und der Gesamtverbrauch auf 0 gesetzt.", data: [] };
   }
 
-  const recordsToInsert = entries.map(entry => ({
-    user_id: user.id,
-    mieter_id: entry.mieter_id,
-    ablese_datum: entry.ablese_datum, // Assumes this is already a string 'YYYY-MM-DD' or null
-    zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
-    verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
-    nebenkosten_id: nebenkosten_id, // Corrected key for the database column
-  }));
+  // Process entries and ensure proper data formats
+  const recordsToInsert = entries
+    .filter(entry => {
+      // Skip entries with missing required fields
+      const isValid = entry.mieter_id && entry.ablese_datum && !isNaN(parseFloat(entry.zaehlerstand as any));
+      if (!isValid) {
+        console.warn('Skipping invalid entry:', entry);
+      }
+      return isValid;
+    })
+    .map(entry => {
+      // Format the date to YYYY-MM-DD if it's not already in that format
+      let formattedDate = entry.ablese_datum;
+      if (entry.ablese_datum) {
+        try {
+          // If it's a valid date string, format it to YYYY-MM-DD
+          const date = new Date(entry.ablese_datum);
+          if (!isNaN(date.getTime())) {
+            formattedDate = date.toISOString().split('T')[0];
+          }
+        } catch (e) {
+          console.error('Error formatting date:', e);
+        }
+      }
+
+      return {
+        user_id: user.id,
+        mieter_id: entry.mieter_id,
+        ablese_datum: formattedDate,
+        zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
+        verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
+        nebenkosten_id: nebenkosten_id,
+      };
+    });
+
+  if (recordsToInsert.length === 0) {
+    console.error('No valid records to insert after validation');
+    return { success: false, message: 'Keine gültigen Datensätze zum Speichern gefunden' };
+  }
 
   const { data: insertedData, error: insertError } = await supabase
     .from("Wasserzaehler")

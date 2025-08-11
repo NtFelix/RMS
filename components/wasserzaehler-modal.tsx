@@ -199,11 +199,39 @@ export function WasserzaehlerModal() {
   };
 
   const handleSubmit = async () => {
-    if (!wasserzaehlerNebenkosten || !wasserzaehlerOnSave) return;
+    if (!wasserzaehlerNebenkosten || !wasserzaehlerOnSave) {
+      toast({
+        title: "Fehler",
+        description: "Ungültige Konfiguration. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
 
+    // Validate form data before attempting to save
     const entriesToSave = formData
-      .filter(e => e.ablese_datum && e.zaehlerstand)
+      .filter(e => {
+        // Check for required fields
+        const hasRequiredFields = e.ablese_datum && e.zaehlerstand;
+        if (!hasRequiredFields) {
+          console.warn('Skipping entry with missing required fields:', e);
+          return false;
+        }
+        
+        // Check for valid number values
+        const zaehlerstand = parseFloat(e.zaehlerstand);
+        const verbrauch = parseFloat(e.verbrauch);
+        const hasValidNumbers = !isNaN(zaehlerstand) && !isNaN(verbrauch);
+        
+        if (!hasValidNumbers) {
+          console.warn('Skipping entry with invalid number values:', e);
+          return false;
+        }
+        
+        return true;
+      })
       .map(entry => ({
         mieter_id: entry.mieter_id,
         mieter_name: entry.mieter_name,
@@ -212,25 +240,63 @@ export function WasserzaehlerModal() {
         verbrauch: parseFloat(entry.verbrauch) || 0,
       }));
 
+    if (entriesToSave.length === 0) {
+      setIsLoading(false);
+      toast({
+        title: "Keine gültigen Daten",
+        description: "Bitte überprüfen Sie Ihre Eingaben. Es wurden keine gültigen Datensätze zum Speichern gefunden.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const dataToSave: WasserzaehlerFormData = {
       nebenkosten_id: wasserzaehlerNebenkosten.id,
       entries: entriesToSave,
     };
 
     try {
+      console.log('Saving Wasserzaehler data:', dataToSave);
+      
+      // Call the save function and handle the response
       await wasserzaehlerOnSave(dataToSave);
+      
+      // If we get here, the save was successful
       toast({
         title: "Erfolgreich gespeichert",
-        description: "Die Wasserzählerstände wurden erfolgreich aktualisiert.",
+        description: `Die Wasserzählerstände für ${entriesToSave.length} Mieter wurden erfolgreich aktualisiert.`,
       });
-      closeWasserzaehlerModal({ force: true });
+      
+      // Close the modal after a short delay to show the success message
+      setTimeout(() => {
+        closeWasserzaehlerModal({ force: true });
+      }, 1000);
+      
     } catch (error) {
       console.error("Error saving Wasserzaehler data:", error);
+      let errorMessage = "Die Wasserzählerstände konnten nicht gespeichert werden.";
+      
+      // Handle different types of errors
+      if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = String(error.message);
+      }
+      
       toast({
         title: "Fehler beim Speichern",
-        description: error instanceof Error ? error.message : "Die Wasserzählerstände konnten nicht gespeichert werden.",
+        description: errorMessage,
         variant: "destructive",
+        duration: 10000, // Show for 10 seconds to allow reading longer messages
       });
+      
+      // Log more details to the console for debugging
+      console.group('Error details:');
+      console.error('Error object:', error);
+      console.error('Data being saved:', dataToSave);
+      console.groupEnd();
     } finally {
       setIsLoading(false);
     }
