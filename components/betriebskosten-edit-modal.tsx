@@ -485,9 +485,19 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
       const nebenkosten_id = currentEditId || response.data?.id;
       if (nebenkosten_id) {
         // Save Wasserzaehler data
+        const entriesToSave = wasserzaehlerEntries
+          .filter(e => e.ablese_datum && e.zaehlerstand)
+          .map(entry => {
+            const mieter = selectedHausMieter.find(m => m.id === entry.mieter_id);
+            return {
+              ...entry,
+              mieter_name: mieter?.name || 'Unbekannter Mieter',
+            };
+          });
+
         const wasserzaehlerDataToSave = {
           nebenkosten_id: nebenkosten_id,
-          entries: wasserzaehlerEntries.filter(e => e.ablese_datum && e.zaehlerstand),
+          entries: entriesToSave,
         };
         const wasserzaehlerResponse = await saveWasserzaehlerData(wasserzaehlerDataToSave);
         if (!wasserzaehlerResponse.success) {
@@ -831,7 +841,7 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
                           <p className="font-semibold">{mieter?.name}</p>
                           {entry.previous_reading ? (
                             <p className="text-sm text-gray-500">
-                              Vorherige Ablesung: {new Date(entry.previous_reading.ablese_datum).toLocaleDateString()} - {entry.previous_reading.zaehlerstand}
+                              Vorherige Ablesung: {entry.previous_reading.ablese_datum ? new Date(entry.previous_reading.ablese_datum).toLocaleDateString() : 'Datum unbekannt'} - {entry.previous_reading.zaehlerstand}
                             </p>
                           ) : (
                             <p className="text-sm text-gray-500">Keine vorherige Ablesung gefunden</p>
