@@ -114,7 +114,7 @@ export function WasserzaehlerModal() {
         entry.verbrauch = consumption.toString();
         if (consumption < 0) {
           entry.warning = "Verbrauch ist negativ.";
-        } else if (entry.previous_reading?.verbrauch) {
+        } else if (entry.previous_reading?.verbrauch !== undefined && entry.previous_reading.verbrauch > 0) {
           const previousConsumption = entry.previous_reading.verbrauch;
           if (consumption > previousConsumption * HIGH_CONSUMPTION_INCREASE_THRESHOLD) {
             entry.warning = `Achtung: Verbrauch (${consumption}) ist mehr als ${Math.round((HIGH_CONSUMPTION_INCREASE_THRESHOLD - 1) * 100)}% höher als im Vorjahr (${previousConsumption}).`;
