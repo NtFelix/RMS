@@ -25,14 +25,17 @@ import {
 } from "@/components/ui/select";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Skeleton } from "@/components/ui/skeleton"; // Added Skeleton
-import { Nebenkosten, Haus, Mieter } from "../lib/data-fetching";
+import { Nebenkosten, Haus, Mieter, Wasserzaehler } from "../lib/data-fetching";
 import { 
-  getNebenkostenDetailsAction, // Added getNebenkostenDetailsAction
+  getNebenkostenDetailsAction,
   createNebenkosten, 
   updateNebenkosten, 
   createRechnungenBatch, 
   RechnungData,
-  deleteRechnungenByNebenkostenId
+  deleteRechnungenByNebenkostenId,
+  getPreviousWasserzaehlerRecordAction,
+  saveWasserzaehlerData,
+  getWasserzaehlerRecordsAction
 } from "../app/betriebskosten-actions";
 import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
@@ -51,6 +54,16 @@ interface CostItem {
 interface RechnungEinzel {
   mieterId: string;
   betrag: string;
+}
+
+interface WasserzaehlerEntry {
+  id: string; // Temporary client-side ID
+  mieter_id: string;
+  ablese_datum: string;
+  zaehlerstand: string;
+  verbrauch: string;
+  previous_reading: Wasserzaehler | null;
+  warning?: string;
 }
 
 interface BetriebskostenEditModalProps {
@@ -90,6 +103,8 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
   const [selectedHausMieter, setSelectedHausMieter] = useState<Mieter[]>([]);
   const [rechnungen, setRechnungen] = useState<Record<string, RechnungEinzel[]>>({});
   const [isFetchingTenants, setIsFetchingTenants] = useState(false);
+  const [wasserzaehlerEntries, setWasserzaehlerEntries] = useState<WasserzaehlerEntry[]>([]);
+  const [isFetchingPreviousReadings, setIsFetchingPreviousReadings] = useState(false);
 
   const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
 
@@ -283,36 +298,71 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
   }, [isBetriebskostenModalOpen, betriebskostenInitialData, betriebskostenModalHaeuser, toast, setBetriebskostenModalDirty]);
 
 
-  // New useEffect for Tenant Fetching
+  // useEffect for Tenant and Wasserzaehler Data Fetching
   useEffect(() => {
-    if (isBetriebskostenModalOpen && haeuserId && jahr) { // Ensure jahr is also present
-      const fetchTenants = async () => {
+    if (isBetriebskostenModalOpen && haeuserId && jahr) {
+      const fetchTenantsAndReadings = async () => {
         setIsFetchingTenants(true);
+        setIsFetchingPreviousReadings(true);
+        setWasserzaehlerEntries([]);
+
         try {
-          const actionResponse = await getMieterByHausIdAction(haeuserId, jahr);
-          if (actionResponse.success && actionResponse.data) {
-            setSelectedHausMieter(actionResponse.data);
-            // Potentially set dirty if tenant list change affects calculations for "nach Rechnung"
-            // This is complex, for now, direct user changes to amounts will set dirty flag.
-          } else {
-            const errorMessage = actionResponse.error || "Die Mieter für das ausgewählte Haus konnten nicht geladen werden.";
-            toast({ title: "Fehler beim Laden der Mieter", description: errorMessage, variant: "destructive" });
+          const tenantResponse = await getMieterByHausIdAction(haeuserId, jahr);
+          if (!tenantResponse.success || !tenantResponse.data) {
+            toast({ title: "Fehler beim Laden der Mieter", description: tenantResponse.error || "Unbekannter Fehler", variant: "destructive" });
             setSelectedHausMieter([]);
+            setWasserzaehlerEntries([]);
+            return;
           }
-        } catch (error: any) { 
-          console.error("Error calling getMieterByHausIdAction:", error);
-          toast({ title: "Systemfehler", description: "Ein unerwarteter Fehler ist beim Laden der Mieter aufgetreten.", variant: "destructive" });
+
+          setSelectedHausMieter(tenantResponse.data);
+
+          const editId = betriebskostenInitialData?.id;
+          let existingEntries: Wasserzaehler[] = [];
+          if (editId) {
+            const existingWasserzaehlerResponse = await getWasserzaehlerRecordsAction(editId);
+            if (existingWasserzaehlerResponse.success && existingWasserzaehlerResponse.data) {
+              existingEntries = existingWasserzaehlerResponse.data;
+            }
+          }
+
+          const newEntriesPromises = tenantResponse.data.map(async (mieter) => {
+            const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id);
+            const existingEntry = existingEntries.find(e => e.mieter_id === mieter.id);
+
+            return {
+              id: generateId(),
+              mieter_id: mieter.id,
+              ablese_datum: existingEntry?.ablese_datum || '',
+              zaehlerstand: existingEntry?.zaehlerstand?.toString() || '',
+              verbrauch: existingEntry?.verbrauch?.toString() || '',
+              previous_reading: previousReadingResponse.data || null,
+              warning: '',
+            };
+          });
+
+          const newEntries = await Promise.all(newEntriesPromises);
+          setWasserzaehlerEntries(newEntries);
+
+        } catch (error: any) {
+          console.error("Error fetching tenants or readings:", error);
+          toast({ title: "Systemfehler", description: "Daten für Mieter oder Zählerstände konnten nicht geladen werden.", variant: "destructive" });
           setSelectedHausMieter([]);
+          setWasserzaehlerEntries([]);
         } finally {
           setIsFetchingTenants(false);
+          setIsFetchingPreviousReadings(false);
         }
       };
-      fetchTenants();
+
+      fetchTenantsAndReadings();
     } else if (!isBetriebskostenModalOpen || !haeuserId) {
       setSelectedHausMieter([]);
-      setIsFetchingTenants(false); 
+      setWasserzaehlerEntries([]);
+      setIsFetchingTenants(false);
+      setIsFetchingPreviousReadings(false);
     }
-  }, [haeuserId, isBetriebskostenModalOpen, toast, jahr, setBetriebskostenModalDirty]); // Added setBetriebskostenModalDirty
+  }, [isBetriebskostenModalOpen, haeuserId, jahr, betriebskostenInitialData?.id, toast]);
 
 
   // Modified useEffect for Rechnungen Synchronization
@@ -434,6 +484,16 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
     if (response.success) {
       const nebenkosten_id = currentEditId || response.data?.id;
       if (nebenkosten_id) {
+        // Save Wasserzaehler data
+        const wasserzaehlerDataToSave = {
+          nebenkosten_id: nebenkosten_id,
+          entries: wasserzaehlerEntries.filter(e => e.ablese_datum && e.zaehlerstand),
+        };
+        const wasserzaehlerResponse = await saveWasserzaehlerData(wasserzaehlerDataToSave);
+        if (!wasserzaehlerResponse.success) {
+          toast({ title: "Fehler beim Speichern der Zählerstände", description: wasserzaehlerResponse.message, variant: "destructive" });
+        }
+
         if (currentEditId) {
           const deleteResponse = await deleteRechnungenByNebenkostenId(nebenkosten_id);
           if (!deleteResponse.success) {
@@ -473,14 +533,39 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
           }
         }
       }
-      toast({ title: "Betriebskosten erfolgreich gespeichert", description: "Die Hauptdaten der Betriebskosten wurden gespeichert." });
+      toast({ title: "Betriebskosten erfolgreich gespeichert", description: "Die Hauptdaten der Betriebskosten und Zählerstände wurden gespeichert." });
       if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
-      closeBetriebskostenModal(); // Will close directly as dirty is false
+      closeBetriebskostenModal();
     } else {
       toast({ title: "Fehler beim Speichern", description: response.message || "Ein unbekannter Fehler ist aufgetreten.", variant: "destructive" });
       setBetriebskostenModalDirty(true); // Save failed, mark as dirty
     }
     setIsSaving(false);
+  };
+
+  const handleWasserzaehlerChange = (index: number, field: keyof Omit<WasserzaehlerEntry, 'id' | 'mieter_id' | 'previous_reading'>, value: string) => {
+    const newEntries = [...wasserzaehlerEntries];
+    const entry = newEntries[index];
+    (entry as any)[field] = value;
+
+    if (field === 'zaehlerstand') {
+      const currentReading = parseFloat(value);
+      const previousReading = entry.previous_reading?.zaehlerstand;
+      if (!isNaN(currentReading) && previousReading !== null && previousReading !== undefined) {
+        const consumption = currentReading - previousReading;
+        entry.verbrauch = consumption.toString();
+        if (consumption < 0) {
+          entry.warning = "Verbrauch ist negativ.";
+        } else if (consumption > 1000) { // Example of a high value
+          entry.warning = "Verbrauch ist ungewöhnlich hoch.";
+        } else {
+          entry.warning = '';
+        }
+      }
+    }
+
+    setWasserzaehlerEntries(newEntries);
+    setBetriebskostenModalDirty(true);
   };
 
   // Handle input changes to set dirty flag
@@ -728,6 +813,71 @@ export function BetriebskostenEditModal({/* Props are now from store */ }: Betri
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Kostenposition hinzufügen
                 </Button>
+              </div>
+            </div>
+
+            {/* Wasserzähler Section */}
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold tracking-tight">Wasserzählerstände</h3>
+              <div className="rounded-md border p-4 space-y-4 shadow-sm">
+                {isFetchingTenants || isFetchingPreviousReadings ? (
+                  <p>Lade Mieter und Zählerstände...</p>
+                ) : wasserzaehlerEntries.length > 0 ? (
+                  <div className="space-y-4">
+                    {wasserzaehlerEntries.map((entry, index) => {
+                      const mieter = selectedHausMieter.find(m => m.id === entry.mieter_id);
+                      return (
+                        <div key={entry.id} className="p-3 bg-gray-50 border rounded-md">
+                          <p className="font-semibold">{mieter?.name}</p>
+                          {entry.previous_reading ? (
+                            <p className="text-sm text-gray-500">
+                              Vorherige Ablesung: {new Date(entry.previous_reading.ablese_datum).toLocaleDateString()} - {entry.previous_reading.zaehlerstand}
+                            </p>
+                          ) : (
+                            <p className="text-sm text-gray-500">Keine vorherige Ablesung gefunden</p>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-2">
+                            <div className="space-y-1">
+                              <Label htmlFor={`ablesedatum-${entry.id}`}>Ablesedatum</Label>
+                              <Input
+                                id={`ablesedatum-${entry.id}`}
+                                type="date"
+                                value={entry.ablese_datum}
+                                onChange={(e) => handleWasserzaehlerChange(index, 'ablese_datum', e.target.value)}
+                                disabled={isSaving}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor={`zaehlerstand-${entry.id}`}>Zählerstand</Label>
+                              <Input
+                                id={`zaehlerstand-${entry.id}`}
+                                type="number"
+                                value={entry.zaehlerstand}
+                                onChange={(e) => handleWasserzaehlerChange(index, 'zaehlerstand', e.target.value)}
+                                disabled={isSaving}
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label htmlFor={`verbrauch-${entry.id}`}>Verbrauch</Label>
+                              <Input
+                                id={`verbrauch-${entry.id}`}
+                                type="number"
+                                value={entry.verbrauch}
+                                onChange={(e) => handleWasserzaehlerChange(index, 'verbrauch', e.target.value)}
+                                disabled={isSaving}
+                              />
+                            </div>
+                          </div>
+                          {entry.warning && <p className="text-sm text-red-500 mt-1">{entry.warning}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    Für das ausgewählte Haus und Jahr wurden keine Mieter gefunden.
+                  </p>
+                )}
               </div>
             </div>
           </div>

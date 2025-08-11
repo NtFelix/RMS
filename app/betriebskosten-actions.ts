@@ -226,6 +226,47 @@ export async function getWasserzaehlerRecordsAction(
   }
 }
 
+export async function getPreviousWasserzaehlerRecordAction(
+  mieterId: string
+): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
+  "use server";
+
+  if (!mieterId) {
+    return { success: false, message: "Ungültige Mieter-ID angegeben." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("Wasserzaehler")
+      .select("*")
+      .eq("mieter_id", mieterId)
+      .order("ablese_datum", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') { // PostgREST error code for "Not a single row was found"
+        return { success: true, data: null }; // No previous record is not an error
+      }
+      console.error(`Error fetching previous Wasserzaehler record for mieter_id ${mieterId}:`, error);
+      return { success: false, message: `Fehler beim Abrufen des vorherigen Zählerstands: ${error.message}` };
+    }
+
+    return { success: true, data };
+
+  } catch (error: any) {
+    console.error('Unexpected error in getPreviousWasserzaehlerRecordAction:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
 export async function getRechnungenForNebenkostenAction(nebenkostenId: string): Promise<{
   success: boolean;
   data?: Rechnung[];
