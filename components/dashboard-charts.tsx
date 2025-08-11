@@ -215,41 +215,7 @@ export function DashboardCharts() {
           </div>
         </CardContent>
       </Card>
-      {/* Instandhaltung */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Instandhaltung</CardTitle>
-          <CardDescription>Monatliche Übersicht über Reparaturen und Renovierungen</CardDescription>
-        </CardHeader>
-        <CardContent className="chart-container">
-          <div className="h-full min-h-[400px] w-full">
-            <ChartContainer
-              config={{
-                einnahmen: {
-                  label: "Einnahmen",
-                  color: "hsl(var(--chart-1))",
-                },
-                ausgaben: {
-                  label: "Ausgaben",
-                  color: "hsl(var(--chart-2))",
-                },
-              }}
-            >
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Legend />
-                  <Bar dataKey="einnahmen" fill="var(--color-einnahmen)" radius={4} />
-                  <Bar dataKey="ausgaben" fill="var(--color-ausgaben)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </div>
-        </CardContent>
-      </Card>
+
     </div>
   )
 }
