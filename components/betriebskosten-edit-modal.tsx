@@ -407,10 +407,20 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         if (rechnungenToSave.length > 0) {
           const rechnungenSaveResponse = await createRechnungenBatch(rechnungenToSave);
           if (!rechnungenSaveResponse.success) {
-            toast({ title: "Fehler beim Speichern der Einzelrechnungen", description: rechnungenSaveResponse.message, variant: "destructive" });
+            toast({ 
+              title: "Fehler beim Speichern der Einzelrechnungen", 
+              description: rechnungenSaveResponse.message, 
+              variant: "destructive" 
+            });
+            setIsSaving(false);
+            setBetriebskostenModalDirty(true);
+            return; // Stop execution if saving individual bills fails
           }
         }
+        
       }
+      
+      // Only show success and close if everything was successful
       toast({ title: "Betriebskosten erfolgreich gespeichert" });
       if (betriebskostenModalOnSuccess) betriebskostenModalOnSuccess();
       closeBetriebskostenModal();
