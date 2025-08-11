@@ -7,14 +7,27 @@ import { createClient } from "@/utils/supabase/client";
 import { ArrowUpRight, ArrowDownRight, Eye } from "lucide-react";
 import Link from "next/link";
 
-type Transaction = {
+// Type for the transaction data from Supabase
+interface SupabaseTransaction {
+  id: string;
+  name: string;
+  datum: string;
+  betrag: string | number;
+  ist_einnahmen: boolean;
+  Wohnungen: Array<{
+    name: string;
+  }> | null;  // Array of Wohnungen with name property
+}
+
+// Type for the formatted transaction used in the component
+interface Transaction {
   id: string;
   name: string;
   datum: string;
   betrag: number;
   ist_einnahmen: boolean;
-  wohnung_name?: string;
-};
+  wohnung_name: string | null;
+}
 
 export function LastTransactionsContainer() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -34,7 +47,7 @@ export function LastTransactionsContainer() {
             datum,
             betrag,
             ist_einnahmen,
-            Wohnungen!left(name)
+            Wohnungen ( name )
           `)
           .order("datum", { ascending: false })
           .limit(8);
@@ -44,15 +57,30 @@ export function LastTransactionsContainer() {
           return;
         }
 
-        // Format the data
-        const formattedTransactions: Transaction[] = (data || []).map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          datum: item.datum,
-          betrag: Number(item.betrag),
-          ist_einnahmen: item.ist_einnahmen,
-          wohnung_name: item.Wohnungen?.name || null,
-        }));
+        // Format the data with proper typing and null checks
+        const formattedTransactions: Transaction[] = [];
+        
+        if (data) {
+          for (const item of data) {
+            try {
+              const betrag = typeof item.betrag === 'string' 
+                ? parseFloat(item.betrag) 
+                : Number(item.betrag);
+              
+              formattedTransactions.push({
+                id: item.id,
+                name: item.name || 'Unbenannte Transaktion',
+                datum: item.datum || new Date().toISOString(),
+                betrag: isNaN(betrag) ? 0 : betrag,
+                ist_einnahmen: Boolean(item.ist_einnahmen),
+                // Get the first Wohnung's name if available
+                wohnung_name: item.Wohnungen?.[0]?.name || null,
+              });
+            } catch (error) {
+              console.error('Error formatting transaction:', item, error);
+            }
+          }
+        }
 
         setTransactions(formattedTransactions);
       } catch (error) {
