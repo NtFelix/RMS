@@ -101,21 +101,24 @@ export function OperatingCostsTable({
     }
   };
 
-  const handleSaveWasserzaehler = async (data: WasserzaehlerFormData) => {
+  const handleSaveWasserzaehler = async (data: WasserzaehlerFormData): Promise<{ success: boolean; message?: string }> => {
     try {
       const result = await saveWasserzaehlerData(data);
       if (result.success) {
         toast.success("Wasserzählerdaten erfolgreich gespeichert!");
-        // Modal will be closed by the modal component itself
+        // Return success result to the modal
+        return { success: true };
       } else {
-        throw new Error(result.message); // Re-throw to prevent modal from closing
+        const errorMessage = result.message || "Die Wasserzählerstände konnten nicht gespeichert werden.";
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error("Error calling saveWasserzaehlerData:", error);
       if (error instanceof Error) {
-        throw error; // Re-throw to prevent modal from closing
+        // Return error result to the modal
+        return { success: false, message: error.message };
       } else {
-        throw new Error("Ein unerwarteter Fehler ist aufgetreten.");
+        return { success: false, message: "Ein unerwarteter Fehler ist aufgetreten." };
       }
     }
   };

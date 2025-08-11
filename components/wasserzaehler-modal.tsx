@@ -39,12 +39,17 @@ export function WasserzaehlerModal() {
     closeWasserzaehlerModal,
     setWasserzaehlerModalDirty,
   } = useModalStore();
+  
+  // Type assertion for wasserzaehlerOnSave since we know it will be provided by the modal store
+  const handleSave = wasserzaehlerOnSave as (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>;
 
   const [formData, setFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [initialFormData, setInitialFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
   const { toast } = useToast();
+
+
   
   // Threshold for high consumption warning (50% more than previous year)
   const HIGH_CONSUMPTION_INCREASE_THRESHOLD = 1.5; // 50% increase
@@ -280,21 +285,27 @@ export function WasserzaehlerModal() {
     };
 
     try {
-      console.log('Saving Wasserzaehler data:', dataToSave);
+      console.log("Saving data:", dataToSave);
+
+      // Call the save function using the typed handleSave
+      const result = await handleSave(dataToSave);
       
-      // Call the save function and handle the response
-      await wasserzaehlerOnSave(dataToSave);
-      
-      // If we get here, the save was successful
-      toast({
-        title: "Erfolgreich gespeichert",
-        description: `Die Wasserzählerstände für ${entriesToSave.length} Mieter wurden erfolgreich aktualisiert.`,
-      });
-      
-      // Close the modal after a short delay to show the success message
-      setTimeout(() => {
-        closeWasserzaehlerModal({ force: true });
-      }, 1000);
+      if (result?.success) {
+        // If we get here, the save was successful
+        toast({
+          title: "Erfolgreich gespeichert",
+          description: `Die Wasserzählerstände für ${entriesToSave.length} Mieter wurden erfolgreich aktualisiert.`,
+        });
+        
+        // Close the modal after a short delay to show the success message
+        setTimeout(() => {
+          closeWasserzaehlerModal({ force: true });
+        }, 1000);
+      } else {
+        // Handle case where save was not successful but didn't throw an error
+        const errorMessage = result?.message || 'Die Wasserzählerstände konnten nicht gespeichert werden.';
+        throw new Error(errorMessage);
+      }
       
     } catch (error) {
       console.error("Error saving Wasserzaehler data:", error);
