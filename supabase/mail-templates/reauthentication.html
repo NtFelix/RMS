@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Erneute Anmeldung erforderlich - RMS</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f8fafc;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 10px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #059669;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .security-note {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">RMS</div>
+            <h1>Erneute Anmeldung erforderlich</h1>
+        </div>
+        
+        <p>Hallo,</p>
+        
+        <p>Aus Sicherheitsgründen ist eine erneute Bestätigung Ihrer Identität erforderlich, um auf sensible Funktionen in Ihrem RMS-Konto zuzugreifen.</p>
+        
+        <p>Dies kann erforderlich sein, wenn Sie:</p>
+        <ul>
+            <li>Ihr Passwort ändern möchten</li>
+            <li>Ihre E-Mail-Adresse aktualisieren</li>
+            <li>Wichtige Kontoeinstellungen bearbeiten</li>
+            <li>Zahlungsinformationen verwalten</li>
+        </ul>
+        
+        <p>Klicken Sie auf den folgenden Button, um sich erneut zu authentifizieren:</p>
+        
+        <div style="text-align: center;">
+            <a href="{{ .ConfirmationURL }}" class="button">Identität bestätigen</a>
+        </div>
+        
+        <p>Falls der Button nicht funktioniert, können Sie auch diesen Link in Ihren Browser kopieren:</p>
+        <p style="word-break: break-all; color: #2563eb;">{{ .ConfirmationURL }}</p>
+        
+        <div class="security-note">
+            <strong>Sicherheitshinweis:</strong> Dieser Link ist nur 15 Minuten gültig. Diese Maßnahme dient dem Schutz Ihres Kontos und Ihrer Daten.
+        </div>
+        
+        <div class="footer">
+            <p>Falls Sie diese Aktion nicht angefordert haben, melden Sie sich bitte umgehend bei unserem Support.</p>
+            <p>Bei Fragen erreichen Sie uns unter support@rms-system.de</p>
+        </div>
+    </div>
+</body>
+</html>
