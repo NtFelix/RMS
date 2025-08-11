@@ -334,8 +334,13 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       let currentBetragValue: number;
 
       if (!art) {
-        toast({ title: "Validierungsfehler", description: `Art der Kosten darf nicht leer sein.`, variant: "destructive" });
-        setIsSaving(false); setBetriebskostenModalDirty(true);
+        toast({ 
+          title: "Validierungsfehler", 
+          description: `Art der Kosten darf nicht leer sein. Bitte überprüfen Sie Posten ${costItems.indexOf(item) + 1}.`, 
+          variant: "destructive" 
+        });
+        setIsSaving(false);
+        setBetriebskostenModalDirty(true);
         return;
       }
       if (!berechnungsart) { 
