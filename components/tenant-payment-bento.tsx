@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { createClient } from "@/utils/supabase/client"
 import { Home, User, Tag } from "lucide-react"
@@ -14,12 +14,74 @@ type TenantBentoItem = {
   paid: boolean
 }
 
+type MieterData = {
+  id: string
+  name: string
+  einzug: string | null
+  auszug: string | null
+  Wohnungen: {
+    id: string
+    name: string
+    miete: number
+  }
+}
+
 export function TenantPaymentBento() {
   const [data, setData] = useState<TenantBentoItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchData = async () => {
+  // Helper function to get current month date range
+  const getCurrentMonthRange = () => {
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth() + 1
+    const currentYear = currentDate.getFullYear()
+    return {
+      start: new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0],
+      end: new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+    }
+  }
+
+  // Fetch payment status for the current month
+  const fetchPaymentStatus = async (): Promise<Set<string>> => {
+    const { start, end } = getCurrentMonthRange()
+    const supabase = createClient()
+
+    const { data: finanzData } = await supabase
+      .from("Finanzen")
+      .select('wohnung_id')
+      .eq('ist_einnahmen', true)
+      .gte('datum', start)
+      .lte('datum', end)
+      .ilike('name', '%Mietzahlung%')
+
+    const paidWohnungen = new Set<string>()
+    finanzData?.forEach(finanz => {
+      if (finanz.wohnung_id) {
+        paidWohnungen.add(finanz.wohnung_id)
+      }
+    })
+
+    return paidWohnungen
+  }
+
+  // Format tenant data with payment status
+  const formatTenantData = (mieterData: MieterData[], paidWohnungen: Set<string>): TenantBentoItem[] => {
+    return (mieterData || [])
+      .filter(mieter => mieter.Wohnungen)
+      .map(mieter => ({
+        id: mieter.id,
+        tenant: mieter.name,
+        apartment: mieter.Wohnungen.name,
+        apartmentId: mieter.Wohnungen.id,
+        mieteRaw: Number(mieter.Wohnungen.miete) || 0,
+        paid: paidWohnungen.has(mieter.Wohnungen.id),
+      }))
+  }
+
+  // Main data fetching function
+  const fetchData = useCallback(async () => {
+    try {
       setLoading(true)
       const supabase = createClient()
 
@@ -39,158 +101,69 @@ export function TenantPaymentBento() {
         `)
         .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
 
-      if (mieterError) {
-        setLoading(false)
-        return
-      }
+      if (mieterError) throw mieterError
 
-      // Fetch payment info for current month
-      const currentDate = new Date()
-      const currentMonth = currentDate.getMonth() + 1
-      const currentYear = currentDate.getFullYear()
-      const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-      const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-
-      const { data: finanzData } = await supabase
-        .from("Finanzen")
-        .select('wohnung_id')
-        .eq('ist_einnahmen', true)
-        .gte('datum', startOfMonth)
-        .lte('datum', endOfMonth)
-        .ilike('name', '%Mietzahlung%')
-
-      // Build paid lookup set
-      const paidWohnungen = new Set<string>()
-      finanzData?.forEach(finanz => {
-        if (finanz.wohnung_id) {
-          paidWohnungen.add(finanz.wohnung_id)
-        }
-      })
-
-      // Format data for bento grid
-      const formatted: TenantBentoItem[] = (mieterData || [])
-        .filter(mieter => mieter.Wohnungen)
-        .map(mieter => {
-          const wohnung = mieter.Wohnungen as unknown as { id: string; name: string; miete: number }
-          return {
-            id: mieter.id,
-            tenant: mieter.name,
-            apartment: wohnung.name,
-            apartmentId: wohnung.id,
-            mieteRaw: Number(wohnung.miete) || 0,
-            paid: paidWohnungen.has(wohnung.id),
-          }
-        })
-
-      setData(formatted)
+      const paidWohnungen = await fetchPaymentStatus()
+      const formattedData = formatTenantData(mieterData as unknown as MieterData[], paidWohnungen)
+      setData(formattedData)
+    } catch (error) {
+      console.error("Fehler beim Laden der Mietdaten:", error)
+    } finally {
       setLoading(false)
     }
-
-    fetchData()
   }, [])
 
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  // Initial data load
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
-  // Copy of toggleRentPayment logic from TenantDataTable
+  // Toggle payment status for a tenant
   const toggleRentPayment = async (tenant: TenantBentoItem) => {
     try {
       setUpdatingStatus(tenant.id)
       const supabase = createClient()
+      const { start, end } = getCurrentMonthRange()
 
       if (tenant.paid) {
-        // Remove Mietzahlung from Finanzen for current month
-        const currentDate = new Date()
-        const currentMonth = currentDate.getMonth() + 1
-        const currentYear = currentDate.getFullYear()
-        const startOfMonth = new Date(currentYear, currentMonth - 1, 1).toISOString().split('T')[0]
-        const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
-
+        // Remove payment record
         await supabase
           .from('Finanzen')
           .delete()
           .eq('wohnung_id', tenant.apartmentId)
           .eq('ist_einnahmen', true)
           .ilike('name', '%Mietzahlung%')
-          .gte('datum', startOfMonth)
-          .lte('datum', endOfMonth)
+          .gte('datum', start)
+          .lte('datum', end)
       } else {
-        // Add Mietzahlung to Finanzen
-        const currentDate = new Date().toISOString().split('T')[0]
-
+        // Add payment record
         await supabase
           .from('Finanzen')
           .insert({
             wohnung_id: tenant.apartmentId,
             name: `Mietzahlung ${tenant.apartment}`,
-            datum: currentDate,
+            datum: new Date().toISOString().split('T')[0],
             betrag: tenant.mieteRaw,
             ist_einnahmen: true,
             notiz: `Mietzahlung von ${tenant.tenant}`
           })
       }
 
-      // Refresh data
-      setLoading(true)
-      const supabase2 = createClient()
+      // Optimistically update the UI
+      setData(prevData => 
+        prevData.map(item => 
+          item.id === tenant.id 
+            ? { ...item, paid: !tenant.paid } 
+            : item
+        )
+      )
 
-      const { data: mieterData, error: mieterError } = await supabase2
-        .from("Mieter")
-        .select(`
-          id,
-          name,
-          einzug,
-          auszug,
-          Wohnungen:wohnung_id (
-            id,
-            name,
-            miete
-          )
-        `)
-        .or(`auszug.is.null,auszug.gt.${new Date().toISOString()}`)
-
-      // Fetch payment info for current month again
-      const currentDate2 = new Date()
-      const currentMonth2 = currentDate2.getMonth() + 1
-      const currentYear2 = currentDate2.getFullYear()
-      const startOfMonth2 = new Date(currentYear2, currentMonth2 - 1, 1).toISOString().split('T')[0]
-      const endOfMonth2 = new Date(currentYear2, currentMonth2, 0).toISOString().split('T')[0]
-
-      const { data: finanzData2 } = await supabase2
-        .from("Finanzen")
-        .select('wohnung_id')
-        .eq('ist_einnahmen', true)
-        .gte('datum', startOfMonth2)
-        .lte('datum', endOfMonth2)
-        .ilike('name', '%Mietzahlung%')
-
-      const paidWohnungen2 = new Set<string>()
-      finanzData2?.forEach(finanz => {
-        if (finanz.wohnung_id) {
-          paidWohnungen2.add(finanz.wohnung_id)
-        }
-      })
-
-      const formatted2: TenantBentoItem[] = (mieterData || [])
-        .filter(mieter => mieter.Wohnungen)
-        .map(mieter => {
-          const wohnung = mieter.Wohnungen as unknown as { id: string; name: string; miete: number }
-          return {
-            id: mieter.id,
-            tenant: mieter.name,
-            apartment: wohnung.name,
-            apartmentId: wohnung.id,
-            mieteRaw: Number(wohnung.miete) || 0,
-            paid: paidWohnungen2.has(wohnung.id),
-          }
-        })
-
-      setData(formatted2)
     } catch (error) {
-      // Optionally notify error
       console.error("Fehler beim Aktualisieren des Mietstatus:", error)
+      // Revert optimistic update on error
+      fetchData()
     } finally {
       setUpdatingStatus(null)
-      setLoading(false)
     }
   }
 
