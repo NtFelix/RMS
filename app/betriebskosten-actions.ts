@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
+import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
@@ -226,6 +226,85 @@ export async function getWasserzaehlerRecordsAction(
   }
 }
 
+/**
+ * Gets the previous Wasserzaehler record for a specific mieter.
+ * If currentYear is provided, it will first try to find a reading from the previous year.
+ * If no previous year reading is found, it falls back to the most recent reading regardless of year.
+ * 
+ * @param mieterId - The ID of the mieter to get the previous reading for
+ * @param currentYear - Optional. The current year as a string (e.g., '2024'). If provided, the function will first look for a reading from the previous year.
+ * @returns An object containing the success status, the previous Wasserzaehler record (if found), and an optional message
+ */
+export async function getPreviousWasserzaehlerRecordAction(
+  mieterId: string,
+  currentYear?: string
+): Promise<{ success: boolean; data?: Wasserzaehler | null; message?: string }> {
+  "use server";
+
+  if (!mieterId) {
+    return { success: false, message: "Ungültige Mieter-ID angegeben." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  try {
+    // First, try to get the reading from the previous year if currentYear is provided
+    if (currentYear) {
+      const currentYearNum = parseInt(currentYear, 10);
+      if (!isNaN(currentYearNum)) {
+        const previousYear = (currentYearNum - 1).toString();
+        
+        // Query for the last reading from the previous year
+        const { data: previousYearData, error: previousYearError } = await supabase
+          .from("Wasserzaehler")
+          .select("*, Nebenkosten!inner(jahr)")
+          .eq("mieter_id", mieterId)
+          .eq("user_id", user.id)
+          .eq("Nebenkosten.jahr", previousYear)
+          .order("ablese_datum", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (previousYearError && previousYearError.code !== 'PGRST116') {
+          console.error(`Error fetching previous year's Wasserzaehler record for mieter_id ${mieterId}:`, previousYearError);
+        } else if (previousYearData) {
+          // If we found a reading from the previous year, return it
+          return { success: true, data: previousYearData };
+        }
+      }
+    }
+
+    // If no previous year reading found, fall back to the most recent reading regardless of year
+    const { data, error } = await supabase
+      .from("Wasserzaehler")
+      .select("*")
+      .eq("mieter_id", mieterId)
+      .eq("user_id", user.id)
+      .order("ablese_datum", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === 'PGRST116') { // PostgREST error code for "Not a single row was found"
+        return { success: true, data: null }; // No previous record is not an error
+      }
+      console.error(`Error fetching previous Wasserzaehler record for mieter_id ${mieterId}:`, error);
+      return { success: false, message: `Fehler beim Abrufen des vorherigen Zählerstands: ${error.message}` };
+    }
+
+    return { success: true, data };
+
+  } catch (error: any) {
+    console.error('Unexpected error in getPreviousWasserzaehlerRecordAction:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
 export async function getRechnungenForNebenkostenAction(nebenkostenId: string): Promise<{
   success: boolean;
   data?: Rechnung[];
@@ -261,6 +340,39 @@ export async function getRechnungenForNebenkostenAction(nebenkostenId: string): 
   } catch (error: any) {
     console.error('Unexpected error in getRechnungenForNebenkostenAction:', error);
     return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
+export async function getWasserzaehlerByHausAndYearAction(
+  hausId: string,
+  year: string
+): Promise<{ success: boolean; data?: { mieterList: Mieter[]; existingReadings: Wasserzaehler[] }; message?: string }> {
+  try {
+    if (!hausId || !year) {
+      return { success: false, message: "Haus-ID und Jahr sind erforderlich." };
+    }
+
+    // Validate year format (basic check for YYYY)
+    if (!/^\d{4}$/.test(year)) {
+      return { success: false, message: "Ungültiges Jahr. Bitte verwenden Sie das Format YYYY." };
+    }
+
+    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(hausId, year);
+    
+    return { 
+      success: true, 
+      data: { 
+        mieterList,
+        existingReadings 
+      } 
+    };
+
+  } catch (error: any) {
+    console.error('Error in getWasserzaehlerByHausAndYearAction:', error);
+    return { 
+      success: false, 
+      message: `Ein Fehler ist beim Abrufen der Wasserzählerdaten aufgetreten: ${error.message || 'Unbekannter Fehler'}` 
+    };
   }
 }
 
@@ -323,14 +435,49 @@ export async function saveWasserzaehlerData(
     return { success: true, message: "Alle vorhandenen Wasserzählerdaten für diese Nebenkostenabrechnung wurden entfernt und der Gesamtverbrauch auf 0 gesetzt.", data: [] };
   }
 
-  const recordsToInsert = entries.map(entry => ({
-    user_id: user.id,
-    mieter_id: entry.mieter_id,
-    ablese_datum: entry.ablese_datum, // Assumes this is already a string 'YYYY-MM-DD' or null
-    zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
-    verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
-    nebenkosten_id: nebenkosten_id, // Corrected key for the database column
-  }));
+  // Process entries and ensure proper data formats
+  const recordsToInsert = entries
+    .filter(entry => {
+      // Skip entries with missing required fields
+      const isValid = entry.mieter_id && !isNaN(parseFloat(String(entry.zaehlerstand)));
+      if (!isValid) {
+        console.warn('Skipping invalid entry:', entry);
+      }
+      return isValid;
+    })
+    .map(entry => {
+      // Format the date to YYYY-MM-DD if it's not already in that format
+      let formattedDate = entry.ablese_datum;
+      if (entry.ablese_datum) {
+        try {
+          // If it's a valid date string, format it to YYYY-MM-DD
+          const date = new Date(entry.ablese_datum);
+          if (!isNaN(date.getTime())) {
+            formattedDate = date.toISOString().split('T')[0];
+          }
+        } catch (e) {
+          console.error('Error formatting date:', e);
+        }
+      } else {
+        // No date provided: default to today's date in YYYY-MM-DD
+        const today = new Date();
+        formattedDate = today.toISOString().split('T')[0];
+      }
+
+      return {
+        user_id: user.id,
+        mieter_id: entry.mieter_id,
+        ablese_datum: formattedDate,
+        zaehlerstand: typeof entry.zaehlerstand === 'string' ? parseFloat(entry.zaehlerstand) : entry.zaehlerstand,
+        verbrauch: typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch,
+        nebenkosten_id: nebenkosten_id,
+      };
+    });
+
+  if (recordsToInsert.length === 0) {
+    console.error('No valid records to insert after validation');
+    return { success: false, message: 'Keine gültigen Datensätze zum Speichern gefunden' };
+  }
 
   const { data: insertedData, error: insertError } = await supabase
     .from("Wasserzaehler")

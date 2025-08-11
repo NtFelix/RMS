@@ -96,7 +96,7 @@ export function DashboardSidebar() {
               <span>Property Manager</span>
             </Link>
           </div>
-          <ScrollArea className="flex-1 py-4">
+          <ScrollArea className="flex-1 pt-6 pb-4">
             <nav className="grid gap-1 px-2">
               {sidebarNavItems.map((item) => (
                 <Link

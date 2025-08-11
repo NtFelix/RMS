@@ -3,13 +3,20 @@
  * @param value - The number to format
  * @returns Formatted number as string (e.g., "1.234,56")
  */
-export function formatNumber(value: number | string): string {
+export function formatNumber(value: number | string, fractionDigits: number = 2): string {
   const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '0,00';
-  
+  if (isNaN(num)) {
+    // Return zero formatted with desired decimal places
+    if (fractionDigits === 0) return '0';
+    return new Intl.NumberFormat('de-DE', {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    }).format(0);
+  }
+
   return new Intl.NumberFormat('de-DE', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   }).format(num);
 }
 
@@ -19,5 +26,5 @@ export function formatNumber(value: number | string): string {
  * @returns Formatted currency string (e.g., "1.234,56 €")
  */
 export function formatCurrency(value: number | string): string {
-  return `${formatNumber(value)} €`;
+  return `${formatNumber(value, 2)} €`;
 }

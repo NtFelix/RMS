@@ -189,9 +189,9 @@ export interface ModalState {
   wasserzaehlerNebenkosten?: Nebenkosten;
   wasserzaehlerMieterList: Mieter[];
   wasserzaehlerExistingReadings?: Wasserzaehler[] | null;
-  wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<void>;
+  wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>;
   isWasserzaehlerModalDirty: boolean;
-  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<void>) => void;
+  openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
   closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
   setWasserzaehlerModalDirty: (isDirty: boolean) => void;
 

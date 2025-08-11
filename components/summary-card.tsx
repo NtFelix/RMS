@@ -1,10 +1,9 @@
 "use client"
-
 import React, { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "./ui/hover-card";
 import { Skeleton } from "./ui/skeleton";
-import { formatNumber, formatCurrency } from "@/utils/format";
+import { formatCurrency } from "@/utils/format";
 import { cn } from "@/lib/utils";
 
 interface SummaryCardHoverDetails {
@@ -23,7 +22,7 @@ interface SummaryCardProps {
   isLoading?: boolean;
   className?: string;
   valueFormatter?: (value: string | number) => string;
-  // Legacy props for backward compatibility
+  // Legacy props
   description?: string;
 }
 
@@ -35,19 +34,16 @@ export function SummaryCard({
   onClick,
   isLoading = false,
   className,
-  valueFormatter = (val) => typeof val === 'number' ? formatCurrency(val) : val.toString(),
-  description, // Legacy prop
+  valueFormatter = (val) => typeof val === "number" ? formatCurrency(val) : val.toString(),
+  description,
 }: SummaryCardProps) {
   if (isLoading) {
     return <SummaryCardSkeleton className={className} />;
   }
 
-  const formatHoverValue = (value: number) => {
-    if (hoverDetails?.isCurrency) {
-      return formatCurrency(value);
-    }
-    // For non-currency values, use the same formatter as the main value
-    return valueFormatter ? valueFormatter(value) : value.toString();
+  const formatHoverValue = (num: number) => {
+    if (hoverDetails?.isCurrency) return formatCurrency(num);
+    return valueFormatter ? valueFormatter(num) : num.toString();
   };
 
   const CardWrapper = ({ children }: { children: ReactNode }) => {
@@ -58,47 +54,45 @@ export function SummaryCard({
             <HoverCardTrigger asChild>
               {children}
             </HoverCardTrigger>
-            <HoverCardContent 
+            <HoverCardContent
               className="w-80 absolute left-full top-0 ml-2 h-auto min-h-full"
               side="right"
               align="start"
               sideOffset={0}
               alignOffset={0}
-              style={{ height: 'auto', minHeight: '100%' }}
+              style={{ height: "auto", minHeight: "100%" }}
             >
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <h4 className="text-sm font-semibold">{title} - Details</h4>
-                <p className="text-sm text-muted-foreground">
-                  Zusätzliche Statistiken
-                </p>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-semibold">{title} - Details</h4>
+                  <p className="text-sm text-muted-foreground">Zusätzliche Statistiken</p>
+                </div>
+                <div className="space-y-2">
+                  {hoverDetails.average !== undefined && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Durchschnitt:</span>
+                      <span className="font-medium">{formatHoverValue(hoverDetails.average)}</span>
+                    </div>
+                  )}
+                  {hoverDetails.median !== undefined && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Median:</span>
+                      <span className="font-medium">{formatHoverValue(hoverDetails.median)}</span>
+                    </div>
+                  )}
+                  {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Aufschlüsselung:</div>
+                      {hoverDetails.breakdown.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{item.label}:</span>
+                          <span className="font-medium">{formatHoverValue(item.value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="space-y-2">
-                {hoverDetails.average !== undefined && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Durchschnitt:</span>
-                    <span className="font-medium">{formatHoverValue(hoverDetails.average)}</span>
-                  </div>
-                )}
-                {hoverDetails.median !== undefined && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Median:</span>
-                    <span className="font-medium">{formatHoverValue(hoverDetails.median)}</span>
-                  </div>
-                )}
-                {hoverDetails.breakdown && hoverDetails.breakdown.length > 0 && (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">Aufschlüsselung:</div>
-                    {hoverDetails.breakdown.map((item, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">{item.label}:</span>
-                        <span className="font-medium">{formatHoverValue(item.value)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
             </HoverCardContent>
           </HoverCard>
         </div>
@@ -109,36 +103,39 @@ export function SummaryCard({
 
   return (
     <CardWrapper>
-      <Card 
+      <Card
         className={cn(
-          "relative overflow-hidden rounded-xl border-none shadow-md transition-all duration-200 hover:shadow-lg",
-          onClick && "cursor-pointer hover:scale-[1.02]",
+          // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
+          "relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card",
+          // sichtbare Border wie im Main-Design
+          "border",
+          // keine Scale-/starken Hover-Shadows, um dem Main-Look treu zu bleiben
           className
-        )} 
+        )}
         onClick={onClick}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">
             {title}
           </CardTitle>
-          {React.isValidElement(icon) ? (
-            icon
-          ) : typeof icon === 'function' ? (
-            React.createElement(icon, { className: "h-4 w-4 text-muted-foreground" })
-          ) : (
-            icon
-          )}
+          {React.isValidElement(icon)
+            ? icon
+            : typeof icon === "function"
+              ? React.createElement(icon, { className: "h-4 w-4 text-muted-foreground" })
+              : icon}
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
             {valueFormatter(value)}
           </div>
+
           {hoverDetails && (
             <p className="text-xs text-muted-foreground mt-1">
               Hover für Details
             </p>
           )}
-          {description && !hoverDetails && (
+
+          {!hoverDetails && description && (
             <p className="text-xs text-muted-foreground mt-1">
               {description}
             </p>
@@ -151,7 +148,14 @@ export function SummaryCard({
 
 export function SummaryCardSkeleton({ className }: { className?: string }) {
   return (
-    <Card className={cn("relative overflow-hidden rounded-xl border-none shadow-md", className)}>
+    <Card
+      className={cn(
+        "relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card",
+        // konsistent zur Hauptkarte: sichtbare Border
+        "border",
+        className
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-4 w-4 rounded" />
