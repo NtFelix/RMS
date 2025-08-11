@@ -6,12 +6,12 @@
     <title>Bestätigen Sie Ihre Anmeldung</title>
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --background: #f8fafc;
-            --text: #334155;
-            --text-light: #94a3b8;
-            --border: #e2e8f0;
+            --primary: #2b3e4f;
+            --primary-hover: #1e2b37;
+            --background: #f1f3f3;
+            --text: #2b3e4f;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
         }
 
         body {
@@ -40,14 +40,10 @@
         .logo {
             width: 90px;
             height: 90px;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            border-radius: 20px;
             margin: 0 auto 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transform: rotate(-5deg);
-            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+            display: block;
+            border-radius: 20px;
+            box-shadow: 0 10px 15px -3px rgba(43, 62, 79, 0.2);
         }
 
         h1 {
@@ -72,7 +68,7 @@
         .btn-confirm {
             display: block;
             width: 100%;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            background-color: var(--primary);
             color: white;
             text-decoration: none;
             padding: 18px 0;
@@ -80,12 +76,13 @@
             font-weight: 600;
             font-size: 18px;
             transition: all 0.3s ease;
-            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 10px 15px -3px rgba(43, 62, 79, 0.3);
         }
 
         .btn-confirm:hover {
+            background-color: var(--primary-hover);
             transform: translateY(-2px);
-            box-shadow: 0 15px 20px -3px rgba(99, 102, 241, 0.4);
+            box-shadow: 0 15px 20px -3px rgba(43, 62, 79, 0.4);
         }
 
         .footer {
@@ -118,12 +115,8 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <div class="logo">
-                <svg width="45" height="45" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-                </svg>
-            </div>
-            <h1>Willkommen! Bestätigen Sie Ihre Anmeldung</h1>
+            <img src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/favicon.png" alt="RMS Mascot" class="logo">
+            <h1>Willkommen bei RMS!</h1>
         </div>
 
         <p>Toll, dass Sie dabei sind! Um Ihr neues Konto zu aktivieren und alle Funktionen freizuschalten, bestätigen Sie bitte Ihre E-Mail-Adresse mit einem Klick auf den Button.</p>
@@ -136,7 +129,8 @@
 
         <div class="footer">
             <p>Diese Nachricht wurde automatisch erstellt. Bitte antworten Sie nicht darauf.</p>
-            <p>&copy; 2025 Ihr Unternehmen. Alle Rechte vorbehalten.</p>
+            <p>Bei Fragen erreichen Sie uns unter support@rms-system.de</p>
+            <p>&copy; 2025 RMS. Alle Rechte vorbehalten.</p>
         </div>
     </div>
 </body>
