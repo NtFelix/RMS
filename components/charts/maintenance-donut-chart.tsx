@@ -1,8 +1,21 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from "recharts";
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, PieLabelRenderProps } from "recharts";
 import { createClient } from "@/utils/supabase/client";
+
+type FinanzDaten = {
+  id: string;
+  name: string | null;
+  betrag: string | number | null;
+  ist_einnahmen: boolean;
+  datum: string | null;
+  wohnung_id: string | null;
+  notiz?: string | null;
+  kategorie?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
 
 const COLORS = ["#34d399", "#f59e42", "#818cf8", "#f87171"];
 
@@ -28,7 +41,7 @@ export function MaintenanceDonutChart() {
       
       try {
         // Fetch ALL finance data without limits - expenses only
-        let allFinanzenData: any[] = [];
+        let allFinanzenData: FinanzDaten[] = [];
         let page = 0;
         const pageSize = 5000;
         let hasMore = true;
@@ -106,7 +119,16 @@ export function MaintenanceDonutChart() {
   }, []);
 
   // Custom tooltip to format currency
-  const CustomTooltip = ({ active, payload }: any) => {
+  interface TooltipProps {
+    active?: boolean;
+    payload?: Array<{
+      name: string;
+      value: number;
+      payload: MaintenanceData;
+    }>;
+  }
+
+  const CustomTooltip = ({ active, payload }: TooltipProps) => {
     if (active && payload && payload.length) {
       const data = payload[0];
       return (
