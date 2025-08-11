@@ -3,94 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Erneute Anmeldung erforderlich - RMS</title>
+    <title>Bestätigen Sie Ihre Wiedereuthentifizierung</title>
     <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --background: #f8fafc;
+            --text: #334155;
+            --text-light: #94a3b8;
+            --border: #e2e8f0;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6;
-            color: #333;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
             max-width: 600px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f8fafc;
+            background-color: var(--background);
         }
-        .container {
-            background: white;
-            border-radius: 8px;
+
+        .email-container {
+            background-color: white;
+            border-radius: 24px;
             padding: 40px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
         }
+
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 35px;
         }
+
         .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: #2563eb;
-            margin-bottom: 10px;
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(-5deg);
+            box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.3);
         }
-        .button {
-            display: inline-block;
-            background-color: #059669;
-            color: white;
-            padding: 12px 24px;
-            text-decoration: none;
-            border-radius: 6px;
-            font-weight: 500;
-            margin: 20px 0;
+
+        h1 {
+            color: #1e293b;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            letter-spacing: -0.025em;
         }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e5e7eb;
+
+        p {
+            font-size: 16px;
+            margin-bottom: 24px;
+            color: var(--text);
+        }
+
+        .token-container {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e7e7ff 100%);
+            border: 2px solid #e2e8f0;
+            border-radius: 20px;
+            padding: 30px;
+            margin: 35px 0;
+            text-align: center;
+        }
+
+        .token-label {
             font-size: 14px;
-            color: #6b7280;
+            color: var(--text-light);
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
         }
-        .security-note {
-            background-color: #fef3c7;
-            border: 1px solid #f59e0b;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 20px 0;
+
+        .token-code {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 32px;
+            font-weight: 800;
+            color: #1e293b;
+            letter-spacing: 0.15em;
+            padding: 15px 25px;
+            background: white;
+            border-radius: 15px;
+            display: inline-block;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 14px;
+            color: var(--text-light);
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 15px;
+            }
+            .email-container {
+                padding: 30px 20px;
+                border-radius: 20px;
+            }
+            h1 {
+                font-size: 24px;
+            }
+            .token-code {
+                font-size: 28px;
+                padding: 12px 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="email-container">
         <div class="header">
-            <div class="logo">RMS</div>
-            <h1>Erneute Anmeldung erforderlich</h1>
+            <div class="logo">
+                <svg width="45" height="45" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 12l2 2 4-4"/>
+                    <path d="M21 12c-1 0-3-1-3-3s2-3 3-3 3 1 3 3-2 3-3 3"/>
+                    <path d="M3 12c1 0 3-1 3-3s-2-3-3-3-3 1-3 3 2 3 3 3"/>
+                    <path d="M12 3c0 1-1 3-3 3s-3-2-3-3 1-3 3-3 3 2 3 3"/>
+                    <path d="M12 21c0-1 1-3 3-3s3 2 3 3-1 3-3 3-3-2-3-3"/>
+                </svg>
+            </div>
+            <h1>Wiedereuthentifizierung erforderlich</h1>
         </div>
-        
-        <p>Hallo,</p>
-        
-        <p>Aus Sicherheitsgründen ist eine erneute Bestätigung Ihrer Identität erforderlich, um auf sensible Funktionen in Ihrem RMS-Konto zuzugreifen.</p>
-        
-        <p>Dies kann erforderlich sein, wenn Sie:</p>
-        <ul>
-            <li>Ihr Passwort ändern möchten</li>
-            <li>Ihre E-Mail-Adresse aktualisieren</li>
-            <li>Wichtige Kontoeinstellungen bearbeiten</li>
-            <li>Zahlungsinformationen verwalten</li>
-        </ul>
-        
-        <p>Klicken Sie auf den folgenden Button, um sich erneut zu authentifizieren:</p>
-        
-        <div style="text-align: center;">
-            <a href="{{ .ConfirmationURL }}" class="button">Identität bestätigen</a>
+
+        <p>Aus Sicherheitsgründen benötigen wir eine Bestätigung Ihrer Identität. Geben Sie den folgenden Code in der Anwendung ein, um fortzufahren:</p>
+
+        <div class="token-container">
+            <div class="token-label">Ihr Bestätigungscode</div>
+            <div class="token-code">{{ .Token }}</div>
         </div>
-        
-        <p>Falls der Button nicht funktioniert, können Sie auch diesen Link in Ihren Browser kopieren:</p>
-        <p style="word-break: break-all; color: #2563eb;">{{ .ConfirmationURL }}</p>
-        
-        <div class="security-note">
-            <strong>Sicherheitshinweis:</strong> Dieser Link ist nur 15 Minuten gültig. Diese Maßnahme dient dem Schutz Ihres Kontos und Ihrer Daten.
-        </div>
-        
+
+        <p>Dieser Code ist nur für kurze Zeit gültig. Falls Sie diese Anfrage nicht ausgelöst haben, ignorieren Sie diese E-Mail und wenden Sie sich an unseren Support.</p>
+
         <div class="footer">
-            <p>Falls Sie diese Aktion nicht angefordert haben, melden Sie sich bitte umgehend bei unserem Support.</p>
-            <p>Bei Fragen erreichen Sie uns unter support@rms-system.de</p>
+            <p>Diese Nachricht wurde automatisch erstellt. Bitte antworten Sie nicht darauf.</p>
+            <p>&copy; 2025 Ihr Unternehmen. Alle Rechte vorbehalten.</p>
         </div>
     </div>
 </body>
