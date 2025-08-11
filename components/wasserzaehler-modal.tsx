@@ -12,11 +12,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DatePicker } from "@/components/ui/date-picker";
-import { format } from "date-fns";
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
-import { toast } from "@/hooks/use-toast";
+import { getPreviousWasserzaehlerRecordAction } from "@/app/betriebskosten-actions";
+import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
+
+// Local interface to handle additional client-side properties
+interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_datum' | 'zaehlerstand' | 'verbrauch'> {
+  ablese_datum: string;
+  zaehlerstand: string;
+  verbrauch: string;
+  previous_reading: Wasserzaehler | null;
+  warning?: string;
+}
 
 export function WasserzaehlerModal() {
   const {
@@ -30,86 +38,118 @@ export function WasserzaehlerModal() {
     setWasserzaehlerModalDirty,
   } = useModalStore();
 
-  const [formData, setFormData] = useState<WasserzaehlerFormEntry[]>([]);
-  const [initialFormData, setInitialFormData] = useState<WasserzaehlerFormEntry[]>([]);
+  const [formData, setFormData] = useState<ModalWasserzaehlerEntry[]>([]);
+  const [initialFormData, setInitialFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
-  // Effect for populating formData based on fetched data
   useEffect(() => {
     if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten && wasserzaehlerMieterList) {
-      const newFormData = wasserzaehlerMieterList.map(mieter => {
-        const existingReadingForMieter = wasserzaehlerExistingReadings?.find(
-          reading => reading.mieter_id === mieter.id
-        );
+      setIsLoading(true);
+      const processMieterList = async () => {
+        try {
+          const newFormDataPromises = wasserzaehlerMieterList.map(async (mieter) => {
+            const existingReadingForMieter = wasserzaehlerExistingReadings?.find(
+              reading => reading.mieter_id === mieter.id
+            );
 
-        if (existingReadingForMieter) {
-          return {
-            mieter_id: mieter.id,
-            mieter_name: mieter.name,
-            ablese_datum: existingReadingForMieter.ablese_datum || null,
-            zaehlerstand: existingReadingForMieter.zaehlerstand !== null && existingReadingForMieter.zaehlerstand !== undefined
-                          ? String(existingReadingForMieter.zaehlerstand)
-                          : "",
-            verbrauch: existingReadingForMieter.verbrauch !== null && existingReadingForMieter.verbrauch !== undefined
-                       ? String(existingReadingForMieter.verbrauch)
-                       : "",
-          };
-        } else {
-          return {
-            mieter_id: mieter.id,
-            mieter_name: mieter.name,
-            ablese_datum: null,
-            zaehlerstand: "",
-            verbrauch: "",
-          };
+            const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id);
+            const previous_reading = previousReadingResponse.success ? (previousReadingResponse.data || null) : null;
+
+            return {
+              mieter_id: mieter.id,
+              mieter_name: mieter.name,
+              ablese_datum: existingReadingForMieter?.ablese_datum || '',
+              zaehlerstand: existingReadingForMieter?.zaehlerstand?.toString() || '',
+              verbrauch: existingReadingForMieter?.verbrauch?.toString() || '',
+              previous_reading,
+              warning: '',
+            };
+          });
+
+          const newFormData = await Promise.all(newFormDataPromises);
+
+          setFormData(newFormData);
+          setInitialFormData(JSON.parse(JSON.stringify(newFormData)));
+          setWasserzaehlerModalDirty(false);
+        } catch (error) {
+          console.error("Error preparing Wasserzaehler modal data:", error);
+          toast({
+            title: "Fehler",
+            description: "Die Daten für das Wasserzähler-Modal konnten nicht geladen werden.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsLoading(false);
         }
-      });
-      setFormData(newFormData);
-      setInitialFormData(JSON.parse(JSON.stringify(newFormData))); // Deep copy for comparison
-      setWasserzaehlerModalDirty(false); // Reset dirty state when opening
+      };
+
+      processMieterList();
     } else if (!isWasserzaehlerModalOpen) {
       setFormData([]);
       setInitialFormData([]);
     }
-  }, [isWasserzaehlerModalOpen, wasserzaehlerNebenkosten, wasserzaehlerMieterList, wasserzaehlerExistingReadings, setWasserzaehlerModalDirty]);
+  }, [isWasserzaehlerModalOpen, wasserzaehlerNebenkosten, wasserzaehlerMieterList, wasserzaehlerExistingReadings, setWasserzaehlerModalDirty, toast]);
 
-  // Check if form data has changed
   useEffect(() => {
+    if (isLoading) return;
     const hasChanged = JSON.stringify(formData) !== JSON.stringify(initialFormData);
     setWasserzaehlerModalDirty(hasChanged);
-  }, [formData, initialFormData, setWasserzaehlerModalDirty]);
+  }, [formData, initialFormData, setWasserzaehlerModalDirty, isLoading]);
 
-  const handleInputChange = (index: number, field: keyof WasserzaehlerFormEntry, value: any) => {
-    setFormData(formData.map((entry, i) =>
-      i === index ? { ...entry, [field]: value } : entry
-    ));
-  };
+  const handleInputChange = (index: number, field: keyof Omit<ModalWasserzaehlerEntry, 'mieter_id' | 'mieter_name' | 'previous_reading'>, value: string) => {
+    const newFormData = [...formData];
+    const entry = newFormData[index];
+    (entry as any)[field] = value;
 
-  const handleAbleseDatumChange = (index: number, date: Date | undefined) => {
-    setFormData(formData.map((entry, i) =>
-      i === index ? { ...entry, ablese_datum: date ? format(date, "yyyy-MM-dd") : null } : entry
-    ));
+    if (field === 'zaehlerstand') {
+      const currentReading = parseFloat(value);
+      const previousReadingValue = entry.previous_reading?.zaehlerstand;
+
+      if (!isNaN(currentReading) && previousReadingValue !== null && previousReadingValue !== undefined) {
+        const consumption = currentReading - previousReadingValue;
+        entry.verbrauch = consumption.toString();
+        if (consumption < 0) {
+          entry.warning = "Verbrauch ist negativ.";
+        } else if (consumption > 1000) {
+          entry.warning = "Verbrauch ist ungewöhnlich hoch.";
+        } else {
+          entry.warning = '';
+        }
+      } else {
+        entry.verbrauch = '';
+        entry.warning = '';
+      }
+    }
+    setFormData(newFormData);
   };
 
   const handleSubmit = async () => {
     if (!wasserzaehlerNebenkosten || !wasserzaehlerOnSave) return;
     setIsLoading(true);
+
+    const entriesToSave = formData
+      .filter(e => e.ablese_datum && e.zaehlerstand)
+      .map(entry => ({
+        mieter_id: entry.mieter_id,
+        mieter_name: entry.mieter_name,
+        ablese_datum: entry.ablese_datum,
+        zaehlerstand: parseFloat(entry.zaehlerstand) || 0,
+        verbrauch: parseFloat(entry.verbrauch) || 0,
+      }));
+
     const dataToSave: WasserzaehlerFormData = {
       nebenkosten_id: wasserzaehlerNebenkosten.id,
-      entries: formData.map(entry => ({
-        ...entry,
-        zaehlerstand: parseFloat(entry.zaehlerstand as string) || 0,
-        verbrauch: parseFloat(entry.verbrauch as string) || 0,
-      })),
+      entries: entriesToSave,
     };
+
     try {
       await wasserzaehlerOnSave(dataToSave);
       toast({
         title: "Erfolgreich gespeichert",
         description: "Die Wasserzählerstände wurden erfolgreich aktualisiert.",
-        variant: "success",
       });
-      closeWasserzaehlerModal({ force: true }); // Force close after successful save
+      closeWasserzaehlerModal({ force: true });
     } catch (error) {
       console.error("Error saving Wasserzaehler data:", error);
       toast({
@@ -133,7 +173,7 @@ export function WasserzaehlerModal() {
   return (
     <Dialog open={isWasserzaehlerModalOpen} onOpenChange={(open) => !open && attemptClose()}>
       <DialogContent 
-        className="sm:max-w-[600px] md:max-w-[800px] lg:max-w-[1000px]"
+        className="sm:max-w-[600px] md:max-w-[800px]"
         isDirty={isWasserzaehlerModalDirty}
         onAttemptClose={attemptClose}
       >
@@ -142,56 +182,70 @@ export function WasserzaehlerModal() {
             Wasserzählerstände für {wasserzaehlerNebenkosten.Haeuser?.name || "Unbekanntes Haus"} - {wasserzaehlerNebenkosten.jahr}
           </DialogTitle>
           <DialogDescription>
-            Geben Sie die Zählerstände und Verbräuche für jeden Mieter ein.
+            Geben Sie die Zählerstände für jeden Mieter ein. Der Verbrauch wird automatisch berechnet.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-2">
-          {formData.map((entry, index) => (
-            <div key={entry.mieter_id} className="grid grid-cols-1 md:grid-cols-4 items-center gap-4 border-b pb-4 mb-4">
-              <Label htmlFor={`mieter_name-${index}`} className="md:col-span-1 md:text-right">
-                {entry.mieter_name}
-              </Label>
-              <div className="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <Label htmlFor={`ablese_datum-${index}`} className="text-sm font-medium">Ablesedatum</Label>
-                  <DatePicker
-                    value={entry.ablese_datum}
-                    onChange={(date) => handleAbleseDatumChange(index, date)}
-                    placeholder="TT.MM.JJJJ"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`zaehlerstand-${index}`} className="text-sm font-medium">Zählerstand</Label>
-                  <Input
-                    id={`zaehlerstand-${index}`}
-                    type="number"
-                    value={entry.zaehlerstand}
-                    onChange={(e) => handleInputChange(index, "zaehlerstand", e.target.value)}
-                    placeholder="z.B. 123.45"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`verbrauch-${index}`} className="text-sm font-medium">Verbrauch</Label>
-                  <Input
-                    id={`verbrauch-${index}`}
-                    type="number"
-                    value={entry.verbrauch}
-                    onChange={(e) => handleInputChange(index, "verbrauch", e.target.value)}
-                    placeholder="z.B. 10.5"
-                    className="w-full"
-                  />
-                </div>
-              </div>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 py-4">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-40">
+              <p>Lade Daten...</p>
             </div>
-          ))}
-          {formData.length === 0 && wasserzaehlerMieterList && wasserzaehlerMieterList.length === 0 && (
-            <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
-          )}
-          {formData.length === 0 && (!wasserzaehlerMieterList || wasserzaehlerMieterList.length > 0) && (
-            <p>Geben Sie die Zählerstände für die Mieter ein oder passen Sie die Filter an.</p>
+          ) : formData.length > 0 ? (
+            formData.map((entry, index) => (
+              <div key={entry.mieter_id} className="p-4 bg-muted/50 border rounded-lg space-y-3">
+                <p className="font-semibold text-lg">{entry.mieter_name}</p>
+
+                {entry.previous_reading ? (
+                  <p className="text-sm text-muted-foreground">
+                    Vorherige Ablesung: {entry.previous_reading.ablese_datum ? new Date(entry.previous_reading.ablese_datum).toLocaleDateString() : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Keine vorherige Ablesung gefunden.</p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                  <div className="space-y-1">
+                    <Label htmlFor={`ablesedatum-${entry.mieter_id}`}>Ablesedatum</Label>
+                    <Input
+                      id={`ablesedatum-${entry.mieter_id}`}
+                      type="date"
+                      value={entry.ablese_datum}
+                      onChange={(e) => handleInputChange(index, 'ablese_datum', e.target.value)}
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`zaehlerstand-${entry.mieter_id}`}>Neuer Zählerstand</Label>
+                    <Input
+                      id={`zaehlerstand-${entry.mieter_id}`}
+                      type="number"
+                      value={entry.zaehlerstand}
+                      onChange={(e) => handleInputChange(index, 'zaehlerstand', e.target.value)}
+                      placeholder="z.B. 123.45"
+                      disabled={isLoading}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`verbrauch-${entry.mieter_id}`}>Verbrauch</Label>
+                    <Input
+                      id={`verbrauch-${entry.mieter_id}`}
+                      type="number"
+                      value={entry.verbrauch}
+                      onChange={(e) => handleInputChange(index, 'verbrauch', e.target.value)}
+                      placeholder="wird berechnet"
+                      disabled={isLoading}
+                      className={entry.warning ? "border-red-500 focus-visible:ring-red-500" : ""}
+                    />
+                  </div>
+                </div>
+                {entry.warning && <p className="text-sm text-red-500 mt-1">{entry.warning}</p>}
+              </div>
+            ))
+          ) : (
+            <div className="flex justify-center items-center h-40">
+              <p>Keine Mieter für diesen Zeitraum und dieses Haus gefunden.</p>
+            </div>
           )}
         </div>
 
@@ -199,13 +253,13 @@ export function WasserzaehlerModal() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => closeWasserzaehlerModal({ force: true })} // Force close without confirmation
+            onClick={() => closeWasserzaehlerModal({ force: true })}
             disabled={isLoading}
           >
             Abbrechen
           </Button>
-          <Button type="button" onClick={handleSubmit} disabled={isLoading}>
-            {isLoading ? "Speichern..." : "Speichern"}
+          <Button type="button" onClick={handleSubmit} disabled={isLoading || !isWasserzaehlerModalDirty}>
+            {isLoading ? "Speichern..." : "Änderungen speichern"}
           </Button>
         </DialogFooter>
       </DialogContent>
