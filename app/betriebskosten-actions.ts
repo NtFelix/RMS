@@ -369,7 +369,7 @@ export async function saveWasserzaehlerData(
   const recordsToInsert = entries
     .filter(entry => {
       // Skip entries with missing required fields
-      const isValid = entry.mieter_id && entry.ablese_datum && !isNaN(parseFloat(entry.zaehlerstand as any));
+      const isValid = entry.mieter_id && !isNaN(parseFloat(entry.zaehlerstand as any));
       if (!isValid) {
         console.warn('Skipping invalid entry:', entry);
       }
@@ -388,6 +388,10 @@ export async function saveWasserzaehlerData(
         } catch (e) {
           console.error('Error formatting date:', e);
         }
+      } else {
+        // No date provided: default to today's date in YYYY-MM-DD
+        const today = new Date();
+        formattedDate = today.toISOString().split('T')[0];
       }
 
       return {

@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format } from "date-fns";
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
 import { getPreviousWasserzaehlerRecordAction } from "@/app/betriebskosten-actions";
 import { useToast } from "@/hooks/use-toast";
@@ -198,6 +200,14 @@ export function WasserzaehlerModal() {
     setFormData(newFormData);
   };
 
+  // Handle DatePicker changes per row and format to yyyy-MM-dd (server expects this)
+  const handleDateChangeRow = (index: number, date: Date | undefined) => {
+    const newFormData = [...formData];
+    const entry = newFormData[index];
+    entry.ablese_datum = date ? format(date, "yyyy-MM-dd") : "";
+    setFormData(newFormData);
+  };
+
   const handleSubmit = async () => {
     if (!wasserzaehlerNebenkosten || !wasserzaehlerOnSave) {
       toast({
@@ -213,30 +223,21 @@ export function WasserzaehlerModal() {
     // Validate form data before attempting to save
     const entriesToSave = formData
       .filter(e => {
-        // Check for required fields
-        const hasRequiredFields = e.ablese_datum && e.zaehlerstand;
-        if (!hasRequiredFields) {
-          console.warn('Skipping entry with missing required fields:', e);
-          return false;
-        }
-        
-        // Check for valid number values
+        // Date is optional now; only require a valid zaehlerstand number
         const zaehlerstand = parseFloat(e.zaehlerstand);
-        const verbrauch = parseFloat(e.verbrauch);
-        const hasValidNumbers = !isNaN(zaehlerstand) && !isNaN(verbrauch);
-        
-        if (!hasValidNumbers) {
-          console.warn('Skipping entry with invalid number values:', e);
+        if (isNaN(zaehlerstand)) {
+          console.warn('Skipping entry with invalid zaehlerstand:', e);
           return false;
         }
-        
         return true;
       })
       .map(entry => ({
         mieter_id: entry.mieter_id,
         mieter_name: entry.mieter_name,
+        // Date can be empty; server will default to today if missing
         ablese_datum: entry.ablese_datum,
         zaehlerstand: parseFloat(entry.zaehlerstand) || 0,
+        // Verbrauch may be auto-calculated; default to 0 if not provided/invalid
         verbrauch: parseFloat(entry.verbrauch) || 0,
       }));
 
@@ -347,11 +348,11 @@ export function WasserzaehlerModal() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                   <div className="space-y-1">
                     <Label htmlFor={`ablesedatum-${entry.mieter_id}`}>Ablesedatum</Label>
-                    <Input
+                    <DatePicker
                       id={`ablesedatum-${entry.mieter_id}`}
-                      type="date"
                       value={entry.ablese_datum}
-                      onChange={(e) => handleInputChange(index, 'ablese_datum', e.target.value)}
+                      onChange={(date) => handleDateChangeRow(index, date)}
+                      placeholder="Datum auswählen (optional)"
                       disabled={isLoading}
                     />
                   </div>
