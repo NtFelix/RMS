@@ -42,6 +42,9 @@ export function WasserzaehlerModal() {
   const [initialFormData, setInitialFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  
+  // Threshold for high consumption warning (50% more than previous year)
+  const HIGH_CONSUMPTION_INCREASE_THRESHOLD = 1.5; // 50% increase
 
   useEffect(() => {
     if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten && wasserzaehlerMieterList) {
@@ -111,7 +114,15 @@ export function WasserzaehlerModal() {
         entry.verbrauch = consumption.toString();
         if (consumption < 0) {
           entry.warning = "Verbrauch ist negativ.";
+        } else if (entry.previous_reading?.verbrauch) {
+          const previousConsumption = entry.previous_reading.verbrauch;
+          if (consumption > previousConsumption * HIGH_CONSUMPTION_INCREASE_THRESHOLD) {
+            entry.warning = `Achtung: Verbrauch (${consumption}) ist mehr als ${Math.round((HIGH_CONSUMPTION_INCREASE_THRESHOLD - 1) * 100)}% höher als im Vorjahr (${previousConsumption}).`;
+          } else {
+            entry.warning = '';
+          }
         } else if (consumption > 1000) {
+          // Fallback check if no previous consumption data is available
           entry.warning = "Verbrauch ist ungewöhnlich hoch.";
         } else {
           entry.warning = '';
