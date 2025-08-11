@@ -43,6 +43,7 @@ export function WasserzaehlerModal() {
   const [formData, setFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [initialFormData, setInitialFormData] = useState<ModalWasserzaehlerEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
   const { toast } = useToast();
   
   // Threshold for high consumption warning (50% more than previous year)
@@ -208,6 +209,24 @@ export function WasserzaehlerModal() {
     setFormData(newFormData);
   };
 
+  // Apply the general date to all entries
+  const applyGeneralDateToAll = () => {
+    if (!generalDate) return;
+    
+    const newFormData = [...formData];
+    const formattedDate = format(generalDate, "yyyy-MM-dd");
+    
+    newFormData.forEach(entry => {
+      entry.ablese_datum = formattedDate;
+    });
+    setFormData(newFormData);
+    
+    toast({
+      title: "Datum übernommen",
+      description: `Das Datum wurde für alle ${newFormData.length} Mieter übernommen.`,
+    });
+  };
+
   const handleSubmit = async () => {
     if (!wasserzaehlerNebenkosten || !wasserzaehlerOnSave) {
       toast({
@@ -328,6 +347,35 @@ export function WasserzaehlerModal() {
         </DialogHeader>
 
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 py-4">
+          {/* General Date Picker */}
+          {formData.length > 0 && (
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-6 p-4 bg-muted/50 border rounded-lg">
+              <div className="w-full">
+                <Label htmlFor="general-date-picker" className="block mb-1">
+                  Gemeinsames Ablesedatum für alle Mieter:
+                </Label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="flex-1">
+                    <DatePicker
+                      id="general-date-picker"
+                      value={generalDate}
+                      onChange={(date) => setGeneralDate(date || new Date())}
+                      placeholder="Datum für alle Mieter auswählen"
+                    />
+                  </div>
+                  <Button 
+                    type="button" 
+                    onClick={applyGeneralDateToAll} 
+                    variant="outline" 
+                    className="whitespace-nowrap"
+                  >
+                    Auf alle Mieter anwenden
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
               <p>Lade Daten...</p>
