@@ -247,6 +247,7 @@ export async function getPreviousWasserzaehlerRecordAction(
       .from("Wasserzaehler")
       .select("*")
       .eq("mieter_id", mieterId)
+      .eq("user_id", user.id) // Add explicit user filter for security
       .order("ablese_datum", { ascending: false })
       .limit(1)
       .single();
