@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { Edit, Building, Trash2 } from "lucide-react"
+import { Edit, Trash2 } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,6 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { loescheWohnung } from "@/app/(dashboard)/wohnungen/actions"; // Added import
 import type { Apartment } from "./apartment-table"; // Import the shared type
-
 // Remove local Apartment interface definition
 
 interface ApartmentContextMenuProps {
