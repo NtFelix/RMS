@@ -143,13 +143,26 @@ export async function GET(
       };
     });
 
+    // Define the type for Wohnung data from Supabase
+    type WohnungData = {
+      id: string;
+      name: string | null;
+      groesse: number | null;
+      miete: number | null;
+      haus_id: string | null;
+      Haeuser: Array<{ name: string }> | null;
+    };
+
+    // Cast the data to our type
+    const typedWohnungData = wohnungData as WohnungData;
+
     // Validate and structure the response data to match WohnungWithMieter interface
     const response = {
-      id: wohnungData.id,
-      name: wohnungData.name || 'Unbekannt',
-      groesse: wohnungData.groesse || 0,
-      miete: wohnungData.miete || 0,
-      hausName: (wohnungData.Haeuser as any)?.name || 'Unbekannt',
+      id: typedWohnungData.id,
+      name: typedWohnungData.name || 'Unbekannt',
+      groesse: typedWohnungData.groesse || 0,
+      miete: typedWohnungData.miete || 0,
+      hausName: typedWohnungData.Haeuser?.[0]?.name || 'Unbekannt',
       mieter
     };
 
