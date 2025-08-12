@@ -39,9 +39,10 @@ export function TaskBoard({
       (filter === 'pending' && !task.ist_erledigt)
       
     const taskDescription = task.beschreibung || ''
+    const taskName = task.name || ''
     const searchQueryLower = searchQuery.toLowerCase()
     const matchesSearch = 
-      task.name.toLowerCase().includes(searchQueryLower) ||
+      taskName.toLowerCase().includes(searchQueryLower) ||
       taskDescription.toLowerCase().includes(searchQueryLower)
     
     return matchesFilter && matchesSearch
