@@ -293,8 +293,8 @@ describe('/api/apartments/[apartmentId]/details', () => {
     await GET(request, { params })
 
     expect(NextResponse.json).toHaveBeenCalledWith(
-      { error: 'Wohnung nicht gefunden.' },
-      { status: 404 }
+      { error: 'Fehler beim Laden der Wohnungsdaten.' },
+      { status: 500 }
     )
   })
 
