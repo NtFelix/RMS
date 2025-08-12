@@ -1,4 +1,5 @@
 "use client";
+import { deleteTenantAction } from "@/app/mieter-actions";
 import {
   Dialog,
   DialogContent,
@@ -203,11 +204,11 @@ export function WohnungOverviewModal() {
 
     try {
       setIsDeleting(true);
-      const response = await fetch(`/api/mieter/${mieterToDelete.id}`, {
-        method: 'DELETE',
-      });
+      
+      // Use the server action to delete the tenant
+      const { success, error } = await deleteTenantAction(mieterToDelete.id);
 
-      if (response.ok) {
+      if (success) {
         toast({
           title: "Erfolg",
           description: `Der Mieter "${mieterToDelete.name}" wurde erfolgreich gelöscht.`,
@@ -217,10 +218,9 @@ export function WohnungOverviewModal() {
         // Refresh the overview data
         refreshWohnungOverviewData();
       } else {
-        const errorData = await response.json();
         toast({
           title: "Fehler",
-          description: errorData.error || "Der Mieter konnte nicht gelöscht werden.",
+          description: error?.message || "Der Mieter konnte nicht gelöscht werden.",
           variant: "destructive",
         });
       }
