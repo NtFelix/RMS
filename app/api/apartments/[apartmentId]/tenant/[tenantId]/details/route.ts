@@ -155,10 +155,19 @@ export async function GET(
     if (tenant.einzug) {
       const moveInDate = new Date(tenant.einzug);
       const endDate = tenant.auszug ? new Date(tenant.auszug) : new Date();
-      const monthsRented = Math.max(0, 
-        (endDate.getFullYear() - moveInDate.getFullYear()) * 12 + 
-        (endDate.getMonth() - moveInDate.getMonth())
-      );
+      
+      // Calculate months rented accurately, accounting for partial months
+      let monthsRented = (endDate.getFullYear() - moveInDate.getFullYear()) * 12 + 
+                        (endDate.getMonth() - moveInDate.getMonth());
+      
+      // Adjust if end day is before move-in day (not a full month)
+      if (endDate.getDate() < moveInDate.getDate()) {
+        monthsRented--;
+      }
+      
+      // Ensure we don't have negative months
+      monthsRented = Math.max(0, monthsRented);
+      
       totalPaidRent = monthsRented * currentRent;
     }
 
