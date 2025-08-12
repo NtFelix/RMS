@@ -1,9 +1,20 @@
 import { GET } from './route';
 import { createClient } from '@/utils/supabase/server';
+import { NextResponse } from 'next/server';
 
 // Mock the Supabase client
 jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
+}));
+
+// Mock NextResponse
+jest.mock('next/server', () => ({
+  NextResponse: {
+    json: jest.fn((data, options) => ({
+      json: () => Promise.resolve(data),
+      status: options?.status || 200,
+    })),
+  },
 }));
 
 const mockCreateClient = createClient as jest.MockedFunction<typeof createClient>;
@@ -13,11 +24,7 @@ describe('/api/wohnungen/[id]/overview', () => {
 
   beforeEach(() => {
     mockSupabase = {
-      from: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      single: jest.fn(),
+      from: jest.fn(),
     };
     mockCreateClient.mockResolvedValue(mockSupabase);
   });
@@ -33,7 +40,7 @@ describe('/api/wohnungen/[id]/overview', () => {
       name: 'Wohnung 1',
       groesse: 50,
       miete: 800,
-      Haeuser: { name: 'Test Haus' }
+      Haeuser: [{ name: 'Test Haus' }]
     };
 
     const mockMieterData = [
@@ -56,43 +63,55 @@ describe('/api/wohnungen/[id]/overview', () => {
     ];
 
     // Mock Wohnung query
-    mockSupabase.single.mockResolvedValueOnce({
-      data: mockWohnungData,
-      error: null
-    });
+    const mockWohnungQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: mockWohnungData,
+        error: null
+      })
+    };
 
     // Mock Mieter query
-    mockSupabase.from.mockReturnValueOnce({
+    const mockMieterQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({
         data: mockMieterData,
         error: null
       })
-    });
+    };
+
+    mockSupabase.from
+      .mockReturnValueOnce(mockWohnungQuery)
+      .mockReturnValueOnce(mockMieterQuery);
 
     const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
     const response = await GET(request, { params: Promise.resolve({ id: validUuid }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.wohnung).toEqual({
-      id: validUuid,
-      name: 'Wohnung 1',
-      groesse: 50,
-      miete: 800,
-      hausName: 'Test Haus'
-    });
+    expect(data.id).toBe(validUuid);
+    expect(data.name).toBe('Wohnung 1');
+    expect(data.groesse).toBe(50);
+    expect(data.miete).toBe(800);
+    expect(data.hausName).toBe('Test Haus');
     expect(data.mieter).toHaveLength(2);
     expect(data.mieter[0].status).toBe('active');
     expect(data.mieter[1].status).toBe('moved_out');
   });
 
   it('should return 404 when Wohnung not found', async () => {
-    mockSupabase.single.mockResolvedValueOnce({
-      data: null,
-      error: { code: 'PGRST116', message: 'No rows found' }
-    });
+    const mockWohnungQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { code: 'PGRST116', message: 'No rows found' }
+      })
+    };
+
+    mockSupabase.from.mockReturnValue(mockWohnungQuery);
 
     const validUuid = '550e8400-e29b-41d4-a716-446655440000';
     const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
@@ -122,10 +141,16 @@ describe('/api/wohnungen/[id]/overview', () => {
   });
 
   it('should handle database errors gracefully', async () => {
-    mockSupabase.single.mockResolvedValueOnce({
-      data: null,
-      error: { code: 'PGRST000', message: 'Database error' }
-    });
+    const mockWohnungQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { code: 'PGRST000', message: 'Database error' }
+      })
+    };
+
+    mockSupabase.from.mockReturnValue(mockWohnungQuery);
 
     const validUuid = '550e8400-e29b-41d4-a716-446655440000';
     const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
@@ -146,25 +171,35 @@ describe('/api/wohnungen/[id]/overview', () => {
       Haeuser: null
     };
 
-    mockSupabase.single.mockResolvedValueOnce({
-      data: mockWohnungData,
-      error: null
-    });
+    // Mock Wohnung query
+    const mockWohnungQuery = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({
+        data: mockWohnungData,
+        error: null
+      })
+    };
 
-    mockSupabase.from.mockReturnValueOnce({
+    // Mock Mieter query
+    const mockMieterQuery = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       order: jest.fn().mockResolvedValue({
         data: [],
         error: null
       })
-    });
+    };
+
+    mockSupabase.from
+      .mockReturnValueOnce(mockWohnungQuery)
+      .mockReturnValueOnce(mockMieterQuery);
 
     const request = new Request(`http://localhost/api/wohnungen/${validUuid}/overview`);
     const response = await GET(request, { params: Promise.resolve({ id: validUuid }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
-    expect(data.wohnung.hausName).toBe('Unbekannt');
+    expect(data.hausName).toBe('Unbekannt');
   });
 });
