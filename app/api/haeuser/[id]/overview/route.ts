@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createRequestLogger } from "@/utils/logger";
 
 interface HausOverviewResponse {
   id: string;
@@ -210,7 +211,11 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("GET /api/haeuser/[id]/overview error:", error);
+    const logger = createRequestLogger(request);
+    logger.error("Error in GET /api/haeuser/[id]/overview", error instanceof Error ? error : new Error(String(error)), {
+      hausId: (await params).id
+    });
+    
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Hausübersicht." },
       { status: 500 }
