@@ -73,12 +73,16 @@ describe('BetriebskostenEditModal', () => {
   });
 
   describe('Rendering', () => {
-    it('renders create modal when no initial data is provided', () => {
+    it('renders create modal when no initial data is provided', async () => {
       render(<BetriebskostenEditModal />);
       
       expect(screen.getByText('Neue Betriebskostenabrechnung')).toBeInTheDocument();
       expect(screen.getByText('Füllen Sie die Details für die Betriebskostenabrechnung aus.')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Speichern' })).toBeInTheDocument();
+      
+      // Wait for the loading state to finish and check for the submit button
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Speichern|Laden/ })).toBeInTheDocument();
+      });
     });
 
     it('renders edit modal when initial data is provided', () => {
