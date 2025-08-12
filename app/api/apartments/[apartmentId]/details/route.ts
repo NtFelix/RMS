@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
+import { createRequestLogger } from "@/utils/logger";
 
 export async function GET(
   request: Request,
@@ -29,9 +30,18 @@ export async function GET(
       .single();
 
     if (apartmentError) {
-      console.error("Error fetching apartment:", apartmentError);
+      const logger = createRequestLogger(request);
+      logger.error("Error fetching apartment", new Error(apartmentError.message), {
+        apartmentId,
+        errorCode: apartmentError.code,
+        details: apartmentError.details
+      });
+      
       if (apartmentError.code === 'PGRST116' || apartmentError.message?.includes('No rows returned')) {
-        return NextResponse.json({ error: "Wohnung nicht gefunden." }, { status: 404 });
+        return NextResponse.json(
+          { error: "Wohnung nicht gefunden." }, 
+          { status: 404 }
+        );
       }
       return NextResponse.json(
         { error: "Fehler beim Laden der Wohnungsdaten." }, 
@@ -51,7 +61,13 @@ export async function GET(
       .maybeSingle();
 
     if (tenantError) {
-      console.error("Error fetching tenant:", tenantError);
+      const logger = createRequestLogger(request);
+      logger.warn("Error fetching tenant", {
+        error: tenantError.message,
+        apartmentId,
+        errorCode: tenantError.code,
+        details: tenantError.details
+      });
       // Continue without tenant data
     }
 
@@ -90,7 +106,13 @@ export async function GET(
 
     return NextResponse.json(response, { status: 200 });
   } catch (error) {
-    console.error("GET /api/apartments/[apartmentId]/details error:", error);
-    return NextResponse.json({ error: "Serverfehler beim Laden der Details." }, { status: 500 });
+    const logger = createRequestLogger(request);
+    logger.error("Unexpected error in GET /api/apartments/[apartmentId]/details", error instanceof Error ? error : new Error(String(error)), {
+      apartmentId: (await params).apartmentId
+    });
+    return NextResponse.json(
+      { error: "Serverfehler beim Laden der Details." }, 
+      { status: 500 }
+    );
   }
 }
