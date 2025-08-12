@@ -109,7 +109,8 @@ export function SummaryCard({
           "relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card",
           // sichtbare Border wie im Main-Design
           "border",
-          // keine Scale-/starken Hover-Shadows, um dem Main-Look treu zu bleiben
+          // Add cursor pointer and hover scale when onClick is provided
+          onClick && "cursor-pointer hover:scale-[1.02] transition-transform duration-200",
           className
         )}
         onClick={onClick}
