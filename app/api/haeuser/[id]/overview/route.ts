@@ -26,6 +26,13 @@ interface HausOverviewResponse {
   wohnungen: WohnungOverviewData[];
 }
 
+interface MieterFromDB {
+  id: string;
+  name: string;
+  einzug: string | null;
+  auszug: string | null;
+}
+
 interface WohnungOverviewData {
   id: string;
   name: string;
@@ -38,6 +45,7 @@ interface WohnungOverviewData {
     name: string;
     einzug?: string;
   };
+  Mieter?: MieterFromDB[];
 }
 
 export async function GET(
@@ -111,7 +119,7 @@ export async function GET(
     const today = new Date();
     const wohnungen: WohnungOverviewData[] = wohnungenData.map(wohnung => {
       // Find current tenant (no move-out date or move-out date in the future)
-      const currentTenant = (wohnung.Mieter || []).find((mieter: any) => 
+      const currentTenant = (wohnung.Mieter || []).find((mieter: MieterFromDB) => 
         !mieter.auszug || new Date(mieter.auszug) > today
       );
 
