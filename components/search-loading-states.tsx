@@ -65,7 +65,7 @@ export function SearchLoadingIndicator({
   if (!visible) return null;
 
   return (
-    <div className="w-full py-4 px-3">
+    <div className="w-full py-4 px-3" role="status" aria-live="polite">
       <div className="max-w-md mx-auto space-y-4">
         {/* Main content */}
         <div className="flex flex-col items-center text-center space-y-4">
@@ -79,13 +79,15 @@ export function SearchLoadingIndicator({
           <div className="space-y-2">
             <h3 className="text-lg font-medium">
               {isRetrying 
-                ? `Wiederhole Suche (${retryCount}/${maxRetries})`
+                ? `Wiederholung ${retryCount}/${maxRetries}...`
                 : 'Suche wird durchgeführt...'}
             </h3>
             <p className="text-sm text-muted-foreground max-w-xs">
               {isRetrying 
                 ? 'Versuche erneut, die Ergebnisse abzurufen...'
-                : `"${query}" wird durchsucht`}
+                : query 
+                  ? `Suche nach "${query}"...`
+                  : 'Suche läuft...'}
             </p>
           </div>
 
@@ -132,12 +134,13 @@ export function NetworkStatusIndicator({ isOffline, onRetry, className }: Networ
   if (!isOffline) return null
 
   return (
-    <Alert variant="destructive" className={cn("mx-2 my-4", className)}>
+    <Alert variant="destructive" className={cn("mx-2 my-4 bg-destructive/10 text-destructive", className)}>
       <WifiOff className="h-4 w-4" />
       <AlertDescription className="flex items-center justify-between">
         <span>Keine Internetverbindung</span>
         {onRetry && (
           <Button
+            type="button"
             variant="outline"
             size="sm"
             onClick={onRetry}
@@ -176,12 +179,16 @@ export function SearchEmptyState({
             <div className="relative inline-flex">
               <div className="absolute -inset-1 bg-destructive/20 rounded-full blur-sm" />
               <div className="relative p-3 bg-background rounded-full border border-destructive/20 shadow-sm">
-                <AlertCircle className="h-6 w-6 text-destructive" />
+                {isOffline ? (
+                  <WifiOff className="h-6 w-6 text-destructive" />
+                ) : (
+                  <AlertCircle className="h-6 w-6 text-destructive" />
+                )}
               </div>
             </div>
             
             <div className="space-y-2">
-              <h3 className="text-base font-medium">
+              <h3 className="text-base font-medium" role="alert">
                 {isOffline 
                   ? 'Keine Internetverbindung'
                   : 'Fehler bei der Suche'
@@ -189,13 +196,14 @@ export function SearchEmptyState({
               </h3>
               <p className="text-muted-foreground text-xs">
                 {isOffline
-                  ? 'Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.'
+                  ? 'Bitte überprüfen Sie Ihre Netzwerkverbindung und versuchen Sie es erneut.'
                   : 'Bei der Suche ist ein unerwarteter Fehler aufgetreten.'
                 }
               </p>
               
               {onRetry && (
                 <Button
+                  type="button"
                   variant="outline"
                   size="sm"
                   onClick={onRetry}
@@ -219,61 +227,39 @@ export function SearchEmptyState({
             
             <div className="space-y-4">
               <div>
-                <h3 className="text-base font-medium">Keine Ergebnisse gefunden</h3>
-                <p className="text-muted-foreground text-xs">
-                  Keine Ergebnisse für <span className="font-medium text-foreground">"{query}"</span> gefunden.
-                </p>
+                <h3 className="text-base font-medium">
+                  {query ? 'Keine Ergebnisse gefunden' : 'Keine Ergebnisse'}
+                </h3>
+                {query && (
+                  <p className="text-muted-foreground text-xs">
+                    Keine Ergebnisse für <span className="font-medium text-foreground">"{query}"</span> gefunden.
+                  </p>
+                )}
               </div>
               
-              {/* Suggestions - Moved up as primary action */}
+              {/* Search tips for no results */}
+              {!hasError && query && (
+                <p className="text-xs text-muted-foreground">
+                  Überprüfen Sie die Rechtschreibung oder verwenden Sie allgemeinere Begriffe.
+                </p>
+              )}
+              
+              {/* Suggestions */}
               {suggestions.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Vielleicht suchen Sie nach:</p>
+                  <p className="text-xs text-muted-foreground">Versuchen Sie es mit:</p>
                   <div className="flex flex-wrap gap-2 justify-center">
-                    {suggestions.map((suggestion, index) => {
-                      const filterMap: {[key: string]: {prefix: string, icon: React.ReactNode}} = {
-                        'Mieter': {
-                          prefix: 'M-',
-                          icon: <Users className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                        },
-                        'Wohnung': {
-                          prefix: 'W-',
-                          icon: <Home className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                        },
-                        'Haus': {
-                          prefix: 'H-',
-                          icon: <Building2 className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                        },
-                        'Finanzen': {
-                          prefix: 'F-',
-                          icon: <Wallet className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                        },
-                        'Aufgabe': {
-                          prefix: 'A-',
-                          icon: <CheckSquare className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                        },
-                        'Mietvertrag': {
-                          prefix: 'V-',
-                          icon: <FileText className="h-3.5 w-3.5 mr-1.5 flex-shrink-0" />
-                        }
-                      };
-                      
-                      const displayText = suggestion === 'Rechnung' ? 'Finanzen' : suggestion;
-                      const filterInfo = filterMap[displayText] || { prefix: '', icon: null };
-                      
-                      return (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            useSearchStore.getState().setQuery(filterInfo.prefix);
-                          }}
-                          className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150 flex items-center"
-                        >
-                          {filterInfo.icon}
-                          {displayText}
-                        </button>
-                      );
-                    })}
+                    {suggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          useSearchStore.getState().setQuery(suggestion);
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium bg-muted hover:bg-primary hover:text-primary-foreground rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-offset-1 transition-all duration-150 flex items-center"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
@@ -310,8 +296,35 @@ export function SearchStatusBar({
   isOffline = false,
   resultBreakdown
 }: SearchStatusBarProps) {
+  // Don't render when no meaningful status to show
+  if (!isLoading && !isOffline && totalCount === 0 && executionTime === 0 && !query && retryCount === 0) {
+    return null;
+  }
+
+  const formatExecutionTime = (time: number) => {
+    if (time >= 1000) {
+      return `${(time / 1000).toFixed(1)}s`;
+    }
+    return `${time}ms`;
+  };
+
+  const getResultText = () => {
+    if (isLoading) {
+      return retryCount > 0 ? `Wiederholung ${retryCount}...` : 'Suche läuft...';
+    }
+    if (isOffline) {
+      return 'Offline';
+    }
+    if (retryCount > 0 && !isLoading) {
+      return `Wiederholung ${retryCount}`;
+    }
+    
+    const resultWord = totalCount === 1 ? 'Ergebnis' : 'Ergebnisse';
+    return `${totalCount} ${resultWord} für "${query}"`;
+  };
+
   return (
-    <div className="px-2 py-1.5 text-xs text-muted-foreground border-b bg-muted/20">
+    <div className="px-2 py-1.5 text-xs text-muted-foreground border-b bg-muted/20" aria-live="polite">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isLoading ? (
@@ -322,15 +335,7 @@ export function SearchStatusBar({
             <Search className="h-3 w-3" />
           )}
           
-          <span>
-            {isLoading ? (
-              retryCount > 0 ? `Wiederholung ${retryCount}...` : 'Suche läuft...'
-            ) : isOffline ? (
-              'Offline'
-            ) : (
-              `${totalCount} Ergebnisse für "${query}"`
-            )}
-          </span>
+          <span>{getResultText()}</span>
           
           {/* Show breakdown of results by type */}
           {!isLoading && !isOffline && resultBreakdown && totalCount > 0 && (
@@ -346,7 +351,7 @@ export function SearchStatusBar({
         
         {!isLoading && !isOffline && executionTime > 0 && (
           <span className="text-muted-foreground/60">
-            {executionTime}ms
+            {formatExecutionTime(executionTime)}
           </span>
         )}
       </div>

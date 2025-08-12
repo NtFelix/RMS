@@ -126,7 +126,8 @@ describe('SearchEmptyState', () => {
       />
     );
 
-    expect(screen.getByText('Keine Ergebnisse für "test query"')).toBeInTheDocument();
+    expect(screen.getByText('Keine Ergebnisse gefunden')).toBeInTheDocument();
+    expect(screen.getByText(/test query/)).toBeInTheDocument();
     expect(screen.getByText('Versuchen Sie es mit:')).toBeInTheDocument();
     expect(screen.getByText('suggestion1')).toBeInTheDocument();
     expect(screen.getByText('suggestion2')).toBeInTheDocument();
@@ -235,7 +236,7 @@ describe('SearchStatusBar', () => {
       />
     );
 
-    expect(screen.getByText('5 Ergebnisse')).toBeInTheDocument();
+    expect(screen.getByText(/5 Ergebnisse/)).toBeInTheDocument();
     expect(screen.getByText('150ms')).toBeInTheDocument();
   });
 
@@ -251,7 +252,7 @@ describe('SearchStatusBar', () => {
       />
     );
 
-    expect(screen.getByText('1 Ergebnis')).toBeInTheDocument();
+    expect(screen.getByText(/1 Ergebnis/)).toBeInTheDocument();
   });
 
   it('should show loading state', () => {
@@ -400,7 +401,7 @@ describe('NetworkStatusIndicator', () => {
       />
     );
 
-    const container = screen.getByText('Keine Internetverbindung').parentElement;
+    const container = screen.getByText('Keine Internetverbindung').closest('[class*="bg-destructive"]');
     expect(container).toHaveClass('bg-destructive/10', 'text-destructive');
   });
 });
@@ -439,7 +440,7 @@ describe('Component integration', () => {
       </div>
     );
 
-    expect(screen.getByText('3 Ergebnisse')).toBeInTheDocument();
+    expect(screen.getByText(/3 Ergebnisse/)).toBeInTheDocument();
     expect(screen.getByText('200ms')).toBeInTheDocument();
 
     // Show error state
@@ -490,8 +491,9 @@ describe('Accessibility', () => {
     );
 
     const loadingElement = screen.getByText('Suche nach "test"...');
-    expect(loadingElement.parentElement).toHaveAttribute('role', 'status');
-    expect(loadingElement.parentElement).toHaveAttribute('aria-live', 'polite');
+    const statusContainer = loadingElement.closest('[role="status"]');
+    expect(statusContainer).toHaveAttribute('role', 'status');
+    expect(statusContainer).toHaveAttribute('aria-live', 'polite');
   });
 
   it('should have proper ARIA attributes for error states', () => {
@@ -506,7 +508,7 @@ describe('Accessibility', () => {
     );
 
     const errorElement = screen.getByText('Fehler bei der Suche');
-    expect(errorElement.parentElement).toHaveAttribute('role', 'alert');
+    expect(errorElement).toHaveAttribute('role', 'alert');
   });
 
   it('should have accessible retry buttons', () => {
@@ -537,7 +539,7 @@ describe('Accessibility', () => {
       />
     );
 
-    const statusElement = screen.getByText('5 Ergebnisse').parentElement;
+    const statusElement = screen.getByText(/5 Ergebnisse/).closest('[aria-live]');
     expect(statusElement).toHaveAttribute('aria-live', 'polite');
   });
 });
@@ -555,7 +557,7 @@ describe('Performance', () => {
       />
     );
 
-    const initialElement = screen.getByText('5 Ergebnisse');
+    const initialElement = screen.getByText(/5 Ergebnisse/);
 
     // Re-render with same props
     rerender(
@@ -569,7 +571,7 @@ describe('Performance', () => {
       />
     );
 
-    const afterRerender = screen.getByText('5 Ergebnisse');
+    const afterRerender = screen.getByText(/5 Ergebnisse/);
     expect(afterRerender).toBe(initialElement);
   });
 
