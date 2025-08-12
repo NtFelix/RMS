@@ -110,38 +110,36 @@ export function ApartmentTenantDetailsModal() {
     
     const apartment = apartmentTenantDetailsData.apartment;
     
-    // Fetch house data to ensure we have the latest information
+    // Transform the apartment data for the edit modal
+    const transformedApartment = {
+      id: apartment.id,
+      name: apartment.name,
+      groesse: apartment.groesse,
+      miete: apartment.miete,
+      haus_id: apartment.haus_id,
+      // Include any other necessary fields that might be needed for editing
+      ...(apartment.notes && { notes: apartment.notes }),
+      ...(apartment.amenities && { amenities: apartment.amenities }),
+      ...(apartment.condition && { condition: apartment.condition })
+    };
+    
+    // Only fetch the specific house we need
     try {
-      const response = await fetch('/api/haeuser');
-      if (!response.ok) {
-        throw new Error('Failed to fetch houses');
-      }
-      const houses = await response.json();
+      // If we already have the house name, we can use it directly
+      // Otherwise, we'd fetch it from the API
+      const houseInfo = apartment.haus_id && apartment.hausName
+        ? [{ id: apartment.haus_id, name: apartment.hausName }]
+        : [];
       
-      // Transform the apartment data for the edit modal
-      const transformedApartment = {
-        id: apartment.id,
-        name: apartment.name,
-        groesse: apartment.groesse,
-        miete: apartment.miete,
-        haus_id: apartment.haus_id // Use the haus_id from the API response
-      };
-      
-      // Pass the houses data to the modal
-      openWohnungModal(transformedApartment, houses, () => {
+      // Open the modal with the existing house info
+      // The modal can handle fetching additional house data if needed
+      openWohnungModal(transformedApartment, houseInfo, () => {
         // Refresh data after successful edit
         refreshApartmentTenantDetailsData();
       });
     } catch (error) {
-      console.error('Error fetching houses:', error);
-      // Fallback to the old behavior if fetching houses fails
-      const transformedApartment = {
-        id: apartment.id,
-        name: apartment.name,
-        groesse: apartment.groesse,
-        miete: apartment.miete,
-        haus_id: apartment.haus_id
-      };
+      console.error('Error preparing apartment edit:', error);
+      // Fallback to minimal data if there's an error
       openWohnungModal(transformedApartment, [], () => {
         refreshApartmentTenantDetailsData();
       });
