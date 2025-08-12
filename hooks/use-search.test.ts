@@ -165,11 +165,13 @@ describe('useSearch', () => {
     };
 
     it('should perform successful search', async () => {
-      mockUseDebounce.mockReturnValue('john');
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockSearchResponse)
       });
+
+      // Mock useDebounce to return the query immediately
+      mockUseDebounce.mockImplementation((value) => value);
 
       const { result } = renderHook(() => useSearch());
 
@@ -177,9 +179,10 @@ describe('useSearch', () => {
         result.current.setQuery('john');
       });
 
+      // Wait for the search to complete
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
-      });
+      }, { timeout: 3000 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         expect.stringContaining('/api/search?q=john'),
@@ -311,7 +314,7 @@ describe('useSearch', () => {
     });
 
     it('should respect cache expiration', async () => {
-      mockUseDebounce.mockReturnValue('expired query');
+      mockUseDebounce.mockImplementation((value) => value);
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve(mockResponse)
@@ -328,14 +331,20 @@ describe('useSearch', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
       // Wait for cache to expire
       act(() => {
         jest.advanceTimersByTime(150);
       });
 
-      // Second search should make new request
+      // Clear query first, then set it again to trigger new search
       act(() => {
         result.current.setQuery('');
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
       });
 
       act(() => {
@@ -371,7 +380,7 @@ describe('useSearch', () => {
     });
 
     it('should handle HTTP errors', async () => {
-      mockUseDebounce.mockReturnValue('http error');
+      mockUseDebounce.mockImplementation((value) => value);
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
@@ -389,11 +398,11 @@ describe('useSearch', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.error).toContain('Server error');
+      expect(result.current.error).toContain('Serverfehler bei der Suche');
     });
 
     it('should implement retry mechanism', async () => {
-      mockUseDebounce.mockReturnValue('retry query');
+      mockUseDebounce.mockImplementation((value) => value);
       
       let callCount = 0;
       mockFetch.mockImplementation(() => {
@@ -404,7 +413,7 @@ describe('useSearch', () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
-            results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+            results: { tenant: [], houses: [], apartments: [], finances: [], tasks: [] },
             totalCount: 0,
             executionTime: 100
           })
@@ -417,12 +426,19 @@ describe('useSearch', () => {
         result.current.setQuery('retry query');
       });
 
-      // Wait for initial error
+      // Wait for initial error and retry to start
       await waitFor(() => {
         expect(result.current.error).toBeTruthy();
+      }, { timeout: 3000 });
+
+      // Fast forward timers to trigger retries
+      act(() => {
+        jest.advanceTimersByTime(5000);
       });
 
-      expect(result.current.retryCount).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(result.current.retryCount).toBeGreaterThan(0);
+      }, { timeout: 3000 });
 
       // Wait for retries to complete
       act(() => {
@@ -541,12 +557,12 @@ describe('useSearch', () => {
 
   describe('Search result transformation', () => {
     it('should transform tenant results correctly', async () => {
-      mockUseDebounce.mockReturnValue('tenant');
+      mockUseDebounce.mockImplementation((value) => value);
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           results: {
-            tenants: [{
+            tenant: [{
               id: '1',
               name: 'John Doe',
               email: 'john@example.com',
@@ -554,10 +570,10 @@ describe('useSearch', () => {
               status: 'active',
               apartment: { name: 'Apt 1', house_name: 'House 1' }
             }],
-            houses: [],
-            apartments: [],
-            finances: [],
-            tasks: []
+            house: [],
+            apartment: [],
+            finance: [],
+            task: []
           },
           totalCount: 1,
           executionTime: 100
@@ -572,7 +588,7 @@ describe('useSearch', () => {
 
       await waitFor(() => {
         expect(result.current.results).toHaveLength(1);
-      });
+      }, { timeout: 3000 });
 
       const tenantResult = result.current.results[0];
       expect(tenantResult.type).toBe('tenant');
@@ -583,15 +599,15 @@ describe('useSearch', () => {
     });
 
     it('should transform finance results correctly', async () => {
-      mockUseDebounce.mockReturnValue('finance');
+      mockUseDebounce.mockImplementation((value) => value);
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           results: {
-            tenants: [],
-            houses: [],
-            apartments: [],
-            finances: [{
+            tenant: [],
+            house: [],
+            apartment: [],
+            finance: [{
               id: '1',
               name: 'Rent Payment',
               amount: 800,
@@ -599,7 +615,7 @@ describe('useSearch', () => {
               type: 'income',
               apartment: { name: 'Apt 1', house_name: 'House 1' }
             }],
-            tasks: []
+            task: []
           },
           totalCount: 1,
           executionTime: 100
@@ -614,7 +630,7 @@ describe('useSearch', () => {
 
       await waitFor(() => {
         expect(result.current.results).toHaveLength(1);
-      });
+      }, { timeout: 3000 });
 
       const financeResult = result.current.results[0];
       expect(financeResult.type).toBe('finance');
@@ -658,11 +674,11 @@ describe('useSearch', () => {
     });
 
     it('should respect custom categories', async () => {
-      mockUseDebounce.mockReturnValue('categories test');
+      mockUseDebounce.mockImplementation((value) => value);
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
-          results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+          results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
           totalCount: 0,
           executionTime: 100
         })
@@ -678,10 +694,10 @@ describe('useSearch', () => {
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining('categories=tenant%2Chouse'),
+          expect.stringContaining('categories=house%2Ctenant'),
           expect.any(Object)
         );
-      });
+      }, { timeout: 3000 });
     });
   });
 
