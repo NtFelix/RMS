@@ -5,26 +5,36 @@
 // Mock dependencies first
 jest.mock('@/utils/supabase/server');
 jest.mock('next/cache');
+jest.mock('@/lib/data-fetching');
+jest.mock('@/lib/stripe-server');
 
 import { wohnungServerAction } from './wohnungen-actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { fetchUserProfile } from '@/lib/data-fetching';
+import { getPlanDetails } from '@/lib/stripe-server';
 
 // Mock the auth functions that would be used to get user info
-jest.mock('@/utils/supabase/server', () => {
-  const originalModule = jest.requireActual('@/utils/supabase/server');
-  return {
-    ...originalModule,
-    createClient: jest.fn(),
-  };
-});
+jest.mock('@/utils/supabase/server', () => ({
+  createClient: jest.fn(),
+}));
 
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
 
+jest.mock('@/lib/data-fetching', () => ({
+  fetchUserProfile: jest.fn(),
+}));
+
+jest.mock('@/lib/stripe-server', () => ({
+  getPlanDetails: jest.fn(),
+}));
+
 const mockCreateClient = createClient as jest.Mock;
 const mockRevalidatePath = revalidatePath as jest.Mock;
+const mockFetchUserProfile = fetchUserProfile as jest.Mock;
+const mockGetPlanDetails = getPlanDetails as jest.Mock;
 
 describe('Wohnungen Server Action', () => {
   let mockSupabase: any;
@@ -45,17 +55,29 @@ describe('Wohnungen Server Action', () => {
 
   // Helper function to set up subscription plan limits
   const setupSubscriptionPlan = (planId: string) => {
-    mockSubscription.plan_id = planId;
-    
-    // Reset apartment count based on plan
-    const counts = {
+    const planLimits = {
       free: 1,
       pro: 10,
       business: 50
     };
 
-    const count = counts[planId as keyof typeof counts] || 1;
-    mockCurrentApartments = Array(count).fill(null).map((_, i) => 
+    const limit = planLimits[planId as keyof typeof planLimits] || 1;
+    
+    // Mock the user profile with appropriate subscription status
+    mockFetchUserProfile.mockResolvedValue({
+      id: mockUser.id,
+      email: mockUser.email,
+      stripe_subscription_status: 'active',
+      stripe_price_id: `price_${planId}`
+    });
+
+    // Mock the plan details
+    mockGetPlanDetails.mockResolvedValue({
+      limitWohnungen: planId === 'business' ? null : limit
+    });
+
+    // Set current apartment count to the limit for testing
+    mockCurrentApartments = Array(limit).fill(null).map((_, i) => 
       createMockApartment(`w${i+1}`, i)
     );
   };
@@ -89,17 +111,27 @@ describe('Wohnungen Server Action', () => {
       };
 
       if (table === 'Wohnungen') {
-        mockQuery.select.mockImplementation(() => ({
-          eq: (field: string, value: any) => ({
-            data: field === 'user_id' && value === mockUser.id 
-              ? mockCurrentApartments 
-              : [],
-            error: null,
-            count: field === 'user_id' && value === mockUser.id 
-              ? mockCurrentApartments.length 
-              : 0
-          })
-        }));
+        mockQuery.select.mockImplementation((columns?: string, options?: any) => {
+          if (options?.count === 'exact' && options?.head === true) {
+            return {
+              eq: jest.fn().mockReturnValue({
+                count: mockCurrentApartments.length,
+                error: null
+              })
+            };
+          }
+          return {
+            eq: (field: string, value: any) => ({
+              data: field === 'user_id' && value === mockUser.id 
+                ? mockCurrentApartments 
+                : [],
+              error: null,
+              count: field === 'user_id' && value === mockUser.id 
+                ? mockCurrentApartments.length 
+                : 0
+            })
+          };
+        });
 
         mockQuery.insert.mockImplementation((data: any) => ({
           select: jest.fn().mockReturnThis(),
@@ -151,6 +183,19 @@ describe('Wohnungen Server Action', () => {
     
     // Set up default empty apartments
     mockCurrentApartments = [];
+
+    // Mock fetchUserProfile
+    mockFetchUserProfile.mockResolvedValue({
+      id: mockUser.id,
+      email: mockUser.email,
+      stripe_subscription_status: 'active',
+      stripe_price_id: 'price_free'
+    });
+
+    // Mock getPlanDetails
+    mockGetPlanDetails.mockResolvedValue({
+      limitWohnungen: 1
+    });
   });
 
   describe('Subscription Plan Limits', () => {
@@ -173,7 +218,7 @@ describe('Wohnungen Server Action', () => {
       // Try to create a new apartment (would be 2nd, but free plan allows only 1)
       const result = await wohnungServerAction(null, validPayload);
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ihr aktueller Tarif erlaubt nur 1 Wohnung');
+      expect(result.error.message).toContain('maximale Anzahl an Wohnungen (1)');
     });
 
     it('allows creating apartments within pro plan limits', async () => {
@@ -191,7 +236,7 @@ describe('Wohnungen Server Action', () => {
       // Try to create another apartment (would be 11th, but pro plan allows only 10)
       const result = await wohnungServerAction(null, validPayload);
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ihr aktueller Tarif erlaubt nur 10 Wohnungen');
+      expect(result.error.message).toContain('maximale Anzahl an Wohnungen (10)');
     });
 
     it('allows creating many apartments with business plan', async () => {
@@ -203,16 +248,23 @@ describe('Wohnungen Server Action', () => {
 
     it('handles missing subscription by applying free tier limits', async () => {
       // Simulate no subscription found
-      mockSupabase.rpc.mockImplementationOnce(() => ({
-        data: null,
-        error: { message: 'No subscription found' }
-      }));
+      mockFetchUserProfile.mockResolvedValue({
+        id: mockUser.id,
+        email: mockUser.email,
+        stripe_subscription_status: null,
+        stripe_price_id: null
+      });
       
-      setupSubscriptionPlan('free');
-      // Try to create a new apartment (would be 2nd, but free plan allows only 1)
+      // Mock getPlanDetails to return null for no subscription
+      mockGetPlanDetails.mockResolvedValue(null);
+      
+      // Set current apartments to 0 so we're trying to create the first one
+      mockCurrentApartments = [];
+      
+      // Try to create a new apartment without subscription
       const result = await wohnungServerAction(null, validPayload);
       expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ihr aktueller Tarif erlaubt nur 1 Wohnung');
+      expect(result.error.message).toContain('aktives Abonnement oder eine gültige Testphase ist erforderlich');
     });
 
     it('allows updating existing apartments without counting against limit', async () => {
@@ -381,75 +433,4 @@ describe('Wohnungen Server Action', () => {
     });
   });
 
-  describe('Subscription Plan Limits', () => {
-    const validPayload = { name: 'New Wohnung', groesse: '80', miete: '1200', haus_id: 'h1' };
-    
-    it('allows creating an apartment within free plan limits', async () => {
-      setupSubscriptionPlan('free');
-      // Free plan allows 1 apartment, we have 1, but we're updating it
-      const result = await wohnungServerAction('w1', validPayload);
-      expect(result.success).toBe(true);
-    });
-
-    it('prevents creating more apartments than free plan allows', async () => {
-      setupSubscriptionPlan('free');
-      // Try to create a new apartment (would be 2nd, but free plan allows only 1)
-      const result = await wohnungServerAction(null, validPayload);
-      expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ihr aktueller Tarif erlaubt nur 1 Wohnung');
-    });
-
-    it('allows creating apartments within pro plan limits', async () => {
-      setupSubscriptionPlan('pro');
-      // Pro plan allows 10 apartments, we have 10, but we're updating one
-      const result = await wohnungServerAction('w1', validPayload);
-      expect(result.success).toBe(true);
-    });
-
-    it('prevents creating more apartments than pro plan allows', async () => {
-      setupSubscriptionPlan('pro');
-      // Add one more apartment to reach the limit
-      mockCurrentApartments.push({
-        id: 'w11',
-        name: 'Extra Wohnung',
-        groesse: 80,
-        miete: 1200,
-        haus_id: 'h1',
-        created_at: new Date().toISOString()
-      });
-      
-      // Try to create another apartment (would be 11th, but pro plan allows only 10)
-      const result = await wohnungServerAction(null, validPayload);
-      expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ihr aktueller Tarif erlaubt nur 10 Wohnungen');
-    });
-
-    it('allows creating many apartments with business plan', async () => {
-      setupSubscriptionPlan('business');
-      // Business plan allows 50 apartments, we have 50, but we're updating one
-      const result = await wohnungServerAction('w1', validPayload);
-      expect(result.success).toBe(true);
-    });
-
-    it('handles missing subscription by applying free tier limits', async () => {
-      // Simulate no subscription found
-      mockSupabase.rpc.mockImplementationOnce(() => ({
-        data: null,
-        error: { message: 'No subscription found' }
-      }));
-      
-      setupSubscriptionPlan('free');
-      // Try to create a new apartment (would be 2nd, but free plan allows only 1)
-      const result = await wohnungServerAction(null, validPayload);
-      expect(result.success).toBe(false);
-      expect(result.error.message).toContain('Ihr aktueller Tarif erlaubt nur 1 Wohnung');
-    });
-
-    it('allows updating existing apartments without counting against limit', async () => {
-      setupSubscriptionPlan('free');
-      // Free plan allows 1 apartment, we have 1, and we're updating it
-      const result = await wohnungServerAction('w1', { ...validPayload, name: 'Updated Name' });
-      expect(result.success).toBe(true);
-    });
-  });
 });
