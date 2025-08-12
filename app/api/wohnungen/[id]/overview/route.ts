@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
+import { createRequestLogger } from "@/utils/logger";
 
 interface WohnungWithMieter {
   id: string;
@@ -72,7 +73,13 @@ export async function GET(
       .single();
 
     if (wohnungError) {
-      console.error("Error fetching Wohnung:", wohnungError);
+      const logger = createRequestLogger(request);
+      logger.error("Error fetching Wohnung", new Error(wohnungError.message), {
+        wohnungId,
+        errorCode: wohnungError.code,
+        details: wohnungError.details
+      });
+      
       if (wohnungError.code === 'PGRST116') {
         return NextResponse.json(
           { error: "Wohnung nicht gefunden." },
@@ -93,7 +100,13 @@ export async function GET(
       .order('einzug', { ascending: false, nullsFirst: false });
 
     if (mieterError) {
-      console.error("Error fetching Mieter:", mieterError);
+      const logger = createRequestLogger(request);
+      logger.error("Error fetching Mieter", new Error(mieterError.message), {
+        wohnungId,
+        errorCode: mieterError.code,
+        details: mieterError.details
+      });
+      
       return NextResponse.json(
         { error: "Fehler beim Laden der Mieterdaten." },
         { status: 500 }
@@ -105,7 +118,15 @@ export async function GET(
     const mieter: MieterOverviewData[] = (mieterData || []).map(mieterItem => {
       // Validate required fields
       if (!mieterItem.id || !mieterItem.name) {
-        console.warn('Invalid Mieter data:', mieterItem);
+        const logger = createRequestLogger(request);
+        logger.warn('Invalid Mieter data', {
+          wohnungId,
+          mieterItem: {
+            id: mieterItem.id,
+            hasName: !!mieterItem.name,
+            hasEmail: !!mieterItem.email
+          }
+        });
       }
 
       // Determine if tenant is active or moved out
@@ -135,7 +156,11 @@ export async function GET(
     return NextResponse.json(response, { status: 200 });
 
   } catch (error) {
-    console.error("GET /api/wohnungen/[id]/overview error:", error);
+    const logger = createRequestLogger(request);
+    logger.error("Unexpected error in GET /api/wohnungen/[id]/overview", error instanceof Error ? error : new Error(String(error)), {
+      wohnungId: (await params).id
+    });
+    
     return NextResponse.json(
       { error: "Serverfehler beim Laden der Wohnungsübersicht." },
       { status: 500 }
