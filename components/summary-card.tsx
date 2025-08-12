@@ -34,7 +34,7 @@ export function SummaryCard({
   onClick,
   isLoading = false,
   className,
-  valueFormatter = (val) => typeof val === "number" ? formatCurrency(val) : val.toString(),
+  valueFormatter = (val) => typeof val === "number" ? formatCurrency(val) : (val?.toString() ?? ""),
   description,
 }: SummaryCardProps) {
   if (isLoading) {
