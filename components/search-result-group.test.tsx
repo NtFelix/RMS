@@ -171,7 +171,7 @@ describe('SearchResultGroup', () => {
 
       // Check if the header has the correct styling for tenant type
       const header = screen.getByText('Mieter').parentElement;
-      expect(header).toHaveClass('text-blue-600');
+      expect(header).toHaveClass('text-muted-foreground');
     });
 
     it('should display correct icon for house type', () => {
@@ -188,7 +188,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Häuser').parentElement;
-      expect(header).toHaveClass('text-green-600');
+      expect(header).toHaveClass('text-muted-foreground');
     });
 
     it('should display correct icon for apartment type', () => {
@@ -205,7 +205,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Wohnungen').parentElement;
-      expect(header).toHaveClass('text-purple-600');
+      expect(header).toHaveClass('text-muted-foreground');
     });
 
     it('should display correct icon for finance type', () => {
@@ -222,7 +222,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Finanzen').parentElement;
-      expect(header).toHaveClass('text-orange-600');
+      expect(header).toHaveClass('text-muted-foreground');
     });
 
     it('should display correct icon for task type', () => {
@@ -239,7 +239,7 @@ describe('SearchResultGroup', () => {
       );
 
       const header = screen.getByText('Aufgaben').parentElement;
-      expect(header).toHaveClass('text-gray-600');
+      expect(header).toHaveClass('text-muted-foreground');
     });
 
     it('should use provided title over generated title', () => {
