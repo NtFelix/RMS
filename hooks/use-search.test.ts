@@ -125,7 +125,7 @@ describe('useSearch', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
-          results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+          results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
           totalCount: 0,
           executionTime: 100
         })
@@ -146,7 +146,7 @@ describe('useSearch', () => {
   describe('Search execution', () => {
     const mockSearchResponse = {
       results: {
-        tenants: [
+        tenant: [
           {
             id: '1',
             name: 'John Doe',
@@ -155,10 +155,10 @@ describe('useSearch', () => {
             apartment: { name: 'Apt 1', house_name: 'House 1' }
           }
         ],
-        houses: [],
-        apartments: [],
-        finances: [],
-        tasks: []
+        house: [],
+        apartment: [],
+        finance: [],
+        task: []
       },
       totalCount: 1,
       executionTime: 150
@@ -271,7 +271,7 @@ describe('useSearch', () => {
 
   describe('Caching functionality', () => {
     const mockResponse = {
-      results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+      results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
       totalCount: 0,
       executionTime: 100
     };
@@ -413,7 +413,7 @@ describe('useSearch', () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
-            results: { tenant: [], houses: [], apartments: [], finances: [], tasks: [] },
+            results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
             totalCount: 0,
             executionTime: 100
           })
@@ -458,7 +458,7 @@ describe('useSearch', () => {
                 .mockResolvedValueOnce({
                   ok: true,
                   json: () => Promise.resolve({
-                    results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+                    results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
                     totalCount: 0,
                     executionTime: 100
                   })
@@ -524,7 +524,7 @@ describe('useSearch', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
-          results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+          results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
           totalCount: 0,
           executionTime: 100
         })
@@ -653,7 +653,7 @@ describe('useSearch', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
-          results: { tenants: [], houses: [], apartments: [], finances: [], tasks: [] },
+          results: { tenant: [], house: [], apartment: [], finance: [], task: [] },
           totalCount: 0,
           executionTime: 100
         })
