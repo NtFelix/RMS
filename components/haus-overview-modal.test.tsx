@@ -88,7 +88,7 @@ describe('HausOverviewModal', () => {
 
     // Check if summary cards are rendered with correct values
     expect(screen.getByText('Gesamtfläche')).toBeInTheDocument();
-    expect(screen.getByText('Wohnungen')).toBeInTheDocument();
+    expect(screen.getAllByText('Wohnungen')).toHaveLength(2); // One in summary card, one as section header
     expect(screen.getByText('Mieter')).toBeInTheDocument();
     expect(screen.getByText('Gesamtmiete')).toBeInTheDocument();
     
