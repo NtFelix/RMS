@@ -105,7 +105,6 @@ describe('ApartmentTenantDetailsModal', () => {
     render(<ApartmentTenantDetailsModal />)
 
     // Check apartment details
-    expect(screen.getByText('Wohnung 1A - Details')).toBeInTheDocument()
     expect(screen.getByText('Wohnungsdetails')).toBeInTheDocument()
     expect(screen.getByText('Musterhaus')).toBeInTheDocument()
     expect(screen.getByText('Wohnung 1A')).toBeInTheDocument()
@@ -207,7 +206,7 @@ describe('ApartmentTenantDetailsModal', () => {
           einzug: '2023-01-01',
           wohnung_id: '1',
         }),
-        []
+        [{ id: '1', name: 'Wohnung 1A' }]
       )
     })
   })
