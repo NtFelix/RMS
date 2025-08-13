@@ -114,7 +114,7 @@ describe('CommandMenu Layout Consistency', () => {
 
     // Check that loading indicator is present
     expect(screen.getByText('Suche wird durchgeführt...')).toBeInTheDocument()
-    expect(screen.getByText('"test query" wird durchsucht')).toBeInTheDocument()
+    expect(screen.getByText('Suche nach "test query"...')).toBeInTheDocument()
   })
 
   it('should show info bar in no results state', () => {
@@ -203,7 +203,7 @@ describe('CommandMenu Layout Consistency', () => {
     expect(screen.getByText('Test Tenant')).toBeInTheDocument()
     
     // Check that search status bar is present
-    expect(screen.getByText('1 Ergebnisse für "test"')).toBeInTheDocument()
+    expect(screen.getByText('1 Ergebnis für "test"')).toBeInTheDocument()
     // Use getAllByText since "Mieter" appears multiple times
     expect(screen.getAllByText('Mieter')).toHaveLength(2)
   })

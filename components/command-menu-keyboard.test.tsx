@@ -1,63 +1,30 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CommandMenu } from './command-menu';
+import { CommandMenu } from '@/components/command-menu';
 
 // Mock the hooks
-const mockCommandMenu = {
-  open: true,
-  setOpen: jest.fn(),
-};
-
-jest.mock('@/hooks/use-command-menu', () => ({
-  useCommandMenu: () => mockCommandMenu,
-}));
-
-const mockModalStore = {
-  openTenantModal: jest.fn(),
-  openHouseModal: jest.fn(),
-  openWohnungModal: jest.fn(),
-  openFinanceModal: jest.fn(),
-  openAufgabeModal: jest.fn(),
-  openConfirmationModal: jest.fn(),
-};
-
-jest.mock('@/hooks/use-modal-store', () => ({
-  useModalStore: () => mockModalStore,
-}));
-
-const mockSearch = {
-  query: '',
-  setQuery: jest.fn(),
-  results: [],
-  isLoading: false,
-  error: null,
-  totalCount: 0,
-  executionTime: 0,
-  clearSearch: jest.fn(),
-  retry: jest.fn(),
-  retryCount: 0,
-  isOffline: false,
-  lastSuccessfulQuery: null,
-  suggestions: [],
-  recentSearches: [],
-  addToRecentSearches: jest.fn(),
-};
-
-jest.mock('@/hooks/use-search', () => ({
-  useSearch: () => mockSearch,
-}));
+jest.mock('@/hooks/use-command-menu')
+jest.mock('@/hooks/use-modal-store')
+jest.mock('@/hooks/use-search')
+jest.mock('@/hooks/use-search-modal-integration', () => ({
+  useSearchModalIntegration: jest.fn(),
+}))
+jest.mock('@/hooks/use-search-store', () => ({
+  useSearchStore: jest.fn(() => ({ query: '' })),
+}))
+jest.mock('@/app/user-actions', () => ({
+  getUserSubscriptionContext: jest.fn(),
+  getPlanApartmentLimit: jest.fn(),
+  getUserApartmentCount: jest.fn(),
+}))
 
 jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
 }));
 
-const mockRouter = {
-  push: jest.fn(),
-};
-
 jest.mock('next/navigation', () => ({
-  useRouter: () => mockRouter,
+  useRouter: jest.fn(),
 }));
 
 // Mock the command components with keyboard support
@@ -143,7 +110,7 @@ jest.mock('@/components/ui/command', () => ({
 }));
 
 // Mock other components
-jest.mock('./search-result-group', () => ({
+jest.mock('@/components/search-result-group', () => ({
   SearchResultGroup: ({ title, results, onSelect }: any) => (
     <div data-testid={`search-group-${title.toLowerCase()}`}>
       <div>{title}</div>
@@ -166,23 +133,68 @@ jest.mock('./search-result-group', () => ({
   ),
 }));
 
-jest.mock('./search-error-boundary', () => ({
+jest.mock('@/components/search-error-boundary', () => ({
   SearchErrorBoundary: ({ children }: any) => <div>{children}</div>,
 }));
 
-jest.mock('./search-loading-states', () => ({
+jest.mock('@/components/search-loading-states', () => ({
   SearchLoadingIndicator: () => <div data-testid="search-loading" />,
   SearchEmptyState: () => <div data-testid="search-empty" />,
   SearchStatusBar: () => <div data-testid="search-status" />,
   NetworkStatusIndicator: () => <div data-testid="network-status" />,
 }));
 
+const mockUseCommandMenu = require('@/hooks/use-command-menu').useCommandMenu as jest.MockedFunction<any>
+const mockUseSearch = require('@/hooks/use-search').useSearch as jest.MockedFunction<any>
+const mockUseModalStore = require('@/hooks/use-modal-store').useModalStore as jest.MockedFunction<any>
+const mockUseRouter = require('next/navigation').useRouter as jest.MockedFunction<any>
+
 describe('CommandMenu Keyboard Navigation', () => {
   let user: ReturnType<typeof userEvent.setup>;
+
+  const mockModalStore = {
+    openTenantModal: jest.fn(),
+    openHouseModal: jest.fn(),
+    openWohnungModal: jest.fn(),
+    openFinanceModal: jest.fn(),
+    openAufgabeModal: jest.fn(),
+    openConfirmationModal: jest.fn(),
+  };
+
+  const mockRouter = {
+    push: jest.fn(),
+  };
 
   beforeEach(() => {
     user = userEvent.setup();
     jest.clearAllMocks();
+
+    // Setup default mock returns
+    mockUseCommandMenu.mockReturnValue({
+      open: true,
+      setOpen: jest.fn(),
+    });
+
+    mockUseSearch.mockReturnValue({
+      query: '',
+      setQuery: jest.fn(),
+      results: [],
+      isLoading: false,
+      error: null,
+      totalCount: 0,
+      executionTime: 0,
+      clearSearch: jest.fn(),
+      retry: jest.fn(),
+      retryCount: 0,
+      isOffline: false,
+      lastSuccessfulQuery: null,
+      suggestions: [],
+      recentSearches: [],
+      addToRecentSearches: jest.fn(),
+    });
+
+    mockUseModalStore.mockReturnValue(mockModalStore);
+    mockUseRouter.mockReturnValue(mockRouter);
   });
 
   describe('Basic keyboard shortcuts', () => {
@@ -190,7 +202,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       const mockSetOpen = jest.fn();
       
       // Mock the hook to return the setOpen function
-      (require('@/hooks/use-command-menu').useCommandMenu as jest.Mock).mockReturnValue({
+      mockUseCommandMenu.mockReturnValue({
         open: false,
         setOpen: mockSetOpen,
       });
@@ -204,7 +216,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should open menu with Ctrl+K', async () => {
       const mockSetOpen = jest.fn();
       
-      (require('@/hooks/use-command-menu').useCommandMenu as jest.Mock).mockReturnValue({
+      mockUseCommandMenu.mockReturnValue({
         open: false,
         setOpen: mockSetOpen,
       });
@@ -218,7 +230,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should close menu with Escape', async () => {
       const mockSetOpen = jest.fn();
       
-      (require('@/hooks/use-command-menu').useCommandMenu as jest.Mock).mockReturnValue({
+      mockUseCommandMenu.mockReturnValue({
         open: true,
         setOpen: mockSetOpen,
       });
@@ -235,7 +247,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       const mockClearSearch = jest.fn();
       const mockSetQuery = jest.fn();
       
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: 'test query',
         setQuery: mockSetQuery,
         results: [],
@@ -248,6 +260,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: null,
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -351,7 +366,7 @@ describe('CommandMenu Keyboard Navigation', () => {
         { id: '2', type: 'house', title: 'House 1' },
       ];
 
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: 'test',
         setQuery: jest.fn(),
         results: mockResults,
@@ -364,6 +379,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: 'test',
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -382,10 +400,10 @@ describe('CommandMenu Keyboard Navigation', () => {
         { id: '1', type: 'tenant', title: 'John Doe' },
       ];
 
-      const mockRouter = { push: jest.fn() };
-      jest.mocked(require('next/navigation').useRouter).mockReturnValue(mockRouter);
+      const mockRouterLocal = { push: jest.fn() };
+      mockUseRouter.mockReturnValue(mockRouterLocal);
 
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: 'john',
         setQuery: jest.fn(),
         results: mockResults,
@@ -398,6 +416,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: 'john',
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -405,7 +426,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       const searchResult = screen.getByTestId('search-result-1');
       fireEvent.keyDown(searchResult, { key: 'Enter' });
       
-      expect(mockRouter.push).toHaveBeenCalledWith('/mieter');
+      expect(mockRouterLocal.push).toHaveBeenCalledWith('/mieter');
     });
   });
 
@@ -452,7 +473,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       const mockSetQuery = jest.fn();
       let currentResults: any[] = [];
 
-      jest.mocked(require('@/hooks/use-search').useSearch).mockImplementation(() => ({
+      mockUseSearch.mockImplementation(() => ({
         query: 'test',
         setQuery: mockSetQuery,
         results: currentResults,
@@ -465,6 +486,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: 'test',
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       }));
 
       const { rerender } = render(<CommandMenu />);
@@ -486,7 +510,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should return focus to input when clearing search', async () => {
       const mockClearSearch = jest.fn();
 
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: 'test',
         setQuery: jest.fn(),
         results: [{ id: '1', type: 'tenant', title: 'John Doe' }],
@@ -499,6 +523,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: 'test',
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -516,7 +543,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should handle focus when menu is closed and reopened', async () => {
       const mockSetOpen = jest.fn();
 
-      jest.mocked(require('@/hooks/use-command-menu').useCommandMenu).mockReturnValue({
+      mockUseCommandMenu.mockReturnValue({
         open: true,
         setOpen: mockSetOpen,
       });
@@ -527,7 +554,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       input.focus();
 
       // Close menu
-      jest.mocked(require('@/hooks/use-command-menu').useCommandMenu).mockReturnValue({
+      mockUseCommandMenu.mockReturnValue({
         open: false,
         setOpen: mockSetOpen,
       });
@@ -535,7 +562,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       rerender(<CommandMenu />);
 
       // Reopen menu
-      jest.mocked(require('@/hooks/use-command-menu').useCommandMenu).mockReturnValue({
+      mockUseCommandMenu.mockReturnValue({
         open: true,
         setOpen: mockSetOpen,
       });
@@ -580,7 +607,7 @@ describe('CommandMenu Keyboard Navigation', () => {
         { id: '2', type: 'house', title: 'House 1' },
       ];
 
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: 'test',
         setQuery: jest.fn(),
         results: mockResults,
@@ -593,6 +620,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: 'test',
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -606,7 +636,7 @@ describe('CommandMenu Keyboard Navigation', () => {
   describe('Edge cases', () => {
     it('should handle keyboard navigation with no items', () => {
       // Mock empty command menu
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: '',
         setQuery: jest.fn(),
         results: [],
@@ -619,6 +649,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: null,
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -634,7 +667,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should handle rapid keyboard input', async () => {
       const mockSetQuery = jest.fn();
 
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: '',
         setQuery: mockSetQuery,
         results: [],
@@ -647,6 +680,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: null,
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
@@ -660,7 +696,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     });
 
     it('should handle keyboard navigation during loading', () => {
-      jest.mocked(require('@/hooks/use-search').useSearch).mockReturnValue({
+      mockUseSearch.mockReturnValue({
         query: 'loading',
         setQuery: jest.fn(),
         results: [],
@@ -673,6 +709,9 @@ describe('CommandMenu Keyboard Navigation', () => {
         retryCount: 0,
         isOffline: false,
         lastSuccessfulQuery: null,
+        suggestions: [],
+        recentSearches: [],
+        addToRecentSearches: jest.fn(),
       });
 
       render(<CommandMenu />);
