@@ -6,6 +6,10 @@ const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;
 global.TextDecoder = TextDecoder;
 
+// Add URL polyfill for Node.js environment
+const { URL } = require('url');
+global.URL = URL;
+
 // Add IntersectionObserver polyfill
 global.IntersectionObserver = class IntersectionObserver {
   constructor() {}
@@ -17,7 +21,13 @@ global.IntersectionObserver = class IntersectionObserver {
 // Add Request/Response polyfills for Next.js server APIs
 global.Request = class Request {
   constructor(input, init) {
-    this.url = typeof input === 'string' ? input : input.url;
+    const url = typeof input === 'string' ? input : input.url;
+    Object.defineProperty(this, 'url', {
+      value: url,
+      writable: false,
+      enumerable: true,
+      configurable: false
+    });
     this.method = init?.method || 'GET';
     this.headers = new Map(Object.entries(init?.headers || {}));
     this.body = init?.body;
@@ -38,6 +48,16 @@ global.Response = class Response {
   
   text() {
     return Promise.resolve(this.body);
+  }
+  
+  static json(data, init) {
+    return new Response(JSON.stringify(data), {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...init?.headers
+      }
+    });
   }
 };
 
@@ -72,6 +92,26 @@ jest.mock('next/navigation', () => ({
     replace: jest.fn(),
     refresh: jest.fn(),
   }),
+}));
+
+jest.mock('next/server', () => ({
+  NextRequest: class NextRequest extends global.Request {
+    constructor(input, init) {
+      super(input, init);
+      this.nextUrl = new URL(typeof input === 'string' ? input : input.url);
+    }
+  },
+  NextResponse: {
+    json: (data, init) => {
+      return new Response(JSON.stringify(data), {
+        ...init,
+        headers: {
+          'Content-Type': 'application/json',
+          ...init?.headers
+        }
+      });
+    }
+  }
 }));
 
 // Only define window properties if window exists (jsdom environment)
