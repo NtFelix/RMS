@@ -105,17 +105,16 @@ describe('BetriebskostenClientWrapper', () => {
 
   it('renders correctly with initial data', () => {
     render(<BetriebskostenClientWrapper {...defaultProps} />);
-    expect(screen.getByText('Betriebskosten')).toBeInTheDocument();
     expect(screen.getByText('Betriebskostenübersicht')).toBeInTheDocument();
-    expect(screen.getByText('Hier können Sie Ihre Betriebskosten verwalten und abrechnen')).toBeInTheDocument();
+    expect(screen.getByText('Betriebskostenabrechnung erstellen')).toBeInTheDocument();
   });
 
-  it('renders the Betriebskosten title and description', () => {
+  it('renders the Betriebskosten title and create button', () => {
     render(<BetriebskostenClientWrapper {...defaultProps} />);
     
-    // Check if the main title and description are rendered
-    expect(screen.getByText('Betriebskosten')).toBeInTheDocument();
-    expect(screen.getByText('Verwalten Sie Ihre Betriebskosten und Abrechnungen')).toBeInTheDocument();
+    // Check if the main title and create button are rendered
+    expect(screen.getByText('Betriebskostenübersicht')).toBeInTheDocument();
+    expect(screen.getByText('Betriebskostenabrechnung erstellen')).toBeInTheDocument();
   });
 
   it('renders the Betriebskostenübersicht section', () => {
@@ -123,7 +122,7 @@ describe('BetriebskostenClientWrapper', () => {
     
     // Check if the overview section is rendered
     expect(screen.getByText('Betriebskostenübersicht')).toBeInTheDocument();
-    expect(screen.getByText('Hier können Sie Ihre Betriebskosten verwalten und abrechnen')).toBeInTheDocument();
+    expect(screen.getByText('Betriebskostenabrechnung erstellen')).toBeInTheDocument();
   });
 
   it('renders the filter buttons', () => {
