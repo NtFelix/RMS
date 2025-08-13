@@ -39,6 +39,9 @@ const mockSearch = {
   retryCount: 0,
   isOffline: false,
   lastSuccessfulQuery: null,
+  suggestions: [],
+  recentSearches: [],
+  addToRecentSearches: jest.fn(),
 };
 
 jest.mock('@/hooks/use-search', () => ({
@@ -55,9 +58,6 @@ const mockRouter = {
 
 jest.mock('next/navigation', () => ({
   useRouter: () => mockRouter,
-    replace: jest.fn(),
-    refresh: jest.fn(),
-  }),
 }));
 
 // Mock the command components with keyboard support
@@ -190,7 +190,7 @@ describe('CommandMenu Keyboard Navigation', () => {
       const mockSetOpen = jest.fn();
       
       // Mock the hook to return the setOpen function
-      jest.mocked(require('@/hooks/use-command-menu').useCommandMenu).mockReturnValue({
+      (require('@/hooks/use-command-menu').useCommandMenu as jest.Mock).mockReturnValue({
         open: false,
         setOpen: mockSetOpen,
       });
@@ -204,7 +204,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should open menu with Ctrl+K', async () => {
       const mockSetOpen = jest.fn();
       
-      jest.mocked(require('@/hooks/use-command-menu').useCommandMenu).mockReturnValue({
+      (require('@/hooks/use-command-menu').useCommandMenu as jest.Mock).mockReturnValue({
         open: false,
         setOpen: mockSetOpen,
       });
@@ -218,7 +218,7 @@ describe('CommandMenu Keyboard Navigation', () => {
     it('should close menu with Escape', async () => {
       const mockSetOpen = jest.fn();
       
-      jest.mocked(require('@/hooks/use-command-menu').useCommandMenu).mockReturnValue({
+      (require('@/hooks/use-command-menu').useCommandMenu as jest.Mock).mockReturnValue({
         open: true,
         setOpen: mockSetOpen,
       });
