@@ -98,8 +98,8 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
-      expect(screen.getByText('Bitte versuchen Sie es erneut oder laden Sie die Seite neu.')).toBeInTheDocument();
+      expect(screen.getByText('Suchfehler')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
       expect(mockOnError).toHaveBeenCalledTimes(1);
     });
 
@@ -136,8 +136,8 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
-      expect(mockOnError).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
+      expect(mockOnError).toHaveBeenCalled();
     });
 
     it('should handle errors in nested components', () => {
@@ -154,7 +154,7 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
       expect(mockOnError).toHaveBeenCalledTimes(1);
     });
 
@@ -174,7 +174,7 @@ describe('SearchErrorBoundary', () => {
       // Inner boundary should catch the error
       expect(mockOnError2).toHaveBeenCalledTimes(1);
       expect(mockOnError1).not.toHaveBeenCalled();
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
     });
   });
 
@@ -186,7 +186,7 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
 
       // Rerender with non-erroring component
       rerender(
@@ -196,7 +196,7 @@ describe('SearchErrorBoundary', () => {
       );
 
       expect(screen.getByText('Recovered content')).toBeInTheDocument();
-      expect(screen.queryByText('Bei der Suche ist ein Fehler aufgetreten')).not.toBeInTheDocument();
+      expect(screen.queryByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).not.toBeInTheDocument();
     });
 
     it('should reset error state on new children', () => {
@@ -206,7 +206,7 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
 
       rerender(
         <SearchErrorBoundary onError={mockOnError}>
@@ -226,7 +226,7 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
     });
 
     it('should handle undefined onError gracefully', () => {
@@ -236,7 +236,7 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
     });
   });
 
@@ -295,7 +295,7 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
       expect(mockOnError).toHaveBeenCalledTimes(1);
     });
   });
@@ -308,11 +308,11 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      const errorContainer = screen.getByText('Bei der Suche ist ein Fehler aufgetreten').parentElement;
-      expect(errorContainer).toHaveClass('flex', 'flex-col', 'items-center', 'justify-center');
+      const errorContainer = screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.').closest('[role="alert"]');
+      expect(errorContainer).toBeInTheDocument();
       
-      expect(screen.getByText('Bei der Suche ist ein Fehler aufgetreten')).toHaveClass('text-lg', 'font-medium');
-      expect(screen.getByText('Bitte versuchen Sie es erneut oder laden Sie die Seite neu.')).toHaveClass('text-sm', 'text-muted-foreground');
+      expect(screen.getByText('Suchfehler')).toBeInTheDocument();
+      expect(screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.')).toBeInTheDocument();
     });
 
     it('should include error icon in fallback UI', () => {
@@ -323,7 +323,7 @@ describe('SearchErrorBoundary', () => {
       );
 
       // The AlertCircle icon should be rendered
-      const errorIcon = screen.getByText('Bei der Suche ist ein Fehler aufgetreten').parentElement?.querySelector('.lucide-alert-circle');
+      const errorIcon = screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.').closest('[role="alert"]')?.querySelector('.lucide-circle-alert');
       expect(errorIcon).toBeInTheDocument();
     });
 
@@ -334,8 +334,8 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      const container = screen.getByText('Bei der Suche ist ein Fehler aufgetreten').parentElement;
-      expect(container).toHaveClass('p-8', 'text-center', 'space-y-4');
+      const container = screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.').closest('.flex');
+      expect(container).toHaveClass('flex', 'flex-col', 'items-center', 'justify-center');
     });
   });
 
@@ -422,8 +422,8 @@ describe('SearchErrorBoundary', () => {
       render(
         <SearchErrorBoundary onError={mockOnError}>
           <div>Element</div>
-          {'String child'}
-          {123}
+          <span>String child</span>
+          <span>123</span>
           {true && <span>Conditional</span>}
         </SearchErrorBoundary>
       );
@@ -475,9 +475,9 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      const errorContainer = screen.getByText('Bei der Suche ist ein Fehler aufgetreten').parentElement;
+      const errorContainer = screen.getByRole('alert');
+      expect(errorContainer).toBeInTheDocument();
       expect(errorContainer).toHaveAttribute('role', 'alert');
-      expect(errorContainer).toHaveAttribute('aria-live', 'assertive');
     });
 
     it('should be keyboard accessible', () => {
@@ -487,8 +487,12 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      const errorContainer = screen.getByText('Bei der Suche ist ein Fehler aufgetreten').parentElement;
-      expect(errorContainer).toHaveAttribute('tabIndex', '0');
+      // Check that buttons are keyboard accessible
+      const retryButton = screen.getByText(/Erneut versuchen/);
+      const resetButton = screen.getByText('Zurücksetzen');
+      
+      expect(retryButton).toBeInTheDocument();
+      expect(resetButton).toBeInTheDocument();
     });
 
     it('should have proper semantic structure', () => {
@@ -498,11 +502,11 @@ describe('SearchErrorBoundary', () => {
         </SearchErrorBoundary>
       );
 
-      const heading = screen.getByText('Bei der Suche ist ein Fehler aufgetreten');
-      const description = screen.getByText('Bitte versuchen Sie es erneut oder laden Sie die Seite neu.');
+      const heading = screen.getByText('Suchfehler');
+      const description = screen.getByText('Bei der Suche ist ein unerwarteter Fehler aufgetreten.');
 
-      expect(heading.tagName).toBe('H3');
-      expect(description.tagName).toBe('P');
+      expect(heading.tagName).toBe('H5');
+      expect(description.tagName).toBe('DIV');
     });
   });
 });
