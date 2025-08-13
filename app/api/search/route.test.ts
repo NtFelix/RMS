@@ -129,15 +129,15 @@ describe('/api/search', () => {
         };
       });
 
-      const request = new NextRequest('http://localhost/api/search?q=John&categories=tenants');
+      const request = new NextRequest('http://localhost/api/search?q=John&categories=tenant');
       const response = await GET(request);
       
       expect(response.status).toBe(200);
       const data = await response.json();
       
-      expect(data.results.tenants).toHaveLength(1);
-      expect(data.results.tenants[0].name).toBe('John Doe');
-      expect(data.results.tenants[0].status).toBe('active');
+      expect(data.results.tenant).toHaveLength(1);
+      expect(data.results.tenant[0].name).toBe('John Doe');
+      expect(data.results.tenant[0].status).toBe('active');
       expect(data.totalCount).toBe(1);
     });
 
