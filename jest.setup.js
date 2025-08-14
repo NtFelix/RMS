@@ -1,5 +1,6 @@
 // jest.setup.js
 import '@testing-library/jest-dom'
+import 'jest-axe/extend-expect'
 
 // Add TextEncoder/TextDecoder polyfills for Node.js environment
 const { TextEncoder, TextDecoder } = require('util');
