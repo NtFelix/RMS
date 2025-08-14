@@ -2,6 +2,14 @@ import { GET } from './route';
 import { NextRequest } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+// Mock Next.js cookies
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(() => ({
+    get: jest.fn(),
+    set: jest.fn(),
+  })),
+}));
+
 // Mock the Supabase client
 jest.mock('@/utils/supabase/server', () => ({
   createClient: jest.fn(),
@@ -15,43 +23,38 @@ const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
 
 beforeAll(() => {
-  console.error = jest.fn();
-  console.log = jest.fn();
-  console.warn = jest.fn();
+  // Set up environment variables for tests
+  process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 });
 
 afterAll(() => {
-  console.error = originalConsoleError;
-  console.log = originalConsoleLog;
-  console.warn = originalConsoleWarn;
+  // Restore environment
 });
 
-describe.skip('/api/search', () => {
+describe('/api/search', () => {
   let mockSupabase: any;
 
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Reset the search pattern cache
-    jest.resetModules();
-    
-    // Mock Supabase client with proper chaining
-    const createMockQueryBuilder = () => ({
-      from: jest.fn().mockReturnThis(),
+    // Create a default mock query builder that returns empty results
+    const createDefaultMockQueryBuilder = () => ({
       select: jest.fn().mockReturnThis(),
       or: jest.fn().mockReturnThis(),
-      ilike: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       limit: jest.fn().mockResolvedValue({ data: [], error: null }),
-      eq: jest.fn().mockReturnThis(),
       not: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      ilike: jest.fn().mockReturnThis(),
     });
     
+    // Default mock that returns empty results for all tables
     mockSupabase = {
-      from: jest.fn().mockImplementation(() => createMockQueryBuilder()),
+      from: jest.fn().mockImplementation(() => createDefaultMockQueryBuilder()),
     };
     
-    // Fix: createClient is async, so we need to mock it properly
+    // createClient is async, so we need to mock it properly
     mockCreateClient.mockResolvedValue(mockSupabase);
   });
 
@@ -154,15 +157,27 @@ describe.skip('/api/search', () => {
       });
 
       const request = new NextRequest('http://localhost/api/search?q=John&categories=tenant');
-      const response = await GET(request);
       
-      expect(response.status).toBe(200);
-      const data = await response.json();
-      
-      expect(data.results.tenant).toHaveLength(1);
-      expect(data.results.tenant[0].name).toBe('John Doe');
-      expect(data.results.tenant[0].status).toBe('active');
-      expect(data.totalCount).toBe(1);
+      try {
+        const response = await GET(request);
+        
+        if (response.status !== 200) {
+          const errorData = await response.json();
+          console.log('Error response:', errorData);
+          console.log('Response status:', response.status);
+        }
+        
+        expect(response.status).toBe(200);
+        const data = await response.json();
+        
+        expect(data.results.tenant).toHaveLength(1);
+        expect(data.results.tenant[0].name).toBe('John Doe');
+        expect(data.results.tenant[0].status).toBe('active');
+        expect(data.totalCount).toBe(1);
+      } catch (error) {
+        console.error('Test error:', error);
+        throw error;
+      }
     });
 
     it('should search houses successfully', async () => {
@@ -226,16 +241,40 @@ describe.skip('/api/search', () => {
         }
       ];
 
+      let callCount = 0;
+      // Create a comprehensive mock for all query builder methods
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockImplementation(() => {
+          callCount++;
+          // First call returns the apartment data, second call (house search) returns empty
+          if (callCount === 1) {
+            return Promise.resolve({ data: mockApartmentData, error: null });
+          } else {
+            return Promise.resolve({ data: [], error: null });
+          }
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      // Mock all table queries to return empty results except for Wohnungen
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Wohnungen') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ data: mockApartmentData, error: null })
-          };
+          return mockQueryBuilder;
         }
+        // Return empty results for other tables
         return {
-          ...mockSupabase,
-          limit: jest.fn().mockResolvedValue({ data: [], error: null })
+          select: jest.fn().mockReturnThis(),
+          or: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+          not: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          ilike: jest.fn().mockReturnThis(),
         };
       });
 
@@ -267,16 +306,36 @@ describe.skip('/api/search', () => {
         }
       ];
 
+      // Create a comprehensive mock for all query builder methods
+      // The finance search uses a different pattern - it awaits the final query builder
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => {
+          resolve({ data: mockFinanceData, error: null });
+          return Promise.resolve({ data: mockFinanceData, error: null });
+        })
+      };
+
+      // Mock all table queries to return empty results except for Finanzen
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Finanzen') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ data: mockFinanceData, error: null })
-          };
+          return mockQueryBuilder;
         }
+        // Return empty results for other tables
         return {
-          ...mockSupabase,
-          limit: jest.fn().mockResolvedValue({ data: [], error: null })
+          select: jest.fn().mockReturnThis(),
+          or: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+          not: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          ilike: jest.fn().mockReturnThis(),
         };
       });
 
@@ -303,16 +362,34 @@ describe.skip('/api/search', () => {
         }
       ];
 
+      // Create a comprehensive mock for all query builder methods
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ 
+          data: mockTaskData, 
+          error: null 
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      // Mock all table queries to return empty results except for Aufgaben
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Aufgaben') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ data: mockTaskData, error: null })
-          };
+          return mockQueryBuilder;
         }
+        // Return empty results for other tables
         return {
-          ...mockSupabase,
-          limit: jest.fn().mockResolvedValue({ data: [], error: null })
+          select: jest.fn().mockReturnThis(),
+          or: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+          not: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          ilike: jest.fn().mockReturnThis(),
         };
       });
 
@@ -340,16 +417,36 @@ describe.skip('/api/search', () => {
         }
       ];
 
+      // Create a comprehensive mock for all query builder methods
+      // The finance search uses a different pattern - it awaits the final query builder
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => {
+          resolve({ data: mockFinanceData, error: null });
+          return Promise.resolve({ data: mockFinanceData, error: null });
+        })
+      };
+
+      // Mock all table queries to return empty results except for Finanzen
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Finanzen') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ data: mockFinanceData, error: null })
-          };
+          return mockQueryBuilder;
         }
+        // Return empty results for other tables
         return {
-          ...mockSupabase,
-          limit: jest.fn().mockResolvedValue({ data: [], error: null })
+          select: jest.fn().mockReturnThis(),
+          or: jest.fn().mockReturnThis(),
+          order: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+          not: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          ilike: jest.fn().mockReturnThis(),
         };
       });
 
@@ -446,7 +543,7 @@ describe.skip('/api/search', () => {
       expect(response.headers.get('Cache-Control')).toBe('public, max-age=60');
     });
 
-    it.skip('should handle partial results with warning headers', async () => {
+    it('should handle partial results with warning headers', async () => {
       let callCount = 0;
       mockSupabase.from.mockImplementation((table: string) => {
         callCount++;

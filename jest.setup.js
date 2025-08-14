@@ -102,9 +102,13 @@ jest.mock('next/server', () => ({
       this.nextUrl = new URL(typeof input === 'string' ? input : input.url);
     }
   },
-  NextResponse: {
-    json: (data, init) => {
-      return new Response(JSON.stringify(data), {
+  NextResponse: class NextResponse extends global.Response {
+    constructor(body, init) {
+      super(body, init);
+    }
+    
+    static json(data, init) {
+      return new NextResponse(JSON.stringify(data), {
         ...init,
         headers: {
           'Content-Type': 'application/json',
