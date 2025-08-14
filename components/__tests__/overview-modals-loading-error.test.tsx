@@ -72,7 +72,7 @@ describe('Overview Modals Loading and Error Handling', () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText('Daten werden geladen...')).toBeInTheDocument();
+        expect(screen.getByText('Haus-Übersicht wird geladen...')).toBeInTheDocument();
       });
 
       // Should show progress bar
@@ -88,8 +88,8 @@ describe('Overview Modals Loading and Error Handling', () => {
 
       render(<HausOverviewModal />);
 
-      // Should show error message
-      expect(screen.getByText('Fehler beim Laden')).toBeInTheDocument();
+      // Should show error message (there are multiple elements with this text, so use getAllByText)
+      expect(screen.getAllByText('Fehler beim Laden')).toHaveLength(2);
       expect(screen.getByText(/Network error occurred/)).toBeInTheDocument();
 
       // Should show retry button
