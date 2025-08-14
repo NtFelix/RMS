@@ -39,15 +39,44 @@ describe('/api/search', () => {
     jest.clearAllMocks();
     
     // Create a default mock query builder that returns empty results
-    const createDefaultMockQueryBuilder = () => ({
-      select: jest.fn().mockReturnThis(),
-      or: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      limit: jest.fn().mockResolvedValue({ data: [], error: null }),
-      not: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      ilike: jest.fn().mockReturnThis(),
-    });
+    // This needs to handle both the standard pattern and the finance pattern
+    const createDefaultMockQueryBuilder = () => {
+      const queryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockReturnThis(),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+        then: jest.fn((resolve) => {
+          resolve({ data: [], error: null });
+          return Promise.resolve({ data: [], error: null });
+        })
+      };
+      
+      // Make the query builder thenable for finance queries
+      Object.defineProperty(queryBuilder, 'then', {
+        value: jest.fn((resolve) => {
+          resolve({ data: [], error: null });
+          return Promise.resolve({ data: [], error: null });
+        }),
+        writable: true
+      });
+      
+      // Also make limit return a promise for standard queries
+      queryBuilder.limit = jest.fn().mockImplementation(() => {
+        const result = Promise.resolve({ data: [], error: null });
+        // Add then method to the result for finance queries
+        result.then = jest.fn((resolve) => {
+          resolve({ data: [], error: null });
+          return Promise.resolve({ data: [], error: null });
+        });
+        return result;
+      });
+      
+      return queryBuilder;
+    };
     
     // Default mock that returns empty results for all tables
     mockSupabase = {
@@ -463,13 +492,21 @@ describe('/api/search', () => {
 
   describe('Error handling', () => {
     it('should handle database errors gracefully', async () => {
-      mockSupabase.from.mockImplementation(() => ({
-        ...mockSupabase,
+      // Mock all query builders to return database errors
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockResolvedValue({ 
           data: null, 
           error: { message: 'Database connection failed' } 
-        })
-      }));
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
@@ -483,12 +520,19 @@ describe('/api/search', () => {
 
     it('should handle timeout errors', async () => {
       // Mock a slow response that exceeds timeout
-      mockSupabase.from.mockImplementation(() => ({
-        ...mockSupabase,
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
         limit: jest.fn().mockImplementation(() => 
           new Promise(resolve => setTimeout(resolve, 20000)) // 20 second delay
-        )
-      }));
+        ),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       
@@ -506,7 +550,7 @@ describe('/api/search', () => {
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
       
-      expect(response.status).toBe(500);
+      expect(response.status).toBe(503); // Service unavailable when all searches fail
       const data = await response.json();
       expect(data.error).toBeDefined();
       expect(data.timestamp).toBeDefined();
@@ -516,10 +560,18 @@ describe('/api/search', () => {
 
   describe('Performance and caching', () => {
     it('should include execution time in response', async () => {
-      mockSupabase.from.mockImplementation(() => ({
-        ...mockSupabase,
-        limit: jest.fn().mockResolvedValue({ data: [], error: null })
-      }));
+      // Mock all query builders to return empty results
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
@@ -531,10 +583,18 @@ describe('/api/search', () => {
     });
 
     it('should include cache headers for successful responses', async () => {
-      mockSupabase.from.mockImplementation(() => ({
-        ...mockSupabase,
-        limit: jest.fn().mockResolvedValue({ data: [], error: null })
-      }));
+      // Mock all query builders to return empty results
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test');
       const response = await GET(request);
@@ -545,21 +605,38 @@ describe('/api/search', () => {
 
     it('should handle partial results with warning headers', async () => {
       let callCount = 0;
+      
+      // Create successful mock for tenant query builder
+      const mockSuccessfulQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ 
+          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }], 
+          error: null 
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      // Create failing mock for other query builders
+      const mockFailingQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockImplementation(() => Promise.reject(new Error('Database error'))),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
       mockSupabase.from.mockImplementation((table: string) => {
         callCount++;
         if (table === 'Mieter' && callCount === 1) {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ 
-              data: [{ id: '1', name: 'John', email: 'john@test.com' }], 
-              error: null 
-            })
-          };
+          return mockSuccessfulQueryBuilder;
         }
-        return {
-          ...mockSupabase,
-          limit: jest.fn().mockImplementation(() => Promise.reject(new Error('Database error')))
-        };
+        return mockFailingQueryBuilder;
       });
 
       const request = new NextRequest('http://localhost/api/search?q=test');
@@ -574,10 +651,18 @@ describe('/api/search', () => {
 
   describe('Query sanitization', () => {
     it('should sanitize special characters in queries', async () => {
-      mockSupabase.from.mockImplementation(() => ({
-        ...mockSupabase,
-        limit: jest.fn().mockResolvedValue({ data: [], error: null })
-      }));
+      // Mock all query builders to return empty results
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=test%25_query');
       const response = await GET(request);
@@ -589,10 +674,18 @@ describe('/api/search', () => {
     });
 
     it('should handle empty results gracefully', async () => {
-      mockSupabase.from.mockImplementation(() => ({
-        ...mockSupabase,
-        limit: jest.fn().mockResolvedValue({ data: [], error: null })
-      }));
+      // Mock all query builders to return empty results
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      mockSupabase.from.mockImplementation(() => mockQueryBuilder);
 
       const request = new NextRequest('http://localhost/api/search?q=nonexistent');
       const response = await GET(request);
@@ -610,20 +703,36 @@ describe('/api/search', () => {
 
   describe('Category filtering', () => {
     it('should respect category filters', async () => {
+      // Create comprehensive mock for tenant query builder
+      const mockTenantQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ 
+          data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }], 
+          error: null 
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      // Create default mock for other tables
+      const mockDefaultQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Mieter') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ 
-              data: [{ id: '1', name: 'John', email: 'john@test.com', einzug: '2023-01-01', auszug: null, telefonnummer: null, Wohnungen: [] }], 
-              error: null 
-            })
-          };
+          return mockTenantQueryBuilder;
         }
-        return {
-          ...mockSupabase,
-          limit: jest.fn().mockResolvedValue({ data: [], error: null })
-        };
+        return mockDefaultQueryBuilder;
       });
 
       const request = new NextRequest('http://localhost/api/search?q=test&categories=tenant');
@@ -641,29 +750,52 @@ describe('/api/search', () => {
     });
 
     it('should handle multiple categories', async () => {
+      // Create comprehensive mocks for tenant and house query builders
+      const mockTenantQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ 
+          data: [{ id: '1', name: 'Test', email: null, telefonnummer: null, einzug: '2023-01-01', auszug: null, Wohnungen: [] }], 
+          error: null 
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      const mockHouseQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ 
+          data: [{ id: '1', name: 'Test', strasse: 'Test St', ort: 'Test City', Wohnungen: [] }], 
+          error: null 
+        }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
+      // Create default mock for other tables
+      const mockDefaultQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ data: [], error: null }),
+        not: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
+      };
+
       mockSupabase.from.mockImplementation((table: string) => {
         if (table === 'Mieter') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ 
-              data: [{ id: '1', name: 'Test', email: null, telefonnummer: null, einzug: '2023-01-01', auszug: null, Wohnungen: [] }], 
-              error: null 
-            })
-          };
+          return mockTenantQueryBuilder;
         }
         if (table === 'Haeuser') {
-          return {
-            ...mockSupabase,
-            limit: jest.fn().mockResolvedValue({ 
-              data: [{ id: '1', name: 'Test', strasse: 'Test St', ort: 'Test City', Wohnungen: [] }], 
-              error: null 
-            })
-          };
+          return mockHouseQueryBuilder;
         }
-        return {
-          ...mockSupabase,
-          limit: jest.fn().mockResolvedValue({ data: [], error: null })
-        };
+        return mockDefaultQueryBuilder;
       });
 
       const request = new NextRequest('http://localhost/api/search?q=test&categories=tenant,house');
