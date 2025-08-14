@@ -14,7 +14,7 @@ global.fetch = jest.fn();
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>;
 const mockToast = toast as jest.MockedFunction<typeof toast>;
 
-describe.skip('WohnungOverviewModal', () => {
+describe('WohnungOverviewModal', () => {
   const mockWohnungData = {
     id: '1',
     name: 'Wohnung 1A',
@@ -52,6 +52,7 @@ describe.skip('WohnungOverviewModal', () => {
     setWohnungOverviewLoading: jest.fn(),
     setWohnungOverviewError: jest.fn(),
     setWohnungOverviewData: jest.fn(),
+    refreshWohnungOverviewData: jest.fn(),
     openTenantModal: jest.fn(),
   };
 
@@ -124,9 +125,12 @@ describe.skip('WohnungOverviewModal', () => {
     // Check header information
     expect(screen.getByText('Wohnungs-Übersicht: Wohnung 1A')).toBeInTheDocument();
     expect(screen.getByText('Haus: Musterstraße 1')).toBeInTheDocument();
-    expect(screen.getByText(/Größe: 75,00 m²/)).toBeInTheDocument();
-    expect(screen.getByText(/Miete: 1\.200,00 €/)).toBeInTheDocument();
-    expect(screen.getByText('Mieter gesamt: 2')).toBeInTheDocument();
+    
+    // Check summary cards
+    expect(screen.getByText('Wohnungsgröße')).toBeInTheDocument();
+    expect(screen.getByText('Monatsmiete')).toBeInTheDocument();
+    expect(screen.getByText('Mieter Status')).toBeInTheDocument();
+    expect(screen.getByText('Belegung')).toBeInTheDocument();
 
     // Check mieter data
     expect(screen.getByText('Max Mustermann')).toBeInTheDocument();
