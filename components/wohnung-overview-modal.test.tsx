@@ -1,6 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { WohnungOverviewModal } from './wohnung-overview-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
+
+// Mock timers
+jest.useFakeTimers();
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store');
@@ -23,6 +26,11 @@ jest.mock('@/utils/format', () => ({
 // Mock the toast hook
 jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
+}));
+
+// Mock server actions
+jest.mock('@/app/mieter-actions', () => ({
+  deleteTenantAction: jest.fn(),
 }));
 
 describe('WohnungOverviewModal', () => {
@@ -55,6 +63,7 @@ describe('WohnungOverviewModal', () => {
   };
 
   beforeEach(() => {
+    jest.clearAllTimers();
     mockUseModalStore.mockReturnValue({
       isWohnungOverviewModalOpen: false,
       wohnungOverviewData: null,
@@ -69,26 +78,106 @@ describe('WohnungOverviewModal', () => {
     } as any);
   });
 
+  afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.clearAllTimers();
+  });
+
   it('should not render when modal is closed', () => {
     render(<WohnungOverviewModal />);
     expect(screen.queryByText('Wohnungs-Übersicht')).not.toBeInTheDocument();
   });
 
-  // Skipping complex rendering tests due to memory issues with the component's useEffect hooks
-  // The component has complex timer-based loading states that cause memory leaks in test environment
-  it.skip('should render summary cards with correct data when modal is open', () => {
-    // Test skipped due to memory issues
+  it('should render summary cards with correct data when modal is open', () => {
+    mockUseModalStore.mockReturnValue({
+      isWohnungOverviewModalOpen: true,
+      wohnungOverviewData: mockWohnungData,
+      wohnungOverviewLoading: false,
+      wohnungOverviewError: undefined,
+      closeWohnungOverviewModal: jest.fn(),
+      setWohnungOverviewLoading: jest.fn(),
+      setWohnungOverviewError: jest.fn(),
+      setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
+      openTenantModal: jest.fn(),
+    } as any);
+
+    render(<WohnungOverviewModal />);
+    
+    expect(screen.getByText('Wohnungs-Übersicht: Wohnung 1')).toBeInTheDocument();
+    expect(screen.getByText('Haus: Test Haus')).toBeInTheDocument();
+    expect(screen.getByText('80,00 m²')).toBeInTheDocument();
+    expect(screen.getByText('1.200,00 €')).toBeInTheDocument();
   });
 
-  it.skip('should show loading skeleton when loading', () => {
-    // Test skipped due to memory issues
+  it('should show loading skeleton when loading', () => {
+    mockUseModalStore.mockReturnValue({
+      isWohnungOverviewModalOpen: true,
+      wohnungOverviewData: null,
+      wohnungOverviewLoading: true,
+      wohnungOverviewError: undefined,
+      closeWohnungOverviewModal: jest.fn(),
+      setWohnungOverviewLoading: jest.fn(),
+      setWohnungOverviewError: jest.fn(),
+      setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
+      openTenantModal: jest.fn(),
+    } as any);
+
+    render(<WohnungOverviewModal />);
+    
+    expect(screen.getByText('Wohnungs-Übersicht')).toBeInTheDocument();
+    // Check for skeleton elements by class name
+    const skeletonElements = document.querySelectorAll('.animate-pulse');
+    expect(skeletonElements.length).toBeGreaterThan(0);
   });
 
-  it.skip('should show empty state with summary cards when no tenants', () => {
-    // Test skipped due to memory issues
+  it('should show empty state with summary cards when no tenants', () => {
+    const emptyWohnungData = {
+      ...mockWohnungData,
+      mieter: [],
+    };
+
+    mockUseModalStore.mockReturnValue({
+      isWohnungOverviewModalOpen: true,
+      wohnungOverviewData: emptyWohnungData,
+      wohnungOverviewLoading: false,
+      wohnungOverviewError: undefined,
+      closeWohnungOverviewModal: jest.fn(),
+      setWohnungOverviewLoading: jest.fn(),
+      setWohnungOverviewError: jest.fn(),
+      setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
+      openTenantModal: jest.fn(),
+    } as any);
+
+    render(<WohnungOverviewModal />);
+    
+    expect(screen.getByText('Keine Mieter')).toBeInTheDocument();
+    expect(screen.getByText('Diese Wohnung hat noch keine Mieter.')).toBeInTheDocument();
+    // Summary cards should still be visible
+    expect(screen.getByText('80,00 m²')).toBeInTheDocument();
   });
 
-  it.skip('should calculate price per square meter correctly', () => {
-    // Test skipped due to memory issues
+  it('should calculate price per square meter correctly', () => {
+    mockUseModalStore.mockReturnValue({
+      isWohnungOverviewModalOpen: true,
+      wohnungOverviewData: mockWohnungData,
+      wohnungOverviewLoading: false,
+      wohnungOverviewError: undefined,
+      closeWohnungOverviewModal: jest.fn(),
+      setWohnungOverviewLoading: jest.fn(),
+      setWohnungOverviewError: jest.fn(),
+      setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
+      openTenantModal: jest.fn(),
+    } as any);
+
+    render(<WohnungOverviewModal />);
+    
+    // Price per sqm should be 1200 / 80 = 15 €/m²
+    expect(screen.getByText('15,00 €/m²')).toBeInTheDocument();
   });
 });

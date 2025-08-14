@@ -26,7 +26,7 @@ afterAll(() => {
   console.warn = originalConsoleWarn;
 });
 
-describe.skip('/api/search', () => {
+describe('/api/search', () => {
   let mockSupabase: any;
 
   beforeEach(() => {
@@ -122,18 +122,29 @@ describe.skip('/api/search', () => {
         }
       ];
 
+      // Create a fresh mock for this test
+      const mockQueryBuilder = {
+        select: jest.fn().mockReturnThis(),
+        or: jest.fn().mockReturnThis(),
+        order: jest.fn().mockReturnThis(),
+        limit: jest.fn().mockResolvedValue({ 
+          data: mockTenantData, 
+          error: null 
+        }),
+        not: jest.fn().mockReturnThis(),
+      };
+
       mockSupabase.from.mockImplementation((table: string) => {
-        const queryBuilder = {
+        if (table === 'Mieter') {
+          return mockQueryBuilder;
+        }
+        return {
           select: jest.fn().mockReturnThis(),
           or: jest.fn().mockReturnThis(),
           order: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockResolvedValue({ 
-            data: table === 'Mieter' ? mockTenantData : [], 
-            error: null 
-          }),
+          limit: jest.fn().mockResolvedValue({ data: [], error: null }),
           not: jest.fn().mockReturnThis(),
         };
-        return queryBuilder;
       });
 
       const request = new NextRequest('http://localhost/api/search?q=John&categories=tenant');
@@ -432,7 +443,7 @@ describe.skip('/api/search', () => {
       expect(response.headers.get('Cache-Control')).toBe('public, max-age=60');
     });
 
-    it.skip('should handle partial results with warning headers', async () => {
+    it('should handle partial results with warning headers', async () => {
       let callCount = 0;
       mockSupabase.from.mockImplementation((table: string) => {
         callCount++;
