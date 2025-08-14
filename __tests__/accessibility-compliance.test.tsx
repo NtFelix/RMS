@@ -336,7 +336,8 @@ describe('Accessibility Compliance Tests', () => {
       expect(table).toHaveAttribute('aria-label', 'Tenant Table');
       
       // Check table structure
-      expect(screen.getByRole('rowgroup')).toBeInTheDocument();
+      const rowgroups = screen.getAllByRole('rowgroup');
+      expect(rowgroups).toHaveLength(2); // thead and tbody
       expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
     });
 
