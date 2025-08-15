@@ -11,7 +11,7 @@ interface TaskFiltersProps {
 }
 
 export function TaskFilters({ onFilterChange, onSearchChange }: TaskFiltersProps) {
-  const [activeFilter, setActiveFilter] = useState("all")
+  const [activeFilter, setActiveFilter] = useState("open")
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter)
@@ -22,13 +22,6 @@ export function TaskFilters({ onFilterChange, onSearchChange }: TaskFiltersProps
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            onClick={() => handleFilterClick("all")}
-            className="h-9"
-          >
-            Alle
-          </Button>
           <Button
             variant={activeFilter === "open" ? "default" : "outline"}
             onClick={() => handleFilterClick("open")}
@@ -42,6 +35,13 @@ export function TaskFilters({ onFilterChange, onSearchChange }: TaskFiltersProps
             className="h-9"
           >
             Erledigt
+          </Button>
+          <Button
+            variant={activeFilter === "all" ? "default" : "outline"}
+            onClick={() => handleFilterClick("all")}
+            className="h-9"
+          >
+            Alle
           </Button>
         </div>
         <div className="relative w-full sm:w-auto sm:min-w-[300px]">

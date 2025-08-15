@@ -14,7 +14,7 @@ interface TodosClientWrapperProps {
 }
 
 export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientWrapperProps) {
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [tasks, setTasks] = useState<TaskBoardTask[]>(initialTasks);
 
