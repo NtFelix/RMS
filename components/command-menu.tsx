@@ -28,6 +28,9 @@ import {
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
 import { SearchResult } from "@/types/search"
+
+const GLOBAL_SEARCH_RESULT_LIMIT = 15;
+
 import {
   getUserSubscriptionContext,
   getPlanApartmentLimit,
@@ -103,7 +106,7 @@ export function CommandMenu() {
     addToRecentSearches
   } = useSearch({
     debounceMs: 300,
-    limit: 5
+    limit: GLOBAL_SEARCH_RESULT_LIMIT
   })
 
   // Determine if we should show search results or navigation
