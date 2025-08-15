@@ -37,7 +37,7 @@ const financeTabsData: FinanceTab[] = [
     id: 'dashboard',
     title: 'Dashboard-Karten',
     description: 'Vier zentrale Kennzahlen-Karten mit intelligenter Berechnung: Durchschnittswerte nur aus vergangenen Monaten, Cashflow-Analyse und präzise Jahresprognosen',
-    image: '/product-images/finance-page.png',
+    image: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/finance-page.png',
     imageAlt: 'Finance Dashboard Screenshot showing summary cards and key metrics',
     features: [
       'Ø Monatliche Einnahmen (nur bereits vergangene Monate)',
@@ -50,7 +50,7 @@ const financeTabsData: FinanceTab[] = [
     id: 'charts',
     title: 'Interaktive Diagramme',
     description: 'Vier verschiedene Diagrammtypen mit Jahresfilter: Einnahmen nach Wohnung, monatliche Trends, Einnahmen-Ausgaben-Vergleich und Ausgabenkategorien',
-    image: '/product-images/finance-page.png',
+    image: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/finance-page.png',
     imageAlt: 'Finance Charts showing income and expense trends with interactive analytics',
     features: [
       'Pie-Chart: Einnahmenverteilung nach Wohnungen',
@@ -63,7 +63,7 @@ const financeTabsData: FinanceTab[] = [
     id: 'transactions',
     title: 'Transaktionsverwaltung',
     description: 'Vollständige CRUD-Transaktionsverwaltung mit mehrstufigen Filtern, Volltext-Suche, Rechtsklick-Kontextmenü und Echtzeit-Saldo-Berechnung',
-    image: '/product-images/finance-page.png',
+    image: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/finance-page.png',
     imageAlt: 'Transaction management table with filtering and search capabilities',
     features: [
       'Mehrstufige Filter: Wohnung, Jahr, Transaktionstyp kombinierbar',
@@ -76,7 +76,7 @@ const financeTabsData: FinanceTab[] = [
     id: 'reporting',
     title: 'Exportfunktionalität',
     description: 'Professionelle CSV-Export-Funktionen für Steuerberater, vollständiges Transaktionsformular mit Wohnungszuordnung und intelligente Validierung',
-    image: '/product-images/finance-page.png',
+    image: 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/finance-page.png',
     imageAlt: 'Financial reporting interface with export options',
     features: [
       'CSV-Export mit deutschen Trennzeichen für Excel-Kompatibilität',

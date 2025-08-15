@@ -263,7 +263,7 @@ The feature sections component showcases the key capabilities of the RMS platfor
 - **Modern Visual Design**: Glass-morphism effects with backdrop blur and subtle borders for enhanced visual appeal
 
 #### Visual Assets
-The component now uses authentic product screenshots located in `/public/product-images/`:
+The component now uses authentic product screenshots hosted on Supabase:
 - **House Management**: Shows the property and tenant management interface
 - **Operating Costs**: Displays the detailed operating cost calculation system
 - **Financial Overview**: Demonstrates the comprehensive financial tracking dashboard
@@ -275,7 +275,7 @@ const features = [
 title: "Zentrale Haus- & Mieterverwaltung",
 description: "...",
 points: ["...", "...", "..."],
-image: "/product-images/haus-page.png",
+image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/haus-page.png",
 image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
 },
 // Additional features...
