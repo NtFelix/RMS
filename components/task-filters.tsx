@@ -6,15 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 
 interface TaskFiltersProps {
-  onFilterChange: (filter: string) => void
-  onSearchChange: (search: string) => void
+  activeFilter: "open" | "done" | "all";
+  onFilterChange: (filter: "open" | "done" | "all") => void;
+  onSearchChange: (search: string) => void;
 }
 
-export function TaskFilters({ onFilterChange, onSearchChange }: TaskFiltersProps) {
-  const [activeFilter, setActiveFilter] = useState("open")
-
-  const handleFilterClick = (filter: string) => {
-    setActiveFilter(filter)
+export function TaskFilters({ activeFilter, onFilterChange, onSearchChange }: TaskFiltersProps) {
+  const handleFilterClick = (filter: "open" | "done" | "all") => {
     onFilterChange(filter)
   }
 
