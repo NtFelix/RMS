@@ -11,7 +11,7 @@ interface TenantFiltersProps {
 }
 
 export function TenantFilters({ onFilterChange, onSearchChange }: TenantFiltersProps) {
-  const [activeFilter, setActiveFilter] = useState("all")
+  const [activeFilter, setActiveFilter] = useState("current")
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter)
@@ -22,13 +22,6 @@ export function TenantFilters({ onFilterChange, onSearchChange }: TenantFiltersP
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            onClick={() => handleFilterClick("all")}
-            className="h-9"
-          >
-            Alle Mieter
-          </Button>
           <Button
             variant={activeFilter === "current" ? "default" : "outline"}
             onClick={() => handleFilterClick("current")}
@@ -42,6 +35,13 @@ export function TenantFilters({ onFilterChange, onSearchChange }: TenantFiltersP
             className="h-9"
           >
             Vorherige Mieter
+          </Button>
+          <Button
+            variant={activeFilter === "all" ? "default" : "outline"}
+            onClick={() => handleFilterClick("all")}
+            className="h-9"
+          >
+            Alle Mieter
           </Button>
         </div>
         <div className="relative w-full sm:w-auto sm:min-w-[300px]">

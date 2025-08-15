@@ -36,7 +36,7 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
 }: MieterClientViewProps) {
-  const [filter, setFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<string>("current");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { openTenantModal } = useModalStore();
 
