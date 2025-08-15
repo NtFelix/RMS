@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added Card imports
@@ -638,6 +638,9 @@ export function AbrechnungModal({
           <DialogTitle>
             Betriebskostenabrechnung {Number(nebenkostenItem.jahr)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Detaillierte Betriebskostenabrechnung für das Jahr {Number(nebenkostenItem.jahr)} mit Aufschlüsselung nach Mietern.
+          </DialogDescription>
         </DialogHeader>
 
         {tenants && tenants.length > 0 && (

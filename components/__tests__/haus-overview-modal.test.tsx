@@ -135,9 +135,17 @@ describe('HausOverviewModal', () => {
   });
 
   it('should render haus data and wohnungen table when data is available', () => {
+    const mockHausDataWithStats = {
+      ...mockHausData,
+      totalArea: 140,
+      totalRent: 2100,
+      tenantCount: 1,
+      apartmentCount: 2
+    };
+
     mockUseModalStore.mockReturnValue({
       isHausOverviewModalOpen: true,
-      hausOverviewData: mockHausData,
+      hausOverviewData: mockHausDataWithStats,
       hausOverviewLoading: false,
       hausOverviewError: undefined,
       closeHausOverviewModal: mockCloseModal,
@@ -151,22 +159,22 @@ describe('HausOverviewModal', () => {
     render(<HausOverviewModal />);
     
     // Check header information
-    expect(screen.getByText('Haus-Übersicht: Test Haus')).toBeInTheDocument();
+    expect(screen.getByText('Test Haus')).toBeInTheDocument();
     expect(screen.getByText('Teststraße 1, Teststadt')).toBeInTheDocument();
-    expect(screen.getByText('Größe: 200 m²')).toBeInTheDocument();
-    expect(screen.getByText('Wohnungen gesamt: 2')).toBeInTheDocument();
+    
+    // Check summary cards
+    expect(screen.getByText('Gesamtfläche')).toBeInTheDocument();
+    expect(screen.getByText('Gesamtmiete')).toBeInTheDocument();
+    expect(screen.getByText('Mieter')).toBeInTheDocument();
+    expect(screen.getAllByText('Wohnungen')).toHaveLength(2); // One in summary card, one as section header
 
     // Check table content
     expect(screen.getByText('Wohnung 1')).toBeInTheDocument();
     expect(screen.getByText('Wohnung 2')).toBeInTheDocument();
-    expect(screen.getByText('80 m²')).toBeInTheDocument();
-    expect(screen.getByText('€1,200.00')).toBeInTheDocument();
     expect(screen.getByText('Max Mustermann')).toBeInTheDocument();
-    expect(screen.getByText('vermietet')).toBeInTheDocument();
-    expect(screen.getByText('Frei')).toBeInTheDocument(); // Changed from 'leer' to 'Frei' to match component
   });
 
-  it('should call openWohnungModal when edit button is clicked', () => {
+  it('should call openWohnungModal when edit apartment is triggered', () => {
     mockUseModalStore.mockReturnValue({
       isHausOverviewModalOpen: true,
       hausOverviewData: mockHausData,
@@ -178,12 +186,19 @@ describe('HausOverviewModal', () => {
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
       openWohnungOverviewModal: mockOpenWohnungOverviewModal,
+      openApartmentTenantDetailsModal: jest.fn(),
+      refreshHausOverviewData: jest.fn(),
     } as any);
 
     render(<HausOverviewModal />);
     
-    const editButtons = screen.getAllByTitle('Wohnung bearbeiten');
-    fireEvent.click(editButtons[0]);
+    // Right-click on the first apartment row to open context menu
+    const apartmentRows = screen.getAllByText('Wohnung 1');
+    fireEvent.contextMenu(apartmentRows[0]);
+    
+    // Click on "Wohnung bearbeiten" in the context menu
+    const editButton = screen.getByText('Wohnung bearbeiten');
+    fireEvent.click(editButton);
     
     // Check that the modal is called with the transformed data structure
     expect(mockOpenWohnungModal).toHaveBeenCalledWith(
@@ -199,8 +214,8 @@ describe('HausOverviewModal', () => {
     );
   });
 
-  it('should open wohnung overview modal when view details button is clicked', () => {
-    const mockOpenWohnungOverviewModal = jest.fn();
+  it('should open apartment tenant details modal when view details is clicked', () => {
+    const mockOpenApartmentTenantDetailsModal = jest.fn();
     mockUseModalStore.mockReturnValue({
       isHausOverviewModalOpen: true,
       hausOverviewData: mockHausData,
@@ -212,14 +227,21 @@ describe('HausOverviewModal', () => {
       setHausOverviewData: mockSetData,
       openWohnungModal: mockOpenWohnungModal,
       openWohnungOverviewModal: mockOpenWohnungOverviewModal,
+      openApartmentTenantDetailsModal: mockOpenApartmentTenantDetailsModal,
+      refreshHausOverviewData: jest.fn(),
     } as any);
 
     render(<HausOverviewModal />);
     
-    const viewButtons = screen.getAllByTitle('Mieter-Übersicht anzeigen');
-    fireEvent.click(viewButtons[0]);
+    // Right-click on the first apartment row to open context menu
+    const apartmentRows = screen.getAllByText('Wohnung 1');
+    fireEvent.contextMenu(apartmentRows[0]);
     
-    expect(mockOpenWohnungOverviewModal).toHaveBeenCalledWith('1');
+    // Click on "Details anzeigen" in the context menu
+    const viewButton = screen.getByText('Details anzeigen');
+    fireEvent.click(viewButton);
+    
+    expect(mockOpenApartmentTenantDetailsModal).toHaveBeenCalledWith('1', '1');
   });
 
   it('should handle retry functionality', async () => {

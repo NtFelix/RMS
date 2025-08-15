@@ -53,6 +53,18 @@ export class SearchErrorBoundary extends Component<Props, State> {
     }
   }
 
+  componentDidUpdate(prevProps: Props) {
+    // Reset error state when children change
+    if (this.state.hasError && prevProps.children !== this.props.children) {
+      this.setState({
+        hasError: false,
+        error: null,
+        errorInfo: null,
+        retryCount: 0
+      })
+    }
+  }
+
   handleRetry = () => {
     if (this.state.retryCount < MAX_RETRY_COUNT) {
       this.setState(prevState => ({

@@ -109,7 +109,11 @@ export default function WohnungenClientView({
   }, [updateApartmentInList, refreshTable]);
 
   const handleAddWohnung = useCallback(() => {
-    openWohnungModal(undefined, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+    try {
+      openWohnungModal(undefined, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd);
+    } catch (error) {
+      console.error('Error opening wohnung modal:', error);
+    }
   }, [openWohnungModal, housesData, handleSuccess, serverApartmentCount, serverApartmentLimit, serverUserIsEligibleToAdd]);
 
   const handleEditWohnung = useCallback(async (apartment: ApartmentTableType) => {

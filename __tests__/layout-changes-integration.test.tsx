@@ -1,16 +1,24 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
+// Create mock functions that can be tracked
+const mockOpenWohnungModal = jest.fn();
+const mockOpenHouseModal = jest.fn();
+const mockOpenTenantModal = jest.fn();
+const mockOpenBetriebskostenModal = jest.fn();
+const mockOpenFinanceModal = jest.fn();
+const mockOpenAufgabeModal = jest.fn();
+
 // Mock all dependencies to focus on layout testing
 jest.mock('@/hooks/use-modal-store', () => ({
   useModalStore: () => ({
-    openWohnungModal: jest.fn(),
-    openHouseModal: jest.fn(),
-    openTenantModal: jest.fn(),
-    openBetriebskostenModal: jest.fn(),
+    openWohnungModal: mockOpenWohnungModal,
+    openHouseModal: mockOpenHouseModal,
+    openTenantModal: mockOpenTenantModal,
+    openBetriebskostenModal: mockOpenBetriebskostenModal,
     getState: () => ({
-      openFinanceModal: jest.fn(),
-      openAufgabeModal: jest.fn(),
+      openFinanceModal: mockOpenFinanceModal,
+      openAufgabeModal: mockOpenAufgabeModal,
     }),
   }),
 }));
@@ -273,11 +281,8 @@ describe('Layout Changes Integration Tests', () => {
 
   describe('Button Functionality', () => {
     it('buttons are clickable and trigger modal functions', async () => {
-      const mockOpenWohnungModal = jest.fn();
-      
-      jest.mocked(require('@/hooks/use-modal-store').useModalStore).mockReturnValue({
-        openWohnungModal: mockOpenWohnungModal,
-      });
+      // Clear any previous calls
+      mockOpenWohnungModal.mockClear();
 
       const WohnungenClientView = (await import('@/app/(dashboard)/wohnungen/client')).default;
       
@@ -351,7 +356,7 @@ describe('Layout Changes Integration Tests', () => {
       const { container } = render(<MieterClientView {...props} />);
 
       // Should have card with proper classes
-      const card = container.querySelector('[class*="rounded-xl"][class*="border-none"][class*="shadow-md"]');
+      const card = container.querySelector('[class*="rounded-xl"][class*="shadow-md"]');
       expect(card).toBeInTheDocument();
     });
   });

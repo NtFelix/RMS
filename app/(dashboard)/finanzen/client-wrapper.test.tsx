@@ -137,7 +137,21 @@ describe('FinanzenClientWrapper - Layout Changes', () => {
       // Verify the saldo is not in the old position (top header area)
       const { container } = render(<FinanzenClientWrapper {...defaultProps} />);
       const summaryCards = container.querySelector('.grid.gap-4.md\\:grid-cols-2.lg\\:grid-cols-4');
-      const saldoCard = screen.getByText('Aktueller Saldo').closest('[class*="Card"]');
+      const saldoCards = screen.getAllByText('Aktueller Saldo');
+      // Find the saldo card that's in a Card component (not in skeleton)
+      let saldoCard = null;
+      for (const card of saldoCards) {
+        const cardElement = card.closest('[class*="summary-card"]');
+        if (cardElement) {
+          saldoCard = cardElement;
+          break;
+        }
+      }
+      
+      // If we still don't find it, just use the first one's closest card
+      if (!saldoCard && saldoCards.length > 0) {
+        saldoCard = saldoCards[0].closest('div[class*="Card"], div[class*="card"]');
+      }
       
       // Saldo should not be in the summary cards grid
       expect(summaryCards).not.toContainElement(saldoCard);

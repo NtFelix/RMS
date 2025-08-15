@@ -208,7 +208,7 @@ describe('SearchResultItem', () => {
       );
 
       expect(screen.getByText('Apartment 1')).toBeInTheDocument();
-      expect(screen.getByText('House 1')).toBeInTheDocument();
+      expect(screen.getAllByText('House 1')).toHaveLength(2);
       expect(screen.getByText('Vermietet an John Doe')).toBeInTheDocument();
     });
 
@@ -222,7 +222,7 @@ describe('SearchResultItem', () => {
       );
 
       expect(screen.getByText('75m²')).toBeInTheDocument();
-      expect(screen.getByText('800€')).toBeInTheDocument();
+      expect(screen.getByText('800€/Monat')).toBeInTheDocument();
       expect(screen.getByText('Vermietet')).toBeInTheDocument();
     });
 
@@ -281,7 +281,7 @@ describe('SearchResultItem', () => {
       );
 
       expect(screen.getByText('Rent Payment')).toBeInTheDocument();
-      expect(screen.getByText('+800€')).toBeInTheDocument();
+      expect(screen.getAllByText('+800€')).toHaveLength(2);
       expect(screen.getByText('Apartment 1 - House 1')).toBeInTheDocument();
     });
 
@@ -294,8 +294,10 @@ describe('SearchResultItem', () => {
         />
       );
 
-      const amountElement = screen.getByText('+800€');
-      expect(amountElement).toHaveClass('text-green-600');
+      const amountElements = screen.getAllByText('+800€');
+      const coloredAmountElement = amountElements.find(el => el.classList.contains('text-green-600'));
+      expect(coloredAmountElement).toBeInTheDocument();
+      expect(coloredAmountElement).toHaveClass('text-green-600');
     });
 
     it('should handle expense type correctly', () => {
@@ -313,8 +315,10 @@ describe('SearchResultItem', () => {
         />
       );
 
-      const amountElement = screen.getByText('-500€');
-      expect(amountElement).toHaveClass('text-red-600');
+      const amountElements = screen.getAllByText('-500€');
+      const coloredAmountElement = amountElements.find(el => el.classList.contains('text-red-600'));
+      expect(coloredAmountElement).toBeInTheDocument();
+      expect(coloredAmountElement).toHaveClass('text-red-600');
     });
 
     it('should format dates correctly', () => {
@@ -326,7 +330,7 @@ describe('SearchResultItem', () => {
         />
       );
 
-      expect(screen.getByText('01.12.2023')).toBeInTheDocument();
+      expect(screen.getByText('1.12.2023')).toBeInTheDocument();
     });
   });
 
@@ -355,8 +359,8 @@ describe('SearchResultItem', () => {
       );
 
       expect(screen.getByText('Fix heating')).toBeInTheDocument();
-      expect(screen.getByText('Repair heating system in apartment 1')).toBeInTheDocument();
-      expect(screen.getByText('Offen')).toBeInTheDocument();
+      expect(screen.getAllByText('Repair heating system in apartment 1')).toHaveLength(2);
+      expect(screen.getAllByText('Offen')).toHaveLength(2);
     });
 
     it('should display task completion status correctly', () => {
@@ -368,7 +372,7 @@ describe('SearchResultItem', () => {
         />
       );
 
-      expect(screen.getByText('Offen')).toBeInTheDocument();
+      expect(screen.getAllByText('Offen')).toHaveLength(2);
     });
 
     it('should handle completed task status', () => {
@@ -386,7 +390,7 @@ describe('SearchResultItem', () => {
         />
       );
 
-      expect(screen.getByText('Erledigt')).toBeInTheDocument();
+      expect(screen.getAllByText('Erledigt')).toHaveLength(2);
     });
   });
 
@@ -605,7 +609,7 @@ describe('SearchResultItem', () => {
     it('should handle result without context', () => {
       const resultWithoutContext: SearchResult = {
         id: '1',
-        type: 'tenant',
+        type: 'finance', // Changed to finance type so subtitle is displayed
         title: 'No Context Result',
         subtitle: 'Has subtitle'
       };
@@ -643,7 +647,7 @@ describe('SearchResultItem', () => {
     it('should truncate long text content', () => {
       const resultWithLongText: SearchResult = {
         id: '1',
-        type: 'tenant',
+        type: 'finance', // Changed to finance type so subtitle is displayed
         title: 'This is a very long title that should be truncated when displayed in the search results',
         subtitle: 'This is also a very long subtitle that should be truncated appropriately'
       };

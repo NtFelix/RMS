@@ -75,12 +75,20 @@ export default function HaeuserClientView({ enrichedHaeuser }: HaeuserClientView
   }, []);
 
   const handleAdd = useCallback(() => {
-    openHouseModal(undefined, refreshTable);
+    try {
+      openHouseModal(undefined, refreshTable);
+    } catch (error) {
+      console.error('Error opening house modal:', error);
+    }
   }, [openHouseModal, refreshTable]);
 
   const handleEdit = useCallback(
     (house: House) => {
-      openHouseModal(house, refreshTable);
+      try {
+        openHouseModal(house, refreshTable);
+      } catch (error) {
+        console.error('Error opening house modal:', error);
+      }
     },
     [openHouseModal, refreshTable]
   );

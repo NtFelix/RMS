@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
@@ -184,6 +184,15 @@ export function HausOverviewModal() {
               "Haus-Übersicht"
             )}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {hausOverviewError ? (
+              "Es ist ein Fehler beim Laden der Haus-Übersicht aufgetreten."
+            ) : hausOverviewData ? (
+              `Detaillierte Übersicht für ${hausOverviewData.name} mit Wohnungen und Mietern.`
+            ) : (
+              "Lade Haus-Übersicht mit Wohnungen und Mietern."
+            )}
+          </DialogDescription>
         </DialogHeader>
         <div className="p-6">
           {hausOverviewLoading ? (

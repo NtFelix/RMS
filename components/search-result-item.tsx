@@ -258,6 +258,7 @@ export function SearchResultItem({ result, onSelect, onAction }: SearchResultIte
       key={result.id}
       onSelect={() => onSelect(result)}
       className="group flex items-center justify-between p-3 rounded-md hover:bg-secondary/25 focus:bg-secondary/25 focus:outline-none focus:ring-2 focus:ring-primary/20 cursor-pointer transition-colors"
+      tabIndex={0}
     >
 
       

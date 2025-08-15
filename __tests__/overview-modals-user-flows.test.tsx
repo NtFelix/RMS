@@ -212,7 +212,7 @@ describe('Overview Modals User Flows', () => {
 
       render(<ApartmentTenantDetailsModal />)
 
-      expect(screen.getByText('Wohnung 1A - Details')).toBeInTheDocument()
+      expect(screen.getByText('Wohnung-Mieter Details')).toBeInTheDocument()
       expect(screen.getByText('Wohnungsdetails')).toBeInTheDocument()
       expect(screen.getByText('Mieterdetails')).toBeInTheDocument()
     })

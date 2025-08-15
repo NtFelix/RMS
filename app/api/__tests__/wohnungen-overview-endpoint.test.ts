@@ -27,9 +27,9 @@ describe('/api/wohnungen/[id]/overview', () => {
     groesse: 75,
     miete: 1200,
     haus_id: '123e4567-e89b-12d3-a456-426614174000',
-    Haeuser: {
+    Haeuser: [{
       name: 'Test Haus',
-    },
+    }],
   }
 
   const mockMieterData = [

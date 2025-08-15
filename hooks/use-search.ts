@@ -490,6 +490,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: tenant.id,
           type: 'tenant',
           title: tenant.name,
+          subtitle: tenant.email,
+          context: tenant.apartment ? `${tenant.apartment.name} - ${tenant.apartment.house_name}` : undefined,
           metadata: {
             status: tenant.status,
             move_in_date: tenant.move_in_date,
@@ -596,6 +598,8 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
           id: finance.id,
           type: 'finance',
           title: finance.name,
+          subtitle: `${isIncome ? '+' : '-'}${finance.amount}€`,
+          context: finance.apartment ? `${finance.apartment.name} - ${finance.apartment.house_name}` : undefined,
           metadata: {
             amount: finance.amount,
             date: finance.date,

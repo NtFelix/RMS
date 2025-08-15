@@ -34,7 +34,7 @@ export function SummaryCard({
   onClick,
   isLoading = false,
   className,
-  valueFormatter = (val) => typeof val === "number" ? formatCurrency(val) : val.toString(),
+  valueFormatter = (val) => typeof val === "number" ? formatCurrency(val) : (val?.toString() ?? ""),
   description,
 }: SummaryCardProps) {
   if (isLoading) {
@@ -109,13 +109,19 @@ export function SummaryCard({
           "relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card",
           // sichtbare Border wie im Main-Design
           "border",
-          // keine Scale-/starken Hover-Shadows, um dem Main-Look treu zu bleiben
+          // Add cursor pointer and hover scale when onClick is provided
+          onClick && "cursor-pointer hover:scale-[1.02] transition-transform duration-200",
           className
         )}
         onClick={onClick}
+        role="region"
+        aria-labelledby={`summary-card-${title.replace(/\s+/g, '-').toLowerCase()}`}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
+          <CardTitle 
+            className="text-sm font-medium text-muted-foreground"
+            id={`summary-card-${title.replace(/\s+/g, '-').toLowerCase()}`}
+          >
             {title}
           </CardTitle>
           {React.isValidElement(icon)

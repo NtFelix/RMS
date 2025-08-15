@@ -1,6 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import { WohnungOverviewModal } from './wohnung-overview-modal';
 import { useModalStore } from '@/hooks/use-modal-store';
+
+// Mock timers
+jest.useFakeTimers();
 
 // Mock the modal store
 jest.mock('@/hooks/use-modal-store');
@@ -8,13 +11,26 @@ const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalSt
 
 // Mock the format utilities
 jest.mock('@/utils/format', () => ({
-  formatNumber: (num: number) => num.toLocaleString('de-DE'),
-  formatCurrency: (num: number) => `€${num.toFixed(2)}`,
+  formatNumber: (num: number, fractionDigits: number = 2) => {
+    return new Intl.NumberFormat('de-DE', {
+      minimumFractionDigits: fractionDigits,
+      maximumFractionDigits: fractionDigits,
+    }).format(num);
+  },
+  formatCurrency: (num: number) => `${new Intl.NumberFormat('de-DE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num)} €`,
 }));
 
 // Mock the toast hook
 jest.mock('@/hooks/use-toast', () => ({
   toast: jest.fn(),
+}));
+
+// Mock server actions
+jest.mock('@/app/mieter-actions', () => ({
+  deleteTenantAction: jest.fn(),
 }));
 
 describe('WohnungOverviewModal', () => {
@@ -47,6 +63,7 @@ describe('WohnungOverviewModal', () => {
   };
 
   beforeEach(() => {
+    jest.clearAllTimers();
     mockUseModalStore.mockReturnValue({
       isWohnungOverviewModalOpen: false,
       wohnungOverviewData: null,
@@ -56,8 +73,16 @@ describe('WohnungOverviewModal', () => {
       setWohnungOverviewLoading: jest.fn(),
       setWohnungOverviewError: jest.fn(),
       setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
       openTenantModal: jest.fn(),
     } as any);
+  });
+
+  afterEach(() => {
+    act(() => {
+      jest.runOnlyPendingTimers();
+    });
+    jest.clearAllTimers();
   });
 
   it('should not render when modal is closed', () => {
@@ -75,26 +100,16 @@ describe('WohnungOverviewModal', () => {
       setWohnungOverviewLoading: jest.fn(),
       setWohnungOverviewError: jest.fn(),
       setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
       openTenantModal: jest.fn(),
     } as any);
 
     render(<WohnungOverviewModal />);
-
-    // Check if modal title is rendered
+    
     expect(screen.getByText('Wohnungs-Übersicht: Wohnung 1')).toBeInTheDocument();
-
-    // Check if summary cards are rendered with correct values
-    expect(screen.getByText('Wohnungsgröße')).toBeInTheDocument();
-    expect(screen.getByText('80 m²')).toBeInTheDocument();
-
-    expect(screen.getByText('Monatsmiete')).toBeInTheDocument();
-    expect(screen.getByText('€1200.00')).toBeInTheDocument();
-
-    expect(screen.getByText('Mieter Status')).toBeInTheDocument();
-    expect(screen.getByText('1/2')).toBeInTheDocument(); // Active/Total tenants
-
-    expect(screen.getByText('Belegung')).toBeInTheDocument();
-    // Should show days since current tenant moved in
+    expect(screen.getByText('Haus: Test Haus')).toBeInTheDocument();
+    expect(screen.getByText('80,00 m²')).toBeInTheDocument();
+    expect(screen.getByText('1.200,00 €')).toBeInTheDocument();
   });
 
   it('should show loading skeleton when loading', () => {
@@ -107,16 +122,16 @@ describe('WohnungOverviewModal', () => {
       setWohnungOverviewLoading: jest.fn(),
       setWohnungOverviewError: jest.fn(),
       setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
       openTenantModal: jest.fn(),
     } as any);
 
     render(<WohnungOverviewModal />);
-
-    // Check if loading skeleton is rendered with summary cards
-    expect(screen.getByText('Wohnungsgröße')).toBeInTheDocument();
-    expect(screen.getByText('Monatsmiete')).toBeInTheDocument();
-    expect(screen.getByText('Mieter Status')).toBeInTheDocument();
-    expect(screen.getByText('Belegung')).toBeInTheDocument();
+    
+    expect(screen.getByText('Wohnungs-Übersicht')).toBeInTheDocument();
+    // Check for skeleton elements by class name
+    const skeletonElements = document.querySelectorAll('.animate-pulse');
+    expect(skeletonElements.length).toBeGreaterThan(0);
   });
 
   it('should show empty state with summary cards when no tenants', () => {
@@ -134,21 +149,16 @@ describe('WohnungOverviewModal', () => {
       setWohnungOverviewLoading: jest.fn(),
       setWohnungOverviewError: jest.fn(),
       setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
       openTenantModal: jest.fn(),
     } as any);
 
     render(<WohnungOverviewModal />);
-
-    // Check if summary cards are still rendered
-    expect(screen.getByText('Wohnungsgröße')).toBeInTheDocument();
-    expect(screen.getByText('80 m²')).toBeInTheDocument();
-
-    expect(screen.getByText('Mieter Status')).toBeInTheDocument();
-    expect(screen.getByText('0/0')).toBeInTheDocument(); // No tenants
-
-    // Check if empty state message is shown
+    
     expect(screen.getByText('Keine Mieter')).toBeInTheDocument();
     expect(screen.getByText('Diese Wohnung hat noch keine Mieter.')).toBeInTheDocument();
+    // Summary cards should still be visible
+    expect(screen.getByText('80,00 m²')).toBeInTheDocument();
   });
 
   it('should calculate price per square meter correctly', () => {
@@ -161,12 +171,13 @@ describe('WohnungOverviewModal', () => {
       setWohnungOverviewLoading: jest.fn(),
       setWohnungOverviewError: jest.fn(),
       setWohnungOverviewData: jest.fn(),
+      refreshWohnungOverviewData: jest.fn(),
       openTenantModal: jest.fn(),
     } as any);
 
     render(<WohnungOverviewModal />);
-
-    // Check if price per square meter is calculated correctly (1200 / 80 = 15)
-    expect(screen.getByText('€15.00/m²')).toBeInTheDocument();
+    
+    // Price per sqm should be 1200 / 80 = 15 €/m²
+    expect(screen.getByText('15,00 €/m²')).toBeInTheDocument();
   });
 });

@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -418,6 +419,15 @@ export function WohnungOverviewModal() {
           <DialogTitle className="text-xl">
             {wohnungOverviewData ? `Wohnungs-Übersicht: ${wohnungOverviewData.name}` : 'Wohnungs-Übersicht'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {wohnungOverviewError ? (
+              "Es ist ein Fehler beim Laden der Wohnungs-Übersicht aufgetreten."
+            ) : wohnungOverviewData ? (
+              `Detaillierte Übersicht für ${wohnungOverviewData.name} mit Mietern und Informationen.`
+            ) : (
+              "Lade Wohnungs-Übersicht mit Mietern und Informationen."
+            )}
+          </DialogDescription>
           {wohnungOverviewData && (
             <div className="text-sm text-muted-foreground flex items-center gap-2">
               <Home className="h-4 w-4" />

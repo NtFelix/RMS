@@ -42,7 +42,7 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-xl border-none shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Aufgabenliste</CardTitle>

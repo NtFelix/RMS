@@ -70,8 +70,12 @@ export default function MieterClientView({
   // const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleAddTenant = useCallback(() => {
-    // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
-    openTenantModal(undefined, initialWohnungen);
+    try {
+      // Pass initialWohnungen. The serverAction is passed to TenantEditModal in layout.tsx
+      openTenantModal(undefined, initialWohnungen);
+    } catch (error) {
+      console.error('Error opening tenant modal:', error);
+    }
   }, [openTenantModal, initialWohnungen]);
 
   const handleEditTenantInTable = useCallback((tenant: Tenant) => {
@@ -90,7 +94,11 @@ export default function MieterClientView({
         notiz: tenantToEdit.notiz || "",
         nebenkosten: tenantToEdit.nebenkosten || [],
       };
-      openTenantModal(formattedInitialData, initialWohnungen);
+      try {
+        openTenantModal(formattedInitialData, initialWohnungen);
+      } catch (error) {
+        console.error('Error opening tenant modal:', error);
+      }
     } else {
       console.error("Tenant not found for editing:", tenant.id);
       // Optionally, show a toast message

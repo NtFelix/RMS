@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -187,6 +187,11 @@ export function ApartmentTenantDetailsModal() {
               ? "Fehler beim Laden" 
               : "Wohnung-Mieter Details"}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {apartmentTenantDetailsError 
+              ? "Es ist ein Fehler beim Laden der Wohnung-Mieter Details aufgetreten."
+              : "Detaillierte Informationen über die Wohnung und den aktuellen Mieter."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="p-6 overflow-y-auto">

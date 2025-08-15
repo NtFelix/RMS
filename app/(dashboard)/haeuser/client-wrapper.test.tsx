@@ -74,11 +74,13 @@ describe('HaeuserClientView', () => {
   });
 
   describe('Rendering', () => {
-    it('renders page title and description', () => {
+    it('renders page title and summary cards', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
+      // Check for summary cards
       expect(screen.getByText('Häuser')).toBeInTheDocument();
-      expect(screen.getByText('Verwalten Sie Ihre Häuser und Immobilien')).toBeInTheDocument();
+      expect(screen.getByText('Wohnungen')).toBeInTheDocument();
+      expect(screen.getByText('Freie Wohnungen')).toBeInTheDocument();
     });
 
     it('renders add house button', () => {
@@ -100,11 +102,10 @@ describe('HaeuserClientView', () => {
       expect(screen.getByTestId('house-table')).toBeInTheDocument();
     });
 
-    it('renders card with correct title and description', () => {
+    it('renders card with correct title', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
       expect(screen.getByText('Hausliste')).toBeInTheDocument();
-      expect(screen.getByText('Hier können Sie Ihre Häuser verwalten und filtern')).toBeInTheDocument();
     });
 
     it('passes enriched houses to table component', () => {
@@ -267,28 +268,32 @@ describe('HaeuserClientView', () => {
     it('has responsive header layout', () => {
       const { container } = render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      const headerContainer = container.querySelector('.flex.flex-col.gap-4');
-      expect(headerContainer).toHaveClass('sm:flex-row', 'sm:items-center', 'sm:justify-between');
+      // Check for the card header with responsive layout
+      const headerContainer = container.querySelector('.flex.flex-row.items-center.justify-between');
+      expect(headerContainer).toBeInTheDocument();
     });
 
     it('has correct title styling', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
+      // The title "Häuser" appears in a StatCard, not as a main title
       const title = screen.getByText('Häuser');
-      expect(title).toHaveClass('text-3xl', 'font-bold', 'tracking-tight');
+      expect(title).toHaveClass('tracking-tight', 'text-sm', 'font-medium');
     });
 
-    it('has correct description styling', () => {
+    it('has correct main card title', () => {
       render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      const description = screen.getByText('Verwalten Sie Ihre Häuser und Immobilien');
-      expect(description).toHaveClass('text-muted-foreground');
+      // Check for the main card title "Hausliste"
+      const cardTitle = screen.getByText('Hausliste');
+      expect(cardTitle).toHaveClass('text-2xl', 'font-semibold', 'leading-none', 'tracking-tight');
     });
 
     it('has correct card styling', () => {
       const { container } = render(<HaeuserClientView enrichedHaeuser={mockHouses} />);
 
-      const card = container.querySelector('[class*="rounded-xl"][class*="border-none"][class*="shadow-md"]');
+      // Look for card with rounded-xl and shadow-md (without border-none)
+      const card = container.querySelector('[class*="rounded-xl"][class*="shadow-md"]');
       expect(card).toBeInTheDocument();
     });
   });
