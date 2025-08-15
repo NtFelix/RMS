@@ -14,7 +14,7 @@ interface TodosClientWrapperProps {
 }
 
 export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientWrapperProps) {
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState<"open" | "done" | "all">("open");
   const [searchQuery, setSearchQuery] = useState("");
   const [tasks, setTasks] = useState<TaskBoardTask[]>(initialTasks);
 
@@ -53,14 +53,20 @@ export default function TodosClientWrapper({ tasks: initialTasks }: TodosClientW
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <TaskFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
-          <TaskBoard 
-            filter={filter} 
-            searchQuery={searchQuery} 
-            tasks={tasks}
-            onTaskUpdated={handleTaskUpdated}
-            onTaskDeleted={handleTaskDeleted}
-          />
+          <div className="flex flex-col gap-4">
+            <TaskFilters 
+              activeFilter={filter}
+              onFilterChange={setFilter}
+              onSearchChange={setSearchQuery}
+            />
+            <TaskBoard 
+              filter={filter} 
+              searchQuery={searchQuery} 
+              tasks={tasks}
+              onTaskUpdated={handleTaskUpdated}
+              onTaskDeleted={handleTaskDeleted}
+            />
+          </div>
         </CardContent>
       </Card>
       <Toaster />

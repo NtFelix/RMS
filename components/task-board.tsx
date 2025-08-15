@@ -36,7 +36,7 @@ export function TaskBoard({
     const matchesFilter = 
       filter === 'all' || 
       (filter === 'done' && task.ist_erledigt) || 
-      (filter === 'pending' && !task.ist_erledigt)
+      (filter === 'open' && !task.ist_erledigt)
       
     const taskDescription = task.beschreibung || ''
     const taskName = task.name || ''
