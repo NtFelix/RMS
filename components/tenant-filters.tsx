@@ -16,31 +16,26 @@ export function TenantFilters({ activeFilter, onFilterChange, onSearchChange }: 
     onFilterChange(filter)
   }
 
+  const filterOptions = [
+    { value: "current" as const, label: "Aktuelle Mieter" },
+    { value: "previous" as const, label: "Vorherige Mieter" },
+    { value: "all" as const, label: "Alle Mieter" },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant={activeFilter === "current" ? "default" : "outline"}
-            onClick={() => handleFilterClick("current")}
-            className="h-9"
-          >
-            Aktuelle Mieter
-          </Button>
-          <Button
-            variant={activeFilter === "previous" ? "default" : "outline"}
-            onClick={() => handleFilterClick("previous")}
-            className="h-9"
-          >
-            Vorherige Mieter
-          </Button>
-          <Button
-            variant={activeFilter === "all" ? "default" : "outline"}
-            onClick={() => handleFilterClick("all")}
-            className="h-9"
-          >
-            Alle Mieter
-          </Button>
+          {filterOptions.map(({ value, label }) => (
+            <Button
+              key={value}
+              variant={activeFilter === value ? "default" : "outline"}
+              onClick={() => handleFilterClick(value)}
+              className="h-9"
+            >
+              {label}
+            </Button>
+          ))}
         </div>
         <div className="relative w-full sm:w-auto sm:min-w-[300px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
