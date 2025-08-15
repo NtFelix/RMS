@@ -36,7 +36,7 @@ export default function MieterClientView({
   initialWohnungen,
   serverAction,
 }: MieterClientViewProps) {
-  const [filter, setFilter] = useState<string>("current");
+  const [filter, setFilter] = useState<"current" | "previous" | "all">("current");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { openTenantModal } = useModalStore();
 
@@ -126,7 +126,11 @@ export default function MieterClientView({
           </div>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <TenantFilters onFilterChange={setFilter} onSearchChange={setSearchQuery} />
+          <TenantFilters 
+            activeFilter={filter}
+            onFilterChange={setFilter}
+            onSearchChange={setSearchQuery}
+          />
           <TenantTable
             tenants={initialTenants} // Directly use initialTenants or manage a separate 'filteredTenants' state if needed
             wohnungen={initialWohnungen}

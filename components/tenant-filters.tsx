@@ -6,15 +6,13 @@ import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 
 interface TenantFiltersProps {
-  onFilterChange: (filter: string) => void
+  activeFilter: "current" | "previous" | "all";
+  onFilterChange: (filter: "current" | "previous" | "all") => void;
   onSearchChange: (search: string) => void
 }
 
-export function TenantFilters({ onFilterChange, onSearchChange }: TenantFiltersProps) {
-  const [activeFilter, setActiveFilter] = useState("current")
-
-  const handleFilterClick = (filter: string) => {
-    setActiveFilter(filter)
+export function TenantFilters({ activeFilter, onFilterChange, onSearchChange }: TenantFiltersProps) {
+  const handleFilterClick = (filter: "current" | "previous" | "all") => {
     onFilterChange(filter)
   }
 
