@@ -103,7 +103,7 @@ export function CommandMenu() {
     addToRecentSearches
   } = useSearch({
     debounceMs: 300,
-    limit: 5
+    limit: 15
   })
 
   // Determine if we should show search results or navigation
