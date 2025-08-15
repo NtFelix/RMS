@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
@@ -16,11 +16,11 @@ export function TenantFilters({ activeFilter, onFilterChange, onSearchChange }: 
     onFilterChange(filter)
   }
 
-  const filterOptions = [
+  const filterOptions = useMemo(() => [
     { value: "current" as const, label: "Aktuelle Mieter" },
     { value: "previous" as const, label: "Vorherige Mieter" },
     { value: "all" as const, label: "Alle Mieter" },
-  ];
+  ], []);
 
   return (
     <div className="flex flex-col gap-4">

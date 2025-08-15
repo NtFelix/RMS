@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
@@ -16,11 +16,11 @@ export function TaskFilters({ activeFilter, onFilterChange, onSearchChange }: Ta
     onFilterChange(filter)
   }
 
-  const filterOptions = [
+  const filterOptions = useMemo(() => [
     { value: "open" as const, label: "Offen" },
     { value: "done" as const, label: "Erledigt" },
     { value: "all" as const, label: "Alle" },
-  ];
+  ], []);
 
   return (
     <div className="flex flex-col gap-4">
