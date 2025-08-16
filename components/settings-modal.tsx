@@ -499,27 +499,32 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <p className="text-sm text-muted-foreground">
             Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
           </p>
-          <div className="mt-4 pt-4 border-t">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium">Anleitung auf Betriebskosten-Seite</label>
-              <p className="text-xs text-muted-foreground mt-1">
-                Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
-              </p>
+          <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Anleitung auf Betriebskosten-Seite
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <Switch
+                  checked={betriebskostenGuideEnabled}
+                  onCheckedChange={(checked) => {
+                    setBetriebskostenGuideEnabled(checked);
+                    // Persist in cookie and notify listeners
+                    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
+                    }
+                  }}
+                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                />
+              </div>
             </div>
-            <Switch
-              checked={betriebskostenGuideEnabled}
-              onCheckedChange={(checked) => {
-                setBetriebskostenGuideEnabled(checked);
-                // Persist in cookie and notify listeners
-                setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
-                if (typeof window !== 'undefined') {
-                  window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
-                }
-              }}
-            />
           </div>
-        </div>
         </div>
       ),
     },
