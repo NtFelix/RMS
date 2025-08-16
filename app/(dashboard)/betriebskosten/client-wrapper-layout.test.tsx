@@ -71,7 +71,9 @@ describe('BetriebskostenClientView - Layout Changes', () => {
 
     mockUseToast.mockReturnValue({
       toast: mockToast,
-    });
+      dismiss: jest.fn(),
+      toasts: [],
+    } as any);
 
     mockUseRouter.mockReturnValue({
       refresh: mockRouterRefresh,

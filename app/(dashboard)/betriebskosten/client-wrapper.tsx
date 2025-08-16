@@ -1,14 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Droplets, FileText } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
 import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correct path
-import { deleteNebenkosten as deleteNebenkostenServerAction } from "../../../app/betriebskosten-actions"; // Ensure correct path
+import { deleteNebenkosten as deleteNebenkostenServerAction } from "@/app/betriebskosten-actions"; // Fixed path
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added import
@@ -39,6 +40,7 @@ export default function BetriebskostenClientView({
   const { toast } = useToast();
    // Define router for potential refresh, though modal might handle it
   const router = useRouter();
+  const tableRef = useRef<HTMLDivElement | null>(null);
 
 
   useEffect(() => {
@@ -109,8 +111,84 @@ export default function BetriebskostenClientView({
     }
   }, [selectedItemIdForDelete, toast]);
 
+  const scrollToTable = useCallback(() => {
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
     <div className="flex flex-col gap-8 p-8">
+      {/* Instruction Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="rounded-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <PlusCircle className="h-4 w-4" />
+              1. Abrechnung anlegen
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+            <p>
+              Lege eine neue Betriebskostenabrechnung für ein Jahr und ein Haus an.
+            </p>
+            <ButtonWithTooltip onClick={handleOpenCreateModal} className="whitespace-nowrap">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Erstellen
+            </ButtonWithTooltip>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Droplets className="h-4 w-4" />
+              2. Wasserzähler eintragen
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+            <p>
+              Rechtsklick auf eine Abrechnungszeile → "Wasserzähler" auswählen und Zählerstände erfassen.
+            </p>
+            <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
+              Zur Tabelle
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              3. Über Übersicht prüfen
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+            <p>
+              Rechtsklick → "Übersicht" um Details und Plausibilitäten zu kontrollieren.
+            </p>
+            <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
+              Zur Tabelle
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4" />
+              4. Abrechnung erstellen
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+            <p>
+              Rechtsklick → "Abrechnung erstellen" um die finale Abrechnung pro Mieter zu generieren.
+            </p>
+            <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
+              Zur Tabelle
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Main Content Area including Card, Table, Modals */}
       <Card className="overflow-hidden rounded-xl shadow-md">
         <CardHeader>
@@ -129,13 +207,15 @@ export default function BetriebskostenClientView({
             onHouseChange={setSelectedHouseId}
             haeuser={initialHaeuser}
           />
-          <OperatingCostsTable
-            nebenkosten={filteredNebenkosten}
-            onEdit={handleOpenEditModal}
-            onDeleteItem={openDeleteAlert}
-            ownerName={ownerName}
-            allHaeuser={initialHaeuser}
-          />
+          <div ref={tableRef}>
+            <OperatingCostsTable
+              nebenkosten={filteredNebenkosten}
+              onEdit={handleOpenEditModal}
+              onDeleteItem={openDeleteAlert}
+              ownerName={ownerName}
+              allHaeuser={initialHaeuser}
+            />
+          </div>
         </CardContent>
       </Card>
 
