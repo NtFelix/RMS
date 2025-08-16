@@ -444,29 +444,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {loading ? "Speichern..." : "Profil speichern"}
           </Button>
 
-          {/* UI setting: Betriebskosten Anleitung */}
-          <div className="mt-6 pt-6 border-t">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium">Anleitung auf Betriebskosten-Seite</label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
-                </p>
-              </div>
-              <Switch
-                checked={betriebskostenGuideEnabled}
-                onCheckedChange={(checked) => {
-                  setBetriebskostenGuideEnabled(checked);
-                  // Persist in cookie and notify listeners
-                  setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
-                  }
-                }}
-              />
-            </div>
-          </div>
-
           <div className="mt-6 pt-6 border-t border-destructive/50">
             <p className="text-sm text-muted-foreground mb-3">
               Hier können Sie Ihr Konto endgültig löschen. Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
@@ -522,6 +499,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <p className="text-sm text-muted-foreground">
             Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
           </p>
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium">Anleitung auf Betriebskosten-Seite</label>
+              <p className="text-xs text-muted-foreground mt-1">
+                Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
+              </p>
+            </div>
+            <Switch
+              checked={betriebskostenGuideEnabled}
+              onCheckedChange={(checked) => {
+                setBetriebskostenGuideEnabled(checked);
+                // Persist in cookie and notify listeners
+                setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
+                }
+              }}
+            />
+          </div>
+        </div>
         </div>
       ),
     },
