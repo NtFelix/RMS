@@ -4,20 +4,26 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card";
 export default function Loading() {
   return (
     <div className="flex flex-col gap-8 p-8">
-      {/* Page Header Skeletons */}
-      <div>
-        <Skeleton className="h-8 w-1/3 mb-2" /> {/* Mimics h1 title */}
-        <Skeleton className="h-4 w-1/2" /> {/* Mimics p description */}
+      {/* Instruction Cards Skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1,2,3,4].map((idx) => (
+          <Card key={idx} className="rounded-xl">
+            <CardHeader className="pb-2">
+              <Skeleton className="h-5 w-48" /> {/* Mimics CardTitle */}
+            </CardHeader>
+            <CardContent className="flex items-center justify-between gap-4">
+              <Skeleton className="h-4 w-2/3" /> {/* Mimics description */}
+              <Skeleton className="h-9 w-28" /> {/* Mimics action button */}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Main Card Structure Skeleton */}
       <Card className="overflow-hidden rounded-xl shadow-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          {/* Left side: Card Title and Description Skeletons */}
-          <div>
-            <Skeleton className="h-6 w-48 mb-1" /> {/* Mimics CardTitle */}
-            <Skeleton className="h-4 w-64" /> {/* Mimics CardDescription */}
-          </div>
+          {/* Left side: Card Title Skeleton */}
+          <Skeleton className="h-6 w-48" /> {/* Mimics CardTitle */}
           {/* Right side: Button Skeleton */}
           <Skeleton className="h-10 w-60 sm:w-[280px]" /> {/* Mimics Button "Betriebskostenabrechnung erstellen" */}
         </CardHeader>

@@ -67,15 +67,28 @@ describe('BetriebskostenClientView - Layout Changes', () => {
     
     mockUseModalStore.mockReturnValue({
       openBetriebskostenModal: mockOpenBetriebskostenModal,
-    } as any);
+      isOpen: false,
+      onOpen: jest.fn(),
+      onClose: jest.fn(),
+      type: null,
+      data: null,
+      onOpenChange: jest.fn()
+    });
 
     mockUseToast.mockReturnValue({
       toast: mockToast,
+      dismiss: jest.fn(),
+      toasts: []
     });
 
     mockUseRouter.mockReturnValue({
       refresh: mockRouterRefresh,
-    } as any);
+      push: jest.fn(),
+      back: jest.fn(),
+      forward: jest.fn(),
+      prefetch: jest.fn(),
+      replace: jest.fn()
+    });
 
     mockDeleteNebenkosten.mockResolvedValue({
       success: true,
