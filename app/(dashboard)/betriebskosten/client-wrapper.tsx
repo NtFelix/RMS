@@ -1,18 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
-import { PlusCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { PlusCircle, Droplets, FileText, X } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
 import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correct path
-import { deleteNebenkosten as deleteNebenkostenServerAction } from "../../../app/betriebskosten-actions"; // Ensure correct path
+import { deleteNebenkosten as deleteNebenkostenServerAction } from "@/app/betriebskosten-actions"; // Fixed path
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added import
 import { useRouter } from "next/navigation"; // Added import
+import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from '@/constants/guide'; // Added import
+import { getCookie, setCookie } from "@/utils/cookies";
 
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
@@ -39,6 +42,8 @@ export default function BetriebskostenClientView({
   const { toast } = useToast();
    // Define router for potential refresh, though modal might handle it
   const router = useRouter();
+  const tableRef = useRef<HTMLDivElement | null>(null);
+  const [showGuide, setShowGuide] = useState(true);
 
 
   useEffect(() => {
@@ -109,8 +114,149 @@ export default function BetriebskostenClientView({
     }
   }, [selectedItemIdForDelete, toast]);
 
+  const scrollToTable = useCallback(() => {
+    tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  // Initialize guide visibility from cookie
+  useEffect(() => {
+    const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
+    if (hidden === 'true') {
+      setShowGuide(false);
+    } else {
+      setShowGuide(true);
+    }
+  }, []);
+
+  // React to settings changes via custom event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ hidden: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.hidden === 'boolean') {
+        setShowGuide(!customEvent.detail.hidden);
+      } else {
+        console.warn('Received betriebskosten-guide-visibility-changed event without expected detail.hidden boolean');
+      }
+    };
+    window.addEventListener(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, handler as EventListener);
+    return () => window.removeEventListener(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, handler as EventListener);
+  }, []);
+
+  const handleDismissGuide = useCallback(() => {
+    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, 'true', 365);
+    setShowGuide(false);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: true } }));
+    }
+  }, []);
+
+  // Instruction cards data
+  const instructionCards = [
+    {
+      id: 1,
+      icon: PlusCircle,
+      title: '1. Abrechnung anlegen',
+      description: 'Lege eine neue Betriebskostenabrechnung für ein Jahr und ein Haus an.',
+      button: (
+        <ButtonWithTooltip 
+          onClick={handleOpenCreateModal} 
+          className="whitespace-nowrap"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Erstellen
+        </ButtonWithTooltip>
+      )
+    },
+    {
+      id: 2,
+      icon: Droplets,
+      title: '2. Wasserzähler eintragen',
+      description: 'Rechtsklick auf eine Abrechnungszeile → "Wasserzähler" auswählen und Zählerstände erfassen.',
+      button: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={scrollToTable} 
+          className="whitespace-nowrap"
+        >
+          Zur Tabelle
+        </Button>
+      )
+    },
+    {
+      id: 3,
+      icon: FileText,
+      title: '3. Über Übersicht prüfen',
+      description: 'Rechtsklick → "Übersicht" um Details und Plausibilitäten zu kontrollieren.',
+      button: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={scrollToTable} 
+          className="whitespace-nowrap"
+        >
+          Zur Tabelle
+        </Button>
+      )
+    },
+    {
+      id: 4,
+      icon: FileText,
+      title: '4. Abrechnung erstellen',
+      description: 'Rechtsklick → "Abrechnung erstellen" um die finale Abrechnung pro Mieter zu generieren.',
+      button: (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={scrollToTable} 
+          className="whitespace-nowrap"
+        >
+          Zur Tabelle
+        </Button>
+      )
+    }
+  ];
+
   return (
     <div className="flex flex-col gap-8 p-8">
+      {/* Instruction Cards */}
+      {showGuide && (
+        <>
+          <div className="flex justify-end -mb-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={handleDismissGuide} 
+              className="text-muted-foreground"
+            >
+              <X className="h-4 w-4 mr-1" /> Anleitung ausblenden
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {instructionCards.map((card) => {
+              const Icon = card.icon;
+              return (
+                <Card 
+                  key={card.id}
+                  className="relative overflow-hidden rounded-xl shadow-md border summary-card"
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Icon className="h-4 w-4" />
+                      {card.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+                    <p>{card.description}</p>
+                    {card.button}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {/* Main Content Area including Card, Table, Modals */}
       <Card className="overflow-hidden rounded-xl shadow-md">
         <CardHeader>
@@ -129,13 +275,15 @@ export default function BetriebskostenClientView({
             onHouseChange={setSelectedHouseId}
             haeuser={initialHaeuser}
           />
-          <OperatingCostsTable
-            nebenkosten={filteredNebenkosten}
-            onEdit={handleOpenEditModal}
-            onDeleteItem={openDeleteAlert}
-            ownerName={ownerName}
-            allHaeuser={initialHaeuser}
-          />
+          <div ref={tableRef}>
+            <OperatingCostsTable
+              nebenkosten={filteredNebenkosten}
+              onEdit={handleOpenEditModal}
+              onDeleteItem={openDeleteAlert}
+              ownerName={ownerName}
+              allHaeuser={initialHaeuser}
+            />
+          </div>
         </CardContent>
       </Card>
 

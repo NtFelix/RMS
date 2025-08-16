@@ -17,6 +17,9 @@ import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Impor
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
+import { Switch } from "@/components/ui/switch";
+import { getCookie, setCookie } from "@/utils/cookies";
+import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -83,6 +86,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // isCancellingSubscription removed
   const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
   const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
+  // Settings: Betriebskosten Guide visibility
+  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -240,6 +245,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
     fetchInitialData();
   }, [open, activeTab]);
+
+  // When modal opens, initialize guide setting from cookie
+  useEffect(() => {
+    if (open) {
+      const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
+      setBetriebskostenGuideEnabled(hidden !== 'true');
+    }
+  }, [open]);
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -430,6 +443,29 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <Button onClick={handleProfileSave} disabled={loading}>
             {loading ? "Speichern..." : "Profil speichern"}
           </Button>
+
+          {/* UI setting: Betriebskosten Anleitung */}
+          <div className="mt-6 pt-6 border-t">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium">Anleitung auf Betriebskosten-Seite</label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
+                </p>
+              </div>
+              <Switch
+                checked={betriebskostenGuideEnabled}
+                onCheckedChange={(checked) => {
+                  setBetriebskostenGuideEnabled(checked);
+                  // Persist in cookie and notify listeners
+                  setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
+                  }
+                }}
+              />
+            </div>
+          </div>
 
           <div className="mt-6 pt-6 border-t border-destructive/50">
             <p className="text-sm text-muted-foreground mb-3">
