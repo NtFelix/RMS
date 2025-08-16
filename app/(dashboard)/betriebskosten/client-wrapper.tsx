@@ -14,6 +14,7 @@ import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added import
 import { useRouter } from "next/navigation"; // Added import
+import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from '@/constants/guide'; // Added import
 import { getCookie, setCookie } from "@/utils/cookies";
 
 // Props for the main client view component
@@ -119,7 +120,7 @@ export default function BetriebskostenClientView({
 
   // Initialize guide visibility from cookie
   useEffect(() => {
-    const hidden = getCookie('hideBetriebskostenGuide');
+    const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
     if (hidden === 'true') {
       setShowGuide(false);
     } else {
@@ -137,15 +138,15 @@ export default function BetriebskostenClientView({
         console.warn('Received betriebskosten-guide-visibility-changed event without expected detail.hidden boolean');
       }
     };
-    window.addEventListener('betriebskosten-guide-visibility-changed', handler as EventListener);
-    return () => window.removeEventListener('betriebskosten-guide-visibility-changed', handler as EventListener);
+    window.addEventListener(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, handler as EventListener);
+    return () => window.removeEventListener(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, handler as EventListener);
   }, []);
 
   const handleDismissGuide = useCallback(() => {
-    setCookie('hideBetriebskostenGuide', 'true', 365);
+    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, 'true', 365);
     setShowGuide(false);
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('betriebskosten-guide-visibility-changed', { detail: { hidden: true } }));
+      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: true } }));
     }
   }, []);
 

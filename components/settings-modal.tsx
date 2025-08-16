@@ -19,6 +19,7 @@ import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
+import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -248,7 +249,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // When modal opens, initialize guide setting from cookie
   useEffect(() => {
     if (open) {
-      const hidden = getCookie('hideBetriebskostenGuide');
+      const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
       setBetriebskostenGuideEnabled(hidden !== 'true');
     }
   }, [open]);
@@ -457,9 +458,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 onCheckedChange={(checked) => {
                   setBetriebskostenGuideEnabled(checked);
                   // Persist in cookie and notify listeners
-                  setCookie('hideBetriebskostenGuide', checked ? 'false' : 'true', 365);
+                  setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
                   if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent('betriebskosten-guide-visibility-changed', { detail: { hidden: !checked } }));
+                    window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
                   }
                 }}
               />
