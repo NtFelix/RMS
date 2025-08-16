@@ -316,11 +316,11 @@ function LandingPageContent() {
         <div id="hero">
           <Hero onGetStarted={handleGetStarted} />
         </div>
-        <div id="nebenkosten">
-          <NebenkostenSection />
-        </div>
         <div id="features">
           <FeatureSections />
+        </div>
+        <div id="nebenkosten">
+          <NebenkostenSection />
         </div>
         <div id="finance-showcase">
           <FinanceShowcase />
