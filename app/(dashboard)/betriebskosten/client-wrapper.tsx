@@ -129,16 +129,17 @@ export default function BetriebskostenClientView({
 
   // React to settings changes via custom event
   useEffect(() => {
-    const handler = (e: any) => {
-      if (e?.detail && typeof e.detail.hidden === 'boolean') {
-        setShowGuide(!e.detail.hidden);
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ hidden: boolean }>;
+      if (customEvent.detail && typeof customEvent.detail.hidden === 'boolean') {
+        setShowGuide(!customEvent.detail.hidden);
       } else {
         const hidden = getCookie('hideBetriebskostenGuide') === 'true';
         setShowGuide(!hidden);
       }
     };
-    window.addEventListener('betriebskosten-guide-visibility-changed', handler);
-    return () => window.removeEventListener('betriebskosten-guide-visibility-changed', handler);
+    window.addEventListener('betriebskosten-guide-visibility-changed', handler as EventListener);
+    return () => window.removeEventListener('betriebskosten-guide-visibility-changed', handler as EventListener);
   }, []);
 
   const handleDismissGuide = useCallback(() => {
