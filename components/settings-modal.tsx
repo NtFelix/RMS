@@ -455,7 +455,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <Switch
                 checked={betriebskostenGuideEnabled}
                 onCheckedChange={(checked) => {
-                  setBetriebskostenGuideEnabled(checked as boolean);
+                  setBetriebskostenGuideEnabled(checked);
                   // Persist in cookie and notify listeners
                   setCookie('hideBetriebskostenGuide', checked ? 'false' : 'true', 365);
                   if (typeof window !== 'undefined') {
