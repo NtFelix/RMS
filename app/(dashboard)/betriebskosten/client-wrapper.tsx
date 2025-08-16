@@ -134,8 +134,7 @@ export default function BetriebskostenClientView({
       if (customEvent.detail && typeof customEvent.detail.hidden === 'boolean') {
         setShowGuide(!customEvent.detail.hidden);
       } else {
-        const hidden = getCookie('hideBetriebskostenGuide') === 'true';
-        setShowGuide(!hidden);
+        console.warn('Received betriebskosten-guide-visibility-changed event without expected detail.hidden boolean');
       }
     };
     window.addEventListener('betriebskosten-guide-visibility-changed', handler as EventListener);
