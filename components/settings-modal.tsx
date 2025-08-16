@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include Info
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info } from "lucide-react";
+// Consolidated lucide-react import to include Info and Monitor
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -444,29 +444,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             {loading ? "Speichern..." : "Profil speichern"}
           </Button>
 
-          {/* UI setting: Betriebskosten Anleitung */}
-          <div className="mt-6 pt-6 border-t">
-            <div className="flex items-center justify-between">
-              <div>
-                <label className="text-sm font-medium">Anleitung auf Betriebskosten-Seite</label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
-                </p>
-              </div>
-              <Switch
-                checked={betriebskostenGuideEnabled}
-                onCheckedChange={(checked) => {
-                  setBetriebskostenGuideEnabled(checked);
-                  // Persist in cookie and notify listeners
-                  setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
-                  if (typeof window !== 'undefined') {
-                    window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
-                  }
-                }}
-              />
-            </div>
-          </div>
-
           <div className="mt-6 pt-6 border-t border-destructive/50">
             <p className="text-sm text-muted-foreground mb-3">
               Hier können Sie Ihr Konto endgültig löschen. Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
@@ -508,6 +485,45 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      value: "display",
+      label: "Darstellung",
+      icon: Monitor,
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">Darstellung</h2>
+          <p className="text-sm text-muted-foreground">
+            Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
+          </p>
+          <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Anleitung auf Betriebskosten-Seite
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <Switch
+                  checked={betriebskostenGuideEnabled}
+                  onCheckedChange={(checked) => {
+                    setBetriebskostenGuideEnabled(checked);
+                    // Persist in cookie and notify listeners
+                    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
+                    if (typeof window !== 'undefined') {
+                      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
+                    }
+                  }}
+                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                />
+              </div>
+            </div>
           </div>
         </div>
       ),
@@ -695,7 +711,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       content: (
         <div className="flex flex-col space-y-4">
           <h2 className="text-xl font-semibold">App Informationen</h2>
-          {/* Version number will be displayed here in the next step */}
           <p className="text-sm">Version: <span id="app-version">{packageJsonVersion}</span></p>
           <p className="text-sm text-muted-foreground">
             Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
