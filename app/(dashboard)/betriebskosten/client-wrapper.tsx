@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Droplets, FileText } from "lucide-react";
+import { PlusCircle, Droplets, FileText, X } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
@@ -14,6 +14,7 @@ import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Added import
 import { useRouter } from "next/navigation"; // Added import
+import { getCookie, setCookie } from "@/utils/cookies";
 
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
@@ -41,6 +42,7 @@ export default function BetriebskostenClientView({
    // Define router for potential refresh, though modal might handle it
   const router = useRouter();
   const tableRef = useRef<HTMLDivElement | null>(null);
+  const [showGuide, setShowGuide] = useState(true);
 
 
   useEffect(() => {
@@ -115,79 +117,120 @@ export default function BetriebskostenClientView({
     tableRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
+  // Initialize guide visibility from cookie
+  useEffect(() => {
+    const hidden = getCookie('hideBetriebskostenGuide');
+    if (hidden === 'true') {
+      setShowGuide(false);
+    } else {
+      setShowGuide(true);
+    }
+  }, []);
+
+  // React to settings changes via custom event
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e?.detail && typeof e.detail.hidden === 'boolean') {
+        setShowGuide(!e.detail.hidden);
+      } else {
+        const hidden = getCookie('hideBetriebskostenGuide') === 'true';
+        setShowGuide(!hidden);
+      }
+    };
+    window.addEventListener('betriebskosten-guide-visibility-changed', handler);
+    return () => window.removeEventListener('betriebskosten-guide-visibility-changed', handler);
+  }, []);
+
+  const handleDismissGuide = useCallback(() => {
+    setCookie('hideBetriebskostenGuide', 'true', 365);
+    setShowGuide(false);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('betriebskosten-guide-visibility-changed', { detail: { hidden: true } }));
+    }
+  }, []);
+
   return (
     <div className="flex flex-col gap-8 p-8">
       {/* Instruction Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="rounded-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <PlusCircle className="h-4 w-4" />
-              1. Abrechnung anlegen
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
-            <p>
-              Lege eine neue Betriebskostenabrechnung für ein Jahr und ein Haus an.
-            </p>
-            <ButtonWithTooltip onClick={handleOpenCreateModal} className="whitespace-nowrap">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Erstellen
-            </ButtonWithTooltip>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Droplets className="h-4 w-4" />
-              2. Wasserzähler eintragen
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
-            <p>
-              Rechtsklick auf eine Abrechnungszeile → "Wasserzähler" auswählen und Zählerstände erfassen.
-            </p>
-            <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
-              Zur Tabelle
+      {showGuide && (
+        <>
+          <div className="flex justify-end -mb-2">
+            <Button variant="ghost" size="sm" onClick={handleDismissGuide} className="text-muted-foreground">
+              <X className="h-4 w-4 mr-1" /> Anleitung ausblenden
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="relative overflow-hidden rounded-xl shadow-md border summary-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <PlusCircle className="h-4 w-4" />
+                  1. Abrechnung anlegen
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+                <p>
+                  Lege eine neue Betriebskostenabrechnung für ein Jahr und ein Haus an.
+                </p>
+                <ButtonWithTooltip onClick={handleOpenCreateModal} className="whitespace-nowrap">
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Erstellen
+                </ButtonWithTooltip>
+              </CardContent>
+            </Card>
 
-        <Card className="rounded-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
-              3. Über Übersicht prüfen
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
-            <p>
-              Rechtsklick → "Übersicht" um Details und Plausibilitäten zu kontrollieren.
-            </p>
-            <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
-              Zur Tabelle
-            </Button>
-          </CardContent>
-        </Card>
+            <Card className="relative overflow-hidden rounded-xl shadow-md border summary-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Droplets className="h-4 w-4" />
+                  2. Wasserzähler eintragen
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+                <p>
+                  Rechtsklick auf eine Abrechnungszeile → "Wasserzähler" auswählen und Zählerstände erfassen.
+                </p>
+                <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
+                  Zur Tabelle
+                </Button>
+              </CardContent>
+            </Card>
 
-        <Card className="rounded-xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4" />
-              4. Abrechnung erstellen
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
-            <p>
-              Rechtsklick → "Abrechnung erstellen" um die finale Abrechnung pro Mieter zu generieren.
-            </p>
-            <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
-              Zur Tabelle
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            <Card className="relative overflow-hidden rounded-xl shadow-md border summary-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-4 w-4" />
+                  3. Über Übersicht prüfen
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+                <p>
+                  Rechtsklick → "Übersicht" um Details und Plausibilitäten zu kontrollieren.
+                </p>
+                <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
+                  Zur Tabelle
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="relative overflow-hidden rounded-xl shadow-md border summary-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-4 w-4" />
+                  4. Abrechnung erstellen
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground flex items-center justify-between gap-4">
+                <p>
+                  Rechtsklick → "Abrechnung erstellen" um die finale Abrechnung pro Mieter zu generieren.
+                </p>
+                <Button variant="outline" size="sm" onClick={scrollToTable} className="whitespace-nowrap">
+                  Zur Tabelle
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
 
       {/* Main Content Area including Card, Table, Modals */}
       <Card className="overflow-hidden rounded-xl shadow-md">
