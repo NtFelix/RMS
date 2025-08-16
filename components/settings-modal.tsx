@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include Info
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info } from "lucide-react";
+// Consolidated lucide-react import to include Info and Monitor
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -477,6 +477,19 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       ),
     },
     {
+      value: "display",
+      label: "Darstellung",
+      icon: Monitor,
+      content: (
+        <div className="flex flex-col space-y-4">
+          <h2 className="text-xl font-semibold">Darstellung</h2>
+          <p className="text-sm text-muted-foreground">
+            Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
+          </p>
+        </div>
+      ),
+    },
+    {
       value: "security",
       label: "Sicherheit",
       icon: Lock,
@@ -659,7 +672,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       content: (
         <div className="flex flex-col space-y-4">
           <h2 className="text-xl font-semibold">App Informationen</h2>
-          {/* Version number will be displayed here in the next step */}
           <p className="text-sm">Version: <span id="app-version">{packageJsonVersion}</span></p>
           <p className="text-sm text-muted-foreground">
             Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
