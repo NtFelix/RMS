@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Key, RefreshCw, Gauge, FileText, Folder, Bell } from "lucide-react"
+import { Key, RefreshCw, Gauge, FileText, Folder } from "lucide-react"
 import {
   Carousel,
   CarouselContent,
