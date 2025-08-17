@@ -37,11 +37,6 @@ const features = [
     title: 'Übersichtliche Ablage',
     description: 'Alle Unterlagen und Berechnungen an einem zentralen Ort.'
   },
-  {
-    icon: Bell,
-    title: 'Benachrichtigungen',
-    description: 'Erhalten Sie Erinnerungen für anstehende Abrechnungen.'
-  }
 ]
 
 export function NKCarousel() {
