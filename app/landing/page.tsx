@@ -10,6 +10,7 @@ import CTA from '../modern/components/cta';
 import Footer from '../modern/components/footer';
 import Navigation from '../modern/components/navigation';
 import Pricing from '../modern/components/pricing';
+import NebenkostenSection from '../modern/components/nebenkosten-section';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 import { createClient } from '@/utils/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -317,6 +318,9 @@ function LandingPageContent() {
         </div>
         <div id="features">
           <FeatureSections />
+        </div>
+        <div id="nebenkosten">
+          <NebenkostenSection />
         </div>
         <div id="finance-showcase">
           <FinanceShowcase />

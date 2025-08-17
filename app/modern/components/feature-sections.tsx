@@ -16,7 +16,7 @@ const features = [
       "Einfache Zuweisung von Mietern zu Objekten",
       "Historie aller Aktivitäten pro Mieter",
     ],
-    image: "/product-images/haus-page.png",
+    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/haus-page.png",
     image_alt: "Screenshot der Haus- und Mieterverwaltung im RMS Dashboard",
   },
   {
@@ -29,7 +29,7 @@ const features = [
       "PDF-Export für Mieter und Eigentümer",
       "Rechtssichere und transparente Darstellung",
     ],
-    image: "/product-images/nebenkosten-overview.png",
+    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/nebenkosten-overview.png",
     image_alt: "Screenshot der Betriebskostenabrechnung und Nebenkostenübersicht",
   },
   {
@@ -42,7 +42,7 @@ const features = [
       "Detaillierte Finanzberichte und Exporte",
       "Transparente Nachverfolgung aller Transaktionen",
     ],
-    image: "/product-images/finance-page.png",
+    image: "https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/product-images/finance-page.png",
     image_alt: "Screenshot der Finanzübersicht mit Einnahmen und Ausgaben",
   },
 ]
