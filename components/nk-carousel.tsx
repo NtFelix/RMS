@@ -51,7 +51,7 @@ export function NKCarousel() {
       >
         <CarouselContent className="py-4">
           {features.map((feature, index) => (
-            <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+            <CarouselItem key={feature.title} className="md:basis-1/2 lg:basis-1/3">
               <div className="p-2 h-full">
                 <Card className="h-full p-6 hover:shadow-md transition-shadow">
                   <CardHeader className="p-0 mb-4">
