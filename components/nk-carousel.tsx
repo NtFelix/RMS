@@ -46,7 +46,7 @@ const features = [
 
 export function NKCarousel() {
   return (
-    <div className="w-full max-w-5xl mx-auto">
+    <div className="w-full max-w-6xl mx-auto">
       <Carousel
         opts={{
           align: "start",
@@ -54,19 +54,19 @@ export function NKCarousel() {
         }}
         className="w-full"
       >
-        <CarouselContent>
+        <CarouselContent className="py-4">
           {features.map((feature, index) => (
             <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
-              <div className="p-1">
-                <Card className="h-full">
-                  <CardHeader className="pb-2">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                      <feature.icon className="h-5 w-5 text-primary" />
+              <div className="p-2 h-full">
+                <Card className="h-full p-6 hover:shadow-md transition-shadow">
+                  <CardHeader className="p-0 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <feature.icon className="h-6 w-6 text-primary" />
                     </div>
-                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                    <CardTitle className="text-xl font-semibold">{feature.title}</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground">
+                  <CardContent className="p-0">
+                    <p className="text-base text-muted-foreground leading-relaxed">
                       {feature.description}
                     </p>
                   </CardContent>
