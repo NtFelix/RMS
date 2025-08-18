@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -181,6 +182,8 @@ export function AbrechnungModal({
       } = nebenkostenItem!;
 
       const abrechnungsjahr = Number(jahr);
+      // Precompute WG factors per tenant for this billing year (per apartment, monthly-weighted)
+      const wgFactorsByTenant = computeWgFactorsByTenant(tenants, abrechnungsjahr);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
@@ -254,6 +257,7 @@ export function AbrechnungModal({
             case 'pro fläche':
               if (totalHouseArea > 0) {
                   itemPricePerSqm = totalCostForItem / totalHouseArea;
+                  // Apartment annual share before tenant-level WG split
                   share = itemPricePerSqm * apartmentSize;
               } else {
                   share = 0;
@@ -283,13 +287,23 @@ export function AbrechnungModal({
               break;
           }
 
-          const proratedShare = share * (occupancyPercentage / 100);
+          // Apply tenant-level proration
+          let tenantShareForItem = 0;
+          const type = calcType.toLowerCase();
+          if (type === 'pro qm' || type === 'qm' || type === 'pro flaeche' || type === 'pro fläche') {
+            // For area-based items, split the apartment's annual share among roommates by WG factor
+            const wgFactor = wgFactorsByTenant[tenant.id] ?? (occupancyPercentage / 100);
+            tenantShareForItem = share * wgFactor;
+          } else {
+            // For all other types, keep occupancy-based proration
+            tenantShareForItem = share * (occupancyPercentage / 100);
+          }
 
           costItemsDetails.push({
             costName: costName || `Kostenart ${index + 1}`,
             totalCostForItem,
             calculationType: calcType,
-            tenantShare: proratedShare,
+            tenantShare: tenantShareForItem,
             pricePerSqm: itemPricePerSqm,
           });
         });
@@ -399,7 +413,7 @@ export function AbrechnungModal({
         startY = 20;
       }
 
-      // 1. Owner Information & Title
+          // 1. Owner Information & Title
       doc.setFontSize(10);
       doc.text(ownerName, 20, startY);
       startY += 6;
@@ -707,6 +721,55 @@ export function AbrechnungModal({
               </h3>
               <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
               <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
+
+              {/* WG Roommates Info */}
+              {!loadAllRelevantTenants && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Wohngemeinschaft (WG) Aufteilung</h4>
+                  <div className="space-y-2">
+                    {(() => {
+                      // Get all roommates in this apartment
+                      const roommates = getApartmentOccupants(tenants, tenantData.apartmentId);
+                      
+                      if (roommates.length <= 1) {
+                        return (
+                          <p className="text-sm text-gray-600">
+                            Keine Mitbewohner in dieser Wohnung gefunden.
+                          </p>
+                        );
+                      }
+
+                      // Get WG factors for this apartment
+                      const wgFactors = computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear()));
+                      
+                      return (
+                        <>
+                          <p className="text-sm text-gray-600">
+                            Diese Wohnung wird von {roommates.length} Personen bewohnt. 
+                            Die Flächenkosten werden entsprechend der Anwesenheit aufgeteilt:
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {roommates.map(rm => (
+                              <div key={rm.id} className="flex justify-between items-center text-sm">
+                                <span className={rm.id === tenantData.tenantId ? "font-medium text-blue-700" : "text-gray-600"}>
+                                  {rm.name} {rm.id === tenantData.tenantId && "(Sie)"}
+                                </span>
+                                <span className="font-mono">
+                                  {Math.round((wgFactors[rm.id] || 0) * 100)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            <span className="font-medium">Hinweis:</span> Die Prozentsätze ergeben zusammen 100% der Wohnungskosten.
+                            Die Aufteilung basiert auf der Anwesenheit im Abrechnungszeitraum.
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               {/* Occupancy Progress Bar and Text */}
               <div className="my-3">
