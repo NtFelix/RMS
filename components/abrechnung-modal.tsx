@@ -322,7 +322,7 @@ export function AbrechnungModal({
         occupancyPercentage,
         daysOccupied,
         daysInBillingYear,
-        recommendedPrepayment: parseFloat(recommendedPrepayment.toFixed(2)), // Round to 2 decimal places
+        recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
 
