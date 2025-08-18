@@ -33,6 +33,9 @@ const GERMAN_MONTHS = [
   "Juli", "August", "September", "Oktober", "November", "Dezember"
 ];
 
+// Financial calculation constants
+const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
+
 const calculateOccupancy = (einzug: string | null | undefined, auszug: string | null | undefined, abrechnungsjahr: number): { percentage: number, daysInYear: number, daysOccupied: number } => {
   const daysInBillingYear = 360; // Fixed for 30/360 convention
 
@@ -304,8 +307,9 @@ export function AbrechnungModal({
       const finalSettlement = totalTenantCost - totalVorauszahlungen;
 
       // Calculate recommended prepayment for next year based on current year's settlement
-      // This is a simple recommendation that can be adjusted based on business rules
-      const recommendedPrepayment = totalTenantCost > 0 ? totalTenantCost * 1.1 : 0; // 10% buffer
+      const recommendedPrepayment = totalTenantCost > 0 
+        ? totalTenantCost * PREPAYMENT_BUFFER_MULTIPLIER 
+        : 0;
 
       return {
         tenantId: tenant.id,
@@ -841,7 +845,7 @@ export function AbrechnungModal({
                                   <span>{formatCurrency(tenantData.recommendedPrepayment / 12)}</span>
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
-                                  (basierend auf {formatCurrency(tenantData.totalTenantCost)} + 10% Puffer)
+                                  (basierend auf {formatCurrency(tenantData.totalTenantCost)} + {Math.round((PREPAYMENT_BUFFER_MULTIPLIER - 1) * 100)}% Puffer)
                                 </div>
                               </div>
                             </>
