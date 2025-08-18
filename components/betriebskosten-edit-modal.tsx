@@ -2,6 +2,23 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { formatNumber } from "@/utils/format";
+
+const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue => {
+  const berechnungsartMap: Record<string, BerechnungsartValue> = {
+    'pro person': 'pro Mieter',
+    'pro mieter': 'pro Mieter',
+    'pro flaeche': 'pro Flaeche',
+    'pro fläche': 'pro Flaeche',
+    'pro qm': 'pro Flaeche',
+    'qm': 'pro Flaeche',
+    'nach rechnung': 'nach Rechnung',
+  };
+  
+  const lower = rawValue.toLowerCase();
+  const normalized = berechnungsartMap[lower] || rawValue;
+  return (BERECHNUNGSART_OPTIONS.find(opt => opt.value === normalized)?.value as BerechnungsartValue) || '';
+};
+
 import {
   Dialog,
   DialogContent,
@@ -210,19 +227,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                 id: generateId(),
                 art: art,
                 betrag: fetchedData.berechnungsart?.[idx] === 'nach Rechnung' ? '' : fetchedData.betrag?.[idx]?.toString() || "",
-                berechnungsart: (() => {
-                  const raw = fetchedData.berechnungsart?.[idx] || '';
-                  const lower = raw.toLowerCase();
-                  let normalized = raw;
-                  if (lower === 'pro person' || lower === 'pro mieter') {
-                    normalized = 'pro Mieter';
-                  } else if (lower === 'pro flaeche' || lower === 'pro fläche' || lower === 'pro qm' || lower === 'qm') {
-                    normalized = 'pro Flaeche';
-                  } else if (lower === 'nach rechnung') {
-                    normalized = 'nach Rechnung';
-                  }
-                  return (BERECHNUNGSART_OPTIONS.find(opt => opt.value === normalized)?.value as BerechnungsartValue) || '';
-                })(),
+                berechnungsart: normalizeBerechnungsart(fetchedData.berechnungsart?.[idx] || ''),
               }));
               setCostItems(newCostItems.length > 0 ? newCostItems : [{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
               setBetriebskostenModalDirty(false);
