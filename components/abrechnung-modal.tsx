@@ -269,6 +269,7 @@ export function AbrechnungModal({
                 share = 0;
               }
               break;
+            case 'pro mieter':
             case 'pro person':
               // Divide total cost by number of apartments for per-apartment calculation
               const uniqueApartmentIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
