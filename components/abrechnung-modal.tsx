@@ -280,6 +280,13 @@ export function AbrechnungModal({
               const apartmentCount = Math.max(1, uniqueApartmentIds.size || tenants.length);
               share = totalCostForItem / apartmentCount;
               break;
+            case 'pro wohnung':
+              // For 'pro Wohnung', split total cost equally among all apartments first
+              const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
+              const totalApartments = Math.max(1, uniqueAptIds.size || 1);
+              const costPerApartment = totalCostForItem / totalApartments;
+              share = costPerApartment; // This will be further split by WG factor
+              break;
             case 'pro einheit':
             case 'fix':
             default:
@@ -290,8 +297,8 @@ export function AbrechnungModal({
           // Apply tenant-level proration
           let tenantShareForItem = 0;
           const type = calcType.toLowerCase();
-          if (type === 'pro qm' || type === 'qm' || type === 'pro flaeche' || type === 'pro fläche') {
-            // For area-based items, split the apartment's annual share among roommates by WG factor
+          if (type === 'pro qm' || type === 'qm' || type === 'pro flaeche' || type === 'pro fläche' || type === 'pro wohnung') {
+            // For area-based and 'pro wohnung' items, split the apartment's share among roommates by WG factor
             const wgFactor = wgFactorsByTenant[tenant.id] ?? (occupancyPercentage / 100);
             tenantShareForItem = share * wgFactor;
           } else {
