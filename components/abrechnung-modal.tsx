@@ -157,14 +157,20 @@ export function AbrechnungModal({
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
+  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false);
+  const [wgFactorsByTenant, setWgFactorsByTenant] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0) {
+      setWgFactorsByTenant({});
       setCalculatedTenantData([]);
       return;
     }
-
+    
+    // Calculate WG factors once at the start
+    const abrechnungsjahr = Number(nebenkostenItem.jahr || new Date().getFullYear());
+    setWgFactorsByTenant(computeWgFactorsByTenant(tenants, abrechnungsjahr));
+    
     const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
@@ -182,8 +188,9 @@ export function AbrechnungModal({
       } = nebenkostenItem!;
 
       const abrechnungsjahr = Number(jahr);
-      // Precompute WG factors per tenant for this billing year (per apartment, monthly-weighted)
-      const wgFactorsByTenant = computeWgFactorsByTenant(tenants, abrechnungsjahr);
+      
+      // Use precomputed WG factors
+      const wgFactor = wgFactorsByTenant[tenant.id] || (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
@@ -291,8 +298,7 @@ export function AbrechnungModal({
           let tenantShareForItem = 0;
           const type = calcType.toLowerCase();
           if (type === 'pro qm' || type === 'qm' || type === 'pro flaeche' || type === 'pro fläche') {
-            // For area-based items, split the apartment's annual share among roommates by WG factor
-            const wgFactor = wgFactorsByTenant[tenant.id] ?? (occupancyPercentage / 100);
+            // Use the precomputed WG factor
             tenantShareForItem = share * wgFactor;
           } else {
             // For all other types, keep occupancy-based proration
