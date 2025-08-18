@@ -270,6 +270,9 @@ export function AbrechnungModal({
               }
               break;
             case 'pro person':
+              // Divide total cost by number of tenants for per-person calculation
+              share = totalCostForItem / Math.max(1, tenants?.length || 0);
+              break;
             case 'pro einheit':
             case 'fix':
             default:
