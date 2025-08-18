@@ -125,6 +125,7 @@ interface TenantCostDetails {
   occupancyPercentage: number;
   daysOccupied: number;
   daysInBillingYear: number;
+  recommendedPrepayment?: number; // New field for recommended prepayment
 }
 
 interface AbrechnungModalProps {
@@ -300,8 +301,11 @@ export function AbrechnungModal({
       };
 
       const totalTenantCost = tenantTotalForRegularItems + tenantWaterCost.tenantShare;
-
       const finalSettlement = totalTenantCost - totalVorauszahlungen;
+
+      // Calculate recommended prepayment for next year based on current year's settlement
+      // This is a simple recommendation that can be adjusted based on business rules
+      const recommendedPrepayment = totalTenantCost > 0 ? totalTenantCost * 1.1 : 0; // 10% buffer
 
       return {
         tenantId: tenant.id,
@@ -318,6 +322,7 @@ export function AbrechnungModal({
         occupancyPercentage,
         daysOccupied,
         daysInBillingYear,
+        recommendedPrepayment: parseFloat(recommendedPrepayment.toFixed(2)), // Round to 2 decimal places
       };
     };
 
@@ -778,6 +783,26 @@ export function AbrechnungModal({
                         ))}
                       </TableBody>
                     </Table>
+                    
+                    {tenantData.recommendedPrepayment !== undefined && (
+                      <div className="mt-4 pt-4 border-t">
+                        <h4 className="font-semibold mb-2">Empfehlung für nächstes Jahr</h4>
+                        <div className="space-y-1">
+                          <div className="flex justify-between">
+                            <span>Aktuelle Jahreskosten:</span>
+                            <span>{formatCurrency(tenantData.totalTenantCost)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Empfohlene Vorauszahlung (inkl. 10% Puffer):</span>
+                            <span className="font-semibold">{formatCurrency(tenantData.recommendedPrepayment)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Monatliche Rate:</span>
+                            <span>{formatCurrency(tenantData.recommendedPrepayment / 12)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </HoverCardContent>
                 </HoverCard>
                 {/* Final Settlement Info Card */}
