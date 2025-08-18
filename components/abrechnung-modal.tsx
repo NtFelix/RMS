@@ -783,26 +783,6 @@ export function AbrechnungModal({
                         ))}
                       </TableBody>
                     </Table>
-                    
-                    {tenantData.recommendedPrepayment !== undefined && (
-                      <div className="mt-4 pt-4 border-t">
-                        <h4 className="font-semibold mb-2">Empfehlung für nächstes Jahr</h4>
-                        <div className="space-y-1">
-                          <div className="flex justify-between">
-                            <span>Aktuelle Jahreskosten:</span>
-                            <span>{formatCurrency(tenantData.totalTenantCost)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Empfohlene Vorauszahlung (inkl. 10% Puffer):</span>
-                            <span className="font-semibold">{formatCurrency(tenantData.recommendedPrepayment)}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Monatliche Rate:</span>
-                            <span>{formatCurrency(tenantData.recommendedPrepayment / 12)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </HoverCardContent>
                 </HoverCard>
                 {/* Final Settlement Info Card */}
@@ -814,19 +794,61 @@ export function AbrechnungModal({
                   const iconColor = isNachzahlung ? "text-red-500" : "text-green-500";
 
                   return (
-                    <Card className="flex-grow min-w-[220px] sm:min-w-[250px]">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className={`text-sm font-medium ${titleColor}`}>
-                          {isNachzahlung ? "Nachzahlung" : "Guthaben"}
-                        </CardTitle>
-                        <SettlementIcon className={`h-5 w-5 ${iconColor}`} />
-                      </CardHeader>
-                      <CardContent>
-                        <div className={`text-2xl font-semibold ${amountColor}`}>
-                          {formatCurrency(tenantData.finalSettlement)}
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <Card className="flex-grow min-w-[220px] sm:min-w-[250px] cursor-pointer">
+                          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className={`text-sm font-medium ${titleColor}`}>
+                              {isNachzahlung ? "Nachzahlung" : "Guthaben"}
+                            </CardTitle>
+                            <SettlementIcon className={`h-5 w-5 ${iconColor}`} />
+                          </CardHeader>
+                          <CardContent>
+                            <div className={`text-2xl font-semibold ${amountColor}`}>
+                              {formatCurrency(tenantData.finalSettlement)}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-96 text-sm">
+                        <h4 className="font-semibold mb-3">Abrechnungsdetails</h4>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span>Gesamtkosten {Number(nebenkostenItem?.jahr)}:</span>
+                            <span>{formatCurrency(tenantData.totalTenantCost)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Geleistete Vorauszahlungen:</span>
+                            <span>{formatCurrency(tenantData.vorauszahlungen)}</span>
+                          </div>
+                          <div className="h-px bg-gray-200 my-2"></div>
+                          <div className="flex justify-between font-semibold">
+                            <span>{isNachzahlung ? "Nachzahlung" : "Guthaben"}:</span>
+                            <span className={amountColor}>{formatCurrency(tenantData.finalSettlement)}</span>
+                          </div>
+                          
+                          {tenantData.recommendedPrepayment !== undefined && (
+                            <>
+                              <div className="h-px bg-gray-200 my-2"></div>
+                              <h4 className="font-semibold mt-3 mb-2">Empfehlung für {Number(nebenkostenItem?.jahr) + 1}</h4>
+                              <div className="space-y-1">
+                                <div className="flex justify-between">
+                                  <span>Empfohlene Vorauszahlung:</span>
+                                  <span className="font-semibold">{formatCurrency(tenantData.recommendedPrepayment)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm text-gray-600">
+                                  <span>Monatliche Rate:</span>
+                                  <span>{formatCurrency(tenantData.recommendedPrepayment / 12)}</span>
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                  (basierend auf {formatCurrency(tenantData.totalTenantCost)} + 10% Puffer)
+                                </div>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </HoverCardContent>
+                    </HoverCard>
                   );
                 })()}
               </div>
