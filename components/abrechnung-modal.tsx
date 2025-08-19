@@ -167,16 +167,12 @@ export function AbrechnungModal({
       return;
     }
     
-    // Calculate WG factors once at the start
-    const abrechnungsjahr = Number(nebenkostenItem.jahr || new Date().getFullYear());
-    setWgFactorsByTenant(computeWgFactorsByTenant(tenants, abrechnungsjahr));
-    
     const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
 
     // Helper function for calculation logic (extracted to avoid repetition)
-    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
+    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number, wgFactors: Record<string, number>): TenantCostDetails => {
       const {
         id: nebenkostenItemId,
         jahr,
@@ -190,7 +186,7 @@ export function AbrechnungModal({
       const abrechnungsjahr = Number(jahr);
       
       // Use precomputed WG factors
-      const wgFactor = wgFactorsByTenant[tenant.id] || (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
+      const wgFactor = wgFactors[tenant.id] || (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
@@ -356,8 +352,13 @@ export function AbrechnungModal({
       };
     };
 
+    // Calculate WG factors once at the start
+    const abrechnungsjahr = Number(nebenkostenItem.jahr || new Date().getFullYear());
+    const currentWgFactors = computeWgFactorsByTenant(tenants, abrechnungsjahr);
+    setWgFactorsByTenant(currentWgFactors);
+
     if (loadAllRelevantTenants) {
-      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
+      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter, currentWgFactors));
       setCalculatedTenantData(allTenantsData);
     } else {
       if (!selectedTenantId) {
@@ -370,7 +371,7 @@ export function AbrechnungModal({
         setCalculatedTenantData([]); // Clear data if selected tenant not found
         return;
       }
-      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter);
+      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter, currentWgFactors);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
   }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings]); // Added rechnungen to dependency array
