@@ -454,14 +454,37 @@ export function AbrechnungModal({
       startY += 10;
 
       // 4. Costs Table
-      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler Einheit /qm etc.", "Kosten Pro qm", "Kostenanteil In €"];
+      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
       const tableRows: any[][] = [];
 
       singleTenantData.costItems.forEach(item => {
+        // Compute actual distribution basis (Verteiler) for the item
+        const type = (item.calculationType || '').toLowerCase();
+        let verteilerDisplay: string = '-';
+
+        if (["pro qm", "qm", "pro flaeche", "pro fläche"].includes(type)) {
+          const totalHouseArea = (nebenkostenItem.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0)
+            ? nebenkostenItem.gesamtFlaeche
+            : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+          verteilerDisplay = formatNumber(totalHouseArea);
+        } else if (type === 'pro wohnung') {
+          const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
+          verteilerDisplay = String(uniqueAptIds.size || 0);
+        } else if (type === 'pro mieter' || type === 'pro person') {
+          const activeTenantsCount = Math.max(1, tenants.length);
+          verteilerDisplay = String(activeTenantsCount);
+        } else if (type === 'pro einheit' || type === 'fix') {
+          verteilerDisplay = '1';
+        } else if (type === 'nach rechnung') {
+          verteilerDisplay = '-';
+        } else {
+          verteilerDisplay = '-';
+        }
+
         const row = [
           item.costName,
           formatCurrency(item.totalCostForItem), // Gesamtkosten in €
-          item.calculationType, // Verteiler Einheit /qm etc.
+          verteilerDisplay, // Actual distribution basis instead of type
           item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-', // Kosten Pro qm
           formatCurrency(item.tenantShare) // Kostenanteil In €
         ];
@@ -480,20 +503,21 @@ export function AbrechnungModal({
 
       // "Betriebskosten gesamt" row is removed from here and will be drawn manually after the table.
 
-      (doc as any).autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: startY,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
-        styles: { fontSize: 9, cellPadding: 1.5 },
-        columnStyles: {
-          1: { halign: 'right' }, // Gesamtkosten in €
-          3: { halign: 'right' }, // Kosten Pro qm
-          4: { halign: 'right' }  // Kostenanteil In €
-        },
-        margin: { left: 20 } // Set left margin for the table
-      });
+        (doc as any).autoTable({
+          head: [tableColumn],
+          body: tableRows,
+          startY: startY,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
+          styles: { fontSize: 9, cellPadding: 1.5 },
+          columnStyles: {
+            1: { halign: 'right' }, // Gesamtkosten in €
+            2: { halign: 'right' }, // Verteiler
+            3: { halign: 'right' }, // Kosten Pro qm
+            4: { halign: 'right' }  // Kostenanteil In €
+          },
+          margin: { left: 20 } // Set left margin for the table
+        });
 
       let tableFinalY = (doc as any).lastAutoTable?.finalY;
       if (typeof tableFinalY === 'number') {
