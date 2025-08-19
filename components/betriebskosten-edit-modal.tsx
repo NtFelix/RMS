@@ -11,6 +11,7 @@ const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue => {
     'pro fläche': 'pro Flaeche',
     'pro qm': 'pro Flaeche',
     'qm': 'pro Flaeche',
+    'pro wohnung': 'pro Wohnung',
     'nach rechnung': 'nach Rechnung',
   };
   

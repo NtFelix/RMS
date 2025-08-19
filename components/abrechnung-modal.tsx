@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung, Wasserzaehler } from "@/lib/data-fetching"; // Added Rechnung to import
-import { useEffect, useState } from "react"; // Import useEffect and useState
+import { useEffect, useState, useMemo } from "react"; // Import useEffect, useState, and useMemo
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
@@ -156,23 +156,34 @@ export function AbrechnungModal({
 }: AbrechnungModalProps) {
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
+  const wgFactors = useMemo(
+    () => computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear())),
+    [tenants, nebenkostenItem?.jahr]
+  );
+
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false);
-  const [wgFactorsByTenant, setWgFactorsByTenant] = useState<Record<string, number>>({});
+  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
 
   useEffect(() => {
     if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0) {
-      setWgFactorsByTenant({});
       setCalculatedTenantData([]);
       return;
     }
-    
+
     const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
 
+    // Use the precomputed wgFactors from the useMemo hook
+    const wgFactorsByTenant = wgFactors;
+    const abrechnungsjahr = Number(nebenkostenItem?.jahr);
+
     // Helper function for calculation logic (extracted to avoid repetition)
-    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number, wgFactors: Record<string, number>): TenantCostDetails => {
+    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
       const {
         id: nebenkostenItemId,
         jahr,
@@ -182,11 +193,6 @@ export function AbrechnungModal({
         wasserkosten, // Total building water cost
         gesamtFlaeche,
       } = nebenkostenItem!;
-
-      const abrechnungsjahr = Number(jahr);
-      
-      // Use precomputed WG factors, fallback to occupancy percentage if not found
-      const wgFactor = wgFactors[tenant.id] ?? (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
@@ -278,10 +284,16 @@ export function AbrechnungModal({
               break;
             case 'pro mieter':
             case 'pro person':
-              // Divide total cost by number of apartments for per-apartment calculation
-              const uniqueApartmentIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
-              const apartmentCount = Math.max(1, uniqueApartmentIds.size || tenants.length);
-              share = totalCostForItem / apartmentCount;
+              // Divide total cost by number of tenants for per-tenant calculation
+              const activeTenantsCount = Math.max(1, tenants.length);
+              share = totalCostForItem / activeTenantsCount;
+              break;
+            case 'pro wohnung':
+              // For 'pro Wohnung', split total cost equally among all apartments first
+              const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
+              const totalApartments = uniqueAptIds.size;
+              const costPerApartment = totalApartments > 0 ? totalCostForItem / totalApartments : 0;
+              share = costPerApartment; // This will be further split by WG factor
               break;
             case 'pro einheit':
             case 'fix':
@@ -293,13 +305,14 @@ export function AbrechnungModal({
           // Apply tenant-level proration
           let tenantShareForItem = 0;
           const type = calcType.toLowerCase();
-          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche'];
-          
+          // Define all calculation types that use area/WG factor split
+          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche', 'pro wohnung'];
           if (areaBasedCalcTypes.includes(type)) {
-            // Use the precomputed WG factor for area-based calculations
+            // Use the precomputed WG factor for area-based and 'pro wohnung' calculations
+            const wgFactor = wgFactors[tenant.id] ?? (occupancyPercentage / 100);
             tenantShareForItem = share * wgFactor;
           } else {
-            // For all other types, keep occupancy-based proration
+            // For all other types, use occupancy proration
             tenantShareForItem = share * (occupancyPercentage / 100);
           }
 
@@ -354,13 +367,8 @@ export function AbrechnungModal({
       };
     };
 
-    // Calculate WG factors once at the start
-    const abrechnungsjahr = Number(nebenkostenItem.jahr || new Date().getFullYear());
-    const currentWgFactors = computeWgFactorsByTenant(tenants, abrechnungsjahr);
-    setWgFactorsByTenant(currentWgFactors);
-
     if (loadAllRelevantTenants) {
-      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter, currentWgFactors));
+      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
       setCalculatedTenantData(allTenantsData);
     } else {
       if (!selectedTenantId) {
@@ -373,10 +381,10 @@ export function AbrechnungModal({
         setCalculatedTenantData([]); // Clear data if selected tenant not found
         return;
       }
-      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter, currentWgFactors);
+      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings]); // Added rechnungen to dependency array
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings, wgFactors]); // Added wgFactors to dependency array
 
   const generateSettlementPDF = async ( // Changed to async
     tenantData: TenantCostDetails | TenantCostDetails[],
@@ -748,7 +756,7 @@ export function AbrechnungModal({
                         );
                       }
 
-                      // Use precomputed WG factors from state
+                      // Use the pre-computed wgFactors
                       
                       return (
                         <>
@@ -763,7 +771,7 @@ export function AbrechnungModal({
                                   {rm.name} {rm.id === tenantData.tenantId && "(Sie)"}
                                 </span>
                                 <span className="font-mono">
-                                  {Math.round((wgFactorsByTenant[rm.id] ?? 0) * 100)}%
+                                  {Math.round((wgFactors[rm.id] || 0) * 100)}%
                                 </span>
                               </div>
                             ))}

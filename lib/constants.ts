@@ -1,6 +1,7 @@
 export const BERECHNUNGSART_OPTIONS = [
   { value: 'pro Flaeche', label: 'pro Fläche' },
   { value: 'pro Mieter', label: 'pro Mieter' },
+  { value: 'pro Wohnung', label: 'pro Wohnung' },
   { value: 'nach Rechnung', label: 'nach Rechnung' },
 ] as const;
 
