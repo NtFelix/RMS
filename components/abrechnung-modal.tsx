@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/hover-card";
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { Nebenkosten, Mieter, Wohnung, Rechnung, Wasserzaehler } from "@/lib/data-fetching"; // Added Rechnung to import
-import { useEffect, useState } from "react"; // Import useEffect and useState
+import { useEffect, useState, useMemo } from "react"; // Import useEffect, useState, and useMemo
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
@@ -747,8 +747,11 @@ export function AbrechnungModal({
                         );
                       }
 
-                      // Get WG factors for this apartment
-                      const wgFactors = computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear()));
+                      // Get WG factors for this apartment (memoized to prevent unnecessary recalculations)
+                      const wgFactors = useMemo(
+                        () => computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear())),
+                        [tenants, nebenkostenItem?.jahr]
+                      );
                       
                       return (
                         <>
