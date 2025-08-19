@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
 import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -156,20 +157,22 @@ export function AbrechnungModal({
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
-  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
+  const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false);
+  const [wgFactorsByTenant, setWgFactorsByTenant] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0) {
+      setWgFactorsByTenant({});
       setCalculatedTenantData([]);
       return;
     }
-
+    
     const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
 
     // Helper function for calculation logic (extracted to avoid repetition)
-    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
+    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number, wgFactors: Record<string, number>): TenantCostDetails => {
       const {
         id: nebenkostenItemId,
         jahr,
@@ -181,6 +184,9 @@ export function AbrechnungModal({
       } = nebenkostenItem!;
 
       const abrechnungsjahr = Number(jahr);
+      
+      // Use precomputed WG factors, fallback to occupancy percentage if not found
+      const wgFactor = wgFactors[tenant.id] ?? (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
@@ -254,6 +260,7 @@ export function AbrechnungModal({
             case 'pro fläche':
               if (totalHouseArea > 0) {
                   itemPricePerSqm = totalCostForItem / totalHouseArea;
+                  // Apartment annual share before tenant-level WG split
                   share = itemPricePerSqm * apartmentSize;
               } else {
                   share = 0;
@@ -283,13 +290,24 @@ export function AbrechnungModal({
               break;
           }
 
-          const proratedShare = share * (occupancyPercentage / 100);
+          // Apply tenant-level proration
+          let tenantShareForItem = 0;
+          const type = calcType.toLowerCase();
+          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche'];
+          
+          if (areaBasedCalcTypes.includes(type)) {
+            // Use the precomputed WG factor for area-based calculations
+            tenantShareForItem = share * wgFactor;
+          } else {
+            // For all other types, keep occupancy-based proration
+            tenantShareForItem = share * (occupancyPercentage / 100);
+          }
 
           costItemsDetails.push({
             costName: costName || `Kostenart ${index + 1}`,
             totalCostForItem,
             calculationType: calcType,
-            tenantShare: proratedShare,
+            tenantShare: tenantShareForItem,
             pricePerSqm: itemPricePerSqm,
           });
         });
@@ -336,8 +354,13 @@ export function AbrechnungModal({
       };
     };
 
+    // Calculate WG factors once at the start
+    const abrechnungsjahr = Number(nebenkostenItem.jahr || new Date().getFullYear());
+    const currentWgFactors = computeWgFactorsByTenant(tenants, abrechnungsjahr);
+    setWgFactorsByTenant(currentWgFactors);
+
     if (loadAllRelevantTenants) {
-      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
+      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter, currentWgFactors));
       setCalculatedTenantData(allTenantsData);
     } else {
       if (!selectedTenantId) {
@@ -350,7 +373,7 @@ export function AbrechnungModal({
         setCalculatedTenantData([]); // Clear data if selected tenant not found
         return;
       }
-      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter);
+      const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter, currentWgFactors);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
   }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings]); // Added rechnungen to dependency array
@@ -399,7 +422,7 @@ export function AbrechnungModal({
         startY = 20;
       }
 
-      // 1. Owner Information & Title
+          // 1. Owner Information & Title
       doc.setFontSize(10);
       doc.text(ownerName, 20, startY);
       startY += 6;
@@ -707,6 +730,54 @@ export function AbrechnungModal({
               </h3>
               <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
               <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
+
+              {/* WG Roommates Info */}
+              {!loadAllRelevantTenants && (
+                <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Wohngemeinschaft (WG) Aufteilung</h4>
+                  <div className="space-y-2">
+                    {(() => {
+                      // Get all roommates in this apartment
+                      const roommates = getApartmentOccupants(tenants, tenantData.apartmentId);
+                      
+                      if (roommates.length <= 1) {
+                        return (
+                          <p className="text-sm text-gray-600">
+                            Keine Mitbewohner in dieser Wohnung gefunden.
+                          </p>
+                        );
+                      }
+
+                      // Use precomputed WG factors from state
+                      
+                      return (
+                        <>
+                          <p className="text-sm text-gray-600">
+                            Diese Wohnung wird von {roommates.length} Personen bewohnt. 
+                            Die Flächenkosten werden entsprechend der Anwesenheit aufgeteilt:
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {roommates.map(rm => (
+                              <div key={rm.id} className="flex justify-between items-center text-sm">
+                                <span className={rm.id === tenantData.tenantId ? "font-medium text-blue-700" : "text-gray-600"}>
+                                  {rm.name} {rm.id === tenantData.tenantId && "(Sie)"}
+                                </span>
+                                <span className="font-mono">
+                                  {Math.round((wgFactorsByTenant[rm.id] ?? 0) * 100)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-2">
+                            <span className="font-medium">Hinweis:</span> Die Prozentsätze ergeben zusammen 100% der Wohnungskosten.
+                            Die Aufteilung basiert auf der Anwesenheit im Abrechnungszeitraum.
+                          </p>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
 
               {/* Occupancy Progress Bar and Text */}
               <div className="my-3">
