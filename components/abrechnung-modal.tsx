@@ -169,6 +169,10 @@ export function AbrechnungModal({
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
 
+    // Precompute WG factors per tenant for this billing year (per apartment, monthly-weighted) - moved outside to avoid redundant calculations
+    const abrechnungsjahr = Number(nebenkostenItem?.jahr);
+    const wgFactorsByTenant = computeWgFactorsByTenant(tenants, abrechnungsjahr);
+
     // Helper function for calculation logic (extracted to avoid repetition)
     const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
       const {
@@ -180,10 +184,6 @@ export function AbrechnungModal({
         wasserkosten, // Total building water cost
         gesamtFlaeche,
       } = nebenkostenItem!;
-
-      const abrechnungsjahr = Number(jahr);
-      // Precompute WG factors per tenant for this billing year (per apartment, monthly-weighted)
-      const wgFactorsByTenant = computeWgFactorsByTenant(tenants, abrechnungsjahr);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
