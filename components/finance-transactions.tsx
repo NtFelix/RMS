@@ -12,6 +12,7 @@ import { FinanceContextMenu } from "@/components/finance-context-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/utils/format"
+import { CustomCombobox } from "@/components/ui/custom-combobox"
 
 interface Finanz {
   id: string
@@ -99,6 +100,8 @@ export function FinanceTransactions({
 
   const apartments = ["Alle Wohnungen", ...wohnungen.map(w => w.name)]
   const years = ["Alle Jahre", ...availableYears.map(y => y.toString())]
+  const apartmentOptions = apartments.map(a => ({ value: a, label: a }))
+  const yearOptions = years.map(y => ({ value: y, label: y }))
 
   // Since filtering is now done server-side, we just use the finances directly
   const sortedAndFilteredData = finances
@@ -190,14 +193,24 @@ export function FinanceTransactions({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
-                <Select value={filters.selectedApartment} onValueChange={(value) => handleFilterChange('selectedApartment', value)}>
-                  <SelectTrigger><SelectValue placeholder="Wohnung auswählen" /></SelectTrigger>
-                  <SelectContent>{apartments.map((apartment) => <SelectItem key={apartment} value={apartment}>{apartment}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={filters.selectedYear} onValueChange={(value) => handleFilterChange('selectedYear', value)}>
-                  <SelectTrigger><SelectValue placeholder="Jahr auswählen" /></SelectTrigger>
-                  <SelectContent>{years.map((year) => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent>
-                </Select>
+                <CustomCombobox
+                  options={apartmentOptions}
+                  value={filters.selectedApartment}
+                  onChange={(value) => handleFilterChange('selectedApartment', value ?? 'Alle Wohnungen')}
+                  placeholder="Wohnung auswählen"
+                  searchPlaceholder="Wohnung suchen..."
+                  emptyText="Keine Wohnung gefunden"
+                  width="w-full"
+                />
+                <CustomCombobox
+                  options={yearOptions}
+                  value={filters.selectedYear}
+                  onChange={(value) => handleFilterChange('selectedYear', value ?? 'Alle Jahre')}
+                  placeholder="Jahr auswählen"
+                  searchPlaceholder="Jahr suchen..."
+                  emptyText="Kein Jahr gefunden"
+                  width="w-full"
+                />
                 <Select value={filters.selectedType} onValueChange={(value) => handleFilterChange('selectedType', value)}>
                   <SelectTrigger><SelectValue placeholder="Transaktionstyp auswählen" /></SelectTrigger>
                   <SelectContent>
