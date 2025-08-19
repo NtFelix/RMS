@@ -44,7 +44,6 @@ interface FinanceTransactionsProps {
   availableYears: number[]
   reloadRef?: any
   onEdit?: (finance: Finanz) => void
-  onAdd?: (finance: Finanz) => void
   onAddTransaction?: () => void
   loadFinances?: () => void
   hasMore: boolean
@@ -72,7 +71,6 @@ export function FinanceTransactions({
   availableYears,
   reloadRef,
   onEdit,
-  onAdd,
   onAddTransaction,
   loadFinances,
   hasMore,
