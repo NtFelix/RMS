@@ -1,13 +1,24 @@
+import { Metadata } from 'next';
 import Navigation from "../components/navigation";
 import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
 import { getDatabasePages, getPageContent, NotionFileData, NotionPageData, BlockWithChildren } from "../../../lib/notion-service";
 
+export const dynamic = 'force-dynamic';
+
+type SearchParams = { [key: string]: string | string[] | undefined };
+
+interface PageProps {
+  params: Promise<{ slug?: string[] }>;
+  searchParams?: Promise<SearchParams>;
+}
+
 export default async function DocumentationPage({
-  searchParams,
-}: {
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
+}: PageProps) {
+  const params = await paramsPromise;
+  const searchParams = (await searchParamsPromise) || {};
   let allPagesMetadata: NotionPageData[] = [];
   let selectedPageId: string | null = null;
   let currentPageContent: BlockWithChildren[] | null = null;
