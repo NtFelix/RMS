@@ -178,9 +178,9 @@ export function AbrechnungModal({
       ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
       : 0;
 
-    // Precompute WG factors per tenant for this billing year (per apartment, monthly-weighted) - moved outside to avoid redundant calculations
+    // Use the precomputed wgFactors from the useMemo hook
+    const wgFactorsByTenant = wgFactors;
     const abrechnungsjahr = Number(nebenkostenItem?.jahr);
-    const wgFactorsByTenant = computeWgFactorsByTenant(tenants, abrechnungsjahr);
 
     // Helper function for calculation logic (extracted to avoid repetition)
     const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
@@ -384,7 +384,7 @@ export function AbrechnungModal({
       const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings]); // Added rechnungen to dependency array
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings, wgFactors]); // Added wgFactors to dependency array
 
   const generateSettlementPDF = async ( // Changed to async
     tenantData: TenantCostDetails | TenantCostDetails[],
