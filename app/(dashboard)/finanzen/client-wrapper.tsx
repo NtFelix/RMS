@@ -394,6 +394,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         availableYears={availableYears}
         onEdit={handleEdit}
         onAdd={handleAddFinance}
+        onAddTransaction={handleAddTransaction}
         loadFinances={() => loadMoreTransactions(false)}
         reloadRef={reloadRef}
         hasMore={hasMore}
