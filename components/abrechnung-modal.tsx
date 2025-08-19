@@ -156,6 +156,15 @@ export function AbrechnungModal({
 }: AbrechnungModalProps) {
   const { toast } = useToast();
   const [calculatedTenantData, setCalculatedTenantData] = useState<TenantCostDetails[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
+  const wgFactors = useMemo(
+    () => computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear())),
+    [tenants, nebenkostenItem?.jahr]
+  );
+
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
 
@@ -747,11 +756,7 @@ export function AbrechnungModal({
                         );
                       }
 
-                      // Get WG factors for this apartment (memoized to prevent unnecessary recalculations)
-                      const wgFactors = useMemo(
-                        () => computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear())),
-                        [tenants, nebenkostenItem?.jahr]
-                      );
+                      // Use the pre-computed wgFactors
                       
                       return (
                         <>
