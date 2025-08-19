@@ -516,7 +516,9 @@ export function AbrechnungModal({
             3: { halign: 'right' }, // Kosten Pro qm
             4: { halign: 'right' }  // Kostenanteil In €
           },
-          margin: { left: 20 } // Set left margin for the table
+          // Ensure table aligns with left and right content margins
+          tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
+          margin: { left: 20, right: 20 }
         });
 
       let tableFinalY = (doc as any).lastAutoTable?.finalY;
