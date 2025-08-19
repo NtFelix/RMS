@@ -293,8 +293,10 @@ export function AbrechnungModal({
           // Apply tenant-level proration
           let tenantShareForItem = 0;
           const type = calcType.toLowerCase();
-          if (type === 'pro qm' || type === 'qm' || type === 'pro flaeche' || type === 'pro fläche') {
-            // Use the precomputed WG factor
+          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche'];
+          
+          if (areaBasedCalcTypes.includes(type)) {
+            // Use the precomputed WG factor for area-based calculations
             tenantShareForItem = share * wgFactor;
           } else {
             // For all other types, keep occupancy-based proration
