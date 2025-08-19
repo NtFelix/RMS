@@ -309,7 +309,7 @@ export function AbrechnungModal({
           const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche', 'pro wohnung'];
           if (areaBasedCalcTypes.includes(type)) {
             // Use the precomputed WG factor for area-based and 'pro wohnung' calculations
-            const wgFactor = wgFactorsByTenant[tenant.id] ?? (occupancyPercentage / 100);
+            const wgFactor = wgFactors[tenant.id] ?? (occupancyPercentage / 100);
             tenantShareForItem = share * wgFactor;
           } else {
             // For all other types, use occupancy proration
