@@ -282,8 +282,8 @@ export function AbrechnungModal({
             case 'pro wohnung':
               // For 'pro Wohnung', split total cost equally among all apartments first
               const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
-              const totalApartments = Math.max(1, uniqueAptIds.size || 1);
-              const costPerApartment = totalCostForItem / totalApartments;
+              const totalApartments = uniqueAptIds.size;
+              const costPerApartment = totalApartments > 0 ? totalCostForItem / totalApartments : 0;
               share = costPerApartment; // This will be further split by WG factor
               break;
             case 'pro einheit':
