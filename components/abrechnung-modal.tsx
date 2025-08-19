@@ -748,8 +748,7 @@ export function AbrechnungModal({
                         );
                       }
 
-                      // Get WG factors for this apartment
-                      const wgFactors = computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear()));
+                      // Use precomputed WG factors from state
                       
                       return (
                         <>
@@ -764,7 +763,7 @@ export function AbrechnungModal({
                                   {rm.name} {rm.id === tenantData.tenantId && "(Sie)"}
                                 </span>
                                 <span className="font-mono">
-                                  {Math.round((wgFactors[rm.id] || 0) * 100)}%
+                                  {Math.round((wgFactorsByTenant[rm.id] ?? 0) * 100)}%
                                 </span>
                               </div>
                             ))}
