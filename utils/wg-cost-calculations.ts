@@ -12,10 +12,10 @@ export function isTenantActiveInMonth(tenant: Mieter, year: number, monthIndex: 
   const monthEnd = new Date(Date.UTC(year, monthIndex + 1, 0, 23, 59, 59, 999));
 
   const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
-  const auszugDate = tenant.auszug ? new Date(tenant.auszug) : null;
+  const auszugDateRaw = tenant.auszug ? new Date(tenant.auszug) : null;
+  const auszugDate = auszugDateRaw && !isNaN(auszugDateRaw.getTime()) ? auszugDateRaw : null;
 
   if (!einzugDate || isNaN(einzugDate.getTime())) return false;
-  if (auszugDate && isNaN(auszugDate.getTime())) return false;
 
   return (
     einzugDate <= monthEnd &&
