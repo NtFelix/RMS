@@ -185,8 +185,8 @@ export function AbrechnungModal({
 
       const abrechnungsjahr = Number(jahr);
       
-      // Use precomputed WG factors
-      const wgFactor = wgFactors[tenant.id] || (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
+      // Use precomputed WG factors, fallback to occupancy percentage if not found
+      const wgFactor = wgFactors[tenant.id] ?? (calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr).percentage / 100);
 
       // 1. Call calculateOccupancy
       const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
