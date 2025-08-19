@@ -296,12 +296,14 @@ export function AbrechnungModal({
           // Apply tenant-level proration
           let tenantShareForItem = 0;
           const type = calcType.toLowerCase();
-          if (type === 'pro qm' || type === 'qm' || type === 'pro flaeche' || type === 'pro fläche' || type === 'pro wohnung') {
-            // For area-based and 'pro wohnung' items, split the apartment's share among roommates by WG factor
+          // Define all calculation types that use area/WG factor split
+          const areaBasedCalcTypes = ['pro qm', 'qm', 'pro flaeche', 'pro fläche', 'pro wohnung'];
+          if (areaBasedCalcTypes.includes(type)) {
+            // Use the precomputed WG factor for area-based and 'pro wohnung' calculations
             const wgFactor = wgFactorsByTenant[tenant.id] ?? (occupancyPercentage / 100);
             tenantShareForItem = share * wgFactor;
           } else {
-            // For all other types, keep occupancy-based proration
+            // For all other types, use occupancy proration
             tenantShareForItem = share * (occupancyPercentage / 100);
           }
 
