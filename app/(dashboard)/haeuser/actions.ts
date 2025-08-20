@@ -26,13 +26,9 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
 
-    // Validate required fields
-    const name = formData.get('name')?.toString();
-    const ort = formData.get('ort')?.toString();
-
-    if (!name || !ort) {
-      return { success: false, error: { message: 'Name und Ort sind Pflichtfelder.' } };
-    }
+    // Get form data
+    const name = formData.get('name')?.toString() || '';
+    const ort = formData.get('ort')?.toString() || '';
 
     // Explicitly pick only the expected fields
     const houseData: HouseData = {
