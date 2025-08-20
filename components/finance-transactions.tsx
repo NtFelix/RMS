@@ -98,14 +98,17 @@ export function FinanceTransactions({
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadFinances])
 
+  const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
+  const ALL_YEARS_FILTER = 'Alle Jahre';
+  
   const apartmentOptions = useMemo(() => 
-    ["Alle Wohnungen", ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
-    [wohnungen]
+    [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
+    [wohnungen, ALL_APARTMENTS_FILTER]
   )
   
   const yearOptions = useMemo(() => 
-    ["Alle Jahre", ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
-    [availableYears]
+    [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
+    [availableYears, ALL_YEARS_FILTER]
   )
 
   // Since filtering is now done server-side, we just use the finances directly
@@ -201,7 +204,7 @@ export function FinanceTransactions({
                 <CustomCombobox
                   options={apartmentOptions}
                   value={filters.selectedApartment}
-                  onChange={(value) => handleFilterChange('selectedApartment', value ?? 'Alle Wohnungen')}
+                  onChange={(value) => handleFilterChange('selectedApartment', value ?? ALL_APARTMENTS_FILTER)}
                   placeholder="Wohnung auswählen"
                   searchPlaceholder="Wohnung suchen..."
                   emptyText="Keine Wohnung gefunden"
@@ -210,7 +213,7 @@ export function FinanceTransactions({
                 <CustomCombobox
                   options={yearOptions}
                   value={filters.selectedYear}
-                  onChange={(value) => handleFilterChange('selectedYear', value ?? 'Alle Jahre')}
+                  onChange={(value) => handleFilterChange('selectedYear', value ?? ALL_YEARS_FILTER)}
                   placeholder="Jahr auswählen"
                   searchPlaceholder="Jahr suchen..."
                   emptyText="Kein Jahr gefunden"
@@ -299,7 +302,7 @@ export function FinanceTransactions({
                           <div className="flex flex-col items-center gap-2">
                             <h3 className="text-sm font-medium text-foreground">Keine Transaktionen gefunden</h3>
                             <p className="text-xs text-muted-foreground max-w-sm text-center">
-                              {filters.searchQuery || filters.selectedApartment !== 'Alle Wohnungen' || filters.selectedYear !== 'Alle Jahre' || filters.selectedType !== 'Alle Transaktionen'
+                              {filters.searchQuery || filters.selectedApartment !== ALL_APARTMENTS_FILTER || filters.selectedYear !== ALL_YEARS_FILTER || filters.selectedType !== 'Alle Transaktionen'
                                 ? 'Versuchen Sie, Ihre Filter anzupassen oder zu entfernen.'
                                 : 'Es wurden noch keine Transaktionen erstellt.'}
                             </p>
@@ -371,7 +374,7 @@ export function FinanceTransactions({
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {sortedAndFilteredData.length} {sortedAndFilteredData.length === 1 ? 'Eintrag' : 'Einträge'} 
-                              {filters.searchQuery || filters.selectedApartment !== 'Alle Wohnungen' || filters.selectedYear !== 'Alle Jahre' || filters.selectedType !== 'Alle Transaktionen'
+                              {filters.searchQuery || filters.selectedApartment !== ALL_APARTMENTS_FILTER || filters.selectedYear !== ALL_YEARS_FILTER || filters.selectedType !== 'Alle Transaktionen'
                                 ? ' entsprechen Ihren Filterkriterien'
                                 : ' insgesamt'}
                             </div>
