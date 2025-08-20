@@ -301,13 +301,13 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               <input type="hidden" id="auszug" name="auszug" value={formData.auszug} />
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="email" infoText="Optionale Kontakt-E-Mail des Mieters.">
+              <LabelWithTooltip htmlFor="email" infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit).">
                 E-Mail
               </LabelWithTooltip>
               <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="telefonnummer" infoText="Optionale Telefonnummer des Mieters.">
+              <LabelWithTooltip htmlFor="telefonnummer" infoText="Telefonnummer (hilft bei der Organisation und schnellen Kontaktaufnahme).">
                 Telefon
               </LabelWithTooltip>
               <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting}/>
