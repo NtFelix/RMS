@@ -98,10 +98,15 @@ export function FinanceTransactions({
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadFinances])
 
-  const apartments = ["Alle Wohnungen", ...wohnungen.map(w => w.name)]
-  const years = ["Alle Jahre", ...availableYears.map(y => y.toString())]
-  const apartmentOptions = apartments.map(a => ({ value: a, label: a }))
-  const yearOptions = years.map(y => ({ value: y, label: y }))
+  const apartmentOptions = useMemo(() => 
+    ["Alle Wohnungen", ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
+    [wohnungen]
+  )
+  
+  const yearOptions = useMemo(() => 
+    ["Alle Jahre", ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
+    [availableYears]
+  )
 
   // Since filtering is now done server-side, we just use the finances directly
   const sortedAndFilteredData = finances
