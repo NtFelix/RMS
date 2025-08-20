@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import { useRouter } from "next/navigation";
 import { toast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store"; // Import the modal store
@@ -198,37 +199,51 @@ export function HouseEditModal(props: HouseEditModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <LabelWithTooltip 
+              htmlFor="name"
+              infoText="Geben Sie einen eindeutigen Namen für das Haus ein. Dieser wird in der Übersicht und in Dropdown-Menüs angezeigt."
+            >
+              Name
+            </LabelWithTooltip>
             <Input
-              type="text"
               id="name"
               name="name"
               value={formData.name}
               onChange={handleInputChange}
+              placeholder="z.B. Hauptstraße 1"
               required
               disabled={isSubmitting}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="strasse">Straße</Label>
+            <LabelWithTooltip 
+              htmlFor="strasse"
+              infoText="Geben Sie die vollständige Adresse des Hauses ein. Dies ist optional, wird aber für Rechnungen und Dokumente benötigt."
+            >
+              Straße
+            </LabelWithTooltip>
             <Input
-              type="text"
               id="strasse"
               name="strasse"
               value={formData.strasse}
               onChange={handleInputChange}
-              required
+              placeholder="z.B. Hauptstraße 1"
               disabled={isSubmitting}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ort">Ort</Label>
+            <LabelWithTooltip 
+              htmlFor="ort"
+              infoText="Geben Sie den Ort des Hauses ein. Dies ist ein Pflichtfeld und wird für die korrekte Zuordnung benötigt."
+            >
+              Ort
+            </LabelWithTooltip>
             <Input
-              type="text"
               id="ort"
               name="ort"
               value={formData.ort}
               onChange={handleInputChange}
+              placeholder="z.B. Berlin"
               required
               disabled={isSubmitting}
             />
@@ -240,14 +255,24 @@ export function HouseEditModal(props: HouseEditModalProps) {
               onCheckedChange={(checked) => handleCheckboxChange(Boolean(checked))}
               disabled={isSubmitting}
             />
-            <Label htmlFor="automaticSize">Automatische Größe</Label>
+            <LabelWithTooltip 
+              htmlFor="automaticSize"
+              infoText="Wenn aktiviert, wird die Gesamtgröße des Hauses automatisch aus der Summe der Wohnungsflächen berechnet. Deaktivieren Sie diese Option, um die Größe manuell festzulegen."
+            >
+              Größe automatisch berechnen
+            </LabelWithTooltip>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="manualGroesse">Größe (m²)</Label>
+            <LabelWithTooltip 
+              htmlFor="manualGroesse"
+              infoText="Geben Sie die Gesamtfläche des Hauses in Quadratmetern ein. Dieser Wert wird für die Berechnung von Betriebskosten pro Quadratmeter verwendet."
+            >
+              Größe in m²
+            </LabelWithTooltip>
             <Input
-              type="number"
               id="manualGroesse"
               name="manualGroesse"
+              type="number"
               value={manualGroesse}
               onChange={handleManualGroesseChange}
               disabled={automaticSize || isSubmitting}
