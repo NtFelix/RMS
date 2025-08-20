@@ -114,6 +114,7 @@ interface TenantCostDetails {
     calculationType: string;
     tenantShare: number;
     pricePerSqm?: number; // New field added here
+    verteiler?: string | number; // Added for distribution basis display
   }>;
   waterCost: {
     totalWaterCostOverall: number; // Renamed for clarity
@@ -253,23 +254,25 @@ export function AbrechnungModal({
       const costItemsDetails: TenantCostDetails['costItems'] = [];
 
       if (nebenkostenart && betrag && berechnungsart) {
+        const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
+        const activeTenantsCount = Math.max(1, tenants.length);
+
         nebenkostenart.forEach((costName, index) => {
           const totalCostForItem = betrag[index] || 0;
-          const calcType = berechnungsart[index] || 'fix';
+          const calcType = (berechnungsart[index] || 'fix').toLowerCase();
           let share = 0;
           let itemPricePerSqm: number | undefined = undefined;
+          let verteiler: string | number = '-';
 
-          switch (calcType.toLowerCase()) {
+          switch (calcType) {
             case 'pro qm':
             case 'qm':
             case 'pro flaeche':
             case 'pro fläche':
+              verteiler = formatNumber(totalHouseArea);
               if (totalHouseArea > 0) {
-                  itemPricePerSqm = totalCostForItem / totalHouseArea;
-                  // Apartment annual share before tenant-level WG split
-                  share = itemPricePerSqm * apartmentSize;
-              } else {
-                  share = 0;
+                itemPricePerSqm = totalCostForItem / totalHouseArea;
+                share = itemPricePerSqm * apartmentSize;
               }
               break;
             case 'nach rechnung':
@@ -278,27 +281,30 @@ export function AbrechnungModal({
                   (r) => r.mieter_id === tenant.id && r.name === costName
                 );
                 share = relevantRechnung?.betrag || 0;
+                verteiler = '-';
               } else {
                 share = 0;
               }
               break;
             case 'pro mieter':
             case 'pro person':
-              // Divide total cost by number of tenants for per-tenant calculation
-              const activeTenantsCount = Math.max(1, tenants.length);
+              verteiler = String(activeTenantsCount);
               share = totalCostForItem / activeTenantsCount;
               break;
             case 'pro wohnung':
-              // For 'pro Wohnung', split total cost equally among all apartments first
-              const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
+              verteiler = String(uniqueAptIds.size);
               const totalApartments = uniqueAptIds.size;
               const costPerApartment = totalApartments > 0 ? totalCostForItem / totalApartments : 0;
-              share = costPerApartment; // This will be further split by WG factor
+              share = costPerApartment;
               break;
             case 'pro einheit':
             case 'fix':
-            default:
+              verteiler = '1';
               share = totalCostForItem;
+              break;
+            default:
+              verteiler = '-';
+              share = 0;
               break;
           }
 
@@ -322,6 +328,7 @@ export function AbrechnungModal({
             calculationType: calcType,
             tenantShare: tenantShareForItem,
             pricePerSqm: itemPricePerSqm,
+            verteiler,
           });
         });
       }
@@ -454,14 +461,14 @@ export function AbrechnungModal({
       startY += 10;
 
       // 4. Costs Table
-      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler Einheit /qm etc.", "Kosten Pro qm", "Kostenanteil In €"];
+      const tableColumn = ["Leistungsart", "Gesamtkosten in €", "Verteiler", "Kosten Pro qm", "Kostenanteil In €"];
       const tableRows: any[][] = [];
 
       singleTenantData.costItems.forEach(item => {
         const row = [
           item.costName,
           formatCurrency(item.totalCostForItem), // Gesamtkosten in €
-          item.calculationType, // Verteiler Einheit /qm etc.
+          item.verteiler || '-', // Use pre-calculated distribution basis
           item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-', // Kosten Pro qm
           formatCurrency(item.tenantShare) // Kostenanteil In €
         ];
@@ -480,20 +487,23 @@ export function AbrechnungModal({
 
       // "Betriebskosten gesamt" row is removed from here and will be drawn manually after the table.
 
-      (doc as any).autoTable({
-        head: [tableColumn],
-        body: tableRows,
-        startY: startY,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
-        styles: { fontSize: 9, cellPadding: 1.5 },
-        columnStyles: {
-          1: { halign: 'right' }, // Gesamtkosten in €
-          3: { halign: 'right' }, // Kosten Pro qm
-          4: { halign: 'right' }  // Kostenanteil In €
-        },
-        margin: { left: 20 } // Set left margin for the table
-      });
+        (doc as any).autoTable({
+          head: [tableColumn],
+          body: tableRows,
+          startY: startY,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 220, 220], textColor: [0,0,0] },
+          styles: { fontSize: 9, cellPadding: 1.5 },
+          columnStyles: {
+            1: { halign: 'right' }, // Gesamtkosten in €
+            2: { halign: 'right' }, // Verteiler
+            3: { halign: 'right' }, // Kosten Pro qm
+            4: { halign: 'right' }  // Kostenanteil In €
+          },
+          // Ensure table aligns with left and right content margins
+          tableWidth: (doc as any).internal.pageSize.getWidth() - 40,
+          margin: { left: 20, right: 20 }
+        });
 
       let tableFinalY = (doc as any).lastAutoTable?.finalY;
       if (typeof tableFinalY === 'number') {
