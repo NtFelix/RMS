@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import {
   Select,
   SelectContent,
@@ -284,7 +285,9 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="space-y-2">
-            <Label htmlFor="name">Name der Wohnung</Label>
+            <LabelWithTooltip htmlFor="name" infoText="Eindeutiger Name für die Wohnung (z.B. 'EG Links' oder '1. OG rechts')">
+              Name der Wohnung
+            </LabelWithTooltip>
             <Input
               id="name"
               name="name"
@@ -296,7 +299,9 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="groesse">Größe (m²)</Label>
+            <LabelWithTooltip htmlFor="groesse" infoText="Wohnfläche in Quadratmetern (z.B. 65.5 für 65,5 m²)">
+              Größe (m²)
+            </LabelWithTooltip>
             <Input
               id="groesse"
               name="groesse"
@@ -311,7 +316,9 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="miete">Miete (€)</Label>
+            <LabelWithTooltip htmlFor="miete" infoText="Monatliche Miete in Euro (z.B. 650.50 für 650,50 €)">
+              Miete (€)
+            </LabelWithTooltip>
             <Input
               id="miete"
               name="miete"
@@ -326,7 +333,9 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="haus_id">Zugehöriges Haus</Label>
+            <LabelWithTooltip htmlFor="haus_id" infoText="Zugeordnetes Gebäude (z.B. 'Hauptgebäude' oder 'Nebengebäude')">
+              Zugehöriges Haus
+            </LabelWithTooltip>
             <CustomCombobox
               width="w-full"
               options={houseOptions}
