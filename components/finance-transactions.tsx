@@ -14,6 +14,9 @@ import { toast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/utils/format"
 import { CustomCombobox } from "@/components/ui/custom-combobox"
 
+const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
+const ALL_YEARS_FILTER = 'Alle Jahre';
+
 interface Finanz {
   id: string
   wohnung_id?: string
@@ -98,17 +101,14 @@ export function FinanceTransactions({
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadFinances])
 
-  const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
-  const ALL_YEARS_FILTER = 'Alle Jahre';
-  
   const apartmentOptions = useMemo(() => 
     [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
-    [wohnungen, ALL_APARTMENTS_FILTER]
+    [wohnungen]
   )
-  
+
   const yearOptions = useMemo(() => 
     [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
-    [availableYears, ALL_YEARS_FILTER]
+    [availableYears]
   )
 
   // Since filtering is now done server-side, we just use the finances directly
