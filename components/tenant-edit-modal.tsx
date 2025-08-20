@@ -319,8 +319,8 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="nebenkosten-section" infoText="Optionale Nebenkosten (z.B. Hausmeister, Stellplatz). Einträge ohne Betrag werden ignoriert. Bitte Betrag und Datum angeben, wenn relevant.">
-                Nebenkosten Einträge
+              <LabelWithTooltip htmlFor="nebenkosten-section" infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert.">
+                Nebenkosten Vorauszahlungen
               </LabelWithTooltip>
               {nebenkostenEntries.map((entry) => ( // Removed index from map as entry.id is unique
                 <div key={entry.id} className="p-2 border rounded-md space-y-1">
