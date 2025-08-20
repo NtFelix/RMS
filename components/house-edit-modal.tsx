@@ -234,7 +234,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           <div className="space-y-2">
             <LabelWithTooltip 
               htmlFor="ort"
-              infoText="Geben Sie den Ort des Hauses ein. Dies ist ein Pflichtfeld und wird für die korrekte Zuordnung benötigt."
+              infoText="Geben Sie den Ort des Hauses ein. Dieses Feld ist optional, wird aber für die Abrechnung und die generierte PDF benötigt. Die Ortsangabe erscheint in den offiziellen Dokumenten und wird für die korrekte Zuordnung verwendet."
             >
               Ort
             </LabelWithTooltip>
@@ -244,7 +244,6 @@ export function HouseEditModal(props: HouseEditModalProps) {
               value={formData.ort}
               onChange={handleInputChange}
               placeholder="z.B. Berlin"
-              required
               disabled={isSubmitting}
             />
           </div>
