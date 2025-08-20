@@ -210,8 +210,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              placeholder="z.B. Hauptstraße 1"
-              required
+              placeholder="z.B. Hauptstraße"
               disabled={isSubmitting}
             />
           </div>
