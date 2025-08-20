@@ -218,7 +218,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
           <div className="space-y-2">
             <LabelWithTooltip 
               htmlFor="strasse"
-              infoText="Geben Sie die vollständige Adresse des Hauses ein. Dies ist optional, wird aber für Rechnungen und Dokumente benötigt."
+              infoText="Geben Sie die vollständige Adresse des Hauses ein. Dieses Feld wird für die Abrechnung und die generierte PDF benötigt. Wir empfehlen dringend, die Adresse anzugeben, da sie in den offiziellen Dokumenten erscheint."
             >
               Straße
             </LabelWithTooltip>
