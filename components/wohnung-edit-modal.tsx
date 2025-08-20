@@ -333,7 +333,7 @@ export function WohnungEditModal(props: WohnungEditModalProps) {
             />
           </div>
           <div className="space-y-2">
-            <LabelWithTooltip htmlFor="haus_id" infoText="Zugeordnetes Gebäude (z.B. 'Hauptgebäude' oder 'Nebengebäude')">
+            <LabelWithTooltip htmlFor="haus_id" infoText="Zugeordnetes Haus (z.B. 'Haus A' oder 'Haus B')">
               Zugehöriges Haus
             </LabelWithTooltip>
             <CustomCombobox
