@@ -218,7 +218,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               <Input id="betrag" name="betrag" type="number" step="0.01" value={formData.betrag} onChange={handleChange} required disabled={isSubmitting} />
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="datum" infoText="Buchungs- oder Zahlungsdatum. Wird für Auswertungen genutzt.">
+              <LabelWithTooltip htmlFor="datum" infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen, Cashflow-Berechnungen und die korrekte Zuordnung von Transaktionen verwendet.">
                 Datum
               </LabelWithTooltip>
               <DatePicker
