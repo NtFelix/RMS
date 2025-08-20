@@ -265,7 +265,10 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               </Select>
             </div>
             <div className="col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="notiz" infoText="Optionale interne Notiz.">
+              <LabelWithTooltip 
+                htmlFor="notiz" 
+                infoText="Optionale interne Notiz. Hier können zusätzliche Details wie Rechnungsnummern, spezifische Leistungen oder weitere Informationen eingetragen werden. Der Inhalt ist durchsuchbar und erleichtert das spätere Auffinden spezifischer Transaktionen."
+              >
                 Notiz
               </LabelWithTooltip>
               <Input id="notiz" name="notiz" value={formData.notiz || ""} onChange={handleChange} disabled={isSubmitting} />
