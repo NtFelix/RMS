@@ -1,26 +1,36 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Home } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Search } from "lucide-react"
+import { CustomCombobox } from "@/components/ui/custom-combobox"
 import { Haus } from "@/lib/data-fetching"
+
+const ALL_HOUSES_LABEL = 'Alle Häuser'
+const ALL_HOUSES_VALUE = 'all'
 
 interface OperatingCostsFiltersProps {
   onFilterChange: (filter: string) => void
   onSearchChange: (search: string) => void
   onHouseChange?: (houseId: string) => void
   haeuser?: Haus[]
+  selectedHouseId?: string
 }
 
 export function OperatingCostsFilters({ 
   onFilterChange, 
   onSearchChange, 
   onHouseChange,
-  haeuser = [] 
+  haeuser = [],
+  selectedHouseId = ALL_HOUSES_VALUE 
 }: OperatingCostsFiltersProps) {
   const [activeFilter, setActiveFilter] = useState("all")
+  
+  const houseOptions = useMemo(() => [
+    { value: ALL_HOUSES_VALUE, label: ALL_HOUSES_LABEL },
+    ...haeuser.map((haus) => ({ value: haus.id, label: haus.name }))
+  ], [haeuser])
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter)
@@ -55,20 +65,17 @@ export function OperatingCostsFilters({
         </div>
         <div className="flex flex-col gap-3 sm:flex-row w-full sm:w-auto">
           <div className="relative w-full sm:w-[200px]">
-            <Select onValueChange={onHouseChange}>
-              <SelectTrigger className="w-full">
-                <Home className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Haus auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Häuser</SelectItem>
-                {haeuser.map((haus) => (
-                  <SelectItem key={haus.id} value={haus.id}>
-                    {haus.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CustomCombobox
+              options={houseOptions}
+              value={selectedHouseId}
+              onChange={(value) => {
+                onHouseChange?.(value ?? ALL_HOUSES_VALUE)
+              }}
+              placeholder="Haus auswählen"
+              searchPlaceholder="Haus suchen..."
+              emptyText="Kein Haus gefunden"
+              width="w-full"
+            />
           </div>
           <div className="relative w-full sm:w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />

@@ -12,6 +12,10 @@ import { FinanceContextMenu } from "@/components/finance-context-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/utils/format"
+import { CustomCombobox } from "@/components/ui/custom-combobox"
+
+const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
+const ALL_YEARS_FILTER = 'Alle Jahre';
 
 interface Finanz {
   id: string
@@ -97,8 +101,15 @@ export function FinanceTransactions({
     if (node) observer.current.observe(node)
   }, [isLoading, hasMore, loadFinances])
 
-  const apartments = ["Alle Wohnungen", ...wohnungen.map(w => w.name)]
-  const years = ["Alle Jahre", ...availableYears.map(y => y.toString())]
+  const apartmentOptions = useMemo(() => 
+    [ALL_APARTMENTS_FILTER, ...wohnungen.map(w => w.name)].map(a => ({ value: a, label: a })), 
+    [wohnungen]
+  )
+
+  const yearOptions = useMemo(() => 
+    [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
+    [availableYears]
+  )
 
   // Since filtering is now done server-side, we just use the finances directly
   const sortedAndFilteredData = finances
@@ -190,14 +201,24 @@ export function FinanceTransactions({
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
-                <Select value={filters.selectedApartment} onValueChange={(value) => handleFilterChange('selectedApartment', value)}>
-                  <SelectTrigger><SelectValue placeholder="Wohnung auswählen" /></SelectTrigger>
-                  <SelectContent>{apartments.map((apartment) => <SelectItem key={apartment} value={apartment}>{apartment}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={filters.selectedYear} onValueChange={(value) => handleFilterChange('selectedYear', value)}>
-                  <SelectTrigger><SelectValue placeholder="Jahr auswählen" /></SelectTrigger>
-                  <SelectContent>{years.map((year) => <SelectItem key={year} value={year}>{year}</SelectItem>)}</SelectContent>
-                </Select>
+                <CustomCombobox
+                  options={apartmentOptions}
+                  value={filters.selectedApartment}
+                  onChange={(value) => handleFilterChange('selectedApartment', value ?? ALL_APARTMENTS_FILTER)}
+                  placeholder="Wohnung auswählen"
+                  searchPlaceholder="Wohnung suchen..."
+                  emptyText="Keine Wohnung gefunden"
+                  width="w-full"
+                />
+                <CustomCombobox
+                  options={yearOptions}
+                  value={filters.selectedYear}
+                  onChange={(value) => handleFilterChange('selectedYear', value ?? ALL_YEARS_FILTER)}
+                  placeholder="Jahr auswählen"
+                  searchPlaceholder="Jahr suchen..."
+                  emptyText="Kein Jahr gefunden"
+                  width="w-full"
+                />
                 <Select value={filters.selectedType} onValueChange={(value) => handleFilterChange('selectedType', value)}>
                   <SelectTrigger><SelectValue placeholder="Transaktionstyp auswählen" /></SelectTrigger>
                   <SelectContent>
@@ -281,7 +302,7 @@ export function FinanceTransactions({
                           <div className="flex flex-col items-center gap-2">
                             <h3 className="text-sm font-medium text-foreground">Keine Transaktionen gefunden</h3>
                             <p className="text-xs text-muted-foreground max-w-sm text-center">
-                              {filters.searchQuery || filters.selectedApartment !== 'Alle Wohnungen' || filters.selectedYear !== 'Alle Jahre' || filters.selectedType !== 'Alle Transaktionen'
+                              {filters.searchQuery || filters.selectedApartment !== ALL_APARTMENTS_FILTER || filters.selectedYear !== ALL_YEARS_FILTER || filters.selectedType !== 'Alle Transaktionen'
                                 ? 'Versuchen Sie, Ihre Filter anzupassen oder zu entfernen.'
                                 : 'Es wurden noch keine Transaktionen erstellt.'}
                             </p>
@@ -353,7 +374,7 @@ export function FinanceTransactions({
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {sortedAndFilteredData.length} {sortedAndFilteredData.length === 1 ? 'Eintrag' : 'Einträge'} 
-                              {filters.searchQuery || filters.selectedApartment !== 'Alle Wohnungen' || filters.selectedYear !== 'Alle Jahre' || filters.selectedType !== 'Alle Transaktionen'
+                              {filters.searchQuery || filters.selectedApartment !== ALL_APARTMENTS_FILTER || filters.selectedYear !== ALL_YEARS_FILTER || filters.selectedType !== 'Alle Transaktionen'
                                 ? ' entsprechen Ihren Filterkriterien'
                                 : ' insgesamt'}
                             </div>
