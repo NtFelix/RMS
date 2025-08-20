@@ -262,12 +262,7 @@ export function HouseEditModal(props: HouseEditModalProps) {
             </LabelWithTooltip>
           </div>
           <div className="space-y-2">
-            <LabelWithTooltip 
-              htmlFor="manualGroesse"
-              infoText="Geben Sie die Gesamtfläche des Hauses in Quadratmetern ein. Dieser Wert wird für die Berechnung von Betriebskosten pro Quadratmeter verwendet."
-            >
-              Größe in m²
-            </LabelWithTooltip>
+            <Label htmlFor="manualGroesse">Größe in m²</Label>
             <Input
               id="manualGroesse"
               name="manualGroesse"
