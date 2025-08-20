@@ -254,9 +254,6 @@ export function AbrechnungModal({
       const costItemsDetails: TenantCostDetails['costItems'] = [];
 
       if (nebenkostenart && betrag && berechnungsart) {
-        const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
-          ? gesamtFlaeche
-          : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
         const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
         const activeTenantsCount = Math.max(1, tenants.length);
 
