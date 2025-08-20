@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, Home } from "lucide-react"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Search } from "lucide-react"
+import { CustomCombobox } from "@/components/ui/custom-combobox"
 import { Haus } from "@/lib/data-fetching"
 
 interface OperatingCostsFiltersProps {
@@ -21,6 +21,12 @@ export function OperatingCostsFilters({
   haeuser = [] 
 }: OperatingCostsFiltersProps) {
   const [activeFilter, setActiveFilter] = useState("all")
+  const ALL_HOUSES_LABEL = 'Alle Häuser'
+  const [selectedHouse, setSelectedHouse] = useState<string>('all')
+  const houseOptions = useMemo(() => [
+    { value: 'all', label: ALL_HOUSES_LABEL },
+    ...haeuser.map((haus) => ({ value: haus.id, label: haus.name }))
+  ], [haeuser])
 
   const handleFilterClick = (filter: string) => {
     setActiveFilter(filter)
@@ -55,20 +61,19 @@ export function OperatingCostsFilters({
         </div>
         <div className="flex flex-col gap-3 sm:flex-row w-full sm:w-auto">
           <div className="relative w-full sm:w-[200px]">
-            <Select onValueChange={onHouseChange}>
-              <SelectTrigger className="w-full">
-                <Home className="h-4 w-4 mr-2 text-muted-foreground" />
-                <SelectValue placeholder="Haus auswählen" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Alle Häuser</SelectItem>
-                {haeuser.map((haus) => (
-                  <SelectItem key={haus.id} value={haus.id}>
-                    {haus.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <CustomCombobox
+              options={houseOptions}
+              value={selectedHouse}
+              onChange={(value) => {
+                const v = value ?? 'all'
+                setSelectedHouse(v)
+                onHouseChange?.(v)
+              }}
+              placeholder="Haus auswählen"
+              searchPlaceholder="Haus suchen..."
+              emptyText="Kein Haus gefunden"
+              width="w-full"
+            />
           </div>
           <div className="relative w-full sm:w-[300px]">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
