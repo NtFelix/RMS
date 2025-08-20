@@ -292,7 +292,7 @@ export function AbrechnungModal({
               share = totalCostForItem / activeTenantsCount;
               break;
             case 'pro wohnung':
-              verteiler = String(uniqueAptIds.size || 0);
+              verteiler = String(uniqueAptIds.size);
               const totalApartments = uniqueAptIds.size;
               const costPerApartment = totalApartments > 0 ? totalCostForItem / totalApartments : 0;
               share = costPerApartment;
