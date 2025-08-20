@@ -206,7 +206,7 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="name" infoText="Kurze, allgemeine Bezeichnung (z.B. 'Handwerker', 'Hausverwaltung', 'Mieteinnahme'). Erleichtert die spätere Suche und Kategorisierung.">
+              <LabelWithTooltip htmlFor="name" infoText="Kurze, allgemeine Bezeichnung (z.B. 'Handwerker', 'Hausverwaltung'). Detaillierte Informationen können im Notizfeld ergänzt werden. Erleichtert die spätere Suche und Kategorisierung.">
                 Bezeichnung
               </LabelWithTooltip>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
