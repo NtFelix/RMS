@@ -129,13 +129,20 @@ export async function speichereWohnung(formData: WohnungFormData) {
         }
     }
 
-    const { error } = await supabase.from('Wohnungen').insert({
-      name: formData.name,
-      groesse: parseFloat(formData.groesse), // Ensure this is a number
+    const wohnungData: any = {
+      name: formData.name || null, // Make name optional
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
       user_id: userId
-    });
+    };
+    
+    // Only add groesse if it's provided and a valid number
+    const groesse = parseFloat(formData.groesse);
+    if (!isNaN(groesse) && groesse > 0) {
+      wohnungData.groesse = groesse;
+    }
+
+    const { error } = await supabase.from('Wohnungen').insert(wohnungData);
     
     if (error) {
       return { error: error.message };
