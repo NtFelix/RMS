@@ -274,6 +274,7 @@ export default function BetriebskostenClientView({
             onSearchChange={setSearchQuery}
             onHouseChange={setSelectedHouseId}
             haeuser={initialHaeuser}
+            selectedHouseId={selectedHouseId}
           />
           <div ref={tableRef}>
             <OperatingCostsTable

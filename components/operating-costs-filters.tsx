@@ -1,30 +1,34 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { CustomCombobox } from "@/components/ui/custom-combobox"
 import { Haus } from "@/lib/data-fetching"
 
+const ALL_HOUSES_LABEL = 'Alle Häuser'
+const ALL_HOUSES_VALUE = 'all'
+
 interface OperatingCostsFiltersProps {
   onFilterChange: (filter: string) => void
   onSearchChange: (search: string) => void
   onHouseChange?: (houseId: string) => void
   haeuser?: Haus[]
+  selectedHouseId?: string
 }
 
 export function OperatingCostsFilters({ 
   onFilterChange, 
   onSearchChange, 
   onHouseChange,
-  haeuser = [] 
+  haeuser = [],
+  selectedHouseId = ALL_HOUSES_VALUE 
 }: OperatingCostsFiltersProps) {
   const [activeFilter, setActiveFilter] = useState("all")
-  const ALL_HOUSES_LABEL = 'Alle Häuser'
-  const [selectedHouse, setSelectedHouse] = useState<string>('all')
+  
   const houseOptions = useMemo(() => [
-    { value: 'all', label: ALL_HOUSES_LABEL },
+    { value: ALL_HOUSES_VALUE, label: ALL_HOUSES_LABEL },
     ...haeuser.map((haus) => ({ value: haus.id, label: haus.name }))
   ], [haeuser])
 
@@ -63,11 +67,9 @@ export function OperatingCostsFilters({
           <div className="relative w-full sm:w-[200px]">
             <CustomCombobox
               options={houseOptions}
-              value={selectedHouse}
+              value={selectedHouseId}
               onChange={(value) => {
-                const v = value ?? 'all'
-                setSelectedHouse(v)
-                onHouseChange?.(v)
+                onHouseChange?.(value ?? ALL_HOUSES_VALUE)
               }}
               placeholder="Haus auswählen"
               searchPlaceholder="Haus suchen..."
