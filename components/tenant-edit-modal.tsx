@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { LabelWithTooltip } from "@/components/ui/label-with-tooltip"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
@@ -264,7 +265,9 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="wohnung_id">Wohnung</Label>
+              <LabelWithTooltip htmlFor="wohnung_id" infoText="Zugehörige Wohnung auswählen, der der Mieter zugeordnet wird.">
+                Wohnung
+              </LabelWithTooltip>
               <CustomCombobox
                 width="w-full"
                 options={apartmentOptions}
@@ -274,36 +277,51 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
                 searchPlaceholder="Wohnung suchen..."
                 emptyText="Keine Wohnung gefunden."
                 disabled={isLoadingWohnungen || isSubmitting}
+                id="wohnung_id"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
+              <LabelWithTooltip htmlFor="name" infoText="Vollständiger Name des Mieters (z.B. 'Max Mustermann').">
+                Name
+              </LabelWithTooltip>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting}/>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="einzug">Einzug</Label>
+              <LabelWithTooltip htmlFor="einzug" infoText="Einzugsdatum im Format TT.MM.JJJJ. Wird für Mietbeginn und Abrechnungen verwendet.">
+                Einzug
+              </LabelWithTooltip>
               <DatePicker value={formData.einzug} onChange={(date) => handleDateChange('einzug', date)} placeholder="TT.MM.JJJJ" disabled={isSubmitting}/>
-              <input type="hidden" name="einzug" value={formData.einzug} />
+              <input type="hidden" id="einzug" name="einzug" value={formData.einzug} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="auszug">Auszug</Label>
+              <LabelWithTooltip htmlFor="auszug" infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist.">
+                Auszug
+              </LabelWithTooltip>
               <DatePicker value={formData.auszug} onChange={(date) => handleDateChange('auszug', date)} placeholder="TT.MM.JJJJ" disabled={isSubmitting}/>
-              <input type="hidden" name="auszug" value={formData.auszug} />
+              <input type="hidden" id="auszug" name="auszug" value={formData.auszug} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">E-Mail</Label>
+              <LabelWithTooltip htmlFor="email" infoText="Optionale Kontakt-E-Mail des Mieters.">
+                E-Mail
+              </LabelWithTooltip>
               <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="telefonnummer">Telefon</Label>
+              <LabelWithTooltip htmlFor="telefonnummer" infoText="Optionale Telefonnummer des Mieters.">
+                Telefon
+              </LabelWithTooltip>
               <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="notiz">Notiz</Label>
+              <LabelWithTooltip htmlFor="notiz" infoText="Interne Notiz (nur für Sie sichtbar).">
+                Notiz
+              </LabelWithTooltip>
               <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="col-span-2 space-y-2">
-              <Label>Nebenkosten Einträge</Label>
+              <LabelWithTooltip htmlFor="nebenkosten-section" infoText="Optionale Nebenkosten (z.B. Hausmeister, Stellplatz). Einträge ohne Betrag werden ignoriert. Bitte Betrag und Datum angeben, wenn relevant.">
+                Nebenkosten Einträge
+              </LabelWithTooltip>
               {nebenkostenEntries.map((entry) => ( // Removed index from map as entry.id is unique
                 <div key={entry.id} className="p-2 border rounded-md space-y-1">
                   <div className="flex items-center gap-2">
