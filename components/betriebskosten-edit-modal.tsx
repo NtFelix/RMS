@@ -123,7 +123,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       window.removeEventListener('scroll', update, true);
       setSelectContentRect(null);
     };
-  }, [selectContentRef.current]);
+  }, [hoveredBerechnungsart]);
 
   const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
 
