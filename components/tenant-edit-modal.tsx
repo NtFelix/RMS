@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { LabelWithTooltip } from "@/components/ui/label-with-tooltip"
+import { InfoTooltip } from "@/components/ui/info-tooltip"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
 import { DatePicker } from "@/components/ui/date-picker" // Added DatePicker import
@@ -265,9 +265,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
           {/* Removed hidden id input, it's added to FormData directly if editing */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="wohnung_id" infoText="Zugehörige Wohnung auswählen, der der Mieter zugeordnet wird.">
-                Wohnung
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="wohnung_id">Wohnung</Label>
+                <InfoTooltip infoText="Wählen Sie die Wohnung aus, die der Mieter bewohnt. Die Liste zeigt nur Wohnungen des ausgewählten Hauses an." />
+              </div>
               <CustomCombobox
                 width="w-full"
                 options={apartmentOptions}
@@ -281,15 +282,17 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="name" infoText="Vollständiger Name des Mieters (z.B. 'Max Mustermann').">
-                Name
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="name">Name</Label>
+                <InfoTooltip infoText="Vollständiger Name des Mieters (z.B. 'Max Mustermann')." />
+              </div>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting}/>
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="einzug" infoText="Einzugsdatum im Format TT.MM.JJJJ. Wird für Mietbeginn und Abrechnungen verwendet.">
-                Einzug
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="einzug">Einzug</Label>
+                <InfoTooltip infoText="Einzugsdatum im Format TT.MM.JJJJ. Wird für Mietbeginn und Abrechnungen verwendet." />
+              </div>
               <DatePicker 
                 id="einzug"
                 value={formData.einzug} 
@@ -300,9 +303,10 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               <input type="hidden" name="einzug" value={formData.einzug} />
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="auszug" infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist.">
-                Auszug
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="auszug">Auszug</Label>
+                <InfoTooltip infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist." />
+              </div>
               <DatePicker 
                 id="auszug"
                 value={formData.auszug} 
@@ -313,27 +317,33 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               <input type="hidden" name="auszug" value={formData.auszug} />
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="email" infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit).">
-                E-Mail
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="email">E-Mail</Label>
+                <InfoTooltip infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit)." />
+              </div>
               <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="space-y-2">
-              <LabelWithTooltip htmlFor="telefonnummer" infoText="Telefonnummer (hilft bei der Organisation und schnellen Kontaktaufnahme).">
-                Telefon
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="telefonnummer">Telefon</Label>
+                <InfoTooltip infoText="Telefonnummer (hilft bei der Organisation und schnellen Kontaktaufnahme)." />
+              </div>
               <Input id="telefonnummer" name="telefonnummer" value={formData.telefonnummer} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="notiz" infoText="Interne Notiz (nur für Sie sichtbar).">
-                Notiz
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="notiz">Notiz</Label>
+                <InfoTooltip infoText="Hier können Sie zusätzliche Informationen oder Anmerkungen zum Mieter erfassen." />
+              </div>
               <Input id="notiz" name="notiz" value={formData.notiz} onChange={handleChange} disabled={isSubmitting}/>
             </div>
             <div className="col-span-2 space-y-2">
-              <LabelWithTooltip htmlFor="nebenkosten-section" infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert.">
-                Nebenkosten Vorauszahlungen
-              </LabelWithTooltip>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Nebenkosten Vorauszahlungen
+                </h3>
+                <InfoTooltip infoText="Monatliche Vorauszahlungen für Nebenkosten. Bitte geben Sie den Betrag und das Zahlungsdatum ein. Einträge ohne Betrag werden ignoriert." />
+              </div>
               {nebenkostenEntries.map((entry) => ( // Removed index from map as entry.id is unique
                 <div key={entry.id} className="p-2 border rounded-md space-y-1">
                   <div className="flex items-center gap-2">
