@@ -98,6 +98,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   // Tooltip next to dropdown: track hovered verteilerschlüssel, dropdown rect, and hovered item position
   const [hoveredBerechnungsart, setHoveredBerechnungsart] = useState<BerechnungsartValue | ''>('');
   const [hoveredItemRect, setHoveredItemRect] = useState<DOMRect | null>(null);
+  const hoveredItemElRef = useRef<HTMLElement | null>(null);
   const selectContentRef = useRef<HTMLDivElement | null>(null);
   const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
 
@@ -109,6 +110,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     const update = () => {
       if (selectContentRef.current) {
         setSelectContentRect(selectContentRef.current.getBoundingClientRect());
+      }
+      if (hoveredItemElRef.current) {
+        setHoveredItemRect(hoveredItemElRef.current.getBoundingClientRect());
       }
     };
     update();
@@ -577,18 +581,22 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                                   value={opt.value}
                                   onMouseEnter={(e) => {
                                     setHoveredBerechnungsart(opt.value);
+                                    hoveredItemElRef.current = e.currentTarget as unknown as HTMLElement;
                                     setHoveredItemRect(e.currentTarget.getBoundingClientRect());
                                   }}
                                   onMouseLeave={() => {
                                     setHoveredBerechnungsart('');
+                                    hoveredItemElRef.current = null;
                                     setHoveredItemRect(null);
                                   }}
                                   onFocus={(e) => {
                                     setHoveredBerechnungsart(opt.value);
+                                    hoveredItemElRef.current = e.currentTarget as unknown as HTMLElement;
                                     setHoveredItemRect(e.currentTarget.getBoundingClientRect());
                                   }}
                                   onBlur={() => {
                                     setHoveredBerechnungsart('');
+                                    hoveredItemElRef.current = null;
                                     setHoveredItemRect(null);
                                   }}
                                 >
@@ -602,16 +610,15 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                               className="fixed z-[60] transition-none"
                               style={{
                                 top: `${Math.round(selectContentRect.top)}px`,
-                                bottom: `${Math.round(window.innerHeight - selectContentRect.bottom)}px`,
                                 right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
                                 width: '280px',
                               }}
                             >
                               <div className="rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
-                                {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden anteilig nach Wohnungsfläche verteilt (z.B. für Heiz- und Wasserkosten).'}
-                                {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt (z.B. für Müllgebühren).'}
-                                {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt (z.B. für Grundgebühren).'}
-                                {hoveredBerechnungsart === 'nach Rechnung' && 'Individuelle Beträge pro Mieter manuell eintragen (z.B. für Sonderabrechnungen).'}
+                                {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden entsprechend der Wohnungsfläche anteilig verteilt.'}
+                                {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt.'}
+                                {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt.'}
+                                {hoveredBerechnungsart === 'nach Rechnung' && 'Individuelle Beträge werden je Mieter manuell eingetragen.'}
                               </div>
                             </div>,
                             document.body
