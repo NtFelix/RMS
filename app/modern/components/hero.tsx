@@ -77,7 +77,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
         >
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Mühelose Immobilienverwaltung</span>
+            <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Nebenkostenabrechnung</span>
           </div>
         </motion.div>
 
@@ -85,12 +85,14 @@ export default function Hero({ onGetStarted }: HeroProps) {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
+          className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight"
         >
-          Optimieren Sie Ihre
-          <br />
           <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-            Immobilien
+            Nebenkostenabrechnung in 5 Minuten
+          </span>
+          <br />
+          <span className="text-foreground/80">
+            — statt Stunden mit Excel
           </span>
         </motion.h1>
 
@@ -100,7 +102,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
         >
-          Verwalten Sie Ihre Immobilien mit unserem umfassenden Immobilienverwaltungssystem. Verfolgen Sie Finanzen, verwalten Sie Mieter und organisieren Sie Aufgaben – alles an einem Ort.
+          Erstellen Sie mühelos korrekte und transparente Nebenkostenabrechnungen. Sparen Sie Zeit und vermeiden Sie Fehler mit unserer benutzerfreundlichen Lösung für Vermieter und Immobilienverwalter.
         </motion.p>
 
         <motion.div
