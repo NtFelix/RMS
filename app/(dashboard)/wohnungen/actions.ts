@@ -15,6 +15,15 @@ type WohnungFormData = {
   haus_id: string;
 };
 
+// Interface for the Wohnung data that will be inserted into the database
+interface WohnungData {
+  name: string | null;
+  miete: number;
+  haus_id: string | null;
+  user_id: string;
+  groesse?: number;
+}
+
 /**
  * Server Action zum Speichern einer neuen Wohnung
  */
@@ -129,8 +138,8 @@ export async function speichereWohnung(formData: WohnungFormData) {
         }
     }
 
-    const wohnungData: any = {
-      name: formData.name || null, // Make name optional
+    const wohnungData: WohnungData = {
+      name: formData.name || null,
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
       user_id: userId
