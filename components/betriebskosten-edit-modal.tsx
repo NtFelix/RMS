@@ -615,10 +615,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                               }}
                             >
                               <div className="rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
-                                {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden entsprechend der Wohnungsfläche anteilig verteilt.'}
+                                {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden anteilig nach Wohnungsfläche verteilt.'}
                                 {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt.'}
                                 {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt.'}
-                                {hoveredBerechnungsart === 'nach Rechnung' && 'Individuelle Beträge werden je Mieter manuell eingetragen.'}
+                                {hoveredBerechnungsart === 'nach Rechnung' && 'Beträge werden je Mieter manuell erfasst.'}
                               </div>
                             </div>,
                             document.body
