@@ -290,15 +290,27 @@ export function TenantEditModal({ serverAction }: TenantEditModalProps) {
               <LabelWithTooltip htmlFor="einzug" infoText="Einzugsdatum im Format TT.MM.JJJJ. Wird für Mietbeginn und Abrechnungen verwendet.">
                 Einzug
               </LabelWithTooltip>
-              <DatePicker value={formData.einzug} onChange={(date) => handleDateChange('einzug', date)} placeholder="TT.MM.JJJJ" disabled={isSubmitting}/>
-              <input type="hidden" id="einzug" name="einzug" value={formData.einzug} />
+              <DatePicker 
+                id="einzug"
+                value={formData.einzug} 
+                onChange={(date) => handleDateChange('einzug', date)} 
+                placeholder="TT.MM.JJJJ" 
+                disabled={isSubmitting}
+              />
+              <input type="hidden" name="einzug" value={formData.einzug} />
             </div>
             <div className="space-y-2">
               <LabelWithTooltip htmlFor="auszug" infoText="Auszugsdatum (optional). Leer lassen, wenn der Mietvertrag noch aktiv ist.">
                 Auszug
               </LabelWithTooltip>
-              <DatePicker value={formData.auszug} onChange={(date) => handleDateChange('auszug', date)} placeholder="TT.MM.JJJJ" disabled={isSubmitting}/>
-              <input type="hidden" id="auszug" name="auszug" value={formData.auszug} />
+              <DatePicker 
+                id="auszug"
+                value={formData.auszug} 
+                onChange={(date) => handleDateChange('auszug', date)} 
+                placeholder="TT.MM.JJJJ" 
+                disabled={isSubmitting}
+              />
+              <input type="hidden" name="auszug" value={formData.auszug} />
             </div>
             <div className="space-y-2">
               <LabelWithTooltip htmlFor="email" infoText="Kontakt-E-Mail (empfohlen für bessere Organisation und schnelle Erreichbarkeit).">
