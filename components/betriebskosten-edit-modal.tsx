@@ -597,14 +597,14 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                               ))}
                             </SelectContent>
                           </Select>
-                          {selectContentRect && hoveredBerechnungsart && hoveredItemRect && createPortal(
+                          {selectContentRect && hoveredBerechnungsart && createPortal(
                             <div
                               className="fixed z-[60] transition-none"
                               style={{
-                                top: `${Math.round(hoveredItemRect.top)}px`,
+                                top: `${Math.round(selectContentRect.top)}px`,
+                                bottom: `${Math.round(window.innerHeight - selectContentRect.bottom)}px`,
                                 right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
                                 width: '280px',
-                                transform: 'translateY(-50%)',
                               }}
                             >
                               <div className="rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
