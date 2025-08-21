@@ -605,16 +605,17 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                               ))}
                             </SelectContent>
                           </Select>
-                          {selectContentRect && hoveredBerechnungsart && createPortal(
+                          {selectContentRect && hoveredBerechnungsart && hoveredItemRect && createPortal(
                             <div
                               className="fixed z-[60] transition-none"
                               style={{
-                                top: `${Math.round(selectContentRect.top)}px`,
+                                top: `${Math.round(hoveredItemRect.top)}px`,
                                 right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
                                 width: '280px',
+                                minHeight: `${Math.round(hoveredItemRect.height)}px`,
                               }}
                             >
-                              <div className="rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
+                              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm flex items-center">
                                 {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden anteilig nach Wohnungsfläche verteilt.'}
                                 {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt.'}
                                 {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt.'}
