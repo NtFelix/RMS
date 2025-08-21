@@ -95,8 +95,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
 
-  // Tooltip next to dropdown: track hovered verteilerschlüssel and dropdown rect
+  // Tooltip next to dropdown: track hovered verteilerschlüssel, dropdown rect, and hovered item position
   const [hoveredBerechnungsart, setHoveredBerechnungsart] = useState<BerechnungsartValue | ''>('');
+  const [hoveredItemRect, setHoveredItemRect] = useState<DOMRect | null>(null);
   const selectContentRef = useRef<HTMLDivElement | null>(null);
   const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
 
@@ -574,23 +575,39 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                                 <SelectItem
                                   key={opt.value}
                                   value={opt.value}
-                                  onMouseEnter={() => setHoveredBerechnungsart(opt.value)}
-                                  onMouseLeave={() => setHoveredBerechnungsart('')}
+                                  onMouseEnter={(e) => {
+                                    setHoveredBerechnungsart(opt.value);
+                                    setHoveredItemRect(e.currentTarget.getBoundingClientRect());
+                                  }}
+                                  onMouseLeave={() => {
+                                    setHoveredBerechnungsart('');
+                                    setHoveredItemRect(null);
+                                  }}
+                                  onFocus={(e) => {
+                                    setHoveredBerechnungsart(opt.value);
+                                    setHoveredItemRect(e.currentTarget.getBoundingClientRect());
+                                  }}
+                                  onBlur={() => {
+                                    setHoveredBerechnungsart('');
+                                    setHoveredItemRect(null);
+                                  }}
                                 >
                                   {opt.label}
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          {selectContentRect && hoveredBerechnungsart && createPortal(
+                          {selectContentRect && hoveredBerechnungsart && hoveredItemRect && createPortal(
                             <div
-                              className="fixed z-[60]"
+                              className="fixed z-[60] transition-none"
                               style={{
-                                top: Math.round(selectContentRect.top),
-                                left: Math.round(selectContentRect.right + 8),
+                                top: `${Math.round(hoveredItemRect.top)}px`,
+                                right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
+                                width: '280px',
+                                transform: 'translateY(-50%)',
                               }}
                             >
-                              <div className="max-w-[280px] rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
+                              <div className="rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
                                 {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden anteilig nach Wohnungsfläche verteilt (z.B. für Heiz- und Wasserkosten).'}
                                 {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt (z.B. für Müllgebühren).'}
                                 {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt (z.B. für Grundgebühren).'}
