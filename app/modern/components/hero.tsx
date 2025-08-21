@@ -68,50 +68,96 @@ export default function Hero({ onGetStarted }: HeroProps) {
         }}
       />
 
-      <div className="relative z-10 text-center max-w-6xl mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="mb-6"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Nebenkostenabrechnung</span>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Headline and CTA */}
+          <div className="text-left">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="mb-6"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Nebenkostenabrechnung</span>
+              </div>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight"
+            >
+              <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+                Nebenkostenabrechnung in 5 Minuten
+              </span>
+              <br />
+              <span className="text-foreground/80">
+                — statt Stunden mit Excel
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-xl leading-relaxed"
+            >
+              Erstellen Sie mühelos korrekte und transparente Nebenkostenabrechnungen. Sparen Sie Zeit und vermeiden Sie Fehler mit unserer benutzerfreundlichen Lösung für Vermieter und Immobilienverwalter.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+            >
+              <CallToAction variant="hero" onGetStarted={onGetStarted} />
+            </motion.div>
           </div>
-        </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight"
-        >
-          <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-            Nebenkostenabrechnung in 5 Minuten
-          </span>
-          <br />
-          <span className="text-foreground/80">
-            — statt Stunden mit Excel
-          </span>
-        </motion.h1>
+          {/* Right: Product mockup */}
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.25 }}
+          >
+            <div className="relative">
+              <div className="absolute -inset-6 bg-gradient-to-r from-primary/20 to-secondary/20 blur-2xl rounded-3xl" aria-hidden />
+              <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+                {/* Window top bar */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+                  <span className="w-3 h-3 rounded-full bg-red-400" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-400" />
+                  <span className="w-3 h-3 rounded-full bg-green-400" />
+                  <div className="ml-3 text-sm text-muted-foreground truncate">Demo: Abrechnung erstellen</div>
+                </div>
 
-        <motion.p
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
-        >
-          Erstellen Sie mühelos korrekte und transparente Nebenkostenabrechnungen. Sparen Sie Zeit und vermeiden Sie Fehler mit unserer benutzerfreundlichen Lösung für Vermieter und Immobilienverwalter.
-        </motion.p>
+                {/* Mock content */}
+                <div className="p-4 sm:p-6">
+                  <div className="rounded-full bg-muted/70 flex items-center gap-2 px-3 py-2 text-muted-foreground text-sm">
+                    <div className="w-4 h-4 rounded-full bg-primary/60" />
+                    <span className="truncate">Dashboard-Beispiel der Nebenkostenabrechnung</span>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">So sieht eine Abrechnungsvorschau aus. In der Demo siehst du jeden Schritt bis zum PDF.</p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
-          <CallToAction variant="hero" onGetStarted={onGetStarted} />
-        </motion.div>
+                  <div className="mt-6 grid grid-cols-3 gap-3">
+                    <div className="h-24 rounded-md bg-accent/40" />
+                    <div className="h-24 rounded-md bg-accent/40" />
+                    <div className="h-24 rounded-md bg-accent/40" />
+                  </div>
+
+                  <div className="mt-6 rounded-lg border border-border bg-background/60 p-4">
+                    <div className="h-40 rounded-md bg-muted/60" />
+                    <div className="mt-3 h-2 w-2/3 rounded bg-muted/60" />
+                    <div className="mt-2 h-2 w-1/2 rounded bg-muted/50" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Bottom Gradient - Adjusted for theme */}
@@ -119,3 +165,4 @@ export default function Hero({ onGetStarted }: HeroProps) {
     </section>
   )
 }
+
