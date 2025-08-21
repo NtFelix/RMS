@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { formatNumber } from "@/utils/format";
+import { createPortal } from "react-dom";
 
 const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue => {
   const berechnungsartMap: Record<string, BerechnungsartValue> = {
@@ -93,6 +94,31 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
+
+  // Tooltip next to dropdown: track hovered verteilerschlüssel and dropdown rect
+  const [hoveredBerechnungsart, setHoveredBerechnungsart] = useState<BerechnungsartValue | ''>('');
+  const selectContentRef = useRef<HTMLDivElement | null>(null);
+  const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!selectContentRef.current) {
+      setSelectContentRect(null);
+      return;
+    }
+    const update = () => {
+      if (selectContentRef.current) {
+        setSelectContentRect(selectContentRef.current.getBoundingClientRect());
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+      setSelectContentRect(null);
+    };
+  }, [selectContentRef.current]);
 
   const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
 
@@ -543,12 +569,36 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                             <SelectTrigger id={`berechnungsart-${item.id}`}>
                               <SelectValue placeholder="Berechnungsart..." />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent ref={selectContentRef}>
                               {BERECHNUNGSART_OPTIONS.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                <SelectItem
+                                  key={opt.value}
+                                  value={opt.value}
+                                  onMouseEnter={() => setHoveredBerechnungsart(opt.value)}
+                                  onMouseLeave={() => setHoveredBerechnungsart('')}
+                                >
+                                  {opt.label}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {selectContentRect && hoveredBerechnungsart && createPortal(
+                            <div
+                              className="fixed z-[60]"
+                              style={{
+                                top: Math.round(selectContentRect.top),
+                                left: Math.round(selectContentRect.right + 8),
+                              }}
+                            >
+                              <div className="max-w-[280px] rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm">
+                                {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden anteilig nach Wohnungsfläche verteilt (z.B. für Heiz- und Wasserkosten).'}
+                                {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt (z.B. für Müllgebühren).'}
+                                {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt (z.B. für Grundgebühren).'}
+                                {hoveredBerechnungsart === 'nach Rechnung' && 'Individuelle Beträge pro Mieter manuell eintragen (z.B. für Sonderabrechnungen).'}
+                              </div>
+                            </div>,
+                            document.body
+                          )}
                         </div>
                         <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
                           <Button type="button" variant="ghost" size="icon" onClick={() => removeCostItem(index)} disabled={costItems.length <= 1 || isLoadingDetails || isSaving} aria-label="Kostenposition entfernen">
