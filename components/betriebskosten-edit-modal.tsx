@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { formatNumber } from "@/utils/format";
+import { createPortal } from "react-dom";
 
 const normalizeBerechnungsart = (rawValue: string): BerechnungsartValue => {
   const berechnungsartMap: Record<string, BerechnungsartValue> = {
@@ -93,6 +94,57 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [modalNebenkostenData, setModalNebenkostenData] = useState<Nebenkosten | null>(null);
   const currentlyLoadedNebenkostenId = React.useRef<string | null | undefined>(null);
+
+  // Tooltip next to dropdown: track hovered verteilerschlüssel, dropdown rect, and hovered item position
+  const [hoveredBerechnungsart, setHoveredBerechnungsart] = useState<BerechnungsartValue | ''>('');
+  
+  // Map of tooltip texts for each Berechnungsart
+  const tooltipMap: Record<BerechnungsartValue | '', string> = {
+    'pro Flaeche': 'Kosten werden anteilig nach Wohnungsfläche verteilt.',
+    'pro Mieter': 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt.',
+    'pro Wohnung': 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt.',
+    'nach Rechnung': 'Beträge werden je Mieter manuell erfasst.',
+    '': ''
+  };
+  const [hoveredItemRect, setHoveredItemRect] = useState<DOMRect | null>(null);
+  const hoveredItemElRef = useRef<HTMLElement | null>(null);
+  const selectContentRef = useRef<HTMLDivElement | null>(null);
+  const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
+
+  const handleItemHover = (e: React.MouseEvent<HTMLDivElement> | React.FocusEvent<HTMLDivElement>, value: BerechnungsartValue) => {
+    setHoveredBerechnungsart(value);
+    hoveredItemElRef.current = e.currentTarget as HTMLElement;
+    setHoveredItemRect(e.currentTarget.getBoundingClientRect());
+  };
+
+  const handleItemLeave = () => {
+    setHoveredBerechnungsart('');
+    hoveredItemElRef.current = null;
+    setHoveredItemRect(null);
+  };
+
+  useEffect(() => {
+    if (!selectContentRef.current) {
+      setSelectContentRect(null);
+      return;
+    }
+    const update = () => {
+      if (selectContentRef.current) {
+        setSelectContentRect(selectContentRef.current.getBoundingClientRect());
+      }
+      if (hoveredItemElRef.current) {
+        setHoveredItemRect(hoveredItemElRef.current.getBoundingClientRect());
+      }
+    };
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+      setSelectContentRect(null);
+    };
+  }, [hoveredBerechnungsart]);
 
   const houseOptions: ComboboxOption[] = (betriebskostenModalHaeuser || []).map(h => ({ value: h.id, label: h.name }));
 
@@ -543,12 +595,37 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                             <SelectTrigger id={`berechnungsart-${item.id}`}>
                               <SelectValue placeholder="Berechnungsart..." />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent ref={selectContentRef}>
                               {BERECHNUNGSART_OPTIONS.map(opt => (
-                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                <SelectItem
+                                  key={opt.value}
+                                  value={opt.value}
+                                  onMouseEnter={(e) => handleItemHover(e, opt.value)}
+                                  onMouseLeave={handleItemLeave}
+                                  onFocus={(e) => handleItemHover(e, opt.value)}
+                                  onBlur={handleItemLeave}
+                                >
+                                  {opt.label}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
+                          {selectContentRect && hoveredBerechnungsart && hoveredItemRect && createPortal(
+                            <div
+                              className="fixed z-[60] transition-none"
+                              style={{
+                                top: `${Math.round(hoveredItemRect.top)}px`,
+                                right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
+                                width: '280px',
+                                minHeight: `${Math.round(hoveredItemRect.height)}px`,
+                              }}
+                            >
+                              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-sm p-3 text-sm flex items-center">
+                                {tooltipMap[hoveredBerechnungsart]}
+                              </div>
+                            </div>,
+                            document.body
+                          )}
                         </div>
                         <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
                           <Button type="button" variant="ghost" size="icon" onClick={() => removeCostItem(index)} disabled={costItems.length <= 1 || isLoadingDetails || isSaving} aria-label="Kostenposition entfernen">

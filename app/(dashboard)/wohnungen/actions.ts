@@ -15,6 +15,15 @@ type WohnungFormData = {
   haus_id: string;
 };
 
+// Interface for the Wohnung data that will be inserted into the database
+interface WohnungData {
+  name: string | null;
+  miete: number;
+  haus_id: string | null;
+  user_id: string;
+  groesse?: number;
+}
+
 /**
  * Server Action zum Speichern einer neuen Wohnung
  */
@@ -129,13 +138,20 @@ export async function speichereWohnung(formData: WohnungFormData) {
         }
     }
 
-    const { error } = await supabase.from('Wohnungen').insert({
-      name: formData.name,
-      groesse: parseFloat(formData.groesse), // Ensure this is a number
+    const wohnungData: WohnungData = {
+      name: formData.name || null,
       miete: parseFloat(formData.miete),
       haus_id: formData.haus_id || null,
       user_id: userId
-    });
+    };
+    
+    // Only add groesse if it's provided and a valid number
+    const groesse = parseFloat(formData.groesse);
+    if (!isNaN(groesse) && groesse > 0) {
+      wohnungData.groesse = groesse;
+    }
+
+    const { error } = await supabase.from('Wohnungen').insert(wohnungData);
     
     if (error) {
       return { error: error.message };

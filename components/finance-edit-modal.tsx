@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LabelWithTooltip } from "@/components/ui/label-with-tooltip";
 import {
   Select,
   SelectTrigger,
@@ -206,15 +206,21 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
         <form onSubmit={handleSubmit} className="grid gap-4 pt-4 pb-2">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="name">Bezeichnung</Label>
+              <LabelWithTooltip htmlFor="name" infoText="Kurze, allgemeine Bezeichnung (z.B. 'Handwerker', 'Hausverwaltung'). Detaillierte Informationen können im Notizfeld ergänzt werden. Erleichtert die spätere Suche und Kategorisierung.">
+                Bezeichnung
+              </LabelWithTooltip>
               <Input id="name" name="name" value={formData.name} onChange={handleChange} required disabled={isSubmitting} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="betrag">Betrag (€)</Label>
+              <LabelWithTooltip htmlFor="betrag" infoText="Betrag der Transaktion in Euro.">
+                Betrag (€)
+              </LabelWithTooltip>
               <Input id="betrag" name="betrag" type="number" step="0.01" value={formData.betrag} onChange={handleChange} required disabled={isSubmitting} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="datum">Datum</Label>
+              <LabelWithTooltip htmlFor="datum" infoText="Buchungs- oder Zahlungsdatum. Wird für Monats- und Jahresauswertungen, Cashflow-Berechnungen und die korrekte Zuordnung von Transaktionen verwendet.">
+                Datum
+              </LabelWithTooltip>
               <DatePicker
                 id="datum"
                 value={formData.datum}
@@ -224,7 +230,9 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="wohnung_id">Wohnung</Label>
+              <LabelWithTooltip htmlFor="wohnung_id" infoText="Optionale Zuordnung zu einer Wohnung. Erleichtert die Auswertung pro Objekt.">
+                Wohnung
+              </LabelWithTooltip>
               <CustomCombobox
                 id="wohnung_id"
                 width="w-full"
@@ -238,7 +246,9 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ist_einnahmen">Typ</Label>
+              <LabelWithTooltip htmlFor="ist_einnahmen" infoText="Einnahmen oder Ausgaben auswählen. Beeinflusst Auswertungen.">
+                Typ
+              </LabelWithTooltip>
               <Select
                 name="ist_einnahmen"
                 value={formData.ist_einnahmen ? "Einnahmen" : "Ausgaben"}
@@ -255,7 +265,12 @@ export function FinanceEditModal(props: FinanceEditModalProps) {
               </Select>
             </div>
             <div className="col-span-2 space-y-2">
-              <Label htmlFor="notiz">Notiz</Label>
+              <LabelWithTooltip 
+                htmlFor="notiz" 
+                infoText="Optionale interne Notiz. Hier können zusätzliche Details wie Rechnungsnummern, spezifische Leistungen oder weitere Informationen eingetragen werden. Der Inhalt ist durchsuchbar und erleichtert das spätere Auffinden spezifischer Transaktionen."
+              >
+                Notiz
+              </LabelWithTooltip>
               <Input id="notiz" name="notiz" value={formData.notiz || ""} onChange={handleChange} disabled={isSubmitting} />
             </div>
           </div>

@@ -26,12 +26,13 @@ export async function handleSubmit(id: string | null, formData: FormData): Promi
       }
     }
 
-    // Validate required fields
+    // Get form data
     const name = formData.get('name')?.toString();
-    const ort = formData.get('ort')?.toString();
+    const ort = formData.get('ort')?.toString() || '';
 
-    if (!name || !ort) {
-      return { success: false, error: { message: 'Name und Ort sind Pflichtfelder.' } };
+    // Validate required field
+    if (!name) {
+      return { success: false, error: { message: 'Name ist ein Pflichtfeld.' } };
     }
 
     // Explicitly pick only the expected fields
