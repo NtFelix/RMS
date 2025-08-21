@@ -615,7 +615,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                                 minHeight: `${Math.round(hoveredItemRect.height)}px`,
                               }}
                             >
-                              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-md p-3 text-sm flex items-center">
+                              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-sm p-3 text-sm flex items-center">
                                 {hoveredBerechnungsart === 'pro Flaeche' && 'Kosten werden anteilig nach Wohnungsfläche verteilt.'}
                                 {hoveredBerechnungsart === 'pro Mieter' && 'Kosten werden gleichmäßig auf alle Mieter aufgeteilt.'}
                                 {hoveredBerechnungsart === 'pro Wohnung' && 'Kosten werden gleichmäßig auf alle Wohnungen aufgeteilt.'}
