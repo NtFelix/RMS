@@ -48,19 +48,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { CustomCombobox, ComboboxOption } from "@/components/ui/custom-combobox";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Nebenkosten, Haus, Mieter } from "../lib/data-fetching";
+import { PlusCircle, Trash2, GripVertical } from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Skeleton } from "./ui/skeleton";
+import { Mieter, Nebenkosten } from "../lib/data-fetching";
+import { BerechnungsartValue, BERECHNUNGSART_OPTIONS } from "../lib/constants";
 import { 
   getNebenkostenDetailsAction,
   createNebenkosten, 
@@ -71,246 +66,17 @@ import {
 } from "../app/betriebskosten-actions";
 import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
-import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
-import { PlusCircle, Trash2, GripVertical } from "lucide-react";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { LabelWithTooltip } from "./ui/label-with-tooltip";
+import { CustomCombobox } from "./ui/custom-combobox";
+import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 
-interface CostItem {
-  id: string;
-  art: string;
-  betrag: string;
-  berechnungsart: BerechnungsartValue | '';
-}
+// Re-export for other components that might need it
+export type { CostItem, RechnungEinzel };
 
-interface RechnungEinzel {
-  mieterId: string;
-  betrag: string;
-}
-
-interface SortableCostItemProps {
-  item: CostItem;
-  index: number;
-  costItems: CostItem[];
-  selectedHausMieter: Mieter[];
-  rechnungen: Record<string, RechnungEinzel[]>;
-  isSaving: boolean;
-  isLoadingDetails: boolean;
-  isFetchingTenants: boolean;
-  haeuserId: string;
-  onCostItemChange: (index: number, field: keyof Omit<CostItem, 'id'>, value: string | BerechnungsartValue) => void;
-  onRemoveCostItem: (index: number) => void;
-  onRechnungChange: (costItemId: string, mieterId: string, newBetrag: string) => void;
-  hoveredBerechnungsart: BerechnungsartValue | '';
-  selectContentRect: DOMRect | null;
-  hoveredItemRect: DOMRect | null;
-  tooltipMap: Record<BerechnungsartValue | '', string>;
-  onItemHover: (e: React.MouseEvent<HTMLDivElement> | React.FocusEvent<HTMLDivElement>, value: BerechnungsartValue) => void;
-  onItemLeave: () => void;
-  selectContentRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function SortableCostItem({
-  item,
-  index,
-  costItems,
-  selectedHausMieter,
-  rechnungen,
-  isSaving,
-  isLoadingDetails,
-  isFetchingTenants,
-  haeuserId,
-  onCostItemChange,
-  onRemoveCostItem,
-  onRechnungChange,
-  hoveredBerechnungsart,
-  selectContentRect,
-  hoveredItemRect,
-  tooltipMap,
-  onItemHover,
-  onItemLeave,
-  selectContentRef,
-}: SortableCostItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex flex-col gap-3 py-2 border-b last:border-b-0 ${isDragging ? 'z-10' : ''}`}
-      role="group"
-      aria-label={`Kostenposition ${index + 1}`}
-    >
-      <div className="flex flex-col sm:flex-row items-start gap-3">
-        <div className="flex items-center justify-center flex-none w-8 h-10">
-          <button
-            type="button"
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-colors flex items-center justify-center w-6 h-6"
-            {...attributes}
-            {...listeners}
-            aria-label="Kostenposition verschieben"
-          >
-            <GripVertical className="h-4 w-4 text-gray-400" />
-          </button>
-        </div>
-        <div className="w-full sm:flex-[4_1_0%]">
-          <Input
-            id={`art-${item.id}`}
-            placeholder="Kostenart"
-            value={item.art}
-            onChange={(e) => onCostItemChange(index, 'art', e.target.value)}
-            disabled={isSaving}
-          />
-        </div>
-        <div className="w-full sm:flex-[3_1_0%]">
-          {item.berechnungsart === 'nach Rechnung' ? (
-            <div className="flex items-center justify-center h-10 px-3 py-2 text-sm text-muted-foreground bg-gray-50 border rounded-md">
-              Beträge pro Mieter unten
-            </div>
-          ) : (
-            <Input
-              id={`betrag-${item.id}`}
-              type="number"
-              placeholder="Betrag (€)"
-              value={item.betrag}
-              onChange={(e) => onCostItemChange(index, 'betrag', e.target.value)}
-              step="0.01"
-              disabled={isSaving}
-            />
-          )}
-        </div>
-        <div className="w-full sm:flex-[4_1_0%]">
-          <Select
-            value={item.berechnungsart}
-            onValueChange={(value) => onCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
-            disabled={isSaving}
-          >
-            <SelectTrigger id={`berechnungsart-${item.id}`}>
-              <SelectValue placeholder="Berechnungsart..." />
-            </SelectTrigger>
-            <SelectContent ref={selectContentRef}>
-              {BERECHNUNGSART_OPTIONS.map(opt => (
-                <SelectItem
-                  key={opt.value}
-                  value={opt.value}
-                  onMouseEnter={(e) => onItemHover(e, opt.value)}
-                  onMouseLeave={onItemLeave}
-                  onFocus={(e) => onItemHover(e, opt.value)}
-                  onBlur={onItemLeave}
-                >
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectContentRect && hoveredBerechnungsart && hoveredItemRect && createPortal(
-            <div
-              className="fixed z-[60] transition-none"
-              style={{
-                top: `${Math.round(hoveredItemRect.top)}px`,
-                right: `${window.innerWidth - Math.round(selectContentRect.left) + 8}px`,
-                width: '280px',
-                minHeight: `${Math.round(hoveredItemRect.height)}px`,
-              }}
-            >
-              <div className="h-full rounded-md border bg-popover text-popover-foreground shadow-sm p-3 text-sm flex items-center">
-                {tooltipMap[hoveredBerechnungsart]}
-              </div>
-            </div>,
-            document.body
-          )}
-        </div>
-        <div className="flex items-center justify-center flex-none w-10 h-10">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onRemoveCostItem(index)}
-            disabled={costItems.length <= 1 || isLoadingDetails || isSaving}
-            aria-label="Kostenposition entfernen"
-            className="h-8 w-8"
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </div>
-      </div>
-
-      {item.berechnungsart === 'nach Rechnung' && (
-        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md space-y-3 shadow-sm">
-          <h4 className="text-md font-semibold text-gray-700">
-            Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
-          </h4>
-          {isFetchingTenants ? (
-            Array.from({ length: 3 }).map((_, skelIdx) => (
-              <div key={`skel-tenant-${skelIdx}`} className="grid grid-cols-10 gap-2 items-center py-1">
-                <Skeleton className="h-8 w-full col-span-6 sm:col-span-7" />
-                <Skeleton className="h-8 w-full col-span-4 sm:col-span-3" />
-              </div>
-            ))
-          ) : (
-            <>
-              {!isFetchingTenants && !haeuserId && (
-                <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">
-                  Bitte wählen Sie zuerst ein Haus aus, um Mieter zu laden.
-                </p>
-              )}
-              {!isFetchingTenants && haeuserId && selectedHausMieter.length === 0 && !isLoadingDetails && (
-                <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">
-                  Für das ausgewählte Haus wurden keine Mieter gefunden.
-                </p>
-              )}
-              {selectedHausMieter.length > 0 && (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                  {selectedHausMieter.map(mieter => {
-                    const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
-                    return (
-                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-1 border-b border-gray-100 last:border-b-0">
-                        <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="col-span-6 sm:col-span-7 truncate text-sm" title={mieter.name}>
-                          {mieter.name}
-                        </Label>
-                        <div className="col-span-4 sm:col-span-3">
-                          <Input
-                            id={`rechnung-${item.id}-${mieter.id}`}
-                            type="number"
-                            step="0.01"
-                            placeholder="Betrag (€)"
-                            value={rechnungForMieter?.betrag || ''}
-                            onChange={(e) => onRechnungChange(item.id, mieter.id, e.target.value)}
-                            className="w-full text-sm"
-                            disabled={isLoadingDetails || isSaving}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-              {rechnungen[item.id] && selectedHausMieter.length > 0 && (
-                <div className="pt-2 mt-2 border-t border-gray-300 flex justify-end">
-                  <p className="text-sm font-semibold text-gray-700">
-                    Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0))} €
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
+interface ComboboxOption {
+  value: string;
+  label: string;
 }
 
 interface BetriebskostenEditModalPropsRefactored {}
@@ -328,7 +94,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
   const [jahr, setJahr] = useState("");
   const [wasserkosten, setWasserkosten] = useState("");
-  const [haeuserId, setHaeuserId] = useState("");
+  const [hausId, setHausId] = useState("");
   const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
@@ -355,7 +121,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   const selectContentRef = useRef<HTMLDivElement | null>(null);
   const [selectContentRect, setSelectContentRect] = useState<DOMRect | null>(null);
 
-  const handleItemHover = (e: React.MouseEvent<HTMLDivElement> | React.FocusEvent<HTMLDivElement>, value: BerechnungsartValue) => {
+  const handleItemHover = (e: React.MouseEvent<HTMLElement> | React.FocusEvent<HTMLElement>, value: BerechnungsartValue) => {
     setHoveredBerechnungsart(value);
     hoveredItemElRef.current = e.currentTarget as HTMLElement;
     setHoveredItemRect(e.currentTarget.getBoundingClientRect());
@@ -490,7 +256,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     const resetAllStates = (forNewEntry: boolean = true) => {
       setJahr(forNewEntry ? new Date().getFullYear().toString() : "");
       setWasserkosten("");
-      setHaeuserId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
+      setHausId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
       setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
       setSelectedHausMieter([]);
       setRechnungen({});
@@ -517,7 +283,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               const fetchedData = response.data;
               setModalNebenkostenData(fetchedData);
               setJahr(fetchedData.jahr || "");
-              setHaeuserId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
+              setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               setWasserkosten(fetchedData.wasserkosten?.toString() || "");
 
               const newCostItems: CostItem[] = (fetchedData.nebenkostenart || []).map((art, idx) => ({
@@ -553,11 +319,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   }, [isBetriebskostenModalOpen, betriebskostenInitialData, betriebskostenModalHaeuser, toast, setBetriebskostenModalDirty]);
 
   useEffect(() => {
-    if (isBetriebskostenModalOpen && haeuserId && jahr) {
+    if (isBetriebskostenModalOpen && hausId && jahr) {
       const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
-          const tenantResponse = await getMieterByHausIdAction(haeuserId, jahr);
+          const tenantResponse = await getMieterByHausIdAction(hausId, jahr);
           if (tenantResponse.success && tenantResponse.data) {
             setSelectedHausMieter(tenantResponse.data);
           } else {
@@ -572,10 +338,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         }
       };
       fetchTenants();
-    } else if (!isBetriebskostenModalOpen || !haeuserId) {
+    } else if (!isBetriebskostenModalOpen || !hausId) {
       setSelectedHausMieter([]);
     }
-  }, [isBetriebskostenModalOpen, haeuserId, jahr, toast]);
+  }, [isBetriebskostenModalOpen, hausId, jahr, toast]);
 
   const syncRechnungenState = (
     currentTenants: Mieter[], 
@@ -619,7 +385,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
     const currentEditId = modalNebenkostenData?.id || betriebskostenInitialData?.id;
 
-    if (!jahr || !haeuserId) {
+    if (!jahr || !hausId) {
       toast({ title: "Fehlende Eingaben", description: "Jahr und Haus sind Pflichtfelder.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
@@ -685,7 +451,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
       wasserkosten: parsedWasserkosten,
-      haeuser_id: haeuserId,
+      haeuser_id: hausId,
     };
 
     let response;
@@ -775,7 +541,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
   const handleJahrChange = (e: React.ChangeEvent<HTMLInputElement>) => { setJahr(e.target.value); setBetriebskostenModalDirty(true); };
   const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { setWasserkosten(e.target.value); setBetriebskostenModalDirty(true); };
-  const handleHausChange = (value: string | null) => { setHaeuserId(value || ""); setBetriebskostenModalDirty(true); };
+  const handleHausChange = (newHausId: string | null) => { 
+    setHausId(newHausId || ''); 
+    setBetriebskostenModalDirty(true); 
+  };
 
   if (!isBetriebskostenModalOpen) {
     return null;
@@ -813,7 +582,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   Haus *
                 </LabelWithTooltip>
                 {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <CustomCombobox width="w-full" options={houseOptions} value={haeuserId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
+                  <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
                 )}
               </div>
             </div>
@@ -864,7 +633,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                           isSaving={isSaving}
                           isLoadingDetails={isLoadingDetails}
                           isFetchingTenants={isFetchingTenants}
-                          haeuserId={haeuserId}
+                          hausId={hausId}
                           onCostItemChange={handleCostItemChange}
                           onRemoveCostItem={removeCostItem}
                           onRechnungChange={handleRechnungChange}
