@@ -72,17 +72,6 @@ export default function Hero({ onGetStarted }: HeroProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Left: Headline and CTA */}
           <div className="text-left">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="mb-6"
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Abrechnung</span>
-              </div>
-            </motion.div>
 
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
@@ -114,6 +103,17 @@ export default function Hero({ onGetStarted }: HeroProps) {
               transition={{ duration: 0.8, delay: 0.6 }}
             >
               <CallToAction variant="hero" onGetStarted={onGetStarted} />
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="mt-6"
+              >
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Abrechnung</span>
+                </div>
+              </motion.div>
             </motion.div>
           </div>
 
