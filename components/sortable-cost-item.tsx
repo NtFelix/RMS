@@ -135,7 +135,15 @@ export function SortableCostItem({
         <div className="w-full sm:flex-[4_1_0%]">
           <Select
             value={item.berechnungsart}
-            onValueChange={(value) => onCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
+            onValueChange={(value) => {
+              onCostItemChange(index, 'berechnungsart', value as BerechnungsartValue);
+              // Clear tooltip after selecting a value
+              onItemLeave();
+            }}
+            onOpenChange={(open) => {
+              // When the dropdown closes (e.g. after selection), ensure tooltip is cleared
+              if (!open) onItemLeave();
+            }}
             disabled={isSaving}
           >
             <SelectTrigger
