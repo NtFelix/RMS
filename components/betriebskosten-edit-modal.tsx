@@ -155,10 +155,10 @@ function SortableCostItem({
       aria-label={`Kostenposition ${index + 1}`}
     >
       <div className="flex flex-col sm:flex-row items-start gap-3">
-        <div className="flex items-center gap-2 flex-none">
+        <div className="flex items-center justify-center flex-none w-8 h-10">
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-colors"
+            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-colors flex items-center justify-center w-6 h-6"
             {...attributes}
             {...listeners}
             aria-label="Kostenposition verschieben"
@@ -233,7 +233,7 @@ function SortableCostItem({
             document.body
           )}
         </div>
-        <div className="flex-none self-center sm:self-start pt-1 sm:pt-0">
+        <div className="flex items-center justify-center flex-none w-10 h-10">
           <Button
             type="button"
             variant="ghost"
@@ -241,8 +241,9 @@ function SortableCostItem({
             onClick={() => onRemoveCostItem(index)}
             disabled={costItems.length <= 1 || isLoadingDetails || isSaving}
             aria-label="Kostenposition entfernen"
+            className="h-8 w-8"
           >
-            <Trash2 className="h-5 w-5 text-destructive" />
+            <Trash2 className="h-4 w-4 text-destructive" />
           </Button>
         </div>
       </div>
@@ -833,11 +834,15 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-3 py-2 border-b last:border-b-0">
                       <div className="flex flex-col sm:flex-row items-start gap-3">
-                        <Skeleton className="h-10 w-8 flex-none" />
+                        <div className="flex items-center justify-center flex-none w-8 h-10">
+                          <Skeleton className="h-6 w-6 rounded" />
+                        </div>
                         <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
                         <Skeleton className="h-10 w-full sm:flex-[3_1_0%]" />
                         <Skeleton className="h-10 w-full sm:flex-[4_1_0%]" />
-                        <Skeleton className="h-10 w-10 flex-none self-center sm:self-start" />
+                        <div className="flex items-center justify-center flex-none w-10 h-10">
+                          <Skeleton className="h-8 w-8 rounded" />
+                        </div>
                       </div>
                     </div>
                   ))
