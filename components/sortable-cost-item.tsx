@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { formatNumber } from "@/utils/format";
 import { createPortal } from "react-dom";
 import { useSortable } from '@dnd-kit/sortable';
@@ -70,6 +70,7 @@ export function SortableCostItem({
   onItemLeave,
   selectContentRef,
 }: SortableCostItemProps) {
+  const selectTriggerRef = useRef<HTMLButtonElement>(null);
   const {
     attributes,
     listeners,
@@ -142,11 +143,11 @@ export function SortableCostItem({
               onMouseLeave={onItemLeave}
               onFocus={(e) => item.berechnungsart && onItemHover(e, item.berechnungsart as BerechnungsartValue)}
               onBlur={onItemLeave}
-              ref={selectContentRef as any}
+              ref={selectTriggerRef}
             >
               <SelectValue placeholder="Berechnungsart" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent ref={selectContentRef}>
               {BERECHNUNGSART_OPTIONS.map((option) => (
                 <SelectItem
                   key={option.value}
