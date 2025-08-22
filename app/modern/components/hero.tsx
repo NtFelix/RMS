@@ -68,10 +68,10 @@ export default function Hero({ onGetStarted }: HeroProps) {
         }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-0 py-16">
+      <div className="relative z-10 max-w-7xl mx-auto px-0 pt-28 md:pt-32 pb-16">
         <div className="grid grid-cols-1 gap-12 items-center">
           {/* Left: Headline and CTA */}
-          <div className="text-left">
+          <div className="text-left w-full max-w-[640px] mx-auto">
 
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
@@ -119,6 +119,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
 
           {/* Right: Product mockup */}
           <motion.div
+            className="w-full max-w-[640px] mx-auto"
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.25 }}
