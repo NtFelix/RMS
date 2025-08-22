@@ -102,18 +102,20 @@ export default function Hero({ onGetStarted }: HeroProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              <CallToAction variant="hero" onGetStarted={onGetStarted} />
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="mt-6"
-              >
+              <div className="flex flex-col items-center">
+                <CallToAction variant="hero" onGetStarted={onGetStarted} />
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="mt-6"
+                >
                 <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
                   <Sparkles className="w-4 h-4 text-primary" />
                   <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Abrechnung</span>
                 </div>
               </motion.div>
+              </div>
             </motion.div>
           </div>
 
