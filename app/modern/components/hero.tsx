@@ -68,10 +68,10 @@ export default function Hero({ onGetStarted }: HeroProps) {
         }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-0 pt-28 md:pt-32 pb-16">
-        <div className="grid grid-cols-1 gap-12 items-center">
+      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-16">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12 items-center">
           {/* Left: Headline and CTA */}
-          <div className="text-left w-full max-w-[640px] mx-auto">
+          <div className="text-center w-full">
 
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
@@ -92,7 +92,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-xl leading-relaxed"
+              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed text-center"
             >
               Erstellen Sie mühelos korrekte und transparente Abrechnungen. Sparen Sie Zeit und vermeiden Sie Fehler mit unserer benutzerfreundlichen Lösung für Vermieter und Immobilienverwalter.
             </motion.p>
@@ -119,7 +119,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
 
           {/* Right: Product mockup */}
           <motion.div
-            className="w-full max-w-[640px] mx-auto"
+            className="w-full"
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.25 }}
