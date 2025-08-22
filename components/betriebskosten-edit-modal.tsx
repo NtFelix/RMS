@@ -50,16 +50,11 @@ import { getMieterByHausIdAction } from "../app/mieter-actions";
 import { useToast } from "../hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { LabelWithTooltip } from "./ui/label-with-tooltip";
-import { CustomCombobox } from "./ui/custom-combobox";
+import { CustomCombobox, type ComboboxOption } from "./ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
-
-interface ComboboxOption {
-  value: string;
-  label: string;
-}
 
 interface BetriebskostenEditModalPropsRefactored {}
 
