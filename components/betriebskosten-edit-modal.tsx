@@ -72,7 +72,7 @@ import {
 import { getMieterByHausIdAction } from "../app/mieter-actions"; 
 import { useToast } from "../hooks/use-toast";
 import { BERECHNUNGSART_OPTIONS, BerechnungsartValue } from "../lib/constants";
-import { PlusCircle, Trash2, MoreVertical } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical } from "lucide-react";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { LabelWithTooltip } from "./ui/label-with-tooltip";
 
@@ -163,7 +163,7 @@ function SortableCostItem({
             {...listeners}
             aria-label="Kostenposition verschieben"
           >
-            <MoreVertical className="h-4 w-4 text-gray-400" />
+            <GripVertical className="h-4 w-4 text-gray-400" />
           </button>
         </div>
         <div className="w-full sm:flex-[4_1_0%]">
