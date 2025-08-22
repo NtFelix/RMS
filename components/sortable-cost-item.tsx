@@ -152,7 +152,7 @@ export function SortableCostItem({
                 <SelectItem
                   key={option.value}
                   value={option.value}
-                  onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => onItemHover(e as unknown as React.MouseEvent<HTMLDivElement>, option.value as BerechnungsartValue)}
+                  onMouseEnter={(e) => onItemHover(e, option.value as BerechnungsartValue)}
                   onMouseLeave={onItemLeave}
                 >
                   {option.label}
