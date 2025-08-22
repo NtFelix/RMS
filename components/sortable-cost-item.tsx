@@ -136,6 +136,10 @@ export function SortableCostItem({
           <Select
             value={item.berechnungsart}
             onValueChange={(value) => onCostItemChange(index, 'berechnungsart', value as BerechnungsartValue)}
+            onOpenChange={(open) => {
+              // When the dropdown closes (e.g. after selection), ensure tooltip is cleared
+              if (!open) onItemLeave();
+            }}
             disabled={isSaving}
           >
             <SelectTrigger
