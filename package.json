@@ -10,6 +10,9 @@
     "test": "NODE_ENV=test jest"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^3.9.1",
     "@notionhq/client": "^4.0.0",
     "@posthog/nextjs-config": "^1.0.2",
