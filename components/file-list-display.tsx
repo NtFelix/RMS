@@ -47,8 +47,9 @@ import {
   Table as TableIcon
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { FileItem } from "@/types/cloud-storage"
+import { FileItem, FolderNode, SubscriptionLimits } from "@/types/cloud-storage"
 import { formatNumber } from "@/utils/format"
+import { useModalStore } from "@/hooks/use-modal-store"
 
 // File sorting and filtering types
 type FileSortKey = "name" | "size" | "uploadedAt" | "mimeType"
@@ -61,6 +62,8 @@ interface FileListDisplayProps {
   onSelectAll: (selected: boolean) => void
   onFileAction: (action: FileAction, fileIds: string[]) => void
   onFilePreview?: (file: FileItem) => void
+  availableFolders?: FolderNode[]
+  subscriptionLimits?: SubscriptionLimits
   className?: string
   loading?: boolean
 }
@@ -123,9 +126,12 @@ export const FileListDisplay: React.FC<FileListDisplayProps> = ({
   onSelectAll,
   onFileAction,
   onFilePreview,
+  availableFolders = [],
+  subscriptionLimits,
   className,
   loading = false
 }) => {
+  const { openFilePreviewModal } = useModalStore()
   const [sortKey, setSortKey] = useState<FileSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
   const [searchQuery, setSearchQuery] = useState("")
@@ -222,8 +228,29 @@ export const FileListDisplay: React.FC<FileListDisplayProps> = ({
   }
 
   const handleSingleFileAction = (action: FileAction, file: FileItem) => {
-    if (action === "preview" && onFilePreview) {
-      onFilePreview(file)
+    if (action === "preview") {
+      if (subscriptionLimits) {
+        // Use the new modal store approach
+        openFilePreviewModal(
+          file,
+          availableFolders,
+          subscriptionLimits,
+          async (actionType: string, fileId: string, data?: any) => {
+            // Convert single file action to array format for consistency
+            await new Promise<void>((resolve, reject) => {
+              try {
+                onFileAction(actionType as FileAction, [fileId])
+                resolve()
+              } catch (error) {
+                reject(error)
+              }
+            })
+          }
+        )
+      } else if (onFilePreview) {
+        // Fallback to legacy approach
+        onFilePreview(file)
+      }
     } else {
       onFileAction(action, [file.id])
     }

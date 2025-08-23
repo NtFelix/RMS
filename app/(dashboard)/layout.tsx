@@ -28,6 +28,7 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Add
 import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
 import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
 import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
+import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -72,6 +73,10 @@ export default function DashboardRootLayout({
     // openAufgabeModal, // Used by other components to open
     // Betriebskosten modal state (only need isBetriebskostenModalOpen for conditional rendering if any)
     isBetriebskostenModalOpen,
+    // File Preview Modal state
+    isFilePreviewModalOpen,
+    filePreviewModalData,
+    closeFilePreviewModal,
     // Confirmation Modal state
     isConfirmationModalOpen,
     confirmationModalConfig,
@@ -122,6 +127,18 @@ export default function DashboardRootLayout({
 
       {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
       <ApartmentTenantDetailsModal />
+
+      {/* FilePreviewModal - Displays file preview with actions */}
+      {filePreviewModalData && (
+        <FilePreviewModal
+          file={filePreviewModalData.file}
+          isOpen={isFilePreviewModalOpen}
+          onClose={closeFilePreviewModal}
+          onFileAction={filePreviewModalData.onFileAction}
+          availableFolders={filePreviewModalData.availableFolders}
+          subscriptionLimits={filePreviewModalData.subscriptionLimits}
+        />
+      )}
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

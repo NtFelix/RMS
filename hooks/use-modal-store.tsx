@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
 import { Tenant, KautionData } from '@/types/Tenant';
+import { FileItem, FolderNode, SubscriptionLimits } from '@/types/cloud-storage';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -94,6 +95,13 @@ interface ConfirmationModalConfig {
   onCancel?: () => void;
   confirmText?: string;
   cancelText?: string;
+}
+
+interface FilePreviewModalData {
+  file: FileItem;
+  availableFolders: FolderNode[];
+  subscriptionLimits: SubscriptionLimits;
+  onFileAction: (action: string, fileId: string, data?: any) => Promise<void>;
 }
 
 interface CloseModalOptions {
@@ -239,6 +247,17 @@ export interface ModalState {
   setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => void;
   refreshApartmentTenantDetailsData: () => Promise<void>;
 
+  // File Preview Modal State
+  isFilePreviewModalOpen: boolean;
+  filePreviewModalData?: FilePreviewModalData;
+  openFilePreviewModal: (
+    file: FileItem,
+    availableFolders: FolderNode[],
+    subscriptionLimits: SubscriptionLimits,
+    onFileAction: (action: string, fileId: string, data?: any) => Promise<void>
+  ) => void;
+  closeFilePreviewModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -337,6 +356,11 @@ const initialApartmentTenantDetailsModalState = {
   apartmentTenantDetailsError: undefined,
 };
 
+const initialFilePreviewModalState = {
+  isFilePreviewModalOpen: false,
+  filePreviewModalData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -349,6 +373,7 @@ const createInitialModalState = () => ({
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
+  ...initialFilePreviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -688,6 +713,18 @@ export const useModalStore = create<ModalState>((set, get) => {
     setApartmentTenantDetailsLoading: (loading: boolean) => set({ apartmentTenantDetailsLoading: loading }),
     setApartmentTenantDetailsError: (error?: string) => set({ apartmentTenantDetailsError: error }),
     setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => set({ apartmentTenantDetailsData: data }),
+
+    // File Preview Modal
+    openFilePreviewModal: (file, availableFolders, subscriptionLimits, onFileAction) => set({
+      isFilePreviewModalOpen: true,
+      filePreviewModalData: {
+        file,
+        availableFolders,
+        subscriptionLimits,
+        onFileAction
+      }
+    }),
+    closeFilePreviewModal: () => set(initialFilePreviewModalState),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,
