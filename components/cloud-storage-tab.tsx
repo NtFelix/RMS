@@ -4,11 +4,24 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Folder, Upload, FileText, Image, Download, Trash2, RefreshCw } from "lucide-react"
+import { 
+  Folder, 
+  Upload, 
+  FileText, 
+  Image as ImageIcon, 
+  Download, 
+  Trash2, 
+  RefreshCw,
+  File,
+  AlertCircle
+} from "lucide-react"
 import { FileTreeView } from "@/components/file-tree-view"
 import { FileBreadcrumbNavigation } from "@/components/file-breadcrumb-navigation"
 import { FileUploadZone } from "@/components/file-upload-zone"
-import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
+import { FileContextMenu } from "@/components/file-context-menu"
+import { FilePreviewModal } from "@/components/file-preview-modal"
+import { useCloudStorageStore, useCloudStorageOperations } from "@/hooks/use-cloud-storage-store"
+import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
 
 interface CloudStorageTabProps {
@@ -18,6 +31,7 @@ interface CloudStorageTabProps {
 export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showUploadZone, setShowUploadZone] = useState(false)
+  const { toast } = useToast()
   
   const { 
     currentPath, 
@@ -34,6 +48,11 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     setError,
     refreshCurrentPath
   } = useCloudStorageStore()
+  
+  const {
+    isOperationInProgress,
+    operationError,
+  } = useCloudStorageOperations()
 
   // Initialize with root path
   useEffect(() => {
@@ -52,6 +71,45 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
       setIsRefreshing(false)
     }
   }
+
+  // Get file type icon
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase()
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) {
+      return <ImageIcon className="h-8 w-8 text-green-500" />
+    }
+    
+    if (['pdf'].includes(extension || '')) {
+      return <FileText className="h-8 w-8 text-red-500" />
+    }
+    
+    if (['doc', 'docx'].includes(extension || '')) {
+      return <FileText className="h-8 w-8 text-blue-500" />
+    }
+    
+    return <File className="h-8 w-8 text-gray-500" />
+  }
+
+  // Format file size
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  // Show operation error toast
+  useEffect(() => {
+    if (operationError) {
+      toast({
+        title: "Fehler bei Dateioperation",
+        description: operationError,
+        variant: "destructive",
+      })
+    }
+  }, [operationError, toast])
 
   // Get current folder name for display
   const getCurrentFolderName = () => {
@@ -103,7 +161,19 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
 
       {error && (
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-          <p className="text-sm text-destructive">{error}</p>
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {isOperationInProgress && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center space-x-2">
+            <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
+            <p className="text-sm text-blue-600">Dateioperation wird ausgeführt...</p>
+          </div>
         </div>
       )}
 
@@ -178,30 +248,44 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {files.map((file) => (
-                    <div
-                      key={file.id}
-                      className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                    >
-                      <div className="flex flex-col items-center space-y-2">
-                        <FileText className="h-8 w-8 text-blue-500" />
-                        <span className="text-sm font-medium text-center truncate w-full" title={file.name}>
-                          {file.name}
-                        </span>
-                        <div className="text-xs text-muted-foreground">
-                          {new Date(file.updated_at).toLocaleDateString('de-DE')}
-                        </div>
-                        <div className="flex space-x-1">
-                          <Button size="sm" variant="ghost" title="Herunterladen">
-                            <Download className="h-3 w-3" />
-                          </Button>
-                          <Button size="sm" variant="ghost" title="Löschen">
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                    <FileContextMenu key={file.id} file={file}>
+                      <div className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors group">
+                        <div className="flex flex-col items-center space-y-3">
+                          {getFileIcon(file.name)}
+                          
+                          <div className="text-center w-full">
+                            <span 
+                              className="text-sm font-medium block truncate w-full" 
+                              title={file.name}
+                            >
+                              {file.name}
+                            </span>
+                            
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {formatFileSize(file.size)}
+                            </div>
+                            
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(file.updated_at).toLocaleDateString('de-DE')}
+                            </div>
+                          </div>
+                          
+                          {/* Quick action buttons - shown on hover */}
+                          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              title="Rechtsklick für weitere Optionen"
+                              className="text-xs px-2 py-1 h-auto"
+                            >
+                              Optionen
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </FileContextMenu>
                   ))}
                 </div>
               )}
@@ -209,6 +293,9 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
           </Card>
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal />
     </div>
   )
 }

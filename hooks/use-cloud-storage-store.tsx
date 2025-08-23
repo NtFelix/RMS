@@ -57,6 +57,10 @@ interface CloudStorageState {
   previewFile: StorageObject | null
   isPreviewOpen: boolean
   
+  // File operations state
+  isOperationInProgress: boolean
+  operationError: string | null
+  
   // Actions
   navigateToPath: (path: string) => void
   setBreadcrumbs: (breadcrumbs: BreadcrumbItem[]) => void
@@ -73,6 +77,14 @@ interface CloudStorageState {
   clearUploadQueue: () => void
   setUploading: (uploading: boolean) => void
   processUploadQueue: () => Promise<void>
+  
+  // File operations actions
+  downloadFile: (file: StorageObject) => Promise<void>
+  deleteFile: (file: StorageObject) => Promise<void>
+  renameFile: (file: StorageObject, newName: string) => Promise<void>
+  moveFile: (file: StorageObject, newPath: string) => Promise<void>
+  setOperationInProgress: (inProgress: boolean) => void
+  setOperationError: (error: string | null) => void
   
   // Preview actions
   openPreview: (file: StorageObject) => void
@@ -94,6 +106,8 @@ const initialState = {
   isUploading: false,
   previewFile: null,
   isPreviewOpen: false,
+  isOperationInProgress: false,
+  operationError: null,
 }
 
 export const useCloudStorageStore = create<CloudStorageState>()(
@@ -189,6 +203,128 @@ export const useCloudStorageStore = create<CloudStorageState>()(
     setUploading: (uploading: boolean) => {
       set((state) => {
         state.isUploading = uploading
+      })
+    },
+    
+    // File operations actions
+    downloadFile: async (file: StorageObject) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { triggerFileDownload } = await import('@/lib/storage-service')
+        const filePath = `${get().currentPath}/${file.name}`
+        await triggerFileDownload(filePath, file.name)
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Download failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    deleteFile: async (file: StorageObject) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { deleteFile } = await import('@/lib/storage-service')
+        const filePath = `${get().currentPath}/${file.name}`
+        await deleteFile(filePath)
+        
+        // Remove file from current files list
+        set((state) => {
+          state.files = state.files.filter(f => f.id !== file.id)
+        })
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Delete failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    renameFile: async (file: StorageObject, newName: string) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { renameFile } = await import('@/lib/storage-service')
+        const filePath = `${get().currentPath}/${file.name}`
+        await renameFile(filePath, newName)
+        
+        // Update file in current files list
+        set((state) => {
+          const fileIndex = state.files.findIndex(f => f.id === file.id)
+          if (fileIndex !== -1) {
+            state.files[fileIndex] = { ...file, name: newName }
+          }
+        })
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Rename failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    moveFile: async (file: StorageObject, newPath: string) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { moveFile } = await import('@/lib/storage-service')
+        const oldPath = `${get().currentPath}/${file.name}`
+        const fullNewPath = `${newPath}/${file.name}`
+        await moveFile(oldPath, fullNewPath)
+        
+        // Remove file from current files list if moved to different directory
+        if (newPath !== get().currentPath) {
+          set((state) => {
+            state.files = state.files.filter(f => f.id !== file.id)
+          })
+        }
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Move failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    setOperationInProgress: (inProgress: boolean) => {
+      set((state) => {
+        state.isOperationInProgress = inProgress
+      })
+    },
+    
+    setOperationError: (error: string | null) => {
+      set((state) => {
+        state.operationError = error
       })
     },
     
@@ -375,5 +511,19 @@ export const useCloudStoragePreview = () => {
     isPreviewOpen: store.isPreviewOpen,
     openPreview: store.openPreview,
     closePreview: store.closePreview,
+  }
+}
+
+export const useCloudStorageOperations = () => {
+  const store = useCloudStorageStore()
+  return {
+    isOperationInProgress: store.isOperationInProgress,
+    operationError: store.operationError,
+    downloadFile: store.downloadFile,
+    deleteFile: store.deleteFile,
+    renameFile: store.renameFile,
+    moveFile: store.moveFile,
+    setOperationInProgress: store.setOperationInProgress,
+    setOperationError: store.setOperationError,
   }
 }

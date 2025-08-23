@@ -31,8 +31,10 @@ export interface StorageService {
   uploadFile(file: File, path: string, options?: UploadOptions): Promise<StorageResult>;
   listFiles(prefix: string): Promise<StorageObject[]>;
   downloadFile(path: string): Promise<Blob>;
+  triggerFileDownload(path: string, filename?: string): Promise<void>;
   deleteFile(path: string): Promise<void>;
   moveFile(oldPath: string, newPath: string): Promise<void>;
+  renameFile(filePath: string, newName: string): Promise<void>;
   createPlaceholder(path: string): Promise<void>;
   getFileUrl(path: string): Promise<string>;
 }
@@ -204,7 +206,7 @@ export async function listFiles(prefix: string): Promise<StorageObject[]> {
 }
 
 /**
- * Downloads a file from storage
+ * Downloads a file from storage with performance optimization
  */
 export async function downloadFile(path: string): Promise<Blob> {
   await validateUserPath(path);
@@ -212,15 +214,52 @@ export async function downloadFile(path: string): Promise<Blob> {
   
   const supabase = createClient();
   
-  const { data, error } = await supabase.storage
+  // Set a timeout for the download to meet 2-second performance target
+  const downloadPromise = supabase.storage
     .from(STORAGE_BUCKET)
     .download(sanitizedPath);
   
-  if (error) {
-    throw new Error(`Failed to download file: ${error.message}`);
-  }
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Download timeout: File download took longer than 2 seconds')), 2000);
+  });
   
-  return data;
+  try {
+    const { data, error } = await Promise.race([downloadPromise, timeoutPromise]);
+    
+    if (error) {
+      throw new Error(`Failed to download file: ${error.message}`);
+    }
+    
+    return data;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('timeout')) {
+      throw error;
+    }
+    throw new Error(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Triggers a browser download for a file
+ */
+export async function triggerFileDownload(path: string, filename?: string): Promise<void> {
+  try {
+    const blob = await downloadFile(path);
+    const url = URL.createObjectURL(blob);
+    
+    // Create a temporary download link
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename || path.split('/').pop() || 'download';
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    throw new Error(`Failed to trigger download: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
@@ -256,6 +295,17 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   if (error) {
     throw new Error(`Failed to move file: ${error.message}`);
   }
+}
+
+/**
+ * Renames a file in the same directory
+ */
+export async function renameFile(filePath: string, newName: string): Promise<void> {
+  const pathSegments = filePath.split('/');
+  const directory = pathSegments.slice(0, -1).join('/');
+  const newPath = `${directory}/${newName}`;
+  
+  await moveFile(filePath, newPath);
 }
 
 /**
@@ -299,8 +349,10 @@ export const storageService: StorageService = {
   uploadFile,
   listFiles,
   downloadFile,
+  triggerFileDownload,
   deleteFile,
   moveFile,
+  renameFile,
   createPlaceholder,
   getFileUrl,
 };
