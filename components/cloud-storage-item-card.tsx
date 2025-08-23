@@ -181,41 +181,48 @@ export function CloudStorageItemCard({
       
       <ContextMenuSeparator />
       
-      {onRename && (
-        <ContextMenuItem onClick={onRename}>
-          <Edit3 className="h-4 w-4 mr-2" />
-          Umbenennen
-        </ContextMenuItem>
-      )}
+      <ContextMenuItem onClick={onRename || (() => console.log('Rename placeholder'))}>
+        <Edit3 className="h-4 w-4 mr-2" />
+        Umbenennen
+      </ContextMenuItem>
       
-      {onMove && (
-        <ContextMenuItem onClick={onMove}>
-          <Move className="h-4 w-4 mr-2" />
-          Verschieben
-        </ContextMenuItem>
-      )}
+      <ContextMenuItem onClick={onMove || (() => console.log('Move placeholder'))}>
+        <Move className="h-4 w-4 mr-2" />
+        Verschieben
+      </ContextMenuItem>
       
-      {onShare && (
-        <ContextMenuItem onClick={onShare}>
-          <Share2 className="h-4 w-4 mr-2" />
-          Teilen
-        </ContextMenuItem>
-      )}
-      
-      {onStar && (
-        <ContextMenuItem onClick={onStar}>
-          <Star className="h-4 w-4 mr-2" />
-          Favorit
-        </ContextMenuItem>
-      )}
+      <ContextMenuItem onClick={() => console.log('Copy placeholder')}>
+        <Copy className="h-4 w-4 mr-2" />
+        Kopieren
+      </ContextMenuItem>
       
       <ContextMenuSeparator />
       
+      <ContextMenuItem onClick={onShare || (() => console.log('Share placeholder'))}>
+        <Share2 className="h-4 w-4 mr-2" />
+        Teilen
+      </ContextMenuItem>
+      
+      <ContextMenuItem onClick={onStar || (() => console.log('Star placeholder'))}>
+        <Star className="h-4 w-4 mr-2" />
+        Zu Favoriten hinzufügen
+      </ContextMenuItem>
+      
+      <ContextMenuSeparator />
+      
+      <ContextMenuItem onClick={() => console.log('Properties placeholder')}>
+        <Eye className="h-4 w-4 mr-2" />
+        Eigenschaften
+      </ContextMenuItem>
+      
       {onDelete && (
-        <ContextMenuItem onClick={onDelete} className="text-destructive">
-          <Trash2 className="h-4 w-4 mr-2" />
-          Löschen
-        </ContextMenuItem>
+        <>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={onDelete} className="text-destructive">
+            <Trash2 className="h-4 w-4 mr-2" />
+            Löschen
+          </ContextMenuItem>
+        </>
       )}
     </>
   )
