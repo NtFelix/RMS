@@ -160,19 +160,7 @@ export function CloudStorageQuickActions({
       </div>
 
       {/* Search and filters */}
-      <div className="flex items-center space-x-4">
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Dateien und Ordner durchsuchen..."
-              value={searchQuery}
-              onChange={(e) => onSearch(e.target.value)}
-              className="pl-10 h-9"
-            />
-          </div>
-        </div>
-        
+      <div className="flex items-center justify-between space-x-4">
         <div className="flex items-center space-x-2">
           <span className="text-sm text-muted-foreground">Filter:</span>
           
@@ -222,6 +210,17 @@ export function CloudStorageQuickActions({
             <Clock className="h-3 w-3 mr-1" />
             Kürzlich
           </Button>
+        </div>
+
+        {/* Search input moved to the right */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Dateien und Ordner durchsuchen..."
+            value={searchQuery}
+            onChange={(e) => onSearch(e.target.value)}
+            className="pl-10 h-9 w-64"
+          />
         </div>
       </div>
     </div>
