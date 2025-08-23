@@ -36,13 +36,13 @@ function CloudStorageLoading() {
 
 async function CloudStorageContent({ userId }: { userId: string }) {
   // Load initial files on the server
-  const { files, error } = await getInitialFiles(userId)
+  const { files, folders, error } = await getInitialFiles(userId)
   
   if (error) {
     console.error('Error loading initial files:', error)
   }
 
-  return <CloudStorageTab userId={userId} initialFiles={files} />
+  return <CloudStorageTab userId={userId} initialFiles={files} initialFolders={folders} />
 }
 
 export default async function DateienPage() {

@@ -282,16 +282,26 @@ export async function listFiles(prefix: string, options?: {
             throw mapError(error, 'list_files');
           }
           
-          // Map FileObject[] to StorageObject[]
-          return (data || []).map(file => ({
-            name: file.name,
-            id: file.id || file.name,
-            updated_at: file.updated_at || new Date().toISOString(),
-            created_at: file.created_at || new Date().toISOString(),
-            last_accessed_at: file.last_accessed_at || new Date().toISOString(),
-            metadata: file.metadata || {},
-            size: file.metadata?.size || 0,
-          }));
+          // Filter and map FileObject[] to StorageObject[]
+          // Only return actual files (not folders) and exclude .keep files
+          return (data || [])
+            .filter(file => {
+              // Skip .keep placeholder files
+              if (file.name === '.keep') return false
+              
+              // Only include actual files (items with size or file extensions)
+              // Folders in Supabase don't have metadata.size and don't have extensions
+              return file.metadata?.size || file.name.includes('.')
+            })
+            .map(file => ({
+              name: file.name,
+              id: file.id || file.name,
+              updated_at: file.updated_at || new Date().toISOString(),
+              created_at: file.created_at || new Date().toISOString(),
+              last_accessed_at: file.last_accessed_at || new Date().toISOString(),
+              metadata: file.metadata || {},
+              size: file.metadata?.size || 0,
+            }));
         },
         query
       );

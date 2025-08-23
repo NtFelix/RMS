@@ -22,7 +22,7 @@ import { FileUploadZone } from "@/components/file-upload-zone"
 import { FileContextMenu } from "@/components/file-context-menu"
 import { FilePreviewModal } from "@/components/file-preview-modal"
 import { ArchiveBrowserModal } from "@/components/archive-browser-modal"
-import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive, useCloudStorageUpload } from "@/hooks/use-cloud-storage-store"
+import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive, useCloudStorageUpload, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
 import { StorageErrorBoundary, LoadingErrorBoundary } from "@/components/storage-error-boundary"
@@ -39,9 +39,10 @@ import { performanceMonitor } from "@/lib/storage-performance"
 interface CloudStorageTabProps {
   userId?: string
   initialFiles?: any[]
+  initialFolders?: { name: string; path: string }[]
 }
 
-export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) {
+export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showUploadZone, setShowUploadZone] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
@@ -57,7 +58,7 @@ export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) 
     isLoading, 
     error,
     breadcrumbs,
-    navigateToPath,
+    navigateToPath: originalNavigateToPath,
     setBreadcrumbs,
     setFiles,
     setFolders,
@@ -65,6 +66,16 @@ export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) 
     setError,
     refreshCurrentPath
   } = useCloudStorageStore()
+
+  // Enhanced navigation function that clears files when changing paths
+  const navigateToPath = (path: string) => {
+    // Clear current files when navigating to a new path
+    if (path !== currentPath) {
+      setFiles([])
+      setFolders([])
+    }
+    originalNavigateToPath(path)
+  }
   
   const {
     isOperationInProgress,
@@ -110,19 +121,73 @@ export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) 
     }
   }, [actualUserId, currentPath, navigateToPath, setBreadcrumbs])
 
-  // Set initial files if provided
+  // Set initial files and folders if provided
   useEffect(() => {
     if (initialFiles && initialFiles.length > 0 && !files.length) {
       setFiles(initialFiles)
     }
   }, [initialFiles, files.length, setFiles])
 
-  // Load files when path changes (but not on initial load if we have initialFiles)
   useEffect(() => {
-    if (currentPath && actualUserId && (!initialFiles || files.length === 0)) {
-      refreshCurrentPath()
+    if (initialFolders && initialFolders.length > 0 && !folders.length) {
+      const virtualFolders = initialFolders.map(folder => ({
+        name: folder.name,
+        path: folder.path,
+        type: 'category' as const,
+        isEmpty: true,
+        children: [],
+        fileCount: 0
+      }))
+      setFolders(virtualFolders)
     }
-  }, [currentPath, actualUserId, refreshCurrentPath, initialFiles, files.length])
+  }, [initialFolders, folders.length, setFolders])
+
+  // Load files when path changes
+  useEffect(() => {
+    if (currentPath && actualUserId) {
+      // Only refresh if we don't have initial files for the root path, or if the path has changed
+      const isRootPath = currentPath === `user_${actualUserId}`
+      const hasInitialData = initialFiles && initialFiles.length > 0
+      
+      if (!isRootPath || !hasInitialData) {
+        refreshCurrentPath()
+      }
+    }
+  }, [currentPath, actualUserId, refreshCurrentPath, initialFiles])
+
+  // Update breadcrumbs when path changes
+  useEffect(() => {
+    if (currentPath && actualUserId) {
+      // Generate breadcrumbs based on current path
+      const generateBreadcrumbs = (): BreadcrumbItem[] => {
+        const breadcrumbs: BreadcrumbItem[] = [
+          { name: 'Cloud Storage', path: `user_${actualUserId}`, type: 'root' }
+        ]
+        
+        const userPath = `user_${actualUserId}`
+        if (currentPath !== userPath) {
+          const relativePath = currentPath.startsWith(userPath) 
+            ? currentPath.substring(userPath.length + 1) 
+            : currentPath
+          const segments = relativePath.split('/').filter(Boolean)
+          
+          let currentSegmentPath = userPath
+          segments.forEach((segment) => {
+            currentSegmentPath += `/${segment}`
+            breadcrumbs.push({
+              name: segment,
+              path: currentSegmentPath,
+              type: 'category'
+            })
+          })
+        }
+        
+        return breadcrumbs
+      }
+      
+      setBreadcrumbs(generateBreadcrumbs())
+    }
+  }, [currentPath, actualUserId, setBreadcrumbs])
 
   // Monitor online status
   useEffect(() => {
@@ -387,9 +452,9 @@ export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) 
               <CardDescription>
                 {isLoading 
                   ? "Lade Dateien..." 
-                  : files.length === 0 
+                  : files.length === 0 && folders.length === 0
                     ? "Noch keine Dateien vorhanden" 
-                    : `${files.length} Dateien`
+                    : `${files.length} Dateien${folders.length > 0 ? `, ${folders.length} Ordner` : ''}`
                 }
               </CardDescription>
             </CardHeader>
@@ -398,7 +463,7 @@ export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) 
                 isLoading={isLoading}
                 error={error}
                 onRetry={handleRefresh}
-                isEmpty={files.length === 0}
+                isEmpty={files.length === 0 && folders.length === 0}
                 loadingComponent={<FileGridSkeleton count={8} />}
                 emptyComponent={
                   <EmptyFileList 
@@ -407,6 +472,39 @@ export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) 
                 }
               >
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {/* Render folders first */}
+                  {folders.map((folder) => (
+                    <div 
+                      key={folder.path} 
+                      className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors group"
+                      onClick={() => navigateToPath(folder.path)}
+                    >
+                      <div className="flex flex-col items-center space-y-3">
+                        <Folder className="h-8 w-8 text-blue-500" />
+                        
+                        <div className="text-center w-full">
+                          <span 
+                            className="text-sm font-medium block truncate w-full" 
+                            title={folder.name}
+                          >
+                            {folder.name}
+                          </span>
+                          
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Ordner
+                          </div>
+                          
+                          {folder.isEmpty && (
+                            <div className="text-xs text-muted-foreground">
+                              Leer
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Render files */}
                   {files.map((file) => (
                     <FileContextMenu key={file.id} file={file}>
                       <div className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors group">

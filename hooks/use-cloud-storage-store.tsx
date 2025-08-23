@@ -703,25 +703,37 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
       
       try {
-        const { listFiles } = await import('@/lib/storage-service')
-        const { withRetry } = await import('@/lib/storage-error-handling')
+        // Extract user ID from current path
+        const userIdMatch = currentPath.match(/^user_([^\/]+)/)
+        if (!userIdMatch) {
+          throw new Error('Invalid path format')
+        }
+        const userId = userIdMatch[1]
         
-        const files = await withRetry(
-          () => listFiles(currentPath),
-          { maxRetries: 2 },
-          'refresh_files'
-        )
+        // Use server action to load files for the current path
+        const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
+        const { files, folders, error } = await loadFilesForPath(userId, currentPath)
+        
+        if (error) {
+          throw new Error(error)
+        }
         
         set((state) => {
           state.files = files
+          // Convert folders to VirtualFolder format
+          state.folders = folders.map(folder => ({
+            name: folder.name,
+            path: folder.path,
+            type: 'category' as const,
+            isEmpty: true,
+            children: [],
+            fileCount: 0
+          }))
           state.isLoading = false
         })
       } catch (error) {
-        const { mapError } = await import('@/lib/storage-error-handling')
-        const storageError = mapError(error, 'refresh_files')
-        
         set((state) => {
-          state.error = storageError.userMessage
+          state.error = error instanceof Error ? error.message : 'Fehler beim Laden der Dateien'
           state.isLoading = false
         })
       }
