@@ -88,6 +88,40 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
     }
   }, [currentPath, initialPath, initialFiles, initialFolders, initialBreadcrumbs, userId, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setLoading, setError])
 
+  // Restore persisted UI state on mount
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('cloudStorage:viewMode')
+      if (v === 'grid' || v === 'list') setViewMode(v as ViewMode)
+
+      const s = localStorage.getItem('cloudStorage:sortBy')
+      if (s === 'name' || s === 'date' || s === 'size' || s === 'type') setSortBy(s as SortBy)
+
+      const f = localStorage.getItem('cloudStorage:filter')
+      if (f === 'all' || f === 'folders' || f === 'images' || f === 'documents' || f === 'recent') setActiveFilter(f as FilterType)
+
+      const q = localStorage.getItem('cloudStorage:searchQuery')
+      if (q !== null) setSearchQuery(q)
+    } catch {}
+  }, [])
+
+  // Persist UI state whenever it changes
+  useEffect(() => {
+    try { localStorage.setItem('cloudStorage:viewMode', viewMode) } catch {}
+  }, [viewMode])
+
+  useEffect(() => {
+    try { localStorage.setItem('cloudStorage:sortBy', sortBy) } catch {}
+  }, [sortBy])
+
+  useEffect(() => {
+    try { localStorage.setItem('cloudStorage:filter', activeFilter) } catch {}
+  }, [activeFilter])
+
+  useEffect(() => {
+    try { localStorage.setItem('cloudStorage:searchQuery', searchQuery) } catch {}
+  }, [searchQuery])
+
   // Filter items based on search and active filter
   const filterItems = () => {
     let filteredFiles = files.filter(file => 

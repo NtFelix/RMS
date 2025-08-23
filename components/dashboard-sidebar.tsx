@@ -103,20 +103,23 @@ export function DashboardSidebar() {
           </div>
           <ScrollArea className="flex-1 pt-6 pb-4">
             <nav className="grid gap-1 px-2">
-              {sidebarNavItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                    pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.title}
-                </Link>
-              ))}
+              {sidebarNavItems.map((item) => {
+                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+                      isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.title}
+                  </Link>
+                )
+              })}
             </nav>
           </ScrollArea>
           <div className="mt-auto border-t p-4">
