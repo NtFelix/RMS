@@ -198,7 +198,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           try {
             const supabase = createClient()
             let displayName = segment
-            let type: 'house' | 'apartment' | 'category' = 'category'
+            let type: 'house' | 'apartment' | 'tenant' | 'category' = 'category'
             
             // First segment after user_ is typically a house
             if (i === 1) {
@@ -234,6 +234,23 @@ export const useCloudStorageStore = create<CloudStorageState>()(
                 console.error('Error fetching apartment name:', e)
               }
             }
+            // Third segment is typically a tenant
+            else if (i === 3) {
+              try {
+                const { data: tenant, error: tenantError } = await supabase
+                  .from('Mieter')
+                  .select('name, vorname')
+                  .eq('id', segment)
+                  .single()
+                
+                if (!tenantError && tenant) {
+                  displayName = `${tenant.vorname} ${tenant.name}`.trim() || `Mieter ${segment}`
+                  type = 'tenant'
+                }
+              } catch (e) {
+                console.error('Error fetching apartment name:', e)
+              }
+            }
             
             breadcrumbs.push({
               name: displayName,
@@ -246,7 +263,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
             breadcrumbs.push({
               name: segment,
               path: currentPath,
-              type: i === 1 ? 'house' : i === 2 ? 'apartment' : 'category'
+              type: i === 1 ? 'house' : i === 2 ? 'apartment' : i === 3 ? 'tenant' : 'category'
             })
           }
         }
