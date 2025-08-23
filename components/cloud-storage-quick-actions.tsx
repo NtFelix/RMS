@@ -14,7 +14,9 @@ import {
   Filter,
   Grid3X3,
   List,
-  SortAsc
+  SortAsc,
+  Image,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -189,6 +191,7 @@ export function CloudStorageQuickActions({
             onClick={() => handleFilterChange('images')}
             className="h-8"
           >
+            <Image className="h-3 w-3 mr-1" />
             Bilder
           </Button>
           
@@ -198,6 +201,7 @@ export function CloudStorageQuickActions({
             onClick={() => handleFilterChange('documents')}
             className="h-8"
           >
+            <FileText className="h-3 w-3 mr-1" />
             Dokumente
           </Button>
           
