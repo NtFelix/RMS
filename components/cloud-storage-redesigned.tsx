@@ -235,7 +235,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
   const isAtRoot = breadcrumbs.length <= 1
 
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="h-full flex flex-col">
       {/* Modern Header */}
       <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="p-6">
