@@ -140,11 +140,49 @@ export const useCloudStorageStore = create<CloudStorageState>()(
     ...initialState,
     
     // Navigation actions
-    navigateToPath: (path: string) => {
+    navigateToPath: async (path: string) => {
       set((state) => {
         state.currentPath = path
         state.error = null
+        state.isLoading = true
       })
+      
+      try {
+        // Extract user ID from path
+        const userIdMatch = path.match(/^user_([^\/]+)/)
+        if (!userIdMatch) {
+          throw new Error('Invalid path format')
+        }
+        const userId = userIdMatch[1]
+        
+        // Use server action to load files for the new path
+        const { loadFilesForPath } = await import('@/app/(dashboard)/dateien/actions')
+        const { files, folders, error } = await loadFilesForPath(userId, path)
+        
+        if (error) {
+          throw new Error(error)
+        }
+        
+        set((state) => {
+          state.files = files
+          // Convert folders to VirtualFolder format with proper types
+          state.folders = folders.map(folder => ({
+            name: folder.name,
+            path: folder.path,
+            type: folder.type as any, // Type assertion since we know the types match
+            isEmpty: folder.isEmpty,
+            children: [],
+            fileCount: folder.fileCount,
+            displayName: folder.displayName
+          }))
+          state.isLoading = false
+        })
+      } catch (error) {
+        set((state) => {
+          state.error = error instanceof Error ? error.message : 'Fehler beim Laden der Dateien'
+          state.isLoading = false
+        })
+      }
     },
     
     setBreadcrumbs: (breadcrumbs: BreadcrumbItem[]) => {
