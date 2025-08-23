@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { CloudStorageTab } from "@/components/cloud-storage-tab"
+import { CloudStorageRedesigned } from "@/components/cloud-storage-redesigned"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -7,27 +7,34 @@ import { getInitialFiles } from "./actions"
 
 function CloudStorageLoading() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-10 w-32" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="space-y-4">
-          <Skeleton className="h-6 w-32" />
+    <div className="h-full flex flex-col">
+      {/* Header skeleton */}
+      <div className="border-b p-6 space-y-4">
+        <div className="flex items-center justify-between">
           <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-8 w-full" />
-            ))}
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-9 w-32" />
+        </div>
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-9 w-80" />
+          <div className="flex space-x-2">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-20" />
           </div>
         </div>
-        <div className="md:col-span-2 space-y-4">
-          <Skeleton className="h-6 w-40" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full" />
-            ))}
-          </div>
+      </div>
+      
+      {/* Content skeleton */}
+      <div className="flex-1 p-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
+          {Array.from({ length: 16 }).map((_, i) => (
+            <div key={i} className="animate-pulse">
+              <Skeleton className="h-24 rounded-lg mb-2" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -42,7 +49,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
     console.error('Error loading initial files:', error)
   }
 
-  return <CloudStorageTab userId={userId} initialFiles={files} initialFolders={folders} />
+  return <CloudStorageRedesigned userId={userId} initialFiles={files} initialFolders={folders} />
 }
 
 export default async function DateienPage() {
@@ -56,7 +63,7 @@ export default async function DateienPage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="h-full">
       <Suspense fallback={<CloudStorageLoading />}>
         <CloudStorageContent userId={user.id} />
       </Suspense>

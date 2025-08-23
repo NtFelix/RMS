@@ -16,8 +16,9 @@ export interface StorageFile {
 export interface VirtualFolder {
   name: string
   path: string
-  type: 'house' | 'apartment' | 'category' | 'storage'
+  type: 'house' | 'apartment' | 'category' | 'storage' | 'tenant' | 'archive'
   isEmpty: boolean
+  children: VirtualFolder[]
   fileCount: number
   displayName?: string
 }
@@ -90,6 +91,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
           path: housePath,
           type: 'house',
           isEmpty: !hasFiles,
+          children: [],
           fileCount: hasFiles ? houseContents.length : 0,
           displayName: house.name
         })
@@ -109,6 +111,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       path: miscPath,
       type: 'category',
       isEmpty: !miscHasFiles,
+      children: [],
       fileCount: miscHasFiles ? miscContents.length : 0,
       displayName: 'Sonstiges'
     })
@@ -200,8 +203,9 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
           name: item.name,
           path: `${targetPath}/${item.name}`,
           type: 'storage',
-          isEmpty: true,
-          fileCount: 0
+          isEmpty: true, // Default to true, will be updated by the client
+          children: [], // Add children property
+          fileCount: 0   // Default to 0, will be updated by the client
         })
       } else {
         // It's a file
@@ -260,6 +264,7 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
       path: houseDocsPath,
       type: 'category',
       isEmpty: !houseDocsHasFiles,
+      children: [],
       fileCount: houseDocsHasFiles ? houseDocsContents.length : 0,
       displayName: 'Hausdokumente'
     })
@@ -276,6 +281,7 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
           path: apartmentPath,
           type: 'apartment',
           isEmpty: fileCount === 0,
+          children: [],
           fileCount: fileCount,
           displayName: apartment.name
         })
@@ -420,6 +426,7 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
       path: apartmentDocsPath,
       type: 'category',
       isEmpty: !apartmentDocsHasFiles,
+      children: [],
       fileCount: apartmentDocsHasFiles ? apartmentDocsContents.length : 0,
       displayName: 'Wohnungsdokumente'
     })
@@ -434,8 +441,9 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
         folders.push({
           name: tenant.id,
           path: tenantPath,
-          type: 'category',
+          type: 'tenant',
           isEmpty: fileCount === 0,
+          children: [],
           fileCount: fileCount,
           displayName: tenant.name
         })
