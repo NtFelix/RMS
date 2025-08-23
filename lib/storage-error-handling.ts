@@ -213,12 +213,26 @@ export function mapError(error: any, operation?: string): StorageError {
     };
   }
   
+  // Handle authentication/permission errors more broadly
+  if (error?.message?.includes('User not authenticated') || error?.message?.includes('Access denied')) {
+    return {
+      type: StorageErrorType.AUTHENTICATION_ERROR,
+      severity: ErrorSeverity.HIGH,
+      message: error.message,
+      userMessage: 'Sie sind nicht angemeldet oder haben keine Berechtigung für diese Aktion.',
+      details: error,
+      timestamp,
+      operation,
+      retryable: false,
+    };
+  }
+
   // Default unknown error
   return {
     type: StorageErrorType.UNKNOWN_ERROR,
     severity: ErrorSeverity.MEDIUM,
     message: error?.message || 'An unknown error occurred',
-    userMessage: 'Ein unbekannter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.',
+    userMessage: `Ein Fehler ist aufgetreten: ${error?.message || 'Unbekannter Fehler'}. Bitte versuchen Sie es erneut.`,
     details: error,
     timestamp,
     operation,

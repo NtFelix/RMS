@@ -40,11 +40,12 @@ interface CloudStorageTabProps {
   userId?: string
 }
 
-export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) {
+export function CloudStorageTab({ userId }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showUploadZone, setShowUploadZone] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
   const [performanceStats, setPerformanceStats] = useState<any>(null)
+  const [actualUserId, setActualUserId] = useState<string | null>(userId || null)
   const { toast } = useToast()
   const { handleAsyncErrorWithRetry } = useErrorBoundary()
   
@@ -75,13 +76,32 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     openArchiveView,
   } = useCloudStorageArchive()
 
+  // Get actual user ID from Supabase auth
+  useEffect(() => {
+    const getUserId = async () => {
+      try {
+        const supabase = createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          setActualUserId(user.id)
+        }
+      } catch (error) {
+        console.error('Failed to get user ID:', error)
+      }
+    }
+    
+    if (!actualUserId) {
+      getUserId()
+    }
+  }, [actualUserId])
+
   // Initialize with root path
   useEffect(() => {
-    if (!currentPath) {
-      navigateToPath(`user_${userId}`)
-      setBreadcrumbs([{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }])
+    if (!currentPath && actualUserId) {
+      navigateToPath(`user_${actualUserId}`)
+      setBreadcrumbs([{ name: 'Cloud Storage', path: `user_${actualUserId}`, type: 'root' }])
     }
-  }, [userId, currentPath, navigateToPath, setBreadcrumbs])
+  }, [actualUserId, currentPath, navigateToPath, setBreadcrumbs])
 
   // Monitor online status
   useEffect(() => {
@@ -105,6 +125,29 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     
     return () => clearInterval(interval)
   }, [])
+
+  // Show operation error toast
+  useEffect(() => {
+    if (operationError) {
+      toast({
+        title: "Fehler bei Dateioperation",
+        description: operationError,
+        variant: "destructive",
+      })
+    }
+  }, [operationError, toast])
+
+  // Show loading state while getting user ID
+  if (!actualUserId) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+          <p className="text-muted-foreground">Lade Benutzerinformationen...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Handle refresh with error handling
   const handleRefresh = async () => {
@@ -153,17 +196,6 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
-
-  // Show operation error toast
-  useEffect(() => {
-    if (operationError) {
-      toast({
-        title: "Fehler bei Dateioperation",
-        description: operationError,
-        variant: "destructive",
-      })
-    }
-  }, [operationError, toast])
 
   // Get current folder name for display
   const getCurrentFolderName = () => {
@@ -274,7 +306,7 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
             </CardDescription>
           </CardHeader>
           <CardContent className="p-4">
-            <FileTreeView userId={userId} />
+            <FileTreeView userId={actualUserId || 'demo-user'} />
           </CardContent>
         </Card>
 
@@ -372,7 +404,7 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
         <ArchiveBrowserModal 
           isOpen={isArchiveViewOpen}
           onClose={closeArchiveView}
-          userId={userId}
+          userId={actualUserId || 'demo-user'}
         />
       </div>
     </StorageErrorBoundary>

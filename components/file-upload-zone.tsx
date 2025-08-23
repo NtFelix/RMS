@@ -120,8 +120,11 @@ export function FileUploadZone({
     
     // Show validation errors if any
     if (errors.length > 0) {
-      // TODO: Show toast notifications for errors
-      console.error('File validation errors:', errors)
+      // Show toast notifications for errors
+      errors.forEach(error => {
+        console.error('File validation error:', error)
+        // You could add toast notifications here if needed
+      })
     }
     
     // Add valid files to upload queue

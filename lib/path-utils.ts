@@ -207,7 +207,8 @@ export function validatePath(path: string): boolean {
  */
 export function isUserPath(path: string, userId: string): boolean {
   const sanitizedUserId = sanitizePathSegment(userId);
-  return path.startsWith(`user_${sanitizedUserId}/`);
+  return path.startsWith(`user_${sanitizedUserId}`) && 
+         (path === `user_${sanitizedUserId}` || path.startsWith(`user_${sanitizedUserId}/`));
 }
 
 /**
