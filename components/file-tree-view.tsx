@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle } from "lucide-react"
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle, Archive } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
@@ -16,7 +16,7 @@ interface TreeNode {
   id: string
   name: string
   path: string
-  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
+  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category' | 'archive'
   icon: React.ComponentType<{ className?: string }>
   children: TreeNode[]
   isExpanded: boolean
@@ -75,6 +75,17 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           icon: FileText,
           children: [] as TreeNode[],
           isExpanded: expandedNodes.has('miscellaneous'),
+          fileCount: 0,
+          isEmpty: true // Will be updated based on actual files
+        },
+        {
+          id: 'archive',
+          name: 'Archiv',
+          path: buildUserPath(userId, '__archive__'),
+          type: 'archive' as const,
+          icon: Archive,
+          children: [] as TreeNode[],
+          isExpanded: expandedNodes.has('archive'),
           fileCount: 0,
           isEmpty: true // Will be updated based on actual files
         }
@@ -247,6 +258,12 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           path: buildUserPath(userId, 'miscellaneous'),
           type: 'category'
         })
+      } else if (segments[0] === '__archive__') {
+        breadcrumbs.push({
+          name: 'Archiv',
+          path: buildUserPath(userId, '__archive__'),
+          type: 'category'
+        })
       }
     }
 
@@ -312,7 +329,8 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
             node.type === 'house' && "text-blue-500",
             node.type === 'apartment' && "text-green-500",
             node.type === 'tenant' && "text-purple-500",
-            node.type === 'category' && "text-orange-500"
+            node.type === 'category' && "text-orange-500",
+            node.type === 'archive' && "text-gray-500"
           )} />
           
           <span className="text-sm truncate flex-1">{node.name}</span>

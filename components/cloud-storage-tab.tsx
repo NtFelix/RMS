@@ -13,14 +13,16 @@ import {
   Trash2, 
   RefreshCw,
   File,
-  AlertCircle
+  AlertCircle,
+  Archive
 } from "lucide-react"
 import { FileTreeView } from "@/components/file-tree-view"
 import { FileBreadcrumbNavigation } from "@/components/file-breadcrumb-navigation"
 import { FileUploadZone } from "@/components/file-upload-zone"
 import { FileContextMenu } from "@/components/file-context-menu"
 import { FilePreviewModal } from "@/components/file-preview-modal"
-import { useCloudStorageStore, useCloudStorageOperations } from "@/hooks/use-cloud-storage-store"
+import { ArchiveBrowserModal } from "@/components/archive-browser-modal"
+import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
 
@@ -53,6 +55,12 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     isOperationInProgress,
     operationError,
   } = useCloudStorageOperations()
+  
+  const {
+    isArchiveViewOpen,
+    closeArchiveView,
+    openArchiveView,
+  } = useCloudStorageArchive()
 
   // Initialize with root path
   useEffect(() => {
@@ -146,6 +154,14 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
           >
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Aktualisieren
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={openArchiveView}
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            Archiv
           </Button>
           <Button onClick={toggleUploadZone}>
             <Upload className="mr-2 h-4 w-4" />
@@ -296,6 +312,13 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
 
       {/* File Preview Modal */}
       <FilePreviewModal />
+      
+      {/* Archive Browser Modal */}
+      <ArchiveBrowserModal 
+        isOpen={isArchiveViewOpen}
+        onClose={closeArchiveView}
+        userId={userId}
+      />
     </div>
   )
 }

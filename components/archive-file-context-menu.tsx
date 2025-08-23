@@ -4,13 +4,11 @@ import { useState } from "react"
 import { 
   Download, 
   Trash2, 
-  Edit3, 
-  Move, 
+  RotateCcw, 
   Eye, 
   FileText,
   Image as ImageIcon,
-  File,
-  Archive
+  File
 } from "lucide-react"
 import {
   ContextMenu,
@@ -22,26 +20,22 @@ import {
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
 import { useToast } from "@/hooks/use-toast"
+import { reconstructOriginalPath } from "@/lib/path-utils"
 import type { StorageObject } from "@/hooks/use-cloud-storage-store"
 
-interface FileContextMenuProps {
+interface ArchiveFileContextMenuProps {
   file: StorageObject
   children: React.ReactNode
-  showArchiveOption?: boolean
 }
 
-export function FileContextMenu({ file, children, showArchiveOption = true }: FileContextMenuProps) {
+export function ArchiveFileContextMenu({ file, children }: ArchiveFileContextMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false)
   const { toast } = useToast()
   
-  const {
-    downloadFile,
-    deleteFile,
-    isOperationInProgress,
-  } = useCloudStorageOperations()
-  
+  const { downloadFile, isOperationInProgress } = useCloudStorageOperations()
   const { openPreview } = useCloudStoragePreview()
-  const { archiveFile, openArchiveView } = useCloudStorageArchive()
+  const { restoreFile, permanentlyDeleteFile } = useCloudStorageArchive()
 
   // Get file type for icon display
   const getFileIcon = (fileName: string) => {
@@ -80,16 +74,33 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
     }
   }
 
-  const handleDelete = async () => {
+  const handleRestore = async () => {
     try {
-      await archiveFile(file)
+      const originalPath = reconstructOriginalPath(file.name)
+      await restoreFile(file, originalPath || undefined)
       toast({
-        title: "Datei archiviert",
-        description: `${file.name} wurde ins Archiv verschoben.`,
+        title: "Datei wiederhergestellt",
+        description: `${file.name} wurde erfolgreich wiederhergestellt.`,
       })
     } catch (error) {
       toast({
-        title: "Archivierung fehlgeschlagen",
+        title: "Wiederherstellung fehlgeschlagen",
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handlePermanentDelete = async () => {
+    try {
+      await permanentlyDeleteFile(file)
+      toast({
+        title: "Datei dauerhaft gelöscht",
+        description: `${file.name} wurde dauerhaft gelöscht.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Löschen fehlgeschlagen",
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
         variant: "destructive",
       })
@@ -107,6 +118,8 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
       })
     }
   }
+
+  const originalPath = reconstructOriginalPath(file.name)
 
   return (
     <>
@@ -136,29 +149,15 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
           <ContextMenuSeparator />
           
           <ContextMenuItem 
-            disabled={true} // TODO: Implement rename functionality in future
-            className="text-muted-foreground"
+            onClick={() => setShowRestoreDialog(true)}
+            disabled={isOperationInProgress}
+            className="text-blue-600 focus:text-blue-600"
           >
-            <Edit3 className="mr-2 h-4 w-4" />
-            Umbenennen (bald verfügbar)
-          </ContextMenuItem>
-          
-          <ContextMenuItem 
-            disabled={true} // TODO: Implement move functionality in future
-            className="text-muted-foreground"
-          >
-            <Move className="mr-2 h-4 w-4" />
-            Verschieben (bald verfügbar)
+            <RotateCcw className="mr-2 h-4 w-4" />
+            Wiederherstellen
           </ContextMenuItem>
           
           <ContextMenuSeparator />
-          
-          {showArchiveOption && (
-            <ContextMenuItem onClick={openArchiveView}>
-              <Archive className="mr-2 h-4 w-4" />
-              Archiv öffnen
-            </ContextMenuItem>
-          )}
           
           <ContextMenuItem 
             onClick={() => setShowDeleteDialog(true)}
@@ -166,26 +165,56 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Löschen (Archivieren)
+            Dauerhaft löschen
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
 
       <ConfirmationAlertDialog
-        isOpen={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDelete}
-        title="Datei archivieren"
+        isOpen={showRestoreDialog}
+        onOpenChange={setShowRestoreDialog}
+        onConfirm={handleRestore}
+        title="Datei wiederherstellen"
         description={
           <>
-            Möchten Sie die Datei <strong>{file.name}</strong> wirklich löschen?
+            Möchten Sie die Datei <strong>{file.name.split('/').pop()}</strong> wirklich wiederherstellen?
             <br /><br />
+            {originalPath ? (
+              <span className="text-sm text-muted-foreground">
+                Die Datei wird an den ursprünglichen Ort wiederhergestellt: <br />
+                <code className="text-xs bg-muted px-1 py-0.5 rounded">{originalPath}</code>
+              </span>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                Der ursprüngliche Pfad konnte nicht ermittelt werden. Die Datei wird im Hauptverzeichnis wiederhergestellt.
+              </span>
+            )}
+          </>
+        }
+        confirmButtonText="Wiederherstellen"
+        confirmButtonVariant="default"
+        cancelButtonText="Abbrechen"
+      />
+
+      <ConfirmationAlertDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handlePermanentDelete}
+        title="Datei dauerhaft löschen"
+        description={
+          <>
+            Möchten Sie die Datei <strong>{file.name.split('/').pop()}</strong> wirklich dauerhaft löschen?
+            <br /><br />
+            <span className="text-sm text-destructive font-medium">
+              ⚠️ Diese Aktion kann nicht rückgängig gemacht werden!
+            </span>
+            <br />
             <span className="text-sm text-muted-foreground">
-              Die Datei wird nicht permanent gelöscht, sondern ins Archiv verschoben und kann später wiederhergestellt werden.
+              Die Datei wird vollständig aus dem System entfernt.
             </span>
           </>
         }
-        confirmButtonText="Archivieren"
+        confirmButtonText="Dauerhaft löschen"
         confirmButtonVariant="destructive"
         cancelButtonText="Abbrechen"
       />

@@ -61,6 +61,12 @@ interface CloudStorageState {
   isOperationInProgress: boolean
   operationError: string | null
   
+  // Archive state
+  archivedFiles: StorageObject[]
+  isArchiveLoading: boolean
+  archiveError: string | null
+  isArchiveViewOpen: boolean
+  
   // Actions
   navigateToPath: (path: string) => void
   setBreadcrumbs: (breadcrumbs: BreadcrumbItem[]) => void
@@ -86,6 +92,19 @@ interface CloudStorageState {
   setOperationInProgress: (inProgress: boolean) => void
   setOperationError: (error: string | null) => void
   
+  // Archive actions
+  archiveFile: (file: StorageObject) => Promise<void>
+  loadArchivedFiles: (userId: string) => Promise<void>
+  restoreFile: (archivedFile: StorageObject, targetPath?: string) => Promise<void>
+  permanentlyDeleteFile: (archivedFile: StorageObject) => Promise<void>
+  bulkArchiveFiles: (files: StorageObject[]) => Promise<void>
+  archiveFolder: (folderPath: string) => Promise<void>
+  setArchiveLoading: (loading: boolean) => void
+  setArchiveError: (error: string | null) => void
+  setArchivedFiles: (files: StorageObject[]) => void
+  openArchiveView: () => void
+  closeArchiveView: () => void
+  
   // Preview actions
   openPreview: (file: StorageObject) => void
   closePreview: () => void
@@ -108,6 +127,10 @@ const initialState = {
   isPreviewOpen: false,
   isOperationInProgress: false,
   operationError: null,
+  archivedFiles: [],
+  isArchiveLoading: false,
+  archiveError: null,
+  isArchiveViewOpen: false,
 }
 
 export const useCloudStorageStore = create<CloudStorageState>()(
@@ -256,6 +279,33 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       }
     },
     
+    archiveFile: async (file: StorageObject) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { archiveFile } = await import('@/lib/storage-service')
+        const filePath = `${get().currentPath}/${file.name}`
+        await archiveFile(filePath)
+        
+        // Remove file from current files list
+        set((state) => {
+          state.files = state.files.filter(f => f.id !== file.id)
+        })
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Archive failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
     renameFile: async (file: StorageObject, newName: string) => {
       set((state) => {
         state.isOperationInProgress = true
@@ -325,6 +375,163 @@ export const useCloudStorageStore = create<CloudStorageState>()(
     setOperationError: (error: string | null) => {
       set((state) => {
         state.operationError = error
+      })
+    },
+    
+    // Archive actions
+    loadArchivedFiles: async (userId: string) => {
+      set((state) => {
+        state.isArchiveLoading = true
+        state.archiveError = null
+      })
+      
+      try {
+        const { listArchivedFiles } = await import('@/lib/storage-service')
+        const archivedFiles = await listArchivedFiles(userId)
+        
+        set((state) => {
+          state.archivedFiles = archivedFiles
+        })
+      } catch (error) {
+        set((state) => {
+          state.archiveError = error instanceof Error ? error.message : 'Failed to load archived files'
+        })
+      } finally {
+        set((state) => {
+          state.isArchiveLoading = false
+        })
+      }
+    },
+    
+    restoreFile: async (archivedFile: StorageObject, targetPath?: string) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { restoreFile } = await import('@/lib/storage-service')
+        await restoreFile(archivedFile.name, targetPath)
+        
+        // Remove from archived files list
+        set((state) => {
+          state.archivedFiles = state.archivedFiles.filter(f => f.id !== archivedFile.id)
+        })
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Restore failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    permanentlyDeleteFile: async (archivedFile: StorageObject) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { permanentlyDeleteFile } = await import('@/lib/storage-service')
+        await permanentlyDeleteFile(archivedFile.name)
+        
+        // Remove from archived files list
+        set((state) => {
+          state.archivedFiles = state.archivedFiles.filter(f => f.id !== archivedFile.id)
+        })
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Permanent deletion failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    bulkArchiveFiles: async (files: StorageObject[]) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { bulkArchiveFiles } = await import('@/lib/storage-service')
+        const currentPath = get().currentPath
+        const filePaths = files.map(file => `${currentPath}/${file.name}`)
+        await bulkArchiveFiles(filePaths)
+        
+        // Remove files from current files list
+        const fileIds = files.map(f => f.id)
+        set((state) => {
+          state.files = state.files.filter(f => !fileIds.includes(f.id))
+        })
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Bulk archive failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    archiveFolder: async (folderPath: string) => {
+      set((state) => {
+        state.isOperationInProgress = true
+        state.operationError = null
+      })
+      
+      try {
+        const { archiveFolder } = await import('@/lib/storage-service')
+        await archiveFolder(folderPath)
+      } catch (error) {
+        set((state) => {
+          state.operationError = error instanceof Error ? error.message : 'Folder archive failed'
+        })
+        throw error
+      } finally {
+        set((state) => {
+          state.isOperationInProgress = false
+        })
+      }
+    },
+    
+    setArchiveLoading: (loading: boolean) => {
+      set((state) => {
+        state.isArchiveLoading = loading
+      })
+    },
+    
+    setArchiveError: (error: string | null) => {
+      set((state) => {
+        state.archiveError = error
+      })
+    },
+    
+    setArchivedFiles: (files: StorageObject[]) => {
+      set((state) => {
+        state.archivedFiles = files
+      })
+    },
+    
+    openArchiveView: () => {
+      set((state) => {
+        state.isArchiveViewOpen = true
+      })
+    },
+    
+    closeArchiveView: () => {
+      set((state) => {
+        state.isArchiveViewOpen = false
       })
     },
     
@@ -525,5 +732,26 @@ export const useCloudStorageOperations = () => {
     moveFile: store.moveFile,
     setOperationInProgress: store.setOperationInProgress,
     setOperationError: store.setOperationError,
+  }
+}
+
+export const useCloudStorageArchive = () => {
+  const store = useCloudStorageStore()
+  return {
+    archivedFiles: store.archivedFiles,
+    isArchiveLoading: store.isArchiveLoading,
+    archiveError: store.archiveError,
+    isArchiveViewOpen: store.isArchiveViewOpen,
+    archiveFile: store.archiveFile,
+    loadArchivedFiles: store.loadArchivedFiles,
+    restoreFile: store.restoreFile,
+    permanentlyDeleteFile: store.permanentlyDeleteFile,
+    bulkArchiveFiles: store.bulkArchiveFiles,
+    archiveFolder: store.archiveFolder,
+    setArchiveLoading: store.setArchiveLoading,
+    setArchiveError: store.setArchiveError,
+    setArchivedFiles: store.setArchivedFiles,
+    openArchiveView: store.openArchiveView,
+    closeArchiveView: store.closeArchiveView,
   }
 }

@@ -239,6 +239,52 @@ export function isFolderEmpty<T extends { name: string }>(files: T[]): boolean {
   return nonKeepFiles.length === 0;
 }
 
+/**
+ * Builds an archive path with timestamp and preserved structure
+ */
+export function buildArchivePath(userId: string, timestamp: string, ...segments: string[]): string {
+  return buildUserPath(userId, '__archive__', timestamp, ...segments);
+}
+
+/**
+ * Checks if a path is in the archive
+ */
+export function isArchivePath(path: string): boolean {
+  return path.includes('/__archive__/');
+}
+
+/**
+ * Extracts the timestamp from an archive path
+ */
+export function extractArchiveTimestamp(archivePath: string): string | null {
+  const segments = archivePath.split('/');
+  const archiveIndex = segments.findIndex(seg => seg === '__archive__');
+  
+  if (archiveIndex === -1 || archiveIndex + 1 >= segments.length) {
+    return null;
+  }
+  
+  return segments[archiveIndex + 1];
+}
+
+/**
+ * Reconstructs the original path from an archive path
+ */
+export function reconstructOriginalPath(archivePath: string): string | null {
+  const segments = archivePath.split('/');
+  const archiveIndex = segments.findIndex(seg => seg === '__archive__');
+  
+  if (archiveIndex === -1 || archiveIndex + 2 >= segments.length) {
+    return null;
+  }
+  
+  // Extract user ID and original segments (skip __archive__ and timestamp)
+  const userId = segments[0].replace('user_', '');
+  const originalSegments = segments.slice(archiveIndex + 2);
+  
+  return buildUserPath(userId, ...originalSegments);
+}
+
 // Default export with all utilities
 export const pathUtils: PathUtils = {
   buildUserPath,

@@ -4,7 +4,7 @@
  */
 
 import { createClient } from '@/utils/supabase/client';
-import { pathUtils, validatePath, isUserPath } from './path-utils';
+import { pathUtils, validatePath, isUserPath, extractPathSegments } from './path-utils';
 
 export interface StorageObject {
   name: string;
@@ -37,6 +37,12 @@ export interface StorageService {
   renameFile(filePath: string, newName: string): Promise<void>;
   createPlaceholder(path: string): Promise<void>;
   getFileUrl(path: string): Promise<string>;
+  archiveFile(path: string): Promise<string>;
+  listArchivedFiles(userId: string): Promise<StorageObject[]>;
+  restoreFile(archivePath: string, targetPath?: string): Promise<void>;
+  permanentlyDeleteFile(path: string): Promise<void>;
+  bulkArchiveFiles(paths: string[]): Promise<string[]>;
+  archiveFolder(folderPath: string): Promise<string[]>;
 }
 
 // Supported file types for validation
@@ -263,17 +269,52 @@ export async function triggerFileDownload(path: string, filename?: string): Prom
 }
 
 /**
+ * Archives a file by moving it to the archive folder with timestamp
+ */
+export async function archiveFile(path: string): Promise<string> {
+  await validateUserPath(path);
+  
+  const userId = await getCurrentUserId();
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const fileName = path.split('/').pop() || 'unknown';
+  
+  // Preserve original folder structure within archive
+  const pathSegments = extractPathSegments(path);
+  const originalStructure = [];
+  
+  if (pathSegments.houseId) {
+    originalStructure.push(pathSegments.houseId);
+    if (pathSegments.apartmentId) {
+      originalStructure.push(pathSegments.apartmentId);
+      if (pathSegments.tenantId) {
+        originalStructure.push(pathSegments.tenantId);
+      } else if (pathSegments.category) {
+        originalStructure.push(pathSegments.category);
+      }
+    } else if (pathSegments.category) {
+      originalStructure.push(pathSegments.category);
+    }
+  } else if (pathSegments.category) {
+    originalStructure.push(pathSegments.category);
+  }
+  
+  const archivePath = pathUtils.buildUserPath(
+    userId, 
+    '__archive__', 
+    timestamp, 
+    ...originalStructure, 
+    fileName
+  );
+  
+  await moveFile(path, archivePath);
+  return archivePath;
+}
+
+/**
  * Deletes a file from storage (moves to archive)
  */
 export async function deleteFile(path: string): Promise<void> {
-  await validateUserPath(path);
-  
-  // Instead of permanent deletion, move to archive
-  const userId = await getCurrentUserId();
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const archivePath = pathUtils.buildUserPath(userId, '__archive__', timestamp, path.split('/').pop() || 'unknown');
-  
-  await moveFile(path, archivePath);
+  await archiveFile(path);
 }
 
 /**
@@ -344,6 +385,104 @@ export async function getFileUrl(path: string): Promise<string> {
   return data.signedUrl;
 }
 
+/**
+ * Lists archived files for a user
+ */
+export async function listArchivedFiles(userId: string): Promise<StorageObject[]> {
+  const archivePrefix = pathUtils.buildUserPath(userId, '__archive__');
+  return await listFiles(archivePrefix);
+}
+
+/**
+ * Restores a file from archive to its original location or a new location
+ */
+export async function restoreFile(archivePath: string, targetPath?: string): Promise<void> {
+  await validateUserPath(archivePath);
+  
+  if (!archivePath.includes('__archive__')) {
+    throw new Error('File is not in archive');
+  }
+  
+  let restorePath: string;
+  
+  if (targetPath) {
+    await validateUserPath(targetPath);
+    restorePath = targetPath;
+  } else {
+    // Try to reconstruct original path from archive structure
+    const pathSegments = pathUtils.extractPathSegments(archivePath);
+    const archiveSegments = archivePath.split('/');
+    
+    // Find the archive timestamp segment (after __archive__)
+    const archiveIndex = archiveSegments.findIndex(seg => seg === '__archive__');
+    if (archiveIndex === -1 || archiveIndex + 2 >= archiveSegments.length) {
+      throw new Error('Cannot determine original path from archive structure');
+    }
+    
+    // Extract original structure (skip user_, __archive__, and timestamp)
+    const originalSegments = archiveSegments.slice(archiveIndex + 2);
+    restorePath = pathUtils.buildUserPath(pathSegments.userId, ...originalSegments);
+  }
+  
+  await moveFile(archivePath, restorePath);
+}
+
+/**
+ * Permanently deletes a file from archive
+ */
+export async function permanentlyDeleteFile(path: string): Promise<void> {
+  await validateUserPath(path);
+  
+  if (!path.includes('__archive__')) {
+    throw new Error('Can only permanently delete files from archive');
+  }
+  
+  const sanitizedPath = pathUtils.sanitizePath(path);
+  const supabase = createClient();
+  
+  const { error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .remove([sanitizedPath]);
+  
+  if (error) {
+    throw new Error(`Failed to permanently delete file: ${error.message}`);
+  }
+}
+
+/**
+ * Archives multiple files (bulk operation)
+ */
+export async function bulkArchiveFiles(paths: string[]): Promise<string[]> {
+  const archivedPaths: string[] = [];
+  
+  for (const path of paths) {
+    try {
+      const archivePath = await archiveFile(path);
+      archivedPaths.push(archivePath);
+    } catch (error) {
+      console.error(`Failed to archive file ${path}:`, error);
+      // Continue with other files even if one fails
+    }
+  }
+  
+  return archivedPaths;
+}
+
+/**
+ * Archives all files in a folder (for folder deletion)
+ */
+export async function archiveFolder(folderPath: string): Promise<string[]> {
+  await validateUserPath(folderPath);
+  
+  // List all files in the folder recursively
+  const files = await listFiles(folderPath);
+  const filePaths = files
+    .filter(file => !pathUtils.isKeepFile(file.name))
+    .map(file => `${folderPath}/${file.name}`);
+  
+  return await bulkArchiveFiles(filePaths);
+}
+
 // Default export with all storage operations
 export const storageService: StorageService = {
   uploadFile,
@@ -355,4 +494,10 @@ export const storageService: StorageService = {
   renameFile,
   createPlaceholder,
   getFileUrl,
+  archiveFile,
+  listArchivedFiles,
+  restoreFile,
+  permanentlyDeleteFile,
+  bulkArchiveFiles,
+  archiveFolder,
 };
