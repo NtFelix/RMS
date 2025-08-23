@@ -164,7 +164,6 @@ export function CloudStorageQuickActions({
       {/* Search and filters */}
       <div className="flex items-center justify-between space-x-4">
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-muted-foreground">Filter:</span>
           
           <Button
             variant={activeFilter === 'all' ? 'default' : 'outline'}
