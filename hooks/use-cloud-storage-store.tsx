@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
+import { useErrorBoundary } from '@/lib/storage-error-handling'
 
 // Types for cloud storage state
 export interface StorageObject {
@@ -238,13 +239,27 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       
       try {
         const { triggerFileDownload } = await import('@/lib/storage-service')
+        const { withRetry, showSuccessNotification } = await import('@/lib/storage-error-handling')
+        
         const filePath = `${get().currentPath}/${file.name}`
-        await triggerFileDownload(filePath, file.name)
+        
+        await withRetry(
+          () => triggerFileDownload(filePath, file.name),
+          { maxRetries: 2 },
+          'download_file'
+        )
+        
+        showSuccessNotification('Download gestartet', `${file.name} wird heruntergeladen`)
       } catch (error) {
+        const { mapError, showErrorNotification } = await import('@/lib/storage-error-handling')
+        const storageError = mapError(error, 'download_file')
+        
         set((state) => {
-          state.operationError = error instanceof Error ? error.message : 'Download failed'
+          state.operationError = storageError.userMessage
         })
-        throw error
+        
+        showErrorNotification(storageError)
+        throw storageError
       } finally {
         set((state) => {
           state.isOperationInProgress = false
@@ -260,18 +275,32 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       
       try {
         const { deleteFile } = await import('@/lib/storage-service')
+        const { withRetry, showSuccessNotification } = await import('@/lib/storage-error-handling')
+        
         const filePath = `${get().currentPath}/${file.name}`
-        await deleteFile(filePath)
+        
+        await withRetry(
+          () => deleteFile(filePath),
+          { maxRetries: 2 },
+          'delete_file'
+        )
         
         // Remove file from current files list
         set((state) => {
           state.files = state.files.filter(f => f.id !== file.id)
         })
+        
+        showSuccessNotification('Datei archiviert', `${file.name} wurde ins Archiv verschoben`)
       } catch (error) {
+        const { mapError, showErrorNotification } = await import('@/lib/storage-error-handling')
+        const storageError = mapError(error, 'delete_file')
+        
         set((state) => {
-          state.operationError = error instanceof Error ? error.message : 'Delete failed'
+          state.operationError = storageError.userMessage
         })
-        throw error
+        
+        showErrorNotification(storageError)
+        throw storageError
       } finally {
         set((state) => {
           state.isOperationInProgress = false

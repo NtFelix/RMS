@@ -1,10 +1,25 @@
 /**
  * Cloud storage service for file management
  * Provides interface for Supabase Storage operations with security and validation
+ * Enhanced with performance optimizations and comprehensive error handling
  */
 
 import { createClient } from '@/utils/supabase/client';
 import { pathUtils, validatePath, isUserPath, extractPathSegments } from './path-utils';
+import { 
+  optimizedListFiles, 
+  performanceMonitor, 
+  cacheManager,
+  PERFORMANCE_CONFIG,
+  type PaginatedQuery 
+} from './storage-performance';
+import { 
+  withRetry, 
+  mapError, 
+  storageCircuitBreaker,
+  type StorageError,
+  DEFAULT_RETRY_CONFIG 
+} from './storage-error-handling';
 
 export interface StorageObject {
   name: string;
@@ -129,13 +144,15 @@ async function validateUserPath(path: string): Promise<void> {
 }
 
 /**
- * Uploads a file to storage
+ * Uploads a file to storage with retry logic and performance monitoring
  */
 export async function uploadFile(
   file: File, 
   path: string, 
   options: UploadOptions = {}
 ): Promise<StorageResult> {
+  const startTime = Date.now();
+  
   try {
     // Validate file
     const fileValidation = validateFile(file);
@@ -150,98 +167,227 @@ export async function uploadFile(
     await validateUserPath(path);
     const sanitizedPath = pathUtils.sanitizePath(path);
     
-    const supabase = createClient();
+    // Use retry logic with circuit breaker
+    const result = await withRetry(
+      async () => {
+        return await storageCircuitBreaker.execute(async () => {
+          const supabase = createClient();
+          
+          // Set timeout for upload to meet performance requirements
+          const uploadPromise = supabase.storage
+            .from(STORAGE_BUCKET)
+            .upload(sanitizedPath, file, {
+              upsert: options.upsert || false,
+              contentType: options.contentType || file.type,
+            });
+          
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Upload timeout: File upload took longer than expected')), 
+              file.size > 5 * 1024 * 1024 ? 10000 : 5000); // Longer timeout for larger files
+          });
+          
+          const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
+          
+          if (error) {
+            throw mapError(error, 'upload_file');
+          }
+          
+          // Invalidate cache for the directory
+          const directoryPath = sanitizedPath.substring(0, sanitizedPath.lastIndexOf('/'));
+          cacheManager.invalidatePrefix(directoryPath);
+          
+          return data;
+        });
+      },
+      {
+        ...DEFAULT_RETRY_CONFIG,
+        maxRetries: 2, // Fewer retries for uploads to avoid duplicate files
+      },
+      'upload_file'
+    );
     
-    // Upload file
-    const { data, error } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(sanitizedPath, file, {
-        upsert: options.upsert || false,
-        contentType: options.contentType || file.type,
-      });
+    const endTime = Date.now();
     
-    if (error) {
-      return {
-        success: false,
-        error: error.message
-      };
-    }
+    // Record performance metrics
+    performanceMonitor.addMetric({
+      queryTime: endTime - startTime,
+      resultCount: 1,
+      cacheHit: false,
+      retryCount: 0,
+    });
     
     return {
       success: true,
-      data
+      data: result
     };
   } catch (error) {
+    const endTime = Date.now();
+    const storageError = error instanceof Error && 'type' in error 
+      ? error as StorageError 
+      : mapError(error, 'upload_file');
+    
+    // Record failed operation metrics
+    performanceMonitor.addMetric({
+      queryTime: endTime - startTime,
+      resultCount: 0,
+      cacheHit: false,
+      retryCount: storageError.retryCount || 0,
+      error: storageError.message,
+    });
+    
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Upload failed'
+      error: storageError.userMessage
     };
   }
 }
 
 /**
- * Lists files with a given prefix
+ * Lists files with a given prefix using performance optimizations
  */
-export async function listFiles(prefix: string): Promise<StorageObject[]> {
-  await validateUserPath(prefix);
-  const sanitizedPrefix = pathUtils.sanitizePath(prefix);
+export async function listFiles(prefix: string, options?: {
+  limit?: number;
+  offset?: number;
+  sortBy?: 'name' | 'updated_at' | 'size';
+  sortOrder?: 'asc' | 'desc';
+}): Promise<StorageObject[]> {
+  const startTime = Date.now();
   
-  const supabase = createClient();
-  
-  const { data, error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .list(sanitizedPrefix, {
-      limit: 1000, // Reasonable limit for performance
-      sortBy: { column: 'name', order: 'asc' }
+  try {
+    await validateUserPath(prefix);
+    const sanitizedPrefix = pathUtils.sanitizePath(prefix);
+    
+    // Use circuit breaker to prevent cascading failures
+    const result = await storageCircuitBreaker.execute(async () => {
+      // Create optimized query
+      const query: PaginatedQuery = {
+        prefix: sanitizedPrefix,
+        limit: options?.limit || PERFORMANCE_CONFIG.MAX_FILES_PER_QUERY,
+        offset: options?.offset || 0,
+        sortBy: options?.sortBy || 'name',
+        sortOrder: options?.sortOrder || 'asc',
+      };
+
+      // Use optimized list function with caching and retry logic
+      const paginatedResult = await optimizedListFiles(
+        async (prefix: string, queryOptions?: any) => {
+          const supabase = createClient();
+          
+          const { data, error } = await supabase.storage
+            .from(STORAGE_BUCKET)
+            .list(prefix, {
+              limit: Math.min(queryOptions?.limit || 1000, PERFORMANCE_CONFIG.MAX_FILES_PER_QUERY),
+              sortBy: queryOptions?.sortBy || { column: 'name', order: 'asc' }
+            });
+          
+          if (error) {
+            throw mapError(error, 'list_files');
+          }
+          
+          // Map FileObject[] to StorageObject[]
+          return (data || []).map(file => ({
+            name: file.name,
+            id: file.id || file.name,
+            updated_at: file.updated_at || new Date().toISOString(),
+            created_at: file.created_at || new Date().toISOString(),
+            last_accessed_at: file.last_accessed_at || new Date().toISOString(),
+            metadata: file.metadata || {},
+            size: file.metadata?.size || 0,
+          }));
+        },
+        query
+      );
+
+      // Record performance metrics
+      performanceMonitor.addMetric(paginatedResult.metrics);
+      
+      return paginatedResult.data[0] || [];
     });
-  
-  if (error) {
-    throw new Error(`Failed to list files: ${error.message}`);
+
+    return result;
+  } catch (error) {
+    const endTime = Date.now();
+    const storageError = mapError(error, 'list_files');
+    
+    // Record failed operation metrics
+    performanceMonitor.addMetric({
+      queryTime: endTime - startTime,
+      resultCount: 0,
+      cacheHit: false,
+      retryCount: 0,
+      error: storageError.message,
+    });
+    
+    throw storageError;
   }
-  
-  // Map FileObject[] to StorageObject[]
-  return (data || []).map(file => ({
-    name: file.name,
-    id: file.id || file.name, // Use name as fallback for id
-    updated_at: file.updated_at || new Date().toISOString(),
-    created_at: file.created_at || new Date().toISOString(),
-    last_accessed_at: file.last_accessed_at || new Date().toISOString(),
-    metadata: file.metadata || {},
-    size: file.metadata?.size || 0, // Extract size from metadata
-  }));
 }
 
 /**
- * Downloads a file from storage with performance optimization
+ * Downloads a file from storage with performance optimization and retry logic
  */
 export async function downloadFile(path: string): Promise<Blob> {
-  await validateUserPath(path);
-  const sanitizedPath = pathUtils.sanitizePath(path);
-  
-  const supabase = createClient();
-  
-  // Set a timeout for the download to meet 2-second performance target
-  const downloadPromise = supabase.storage
-    .from(STORAGE_BUCKET)
-    .download(sanitizedPath);
-  
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Download timeout: File download took longer than 2 seconds')), 2000);
-  });
+  const startTime = Date.now();
   
   try {
-    const { data, error } = await Promise.race([downloadPromise, timeoutPromise]);
+    await validateUserPath(path);
+    const sanitizedPath = pathUtils.sanitizePath(path);
     
-    if (error) {
-      throw new Error(`Failed to download file: ${error.message}`);
-    }
+    // Use retry logic with circuit breaker
+    const result = await withRetry(
+      async () => {
+        return await storageCircuitBreaker.execute(async () => {
+          const supabase = createClient();
+          
+          // Set a timeout for the download to meet 2-second performance target
+          const downloadPromise = supabase.storage
+            .from(STORAGE_BUCKET)
+            .download(sanitizedPath);
+          
+          const timeoutPromise = new Promise<never>((_, reject) => {
+            setTimeout(() => reject(new Error('Download timeout: File download took longer than 2 seconds')), 
+              PERFORMANCE_CONFIG.SLOW_QUERY_THRESHOLD);
+          });
+          
+          const { data, error } = await Promise.race([downloadPromise, timeoutPromise]);
+          
+          if (error) {
+            throw mapError(error, 'download_file');
+          }
+          
+          return data;
+        });
+      },
+      DEFAULT_RETRY_CONFIG,
+      'download_file'
+    );
     
-    return data;
+    const endTime = Date.now();
+    
+    // Record performance metrics
+    performanceMonitor.addMetric({
+      queryTime: endTime - startTime,
+      resultCount: 1,
+      cacheHit: false,
+      retryCount: 0,
+    });
+    
+    return result;
   } catch (error) {
-    if (error instanceof Error && error.message.includes('timeout')) {
-      throw error;
-    }
-    throw new Error(`Failed to download file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    const endTime = Date.now();
+    const storageError = error instanceof Error && 'type' in error 
+      ? error as StorageError 
+      : mapError(error, 'download_file');
+    
+    // Record failed operation metrics
+    performanceMonitor.addMetric({
+      queryTime: endTime - startTime,
+      resultCount: 0,
+      cacheHit: false,
+      retryCount: storageError.retryCount || 0,
+      error: storageError.message,
+    });
+    
+    throw storageError;
   }
 }
 

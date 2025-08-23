@@ -25,6 +25,16 @@ import { ArchiveBrowserModal } from "@/components/archive-browser-modal"
 import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
+import { StorageErrorBoundary, LoadingErrorBoundary } from "@/components/storage-error-boundary"
+import { 
+  FileGridSkeleton, 
+  EmptyFileList, 
+  FileOperationLoading,
+  ConnectionStatus,
+  PerformanceIndicator 
+} from "@/components/storage-loading-states"
+import { useErrorBoundary } from "@/lib/storage-error-handling"
+import { performanceMonitor } from "@/lib/storage-performance"
 
 interface CloudStorageTabProps {
   userId?: string
@@ -33,7 +43,10 @@ interface CloudStorageTabProps {
 export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showUploadZone, setShowUploadZone] = useState(false)
+  const [isOnline, setIsOnline] = useState(true)
+  const [performanceStats, setPerformanceStats] = useState<any>(null)
   const { toast } = useToast()
+  const { handleAsyncErrorWithRetry } = useErrorBoundary()
   
   const { 
     currentPath, 
@@ -70,14 +83,47 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     }
   }, [userId, currentPath, navigateToPath, setBreadcrumbs])
 
-  // Handle refresh
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Update performance stats periodically
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPerformanceStats(performanceMonitor.getStats())
+    }, 5000)
+    
+    return () => clearInterval(interval)
+  }, [])
+
+  // Handle refresh with error handling
   const handleRefresh = async () => {
     setIsRefreshing(true)
-    try {
-      await refreshCurrentPath()
-    } finally {
-      setIsRefreshing(false)
+    
+    const result = await handleAsyncErrorWithRetry(
+      () => refreshCurrentPath(),
+      'refresh_files'
+    )
+    
+    if (result !== null) {
+      toast({
+        title: "Aktualisiert",
+        description: "Dateien wurden erfolgreich aktualisiert",
+        duration: 2000,
+      })
     }
+    
+    setIsRefreshing(false)
   }
 
   // Get file type icon
@@ -137,38 +183,54 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Cloud Storage</h1>
-          <p className="text-muted-foreground">
-            Verwalten Sie Ihre Dokumente und Dateien zentral
-          </p>
+    <StorageErrorBoundary>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center space-x-3">
+              <h1 className="text-3xl font-bold tracking-tight">Cloud Storage</h1>
+              <ConnectionStatus isOnline={isOnline} />
+            </div>
+            <div className="flex items-center space-x-4 mt-1">
+              <p className="text-muted-foreground">
+                Verwalten Sie Ihre Dokumente und Dateien zentral
+              </p>
+              {performanceStats && (
+                <PerformanceIndicator 
+                  queryTime={performanceStats.averageQueryTime}
+                  cacheHit={performanceStats.cacheHitRate > 0.5}
+                />
+              )}
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing || !isOnline}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Aktualisieren
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={openArchiveView}
+              disabled={!isOnline}
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              Archiv
+            </Button>
+            <Button 
+              onClick={toggleUploadZone}
+              disabled={!isOnline}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {showUploadZone ? "Upload schließen" : "Dateien hochladen"}
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-          >
-            <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            Aktualisieren
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={openArchiveView}
-          >
-            <Archive className="mr-2 h-4 w-4" />
-            Archiv
-          </Button>
-          <Button onClick={toggleUploadZone}>
-            <Upload className="mr-2 h-4 w-4" />
-            {showUploadZone ? "Upload schließen" : "Dateien hochladen"}
-          </Button>
-        </div>
-      </div>
 
       {/* Breadcrumb Navigation */}
       <div className="bg-muted/30 rounded-lg p-3">
@@ -236,34 +298,18 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isLoading ? (
-                <div className="space-y-4">
-                  <div className="animate-pulse">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[...Array(4)].map((_, i) => (
-                        <div key={i} className="p-4 border rounded-lg">
-                          <div className="flex flex-col items-center space-y-2">
-                            <div className="h-8 w-8 bg-muted rounded" />
-                            <div className="h-4 w-16 bg-muted rounded" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : files.length === 0 ? (
-                <div className="text-center py-12">
-                  <Folder className="mx-auto h-12 w-12 text-muted-foreground" />
-                  <h3 className="mt-4 text-lg font-semibold">Keine Dateien</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Laden Sie Ihre ersten Dateien hoch, um zu beginnen.
-                  </p>
-                  <Button className="mt-4" onClick={toggleUploadZone}>
-                    <Upload className="mr-2 h-4 w-4" />
-                    Dateien hochladen
-                  </Button>
-                </div>
-              ) : (
+              <LoadingErrorBoundary
+                isLoading={isLoading}
+                error={error}
+                onRetry={handleRefresh}
+                isEmpty={files.length === 0}
+                loadingComponent={<FileGridSkeleton count={8} />}
+                emptyComponent={
+                  <EmptyFileList 
+                    onUpload={isOnline ? toggleUploadZone : undefined}
+                  />
+                }
+              >
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {files.map((file) => (
                     <FileContextMenu key={file.id} file={file}>
@@ -295,6 +341,7 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
                               variant="ghost" 
                               title="Rechtsklick für weitere Optionen"
                               className="text-xs px-2 py-1 h-auto"
+                              disabled={!isOnline}
                             >
                               Optionen
                             </Button>
@@ -304,21 +351,30 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
                     </FileContextMenu>
                   ))}
                 </div>
-              )}
+              </LoadingErrorBoundary>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* File Preview Modal */}
-      <FilePreviewModal />
-      
-      {/* Archive Browser Modal */}
-      <ArchiveBrowserModal 
-        isOpen={isArchiveViewOpen}
-        onClose={closeArchiveView}
-        userId={userId}
-      />
-    </div>
+        {/* Show operation loading state */}
+        {isOperationInProgress && (
+          <FileOperationLoading 
+            operation="delete" 
+            className="mb-4"
+          />
+        )}
+
+        {/* File Preview Modal */}
+        <FilePreviewModal />
+        
+        {/* Archive Browser Modal */}
+        <ArchiveBrowserModal 
+          isOpen={isArchiveViewOpen}
+          onClose={closeArchiveView}
+          userId={userId}
+        />
+      </div>
+    </StorageErrorBoundary>
   )
 }
