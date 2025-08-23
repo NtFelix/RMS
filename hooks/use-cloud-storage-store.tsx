@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
 import { useErrorBoundary } from '@/lib/storage-error-handling'
+import { createClient } from '@/utils/supabase/client'
 
 // Types for cloud storage state
 export interface StorageObject {
@@ -180,14 +181,74 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           const segment = pathSegments[i]
           currentPath = `${currentPath}/${segment}`
           
-          // Try to find display name from folders
+          // Try to find display name from folders first
           const folder = folders.find(f => f.path === currentPath)
           
-          breadcrumbs.push({
-            name: folder?.displayName || segment,
-            path: currentPath,
-            type: i === 1 ? 'house' : i === 2 ? 'apartment' : 'category'
-          })
+          // If folder has a displayName, use it
+          if (folder?.displayName) {
+            breadcrumbs.push({
+              name: folder.displayName,
+              path: currentPath,
+              type: i === 1 ? 'house' : i === 2 ? 'apartment' : 'category'
+            })
+            continue
+          }
+          
+          // If no displayName, try to get friendly name from the database
+          try {
+            const supabase = createClient()
+            let displayName = segment
+            let type: 'house' | 'apartment' | 'category' = 'category'
+            
+            // First segment after user_ is typically a house
+            if (i === 1) {
+              try {
+                const { data: house, error: houseError } = await supabase
+                  .from('Haeuser')
+                  .select('name')
+                  .eq('id', segment)
+                  .single()
+                
+                if (!houseError && house) {
+                  displayName = house.name || segment
+                  type = 'house'
+                }
+              } catch (e) {
+                console.error('Error fetching house name:', e)
+              }
+            } 
+            // Second segment is typically an apartment
+            else if (i === 2) {
+              try {
+                const { data: apartment, error: apartmentError } = await supabase
+                  .from('Wohnungen')
+                  .select('name')
+                  .eq('id', segment)
+                  .single()
+                
+                if (!apartmentError && apartment) {
+                  displayName = apartment.name || `Wohnung ${segment}`
+                  type = 'apartment'
+                }
+              } catch (e) {
+                console.error('Error fetching apartment name:', e)
+              }
+            }
+            
+            breadcrumbs.push({
+              name: displayName,
+              path: currentPath,
+              type
+            })
+          } catch (error) {
+            console.error('Error in breadcrumb generation:', error)
+            // Fallback to segment name if there's an error
+            breadcrumbs.push({
+              name: segment,
+              path: currentPath,
+              type: i === 1 ? 'house' : i === 2 ? 'apartment' : 'category'
+            })
+          }
         }
         
         set((state) => {
