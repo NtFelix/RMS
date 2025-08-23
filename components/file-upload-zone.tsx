@@ -40,12 +40,15 @@ export function FileUploadZone({
   useEffect(() => {
     const completedUploads = uploadQueue.filter(item => item.status === 'completed')
     const hasCompletedUploads = completedUploads.length > 0
-    const allUploadsFinished = uploadQueue.length > 0 && uploadQueue.every(item => 
-      item.status === 'completed' || item.status === 'error'
-    )
     
-    if (hasCompletedUploads && allUploadsFinished && !isUploading) {
-      onUploadComplete?.()
+    // Call onUploadComplete for each newly completed upload
+    if (hasCompletedUploads && !isUploading) {
+      // Use a timeout to ensure the upload process has fully completed
+      const timeoutId = setTimeout(() => {
+        onUploadComplete?.()
+      }, 500)
+      
+      return () => clearTimeout(timeoutId)
     }
   }, [uploadQueue, isUploading, onUploadComplete])
 
@@ -130,10 +133,12 @@ export function FileUploadZone({
     // Add valid files to upload queue
     if (validFiles.length > 0) {
       addToUploadQueue(validFiles, targetPath)
-      // Start processing uploads automatically
+      // Start processing uploads automatically with a small delay
       setTimeout(() => {
-        processUploadQueue()
-      }, 100)
+        processUploadQueue().catch(error => {
+          console.error('Error processing upload queue:', error)
+        })
+      }, 200)
     }
   }, [targetPath, addToUploadQueue])
 

@@ -22,7 +22,7 @@ import { FileUploadZone } from "@/components/file-upload-zone"
 import { FileContextMenu } from "@/components/file-context-menu"
 import { FilePreviewModal } from "@/components/file-preview-modal"
 import { ArchiveBrowserModal } from "@/components/archive-browser-modal"
-import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
+import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive, useCloudStorageUpload } from "@/hooks/use-cloud-storage-store"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
 import { StorageErrorBoundary, LoadingErrorBoundary } from "@/components/storage-error-boundary"
@@ -38,9 +38,10 @@ import { performanceMonitor } from "@/lib/storage-performance"
 
 interface CloudStorageTabProps {
   userId?: string
+  initialFiles?: any[]
 }
 
-export function CloudStorageTab({ userId }: CloudStorageTabProps) {
+export function CloudStorageTab({ userId, initialFiles }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [showUploadZone, setShowUploadZone] = useState(false)
   const [isOnline, setIsOnline] = useState(true)
@@ -76,6 +77,11 @@ export function CloudStorageTab({ userId }: CloudStorageTabProps) {
     openArchiveView,
   } = useCloudStorageArchive()
 
+  const {
+    uploadQueue,
+    removeFromUploadQueue,
+  } = useCloudStorageUpload()
+
   // Get actual user ID from Supabase auth
   useEffect(() => {
     const getUserId = async () => {
@@ -95,13 +101,28 @@ export function CloudStorageTab({ userId }: CloudStorageTabProps) {
     }
   }, [actualUserId])
 
-  // Initialize with root path
+  // Initialize with root path and load initial files
   useEffect(() => {
     if (!currentPath && actualUserId) {
-      navigateToPath(`user_${actualUserId}`)
-      setBreadcrumbs([{ name: 'Cloud Storage', path: `user_${actualUserId}`, type: 'root' }])
+      const rootPath = `user_${actualUserId}`
+      navigateToPath(rootPath)
+      setBreadcrumbs([{ name: 'Cloud Storage', path: rootPath, type: 'root' }])
     }
   }, [actualUserId, currentPath, navigateToPath, setBreadcrumbs])
+
+  // Set initial files if provided
+  useEffect(() => {
+    if (initialFiles && initialFiles.length > 0 && !files.length) {
+      setFiles(initialFiles)
+    }
+  }, [initialFiles, files.length, setFiles])
+
+  // Load files when path changes (but not on initial load if we have initialFiles)
+  useEffect(() => {
+    if (currentPath && actualUserId && (!initialFiles || files.length === 0)) {
+      refreshCurrentPath()
+    }
+  }, [currentPath, actualUserId, refreshCurrentPath, initialFiles, files.length])
 
   // Monitor online status
   useEffect(() => {
@@ -204,10 +225,40 @@ export function CloudStorageTab({ userId }: CloudStorageTabProps) {
   }
 
   // Handle upload completion
-  const handleUploadComplete = () => {
-    refreshCurrentPath()
-    setShowUploadZone(false)
+  const handleUploadComplete = async () => {
+    try {
+      // Refresh the current path to show new files
+      await refreshCurrentPath()
+      
+      toast({
+        title: "Upload erfolgreich",
+        description: "Dateien wurden erfolgreich hochgeladen",
+        duration: 3000,
+      })
+    } catch (error) {
+      console.error('Error refreshing files after upload:', error)
+      toast({
+        title: "Warnung",
+        description: "Dateien wurden hochgeladen, aber die Ansicht konnte nicht aktualisiert werden. Bitte aktualisieren Sie die Seite.",
+        variant: "destructive",
+        duration: 5000,
+      })
+    }
   }
+
+  // Auto-clear completed uploads after a delay
+  useEffect(() => {
+    const completedItems = uploadQueue.filter(item => item.status === 'completed')
+    if (completedItems.length > 0) {
+      const timeoutId = setTimeout(() => {
+        completedItems.forEach(item => {
+          removeFromUploadQueue(item.id)
+        })
+      }, 3000) // Clear after 3 seconds
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [uploadQueue, removeFromUploadQueue])
 
   // Toggle upload zone
   const toggleUploadZone = () => {
@@ -261,6 +312,19 @@ export function CloudStorageTab({ userId }: CloudStorageTabProps) {
               <Upload className="mr-2 h-4 w-4" />
               {showUploadZone ? "Upload schließen" : "Dateien hochladen"}
             </Button>
+            {uploadQueue.length > 0 && (
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const completedItems = uploadQueue.filter(item => item.status === 'completed')
+                  completedItems.forEach(item => removeFromUploadQueue(item.id))
+                }}
+                disabled={!uploadQueue.some(item => item.status === 'completed')}
+              >
+                Abgeschlossene löschen ({uploadQueue.filter(item => item.status === 'completed').length})
+              </Button>
+            )}
           </div>
         </div>
 

@@ -1,8 +1,9 @@
-"use client"
-
 import { Suspense } from "react"
 import { CloudStorageTab } from "@/components/cloud-storage-tab"
+import { createClient } from "@/utils/supabase/server"
+import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getInitialFiles } from "./actions"
 
 function CloudStorageLoading() {
   return (
@@ -33,11 +34,31 @@ function CloudStorageLoading() {
   )
 }
 
-export default function DateienPage() {
+async function CloudStorageContent({ userId }: { userId: string }) {
+  // Load initial files on the server
+  const { files, error } = await getInitialFiles(userId)
+  
+  if (error) {
+    console.error('Error loading initial files:', error)
+  }
+
+  return <CloudStorageTab userId={userId} initialFiles={files} />
+}
+
+export default async function DateienPage() {
+  const supabase = await createClient()
+  
+  // Get user on server side
+  const { data: { user }, error } = await supabase.auth.getUser()
+  
+  if (error || !user) {
+    redirect('/auth/login')
+  }
+
   return (
     <div className="container mx-auto py-6">
       <Suspense fallback={<CloudStorageLoading />}>
-        <CloudStorageTab />
+        <CloudStorageContent userId={user.id} />
       </Suspense>
     </div>
   )

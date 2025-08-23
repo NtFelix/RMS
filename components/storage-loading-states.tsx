@@ -1,12 +1,76 @@
 "use client"
 
 import React from 'react'
-import { RefreshCw, Upload, Download, Folder, File, Archive } from 'lucide-react'
+import { RefreshCw, Upload, Download, Folder, File, Archive, AlertCircle } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+
+/**
+ * Loading Error Boundary Component
+ */
+interface LoadingErrorBoundaryProps {
+  isLoading: boolean
+  error: string | null
+  onRetry?: () => void
+  isEmpty?: boolean
+  loadingComponent?: React.ReactNode
+  emptyComponent?: React.ReactNode
+  children: React.ReactNode
+  className?: string
+}
+
+export function LoadingErrorBoundary({
+  isLoading,
+  error,
+  onRetry,
+  isEmpty = false,
+  loadingComponent,
+  emptyComponent,
+  children,
+  className
+}: LoadingErrorBoundaryProps) {
+  if (isLoading) {
+    return (
+      <div className={cn("", className)}>
+        {loadingComponent || <FileGridSkeleton />}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={cn("text-center py-12", className)}>
+        <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+        <h3 className="mt-4 text-lg font-semibold text-red-900">Fehler beim Laden</h3>
+        <p className="mt-2 text-sm text-red-700">{error}</p>
+        {onRetry && (
+          <Button
+            onClick={onRetry}
+            variant="outline"
+            className="mt-4"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Erneut versuchen
+          </Button>
+        )}
+      </div>
+    )
+  }
+
+  if (isEmpty) {
+    return (
+      <div className={cn("", className)}>
+        {emptyComponent || <EmptyFileList />}
+      </div>
+    )
+  }
+
+  return <div className={className}>{children}</div>
+}
 
 /**
  * Loading skeleton for file tree navigation

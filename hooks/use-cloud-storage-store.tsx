@@ -596,6 +596,8 @@ export const useCloudStorageStore = create<CloudStorageState>()(
         
         // Process uploads sequentially to avoid overwhelming the server
         for (const item of pendingItems) {
+          let progressInterval: NodeJS.Timeout | null = null
+          
           try {
             // Update status to uploading
             set((state) => {
@@ -611,19 +613,22 @@ export const useCloudStorageStore = create<CloudStorageState>()(
             const fullPath = `${item.targetPath}/${fileName}`
             
             // Simulate progress updates (since Supabase doesn't provide real progress)
-            const progressInterval = setInterval(() => {
+            progressInterval = setInterval(() => {
               set((state) => {
                 const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
                 if (queueItem && queueItem.progress < 90) {
-                  queueItem.progress = Math.min(queueItem.progress + 10, 90)
+                  queueItem.progress = Math.min(queueItem.progress + 15, 90)
                 }
               })
-            }, 200)
+            }, 300)
             
             // Upload file
             const result = await uploadFile(item.file, fullPath)
             
-            clearInterval(progressInterval)
+            if (progressInterval) {
+              clearInterval(progressInterval)
+              progressInterval = null
+            }
             
             if (result.success) {
               // Update to completed
@@ -645,6 +650,11 @@ export const useCloudStorageStore = create<CloudStorageState>()(
               })
             }
           } catch (error) {
+            // Clean up progress interval on error
+            if (progressInterval) {
+              clearInterval(progressInterval)
+            }
+            
             // Handle individual file upload error
             set((state) => {
               const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
@@ -654,7 +664,21 @@ export const useCloudStorageStore = create<CloudStorageState>()(
               }
             })
           }
+          
+          // Small delay between uploads to prevent overwhelming the server
+          await new Promise(resolve => setTimeout(resolve, 100))
         }
+      } catch (error) {
+        console.error('Error in processUploadQueue:', error)
+        // Mark all pending items as error
+        set((state) => {
+          state.uploadQueue.forEach(item => {
+            if (item.status === 'pending' || item.status === 'uploading') {
+              item.status = 'error'
+              item.error = 'Upload process failed'
+            }
+          })
+        })
       } finally {
         set((state) => {
           state.isUploading = false
@@ -670,28 +694,34 @@ export const useCloudStorageStore = create<CloudStorageState>()(
     },
     
     refreshCurrentPath: async () => {
-      // This will be implemented when we have the storage service
-      // For now, just set loading state
+      const currentPath = get().currentPath
+      if (!currentPath) return
+      
       set((state) => {
         state.isLoading = true
         state.error = null
       })
       
       try {
-        // TODO: Implement actual refresh logic when storage service is available
-        // const files = await storageService.listFiles(get().currentPath)
-        // set((state) => {
-        //   state.files = files
-        //   state.isLoading = false
-        // })
+        const { listFiles } = await import('@/lib/storage-service')
+        const { withRetry } = await import('@/lib/storage-error-handling')
         
-        // For now, just clear loading state
+        const files = await withRetry(
+          () => listFiles(currentPath),
+          { maxRetries: 2 },
+          'refresh_files'
+        )
+        
         set((state) => {
+          state.files = files
           state.isLoading = false
         })
       } catch (error) {
+        const { mapError } = await import('@/lib/storage-error-handling')
+        const storageError = mapError(error, 'refresh_files')
+        
         set((state) => {
-          state.error = error instanceof Error ? error.message : 'Failed to refresh files'
+          state.error = storageError.userMessage
           state.isLoading = false
         })
       }
