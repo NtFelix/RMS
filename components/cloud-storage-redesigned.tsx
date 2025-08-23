@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { 
-  Upload, 
-  FolderOpen, 
-  ArrowLeft,
+  Upload,
   RefreshCw,
-  Plus,
-  Zap
+  FolderOpen,
+  Zap,
+  Plus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCloudStorageStore, StorageObject, VirtualFolder } from "@/hooks/use-cloud-storage-store"
@@ -166,7 +165,6 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
     }
     setSelectedItems(new Set())
     toast({
-      title: "Dateien archiviert",
       description: `${selectedFiles.length} Dateien wurden ins Archiv verschoben.`
     })
   }
@@ -189,7 +187,6 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
       await downloadFile(file)
     } catch (error) {
       toast({
-        title: "Download fehlgeschlagen",
         description: "Die Datei konnte nicht heruntergeladen werden.",
         variant: "destructive"
       })
@@ -200,12 +197,10 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
     try {
       await deleteFile(file)
       toast({
-        title: "Datei archiviert",
         description: `${file.name} wurde ins Archiv verschoben.`
       })
     } catch (error) {
       toast({
-        title: "Löschen fehlgeschlagen",
         description: "Die Datei konnte nicht gelöscht werden.",
         variant: "destructive"
       })
@@ -218,78 +213,17 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
       openUploadModal(currentPath, () => {
         refreshCurrentPath()
         toast({
-          title: "Upload erfolgreich",
           description: "Dateien wurden erfolgreich hochgeladen."
         })
       })
     }
   }
 
-  // Get current location name
-  const getCurrentLocationName = () => {
-    if (breadcrumbs.length === 0) return "Cloud Storage"
-    return breadcrumbs[breadcrumbs.length - 1].name
-  }
-
-  // Check if we're at root level
-  const isAtRoot = breadcrumbs.length <= 1
-
   return (
     <div className="h-full flex flex-col">
-      {/* Modern Header */}
+      {/* Header with Quick Actions */}
       <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="p-6">
-          {/* Navigation and title */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              {!isAtRoot && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleNavigateUp}
-                  className="h-9 w-9 p-0"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight">
-                  {getCurrentLocationName()}
-                </h1>
-                <div className="flex items-center space-x-2 text-sm text-muted-foreground mt-1">
-                  {breadcrumbs.map((crumb, index) => (
-                    <div key={crumb.path} className="flex items-center">
-                      {index > 0 && <span className="mx-1 text-muted-foreground/50">/</span>}
-                      <button
-                        onClick={() => navigateToPath(crumb.path)}
-                        className="hover:text-foreground transition-colors px-1 py-0.5 rounded hover:bg-muted/50"
-                        disabled={index === breadcrumbs.length - 1}
-                      >
-                        {crumb.name}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <Button 
-                variant="outline" 
-                onClick={() => refreshCurrentPath()}
-                disabled={isLoading}
-                className="h-9"
-              >
-                <RefreshCw className={cn("h-4 w-4 mr-2", isLoading && "animate-spin")} />
-                Aktualisieren
-              </Button>
-              <Button onClick={handleUpload} className="h-9">
-                <Upload className="h-4 w-4 mr-2" />
-                Hochladen
-              </Button>
-            </div>
-          </div>
-
           {/* Quick Actions */}
           <CloudStorageQuickActions
             onUpload={handleUpload}
