@@ -48,12 +48,15 @@ export function sanitizePathSegment(segment: string): string {
  */
 export function buildUserPath(userId: string, ...segments: string[]): string {
   const sanitizedUserId = sanitizePathSegment(userId);
-  const sanitizedSegments = segments.map(segment => sanitizePathSegment(segment));
+  const sanitizedSegments = segments.map(segment => sanitizePathSegment(segment)).filter(Boolean);
   
-  const path = `user_${sanitizedUserId}/${sanitizedSegments.join('/')}`;
+  let path = `user_${sanitizedUserId}`;
+  if (sanitizedSegments.length > 0) {
+    path += `/${sanitizedSegments.join('/')}`;
+  }
   
   // Check length before truncation to properly validate
-  const originalPath = `user_${userId}/${segments.join('/')}`;
+  const originalPath = segments.length > 0 ? `user_${userId}/${segments.join('/')}` : `user_${userId}`;
   if (originalPath.length > MAX_PATH_LENGTH) {
     throw new Error(`Path too long: ${originalPath.length} characters (max: ${MAX_PATH_LENGTH})`);
   }
@@ -205,6 +208,35 @@ export function validatePath(path: string): boolean {
 export function isUserPath(path: string, userId: string): boolean {
   const sanitizedUserId = sanitizePathSegment(userId);
   return path.startsWith(`user_${sanitizedUserId}/`);
+}
+
+/**
+ * Creates a .keep file path for empty folders
+ */
+export function createKeepFilePath(folderPath: string): string {
+  return `${folderPath}/.keep`;
+}
+
+/**
+ * Checks if a path is a .keep placeholder file
+ */
+export function isKeepFile(path: string): boolean {
+  return path.endsWith('/.keep');
+}
+
+/**
+ * Filters out .keep files from a file list
+ */
+export function filterKeepFiles<T extends { name: string }>(files: T[]): T[] {
+  return files.filter(file => !isKeepFile(file.name));
+}
+
+/**
+ * Checks if a folder should be considered empty (only contains .keep file or no files)
+ */
+export function isFolderEmpty<T extends { name: string }>(files: T[]): boolean {
+  const nonKeepFiles = filterKeepFiles(files);
+  return nonKeepFiles.length === 0;
 }
 
 // Default export with all utilities

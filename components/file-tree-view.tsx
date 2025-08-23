@@ -1,0 +1,368 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { ChevronRight, ChevronDown, Folder, FolderOpen, Home, Building, Users, FileText, AlertCircle } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
+import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
+import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
+
+interface FileTreeViewProps {
+  userId: string
+  className?: string
+}
+
+interface TreeNode {
+  id: string
+  name: string
+  path: string
+  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
+  icon: React.ComponentType<{ className?: string }>
+  children: TreeNode[]
+  isExpanded: boolean
+  fileCount: number
+  isEmpty: boolean
+}
+
+export function FileTreeView({ userId, className }: FileTreeViewProps) {
+  const [treeData, setTreeData] = useState<TreeNode[]>([])
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']))
+  
+  const { 
+    currentPath, 
+    navigateToPath, 
+    setBreadcrumbs,
+    folders,
+    setFolders 
+  } = useCloudStorageStore()
+
+  // Fetch real data from API
+  const { houses, apartments, tenants, isLoading, error } = usePropertyHierarchy()
+
+  // Build tree structure from data
+  useEffect(() => {
+    const buildTreeStructure = (): TreeNode[] => {
+      const rootNode: TreeNode = {
+        id: 'root',
+        name: 'Cloud Storage',
+        path: buildUserPath(userId),
+        type: 'root',
+        icon: Home,
+        children: [],
+        isExpanded: expandedNodes.has('root'),
+        fileCount: 0,
+        isEmpty: false
+      }
+
+      // Add category folders
+      const categories = [
+        {
+          id: 'haeuser',
+          name: 'Häuser',
+          path: buildUserPath(userId, 'haeuser'),
+          type: 'category' as const,
+          icon: Building,
+          children: [] as TreeNode[],
+          isExpanded: expandedNodes.has('haeuser'),
+          fileCount: 0,
+          isEmpty: false
+        },
+        {
+          id: 'miscellaneous',
+          name: 'Sonstiges',
+          path: buildUserPath(userId, 'miscellaneous'),
+          type: 'category' as const,
+          icon: FileText,
+          children: [] as TreeNode[],
+          isExpanded: expandedNodes.has('miscellaneous'),
+          fileCount: 0,
+          isEmpty: true // Will be updated based on actual files
+        }
+      ]
+
+      // Build house structure
+      const haeuser = categories.find(c => c.id === 'haeuser')!
+      houses.forEach(house => {
+        const houseNode: TreeNode = {
+          id: `house-${house.id}`,
+          name: house.name,
+          path: buildHousePath(userId, house.id),
+          type: 'house',
+          icon: Building,
+          children: [],
+          isExpanded: expandedNodes.has(`house-${house.id}`),
+          fileCount: 0,
+          isEmpty: false
+        }
+
+        // Add house documents category
+        const houseDocsNode: TreeNode = {
+          id: `house-docs-${house.id}`,
+          name: 'Hausdokumente',
+          path: buildUserPath(userId, house.id, 'house_documents'),
+          type: 'category',
+          icon: FileText,
+          children: [],
+          isExpanded: false,
+          fileCount: 0,
+          isEmpty: true
+        }
+        houseNode.children.push(houseDocsNode)
+
+        // Add apartments for this house
+        const houseApartments = apartments.filter(apt => apt.haus_id === house.id)
+        houseApartments.forEach(apartment => {
+          const apartmentNode: TreeNode = {
+            id: `apartment-${apartment.id}`,
+            name: apartment.name,
+            path: buildApartmentPath(userId, house.id, apartment.id),
+            type: 'apartment',
+            icon: Home,
+            children: [],
+            isExpanded: expandedNodes.has(`apartment-${apartment.id}`),
+            fileCount: 0,
+            isEmpty: false
+          }
+
+          // Add apartment documents category
+          const apartmentDocsNode: TreeNode = {
+            id: `apartment-docs-${apartment.id}`,
+            name: 'Wohnungsdokumente',
+            path: buildUserPath(userId, house.id, apartment.id, 'apartment_documents'),
+            type: 'category',
+            icon: FileText,
+            children: [],
+            isExpanded: false,
+            fileCount: 0,
+            isEmpty: true
+          }
+          apartmentNode.children.push(apartmentDocsNode)
+
+          // Add tenants for this apartment
+          const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id === apartment.id)
+          apartmentTenants.forEach(tenant => {
+            const tenantNode: TreeNode = {
+              id: `tenant-${tenant.id}`,
+              name: tenant.name,
+              path: buildTenantPath(userId, house.id, apartment.id, tenant.id),
+              type: 'tenant',
+              icon: Users,
+              children: [],
+              isExpanded: false,
+              fileCount: 0,
+              isEmpty: true
+            }
+            apartmentNode.children.push(tenantNode)
+          })
+
+          houseNode.children.push(apartmentNode)
+        })
+
+        haeuser.children.push(houseNode)
+      })
+
+      rootNode.children = categories
+      return [rootNode]
+    }
+
+    if (!isLoading && !error) {
+      setTreeData(buildTreeStructure())
+    }
+  }, [userId, houses, apartments, tenants, expandedNodes, isLoading, error])
+
+  // Generate breadcrumbs from current path
+  const generateBreadcrumbs = (path: string): BreadcrumbItem[] => {
+    const breadcrumbs: BreadcrumbItem[] = [
+      { name: 'Cloud Storage', path: buildUserPath(userId), type: 'root' }
+    ]
+
+    if (!path || path === buildUserPath(userId)) {
+      return breadcrumbs
+    }
+
+    // Parse path to build breadcrumbs
+    const userPath = buildUserPath(userId)
+    const relativePath = path.startsWith(userPath) ? path.substring(userPath.length + 1) : path
+    const segments = relativePath.split('/').filter(Boolean)
+    
+    if (segments.length > 0) {
+      if (segments[0] === 'haeuser') {
+        breadcrumbs.push({ 
+          name: 'Häuser', 
+          path: buildUserPath(userId, 'haeuser'), 
+          type: 'category' 
+        })
+        
+        if (segments.length > 1) {
+          const house = houses.find(h => h.id === segments[1])
+          if (house) {
+            breadcrumbs.push({
+              name: house.name,
+              path: buildHousePath(userId, house.id),
+              type: 'house'
+            })
+            
+            if (segments.length > 2) {
+              if (segments[2] === 'house_documents') {
+                breadcrumbs.push({
+                  name: 'Hausdokumente',
+                  path: buildUserPath(userId, house.id, 'house_documents'),
+                  type: 'category'
+                })
+              } else {
+                const apartment = apartments.find(a => a.id === segments[2])
+                if (apartment) {
+                  breadcrumbs.push({
+                    name: apartment.name,
+                    path: buildApartmentPath(userId, house.id, apartment.id),
+                    type: 'apartment'
+                  })
+                  
+                  if (segments.length > 3) {
+                    if (segments[3] === 'apartment_documents') {
+                      breadcrumbs.push({
+                        name: 'Wohnungsdokumente',
+                        path: buildUserPath(userId, house.id, apartment.id, 'apartment_documents'),
+                        type: 'category'
+                      })
+                    } else {
+                      const tenant = tenants.find(t => t.id === segments[3])
+                      if (tenant) {
+                        breadcrumbs.push({
+                          name: tenant.name,
+                          path: buildTenantPath(userId, house.id, apartment.id, tenant.id),
+                          type: 'tenant'
+                        })
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (segments[0] === 'miscellaneous') {
+        breadcrumbs.push({
+          name: 'Sonstiges',
+          path: buildUserPath(userId, 'miscellaneous'),
+          type: 'category'
+        })
+      }
+    }
+
+    return breadcrumbs
+  }
+
+  // Handle node click
+  const handleNodeClick = (node: TreeNode) => {
+    navigateToPath(node.path)
+    setBreadcrumbs(generateBreadcrumbs(node.path))
+  }
+
+  // Handle node expansion
+  const handleNodeExpand = (nodeId: string) => {
+    setExpandedNodes(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(nodeId)) {
+        newSet.delete(nodeId)
+      } else {
+        newSet.add(nodeId)
+      }
+      return newSet
+    })
+  }
+
+  // Render tree node
+  const renderTreeNode = (node: TreeNode, level: number = 0): React.ReactNode => {
+    const hasChildren = node.children.length > 0
+    const isExpanded = expandedNodes.has(node.id)
+    const isSelected = currentPath === node.path
+    const Icon = node.icon
+
+    return (
+      <div key={node.id} className="select-none">
+        <div
+          className={cn(
+            "flex items-center py-1 px-2 rounded-md cursor-pointer hover:bg-accent transition-colors",
+            isSelected && "bg-accent font-medium",
+            level > 0 && "ml-4"
+          )}
+          style={{ paddingLeft: `${level * 16 + 8}px` }}
+          onClick={() => handleNodeClick(node)}
+        >
+          {hasChildren && (
+            <button
+              className="mr-1 p-0.5 hover:bg-accent-foreground/10 rounded"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleNodeExpand(node.id)
+              }}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
+            </button>
+          )}
+          {!hasChildren && <div className="w-4 mr-1" />}
+          
+          <Icon className={cn(
+            "h-4 w-4 mr-2 flex-shrink-0",
+            node.type === 'house' && "text-blue-500",
+            node.type === 'apartment' && "text-green-500",
+            node.type === 'tenant' && "text-purple-500",
+            node.type === 'category' && "text-orange-500"
+          )} />
+          
+          <span className="text-sm truncate flex-1">{node.name}</span>
+          
+          {node.fileCount > 0 && (
+            <span className="text-xs text-muted-foreground ml-2">
+              {node.fileCount}
+            </span>
+          )}
+          
+          {node.isEmpty && (
+            <span className="text-xs text-muted-foreground ml-2">
+              leer
+            </span>
+          )}
+        </div>
+        
+        {hasChildren && isExpanded && (
+          <div>
+            {node.children.map(child => renderTreeNode(child, level + 1))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (isLoading) {
+    return (
+      <div className={cn("space-y-2", className)}>
+        <div className="animate-pulse">
+          <div className="h-4 bg-muted rounded w-3/4 mb-2" />
+          <div className="h-4 bg-muted rounded w-1/2 mb-2" />
+          <div className="h-4 bg-muted rounded w-2/3 mb-2" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={cn("flex items-center space-x-2 text-sm text-destructive", className)}>
+        <AlertCircle className="h-4 w-4" />
+        <span>Fehler beim Laden der Ordnerstruktur</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn("space-y-1", className)}>
+      {treeData.map(node => renderTreeNode(node))}
+    </div>
+  )
+}
