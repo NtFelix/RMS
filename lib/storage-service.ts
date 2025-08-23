@@ -191,7 +191,16 @@ export async function listFiles(prefix: string): Promise<StorageObject[]> {
     throw new Error(`Failed to list files: ${error.message}`);
   }
   
-  return data || [];
+  // Map FileObject[] to StorageObject[]
+  return (data || []).map(file => ({
+    name: file.name,
+    id: file.id || file.name, // Use name as fallback for id
+    updated_at: file.updated_at || new Date().toISOString(),
+    created_at: file.created_at || new Date().toISOString(),
+    last_accessed_at: file.last_accessed_at || new Date().toISOString(),
+    metadata: file.metadata || {},
+    size: file.metadata?.size || 0, // Extract size from metadata
+  }));
 }
 
 /**
