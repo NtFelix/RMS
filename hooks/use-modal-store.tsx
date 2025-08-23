@@ -239,6 +239,14 @@ export interface ModalState {
   setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => void;
   refreshApartmentTenantDetailsData: () => Promise<void>;
 
+  // Upload Modal State
+  isUploadModalOpen: boolean;
+  uploadModalTargetPath?: string;
+  uploadModalOnComplete?: () => void;
+  uploadModalFiles?: File[];
+  openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => void;
+  closeUploadModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -337,6 +345,13 @@ const initialApartmentTenantDetailsModalState = {
   apartmentTenantDetailsError: undefined,
 };
 
+const initialUploadModalState = {
+  isUploadModalOpen: false,
+  uploadModalTargetPath: undefined,
+  uploadModalOnComplete: undefined,
+  uploadModalFiles: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -349,6 +364,7 @@ const createInitialModalState = () => ({
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
+  ...initialUploadModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -688,6 +704,15 @@ export const useModalStore = create<ModalState>((set, get) => {
     setApartmentTenantDetailsLoading: (loading: boolean) => set({ apartmentTenantDetailsLoading: loading }),
     setApartmentTenantDetailsError: (error?: string) => set({ apartmentTenantDetailsError: error }),
     setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => set({ apartmentTenantDetailsData: data }),
+
+    // Upload Modal
+    openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => set({
+      isUploadModalOpen: true,
+      uploadModalTargetPath: targetPath,
+      uploadModalOnComplete: onComplete,
+      uploadModalFiles: files,
+    }),
+    closeUploadModal: () => set(initialUploadModalState),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

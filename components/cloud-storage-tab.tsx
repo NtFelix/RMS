@@ -23,12 +23,14 @@ import { FileContextMenu } from "@/components/file-context-menu"
 import { FilePreviewModal } from "@/components/file-preview-modal"
 import { ArchiveBrowserModal } from "@/components/archive-browser-modal"
 import { useCloudStorageStore, useCloudStorageOperations, useCloudStorageArchive, useCloudStorageUpload, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { createClient } from "@/utils/supabase/client"
 import { StorageErrorBoundary, LoadingErrorBoundary } from "@/components/storage-error-boundary"
 import { 
   FileGridSkeleton, 
   EmptyFileList, 
+  EmptyFolder,
   FileOperationLoading,
   ConnectionStatus,
   PerformanceIndicator 
@@ -59,6 +61,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
   const [actualUserId, setActualUserId] = useState<string | null>(userId || null)
   const { toast } = useToast()
   const { handleAsyncErrorWithRetry } = useErrorBoundary()
+  const { openUploadModal } = useModalStore()
   
   const { 
     currentPath, 
@@ -385,7 +388,14 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
     }
   }, [uploadQueue, removeFromUploadQueue])
 
-  // Toggle upload zone
+  // Open upload modal
+  const openUpload = () => {
+    if (currentPath) {
+      openUploadModal(currentPath, handleUploadComplete)
+    }
+  }
+
+  // Toggle upload zone (keep for backward compatibility)
   const toggleUploadZone = () => {
     setShowUploadZone(!showUploadZone)
   }
@@ -431,11 +441,11 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
               Archiv
             </Button>
             <Button 
-              onClick={toggleUploadZone}
-              disabled={!isOnline}
+              onClick={openUpload}
+              disabled={!isOnline || !currentPath}
             >
               <Upload className="mr-2 h-4 w-4" />
-              {showUploadZone ? "Upload schließen" : "Dateien hochladen"}
+              Dateien hochladen
             </Button>
             {uploadQueue.length > 0 && (
               <Button 
@@ -526,9 +536,17 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
                 isEmpty={files.length === 0 && folders.length === 0}
                 loadingComponent={<FileGridSkeleton count={8} />}
                 emptyComponent={
-                  <EmptyFileList 
-                    onUpload={isOnline ? toggleUploadZone : undefined}
-                  />
+                  // Show EmptyFolder for specific folders, EmptyFileList for root
+                  breadcrumbs.length > 1 ? (
+                    <EmptyFolder 
+                      folderName={getCurrentFolderName()}
+                      onUpload={isOnline && currentPath ? openUpload : undefined}
+                    />
+                  ) : (
+                    <EmptyFileList 
+                      onUpload={isOnline && currentPath ? openUpload : undefined}
+                    />
+                  )
                 }
               >
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

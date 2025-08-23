@@ -368,21 +368,21 @@ export function EmptyFolder({
   className?: string 
 }) {
   return (
-    <div className={cn("text-center py-8", className)}>
-      <Folder className="mx-auto h-8 w-8 text-muted-foreground" />
-      <h3 className="mt-3 text-base font-medium">
+    <div className={cn("text-center py-12", className)}>
+      <Folder className="mx-auto h-12 w-12 text-muted-foreground" />
+      <h3 className="mt-4 text-lg font-semibold">
         {folderName ? `${folderName} ist leer` : 'Ordner ist leer'}
       </h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Laden Sie Dateien in diesen Ordner hoch.
+      <p className="mt-2 text-sm text-muted-foreground">
+        Dieser Ordner enthält noch keine Dateien. Laden Sie Ihre ersten Dateien hoch, um zu beginnen.
       </p>
       {onUpload && (
         <button
           onClick={onUpload}
-          className="mt-3 inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-primary bg-primary/10 hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
         >
-          <Upload className="mr-1 h-3 w-3" />
-          Hochladen
+          <Upload className="mr-2 h-4 w-4" />
+          Dateien hochladen
         </button>
       )}
     </div>

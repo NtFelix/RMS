@@ -28,6 +28,8 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Add
 import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
 import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
 import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
+import { FileUploadModal } from "@/components/file-upload-modal"; // Added
+import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -80,8 +82,9 @@ export default function DashboardRootLayout({
 
   return (
     <AuthProvider>
-      <CommandMenu />
-      <DashboardLayout>{children}</DashboardLayout>
+      <GlobalDragDropProvider>
+        <CommandMenu />
+        <DashboardLayout>{children}</DashboardLayout>
 
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
@@ -123,6 +126,9 @@ export default function DashboardRootLayout({
       {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
       <ApartmentTenantDetailsModal />
 
+      {/* FileUploadModal - Global file upload modal */}
+      <FileUploadModal />
+
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
         <ConfirmationDialog
@@ -140,6 +146,7 @@ export default function DashboardRootLayout({
           cancelText={confirmationModalConfig.cancelText}
         />
       )}
+      </GlobalDragDropProvider>
     </AuthProvider>
   )
 }
