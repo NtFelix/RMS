@@ -86,8 +86,8 @@ const getFileIcon = (mimeType: string) => {
 const getFileTypeLabel = (mimeType: string): string => {
   if (mimeType.startsWith('image/')) return 'Bild'
   if (mimeType === 'application/pdf') return 'PDF'
+  if (mimeType.includes('excel') || mimeType.includes('spreadsheet') || mimeType.includes('sheet')) return 'Tabelle'
   if (mimeType.includes('word') || mimeType.includes('document')) return 'Dokument'
-  if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'Tabelle'
   if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) return 'Archiv'
   if (mimeType.startsWith('text/')) return 'Text'
   return 'Datei'
@@ -174,8 +174,8 @@ export const FileListDisplay: React.FC<FileListDisplayProps> = ({
           valB = new Date(b.uploadedAt).getTime()
           break
         case 'mimeType':
-          valA = getFileTypeLabel(a.mimeType)
-          valB = getFileTypeLabel(b.mimeType)
+          valA = getFileTypeLabel(a.mimeType).toLowerCase()
+          valB = getFileTypeLabel(b.mimeType).toLowerCase()
           break
         default:
           return 0
@@ -343,6 +343,7 @@ export const FileListDisplay: React.FC<FileListDisplayProps> = ({
                   onCheckedChange={handleSelectAll}
                   ref={(el) => {
                     if (el) {
+                      // @ts-ignore - indeterminate is a valid property but not in the type definition
                       el.indeterminate = someSelected
                     }
                   }}
