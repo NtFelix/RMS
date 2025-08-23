@@ -169,7 +169,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
   useEffect(() => {
     if (currentPath && actualUserId) {
       // Generate breadcrumbs based on current path
-      const generateBreadcrumbs = (): BreadcrumbItem[] => {
+      const generateBreadcrumbs = async (): Promise<BreadcrumbItem[]> => {
         const breadcrumbs: BreadcrumbItem[] = [
           { name: 'Cloud Storage', path: `user_${actualUserId}`, type: 'root' }
         ]
@@ -182,20 +182,70 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
           const segments = relativePath.split('/').filter(Boolean)
           
           let currentSegmentPath = userPath
-          segments.forEach((segment) => {
+          for (let i = 0; i < segments.length; i++) {
+            const segment = segments[i]
             currentSegmentPath += `/${segment}`
+            
+            let displayName = segment
+            let breadcrumbType: BreadcrumbItem['type'] = 'category'
+            
+            // Try to get display names for houses and apartments
+            if (i === 0 && segment !== 'Miscellaneous') {
+              // This might be a house ID
+              try {
+                const supabase = createClient()
+                const { data: house } = await supabase
+                  .from('Haeuser')
+                  .select('name')
+                  .eq('id', segment)
+                  .eq('user_id', actualUserId)
+                  .single()
+                
+                if (house) {
+                  displayName = house.name
+                  breadcrumbType = 'house'
+                }
+              } catch (error) {
+                // If it fails, keep the original segment name
+              }
+            } else if (i === 1 && segments[0] !== 'Miscellaneous') {
+              // This might be an apartment ID
+              try {
+                const supabase = createClient()
+                const { data: apartment } = await supabase
+                  .from('Wohnungen')
+                  .select('name')
+                  .eq('id', segment)
+                  .eq('user_id', actualUserId)
+                  .single()
+                
+                if (apartment) {
+                  displayName = apartment.name
+                  breadcrumbType = 'apartment'
+                }
+              } catch (error) {
+                // If it fails, keep the original segment name
+              }
+            } else if (segment === 'house_documents') {
+              displayName = 'Hausdokumente'
+            } else if (segment === 'apartment_documents') {
+              displayName = 'Wohnungsdokumente'
+            } else if (segment === 'Miscellaneous') {
+              displayName = 'Sonstiges'
+            }
+            
             breadcrumbs.push({
-              name: segment,
+              name: displayName,
               path: currentSegmentPath,
-              type: 'category'
+              type: breadcrumbType
             })
-          })
+          }
         }
         
         return breadcrumbs
       }
       
-      setBreadcrumbs(generateBreadcrumbs())
+      generateBreadcrumbs().then(setBreadcrumbs)
     }
   }, [currentPath, actualUserId, setBreadcrumbs])
 
@@ -485,11 +535,38 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
                   {/* Render folders first */}
                   {folders.map((folder) => {
                     const displayName = folder.displayName || folder.name
-                    const folderIcon = folder.type === 'house' ? 
-                      <Folder className="h-8 w-8 text-green-600" /> :
-                      folder.type === 'apartment' ? 
-                      <Folder className="h-8 w-8 text-blue-600" /> :
-                      <Folder className="h-8 w-8 text-blue-500" />
+                    
+                    // Determine folder icon and color based on type
+                    let folderIcon
+                    let folderTypeLabel
+                    
+                    switch (folder.type) {
+                      case 'house':
+                        folderIcon = <Folder className="h-8 w-8 text-green-600" />
+                        folderTypeLabel = 'Haus'
+                        break
+                      case 'apartment':
+                        folderIcon = <Folder className="h-8 w-8 text-blue-600" />
+                        folderTypeLabel = 'Wohnung'
+                        break
+                      case 'category':
+                        // Special handling for different category types
+                        if (folder.name === 'house_documents' || folder.name === 'apartment_documents') {
+                          folderIcon = <FileText className="h-8 w-8 text-purple-600" />
+                          folderTypeLabel = 'Dokumente'
+                        } else if (folder.name === 'Miscellaneous') {
+                          folderIcon = <Folder className="h-8 w-8 text-gray-600" />
+                          folderTypeLabel = 'Sonstiges'
+                        } else {
+                          // Likely a tenant folder
+                          folderIcon = <Folder className="h-8 w-8 text-orange-600" />
+                          folderTypeLabel = 'Mieter'
+                        }
+                        break
+                      default:
+                        folderIcon = <Folder className="h-8 w-8 text-blue-500" />
+                        folderTypeLabel = 'Ordner'
+                    }
                     
                     return (
                       <div 
@@ -509,9 +586,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
                             </span>
                             
                             <div className="text-xs text-muted-foreground mt-1">
-                              {folder.type === 'house' ? 'Haus' :
-                               folder.type === 'apartment' ? 'Wohnung' :
-                               folder.type === 'category' ? 'Kategorie' : 'Ordner'}
+                              {folderTypeLabel}
                             </div>
                             
                             {folder.isEmpty ? (
