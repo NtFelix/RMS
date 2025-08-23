@@ -36,16 +36,16 @@ export function FileUploadModal() {
 
   // Auto-add files to upload queue if they were provided via drag and drop
   useEffect(() => {
-    if (uploadModalFiles && uploadModalFiles.length > 0 && uploadModalTargetPath) {
+    if (uploadModalFiles && uploadModalFiles.length > 0 && uploadModalTargetPath && isUploadModalOpen) {
       addToUploadQueue(uploadModalFiles, uploadModalTargetPath)
-      // Start processing uploads automatically
+      // Start processing uploads automatically with a small delay
       setTimeout(() => {
         processUploadQueue().catch(error => {
           console.error('Error processing upload queue:', error)
         })
-      }, 200)
+      }, 300)
     }
-  }, [uploadModalFiles, uploadModalTargetPath, addToUploadQueue, processUploadQueue])
+  }, [uploadModalFiles, uploadModalTargetPath, addToUploadQueue, processUploadQueue, isUploadModalOpen])
 
   // Close modal on escape key
   useEffect(() => {
@@ -69,7 +69,12 @@ export function FileUploadModal() {
     <Dialog open={isUploadModalOpen} onOpenChange={closeUploadModal}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Dateien hochladen</DialogTitle>
+          <DialogTitle>
+            {uploadModalFiles && uploadModalFiles.length > 0 
+              ? `${uploadModalFiles.length} Datei${uploadModalFiles.length > 1 ? 'en' : ''} hochladen`
+              : 'Dateien hochladen'
+            }
+          </DialogTitle>
         </DialogHeader>
         
         <div className="mt-4">
