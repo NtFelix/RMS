@@ -9,24 +9,28 @@ import {
   Plus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useCloudStorageStore, StorageObject, VirtualFolder } from "@/hooks/use-cloud-storage-store"
+import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 interface CloudStorageRedesignedProps {
   userId: string
   initialFiles?: StorageObject[]
   initialFolders?: VirtualFolder[]
+  initialPath?: string
+  initialBreadcrumbs?: BreadcrumbItem[]
 }
 
 type ViewMode = 'grid' | 'list'
 type SortBy = 'name' | 'date' | 'size' | 'type'
 type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
 
-export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }: CloudStorageRedesignedProps) {
+export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, initialPath, initialBreadcrumbs }: CloudStorageRedesignedProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [sortBy, setSortBy] = useState<SortBy>('name')
   const [searchQuery, setSearchQuery] = useState('')
@@ -41,6 +45,12 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
     error,
     breadcrumbs,
     navigateToPath,
+    setCurrentPath,
+    setFiles,
+    setFolders,
+    setBreadcrumbs,
+    setLoading,
+    setError,
     refreshCurrentPath,
     downloadFile,
     deleteFile
@@ -48,13 +58,35 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
   
   const { openUploadModal } = useModalStore()
   const { toast } = useToast()
+  const router = useRouter()
 
-  // Initialize with root path
-  useEffect(() => {
-    if (!currentPath && userId) {
-      navigateToPath(`user_${userId}`)
+  // Map a storage path like user_<id>/a/b to the SSR URL /dateien/a/b
+  const pathToHref = (path: string) => {
+    const base = `user_${userId}`
+    if (!path || path === base) return "/dateien"
+    const prefix = `${base}/`
+    if (path.startsWith(prefix)) {
+      const rest = path.slice(prefix.length)
+      return `/dateien/${rest}`
     }
-  }, [userId, currentPath, navigateToPath])
+    return "/dateien"
+  }
+
+  // Hydrate store from server-provided initial data; re-hydrate on SSR route transitions
+  useEffect(() => {
+    if (initialPath && initialPath !== currentPath) {
+      setCurrentPath(initialPath)
+      if (initialFiles) setFiles(initialFiles)
+      if (initialFolders) setFolders(initialFolders)
+      if (initialBreadcrumbs) setBreadcrumbs(initialBreadcrumbs)
+      setError(null)
+      setLoading(false)
+      return
+    }
+    if (!currentPath && userId) {
+      router.replace('/dateien')
+    }
+  }, [currentPath, initialPath, initialFiles, initialFolders, initialBreadcrumbs, userId, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setLoading, setError])
 
   // Filter items based on search and active filter
   const filterItems = () => {
@@ -173,12 +205,12 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
   const handleNavigateUp = () => {
     if (breadcrumbs.length > 1) {
       const parentBreadcrumb = breadcrumbs[breadcrumbs.length - 2]
-      navigateToPath(parentBreadcrumb.path)
+      router.push(pathToHref(parentBreadcrumb.path))
     }
   }
 
   const handleFolderClick = (folder: VirtualFolder) => {
-    navigateToPath(folder.path)
+    router.push(pathToHref(folder.path))
   }
 
   // Handle file operations
@@ -251,24 +283,37 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
                       <span className="mx-2.5 text-muted-foreground/50">/</span>
                     )}
                     
-                    <button
-                      onClick={() => navigateToPath(breadcrumb.path)}
-                      className={cn(
-                        "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                        isLast 
-                          ? "text-foreground font-medium cursor-default" 
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
-                      )}
-                      disabled={isLast}
-                      aria-current={isLast ? "page" : undefined}
-                    >
-                      {breadcrumb.type === 'root' && (
-                        <FolderOpen className="h-4 w-4 mr-1.5" />
-                      )}
-                      <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                        {breadcrumb.name}
+                    {isLast ? (
+                      <span
+                        className={cn(
+                          "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                          "text-foreground font-medium cursor-default"
+                        )}
+                        aria-current="page"
+                      >
+                        {breadcrumb.type === 'root' && (
+                          <FolderOpen className="h-4 w-4 mr-1.5" />
+                        )}
+                        <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                          {breadcrumb.name}
+                        </span>
                       </span>
-                    </button>
+                    ) : (
+                      <Link
+                        href={pathToHref(breadcrumb.path)}
+                        className={cn(
+                          "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                          "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
+                        )}
+                      >
+                        {breadcrumb.type === 'root' && (
+                          <FolderOpen className="h-4 w-4 mr-1.5" />
+                        )}
+                        <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                          {breadcrumb.name}
+                        </span>
+                      </Link>
+                    )}
                   </li>
                 )
               })}

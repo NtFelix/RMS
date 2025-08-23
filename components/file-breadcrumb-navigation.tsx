@@ -3,16 +3,20 @@
 import { ChevronRight, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageNavigation, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
+import Link from "next/link"
 
 interface FileBreadcrumbNavigationProps {
   className?: string
 }
 
 export function FileBreadcrumbNavigation({ className }: FileBreadcrumbNavigationProps) {
-  const { breadcrumbs, navigateToPath } = useCloudStorageNavigation()
+  const { breadcrumbs } = useCloudStorageNavigation()
 
-  const handleBreadcrumbClick = (breadcrumb: BreadcrumbItem) => {
-    navigateToPath(breadcrumb.path)
+  // Map storage path like user_<id>/a/b to SSR route /dateien/a/b
+  const pathToHref = (path: string) => {
+    const match = path.match(/^user_[^/]+(?:\/(.*))?$/)
+    const rest = match && match[1] ? match[1] : ""
+    return rest ? `/dateien/${rest}` : "/dateien"
   }
 
   const getBreadcrumbIcon = (type: BreadcrumbItem['type']) => {
@@ -56,23 +60,34 @@ export function FileBreadcrumbNavigation({ className }: FileBreadcrumbNavigation
                 <ChevronRight className="h-3 w-3 text-muted-foreground mx-1" />
               )}
               
-              <button
-                onClick={() => handleBreadcrumbClick(breadcrumb)}
-                className={cn(
-                  "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
-                  isLast 
-                    ? "text-foreground font-medium cursor-default" 
-                    : cn("cursor-pointer", getBreadcrumbColor(breadcrumb.type)),
-                  !isLast && "hover:bg-accent"
-                )}
-                disabled={isLast}
-                aria-current={isLast ? "page" : undefined}
-              >
-                {Icon && <span className="flex-shrink-0">{Icon}</span>}
-                <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                  {breadcrumb.name}
+              {isLast ? (
+                <span
+                  className={cn(
+                    "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
+                    "text-foreground font-medium cursor-default"
+                  )}
+                  aria-current="page"
+                >
+                  {Icon && <span className="flex-shrink-0">{Icon}</span>}
+                  <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                    {breadcrumb.name}
+                  </span>
                 </span>
-              </button>
+              ) : (
+                <Link
+                  href={pathToHref(breadcrumb.path)}
+                  className={cn(
+                    "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
+                    cn("cursor-pointer", getBreadcrumbColor(breadcrumb.type)),
+                    "hover:bg-accent"
+                  )}
+                >
+                  {Icon && <span className="flex-shrink-0">{Icon}</span>}
+                  <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                    {breadcrumb.name}
+                  </span>
+                </Link>
+              )}
             </li>
           )
         })}

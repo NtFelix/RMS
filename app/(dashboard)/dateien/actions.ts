@@ -23,6 +23,12 @@ export interface VirtualFolder {
   displayName?: string
 }
 
+export interface BreadcrumbItem {
+  name: string
+  path: string
+  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
+}
+
 export async function getInitialFiles(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -511,6 +517,132 @@ export async function getApartmentFolderContents(userId: string, houseId: string
       files: [],
       folders: [],
       error: 'Fehler beim Laden der Mieterordner'
+    }
+  }
+}
+
+// Server-side breadcrumb builder with friendly names
+export async function getBreadcrumbs(userId: string, path: string): Promise<BreadcrumbItem[]> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user || user.id !== userId) {
+      redirect('/auth/login')
+    }
+
+    const pathSegments = path.split('/').filter(Boolean)
+    const crumbs: BreadcrumbItem[] = []
+
+    // Root
+    const rootPath = `user_${userId}`
+    crumbs.push({ name: 'Cloud Storage', path: rootPath, type: 'root' })
+
+    // Nothing more to do if at root
+    if (pathSegments.length <= 1) {
+      return crumbs
+    }
+
+    // Helper to map known category folder names to display labels
+    const mapCategoryName = (segment: string): string => {
+      if (segment === 'Miscellaneous') return 'Sonstiges'
+      if (segment === 'house_documents') return 'Hausdokumente'
+      if (segment === 'apartment_documents') return 'Wohnungsdokumente'
+      return segment
+    }
+
+    let currentPath = rootPath
+    for (let i = 1; i < pathSegments.length; i++) {
+      const segment = pathSegments[i]
+      currentPath = `${currentPath}/${segment}`
+
+      // Try to resolve friendly names depending on depth
+      if (i === 1) {
+        // House level
+        try {
+          const { data: house } = await supabase
+            .from('Haeuser')
+            .select('name')
+            .eq('id', segment)
+            .single()
+          crumbs.push({ name: house?.name || mapCategoryName(segment), path: currentPath, type: 'house' })
+        } catch {
+          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'house' })
+        }
+        continue
+      }
+
+      if (i === 2) {
+        // Apartment level or category under house
+        if (segment === 'house_documents' || segment === 'Miscellaneous') {
+          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+        } else {
+          try {
+            const { data: apartment } = await supabase
+              .from('Wohnungen')
+              .select('name')
+              .eq('id', segment)
+              .single()
+            crumbs.push({ name: apartment?.name || mapCategoryName(segment), path: currentPath, type: 'apartment' })
+          } catch {
+            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'apartment' })
+          }
+        }
+        continue
+      }
+
+      if (i === 3) {
+        // Tenant level or category under apartment
+        if (segment === 'apartment_documents') {
+          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+        } else {
+          try {
+            const { data: tenant } = await supabase
+              .from('Mieter')
+              .select('name, vorname')
+              .eq('id', segment)
+              .single()
+            const tenantName = tenant ? `${tenant.vorname ?? ''} ${tenant.name ?? ''}`.trim() : null
+            crumbs.push({ name: tenantName || mapCategoryName(segment), path: currentPath, type: 'tenant' })
+          } catch {
+            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'tenant' })
+          }
+        }
+        continue
+      }
+
+      // Any deeper levels treated as categories
+      crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+    }
+
+    return crumbs
+  } catch (error) {
+    console.error('Error in getBreadcrumbs:', error)
+    // Fallback: only root
+    return [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }]
+  }
+}
+
+// Unified server loader to fetch files, folders, and breadcrumbs for any path
+export async function getPathContents(userId: string, path?: string): Promise<{
+  files: StorageFile[]
+  folders: VirtualFolder[]
+  breadcrumbs: BreadcrumbItem[]
+  error?: string
+}> {
+  try {
+    const targetPath = path || `user_${userId}`
+    const [{ files, folders, error }, breadcrumbs] = await Promise.all([
+      getInitialFiles(userId, targetPath),
+      getBreadcrumbs(userId, targetPath)
+    ])
+    return { files, folders, breadcrumbs, error }
+  } catch (e) {
+    console.error('Error in getPathContents:', e)
+    return {
+      files: [],
+      folders: [],
+      breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
+      error: 'Unerwarteter Fehler beim Laden der Dateien'
     }
   }
 }

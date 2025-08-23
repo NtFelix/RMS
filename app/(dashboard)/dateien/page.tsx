@@ -3,7 +3,7 @@ import { CloudStorageRedesigned } from "@/components/cloud-storage-redesigned"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getInitialFiles } from "./actions"
+import { getPathContents } from "./actions"
 
 export const runtime = 'edge'
 
@@ -44,14 +44,23 @@ function CloudStorageLoading() {
 }
 
 async function CloudStorageContent({ userId }: { userId: string }) {
-  // Load initial files on the server
-  const { files, folders, error } = await getInitialFiles(userId)
-  
+  // Load initial files, folders and breadcrumbs on the server
+  const initialPath = `user_${userId}`
+  const { files, folders, breadcrumbs, error } = await getPathContents(userId, initialPath)
+
   if (error) {
     console.error('Error loading initial files:', error)
   }
 
-  return <CloudStorageRedesigned userId={userId} initialFiles={files} initialFolders={folders} />
+  return (
+    <CloudStorageRedesigned
+      userId={userId}
+      initialPath={initialPath}
+      initialFiles={files}
+      initialFolders={folders}
+      initialBreadcrumbs={breadcrumbs}
+    />
+  )
 }
 
 export default async function DateienPage() {

@@ -72,6 +72,7 @@ interface CloudStorageState {
   
   // Actions
   navigateToPath: (path: string) => void
+  setCurrentPath: (path: string) => void
   setBreadcrumbs: (breadcrumbs: BreadcrumbItem[]) => void
   setFiles: (files: StorageObject[]) => void
   setFolders: (folders: VirtualFolder[]) => void
@@ -289,6 +290,12 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           state.isLoading = false
         })
       }
+    },
+    
+    setCurrentPath: (path: string) => {
+      set((state) => {
+        state.currentPath = path
+      })
     },
     
     setBreadcrumbs: (breadcrumbs: BreadcrumbItem[]) => {

@@ -37,6 +37,7 @@ import {
 } from "@/components/storage-loading-states"
 import { useErrorBoundary } from "@/lib/storage-error-handling"
 import { performanceMonitor } from "@/lib/storage-performance"
+import { useRouter } from "next/navigation"
 
 interface VirtualFolder {
   name: string
@@ -78,15 +79,24 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
     setError,
     refreshCurrentPath
   } = useCloudStorageStore()
+  const router = useRouter()
 
-  // Enhanced navigation function that clears files when changing paths
+  // Map storage path like user_<id>/a/b to SSR route /dateien/a/b
+  const pathToHref = (path: string) => {
+    const match = path.match(/^user_[^/]+(?:\/(.*))?$/)
+    const rest = match && match[1] ? match[1] : ""
+    return rest ? `/dateien/${rest}` : "/dateien"
+  }
+
+  // Enhanced navigation function that routes to SSR URL
   const navigateToPath = (path: string) => {
-    // Clear current files when navigating to a new path
+    if (!path) return
+    // Optionally clear local lists for snappier UX before navigation
     if (path !== currentPath) {
       setFiles([])
       setFolders([])
     }
-    originalNavigateToPath(path)
+    router.push(pathToHref(path))
   }
   
   const {

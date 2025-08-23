@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
+import { useRouter } from "next/navigation"
 
 interface FileTreeViewProps {
   userId: string
@@ -30,11 +31,10 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
   
   const { 
     currentPath, 
-    navigateToPath, 
-    setBreadcrumbs,
     folders,
     setFolders 
   } = useCloudStorageStore()
+  const router = useRouter()
 
   // Fetch real data from API
   const { houses, apartments, tenants, isLoading, error } = usePropertyHierarchy()
@@ -270,10 +270,16 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     return breadcrumbs
   }
 
+  // Map a storage path like user_<id>/a/b to the SSR URL /dateien/a/b
+  const pathToHref = (path: string) => {
+    const match = path.match(/^user_[^/]+(?:\/(.*))?$/)
+    const rest = match && match[1] ? match[1] : ""
+    return rest ? `/dateien/${rest}` : "/dateien"
+  }
+
   // Handle node click
   const handleNodeClick = (node: TreeNode) => {
-    navigateToPath(node.path)
-    setBreadcrumbs(generateBreadcrumbs(node.path))
+    router.push(pathToHref(node.path))
   }
 
   // Handle node expansion
