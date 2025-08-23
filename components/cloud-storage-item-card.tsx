@@ -282,11 +282,48 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuSeparator />
                     
+                    <DropdownMenuItem onClick={onRename || (() => console.log('Rename placeholder'))}>
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Umbenennen
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem onClick={onMove || (() => console.log('Move placeholder'))}>
+                      <Move className="h-4 w-4 mr-2" />
+                      Verschieben
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem onClick={() => console.log('Copy placeholder')}>
+                      <Copy className="h-4 w-4 mr-2" />
+                      Kopieren
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem onClick={onShare || (() => console.log('Share placeholder'))}>
+                      <Share2 className="h-4 w-4 mr-2" />
+                      Teilen
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuItem onClick={onStar || (() => console.log('Star placeholder'))}>
+                      <Star className="h-4 w-4 mr-2" />
+                      Zu Favoriten hinzufügen
+                    </DropdownMenuItem>
+                    
+                    <DropdownMenuSeparator />
+                    
+                    <DropdownMenuItem onClick={() => console.log('Properties placeholder')}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Eigenschaften
+                    </DropdownMenuItem>
+                    
                     {onDelete && (
-                      <DropdownMenuItem onClick={onDelete} className="text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Löschen
-                      </DropdownMenuItem>
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={onDelete} className="text-destructive">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Löschen
+                        </DropdownMenuItem>
+                      </>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>

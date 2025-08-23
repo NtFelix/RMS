@@ -163,18 +163,46 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           throw new Error(error)
         }
         
+        // Generate breadcrumbs from the path
+        const pathSegments = path.split('/').filter(Boolean)
+        const breadcrumbs: BreadcrumbItem[] = []
+        
+        // Always add root breadcrumb
+        breadcrumbs.push({
+          name: 'Cloud Storage',
+          path: `user_${userId}`,
+          type: 'root'
+        })
+        
+        // Add path segments as breadcrumbs
+        let currentPath = `user_${userId}`
+        for (let i = 1; i < pathSegments.length; i++) {
+          const segment = pathSegments[i]
+          currentPath = `${currentPath}/${segment}`
+          
+          // Try to find display name from folders
+          const folder = folders.find(f => f.path === currentPath)
+          
+          breadcrumbs.push({
+            name: folder?.displayName || segment,
+            path: currentPath,
+            type: i === 1 ? 'house' : i === 2 ? 'apartment' : 'category'
+          })
+        }
+        
         set((state) => {
           state.files = files
           // Convert folders to VirtualFolder format with proper types
           state.folders = folders.map(folder => ({
             name: folder.name,
             path: folder.path,
-            type: folder.type as any, // Type assertion since we know the types match
+            type: folder.type as any,
             isEmpty: folder.isEmpty,
             children: [],
             fileCount: folder.fileCount,
             displayName: folder.displayName
           }))
+          state.breadcrumbs = breadcrumbs
           state.isLoading = false
         })
       } catch (error) {

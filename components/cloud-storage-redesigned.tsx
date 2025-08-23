@@ -304,6 +304,42 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders }:
             onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
           />
+
+          {/* Breadcrumb Navigation */}
+          <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
+            <ol className="flex items-center space-x-1">
+              {breadcrumbs.map((breadcrumb, index) => {
+                const isLast = index === breadcrumbs.length - 1
+                
+                return (
+                  <li key={breadcrumb.path} className="flex items-center">
+                    {index > 0 && (
+                      <span className="mx-2.5 text-muted-foreground/50">/</span>
+                    )}
+                    
+                    <button
+                      onClick={() => navigateToPath(breadcrumb.path)}
+                      className={cn(
+                        "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                        isLast 
+                          ? "text-foreground font-medium cursor-default" 
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
+                      )}
+                      disabled={isLast}
+                      aria-current={isLast ? "page" : undefined}
+                    >
+                      {breadcrumb.type === 'root' && (
+                        <FolderOpen className="h-4 w-4 mr-1.5" />
+                      )}
+                      <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                        {breadcrumb.name}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ol>
+          </nav>
         </div>
       </div>
 
