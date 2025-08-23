@@ -5,6 +5,8 @@ import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getInitialFiles } from "./actions"
 
+export const runtime = 'edge'
+
 function CloudStorageLoading() {
   return (
     <div className="h-full flex flex-col">

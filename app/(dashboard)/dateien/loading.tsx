@@ -1,5 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton"
 
+export const runtime = 'edge'
+
 export default function DateienLoading() {
   return (
     <div className="h-full flex flex-col">
