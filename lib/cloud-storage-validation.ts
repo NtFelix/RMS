@@ -152,7 +152,7 @@ export function validateFolderName(name: string): FileValidationResult {
     errors.push('Ordnername enthält ungültige Zeichen');
   }
 
-  if (FILE_VALIDATION_CONSTANTS.RESERVED_FOLDER_NAMES.includes(name.toUpperCase())) {
+  if ((FILE_VALIDATION_CONSTANTS.RESERVED_FOLDER_NAMES as readonly string[]).includes(name.toUpperCase())) {
     errors.push('Ordnername ist reserviert und nicht erlaubt');
   }
 
@@ -245,7 +245,7 @@ export function getSubscriptionLimits(plan: 'basic' | 'premium'): SubscriptionLi
     maxFileSize: isBasic 
       ? FILE_VALIDATION_CONSTANTS.MAX_FILE_SIZE_BASIC 
       : FILE_VALIDATION_CONSTANTS.MAX_FILE_SIZE_PREMIUM,
-    allowedFileTypes: FILE_VALIDATION_CONSTANTS.ALLOWED_FILE_TYPES,
+    allowedFileTypes: [...FILE_VALIDATION_CONSTANTS.ALLOWED_FILE_TYPES],
     canShare: !isBasic,
     canBulkOperations: !isBasic,
   };

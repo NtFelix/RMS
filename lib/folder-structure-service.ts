@@ -272,7 +272,7 @@ export class FolderStructureService {
       return renamedFolder;
     } catch (error) {
       console.error('Error renaming folder:', error);
-      throw new Error(`Failed to rename folder: ${error.message}`);
+      throw new Error(`Failed to rename folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -354,7 +354,7 @@ export class FolderStructureService {
       return movedFolder;
     } catch (error) {
       console.error('Error moving folder:', error);
-      throw new Error(`Failed to move folder: ${error.message}`);
+      throw new Error(`Failed to move folder: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

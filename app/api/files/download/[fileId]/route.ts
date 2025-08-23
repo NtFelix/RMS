@@ -4,7 +4,7 @@ import { serverFileStorageService } from '@/lib/file-storage-service';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const supabase = createSupabaseServerClient();
@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
     
     // Get file metadata first
     const { data: fileData, error: fileError } = await supabase

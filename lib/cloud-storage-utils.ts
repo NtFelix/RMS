@@ -417,10 +417,11 @@ export class FolderStructureUtils {
     }
 
     // Update all child paths in the moved folder
-    folderToMove.children = this.updateChildPaths(folderToMove.children, folderPath, newPath);
+    const folder = folderToMove as FolderNode;
+    folder.children = this.updateChildPaths(folder.children, folderPath, newPath);
 
     // Add the folder to its new parent location
-    return this.addFolderToTree(treeWithoutFolder, folderToMove);
+    return this.addFolderToTree(treeWithoutFolder, folder);
   }
 
   /**

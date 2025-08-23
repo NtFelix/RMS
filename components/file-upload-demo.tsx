@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileUpload } from '../file-upload';
+import { FileUpload } from './file-upload';
 
 /**
  * Demo component showing how to use the FileUpload component

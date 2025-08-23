@@ -4,7 +4,7 @@ import { serverFileStorageService } from '@/lib/file-storage-service';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const supabase = createSupabaseServerClient();
@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
     
     // Get signed URL for file
     const signedUrl = await serverFileStorageService.createSignedUrl(fileId, user.id);
@@ -46,7 +46,7 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const supabase = createSupabaseServerClient();
@@ -61,7 +61,7 @@ export async function DELETE(
       );
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
     
     // Delete file
     const success = await serverFileStorageService.deleteFile(fileId, user.id);
@@ -88,7 +88,7 @@ export async function DELETE(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { fileId: string } }
+  { params }: { params: Promise<{ fileId: string }> }
 ) {
   try {
     const supabase = createSupabaseServerClient();
@@ -103,7 +103,7 @@ export async function PATCH(
       );
     }
 
-    const { fileId } = params;
+    const { fileId } = await params;
     const body = await request.json();
     const { action, ...actionData } = body;
 
