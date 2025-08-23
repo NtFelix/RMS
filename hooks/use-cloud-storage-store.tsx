@@ -72,6 +72,7 @@ interface CloudStorageState {
   removeFromUploadQueue: (id: string) => void
   clearUploadQueue: () => void
   setUploading: (uploading: boolean) => void
+  processUploadQueue: () => Promise<void>
   
   // Preview actions
   openPreview: (file: StorageObject) => void
@@ -206,6 +207,89 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       })
     },
     
+    // Process upload queue
+    processUploadQueue: async () => {
+      const state = get()
+      const pendingItems = state.uploadQueue.filter(item => item.status === 'pending')
+      
+      if (pendingItems.length === 0) return
+      
+      set((state) => {
+        state.isUploading = true
+      })
+      
+      try {
+        // Import storage service dynamically to avoid circular dependencies
+        const { uploadFile } = await import('@/lib/storage-service')
+        
+        // Process uploads sequentially to avoid overwhelming the server
+        for (const item of pendingItems) {
+          try {
+            // Update status to uploading
+            set((state) => {
+              const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
+              if (queueItem) {
+                queueItem.status = 'uploading'
+                queueItem.progress = 0
+              }
+            })
+            
+            // Construct full file path
+            const fileName = item.file.name
+            const fullPath = `${item.targetPath}/${fileName}`
+            
+            // Simulate progress updates (since Supabase doesn't provide real progress)
+            const progressInterval = setInterval(() => {
+              set((state) => {
+                const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
+                if (queueItem && queueItem.progress < 90) {
+                  queueItem.progress = Math.min(queueItem.progress + 10, 90)
+                }
+              })
+            }, 200)
+            
+            // Upload file
+            const result = await uploadFile(item.file, fullPath)
+            
+            clearInterval(progressInterval)
+            
+            if (result.success) {
+              // Update to completed
+              set((state) => {
+                const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
+                if (queueItem) {
+                  queueItem.status = 'completed'
+                  queueItem.progress = 100
+                }
+              })
+            } else {
+              // Update to error
+              set((state) => {
+                const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
+                if (queueItem) {
+                  queueItem.status = 'error'
+                  queueItem.error = result.error || 'Upload failed'
+                }
+              })
+            }
+          } catch (error) {
+            // Handle individual file upload error
+            set((state) => {
+              const queueItem = state.uploadQueue.find(qi => qi.id === item.id)
+              if (queueItem) {
+                queueItem.status = 'error'
+                queueItem.error = error instanceof Error ? error.message : 'Upload failed'
+              }
+            })
+          }
+        }
+      } finally {
+        set((state) => {
+          state.isUploading = false
+        })
+      }
+    },
+    
     // Utility actions
     reset: () => {
       set((state) => {
@@ -280,6 +364,7 @@ export const useCloudStorageUpload = () => {
     removeFromUploadQueue: store.removeFromUploadQueue,
     clearUploadQueue: store.clearUploadQueue,
     setUploading: store.setUploading,
+    processUploadQueue: store.processUploadQueue,
   }
 }
 

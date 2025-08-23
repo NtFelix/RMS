@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Folder, Upload, FileText, Image, Download, Trash2, RefreshCw } from "lucide-react"
 import { FileTreeView } from "@/components/file-tree-view"
 import { FileBreadcrumbNavigation } from "@/components/file-breadcrumb-navigation"
+import { FileUploadZone } from "@/components/file-upload-zone"
 import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
 import { createClient } from "@/utils/supabase/client"
 
@@ -16,6 +17,7 @@ interface CloudStorageTabProps {
 
 export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) {
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [showUploadZone, setShowUploadZone] = useState(false)
   
   const { 
     currentPath, 
@@ -57,6 +59,17 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
     return breadcrumbs[breadcrumbs.length - 1].name
   }
 
+  // Handle upload completion
+  const handleUploadComplete = () => {
+    refreshCurrentPath()
+    setShowUploadZone(false)
+  }
+
+  // Toggle upload zone
+  const toggleUploadZone = () => {
+    setShowUploadZone(!showUploadZone)
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -76,9 +89,9 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
             <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             Aktualisieren
           </Button>
-          <Button>
+          <Button onClick={toggleUploadZone}>
             <Upload className="mr-2 h-4 w-4" />
-            Dateien hochladen
+            {showUploadZone ? "Upload schließen" : "Dateien hochladen"}
           </Button>
         </div>
       </div>
@@ -92,6 +105,15 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
           <p className="text-sm text-destructive">{error}</p>
         </div>
+      )}
+
+      {/* Upload Zone */}
+      {showUploadZone && (
+        <FileUploadZone
+          targetPath={currentPath}
+          onUploadComplete={handleUploadComplete}
+          disabled={!currentPath}
+        />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -150,7 +172,7 @@ export function CloudStorageTab({ userId = "demo-user" }: CloudStorageTabProps) 
                   <p className="mt-2 text-sm text-muted-foreground">
                     Laden Sie Ihre ersten Dateien hoch, um zu beginnen.
                   </p>
-                  <Button className="mt-4">
+                  <Button className="mt-4" onClick={toggleUploadZone}>
                     <Upload className="mr-2 h-4 w-4" />
                     Dateien hochladen
                   </Button>
