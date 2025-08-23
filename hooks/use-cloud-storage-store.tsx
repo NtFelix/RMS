@@ -18,10 +18,11 @@ export interface StorageObject {
 export interface VirtualFolder {
   name: string
   path: string
-  type: 'house' | 'apartment' | 'tenant' | 'category' | 'archive'
+  type: 'house' | 'apartment' | 'tenant' | 'category' | 'archive' | 'storage'
   isEmpty: boolean
   children: VirtualFolder[]
   fileCount: number
+  displayName?: string
 }
 
 export interface BreadcrumbItem {
@@ -720,14 +721,15 @@ export const useCloudStorageStore = create<CloudStorageState>()(
         
         set((state) => {
           state.files = files
-          // Convert folders to VirtualFolder format
+          // Convert folders to VirtualFolder format with proper types
           state.folders = folders.map(folder => ({
             name: folder.name,
             path: folder.path,
-            type: 'category' as const,
-            isEmpty: true,
+            type: folder.type,
+            isEmpty: folder.isEmpty,
             children: [],
-            fileCount: 0
+            fileCount: folder.fileCount,
+            displayName: folder.displayName
           }))
           state.isLoading = false
         })

@@ -36,10 +36,19 @@ import {
 import { useErrorBoundary } from "@/lib/storage-error-handling"
 import { performanceMonitor } from "@/lib/storage-performance"
 
+interface VirtualFolder {
+  name: string
+  path: string
+  type: 'house' | 'apartment' | 'category' | 'storage'
+  isEmpty: boolean
+  fileCount: number
+  displayName?: string
+}
+
 interface CloudStorageTabProps {
   userId?: string
   initialFiles?: any[]
-  initialFolders?: { name: string; path: string }[]
+  initialFolders?: VirtualFolder[]
 }
 
 export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudStorageTabProps) {
@@ -133,10 +142,11 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
       const virtualFolders = initialFolders.map(folder => ({
         name: folder.name,
         path: folder.path,
-        type: 'category' as const,
-        isEmpty: true,
+        type: folder.type,
+        isEmpty: folder.isEmpty,
         children: [],
-        fileCount: 0
+        fileCount: folder.fileCount,
+        displayName: folder.displayName
       }))
       setFolders(virtualFolders)
     }
@@ -473,36 +483,51 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
               >
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                   {/* Render folders first */}
-                  {folders.map((folder) => (
-                    <div 
-                      key={folder.path} 
-                      className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors group"
-                      onClick={() => navigateToPath(folder.path)}
-                    >
-                      <div className="flex flex-col items-center space-y-3">
-                        <Folder className="h-8 w-8 text-blue-500" />
-                        
-                        <div className="text-center w-full">
-                          <span 
-                            className="text-sm font-medium block truncate w-full" 
-                            title={folder.name}
-                          >
-                            {folder.name}
-                          </span>
+                  {folders.map((folder) => {
+                    const displayName = folder.displayName || folder.name
+                    const folderIcon = folder.type === 'house' ? 
+                      <Folder className="h-8 w-8 text-green-600" /> :
+                      folder.type === 'apartment' ? 
+                      <Folder className="h-8 w-8 text-blue-600" /> :
+                      <Folder className="h-8 w-8 text-blue-500" />
+                    
+                    return (
+                      <div 
+                        key={folder.path} 
+                        className="p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors group"
+                        onClick={() => navigateToPath(folder.path)}
+                      >
+                        <div className="flex flex-col items-center space-y-3">
+                          {folderIcon}
                           
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Ordner
-                          </div>
-                          
-                          {folder.isEmpty && (
-                            <div className="text-xs text-muted-foreground">
-                              Leer
+                          <div className="text-center w-full">
+                            <span 
+                              className="text-sm font-medium block truncate w-full" 
+                              title={displayName}
+                            >
+                              {displayName}
+                            </span>
+                            
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {folder.type === 'house' ? 'Haus' :
+                               folder.type === 'apartment' ? 'Wohnung' :
+                               folder.type === 'category' ? 'Kategorie' : 'Ordner'}
                             </div>
-                          )}
+                            
+                            {folder.isEmpty ? (
+                              <div className="text-xs text-muted-foreground">
+                                Leer
+                              </div>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">
+                                {folder.fileCount} {folder.fileCount === 1 ? 'Datei' : 'Dateien'}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   
                   {/* Render files */}
                   {files.map((file) => (
