@@ -65,6 +65,18 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
 };
 
 /**
+ * Type guard to check if an error is a StorageError
+ */
+function isStorageError(error: any): error is StorageError {
+  return error instanceof Error && 
+         'type' in error && 
+         'severity' in error && 
+         'userMessage' in error && 
+         'timestamp' in error && 
+         'retryable' in error;
+}
+
+/**
  * Maps raw errors to structured StorageError objects
  */
 export function mapError(error: any, operation?: string): StorageError {
@@ -440,8 +452,8 @@ export function useErrorBoundary() {
     try {
       return await withRetry(asyncOperation, retryConfig, operation);
     } catch (error) {
-      if (error instanceof Error && 'type' in error) {
-        showErrorNotification(error as StorageError);
+      if (isStorageError(error)) {
+        showErrorNotification(error);
       } else {
         handleError(error, operation);
       }

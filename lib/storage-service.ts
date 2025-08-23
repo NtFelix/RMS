@@ -5,7 +5,7 @@
  */
 
 import { createClient } from '@/utils/supabase/client';
-import { pathUtils, validatePath, isUserPath, extractPathSegments } from './path-utils';
+import { pathUtils, validatePath, isUserPath, extractPathSegments, isKeepFile } from './path-utils';
 import { 
   optimizedListFiles, 
   performanceMonitor, 
@@ -222,9 +222,7 @@ export async function uploadFile(
     };
   } catch (error) {
     const endTime = Date.now();
-    const storageError = error instanceof Error && 'type' in error 
-      ? error as StorageError 
-      : mapError(error, 'upload_file');
+    const storageError = mapError(error, 'upload_file');
     
     // Record failed operation metrics
     performanceMonitor.addMetric({
@@ -374,9 +372,7 @@ export async function downloadFile(path: string): Promise<Blob> {
     return result;
   } catch (error) {
     const endTime = Date.now();
-    const storageError = error instanceof Error && 'type' in error 
-      ? error as StorageError 
-      : mapError(error, 'download_file');
+    const storageError = mapError(error, 'download_file');
     
     // Record failed operation metrics
     performanceMonitor.addMetric({
@@ -623,7 +619,7 @@ export async function archiveFolder(folderPath: string): Promise<string[]> {
   // List all files in the folder recursively
   const files = await listFiles(folderPath);
   const filePaths = files
-    .filter(file => !pathUtils.isKeepFile(file.name))
+    .filter(file => !isKeepFile(file.name))
     .map(file => `${folderPath}/${file.name}`);
   
   return await bulkArchiveFiles(filePaths);

@@ -379,7 +379,7 @@ export const cacheManager = {
   }),
   invalidatePrefix: (prefix: string) => {
     // Remove all cache entries that start with the given prefix
-    const keys = Array.from((fileListCache as any).cache.keys());
+    const keys = Array.from((fileListCache as any).cache.keys()) as string[];
     keys.forEach(key => {
       if (key.includes(prefix)) {
         fileListCache.delete(key);
