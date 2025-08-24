@@ -234,6 +234,18 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
     const isHouseFolder = pathSegments.length === 2 && pathSegments[1] !== 'Miscellaneous'
     const isApartmentFolder = pathSegments.length === 3 && pathSegments[1] !== 'Miscellaneous'
     
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Debug - Path analysis:', {
+        targetPath,
+        pathSegments,
+        userId,
+        isHouseFolder,
+        isApartmentFolder,
+        segmentCount: pathSegments.length
+      })
+    }
+    
     if (isHouseFolder) {
       const houseId = pathSegments[1]
       return await getHouseFolderContents(supabase, userId, houseId, targetPath, data || [])
@@ -319,6 +331,17 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
         console.warn('Could not load apartments for house:', houseId, apartmentsError)
       }
       // Continue with empty apartments array
+    }
+
+    // Debug logging in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Debug - House apartment loading:', {
+        houseId,
+        userId,
+        apartmentsFound: apartments?.length || 0,
+        apartments: apartments?.map((a: any) => ({ id: a.id, name: a.name })) || [],
+        error: apartmentsError
+      })
     }
 
     const folders: VirtualFolder[] = []
@@ -486,37 +509,45 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
   error?: string
 }> {
   try {
-    // Get tenants for this apartment from database with timeout and better error handling
-    const tenantsPromise = supabase
-      .from('Mieter')
-      .select('id, name, vorname')
-      .eq('wohnung_id', apartmentId)
-      .eq('user_id', userId)
-    
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Database query timeout')), 8000)
-    })
-    
-    let tenants = null
+    // Get tenants for this apartment from database - simplified approach
+    let tenants = []
     let tenantsError = null
     
     try {
-      const result = await Promise.race([tenantsPromise, timeoutPromise]) as any
-      tenants = result.data
-      tenantsError = result.error
-    } catch (error) {
-      // Silently handle timeout or connection errors
+      const { data: tenantsData, error } = await supabase
+        .from('Mieter')
+        .select('id, name, wohnung_id, user_id')
+        .eq('wohnung_id', apartmentId)
+        .eq('user_id', userId)
+      
+      tenants = tenantsData || []
       tenantsError = error
-      tenants = [] // Use empty array instead of null
-    }
-    
-    if (tenantsError) {
-      // Log error only in development, not in production
+      
+      // Debug logging in development
       if (process.env.NODE_ENV === 'development') {
-        console.warn('Could not load tenants for apartment:', apartmentId, tenantsError)
+        console.log('Debug - Apartment tenant loading:', {
+          apartmentId,
+          houseId,
+          userId,
+          query: `wohnung_id=${apartmentId}, user_id=${userId}`,
+          tenantsFound: tenants.length,
+          tenants: tenants.map((t: any) => ({ 
+            id: t.id, 
+            name: t.name,
+            wohnung_id: t.wohnung_id,
+            user_id: t.user_id
+          })),
+          error: tenantsError
+        })
       }
-      // Ensure tenants is an empty array for safe iteration
-      tenants = tenants || []
+      
+    } catch (error) {
+      tenantsError = error
+      tenants = []
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load tenants for apartment:', apartmentId, error)
+      }
     }
 
     const folders: VirtualFolder[] = []
@@ -548,30 +579,61 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
     
     // Add tenant folders
     if (tenants && tenants.length > 0) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Debug - Processing tenants for folders:', tenants.length)
+      }
+      
       for (const tenant of tenants) {
         try {
           // Count files recursively in tenant folder
           const tenantPath = `${targetPath}/${tenant.id}`
-          const fileCount = await countFilesRecursively(supabase, tenantPath)
+          let fileCount = 0
           
-          // Create display name from vorname and name
-          const displayName = tenant.vorname && tenant.name 
-            ? `${tenant.vorname} ${tenant.name}`.trim()
-            : tenant.name || tenant.id
+          try {
+            fileCount = await countFilesRecursively(supabase, tenantPath)
+          } catch (countError) {
+            // If file counting fails, still create the folder
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(`Could not count files for tenant ${tenant.id}:`, countError)
+            }
+            fileCount = 0
+          }
           
-          folders.push({
+          // Create display name from name field
+          const displayName = tenant.name || tenant.id
+          
+          const tenantFolder = {
             name: tenant.id,
             path: tenantPath,
-            type: 'tenant',
+            type: 'tenant' as const,
             isEmpty: fileCount === 0,
             children: [],
             fileCount: fileCount,
             displayName: displayName
-          })
+          }
+          
+          folders.push(tenantFolder)
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Debug - Added tenant folder:', {
+              tenantId: tenant.id,
+              displayName,
+              path: tenantPath,
+              fileCount,
+              isEmpty: fileCount === 0
+            })
+          }
+          
         } catch (error) {
-          console.error(`Error processing tenant ${tenant.id}:`, error)
+          if (process.env.NODE_ENV === 'development') {
+            console.error(`Error processing tenant ${tenant.id}:`, error)
+          }
           // Continue with other tenants
         }
+      }
+    } else {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Debug - No tenants found for apartment:', apartmentId)
       }
     }
 
@@ -747,6 +809,46 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
     }
     // Fallback: only root
     return [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }]
+  }
+}
+
+// Debug function to check tenant data
+export async function debugTenantData(userId: string, apartmentId: string): Promise<{
+  tenants: any[]
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+    
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user || user.id !== userId) {
+      return { tenants: [], error: 'Not authenticated' }
+    }
+
+    // Get tenants for this apartment
+    const { data: tenants, error: tenantsError } = await supabase
+      .from('Mieter')
+      .select('id, name, wohnung_id, user_id')
+      .eq('wohnung_id', apartmentId)
+      .eq('user_id', userId)
+
+    if (tenantsError) {
+      console.error('Debug - Tenant query error:', tenantsError)
+      return { tenants: [], error: tenantsError.message }
+    }
+
+    console.log('Debug - Tenant query result:', {
+      apartmentId,
+      userId,
+      tenants: tenants || [],
+      count: tenants?.length || 0
+    })
+
+    return { tenants: tenants || [] }
+  } catch (error) {
+    console.error('Debug - Unexpected error:', error)
+    return { tenants: [], error: error instanceof Error ? error.message : 'Unknown error' }
   }
 }
 
