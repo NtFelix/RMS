@@ -194,7 +194,7 @@ export function CachePerformanceMonitor() {
               <h4 className="text-sm font-medium mb-2">Pending Preloads</h4>
               {pendingPreloads.length > 0 ? (
                 <div className="space-y-1">
-                  {pendingPreloads.slice(0, 5).map((preload, index) => (
+                  {pendingPreloads.slice(0, 5).map((preload: { path: string; reason: string }, index: number) => (
                     <div key={index} className="flex items-center justify-between text-xs">
                       <span className="truncate flex-1 mr-2">{preload.path}</span>
                       <Badge variant="outline" className="text-xs">
@@ -217,7 +217,7 @@ export function CachePerformanceMonitor() {
               <h4 className="text-sm font-medium mb-2">Top Navigation Patterns</h4>
               {navigationPatterns.length > 0 ? (
                 <div className="space-y-1">
-                  {navigationPatterns.slice(0, 3).map((pattern, index) => (
+                  {navigationPatterns.slice(0, 3).map((pattern: any, index: number) => (
                     <div key={index} className="text-xs">
                       <div className="flex items-center justify-between">
                         <span className="truncate flex-1 mr-2">

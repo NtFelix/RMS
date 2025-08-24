@@ -32,7 +32,7 @@ export function useRenderOptimization(options: RenderOptimizationOptions = {}) {
   
   const renderCountRef = useRef(0)
   const lastRenderTimeRef = useRef(0)
-  const debounceTimeoutRef = useRef<NodeJS.Timeout>()
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const updateQueueRef = useRef<(() => void)[]>([])
   
   // Track render frequency

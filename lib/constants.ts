@@ -12,3 +12,12 @@ export const BERECHNUNGSART_VALUES = BERECHNUNGSART_OPTIONS.map(opt => opt.value
 
 // Logo URL configured via NEXT_PUBLIC_LOGO_URL environment variable
 export const LOGO_URL = process.env.NEXT_PUBLIC_LOGO_URL!;
+
+// Feature flags for gradual rollout
+export const FEATURE_FLAGS = {
+  // Cloud storage navigation improvements
+  ENABLE_CLIENT_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_CLIENT_NAVIGATION !== 'false', // Default enabled
+  ENABLE_HYBRID_NAVIGATION: process.env.NEXT_PUBLIC_ENABLE_HYBRID_NAVIGATION !== 'false', // Default enabled
+  ENABLE_NAVIGATION_CACHE: process.env.NEXT_PUBLIC_ENABLE_NAVIGATION_CACHE !== 'false', // Default enabled
+  ENABLE_OPTIMISTIC_UI: process.env.NEXT_PUBLIC_ENABLE_OPTIMISTIC_UI !== 'false', // Default enabled
+} as const;

@@ -44,9 +44,9 @@ export interface NavigationHistoryEntry {
 function convertCacheToNavigation(cacheContents: CacheDirectoryContents): DirectoryContents {
   return {
     ...cacheContents,
-    files: cacheContents.files as StorageObject[],
-    folders: cacheContents.folders as VirtualFolder[],
-    breadcrumbs: cacheContents.breadcrumbs as BreadcrumbItem[]
+    files: cacheContents.files as unknown as StorageObject[],
+    folders: cacheContents.folders as unknown as VirtualFolder[],
+    breadcrumbs: cacheContents.breadcrumbs as unknown as BreadcrumbItem[]
   }
 }
 
@@ -805,18 +805,18 @@ export const useNavigationState = () => {
 
 export const useDirectoryCache = () => {
   const store = useCloudStorageNavigationStore()
-  const stats = store.getNavigationStats()
+  const stats = store.getNavigationStats() as any
   
   return {
     getCachedDirectory: store.getCachedDirectory,
     setCachedDirectory: store.setCachedDirectory,
     invalidateCache: store.invalidateCache,
     preloadDirectories: store.preloadDirectories,
-    cacheStats: stats.cacheStats,
-    navigationPatterns: stats.navigationPatterns,
-    pendingPreloads: stats.pendingPreloads,
-    cacheEfficiency: stats.cacheEfficiency,
-    preloadHitRate: stats.preloadHitRate,
+    cacheStats: stats.cacheStats || {},
+    navigationPatterns: stats.navigationPatterns || [],
+    pendingPreloads: stats.pendingPreloads || [],
+    cacheEfficiency: stats.cacheEfficiency || 0,
+    preloadHitRate: stats.preloadHitRate || 0,
     // Enhanced cache methods
     warmCache: async (currentPath: string) => {
       await store.directoryCache.warmCache(currentPath, loadDirectoryContentsForCache)

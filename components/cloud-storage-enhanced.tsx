@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { useNavigationLoading } from "@/hooks/use-optimized-loading"
-import { useFileListOptimization, useOptimizedHandlers } from "@/hooks/use-render-optimization"
+// Using simple implementations instead of complex render optimization hooks
 import { 
   ContentAreaSkeleton, 
   NavigationLoadingOverlay, 
@@ -37,6 +37,9 @@ interface CloudStorageEnhancedProps {
   initialBreadcrumbs?: BreadcrumbItem[]
   isSSR?: boolean // Indicates if this is server-side rendered
   enableClientNavigation?: boolean // Feature flag for client-side navigation
+  enableOptimisticUI?: boolean // Feature flag for optimistic UI updates
+  enableNavigationCache?: boolean // Feature flag for navigation caching
+  isDirectAccess?: boolean // Indicates if this is direct URL access
 }
 
 type ViewMode = 'grid' | 'list'
@@ -64,7 +67,10 @@ export function CloudStorageEnhanced({
   initialPath, 
   initialBreadcrumbs,
   isSSR = false,
-  enableClientNavigation = true
+  enableClientNavigation = true,
+  enableOptimisticUI = true,
+  enableNavigationCache = true,
+  isDirectAccess = false
 }: CloudStorageEnhancedProps) {
   // Navigation state from the enhanced navigation store
   const navigationStore = useCloudStorageNavigation()
@@ -92,21 +98,66 @@ export function CloudStorageEnhanced({
   // Enhanced folder navigation hook
   const { handleFolderClick, pathToHref } = useFolderNavigation(userId)
   
-  // Optimized loading states
+  // Optimized loading states with feature flag support
   const navigationLoading = useNavigationLoading({
-    enableOptimisticUI: true,
+    enableOptimisticUI: enableOptimisticUI,
     contentType: 'mixed',
     minLoadingTime: 100,
     maxSkeletonTime: 2000
   })
   
-  // Render optimization
-  const fileListOptimization = useFileListOptimization(files, folders, {
-    enableMemoization: true,
-    debounceMs: 16
-  })
+  // Simple memoization for file list optimization
+  const fileListOptimization = useMemo(() => ({
+    createFilteredItems: (searchQuery: string, activeFilter: string) => {
+      let filteredFiles = files
+      let filteredFolders = folders
+
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        filteredFiles = files.filter(file => file.name.toLowerCase().includes(query))
+        filteredFolders = folders.filter(folder => folder.name.toLowerCase().includes(query))
+      }
+
+      switch (activeFilter) {
+        case 'folders':
+          filteredFiles = []
+          break
+        case 'images':
+          filteredFiles = files.filter(file => {
+            const ext = file.name.split('.').pop()?.toLowerCase()
+            return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')
+          })
+          break
+        case 'documents':
+          filteredFiles = files.filter(file => {
+            const ext = file.name.split('.').pop()?.toLowerCase()
+            return ['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext || '')
+          })
+          break
+      }
+
+      return { filteredFiles, filteredFolders }
+    }
+  }), [files, folders])
   
-  const { createSearchHandler, createSelectionHandler } = useOptimizedHandlers()
+  // Simple optimized handlers
+  const createSearchHandler = useCallback((setSearchQuery: (query: string) => void) => {
+    return (query: string) => {
+      setSearchQuery(query)
+    }
+  }, [])
+  
+  const createSelectionHandler = useCallback((setSelectedItems: (items: Set<string>) => void) => {
+    return (itemId: string, selected: boolean, currentSelection: Set<string>) => {
+      const newSelection = new Set(currentSelection)
+      if (selected) {
+        newSelection.add(itemId)
+      } else {
+        newSelection.delete(itemId)
+      }
+      setSelectedItems(newSelection)
+    }
+  }, [])
   
   // UI state - restored from navigation preferences
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -115,10 +166,13 @@ export function CloudStorageEnhanced({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   
-  // Navigation mode detection
-  const [navigationMode, setNavigationMode] = useState<'ssr' | 'client'>(
-    isSSR ? 'ssr' : (enableClientNavigation ? 'client' : 'ssr')
-  )
+  // Navigation mode detection with feature flag support
+  const [navigationMode, setNavigationMode] = useState<'ssr' | 'client' | 'hybrid'>(() => {
+    if (!enableClientNavigation) return 'ssr'
+    if (isSSR && !isDirectAccess) return 'hybrid' // SSR with client navigation capability
+    if (isSSR) return 'ssr' // Pure SSR for direct access
+    return 'client' // Pure client-side navigation
+  })
   
   const { openUploadModal } = useModalStore()
   const { toast } = useToast()
@@ -369,9 +423,9 @@ export function CloudStorageEnhanced({
     // Start optimized loading
     const startTime = navigationLoading.startNavigation(targetPath, fromCache)
     
-    if (enableClientNavigation && navigationMode === 'client') {
+    if (enableClientNavigation && (navigationMode === 'client' || navigationMode === 'hybrid')) {
       try {
-        // Use client-side navigation
+        // Use client-side navigation for hybrid and client modes
         await handleFolderClick(targetPath, options)
         navigationLoading.completeNavigation(startTime, fromCache)
       } catch (error) {
@@ -382,7 +436,7 @@ export function CloudStorageEnhanced({
         router.push(pathToHref(targetPath))
       }
     } else {
-      // Use SSR navigation
+      // Use SSR navigation for pure SSR mode or when client navigation is disabled
       navigationLoading.completeNavigation(startTime, false)
       router.push(pathToHref(targetPath))
     }
@@ -513,9 +567,11 @@ export function CloudStorageEnhanced({
     const targetPath = currentPath || initialPath
     if (targetPath) {
       openUploadModal(targetPath, () => {
-        if (enableClientNavigation && navigationMode === 'client') {
-          // Invalidate cache and reload
-          navigationStore.invalidateCache(targetPath)
+        if (enableClientNavigation && (navigationMode === 'client' || navigationMode === 'hybrid')) {
+          // Invalidate cache and reload using client navigation
+          if (enableNavigationCache) {
+            navigationStore.invalidateCache(targetPath)
+          }
           handleNavigation(targetPath, { force: true })
         } else {
           // Refresh using traditional method
@@ -576,7 +632,7 @@ export function CloudStorageEnhanced({
               />
 
               {/* Optimistic UI feedback */}
-              {showOptimistic && (
+              {enableOptimisticUI && showOptimistic && (
                 <div className="mt-4">
                   <OptimisticLoading 
                     action="navigating" 
@@ -613,7 +669,7 @@ export function CloudStorageEnhanced({
                             </span>
                           </span>
                         ) : (
-                          enableClientNavigation && navigationMode === 'client' ? (
+                          enableClientNavigation && (navigationMode === 'client' || navigationMode === 'hybrid') ? (
                             <button
                               onClick={() => handleNavigation(breadcrumb.path)}
                               className={cn(
