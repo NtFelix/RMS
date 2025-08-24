@@ -5,17 +5,17 @@ import { immer } from 'zustand/middleware/immer'
 import { enableMapSet } from 'immer'
 import { useEffect, useCallback } from 'react'
 import type { StorageObject, VirtualFolder, BreadcrumbItem } from './use-cloud-storage-store'
+import { getDirectoryCache, type DirectoryContents as CacheDirectoryContents, type DirectoryCacheManager } from '@/lib/directory-cache'
+import { getCacheWarmingManager, type CacheWarmingManager } from '@/lib/cache-warming'
 
 // Enable Map and Set support in Immer
 enableMapSet()
 
-// Types for navigation state
-export interface DirectoryContents {
+// Types for navigation state (extending the cache types)
+export interface DirectoryContents extends Omit<CacheDirectoryContents, 'files' | 'folders' | 'breadcrumbs'> {
   files: StorageObject[]
   folders: VirtualFolder[]
   breadcrumbs: BreadcrumbItem[]
-  timestamp: number
-  error?: string
 }
 
 export interface ViewPreferences {
@@ -40,93 +40,22 @@ export interface NavigationHistoryEntry {
   viewPreferences: ViewPreferences
 }
 
-// LRU Cache implementation for directory contents
-class DirectoryCache {
-  private cache = new Map<string, DirectoryContents>()
-  private accessOrder = new Map<string, number>()
-  private maxSize: number
-  private accessCounter = 0
-
-  constructor(maxSize = 50) {
-    this.maxSize = maxSize
+// Convert between cache and navigation types
+function convertCacheToNavigation(cacheContents: CacheDirectoryContents): DirectoryContents {
+  return {
+    ...cacheContents,
+    files: cacheContents.files as StorageObject[],
+    folders: cacheContents.folders as VirtualFolder[],
+    breadcrumbs: cacheContents.breadcrumbs as BreadcrumbItem[]
   }
+}
 
-  get(path: string): DirectoryContents | null {
-    const contents = this.cache.get(path)
-    if (contents) {
-      // Update access order
-      this.accessOrder.set(path, ++this.accessCounter)
-      return contents
-    }
-    return null
-  }
-
-  set(path: string, contents: DirectoryContents): void {
-    // If cache is full, remove least recently used item
-    if (this.cache.size >= this.maxSize && !this.cache.has(path)) {
-      this.evictLRU()
-    }
-
-    this.cache.set(path, contents)
-    this.accessOrder.set(path, ++this.accessCounter)
-  }
-
-  has(path: string): boolean {
-    return this.cache.has(path)
-  }
-
-  invalidate(path: string): void {
-    this.cache.delete(path)
-    this.accessOrder.delete(path)
-  }
-
-  clear(): void {
-    this.cache.clear()
-    this.accessOrder.clear()
-    this.accessCounter = 0
-  }
-
-  private evictLRU(): void {
-    let lruPath = ''
-    let lruAccess = Infinity
-
-    for (const [path, accessTime] of this.accessOrder.entries()) {
-      if (accessTime < lruAccess) {
-        lruAccess = accessTime
-        lruPath = path
-      }
-    }
-
-    if (lruPath) {
-      this.cache.delete(lruPath)
-      this.accessOrder.delete(lruPath)
-    }
-  }
-
-  // Get cache statistics
-  getStats() {
-    return {
-      size: this.cache.size,
-      maxSize: this.maxSize,
-      hitRate: this.accessCounter > 0 ? (this.cache.size / this.accessCounter) : 0
-    }
-  }
-
-  // Preload directories (for parent/sibling prefetching)
-  async preload(paths: string[], loadFunction: (path: string) => Promise<DirectoryContents>): Promise<void> {
-    const preloadPromises = paths
-      .filter(path => !this.has(path))
-      .slice(0, 5) // Limit concurrent preloads
-      .map(async (path) => {
-        try {
-          const contents = await loadFunction(path)
-          this.set(path, contents)
-        } catch (error) {
-          console.warn(`Failed to preload directory: ${path}`, error)
-        }
-      })
-
-    await Promise.allSettled(preloadPromises)
+function convertNavigationToCache(navContents: DirectoryContents): CacheDirectoryContents {
+  return {
+    ...navContents,
+    files: navContents.files as any[],
+    folders: navContents.folders as any[],
+    breadcrumbs: navContents.breadcrumbs as any[]
   }
 }
 
@@ -137,8 +66,9 @@ interface CloudStorageNavigationState {
   navigationHistory: NavigationHistoryEntry[]
   historyIndex: number
   
-  // Directory caching
-  directoryCache: DirectoryCache
+  // Directory caching (using enhanced cache manager)
+  directoryCache: DirectoryCacheManager
+  cacheWarmingManager: CacheWarmingManager
   
   // View state preservation
   viewPreferences: Map<string, ViewPreferences>
@@ -194,7 +124,23 @@ const initialState = {
   isNavigating: false,
   navigationHistory: [],
   historyIndex: -1,
-  directoryCache: new DirectoryCache(50),
+  directoryCache: getDirectoryCache({
+    maxSize: 100,
+    maxMemoryMB: 50,
+    ttlMinutes: 5,
+    enablePreloading: true,
+    enableMemoryMonitoring: true,
+    enableBackgroundPrefetch: true,
+    enableNavigationPatterns: true,
+    preloadSiblingCount: 3,
+    idleTimeThreshold: 2000
+  }),
+  cacheWarmingManager: getCacheWarmingManager({
+    maxConcurrentRequests: 2,
+    priorityThreshold: 50,
+    idleTimeRequired: 3000,
+    maxWarmingTime: 30000
+  }),
   viewPreferences: new Map<string, ViewPreferences>(),
   scrollPositions: new Map<string, number>(),
   navigationStartTime: null,
@@ -220,6 +166,9 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
         draft.navigationStartTime = startTime
       })
       
+      // Record activity for cache warming
+      state.cacheWarmingManager.recordActivity()
+      
       try {
         // Save current state before navigation
         if (state.currentPath) {
@@ -227,16 +176,24 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
         }
         
         // Check cache first
-        let directoryContents = state.directoryCache.get(path)
-        let fromCache = !!directoryContents
+        let cacheContents = state.directoryCache.get(path)
+        let directoryContents: DirectoryContents | null = null
+        let fromCache = !!cacheContents
+        
+        if (cacheContents && !options.force) {
+          directoryContents = convertCacheToNavigation(cacheContents)
+        }
         
         if (!directoryContents || options.force) {
           // Load from server
+          const loadStartTime = performance.now()
           directoryContents = await loadDirectoryContents(path)
+          const loadTime = performance.now() - loadStartTime
           fromCache = false
           
-          // Cache the results
-          get().setCachedDirectory(path, directoryContents)
+          // Cache the results with load time for performance tracking
+          const cacheData = convertNavigationToCache(directoryContents)
+          state.directoryCache.set(path, cacheData, loadTime)
         }
         
         // Update navigation state
@@ -288,9 +245,18 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
           }
         }
         
-        // Preload related directories in background
-        setTimeout(() => {
-          get().preloadDirectories(getRelatedPaths(path))
+        // Preload related directories in background using intelligent caching
+        setTimeout(async () => {
+          const relatedPaths = getRelatedPaths(path)
+          if (relatedPaths.length > 0) {
+            await state.directoryCache.preload(relatedPaths, loadDirectoryContentsForCache, 'parent')
+          }
+          
+          // Also warm cache based on navigation patterns
+          await state.directoryCache.warmCache(path, loadDirectoryContentsForCache)
+          
+          // Warm sibling directories during idle time
+          await state.cacheWarmingManager.warmSiblings(path, loadDirectoryContentsForCache)
         }, 500)
         
         // Performance logging
@@ -356,11 +322,13 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
     
     // Cache management
     getCachedDirectory: (path: string) => {
-      return get().directoryCache.get(path)
+      const cacheContents = get().directoryCache.get(path)
+      return cacheContents ? convertCacheToNavigation(cacheContents) : null
     },
     
     setCachedDirectory: (path: string, contents: DirectoryContents) => {
-      get().directoryCache.set(path, contents)
+      const cacheData = convertNavigationToCache(contents)
+      get().directoryCache.set(path, cacheData)
     },
     
     invalidateCache: (path?: string) => {
@@ -373,7 +341,7 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
     
     preloadDirectories: async (paths: string[]) => {
       const cache = get().directoryCache
-      await cache.preload(paths, loadDirectoryContents)
+      await cache.preload(paths, loadDirectoryContentsForCache, 'parent')
     },
     
     // View state management
@@ -535,17 +503,29 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
     
     getNavigationStats: () => {
       const state = get()
+      const cacheStats = state.directoryCache.getStats()
       return {
-        cacheStats: state.directoryCache.getStats(),
+        cacheStats,
         historyLength: state.navigationHistory.length,
         currentHistoryIndex: state.historyIndex,
         viewPreferencesCount: state.viewPreferences.size,
         scrollPositionsCount: state.scrollPositions.size,
-        cacheHitRate: state.cacheHitRate
+        cacheHitRate: state.cacheHitRate,
+        navigationPatterns: state.directoryCache.getNavigationPatterns(),
+        pendingPreloads: state.directoryCache.getPendingPreloads(),
+        cacheEfficiency: cacheStats.cacheEfficiency,
+        backgroundPrefetchCount: cacheStats.backgroundPrefetchCount,
+        preloadHitRate: cacheStats.totalHits > 0 ? (cacheStats.preloadHits / cacheStats.totalHits) : 0
       }
     }
   }))
 )
+
+// Helper function to load directory contents for cache
+async function loadDirectoryContentsForCache(path: string): Promise<CacheDirectoryContents> {
+  const navContents = await loadDirectoryContents(path)
+  return convertNavigationToCache(navContents)
+}
 
 // Helper function to load directory contents
 async function loadDirectoryContents(path: string): Promise<DirectoryContents> {
@@ -775,6 +755,32 @@ export function useCloudStorageNavigation() {
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [store.currentPath, store])
+
+  // Handle user activity for cache warming
+  useEffect(() => {
+    const handleActivity = () => {
+      store.cacheWarmingManager.recordActivity()
+    }
+
+    // Listen for various user activity events
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
+    events.forEach(event => {
+      document.addEventListener(event, handleActivity, { passive: true })
+    })
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, handleActivity)
+      })
+    }
+  }, [store])
+
+  // Cleanup cache warming on unmount
+  useEffect(() => {
+    return () => {
+      store.cacheWarmingManager.destroy()
+    }
+  }, [])
   
   return store
 }
@@ -795,12 +801,38 @@ export const useNavigationState = () => {
 
 export const useDirectoryCache = () => {
   const store = useCloudStorageNavigationStore()
+  const stats = store.getNavigationStats()
+  
   return {
     getCachedDirectory: store.getCachedDirectory,
     setCachedDirectory: store.setCachedDirectory,
     invalidateCache: store.invalidateCache,
     preloadDirectories: store.preloadDirectories,
-    cacheStats: store.getNavigationStats(),
+    cacheStats: stats.cacheStats,
+    navigationPatterns: stats.navigationPatterns,
+    pendingPreloads: stats.pendingPreloads,
+    cacheEfficiency: stats.cacheEfficiency,
+    preloadHitRate: stats.preloadHitRate,
+    // Enhanced cache methods
+    warmCache: async (currentPath: string) => {
+      await store.directoryCache.warmCache(currentPath, loadDirectoryContentsForCache)
+    },
+    getPreloadPaths: (currentPath: string) => {
+      return store.directoryCache.getPreloadPaths(currentPath)
+    },
+    // Cache warming methods
+    warmPaths: async (paths: string[]) => {
+      await store.cacheWarmingManager.warmPaths(paths, loadDirectoryContentsForCache)
+    },
+    warmFromPatterns: async (currentPath: string) => {
+      await store.cacheWarmingManager.warmFromPatterns(currentPath, loadDirectoryContentsForCache)
+    },
+    warmSiblings: async (currentPath: string) => {
+      await store.cacheWarmingManager.warmSiblings(currentPath, loadDirectoryContentsForCache)
+    },
+    stopWarming: () => store.cacheWarmingManager.stopWarming(),
+    isWarmingActive: () => store.cacheWarmingManager.isWarmingActive(),
+    getWarmingStats: () => store.cacheWarmingManager.getWarmingStats()
   }
 }
 
