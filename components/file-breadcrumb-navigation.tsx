@@ -2,21 +2,25 @@
 
 import { ChevronRight, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useCloudStorageNavigation, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
-import Link from "next/link"
+import { useCloudStorageStore, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
+import { useFolderNavigation } from "@/components/navigation-interceptor"
 
 interface FileBreadcrumbNavigationProps {
+  userId: string
   className?: string
 }
 
-export function FileBreadcrumbNavigation({ className }: FileBreadcrumbNavigationProps) {
-  const { breadcrumbs } = useCloudStorageNavigation()
+export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNavigationProps) {
+  const { breadcrumbs } = useCloudStorageStore()
+  const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
 
-  // Map storage path like user_<id>/a/b to SSR route /dateien/a/b
-  const pathToHref = (path: string) => {
-    const match = path.match(/^user_[^/]+(?:\/(.*))?$/)
-    const rest = match && match[1] ? match[1] : ""
-    return rest ? `/dateien/${rest}` : "/dateien"
+  // Handle breadcrumb click with navigation interceptor
+  const handleBreadcrumbClick = async (path: string) => {
+    try {
+      await handleFolderClick(path)
+    } catch (error) {
+      console.error('Breadcrumb navigation failed:', error)
+    }
   }
 
   const getBreadcrumbIcon = (type: BreadcrumbItem['type']) => {
@@ -74,19 +78,22 @@ export function FileBreadcrumbNavigation({ className }: FileBreadcrumbNavigation
                   </span>
                 </span>
               ) : (
-                <Link
-                  href={pathToHref(breadcrumb.path)}
+                <button
+                  onClick={() => handleBreadcrumbClick(breadcrumb.path)}
                   className={cn(
                     "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
                     cn("cursor-pointer", getBreadcrumbColor(breadcrumb.type)),
-                    "hover:bg-accent"
+                    "hover:bg-accent",
+                    isNavigating && "opacity-50 pointer-events-none"
                   )}
+                  data-folder-path={breadcrumb.path}
+                  disabled={isNavigating}
                 >
                   {Icon && <span className="flex-shrink-0">{Icon}</span>}
                   <span className="truncate max-w-[150px] sm:max-w-[200px]">
                     {breadcrumb.name}
                   </span>
-                </Link>
+                </button>
               )}
             </li>
           )

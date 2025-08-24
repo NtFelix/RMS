@@ -16,7 +16,7 @@ import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actio
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useFolderNavigation } from "@/components/navigation-interceptor"
 
 interface CloudStorageRedesignedProps {
   userId: string
@@ -58,19 +58,9 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
   
   const { openUploadModal } = useModalStore()
   const { toast } = useToast()
-  const router = useRouter()
+  const { handleFolderClick, isNavigating, pathToHref } = useFolderNavigation(userId)
 
-  // Map a storage path like user_<id>/a/b to the SSR URL /dateien/a/b
-  const pathToHref = (path: string) => {
-    const base = `user_${userId}`
-    if (!path || path === base) return "/dateien"
-    const prefix = `${base}/`
-    if (path.startsWith(prefix)) {
-      const rest = path.slice(prefix.length)
-      return `/dateien/${rest}`
-    }
-    return "/dateien"
-  }
+
 
   // Hydrate store from server-provided initial data; re-hydrate on SSR route transitions
   useEffect(() => {
@@ -84,9 +74,13 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
       return
     }
     if (!currentPath && userId) {
-      router.replace('/dateien')
+      // Use navigation interceptor for initial navigation
+      handleFolderClick(`user_${userId}`, { replace: true }).catch(() => {
+        // Fallback to direct navigation if client-side fails
+        window.location.href = '/dateien'
+      })
     }
-  }, [currentPath, initialPath, initialFiles, initialFolders, initialBreadcrumbs, userId, router, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setLoading, setError])
+  }, [currentPath, initialPath, initialFiles, initialFolders, initialBreadcrumbs, userId, handleFolderClick, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setLoading, setError])
 
   // Restore persisted UI state on mount
   useEffect(() => {
@@ -236,15 +230,23 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
   }
 
   // Handle navigation
-  const handleNavigateUp = () => {
+  const handleNavigateUp = async () => {
     if (breadcrumbs.length > 1) {
       const parentBreadcrumb = breadcrumbs[breadcrumbs.length - 2]
-      router.push(pathToHref(parentBreadcrumb.path))
+      try {
+        await handleFolderClick(parentBreadcrumb.path)
+      } catch (error) {
+        console.error('Navigation up failed:', error)
+      }
     }
   }
 
-  const handleFolderClick = (folder: VirtualFolder) => {
-    router.push(pathToHref(folder.path))
+  const handleFolderClickInternal = async (folder: VirtualFolder) => {
+    try {
+      await handleFolderClick(folder.path)
+    } catch (error) {
+      console.error('Folder navigation failed:', error)
+    }
   }
 
   // Handle file operations
@@ -360,7 +362,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
       <div className="flex-1 overflow-auto">
         <div className="p-6">
           {/* Loading State */}
-          {isLoading && (
+          {(isLoading || isNavigating) && (
             <div className={cn(
               "grid gap-4",
               viewMode === 'grid' 
@@ -390,7 +392,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
           )}
 
           {/* Error State */}
-          {error && !isLoading && (
+          {error && !isLoading && !isNavigating && (
             <div className="text-center py-16">
               <div className="bg-destructive/10 rounded-full p-4 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
                 <Zap className="h-8 w-8 text-destructive" />
@@ -405,7 +407,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
           )}
 
           {/* Empty State */}
-          {!isLoading && !error && sortedFolders.length === 0 && sortedFiles.length === 0 && (
+          {!isLoading && !isNavigating && !error && sortedFolders.length === 0 && sortedFiles.length === 0 && (
             <div className="text-center py-16">
               <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
                 <FolderOpen className="h-12 w-12 text-muted-foreground" />
@@ -435,7 +437,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
           )}
 
           {/* Content Grid/List */}
-          {!isLoading && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
+          {!isLoading && !isNavigating && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
             <div className={cn(
               "gap-4",
               viewMode === 'grid' 
@@ -444,15 +446,16 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
             )}>
               {/* Render Folders */}
               {sortedFolders.map((folder) => (
-                <CloudStorageItemCard
-                  key={folder.path}
-                  item={folder}
-                  type="folder"
-                  viewMode={viewMode}
-                  isSelected={selectedItems.has(folder.path)}
-                  onSelect={(selected) => handleItemSelect(folder.path, selected)}
-                  onOpen={() => handleFolderClick(folder)}
-                />
+                <div key={folder.path} data-folder-path={folder.path}>
+                  <CloudStorageItemCard
+                    item={folder}
+                    type="folder"
+                    viewMode={viewMode}
+                    isSelected={selectedItems.has(folder.path)}
+                    onSelect={(selected) => handleItemSelect(folder.path, selected)}
+                    onOpen={() => handleFolderClickInternal(folder)}
+                  />
+                </div>
               ))}
 
               {/* Render Files */}
@@ -473,7 +476,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
           )}
 
           {/* Results Summary */}
-          {!isLoading && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
+          {!isLoading && !isNavigating && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
             <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
               {sortedFolders.length > 0 && sortedFiles.length > 0 ? (
                 `${sortedFolders.length} Ordner, ${sortedFiles.length} Dateien`

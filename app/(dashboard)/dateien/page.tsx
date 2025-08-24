@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { CloudStorageRedesigned } from "@/components/cloud-storage-redesigned"
+import { NavigationInterceptor } from "@/components/navigation-interceptor"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -53,13 +54,15 @@ async function CloudStorageContent({ userId }: { userId: string }) {
   }
 
   return (
-    <CloudStorageRedesigned
-      userId={userId}
-      initialPath={initialPath}
-      initialFiles={files}
-      initialFolders={folders}
-      initialBreadcrumbs={breadcrumbs}
-    />
+    <NavigationInterceptor userId={userId} fallbackToSSR={true}>
+      <CloudStorageRedesigned
+        userId={userId}
+        initialPath={initialPath}
+        initialFiles={files}
+        initialFolders={folders}
+        initialBreadcrumbs={breadcrumbs}
+      />
+    </NavigationInterceptor>
   )
 }
 

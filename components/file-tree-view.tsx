@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
-import { useRouter } from "next/navigation"
+import { useFolderNavigation } from "@/components/navigation-interceptor"
 
 interface FileTreeViewProps {
   userId: string
@@ -34,7 +34,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     folders,
     setFolders 
   } = useCloudStorageStore()
-  const router = useRouter()
+  const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
 
   // Fetch real data from API
   const { houses, apartments, tenants, isLoading, error } = usePropertyHierarchy()
@@ -270,16 +270,14 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     return breadcrumbs
   }
 
-  // Map a storage path like user_<id>/a/b to the SSR URL /dateien/a/b
-  const pathToHref = (path: string) => {
-    const match = path.match(/^user_[^/]+(?:\/(.*))?$/)
-    const rest = match && match[1] ? match[1] : ""
-    return rest ? `/dateien/${rest}` : "/dateien"
-  }
-
-  // Handle node click
-  const handleNodeClick = (node: TreeNode) => {
-    router.push(pathToHref(node.path))
+  // Handle node click with navigation interceptor
+  const handleNodeClick = async (node: TreeNode) => {
+    try {
+      await handleFolderClick(node.path)
+    } catch (error) {
+      console.error('Navigation failed in file tree:', error)
+      // Error handling is managed by the navigation interceptor
+    }
   }
 
   // Handle node expansion
@@ -308,10 +306,12 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           className={cn(
             "flex items-center py-1 px-2 rounded-md cursor-pointer hover:bg-accent transition-colors",
             isSelected && "bg-accent font-medium",
-            level > 0 && "ml-4"
+            level > 0 && "ml-4",
+            isNavigating && "opacity-50 pointer-events-none"
           )}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => handleNodeClick(node)}
+          data-folder-path={node.path}
         >
           {hasChildren && (
             <button

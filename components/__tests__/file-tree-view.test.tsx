@@ -2,21 +2,31 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { FileTreeView } from '@/components/file-tree-view'
 import { useCloudStorageStore } from '@/hooks/use-cloud-storage-store'
 import { usePropertyHierarchy } from '@/hooks/use-property-hierarchy'
+import { useFolderNavigation } from '@/components/navigation-interceptor'
 
 // Mock the hooks
 jest.mock('@/hooks/use-cloud-storage-store')
 jest.mock('@/hooks/use-property-hierarchy')
+jest.mock('@/components/navigation-interceptor')
 
 const mockUseCloudStorageStore = useCloudStorageStore as jest.MockedFunction<typeof useCloudStorageStore>
 const mockUsePropertyHierarchy = usePropertyHierarchy as jest.MockedFunction<typeof usePropertyHierarchy>
+const mockUseFolderNavigation = useFolderNavigation as jest.MockedFunction<typeof useFolderNavigation>
 
 describe('FileTreeView', () => {
   const mockNavigateToPath = jest.fn()
   const mockSetBreadcrumbs = jest.fn()
   const mockSetFolders = jest.fn()
+  const mockHandleFolderClick = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
+    
+    mockUseFolderNavigation.mockReturnValue({
+      handleFolderClick: mockHandleFolderClick,
+      isNavigating: false,
+      pathToHref: jest.fn((path) => `/dateien/${path.replace(/^user_[^/]+\/?/, '')}`)
+    })
     
     mockUseCloudStorageStore.mockReturnValue({
       currentPath: 'user_test-user',
@@ -155,8 +165,7 @@ describe('FileTreeView', () => {
     // Click on Häuser
     fireEvent.click(screen.getByText('Häuser'))
 
-    expect(mockNavigateToPath).toHaveBeenCalledWith('user_test-user/haeuser')
-    expect(mockSetBreadcrumbs).toHaveBeenCalled()
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
   })
 
   it('shows empty folder indicators', async () => {
@@ -205,13 +214,7 @@ describe('FileTreeView', () => {
     // Click on Häuser to navigate there first
     fireEvent.click(screen.getByText('Häuser'))
 
-    // Verify that navigateToPath was called with the correct path
-    expect(mockNavigateToPath).toHaveBeenCalledWith('user_test-user/haeuser')
-    
-    // Verify that setBreadcrumbs was called with the correct breadcrumbs for Häuser
-    expect(mockSetBreadcrumbs).toHaveBeenCalledWith([
-      { name: 'Cloud Storage', path: 'user_test-user', type: 'root' },
-      { name: 'Häuser', path: 'user_test-user/haeuser', type: 'category' }
-    ])
+    // Verify that handleFolderClick was called with the correct path
+    expect(mockHandleFolderClick).toHaveBeenCalledWith('user_test-user/haeuser')
   })
 })
