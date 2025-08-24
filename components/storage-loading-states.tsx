@@ -90,46 +90,100 @@ export function FileTreeSkeleton({ className }: { className?: string }) {
 }
 
 /**
- * Loading skeleton for file grid
+ * Loading skeleton for file grid with enhanced animations
  */
 export function FileGridSkeleton({ 
   count = 8, 
+  viewMode = 'grid',
   className 
 }: { 
   count?: number
+  viewMode?: 'grid' | 'list'
   className?: string 
 }) {
-  return (
-    <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4", className)}>
-      {[...Array(count)].map((_, i) => (
-        <Card key={i} className="p-4">
-          <CardContent className="p-0">
-            <div className="flex flex-col items-center space-y-3">
-              <Skeleton className="h-8 w-8" />
-              <div className="text-center w-full space-y-2">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-3 w-16 mx-auto" />
-                <Skeleton className="h-3 w-20 mx-auto" />
+  if (viewMode === 'list') {
+    return (
+      <div className={cn("space-y-2", className)}>
+        {[...Array(count)].map((_, i) => (
+          <div 
+            key={i} 
+            className="flex items-center p-4 space-x-4 rounded-lg border bg-card animate-pulse"
+            style={{ animationDelay: `${i * 50}ms` }}
+          >
+            <Skeleton className="h-12 w-12 rounded-lg flex-shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-3/4" />
+              <div className="flex space-x-4">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-3 w-24" />
               </div>
             </div>
-          </CardContent>
-        </Card>
+            <div className="flex space-x-2">
+              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-8 w-8 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4", className)}>
+      {[...Array(count)].map((_, i) => (
+        <div 
+          key={i} 
+          className="group relative rounded-lg border bg-card p-3 hover:shadow-md transition-all duration-200 animate-pulse"
+          style={{ animationDelay: `${i * 30}ms` }}
+        >
+          <div className="flex flex-col items-center space-y-3">
+            {/* File/Folder icon skeleton with shimmer effect */}
+            <div className="relative">
+              <Skeleton className="h-12 w-12 rounded-lg" />
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+            </div>
+            
+            {/* File name and metadata */}
+            <div className="text-center w-full space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <div className="flex justify-center space-x-2">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          </div>
+          
+          {/* Hover actions skeleton */}
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Skeleton className="h-6 w-6 rounded" />
+          </div>
+        </div>
       ))}
     </div>
   )
 }
 
 /**
- * Loading skeleton for breadcrumb navigation
+ * Loading skeleton for breadcrumb navigation with staggered animation
  */
 export function BreadcrumbSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn("flex items-center space-x-2", className)}>
-      <Skeleton className="h-4 w-20" />
-      <span className="text-muted-foreground">/</span>
-      <Skeleton className="h-4 w-16" />
-      <span className="text-muted-foreground">/</span>
-      <Skeleton className="h-4 w-24" />
+      <Skeleton 
+        className="h-4 w-20 animate-pulse" 
+        style={{ animationDelay: '0ms' }}
+      />
+      <span className="text-muted-foreground/50">/</span>
+      <Skeleton 
+        className="h-4 w-16 animate-pulse" 
+        style={{ animationDelay: '100ms' }}
+      />
+      <span className="text-muted-foreground/50">/</span>
+      <Skeleton 
+        className="h-4 w-24 animate-pulse" 
+        style={{ animationDelay: '200ms' }}
+      />
     </div>
   )
 }
@@ -461,4 +515,264 @@ export function PerformanceIndicator({
       )}
     </div>
   )
+}
+
+/**
+ * Content area loading skeleton that preserves layout
+ */
+interface ContentAreaSkeletonProps {
+  viewMode: 'grid' | 'list'
+  showHeader?: boolean
+  showBreadcrumbs?: boolean
+  itemCount?: number
+  className?: string
+}
+
+export function ContentAreaSkeleton({
+  viewMode,
+  showHeader = true,
+  showBreadcrumbs = true,
+  itemCount = 12,
+  className
+}: ContentAreaSkeletonProps) {
+  return (
+    <div className={cn("space-y-6", className)}>
+      {/* Header skeleton - only show if requested */}
+      {showHeader && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-28" />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-10" />
+          </div>
+        </div>
+      )}
+
+      {/* Breadcrumbs skeleton - only show if requested */}
+      {showBreadcrumbs && (
+        <BreadcrumbSkeleton />
+      )}
+
+      {/* Content skeleton */}
+      <FileGridSkeleton 
+        count={itemCount} 
+        viewMode={viewMode}
+      />
+    </div>
+  )
+}
+
+/**
+ * Navigation loading overlay - shows only over content area
+ */
+interface NavigationLoadingOverlayProps {
+  isVisible: boolean
+  message?: string
+  showProgress?: boolean
+  progress?: number
+  className?: string
+}
+
+export function NavigationLoadingOverlay({
+  isVisible,
+  message = "Navigiere...",
+  showProgress = false,
+  progress = 0,
+  className
+}: NavigationLoadingOverlayProps) {
+  if (!isVisible) return null
+
+  return (
+    <div className={cn(
+      "absolute inset-0 bg-background/80 backdrop-blur-sm z-20 flex items-center justify-center",
+      "transition-opacity duration-200",
+      className
+    )}>
+      <div className="bg-card border rounded-lg p-6 shadow-lg max-w-sm w-full mx-4">
+        <div className="flex items-center space-x-3">
+          <RefreshCw className="h-5 w-5 animate-spin text-primary" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">{message}</p>
+            {showProgress && (
+              <div className="mt-2">
+                <Progress value={progress} className="h-1" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.round(progress)}%
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Optimistic UI loading state for immediate feedback
+ */
+interface OptimisticLoadingProps {
+  action: 'navigating' | 'uploading' | 'deleting' | 'moving'
+  target?: string
+  className?: string
+}
+
+export function OptimisticLoading({
+  action,
+  target,
+  className
+}: OptimisticLoadingProps) {
+  const getActionText = () => {
+    switch (action) {
+      case 'navigating':
+        return target ? `Öffne ${target}...` : 'Navigiere...'
+      case 'uploading':
+        return 'Lade hoch...'
+      case 'deleting':
+        return target ? `Lösche ${target}...` : 'Lösche...'
+      case 'moving':
+        return target ? `Verschiebe ${target}...` : 'Verschiebe...'
+      default:
+        return 'Verarbeite...'
+    }
+  }
+
+  const getActionIcon = () => {
+    switch (action) {
+      case 'navigating':
+        return <Folder className="h-4 w-4" />
+      case 'uploading':
+        return <Upload className="h-4 w-4" />
+      case 'deleting':
+        return <RefreshCw className="h-4 w-4 animate-spin" />
+      case 'moving':
+        return <RefreshCw className="h-4 w-4 animate-spin" />
+      default:
+        return <RefreshCw className="h-4 w-4 animate-spin" />
+    }
+  }
+
+  return (
+    <div className={cn(
+      "inline-flex items-center space-x-2 px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm",
+      "animate-pulse",
+      className
+    )}>
+      {getActionIcon()}
+      <span>{getActionText()}</span>
+    </div>
+  )
+}
+
+/**
+ * Static UI preservation wrapper - prevents re-rendering of static elements
+ */
+interface StaticUIWrapperProps {
+  children: React.ReactNode
+  isNavigating?: boolean
+  className?: string
+}
+
+export function StaticUIWrapper({
+  children,
+  isNavigating = false,
+  className
+}: StaticUIWrapperProps) {
+  return (
+    <div className={cn(
+      "transition-opacity duration-150",
+      isNavigating ? "opacity-95" : "opacity-100",
+      className
+    )}>
+      {children}
+    </div>
+  )
+}
+
+/**
+ * Smart loading skeleton that adapts to content type
+ */
+interface SmartSkeletonProps {
+  type: 'files' | 'folders' | 'mixed'
+  viewMode: 'grid' | 'list'
+  count?: number
+  className?: string
+}
+
+export function SmartSkeleton({
+  type,
+  viewMode,
+  count = 8,
+  className
+}: SmartSkeletonProps) {
+  const getSkeletonVariant = () => {
+    if (type === 'folders') {
+      return viewMode === 'grid' ? 'folder-grid' : 'folder-list'
+    } else if (type === 'files') {
+      return viewMode === 'grid' ? 'file-grid' : 'file-list'
+    }
+    return viewMode === 'grid' ? 'mixed-grid' : 'mixed-list'
+  }
+
+  const variant = getSkeletonVariant()
+
+  if (variant === 'folder-grid') {
+    return (
+      <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4", className)}>
+        {[...Array(count)].map((_, i) => (
+          <div 
+            key={i} 
+            className="rounded-lg border bg-card p-3 animate-pulse"
+            style={{ animationDelay: `${i * 30}ms` }}
+          >
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative">
+                <Folder className="h-12 w-12 text-muted-foreground/50" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+              </div>
+              <div className="text-center w-full space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-3 w-16 mx-auto" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  if (variant === 'file-grid') {
+    return (
+      <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4", className)}>
+        {[...Array(count)].map((_, i) => (
+          <div 
+            key={i} 
+            className="rounded-lg border bg-card p-3 animate-pulse"
+            style={{ animationDelay: `${i * 30}ms` }}
+          >
+            <div className="flex flex-col items-center space-y-3">
+              <div className="relative">
+                <File className="h-12 w-12 text-muted-foreground/50" />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
+              </div>
+              <div className="text-center w-full space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <div className="flex justify-center space-x-2">
+                  <Skeleton className="h-3 w-12" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
+  // Default to FileGridSkeleton for other variants
+  return <FileGridSkeleton count={count} viewMode={viewMode} className={className} />
 }

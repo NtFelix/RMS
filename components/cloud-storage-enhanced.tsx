@@ -16,6 +16,15 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
+import { useNavigationLoading } from "@/hooks/use-optimized-loading"
+import { useFileListOptimization, useOptimizedHandlers } from "@/hooks/use-render-optimization"
+import { 
+  ContentAreaSkeleton, 
+  NavigationLoadingOverlay, 
+  OptimisticLoading,
+  StaticUIWrapper,
+  SmartSkeleton
+} from "@/components/storage-loading-states"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -82,6 +91,22 @@ export function CloudStorageEnhanced({
   
   // Enhanced folder navigation hook
   const { handleFolderClick, pathToHref } = useFolderNavigation(userId)
+  
+  // Optimized loading states
+  const navigationLoading = useNavigationLoading({
+    enableOptimisticUI: true,
+    contentType: 'mixed',
+    minLoadingTime: 100,
+    maxSkeletonTime: 2000
+  })
+  
+  // Render optimization
+  const fileListOptimization = useFileListOptimization(files, folders, {
+    enableMemoization: true,
+    debounceMs: 16
+  })
+  
+  const { createSearchHandler, createSelectionHandler } = useOptimizedHandlers()
   
   // UI state - restored from navigation preferences
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -323,7 +348,7 @@ export function CloudStorageEnhanced({
   }, [enableClientNavigation, userId, currentPath, initialPath, breadcrumbs, navigationStore])
 
   /**
-   * Handle navigation with mode detection
+   * Handle navigation with optimized loading states
    */
   const handleNavigation = useCallback(async (targetPath: string, options: any = {}) => {
     // Clear selections when navigating to different directory
@@ -337,18 +362,28 @@ export function CloudStorageEnhanced({
       saveViewPreferences(currentPathForSave)
     }
     
+    // Check if data is cached for optimized loading
+    const cachedData = navigationStore.getCachedDirectory(targetPath)
+    const fromCache = !!cachedData && !cachedData.error
+    
+    // Start optimized loading
+    const startTime = navigationLoading.startNavigation(targetPath, fromCache)
+    
     if (enableClientNavigation && navigationMode === 'client') {
       try {
         // Use client-side navigation
         await handleFolderClick(targetPath, options)
+        navigationLoading.completeNavigation(startTime, fromCache)
       } catch (error) {
         console.error('Client navigation failed, falling back to SSR:', error)
+        navigationLoading.completeNavigation(startTime, false)
         // Fallback to SSR navigation
         setNavigationMode('ssr')
         router.push(pathToHref(targetPath))
       }
     } else {
       // Use SSR navigation
+      navigationLoading.completeNavigation(startTime, false)
       router.push(pathToHref(targetPath))
     }
   }, [
@@ -359,55 +394,18 @@ export function CloudStorageEnhanced({
     handleFolderClick,
     pathToHref,
     router,
-    saveViewPreferences
+    saveViewPreferences,
+    navigationStore,
+    navigationLoading
   ])
 
-  // Filter items based on search and active filter
-  const filterItems = useCallback(() => {
-    let filteredFiles = files.filter(file => 
-      file.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-    
-    let filteredFolders = folders.filter(folder => 
-      folder.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      folder.displayName?.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+  // Optimized filtering and sorting using render optimization
+  const { filteredFiles, filteredFolders } = useMemo(() => 
+    fileListOptimization.createFilteredItems(searchQuery, activeFilter), 
+    [fileListOptimization, searchQuery, activeFilter]
+  )
 
-    // Apply type filter
-    switch (activeFilter) {
-      case 'folders':
-        filteredFiles = []
-        break
-      case 'images':
-        filteredFolders = []
-        filteredFiles = filteredFiles.filter(file => {
-          const ext = file.name.split('.').pop()?.toLowerCase()
-          return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')
-        })
-        break
-      case 'documents':
-        filteredFolders = []
-        filteredFiles = filteredFiles.filter(file => {
-          const ext = file.name.split('.').pop()?.toLowerCase()
-          return ['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext || '')
-        })
-        break
-      case 'recent':
-        filteredFolders = []
-        const weekAgo = new Date()
-        weekAgo.setDate(weekAgo.getDate() - 7)
-        filteredFiles = filteredFiles.filter(file => 
-          new Date(file.updated_at) > weekAgo
-        )
-        break
-    }
-
-    return { filteredFiles, filteredFolders }
-  }, [files, folders, searchQuery, activeFilter])
-
-  const { filteredFiles, filteredFolders } = filterItems()
-
-  // Sort items
+  // Sort items with memoization
   const sortItems = useCallback(<T extends { name: string; updated_at?: string; size?: number }>(items: T[]): T[] => {
     return [...items].sort((a, b) => {
       switch (sortBy) {
@@ -433,18 +431,11 @@ export function CloudStorageEnhanced({
     [sortItems, filteredFolders]
   )
 
-  // Handle item selection
+  // Optimized item selection handler
+  const optimizedSelectionHandler = createSelectionHandler(setSelectedItems)
   const handleItemSelect = useCallback((itemId: string, selected: boolean) => {
-    setSelectedItems(prev => {
-      const newSet = new Set(prev)
-      if (selected) {
-        newSet.add(itemId)
-      } else {
-        newSet.delete(itemId)
-      }
-      return newSet
-    })
-  }, [])
+    optimizedSelectionHandler(itemId, selected, selectedItems)
+  }, [optimizedSelectionHandler, selectedItems])
 
   // Handle bulk operations
   const handleBulkDownload = useCallback(async () => {
@@ -547,11 +538,16 @@ export function CloudStorageEnhanced({
     toast
   ])
 
-  // Show loading state during navigation
-  const showLoading = isLoading || (enableClientNavigation && isNavigating)
+  // Optimized loading state detection
+  const showLoading = isLoading || navigationLoading.isNavigating || (enableClientNavigation && isNavigating)
+  const showSkeleton = navigationLoading.shouldShowSkeleton && !isLoading
+  const showOptimistic = navigationLoading.shouldShowOptimistic
 
   // Determine which breadcrumbs to show
   const displayBreadcrumbs = breadcrumbs.length > 0 ? breadcrumbs : (initialBreadcrumbs || [])
+  
+  // Optimized search handler
+  const optimizedSearchHandler = createSearchHandler(setSearchQuery)
 
   return (
     <NavigationInterceptor 
@@ -560,124 +556,135 @@ export function CloudStorageEnhanced({
       enableDebouncing={true}
     >
       <div className="h-full flex flex-col">
-        {/* Header with Quick Actions */}
-        <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="p-6">
-            {/* Quick Actions */}
-            <CloudStorageQuickActions
-              onUpload={handleUpload}
-              onCreateFolder={() => {/* TODO: Create folder */}}
-              onSearch={setSearchQuery}
-              onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
-              onViewMode={setViewMode}
-              onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
-              viewMode={viewMode}
-              searchQuery={searchQuery}
-              selectedCount={selectedItems.size}
-              onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
-              onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-            />
+        {/* Static Header - preserved during navigation */}
+        <StaticUIWrapper isNavigating={navigationLoading.isNavigating}>
+          <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+            <div className="p-6">
+              {/* Quick Actions */}
+              <CloudStorageQuickActions
+                onUpload={handleUpload}
+                onCreateFolder={() => {/* TODO: Create folder */}}
+                onSearch={optimizedSearchHandler}
+                onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
+                onViewMode={setViewMode}
+                onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
+                viewMode={viewMode}
+                searchQuery={searchQuery}
+                selectedCount={selectedItems.size}
+                onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
+                onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
+              />
 
-            {/* Breadcrumb Navigation */}
-            <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
-              <ol className="flex items-center space-x-1">
-                {displayBreadcrumbs.map((breadcrumb, index) => {
-                  const isLast = index === displayBreadcrumbs.length - 1
-                  
-                  return (
-                    <li key={breadcrumb.path} className="flex items-center">
-                      {index > 0 && (
-                        <span className="mx-2.5 text-muted-foreground/50">/</span>
-                      )}
-                      
-                      {isLast ? (
-                        <span
-                          className={cn(
-                            "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                            "text-foreground font-medium cursor-default"
-                          )}
-                          aria-current="page"
-                        >
-                          {breadcrumb.type === 'root' && (
-                            <FolderOpen className="h-4 w-4 mr-1.5" />
-                          )}
-                          <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                            {breadcrumb.name}
+              {/* Optimistic UI feedback */}
+              {showOptimistic && (
+                <div className="mt-4">
+                  <OptimisticLoading 
+                    action="navigating" 
+                    target={currentPath || initialPath}
+                  />
+                </div>
+              )}
+
+              {/* Breadcrumb Navigation */}
+              <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
+                <ol className="flex items-center space-x-1">
+                  {displayBreadcrumbs.map((breadcrumb, index) => {
+                    const isLast = index === displayBreadcrumbs.length - 1
+                    
+                    return (
+                      <li key={breadcrumb.path} className="flex items-center">
+                        {index > 0 && (
+                          <span className="mx-2.5 text-muted-foreground/50">/</span>
+                        )}
+                        
+                        {isLast ? (
+                          <span
+                            className={cn(
+                              "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                              "text-foreground font-medium cursor-default"
+                            )}
+                            aria-current="page"
+                          >
+                            {breadcrumb.type === 'root' && (
+                              <FolderOpen className="h-4 w-4 mr-1.5" />
+                            )}
+                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                              {breadcrumb.name}
+                            </span>
                           </span>
-                        </span>
-                      ) : (
-                        enableClientNavigation && navigationMode === 'client' ? (
-                          <button
-                            onClick={() => handleNavigation(breadcrumb.path)}
-                            className={cn(
-                              "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                              "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
-                            )}
-                            data-folder-path={breadcrumb.path}
-                          >
-                            {breadcrumb.type === 'root' && (
-                              <FolderOpen className="h-4 w-4 mr-1.5" />
-                            )}
-                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                              {breadcrumb.name}
-                            </span>
-                          </button>
                         ) : (
-                          <Link
-                            href={pathToHref(breadcrumb.path)}
-                            className={cn(
-                              "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
-                              "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
-                            )}
-                          >
-                            {breadcrumb.type === 'root' && (
-                              <FolderOpen className="h-4 w-4 mr-1.5" />
-                            )}
-                            <span className="truncate max-w-[120px] sm:max-w-[200px]">
-                              {breadcrumb.name}
-                            </span>
-                          </Link>
-                        )
-                      )}
-                    </li>
-                  )
-                })}
-              </ol>
-            </nav>
+                          enableClientNavigation && navigationMode === 'client' ? (
+                            <button
+                              onClick={() => handleNavigation(breadcrumb.path)}
+                              className={cn(
+                                "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                                "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
+                              )}
+                              data-folder-path={breadcrumb.path}
+                            >
+                              {breadcrumb.type === 'root' && (
+                                <FolderOpen className="h-4 w-4 mr-1.5" />
+                              )}
+                              <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                                {breadcrumb.name}
+                              </span>
+                            </button>
+                          ) : (
+                            <Link
+                              href={pathToHref(breadcrumb.path)}
+                              className={cn(
+                                "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
+                                "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer"
+                              )}
+                            >
+                              {breadcrumb.type === 'root' && (
+                                <FolderOpen className="h-4 w-4 mr-1.5" />
+                              )}
+                              <span className="truncate max-w-[120px] sm:max-w-[200px]">
+                                {breadcrumb.name}
+                              </span>
+                            </Link>
+                          )
+                        )}
+                      </li>
+                    )
+                  })}
+                </ol>
+              </nav>
+            </div>
           </div>
-        </div>
+        </StaticUIWrapper>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-auto">
+        {/* Content Area with optimized loading */}
+        <div className="flex-1 overflow-auto relative">
+          {/* Navigation loading overlay */}
+          <NavigationLoadingOverlay 
+            isVisible={navigationLoading.isNavigating && !showSkeleton}
+            message="Navigiere..."
+            showProgress={navigationLoading.loadingProgress > 0}
+            progress={navigationLoading.loadingProgress}
+          />
+          
           <div className="p-6">
-            {/* Loading State */}
-            {showLoading && (
-              <div className={cn(
-                "grid gap-4",
-                viewMode === 'grid' 
-                  ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8" 
-                  : "grid-cols-1"
-              )}>
-                {Array.from({ length: viewMode === 'grid' ? 16 : 8 }).map((_, i) => (
-                  <div key={i} className="animate-pulse">
-                    {viewMode === 'grid' ? (
-                      <>
-                        <div className="bg-muted rounded-lg h-32 mb-3" />
-                        <div className="bg-muted rounded h-4 w-3/4 mb-2" />
-                        <div className="bg-muted rounded h-3 w-1/2" />
-                      </>
-                    ) : (
-                      <div className="flex items-center p-4 space-x-4">
-                        <div className="bg-muted rounded-lg h-12 w-12" />
-                        <div className="flex-1 space-y-2">
-                          <div className="bg-muted rounded h-4 w-3/4" />
-                          <div className="bg-muted rounded h-3 w-1/2" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+            {/* Smart skeleton loading */}
+            {showSkeleton && (
+              <div className="animate-fade-in-up">
+                <SmartSkeleton
+                  type={activeFilter === 'folders' ? 'folders' : activeFilter === 'all' ? 'mixed' : 'files'}
+                  viewMode={viewMode}
+                  count={viewMode === 'grid' ? 16 : 8}
+                />
               </div>
+            )}
+
+            {/* Traditional loading state for SSR fallback */}
+            {showLoading && !showSkeleton && (
+              <ContentAreaSkeleton
+                viewMode={viewMode}
+                showHeader={false}
+                showBreadcrumbs={false}
+                itemCount={viewMode === 'grid' ? 16 : 8}
+              />
             )}
 
             {/* Error State */}
@@ -734,47 +741,57 @@ export function CloudStorageEnhanced({
               </div>
             )}
 
-            {/* Content Grid/List */}
-            {!showLoading && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
+            {/* Content Grid/List with fade-in animation */}
+            {!showLoading && !showSkeleton && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
               <div className={cn(
-                "gap-4",
+                "gap-4 animate-fade-in-up",
                 viewMode === 'grid' 
                   ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8" 
                   : "space-y-2"
               )}>
                 {/* Render Folders */}
-                {sortedFolders.map((folder) => (
-                  <CloudStorageItemCard
+                {sortedFolders.map((folder, index) => (
+                  <div 
                     key={folder.path}
-                    item={folder}
-                    type="folder"
-                    viewMode={viewMode}
-                    isSelected={selectedItems.has(folder.path)}
-                    onSelect={(selected) => handleItemSelect(folder.path, selected)}
-                    onOpen={() => handleFolderClickLocal(folder)}
-                    data-folder-path={folder.path}
-                  />
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${index * 20}ms` }}
+                  >
+                    <CloudStorageItemCard
+                      item={folder}
+                      type="folder"
+                      viewMode={viewMode}
+                      isSelected={selectedItems.has(folder.path)}
+                      onSelect={(selected) => handleItemSelect(folder.path, selected)}
+                      onOpen={() => handleFolderClickLocal(folder)}
+                      data-folder-path={folder.path}
+                    />
+                  </div>
                 ))}
 
                 {/* Render Files */}
-                {sortedFiles.map((file) => (
-                  <CloudStorageItemCard
+                {sortedFiles.map((file, index) => (
+                  <div 
                     key={file.id}
-                    item={file}
-                    type="file"
-                    viewMode={viewMode}
-                    isSelected={selectedItems.has(file.id)}
-                    onSelect={(selected) => handleItemSelect(file.id, selected)}
-                    onDownload={() => handleFileDownload(file)}
-                    onPreview={() => {/* TODO: Preview */}}
-                    onDelete={() => handleFileDelete(file)}
-                  />
+                    className="animate-fade-in-up"
+                    style={{ animationDelay: `${(sortedFolders.length + index) * 20}ms` }}
+                  >
+                    <CloudStorageItemCard
+                      item={file}
+                      type="file"
+                      viewMode={viewMode}
+                      isSelected={selectedItems.has(file.id)}
+                      onSelect={(selected) => handleItemSelect(file.id, selected)}
+                      onDownload={() => handleFileDownload(file)}
+                      onPreview={() => {/* TODO: Preview */}}
+                      onDelete={() => handleFileDelete(file)}
+                    />
+                  </div>
                 ))}
               </div>
             )}
 
-            {/* Results Summary */}
-            {!showLoading && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
+            {/* Results Summary with performance info */}
+            {!showLoading && !showSkeleton && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
               <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
                 {sortedFolders.length > 0 && sortedFiles.length > 0 ? (
                   `${sortedFolders.length} Ordner, ${sortedFiles.length} Dateien`
@@ -785,9 +802,19 @@ export function CloudStorageEnhanced({
                 )}
                 {searchQuery && ` für "${searchQuery}"`}
                 {enableClientNavigation && (
-                  <span className="ml-2 text-xs opacity-60">
-                    ({navigationMode === 'client' ? 'Client' : 'SSR'} Mode)
-                  </span>
+                  <div className="flex items-center justify-center space-x-4 mt-2 text-xs opacity-60">
+                    <span>({navigationMode === 'client' ? 'Client' : 'SSR'} Mode)</span>
+                    {navigationLoading.performanceMetrics.averageLoadTime > 0 && (
+                      <span>
+                        Ø {Math.round(navigationLoading.performanceMetrics.averageLoadTime)}ms
+                      </span>
+                    )}
+                    {navigationLoading.performanceMetrics.cacheHitRate > 0 && (
+                      <span>
+                        Cache: {Math.round(navigationLoading.performanceMetrics.cacheHitRate * 100)}%
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             )}

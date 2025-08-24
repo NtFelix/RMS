@@ -494,7 +494,11 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
       set((draft) => {
         Object.assign(draft, {
           ...initialState,
-          directoryCache: new DirectoryCache(50),
+          directoryCache: getDirectoryCache({
+            maxSize: 50,
+            maxMemoryMB: 25,
+            ttlMinutes: 5
+          }),
           viewPreferences: new Map(),
           scrollPositions: new Map(),
         })

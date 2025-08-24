@@ -14,6 +14,7 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
+import { SmartSkeleton, StaticUIWrapper } from "@/components/storage-loading-states"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useFolderNavigation } from "@/components/navigation-interceptor"
@@ -289,23 +290,24 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header with Quick Actions */}
-      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="p-6">
-          {/* Quick Actions */}
-          <CloudStorageQuickActions
-            onUpload={handleUpload}
-            onCreateFolder={() => {/* TODO: Create folder */}}
-            onSearch={setSearchQuery}
-            onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
-            onViewMode={setViewMode}
-            onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
-            viewMode={viewMode}
-            searchQuery={searchQuery}
-            selectedCount={selectedItems.size}
-            onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
-            onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
-          />
+      {/* Static Header - preserved during navigation */}
+      <StaticUIWrapper isNavigating={isNavigating}>
+        <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="p-6">
+            {/* Quick Actions */}
+            <CloudStorageQuickActions
+              onUpload={handleUpload}
+              onCreateFolder={() => {/* TODO: Create folder */}}
+              onSearch={setSearchQuery}
+              onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
+              onViewMode={setViewMode}
+              onFilter={(filter: string) => setActiveFilter(filter as FilterType)}
+              viewMode={viewMode}
+              searchQuery={searchQuery}
+              selectedCount={selectedItems.size}
+              onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
+              onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
+            />
 
           {/* Breadcrumb Navigation */}
           <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
@@ -354,40 +356,22 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
                 )
               })}
             </ol>
-          </nav>
+            </nav>
+          </div>
         </div>
-      </div>
+      </StaticUIWrapper>
 
       {/* Content Area */}
       <div className="flex-1 overflow-auto">
         <div className="p-6">
-          {/* Loading State */}
+          {/* Optimized Loading State */}
           {(isLoading || isNavigating) && (
-            <div className={cn(
-              "grid gap-4",
-              viewMode === 'grid' 
-                ? "grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8" 
-                : "grid-cols-1"
-            )}>
-              {Array.from({ length: viewMode === 'grid' ? 16 : 8 }).map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  {viewMode === 'grid' ? (
-                    <>
-                      <div className="bg-muted rounded-lg h-32 mb-3" />
-                      <div className="bg-muted rounded h-4 w-3/4 mb-2" />
-                      <div className="bg-muted rounded h-3 w-1/2" />
-                    </>
-                  ) : (
-                    <div className="flex items-center p-4 space-x-4">
-                      <div className="bg-muted rounded-lg h-12 w-12" />
-                      <div className="flex-1 space-y-2">
-                        <div className="bg-muted rounded h-4 w-3/4" />
-                        <div className="bg-muted rounded h-3 w-1/2" />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+            <div className="animate-fade-in-up">
+              <SmartSkeleton
+                type={activeFilter === 'folders' ? 'folders' : activeFilter === 'all' ? 'mixed' : 'files'}
+                viewMode={viewMode}
+                count={viewMode === 'grid' ? 16 : 8}
+              />
             </div>
           )}
 
@@ -436,17 +420,22 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
             </div>
           )}
 
-          {/* Content Grid/List */}
+          {/* Content Grid/List with fade-in animation */}
           {!isLoading && !isNavigating && !error && (sortedFolders.length > 0 || sortedFiles.length > 0) && (
             <div className={cn(
-              "gap-4",
+              "gap-4 animate-fade-in-up",
               viewMode === 'grid' 
                 ? "grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8" 
                 : "space-y-2"
             )}>
               {/* Render Folders */}
-              {sortedFolders.map((folder) => (
-                <div key={folder.path} data-folder-path={folder.path}>
+              {sortedFolders.map((folder, index) => (
+                <div 
+                  key={folder.path} 
+                  data-folder-path={folder.path}
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${index * 20}ms` }}
+                >
                   <CloudStorageItemCard
                     item={folder}
                     type="folder"
@@ -459,18 +448,23 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
               ))}
 
               {/* Render Files */}
-              {sortedFiles.map((file) => (
-                <CloudStorageItemCard
+              {sortedFiles.map((file, index) => (
+                <div 
                   key={file.id}
-                  item={file}
-                  type="file"
-                  viewMode={viewMode}
-                  isSelected={selectedItems.has(file.id)}
-                  onSelect={(selected) => handleItemSelect(file.id, selected)}
-                  onDownload={() => handleFileDownload(file)}
-                  onPreview={() => {/* TODO: Preview */}}
-                  onDelete={() => handleFileDelete(file)}
-                />
+                  className="animate-fade-in-up"
+                  style={{ animationDelay: `${(sortedFolders.length + index) * 20}ms` }}
+                >
+                  <CloudStorageItemCard
+                    item={file}
+                    type="file"
+                    viewMode={viewMode}
+                    isSelected={selectedItems.has(file.id)}
+                    onSelect={(selected) => handleItemSelect(file.id, selected)}
+                    onDownload={() => handleFileDownload(file)}
+                    onPreview={() => {/* TODO: Preview */}}
+                    onDelete={() => handleFileDelete(file)}
+                  />
+                </div>
               ))}
             </div>
           )}

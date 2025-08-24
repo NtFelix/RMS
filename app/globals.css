@@ -97,4 +97,53 @@
   .summary-card {
     @apply border-2 border-border;
   }
+
+  /* Shimmer animation for loading states */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+
+  /* Staggered pulse animation */
+  .animate-pulse-staggered {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-pulse-staggered:nth-child(1) { animation-delay: 0ms; }
+  .animate-pulse-staggered:nth-child(2) { animation-delay: 100ms; }
+  .animate-pulse-staggered:nth-child(3) { animation-delay: 200ms; }
+  .animate-pulse-staggered:nth-child(4) { animation-delay: 300ms; }
+  .animate-pulse-staggered:nth-child(5) { animation-delay: 400ms; }
+  .animate-pulse-staggered:nth-child(6) { animation-delay: 500ms; }
+  .animate-pulse-staggered:nth-child(7) { animation-delay: 600ms; }
+  .animate-pulse-staggered:nth-child(8) { animation-delay: 700ms; }
+
+  /* Smooth transitions for loading states */
+  .loading-transition {
+    transition: opacity 200ms ease-in-out, transform 200ms ease-in-out;
+  }
+
+  /* Content fade-in animation */
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 300ms ease-out;
+  }
 }
