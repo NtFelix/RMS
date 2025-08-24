@@ -655,7 +655,7 @@ export function useCloudStorageNavigation() {
     
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [store])
+  }, [])
   
   // Handle page refresh and direct URL access
   useEffect(() => {
@@ -700,7 +700,7 @@ export function useCloudStorageNavigation() {
     if (store.currentPath) {
       handlePageLoad()
     }
-  }, [store.currentPath, store])
+  }, [store.currentPath])
   
   // Save scroll position on scroll
   useEffect(() => {
@@ -734,7 +734,7 @@ export function useCloudStorageNavigation() {
       window.removeEventListener('scroll', handleScroll)
       clearTimeout(scrollTimeout)
     }
-  }, [store.currentPath, store])
+  }, [store.currentPath])
   
   // Restore view preferences on mount
   useEffect(() => {
@@ -742,7 +742,7 @@ export function useCloudStorageNavigation() {
       const preferences = store.restoreViewState(store.currentPath)
       store.setViewPreferences(store.currentPath, preferences)
     }
-  }, [store.currentPath, store])
+  }, [store.currentPath])
   
   // Handle beforeunload to save state
   useEffect(() => {
@@ -758,7 +758,7 @@ export function useCloudStorageNavigation() {
     
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [store.currentPath, store])
+  }, [store.currentPath])
 
   // Handle user activity for cache warming
   useEffect(() => {
@@ -777,7 +777,7 @@ export function useCloudStorageNavigation() {
         document.removeEventListener(event, handleActivity)
       })
     }
-  }, [store])
+  }, [])
 
   // Cleanup cache warming on unmount
   useEffect(() => {

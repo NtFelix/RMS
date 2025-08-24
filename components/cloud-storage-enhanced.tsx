@@ -147,17 +147,7 @@ export function CloudStorageEnhanced({
     }
   }, [])
   
-  const createSelectionHandler = useCallback((setSelectedItems: (items: Set<string>) => void) => {
-    return (itemId: string, selected: boolean, currentSelection: Set<string>) => {
-      const newSelection = new Set(currentSelection)
-      if (selected) {
-        newSelection.add(itemId)
-      } else {
-        newSelection.delete(itemId)
-      }
-      setSelectedItems(newSelection)
-    }
-  }, [])
+
   
   // UI state - restored from navigation preferences
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -293,7 +283,6 @@ export function CloudStorageEnhanced({
       setViewMode(preferences.viewMode)
       setSortBy(preferences.sortBy as SortBy)
       setSearchQuery(preferences.searchQuery || '')
-      setSelectedItems(new Set(preferences.selectedItems))
       
       // Also restore from localStorage as fallback
       const viewModeStored = localStorage.getItem('cloudStorage:viewMode')
@@ -329,8 +318,8 @@ export function CloudStorageEnhanced({
         viewMode,
         sortBy,
         sortOrder: 'asc' as const,
-        selectedItems,
-        searchQuery
+        searchQuery,
+        selectedItems
       }
       
       setViewPreferences(path, preferences)
@@ -343,7 +332,7 @@ export function CloudStorageEnhanced({
     } catch (error) {
       console.warn('Failed to save view preferences:', error)
     }
-  }, [enableClientNavigation, viewMode, sortBy, selectedItems, searchQuery, activeFilter, setViewPreferences])
+  }, [enableClientNavigation, viewMode, sortBy, searchQuery, activeFilter, setViewPreferences])
 
   /**
    * Save view preferences when they change
@@ -486,42 +475,61 @@ export function CloudStorageEnhanced({
   )
 
   // Optimized item selection handler
-  const optimizedSelectionHandler = createSelectionHandler(setSelectedItems)
   const handleItemSelect = useCallback((itemId: string, selected: boolean) => {
-    optimizedSelectionHandler(itemId, selected, selectedItems)
-  }, [optimizedSelectionHandler, selectedItems])
+    setSelectedItems(prev => {
+      const newSelection = new Set(prev)
+      if (selected) {
+        newSelection.add(itemId)
+      } else {
+        newSelection.delete(itemId)
+      }
+      return newSelection
+    })
+  }, [])
 
   // Handle bulk operations
   const handleBulkDownload = useCallback(async () => {
-    const selectedFiles = sortedFiles.filter(file => selectedItems.has(file.id))
-    for (const file of selectedFiles) {
-      try {
-        await downloadFile(file)
-      } catch (error) {
-        console.error('Bulk download error:', error)
-      }
-    }
-    setSelectedItems(new Set())
-    toast({
-      title: "Download gestartet",
-      description: `${selectedFiles.length} Dateien werden heruntergeladen.`
+    setSelectedItems(prev => {
+      const selectedFiles = sortedFiles.filter(file => prev.has(file.id))
+      
+      // Perform downloads asynchronously
+      Promise.all(selectedFiles.map(async (file) => {
+        try {
+          await downloadFile(file)
+        } catch (error) {
+          console.error('Bulk download error:', error)
+        }
+      }))
+      
+      toast({
+        title: "Download gestartet",
+        description: `${selectedFiles.length} Dateien werden heruntergeladen.`
+      })
+      
+      return new Set() // Clear selections
     })
-  }, [sortedFiles, selectedItems, downloadFile, toast])
+  }, [sortedFiles, downloadFile, toast])
 
   const handleBulkDelete = useCallback(async () => {
-    const selectedFiles = sortedFiles.filter(file => selectedItems.has(file.id))
-    for (const file of selectedFiles) {
-      try {
-        await deleteFile(file)
-      } catch (error) {
-        console.error('Bulk delete error:', error)
-      }
-    }
-    setSelectedItems(new Set())
-    toast({
-      description: `${selectedFiles.length} Dateien wurden ins Archiv verschoben.`
+    setSelectedItems(prev => {
+      const selectedFiles = sortedFiles.filter(file => prev.has(file.id))
+      
+      // Perform deletions asynchronously
+      Promise.all(selectedFiles.map(async (file) => {
+        try {
+          await deleteFile(file)
+        } catch (error) {
+          console.error('Bulk delete error:', error)
+        }
+      }))
+      
+      toast({
+        description: `${selectedFiles.length} Dateien wurden ins Archiv verschoben.`
+      })
+      
+      return new Set() // Clear selections
     })
-  }, [sortedFiles, selectedItems, deleteFile, toast])
+  }, [sortedFiles, deleteFile, toast])
 
   // Handle navigation up
   const handleNavigateUp = useCallback(() => {

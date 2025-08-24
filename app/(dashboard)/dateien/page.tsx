@@ -1,11 +1,9 @@
 import { Suspense } from "react"
-import { CloudStorageEnhanced } from "@/components/cloud-storage-enhanced"
-import { NavigationInterceptor } from "@/components/navigation-interceptor"
+import { CloudStorageReliable } from "@/components/cloud-storage-reliable"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
 import { getPathContents } from "./actions"
-import { FEATURE_FLAGS } from "@/lib/constants"
 
 export const runtime = 'edge'
 
@@ -54,29 +52,14 @@ async function CloudStorageContent({ userId }: { userId: string }) {
     console.error('Error loading initial files:', error)
   }
 
-  // Detect navigation mode based on feature flags and request context
-  const enableClientNavigation = FEATURE_FLAGS.ENABLE_CLIENT_NAVIGATION && FEATURE_FLAGS.ENABLE_HYBRID_NAVIGATION
-  const enableOptimisticUI = FEATURE_FLAGS.ENABLE_OPTIMISTIC_UI
-  const enableNavigationCache = FEATURE_FLAGS.ENABLE_NAVIGATION_CACHE
-
   return (
-    <NavigationInterceptor 
-      userId={userId} 
-      fallbackToSSR={true}
-      enableDebouncing={enableClientNavigation}
-    >
-      <CloudStorageEnhanced
-        userId={userId}
-        initialPath={initialPath}
-        initialFiles={files}
-        initialFolders={folders}
-        initialBreadcrumbs={breadcrumbs}
-        isSSR={true}
-        enableClientNavigation={enableClientNavigation}
-        enableOptimisticUI={enableOptimisticUI}
-        enableNavigationCache={enableNavigationCache}
-      />
-    </NavigationInterceptor>
+    <CloudStorageReliable
+      userId={userId}
+      initialPath={initialPath}
+      initialFiles={files}
+      initialFolders={folders}
+      initialBreadcrumbs={breadcrumbs}
+    />
   )
 }
 

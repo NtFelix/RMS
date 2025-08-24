@@ -29,38 +29,68 @@ export interface BreadcrumbItem {
   type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
 }
 
+// Cache for preventing concurrent requests to the same path
+const requestCache = new Map<string, Promise<any>>()
+
 export async function getInitialFiles(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
   error?: string
 }> {
-  try {
-    const supabase = await createClient()
-    
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    
-    if (authError || !user || user.id !== userId) {
-      redirect('/auth/login')
-    }
-
-    const targetPath = path || `user_${userId}`
-    
-    // If we're at the root level, create virtual folders based on database data
-    if (targetPath === `user_${userId}`) {
-      return await getRootLevelFolders(supabase, userId, targetPath)
-    }
-    
-    // For other paths, list actual storage contents
-    return await getStorageContents(supabase, targetPath)
-  } catch (error) {
-    console.error('Error in getInitialFiles:', error)
-    return {
-      files: [],
-      folders: [],
-      error: 'Unerwarteter Fehler beim Laden der Dateien'
+  const targetPath = path || `user_${userId}`
+  const cacheKey = `${userId}:${targetPath}`
+  
+  // Check if there's already a request in progress for this path
+  if (requestCache.has(cacheKey)) {
+    try {
+      return await requestCache.get(cacheKey)!
+    } catch (error) {
+      requestCache.delete(cacheKey)
+      throw error
     }
   }
+  
+  // Create new request
+  const request = (async () => {
+    try {
+      const supabase = await createClient()
+      
+      // Verify user authentication
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      
+      if (authError || !user || user.id !== userId) {
+        redirect('/auth/login')
+      }
+      
+      // If we're at the root level, create virtual folders based on database data
+      if (targetPath === `user_${userId}`) {
+        return await getRootLevelFolders(supabase, userId, targetPath)
+      }
+      
+      // For other paths, list actual storage contents
+      return await getStorageContents(supabase, targetPath)
+    } catch (error) {
+      // Log error only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Error in getInitialFiles:', error)
+      }
+      return {
+        files: [],
+        folders: [],
+        error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Laden der Dateien'
+      }
+    } finally {
+      // Clean up cache after request completes
+      setTimeout(() => {
+        requestCache.delete(cacheKey)
+      }, 1000)
+    }
+  })()
+  
+  // Cache the request
+  requestCache.set(cacheKey, request)
+  
+  return request
 }
 
 async function getRootLevelFolders(supabase: any, userId: string, targetPath: string): Promise<{
@@ -69,14 +99,28 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
   error?: string
 }> {
   try {
-    // Get houses from database
-    const { data: houses, error: housesError } = await supabase
+    // Get houses from database with timeout
+    const housesPromise = supabase
       .from('Haeuser')
       .select('id, name')
       .eq('user_id', userId)
     
+    // Add timeout to prevent hanging requests
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 10000)
+    })
+    
+    const { data: houses, error: housesError } = await Promise.race([
+      housesPromise,
+      timeoutPromise
+    ]) as any
+    
     if (housesError) {
-      console.error('Error loading houses:', housesError)
+      // Log error only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load houses:', housesError)
+      }
+      // Continue with empty houses array instead of failing completely
     }
 
     const folders: VirtualFolder[] = []
@@ -146,7 +190,10 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
 
     return { files, folders }
   } catch (error) {
-    console.error('Error in getRootLevelFolders:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getRootLevelFolders:', error)
+    }
     return {
       files: [],
       folders: [],
@@ -170,7 +217,10 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       })
 
     if (error) {
-      console.error('Error loading files:', error)
+      // Log error only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load storage contents for path:', targetPath, error)
+      }
       return {
         files: [],
         folders: [],
@@ -229,7 +279,10 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
 
     return { files, folders }
   } catch (error) {
-    console.error('Error in getStorageContents:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Unexpected error in getStorageContents:', error)
+    }
     return {
       files: [],
       folders: [],
@@ -244,15 +297,28 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
   error?: string
 }> {
   try {
-    // Get apartments for this house from database
-    const { data: apartments, error: apartmentsError } = await supabase
+    // Get apartments for this house from database with timeout
+    const apartmentsPromise = supabase
       .from('Wohnungen')
       .select('id, name')
       .eq('haus_id', houseId)
       .eq('user_id', userId)
     
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 8000)
+    })
+    
+    const { data: apartments, error: apartmentsError } = await Promise.race([
+      apartmentsPromise,
+      timeoutPromise
+    ]) as any
+    
     if (apartmentsError) {
-      console.error('Error loading apartments:', apartmentsError)
+      // Log error only in development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load apartments for house:', houseId, apartmentsError)
+      }
+      // Continue with empty apartments array
     }
 
     const folders: VirtualFolder[] = []
@@ -312,7 +378,10 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
 
     return { files, folders }
   } catch (error) {
-    console.error('Error in getHouseFolderContents:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getHouseFolderContents:', error)
+    }
     return {
       files: [],
       folders: [],
@@ -324,30 +393,38 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
 // Helper function to count files recursively
 async function countFilesRecursively(supabase: any, path: string): Promise<number> {
   try {
-    const { data: contents } = await supabase.storage
+    const { data: contents, error } = await supabase.storage
       .from('documents')
       .list(path, { limit: 100 })
     
-    if (!contents) return 0
+    if (error || !contents) return 0
     
     let fileCount = 0
     
     for (const item of contents) {
       if (item.name === '.keep') continue
       
-      if (item.metadata?.size) {
-        // It's a file
-        fileCount++
-      } else if (!item.name.includes('.')) {
-        // It's a folder, count recursively
-        const subPath = `${path}/${item.name}`
-        fileCount += await countFilesRecursively(supabase, subPath)
+      try {
+        if (item.metadata?.size) {
+          // It's a file
+          fileCount++
+        } else if (!item.name.includes('.')) {
+          // It's a folder, count recursively (with depth limit to prevent infinite loops)
+          const depth = (path.match(/\//g) || []).length
+          if (depth < 10) { // Limit recursion depth
+            const subPath = `${path}/${item.name}`
+            fileCount += await countFilesRecursively(supabase, subPath)
+          }
+        }
+      } catch (itemError) {
+        // Skip problematic items instead of failing
+        continue
       }
     }
     
     return fileCount
   } catch (error) {
-    console.error('Error counting files recursively:', error)
+    // Silently return 0 instead of logging errors
     return 0
   }
 }
@@ -390,7 +467,10 @@ export async function loadFilesForPath(userId: string, path: string): Promise<{
     
     return await getInitialFiles(userId, path)
   } catch (error) {
-    console.error('Error in loadFilesForPath:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in loadFilesForPath:', error)
+    }
     return {
       files: [],
       folders: [],
@@ -406,24 +486,53 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
   error?: string
 }> {
   try {
-    // Get tenants for this apartment from database
-    const { data: tenants, error: tenantsError } = await supabase
+    // Get tenants for this apartment from database with timeout and better error handling
+    const tenantsPromise = supabase
       .from('Mieter')
-      .select('id, name')
+      .select('id, name, vorname')
       .eq('wohnung_id', apartmentId)
       .eq('user_id', userId)
     
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database query timeout')), 8000)
+    })
+    
+    let tenants = null
+    let tenantsError = null
+    
+    try {
+      const result = await Promise.race([tenantsPromise, timeoutPromise]) as any
+      tenants = result.data
+      tenantsError = result.error
+    } catch (error) {
+      // Silently handle timeout or connection errors
+      tenantsError = error
+      tenants = [] // Use empty array instead of null
+    }
+    
     if (tenantsError) {
-      console.error('Error loading tenants:', tenantsError)
+      // Log error only in development, not in production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load tenants for apartment:', apartmentId, tenantsError)
+      }
+      // Ensure tenants is an empty array for safe iteration
+      tenants = tenants || []
     }
 
     const folders: VirtualFolder[] = []
     
     // Add apartment documents folder
     const apartmentDocsPath = `${targetPath}/apartment_documents`
-    const { data: apartmentDocsContents } = await supabase.storage
-      .from('documents')
-      .list(apartmentDocsPath, { limit: 1 })
+    let apartmentDocsContents = null
+    try {
+      const result = await supabase.storage
+        .from('documents')
+        .list(apartmentDocsPath, { limit: 1 })
+      apartmentDocsContents = result.data
+    } catch (error) {
+      // Silently handle storage errors
+      apartmentDocsContents = []
+    }
     
     const apartmentDocsHasFiles = apartmentDocsContents && apartmentDocsContents.length > 0
     
@@ -440,19 +549,29 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
     // Add tenant folders
     if (tenants && tenants.length > 0) {
       for (const tenant of tenants) {
-        // Count files recursively in tenant folder
-        const tenantPath = `${targetPath}/${tenant.id}`
-        const fileCount = await countFilesRecursively(supabase, tenantPath)
-        
-        folders.push({
-          name: tenant.id,
-          path: tenantPath,
-          type: 'tenant',
-          isEmpty: fileCount === 0,
-          children: [],
-          fileCount: fileCount,
-          displayName: tenant.name
-        })
+        try {
+          // Count files recursively in tenant folder
+          const tenantPath = `${targetPath}/${tenant.id}`
+          const fileCount = await countFilesRecursively(supabase, tenantPath)
+          
+          // Create display name from vorname and name
+          const displayName = tenant.vorname && tenant.name 
+            ? `${tenant.vorname} ${tenant.name}`.trim()
+            : tenant.name || tenant.id
+          
+          folders.push({
+            name: tenant.id,
+            path: tenantPath,
+            type: 'tenant',
+            isEmpty: fileCount === 0,
+            children: [],
+            fileCount: fileCount,
+            displayName: displayName
+          })
+        } catch (error) {
+          console.error(`Error processing tenant ${tenant.id}:`, error)
+          // Continue with other tenants
+        }
       }
     }
 
@@ -474,7 +593,10 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
 
     return { files, folders }
   } catch (error) {
-    console.error('Error in getApartmentFolderContentsInternal:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getApartmentFolderContentsInternal:', error)
+    }
     return {
       files: [],
       folders: [],
@@ -512,7 +634,10 @@ export async function getApartmentFolderContents(userId: string, houseId: string
     
     return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, apartmentPath, storageItems || [])
   } catch (error) {
-    console.error('Error in getApartmentFolderContents:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getApartmentFolderContents:', error)
+    }
     return {
       files: [],
       folders: [],
@@ -616,7 +741,10 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
 
     return crumbs
   } catch (error) {
-    console.error('Error in getBreadcrumbs:', error)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getBreadcrumbs:', error)
+    }
     // Fallback: only root
     return [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }]
   }
@@ -637,7 +765,10 @@ export async function getPathContents(userId: string, path?: string): Promise<{
     ])
     return { files, folders, breadcrumbs, error }
   } catch (e) {
-    console.error('Error in getPathContents:', e)
+    // Log error only in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getPathContents:', e)
+    }
     return {
       files: [],
       folders: [],
