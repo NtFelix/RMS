@@ -172,6 +172,8 @@ interface CloudStorageNavigationState {
   // Browser history integration
   updateBrowserHistory: (path: string, replace?: boolean) => void
   handleBrowserNavigation: (path: string) => Promise<void>
+  updateDocumentTitle: (path: string, breadcrumbs: BreadcrumbItem[]) => void
+  getCurrentUrl: (path: string) => string
   
   // Utility methods
   reset: () => void
@@ -265,9 +267,14 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
           }
         })
         
-        // Update browser history
+        // Update browser history and document title
         if (!options.skipHistory) {
           get().updateBrowserHistory(path, options.replace)
+        }
+        
+        // Update document title with current directory info
+        if (directoryContents && directoryContents.breadcrumbs) {
+          get().updateDocumentTitle(path, directoryContents.breadcrumbs)
         }
         
         // Restore scroll position if requested
@@ -429,13 +436,26 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
     
     // Browser history integration
     updateBrowserHistory: (path: string, replace = false) => {
-      const url = `/dateien/${path.replace(/^user_[^/]+\/?/, '')}`
+      const url = get().getCurrentUrl(path)
       
       try {
+        const state = { 
+          path, 
+          clientNavigation: true,
+          timestamp: Date.now(),
+          scrollPosition: window.scrollY
+        }
+        
         if (replace) {
-          window.history.replaceState({ path }, '', url)
+          window.history.replaceState(state, '', url)
         } else {
-          window.history.pushState({ path }, '', url)
+          window.history.pushState(state, '', url)
+        }
+        
+        // Update document title
+        const cachedData = get().getCachedDirectory(path)
+        if (cachedData) {
+          get().updateDocumentTitle(path, cachedData.breadcrumbs)
         }
       } catch (error) {
         console.warn('Failed to update browser history:', error)
@@ -444,7 +464,61 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
     
     handleBrowserNavigation: async (path: string) => {
       // Handle browser back/forward navigation
-      await get().navigateToPath(path, { skipHistory: true, preserveScroll: true })
+      try {
+        await get().navigateToPath(path, { 
+          skipHistory: true, 
+          preserveScroll: true,
+          force: false // Don't force reload for browser navigation
+        })
+      } catch (error) {
+        console.error('Browser navigation failed:', error)
+        // Fallback to page reload
+        window.location.href = get().getCurrentUrl(path)
+      }
+    },
+    
+    updateDocumentTitle: (path: string, breadcrumbs: BreadcrumbItem[]) => {
+      try {
+        let title = 'Cloud Storage'
+        
+        if (breadcrumbs.length > 1) {
+          // Use the last breadcrumb as the main title
+          const currentDir = breadcrumbs[breadcrumbs.length - 1]
+          title = `${currentDir.name} - Cloud Storage`
+          
+          // Add parent context if available
+          if (breadcrumbs.length > 2) {
+            const parent = breadcrumbs[breadcrumbs.length - 2]
+            title = `${currentDir.name} - ${parent.name} - Cloud Storage`
+          }
+        }
+        
+        // Add app name
+        title += ' - RMS'
+        
+        document.title = title
+      } catch (error) {
+        console.warn('Failed to update document title:', error)
+      }
+    },
+    
+    getCurrentUrl: (path: string) => {
+      // Convert storage path to URL path
+      const userIdMatch = path.match(/^user_([^/]+)/)
+      if (!userIdMatch) {
+        return '/dateien'
+      }
+      
+      const userId = userIdMatch[1]
+      const basePath = `user_${userId}`
+      
+      if (path === basePath) {
+        return '/dateien'
+      }
+      
+      // Remove user prefix and construct URL
+      const relativePath = path.replace(`${basePath}/`, '')
+      return `/dateien/${relativePath}`
     },
     
     // Utility methods
@@ -562,14 +636,87 @@ export function useCloudStorageNavigation() {
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (event.state?.path) {
+      if (event.state?.clientNavigation && event.state?.path) {
+        // This was a client-side navigation, handle it with client-side routing
         store.handleBrowserNavigation(event.state.path)
+        
+        // Restore scroll position if available
+        if (event.state.scrollPosition) {
+          setTimeout(() => {
+            window.scrollTo({ top: event.state.scrollPosition, behavior: 'auto' })
+          }, 100)
+        }
+      } else {
+        // This might be a direct URL access or external navigation
+        // Extract path from current URL and handle appropriately
+        const currentUrl = window.location.pathname
+        const pathMatch = currentUrl.match(/^\/dateien(?:\/(.+))?$/)
+        
+        if (pathMatch) {
+          // Construct storage path from URL
+          const urlPath = pathMatch[1] || ''
+          const userId = store.currentPath?.match(/^user_([^/]+)/)?.[1]
+          
+          if (userId) {
+            const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+            
+            // Only handle if it's different from current path
+            if (storagePath !== store.currentPath) {
+              store.handleBrowserNavigation(storagePath)
+            }
+          }
+        }
       }
     }
     
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [store])
+  
+  // Handle page refresh and direct URL access
+  useEffect(() => {
+    const handlePageLoad = () => {
+      const currentUrl = window.location.pathname
+      const pathMatch = currentUrl.match(/^\/dateien(?:\/(.+))?$/)
+      
+      if (pathMatch && store.currentPath) {
+        const urlPath = pathMatch[1] || ''
+        const userId = store.currentPath.match(/^user_([^/]+)/)?.[1]
+        
+        if (userId) {
+          const expectedStoragePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+          
+          // Ensure URL matches current path
+          if (expectedStoragePath !== store.currentPath) {
+            const correctUrl = store.getCurrentUrl(store.currentPath)
+            if (correctUrl !== currentUrl) {
+              window.history.replaceState(
+                { 
+                  path: store.currentPath, 
+                  clientNavigation: true,
+                  timestamp: Date.now(),
+                  scrollPosition: 0
+                }, 
+                '', 
+                correctUrl
+              )
+            }
+          }
+          
+          // Update document title
+          const cachedData = store.getCachedDirectory(store.currentPath)
+          if (cachedData?.breadcrumbs) {
+            store.updateDocumentTitle(store.currentPath, cachedData.breadcrumbs)
+          }
+        }
+      }
+    }
+    
+    // Run on mount and when current path changes
+    if (store.currentPath) {
+      handlePageLoad()
+    }
+  }, [store.currentPath, store])
   
   // Save scroll position on scroll
   useEffect(() => {
@@ -580,6 +727,20 @@ export function useCloudStorageNavigation() {
       scrollTimeout = setTimeout(() => {
         if (store.currentPath) {
           store.saveScrollPosition(store.currentPath, window.scrollY)
+          
+          // Also update browser history state with current scroll position
+          try {
+            const currentState = window.history.state
+            if (currentState?.clientNavigation) {
+              window.history.replaceState(
+                { ...currentState, scrollPosition: window.scrollY },
+                '',
+                window.location.pathname
+              )
+            }
+          } catch (error) {
+            // Ignore errors in updating history state
+          }
         }
       }, 100)
     }
@@ -597,6 +758,22 @@ export function useCloudStorageNavigation() {
       const preferences = store.restoreViewState(store.currentPath)
       store.setViewPreferences(store.currentPath, preferences)
     }
+  }, [store.currentPath, store])
+  
+  // Handle beforeunload to save state
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (store.currentPath) {
+        // Save current scroll position
+        store.saveScrollPosition(store.currentPath, window.scrollY)
+        
+        // Save view preferences
+        store.preserveViewState(store.currentPath)
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [store.currentPath, store])
   
   return store

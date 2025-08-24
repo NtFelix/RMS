@@ -55,7 +55,7 @@ export function NavigationInterceptor({
   const { toast } = useToast()
   
   // Debouncing state
-  const debounceTimer = useRef<NodeJS.Timeout>()
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
   const lastNavigationAttempt = useRef<NavigationAttempt | null>(null)
   const navigationInProgress = useRef<boolean>(false)
   
@@ -120,13 +120,8 @@ export function NavigationInterceptor({
       // Use the navigation store to handle client-side navigation
       await navigation.navigateToPath(path, options)
       
-      // Update browser URL without triggering navigation
-      const url = pathToHref(path)
-      if (options.replace) {
-        window.history.replaceState({ path, clientNavigation: true }, '', url)
-      } else {
-        window.history.pushState({ path, clientNavigation: true }, '', url)
-      }
+      // The navigation store will handle URL updates automatically
+      // No need to manually update history here as it's handled in the store
       
       // Update performance stats
       const navigationTime = performance.now() - startTime
@@ -250,7 +245,7 @@ export function NavigationInterceptor({
   /**
    * Intercepts click events on folder elements
    */
-  const interceptFolderClick = useCallback((event: Event) => {
+  const interceptFolderClick = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     const target = event.target as HTMLElement
     
     // Find the closest folder element
@@ -275,13 +270,35 @@ export function NavigationInterceptor({
     const handlePopState = (event: PopStateEvent) => {
       if (event.state?.clientNavigation && event.state?.path) {
         // This was a client-side navigation, handle it appropriately
-        handleNavigation(event.state.path, { skipHistory: true, preserveScroll: true })
+        handleNavigation(event.state.path, { 
+          skipHistory: true, 
+          preserveScroll: true,
+          force: false // Don't force reload for browser navigation
+        })
+      } else {
+        // Handle direct URL access or page refresh
+        const currentUrl = window.location.pathname
+        const pathMatch = currentUrl.match(/^\/dateien(?:\/(.+))?$/)
+        
+        if (pathMatch) {
+          const urlPath = pathMatch[1] || ''
+          const storagePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+          
+          // Only navigate if it's different from current path
+          if (storagePath !== navigation.currentPath) {
+            handleNavigation(storagePath, { 
+              skipHistory: true, 
+              preserveScroll: false,
+              force: true // Force reload for direct URL access
+            })
+          }
+        }
       }
     }
     
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [handleNavigation])
+  }, [handleNavigation, userId, navigation.currentPath])
 
   /**
    * Cleanup debounce timer on unmount
@@ -353,9 +370,7 @@ export function NavigationInterceptor({
   }
 
   // Clone children and inject navigation methods if they accept them
-  const enhancedChildren = typeof children === 'function' 
-    ? children(navigationMethods)
-    : children
+  const enhancedChildren = children
 
   return (
     <div 
@@ -416,15 +431,8 @@ export function useFolderNavigation(userId: string) {
       
       if (shouldUseClient) {
         // Try client-side navigation first
+        // The navigation store will handle URL updates automatically
         await navigation.navigateToPath(folderPath, options)
-        
-        // Update browser URL
-        const url = pathToHref(folderPath)
-        if (options.replace) {
-          window.history.replaceState({ path: folderPath, clientNavigation: true }, '', url)
-        } else {
-          window.history.pushState({ path: folderPath, clientNavigation: true }, '', url)
-        }
       } else {
         // Fall back to SSR navigation
         const url = pathToHref(folderPath)

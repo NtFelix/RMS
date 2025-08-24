@@ -1,4 +1,4 @@
-import { CloudStorageRedesigned } from "@/components/cloud-storage-redesigned"
+import { CloudStorageEnhanced } from "@/components/cloud-storage-enhanced"
 import { NavigationInterceptor } from "@/components/navigation-interceptor"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
@@ -26,12 +26,14 @@ export default async function DateienPathPage({ params }: { params: Promise<{ sl
 
   return (
     <NavigationInterceptor userId={user.id} fallbackToSSR={true}>
-      <CloudStorageRedesigned
+      <CloudStorageEnhanced
         userId={user.id}
         initialPath={initialPath}
         initialFiles={files}
         initialFolders={folders}
         initialBreadcrumbs={breadcrumbs}
+        isSSR={true}
+        enableClientNavigation={true}
       />
     </NavigationInterceptor>
   )

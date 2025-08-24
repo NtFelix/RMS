@@ -134,6 +134,29 @@ export function CloudStorageEnhanced({
           }
         }
         
+        // Ensure URL is correct for initial load
+        if (enableClientNavigation && initialBreadcrumbs) {
+          navigationStore.updateDocumentTitle(initialPath, initialBreadcrumbs)
+          
+          // Ensure browser history state is set correctly
+          const currentUrl = window.location.pathname
+          const expectedUrl = navigationStore.getCurrentUrl(initialPath)
+          
+          if (currentUrl === expectedUrl) {
+            // URL is correct, just ensure history state is set
+            window.history.replaceState(
+              { 
+                path: initialPath, 
+                clientNavigation: true,
+                timestamp: Date.now(),
+                scrollPosition: 0
+              }, 
+              '', 
+              currentUrl
+            )
+          }
+        }
+        
         // Restore view preferences for this path
         restoreViewPreferences(initialPath)
         
@@ -252,6 +275,52 @@ export function CloudStorageEnhanced({
       saveViewPreferences(path)
     }
   }, [viewMode, sortBy, searchQuery, activeFilter, currentPath, initialPath, saveViewPreferences])
+
+  /**
+   * Handle URL synchronization and direct access
+   */
+  useEffect(() => {
+    if (!enableClientNavigation) return
+    
+    const handleUrlSync = () => {
+      const currentUrl = window.location.pathname
+      const pathMatch = currentUrl.match(/^\/dateien(?:\/(.+))?$/)
+      
+      if (pathMatch) {
+        const urlPath = pathMatch[1] || ''
+        const expectedStoragePath = urlPath ? `user_${userId}/${urlPath}` : `user_${userId}`
+        const activePath = currentPath || initialPath
+        
+        // Check if URL matches current path
+        if (activePath && expectedStoragePath !== activePath) {
+          // URL doesn't match current path - this might be direct access
+          const expectedUrl = navigationStore.getCurrentUrl(activePath)
+          
+          if (currentUrl !== expectedUrl) {
+            // Update URL to match current path
+            window.history.replaceState(
+              { 
+                path: activePath, 
+                clientNavigation: true,
+                timestamp: Date.now(),
+                scrollPosition: window.scrollY
+              }, 
+              '', 
+              expectedUrl
+            )
+          }
+        }
+        
+        // Update document title
+        if (breadcrumbs.length > 0) {
+          navigationStore.updateDocumentTitle(activePath || expectedStoragePath, breadcrumbs)
+        }
+      }
+    }
+    
+    // Run on mount and when paths change
+    handleUrlSync()
+  }, [enableClientNavigation, userId, currentPath, initialPath, breadcrumbs, navigationStore])
 
   /**
    * Handle navigation with mode detection

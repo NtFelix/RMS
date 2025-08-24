@@ -475,7 +475,7 @@ export function CloudStorageTab({ userId, initialFiles, initialFolders }: CloudS
 
       {/* Breadcrumb Navigation */}
       <div className="bg-muted/30 rounded-lg p-3">
-        <FileBreadcrumbNavigation userId={userId} />
+        {userId && <FileBreadcrumbNavigation userId={userId} />}
       </div>
 
       {error && (

@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { CloudStorageRedesigned } from "@/components/cloud-storage-redesigned"
+import { CloudStorageEnhanced } from "@/components/cloud-storage-enhanced"
 import { NavigationInterceptor } from "@/components/navigation-interceptor"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
@@ -55,12 +55,14 @@ async function CloudStorageContent({ userId }: { userId: string }) {
 
   return (
     <NavigationInterceptor userId={userId} fallbackToSSR={true}>
-      <CloudStorageRedesigned
+      <CloudStorageEnhanced
         userId={userId}
         initialPath={initialPath}
         initialFiles={files}
         initialFolders={folders}
         initialBreadcrumbs={breadcrumbs}
+        isSSR={true}
+        enableClientNavigation={true}
       />
     </NavigationInterceptor>
   )
