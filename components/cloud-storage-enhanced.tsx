@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { useCloudStorageNavigation, useNavigationState, useViewPreferences } from "@/hooks/use-cloud-storage-navigation"
 import { NavigationInterceptor, useFolderNavigation } from "@/components/navigation-interceptor"
+import { useActiveStateSync } from "@/hooks/use-active-state-manager"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
@@ -25,6 +26,7 @@ import {
   StaticUIWrapper,
   SmartSkeleton
 } from "@/components/storage-loading-states"
+import { CompactActiveDirectoryIndicator } from "@/components/active-directory-indicator"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -76,6 +78,7 @@ export function CloudStorageEnhanced({
   const navigationStore = useCloudStorageNavigation()
   const { currentPath, isNavigating, navigateToPath } = useNavigationState()
   const { getViewPreferences, setViewPreferences } = useViewPreferences()
+  const { syncActiveState, updateActiveDirectory } = useActiveStateSync()
   
   // Original cloud storage store for backward compatibility
   const { 
@@ -185,7 +188,11 @@ export function CloudStorageEnhanced({
         setCurrentPath(initialPath)
         if (initialFiles) setFiles(initialFiles)
         if (initialFolders) setFolders(initialFolders)
-        if (initialBreadcrumbs) setBreadcrumbs(initialBreadcrumbs)
+        if (initialBreadcrumbs) {
+          setBreadcrumbs(initialBreadcrumbs)
+          // Sync with active state manager
+          syncActiveState(initialPath, initialBreadcrumbs)
+        }
         setError(null)
         setLoading(false)
         
@@ -246,6 +253,9 @@ export function CloudStorageEnhanced({
           setBreadcrumbs(cachedData.breadcrumbs)
           setError(null)
           setLoading(false)
+          
+          // Sync with active state manager
+          syncActiveState(currentPath, cachedData.breadcrumbs)
         }
         
         // Restore view preferences for current path
@@ -624,6 +634,11 @@ export function CloudStorageEnhanced({
         <StaticUIWrapper isNavigating={navigationLoading.isNavigating}>
           <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
             <div className="p-6">
+              {/* Active Directory Indicator */}
+              <div className="mb-4">
+                <CompactActiveDirectoryIndicator />
+              </div>
+
               {/* Quick Actions */}
               <CloudStorageQuickActions
                 onUpload={handleUpload}

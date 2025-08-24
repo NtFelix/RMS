@@ -4,6 +4,8 @@ import { ChevronRight, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useCloudStorageStore, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
 import { useFolderNavigation } from "@/components/navigation-interceptor"
+import { useBreadcrumbActiveState, useActiveStateSync } from "@/hooks/use-active-state-manager"
+import { useEffect } from "react"
 
 interface FileBreadcrumbNavigationProps {
   userId: string
@@ -13,6 +15,15 @@ interface FileBreadcrumbNavigationProps {
 export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNavigationProps) {
   const { breadcrumbs } = useCloudStorageStore()
   const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
+  const { isDirectoryActive, getDirectoryActiveClasses } = useBreadcrumbActiveState()
+  const { updateBreadcrumbs } = useActiveStateSync()
+  
+  // Sync breadcrumbs with active state manager
+  useEffect(() => {
+    if (breadcrumbs.length > 0) {
+      updateBreadcrumbs(breadcrumbs)
+    }
+  }, [breadcrumbs, updateBreadcrumbs])
 
   // Handle breadcrumb click with navigation interceptor
   const handleBreadcrumbClick = async (path: string) => {
@@ -68,9 +79,11 @@ export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNa
                 <span
                   className={cn(
                     "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
-                    "text-foreground font-medium cursor-default"
+                    "text-foreground font-medium cursor-default",
+                    getDirectoryActiveClasses(breadcrumb.path)
                   )}
                   aria-current="page"
+                  data-active-directory={isDirectoryActive(breadcrumb.path)}
                 >
                   {Icon && <span className="flex-shrink-0">{Icon}</span>}
                   <span className="truncate max-w-[150px] sm:max-w-[200px]">
@@ -84,10 +97,13 @@ export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNa
                     "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
                     cn("cursor-pointer", getBreadcrumbColor(breadcrumb.type)),
                     "hover:bg-accent",
-                    isNavigating && "opacity-50 pointer-events-none"
+                    isNavigating && "opacity-50 pointer-events-none",
+                    isDirectoryActive(breadcrumb.path) && "bg-accent/10"
                   )}
                   data-folder-path={breadcrumb.path}
+                  data-active-directory={isDirectoryActive(breadcrumb.path)}
                   disabled={isNavigating}
+                  aria-current={isDirectoryActive(breadcrumb.path) ? "page" : undefined}
                 >
                   {Icon && <span className="flex-shrink-0">{Icon}</span>}
                   <span className="truncate max-w-[150px] sm:max-w-[200px]">

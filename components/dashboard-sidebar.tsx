@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
+import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -60,6 +61,7 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
 
   return (
@@ -104,7 +106,7 @@ export function DashboardSidebar() {
           <ScrollArea className="flex-1 pt-6 pb-4">
             <nav className="grid gap-1 px-2">
               {sidebarNavItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                const isActive = isRouteActive(item.href)
                 return (
                   <Link
                     key={item.href}
@@ -112,8 +114,10 @@ export function DashboardSidebar() {
                     onClick={() => setIsOpen(false)}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                      isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+                      getActiveStateClasses(item.href),
                     )}
+                    data-active={isActive}
+                    aria-current={isActive ? "page" : undefined}
                   >
                     <item.icon className="h-4 w-4" />
                     {item.title}

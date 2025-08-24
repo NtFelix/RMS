@@ -7,6 +7,7 @@ import { useEffect, useCallback } from 'react'
 import type { StorageObject, VirtualFolder, BreadcrumbItem } from './use-cloud-storage-store'
 import { getDirectoryCache, type DirectoryContents as CacheDirectoryContents, type DirectoryCacheManager } from '@/lib/directory-cache'
 import { getCacheWarmingManager, type CacheWarmingManager } from '@/lib/cache-warming'
+import { useActiveStateStore } from './use-active-state-manager'
 
 // Enable Map and Set support in Immer
 enableMapSet()
@@ -232,6 +233,10 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
         // Update document title with current directory info
         if (directoryContents && directoryContents.breadcrumbs) {
           get().updateDocumentTitle(path, directoryContents.breadcrumbs)
+          
+          // Sync with active state manager
+          const activeStateStore = useActiveStateStore.getState()
+          activeStateStore.syncWithNavigation(path, directoryContents.breadcrumbs)
         }
         
         // Restore scroll position if requested
@@ -424,6 +429,10 @@ export const useCloudStorageNavigationStore = create<CloudStorageNavigationState
         const cachedData = get().getCachedDirectory(path)
         if (cachedData) {
           get().updateDocumentTitle(path, cachedData.breadcrumbs)
+          
+          // Sync with active state manager
+          const activeStateStore = useActiveStateStore.getState()
+          activeStateStore.syncWithNavigation(path, cachedData.breadcrumbs)
         }
       } catch (error) {
         console.warn('Failed to update browser history:', error)

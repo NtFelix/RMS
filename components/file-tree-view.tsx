@@ -7,6 +7,7 @@ import { useCloudStorageStore, VirtualFolder, BreadcrumbItem } from "@/hooks/use
 import { buildUserPath, buildHousePath, buildApartmentPath, buildTenantPath } from "@/lib/path-utils"
 import { usePropertyHierarchy } from "@/hooks/use-property-hierarchy"
 import { useFolderNavigation } from "@/components/navigation-interceptor"
+import { useDirectoryActiveState } from "@/hooks/use-active-state-manager"
 
 interface FileTreeViewProps {
   userId: string
@@ -35,6 +36,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     setFolders 
   } = useCloudStorageStore()
   const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
+  const { isDirectoryActive, getDirectoryActiveClasses } = useDirectoryActiveState()
 
   // Fetch real data from API
   const { houses, apartments, tenants, isLoading, error } = usePropertyHierarchy()
@@ -298,6 +300,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     const hasChildren = node.children.length > 0
     const isExpanded = expandedNodes.has(node.id)
     const isSelected = currentPath === node.path
+    const isActiveDirectory = isDirectoryActive(node.path)
     const Icon = node.icon
 
     return (
@@ -306,12 +309,15 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           className={cn(
             "flex items-center py-1 px-2 rounded-md cursor-pointer hover:bg-accent transition-colors",
             isSelected && "bg-accent font-medium",
+            isActiveDirectory && getDirectoryActiveClasses(node.path),
             level > 0 && "ml-4",
             isNavigating && "opacity-50 pointer-events-none"
           )}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
           onClick={() => handleNodeClick(node)}
           data-folder-path={node.path}
+          data-active-directory={isActiveDirectory}
+          aria-current={isActiveDirectory ? "page" : undefined}
         >
           {hasChildren && (
             <button
