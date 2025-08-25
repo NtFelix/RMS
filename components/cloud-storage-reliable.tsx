@@ -343,7 +343,7 @@ export function CloudStorageReliable({
   }, [navigation.currentPath, initialPath, openUploadModal, handleRefresh, toast])
   
   // Determine loading state
-  const showLoading = isLoading || navigation.isNavigating
+  const showLoading = isLoading
   const displayError = storeError || navigation.error
   
 
@@ -368,13 +368,6 @@ export function CloudStorageReliable({
             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
           />
 
-          {/* Navigation Loading Indicator */}
-          {navigation.isNavigating && (
-            <div className="mt-4 flex items-center text-sm text-muted-foreground">
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Navigiere...
-            </div>
-          )}
 
           {/* Breadcrumb Navigation */}
           <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
@@ -406,7 +399,6 @@ export function CloudStorageReliable({
                     ) : (
                       <button
                         onClick={() => handleBreadcrumbClick(breadcrumb)}
-                        disabled={navigation.isNavigating}
                         className={cn(
                           "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
                           "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer",
@@ -432,7 +424,6 @@ export function CloudStorageReliable({
                     variant="ghost"
                     size="sm"
                     onClick={handleNavigateUp}
-                    disabled={navigation.isNavigating}
                     className="h-8 px-2"
                   >
                     <ArrowUp className="h-4 w-4" />

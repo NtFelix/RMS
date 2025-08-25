@@ -426,15 +426,7 @@ export function CloudStorageSimple({
             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
           />
 
-          {/* Navigation Loading Indicator */}
-          {isNavigating && (
-            <div className="mt-4 flex items-center text-sm text-muted-foreground">
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              Navigiere...
-            </div>
-          )}
-
-          {/* Breadcrumb Navigation */}
+{/* Breadcrumb Navigation */}
           <nav className="flex items-center space-x-1 text-base mt-4" aria-label="Breadcrumb">
             <ol className="flex items-center space-x-1">
               {breadcrumbs.map((breadcrumb, index) => {
