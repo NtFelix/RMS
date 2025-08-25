@@ -111,10 +111,13 @@ export function CloudStorageReliable({
       lastNavigatedPath.current = navigation.currentPath
       
       // Use setTimeout to break the synchronous call chain and prevent infinite loops
-      const timeoutId = setTimeout(() => {
-        navigateToPath(navigation.currentPath).catch((error) => {
-          console.error('Failed to load path data:', error)
-        })
+      const timeoutId = setTimeout(async () => {
+        try {
+          await navigateToPath(navigation.currentPath);
+        } catch (error) {
+          console.error('Failed to load path data:', error);
+          setError(error instanceof Error ? error.message : 'Failed to load path data');
+        }
       }, 0)
       
       return () => clearTimeout(timeoutId)

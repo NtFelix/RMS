@@ -140,14 +140,16 @@ export function useReliableNavigation(userId: string) {
         }))
         
         // Trigger cloud storage store update separately to avoid circular dependency
-        setTimeout(() => {
-          cloudStorageStore.navigateToPath(path).catch((error) => {
-            console.error('Failed to load path data:', error)
+        setTimeout(async () => {
+          try {
+            await cloudStorageStore.navigateToPath(path);
+          } catch (error) {
+            console.error('Failed to load path data:', error);
             setState(prev => ({
               ...prev,
               error: error instanceof Error ? error.message : 'Failed to load directory'
-            }))
-          })
+            }));
+          }
         }, 0)
         
         console.log('Client-side navigation successful:', path, '→', url)
@@ -264,20 +266,21 @@ export function useReliableNavigation(userId: string) {
         }))
         
         // Load the path data asynchronously to avoid circular dependency
-        setTimeout(() => {
-          cloudStorageStore.navigateToPath(event.state.path).then(() => {
+        setTimeout(async () => {
+          try {
+            await cloudStorageStore.navigateToPath(event.state.path);
             setState(prev => ({
               ...prev,
               isNavigating: false
-            }))
-          }).catch((error) => {
-            console.error('Browser navigation failed:', error)
+            }));
+          } catch (error) {
+            console.error('Browser navigation failed:', error);
             setState(prev => ({
               ...prev,
               isNavigating: false,
               error: error instanceof Error ? error.message : 'Navigation failed'
-            }))
-          })
+            }));
+          }
         }, 0)
       }
       // If not a client navigation, let Next.js handle it normally
