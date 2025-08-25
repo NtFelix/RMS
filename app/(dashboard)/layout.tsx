@@ -82,7 +82,7 @@ export default function DashboardRootLayout({
 
   return (
     <AuthProvider>
-      <GlobalDragDropProvider>
+      {/* <GlobalDragDropProvider> */}
         <CommandMenu />
         <DashboardLayout>{children}</DashboardLayout>
 
@@ -146,7 +146,7 @@ export default function DashboardRootLayout({
           cancelText={confirmationModalConfig.cancelText}
         />
       )}
-      </GlobalDragDropProvider>
+      {/* </GlobalDragDropProvider> */}
     </AuthProvider>
   )
 }

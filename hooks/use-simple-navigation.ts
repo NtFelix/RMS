@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/use-toast'
-import { useCloudStorageStore } from './use-cloud-storage-store'
 
 interface NavigationState {
   currentPath: string
@@ -14,24 +13,21 @@ interface NavigationState {
 interface NavigationOptions {
   force?: boolean
   replace?: boolean
-  skipCache?: boolean
-  clientOnly?: boolean // New option for client-side only navigation
+  clientOnly?: boolean
 }
 
 /**
- * Efficient navigation hook for cloud storage
+ * Simple navigation hook for cloud storage without circular dependencies
  * 
  * This provides efficient client-side navigation that avoids full page reloads:
  * - Client-side navigation for folder changes (no page reload)
  * - URL updates without triggering Next.js router navigation
  * - Browser history management
- * - Proper error handling and recovery
- * - Debouncing to prevent rapid navigation attempts
+ * - No circular dependencies with cloud storage store
  */
-export function useReliableNavigation(userId: string) {
+export function useSimpleNavigation(userId: string) {
   const router = useRouter()
   const { toast } = useToast()
-  const cloudStorageStore = useCloudStorageStore()
   
   // Navigation state
   const [state, setState] = useState<NavigationState>({
@@ -42,9 +38,7 @@ export function useReliableNavigation(userId: string) {
   
   // Prevent concurrent navigation attempts
   const navigationInProgress = useRef<boolean>(false)
-  const lastNavigationPath = useRef<string>('')
   const lastNavigationTime = useRef<number>(0)
-  const debounceTimer = useRef<NodeJS.Timeout | null>(null)
   
   /**
    * Convert storage path to URL path
@@ -62,18 +56,6 @@ export function useReliableNavigation(userId: string) {
   }, [userId])
   
   /**
-   * Check if navigation should be debounced
-   */
-  const shouldDebounce = useCallback((path: string): boolean => {
-    const now = Date.now()
-    const timeSinceLastNav = now - lastNavigationTime.current
-    const isSamePath = path === lastNavigationPath.current
-    
-    // Debounce if same path within 500ms or any navigation within 150ms
-    return (isSamePath && timeSinceLastNav < 500) || timeSinceLastNav < 150
-  }, [])
-  
-  /**
    * Perform efficient navigation with proper error handling
    */
   const navigate = useCallback(async (path: string, options: NavigationOptions = {}) => {
@@ -89,24 +71,14 @@ export function useReliableNavigation(userId: string) {
       return
     }
     
-    // Clear any existing debounce timer
-    if (debounceTimer.current) {
-      clearTimeout(debounceTimer.current)
-      debounceTimer.current = null
-    }
-    
-    // Check if we should debounce this navigation
-    if (shouldDebounce(path) && !options.force) {
+    // Debounce rapid navigation attempts
+    const now = Date.now()
+    if (now - lastNavigationTime.current < 100 && !options.force) {
       console.log('Debouncing navigation to:', path)
-      debounceTimer.current = setTimeout(() => {
-        navigate(path, options)
-      }, 200)
       return
     }
     
-    // Update navigation tracking
-    lastNavigationPath.current = path
-    lastNavigationTime.current = Date.now()
+    lastNavigationTime.current = now
     navigationInProgress.current = true
     
     // Set loading state
@@ -131,24 +103,13 @@ export function useReliableNavigation(userId: string) {
           }
         }
         
-        // Update local state first
+        // Update local state
         setState(prev => ({
           ...prev,
           currentPath: path,
           isNavigating: false,
           error: null
         }))
-        
-        // Trigger cloud storage store update separately to avoid circular dependency
-        setTimeout(() => {
-          cloudStorageStore.navigateToPath(path).catch((error) => {
-            console.error('Failed to load path data:', error)
-            setState(prev => ({
-              ...prev,
-              error: error instanceof Error ? error.message : 'Failed to load directory'
-            }))
-          })
-        }, 0)
         
         console.log('Client-side navigation successful:', path, '→', url)
       } else {
@@ -202,29 +163,7 @@ export function useReliableNavigation(userId: string) {
     } finally {
       navigationInProgress.current = false
     }
-  }, [state.currentPath, pathToUrl, router, shouldDebounce, toast])
-  
-  /**
-   * Navigate to parent directory
-   */
-  const navigateUp = useCallback(() => {
-    if (!state.currentPath) return
-    
-    const segments = state.currentPath.split('/').filter(Boolean)
-    if (segments.length > 1) {
-      const parentPath = segments.slice(0, -1).join('/')
-      navigate(parentPath)
-    }
-  }, [state.currentPath, navigate])
-  
-  /**
-   * Refresh current path
-   */
-  const refresh = useCallback(() => {
-    if (state.currentPath) {
-      navigate(state.currentPath, { force: true })
-    }
-  }, [state.currentPath, navigate])
+  }, [state.currentPath, pathToUrl, router, toast])
   
   /**
    * Set current path (for initialization)
@@ -255,30 +194,12 @@ export function useReliableNavigation(userId: string) {
         // This was a client-side navigation, handle it with client-side routing
         console.log('Handling browser navigation to:', event.state.path)
         
-        // Update state immediately to prevent UI flicker
+        // Update state immediately
         setState(prev => ({
           ...prev,
           currentPath: event.state.path,
-          isNavigating: true,
           error: null
         }))
-        
-        // Load the path data asynchronously to avoid circular dependency
-        setTimeout(() => {
-          cloudStorageStore.navigateToPath(event.state.path).then(() => {
-            setState(prev => ({
-              ...prev,
-              isNavigating: false
-            }))
-          }).catch((error) => {
-            console.error('Browser navigation failed:', error)
-            setState(prev => ({
-              ...prev,
-              isNavigating: false,
-              error: error instanceof Error ? error.message : 'Navigation failed'
-            }))
-          })
-        }, 0)
       }
       // If not a client navigation, let Next.js handle it normally
     }
@@ -292,9 +213,6 @@ export function useReliableNavigation(userId: string) {
    */
   useEffect(() => {
     return () => {
-      if (debounceTimer.current) {
-        clearTimeout(debounceTimer.current)
-      }
       navigationInProgress.current = false
     }
   }, [])
@@ -307,8 +225,6 @@ export function useReliableNavigation(userId: string) {
     
     // Actions
     navigate,
-    navigateUp,
-    refresh,
     setCurrentPath,
     clearError,
     

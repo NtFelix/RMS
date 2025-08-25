@@ -9,11 +9,14 @@ export function GlobalDragDropProvider({ children }: { children: React.ReactNode
   const [isDragOver, setIsDragOver] = useState(false)
   const [dragCounter, setDragCounter] = useState(0)
   const { openUploadModal } = useModalStore()
-  const { currentPath } = useCloudStorageStore()
   const pathname = usePathname()
-
-  // Only enable drag and drop on the cloud storage page
+  
+  // Only get currentPath when on cloud storage page to avoid infinite loops
   const isCloudStoragePage = pathname?.includes('/dateien')
+  const cloudStorageStore = useCloudStorageStore()
+  const currentPath = isCloudStoragePage ? cloudStorageStore.currentPath : null
+
+
 
   const handleDragEnter = useCallback((e: DragEvent) => {
     e.preventDefault()

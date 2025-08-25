@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { CloudStorageReliable } from "@/components/cloud-storage-reliable"
+import { CloudStorageSimple } from "@/components/cloud-storage-simple"
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -53,7 +53,7 @@ async function CloudStorageContent({ userId }: { userId: string }) {
   }
 
   return (
-    <CloudStorageReliable
+    <CloudStorageSimple
       userId={userId}
       initialPath={initialPath}
       initialFiles={files}

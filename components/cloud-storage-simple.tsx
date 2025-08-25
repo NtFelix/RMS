@@ -10,15 +10,15 @@ import {
   ArrowUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem } from "@/hooks/use-cloud-storage-store"
-import { useSimpleNavigation } from "@/hooks/use-simple-navigation"
+import { useSimpleCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem } from "@/hooks/use-simple-cloud-storage-store"
+import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { cn } from "@/lib/utils"
 
-interface CloudStorageReliableProps {
+interface CloudStorageSimpleProps {
   userId: string
   initialFiles?: StorageObject[]
   initialFolders?: VirtualFolder[]
@@ -31,29 +31,37 @@ type SortBy = 'name' | 'date' | 'size' | 'type'
 type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
 
 /**
- * Reliable Cloud Storage Component
+ * Simple Cloud Storage Component without circular dependencies
  * 
- * This is a simplified, more reliable version of the cloud storage component
- * that focuses on stability and consistent navigation behavior.
+ * This version avoids the infinite loop issues by:
+ * - Managing navigation state locally
+ * - Using direct store calls for data loading
+ * - Avoiding circular dependencies between hooks
  */
-export function CloudStorageReliable({ 
+export function CloudStorageSimple({ 
   userId, 
   initialFiles = [], 
   initialFolders = [], 
   initialPath = `user_${userId}`, 
   initialBreadcrumbs = []
-}: CloudStorageReliableProps) {
-  // Use the simple navigation hook
-  const navigation = useSimpleNavigation(userId)
+}: CloudStorageSimpleProps) {
+  const router = useRouter()
+  const { toast } = useToast()
+  const { openUploadModal } = useModalStore()
   
-  // Use the existing cloud storage store for data management
+  // Local navigation state
+  const [currentNavPath, setCurrentNavPath] = useState(initialPath)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const [navigationError, setNavigationError] = useState<string | null>(null)
+  
+  // Use the simple cloud storage store for data management
   const { 
     files, 
     folders, 
     isLoading, 
     error: storeError,
     breadcrumbs,
-    currentPath,
+    currentPath: storePath,
     setCurrentPath,
     setFiles,
     setFolders,
@@ -64,7 +72,7 @@ export function CloudStorageReliable({
     refreshCurrentPath,
     downloadFile,
     deleteFile
-  } = useCloudStorageStore()
+  } = useSimpleCloudStorageStore()
   
   // UI state
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
@@ -73,26 +81,33 @@ export function CloudStorageReliable({
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   
-  const { openUploadModal } = useModalStore()
-  const { toast } = useToast()
-  
-  // Track initialization to prevent multiple calls
+  // Track initialization
   const isInitialized = useRef(false)
-  const lastNavigatedPath = useRef<string>('')
+  
+  /**
+   * Convert storage path to URL path
+   */
+  const pathToUrl = useCallback((path: string): string => {
+    const base = `user_${userId}`
+    if (!path || path === base) return "/dateien"
+    
+    const prefix = `${base}/`
+    if (path.startsWith(prefix)) {
+      const rest = path.slice(prefix.length)
+      return `/dateien/${rest}`
+    }
+    return "/dateien"
+  }, [userId])
   
   /**
    * Initialize component with initial data
    */
   useEffect(() => {
-    if (initialPath && !isInitialized.current) {
+    if (!isInitialized.current && initialPath) {
       isInitialized.current = true
       
-      // Set navigation path
-      navigation.setCurrentPath(initialPath)
-      
-      // Set store data
+      setCurrentNavPath(initialPath)
       setCurrentPath(initialPath)
-      lastNavigatedPath.current = initialPath
       
       if (initialFiles.length > 0) setFiles(initialFiles)
       if (initialFolders.length > 0) setFolders(initialFolders)
@@ -101,61 +116,88 @@ export function CloudStorageReliable({
       setError(null)
       setLoading(false)
     }
-  }, []) // Empty dependency array to run only once
+  }, [initialPath, initialFiles, initialFolders, initialBreadcrumbs, setCurrentPath, setFiles, setFolders, setBreadcrumbs, setError, setLoading])
   
   /**
-   * Handle navigation path changes by updating cloud storage store
+   * Handle efficient navigation
    */
-  useEffect(() => {
-    if (navigation.currentPath && navigation.currentPath !== lastNavigatedPath.current && navigation.currentPath !== currentPath) {
-      lastNavigatedPath.current = navigation.currentPath
+  const handleNavigate = useCallback(async (path: string, useClientSide = true) => {
+    if (path === currentNavPath) return
+    
+    setIsNavigating(true)
+    setNavigationError(null)
+    setSelectedItems(new Set()) // Clear selections
+    
+    try {
+      if (useClientSide) {
+        // Update URL without page reload
+        const url = pathToUrl(path)
+        const currentUrl = window.location.pathname + window.location.search
+        
+        if (url !== currentUrl) {
+          window.history.pushState({ path, clientNavigation: true }, '', url)
+        }
+        
+        // Update local navigation state
+        setCurrentNavPath(path)
+        
+        // Load new data
+        await navigateToPath(path)
+        
+        console.log('Client-side navigation successful:', path, '→', url)
+      } else {
+        // Use Next.js router for server-side navigation
+        const url = pathToUrl(path)
+        router.push(url)
+      }
+    } catch (error) {
+      console.error('Navigation failed:', error)
+      setNavigationError(error instanceof Error ? error.message : 'Navigation failed')
       
-      // Use setTimeout to break the synchronous call chain and prevent infinite loops
-      const timeoutId = setTimeout(() => {
-        navigateToPath(navigation.currentPath).catch((error) => {
-          console.error('Failed to load path data:', error)
-        })
-      }, 0)
-      
-      return () => clearTimeout(timeoutId)
+      // Fallback to server-side navigation
+      if (useClientSide) {
+        try {
+          const url = pathToUrl(path)
+          router.push(url)
+        } catch (fallbackError) {
+          toast({
+            title: "Navigation Error",
+            description: "Failed to navigate to directory. Please try again.",
+            variant: "destructive"
+          })
+        }
+      }
+    } finally {
+      setIsNavigating(false)
     }
-  }, [navigation.currentPath, currentPath, navigateToPath])
+  }, [currentNavPath, pathToUrl, navigateToPath, router, toast])
   
   /**
    * Handle folder navigation
    */
   const handleFolderClick = useCallback((folder: VirtualFolder) => {
-    // Clear selections when navigating
-    setSelectedItems(new Set())
-    
-    // Use client-side navigation for efficiency (no page reload)
-    navigation.navigate(folder.path, { clientOnly: true })
-  }, [navigation])
+    handleNavigate(folder.path, true)
+  }, [handleNavigate])
   
   /**
    * Handle breadcrumb navigation
    */
   const handleBreadcrumbClick = useCallback((breadcrumb: BreadcrumbItem) => {
-    // Clear selections when navigating
-    setSelectedItems(new Set())
-    
-    // Use client-side navigation for efficiency (no page reload)
-    navigation.navigate(breadcrumb.path, { clientOnly: true })
-  }, [navigation])
+    handleNavigate(breadcrumb.path, true)
+  }, [handleNavigate])
   
   /**
    * Handle navigate up
    */
   const handleNavigateUp = useCallback(() => {
-    // Use client-side navigation for efficiency
-    if (navigation.currentPath) {
-      const segments = navigation.currentPath.split('/').filter(Boolean)
+    if (currentNavPath) {
+      const segments = currentNavPath.split('/').filter(Boolean)
       if (segments.length > 1) {
         const parentPath = segments.slice(0, -1).join('/')
-        navigation.navigate(parentPath, { clientOnly: true })
+        handleNavigate(parentPath, true)
       }
     }
-  }, [navigation])
+  }, [currentNavPath, handleNavigate])
   
   /**
    * Handle refresh
@@ -164,6 +206,25 @@ export function CloudStorageReliable({
     setSelectedItems(new Set())
     refreshCurrentPath()
   }, [refreshCurrentPath])
+  
+  /**
+   * Handle browser back/forward navigation
+   */
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      if (event.state?.clientNavigation && event.state?.path) {
+        console.log('Handling browser navigation to:', event.state.path)
+        setCurrentNavPath(event.state.path)
+        navigateToPath(event.state.path).catch((error) => {
+          console.error('Browser navigation failed:', error)
+          setNavigationError(error instanceof Error ? error.message : 'Navigation failed')
+        })
+      }
+    }
+    
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [navigateToPath])
   
   /**
    * Filter and sort items
@@ -199,7 +260,6 @@ export function CloudStorageReliable({
         filteredFolders = []
         break
       case 'recent':
-        // Show files modified in last 7 days
         const weekAgo = new Date()
         weekAgo.setDate(weekAgo.getDate() - 7)
         filteredFiles = files.filter(file => 
@@ -331,7 +391,7 @@ export function CloudStorageReliable({
    * Handle upload
    */
   const handleUpload = useCallback(() => {
-    const targetPath = navigation.currentPath || initialPath
+    const targetPath = currentNavPath || initialPath
     if (targetPath) {
       openUploadModal(targetPath, () => {
         handleRefresh()
@@ -340,13 +400,11 @@ export function CloudStorageReliable({
         })
       })
     }
-  }, [navigation.currentPath, initialPath, openUploadModal, handleRefresh, toast])
+  }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
   
-  // Determine loading state
-  const showLoading = isLoading || navigation.isNavigating
-  const displayError = storeError || navigation.error
-  
-
+  // Determine loading and error states
+  const showLoading = isLoading || isNavigating
+  const displayError = storeError || navigationError
   
   return (
     <div className="h-full flex flex-col">
@@ -369,7 +427,7 @@ export function CloudStorageReliable({
           />
 
           {/* Navigation Loading Indicator */}
-          {navigation.isNavigating && (
+          {isNavigating && (
             <div className="mt-4 flex items-center text-sm text-muted-foreground">
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               Navigiere...
@@ -406,7 +464,7 @@ export function CloudStorageReliable({
                     ) : (
                       <button
                         onClick={() => handleBreadcrumbClick(breadcrumb)}
-                        disabled={navigation.isNavigating}
+                        disabled={isNavigating}
                         className={cn(
                           "flex items-center px-2.5 py-1.5 rounded-md transition-colors",
                           "text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer",
@@ -432,7 +490,7 @@ export function CloudStorageReliable({
                     variant="ghost"
                     size="sm"
                     onClick={handleNavigateUp}
-                    disabled={navigation.isNavigating}
+                    disabled={isNavigating}
                     className="h-8 px-2"
                   >
                     <ArrowUp className="h-4 w-4" />
@@ -468,8 +526,8 @@ export function CloudStorageReliable({
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Erneut versuchen
                 </Button>
-                {navigation.error && (
-                  <Button variant="outline" onClick={navigation.clearError}>
+                {navigationError && (
+                  <Button variant="outline" onClick={() => setNavigationError(null)}>
                     Fehler ignorieren
                   </Button>
                 )}
