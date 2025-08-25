@@ -97,7 +97,6 @@ export function FileBreadcrumbNavigation({ userId, className }: FileBreadcrumbNa
                     "flex items-center space-x-1 px-2 py-1 rounded-md transition-colors",
                     cn("cursor-pointer", getBreadcrumbColor(breadcrumb.type)),
                     "hover:bg-accent",
-                    isNavigating && "opacity-50 pointer-events-none",
                     isDirectoryActive(breadcrumb.path) && "bg-accent/10"
                   )}
                   data-folder-path={breadcrumb.path}
