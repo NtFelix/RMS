@@ -463,10 +463,32 @@ export async function archiveFile(path: string): Promise<string> {
 }
 
 /**
- * Deletes a file from storage (moves to archive)
+ * Permanently deletes a file from storage
  */
 export async function deleteFile(path: string): Promise<void> {
-  await archiveFile(path);
+  try {
+    const supabase = createClient();
+    
+    // Remove the leading slash if present (Supabase doesn't like it)
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    
+    console.log('Deleting file at path:', cleanPath);
+    
+    // Make sure to use the correct bucket name that matches your Supabase storage
+    const { error } = await supabase.storage
+      .from('documents')
+      .remove([cleanPath]);
+      
+    if (error) {
+      console.error('Supabase delete error:', error);
+      throw error;
+    }
+    
+    console.log('Successfully deleted file:', cleanPath);
+  } catch (error) {
+    console.error('Error in deleteFile:', error);
+    throw error;
+  }
 }
 
 /**
