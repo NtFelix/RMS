@@ -82,14 +82,14 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
 
   const handleDelete = async () => {
     try {
-      await archiveFile(file)
+      await deleteFile(file)
       toast({
-        title: "Datei archiviert",
-        description: `${file.name} wurde ins Archiv verschoben.`,
+        title: "Datei gelöscht",
+        description: `${file.name} wurde erfolgreich gelöscht.`,
       })
     } catch (error) {
       toast({
-        title: "Archivierung fehlgeschlagen",
+        title: "Löschen fehlgeschlagen",
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
         variant: "destructive",
       })
