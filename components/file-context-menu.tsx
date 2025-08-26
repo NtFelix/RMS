@@ -166,7 +166,7 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
             className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            Löschen (Archivieren)
+            Endgültig löschen
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -175,17 +175,17 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
         isOpen={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onConfirm={handleDelete}
-        title="Datei archivieren"
+        title="Datei löschen"
         description={
           <>
-            Möchten Sie die Datei <strong>{file.name}</strong> wirklich löschen?
+            Möchten Sie die Datei <strong>{file.name}</strong> wirklich dauerhaft löschen?
             <br /><br />
             <span className="text-sm text-muted-foreground">
-              Die Datei wird nicht permanent gelöscht, sondern ins Archiv verschoben und kann später wiederhergestellt werden.
+              Diese Aktion kann nicht rückgängig gemacht werden. Die Datei wird dauerhaft aus dem System entfernt.
             </span>
           </>
         }
-        confirmButtonText="Archivieren"
+        confirmButtonText="Endgültig löschen"
         confirmButtonVariant="destructive"
         cancelButtonText="Abbrechen"
       />
