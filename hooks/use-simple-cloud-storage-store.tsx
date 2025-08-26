@@ -190,17 +190,27 @@ export const useSimpleCloudStorageStore = create<SimpleCloudStorageState>((set, 
   deleteFile: async (file: StorageObject) => {
     try {
       const { deleteFile } = await import('@/lib/storage-service')
+      const { withRetry, showSuccessNotification } = await import('@/lib/storage-error-handling')
       const { currentPath, files } = get()
       const filePath = `${currentPath}/${file.name}`
-      await deleteFile(filePath)
+      
+      await withRetry(
+        () => deleteFile(filePath),
+        { maxRetries: 2 },
+        'delete_file'
+      )
       
       // Remove file from current files list
       set({
         files: files.filter(f => f.id !== file.id)
       })
+      
+      showSuccessNotification('Datei gelöscht', `${file.name} wurde dauerhaft gelöscht.`)
     } catch (error) {
-      console.error('Delete failed:', error)
-      throw error
+      const { mapError, showErrorNotification } = await import('@/lib/storage-error-handling')
+      const storageError = mapError(error, 'delete_file')
+      showErrorNotification(storageError)
+      throw storageError
     }
   },
   

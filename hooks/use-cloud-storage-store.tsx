@@ -442,7 +442,7 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           state.files = state.files.filter(f => f.id !== file.id)
         })
         
-        showSuccessNotification('Datei archiviert', `${file.name} wurde ins Archiv verschoben`)
+        showSuccessNotification('Datei gelöscht', `${file.name} wurde dauerhaft gelöscht.`)
       } catch (error) {
         const { mapError, showErrorNotification } = await import('@/lib/storage-error-handling')
         const storageError = mapError(error, 'delete_file')
