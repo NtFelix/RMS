@@ -96,6 +96,13 @@ interface ConfirmationModalConfig {
   cancelText?: string;
 }
 
+interface FilePreviewData {
+  name: string;
+  path: string;
+  size?: number;
+  type?: string;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -247,6 +254,12 @@ export interface ModalState {
   openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => void;
   closeUploadModal: () => void;
 
+  // File Preview Modal State
+  isFilePreviewModalOpen: boolean;
+  filePreviewData?: FilePreviewData;
+  openFilePreviewModal: (fileData: FilePreviewData) => void;
+  closeFilePreviewModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -352,6 +365,11 @@ const initialUploadModalState = {
   uploadModalFiles: undefined,
 };
 
+const initialFilePreviewModalState = {
+  isFilePreviewModalOpen: false,
+  filePreviewData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -365,6 +383,7 @@ const createInitialModalState = () => ({
   ...initialWohnungOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
   ...initialUploadModalState,
+  ...initialFilePreviewModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -713,6 +732,13 @@ export const useModalStore = create<ModalState>((set, get) => {
       uploadModalFiles: files,
     }),
     closeUploadModal: () => set(initialUploadModalState),
+
+    // File Preview Modal
+    openFilePreviewModal: (fileData: FilePreviewData) => set({
+      isFilePreviewModalOpen: true,
+      filePreviewData: fileData,
+    }),
+    closeFilePreviewModal: () => set(initialFilePreviewModalState),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

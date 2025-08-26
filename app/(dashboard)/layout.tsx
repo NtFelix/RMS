@@ -29,6 +29,7 @@ import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
 import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
 import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
 import { FileUploadModal } from "@/components/file-upload-modal"; // Added
+import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -128,6 +129,9 @@ export default function DashboardRootLayout({
 
       {/* FileUploadModal - Global file upload modal */}
       <FileUploadModal />
+
+      {/* FilePreviewModal - Global file preview modal */}
+      <FilePreviewModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

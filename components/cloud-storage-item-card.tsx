@@ -38,7 +38,9 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { cn } from "@/lib/utils"
-import { StorageObject, VirtualFolder } from "@/hooks/use-cloud-storage-store"
+import { StorageObject, VirtualFolder } from "@/hooks/use-simple-cloud-storage-store"
+import { useModalStore } from "@/hooks/use-modal-store"
+import { useSimpleCloudStorageStore } from "@/hooks/use-simple-cloud-storage-store"
 
 interface ItemCardProps {
   item: StorageObject | VirtualFolder
@@ -74,6 +76,32 @@ export function CloudStorageItemCard({
   className
 }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const { openFilePreviewModal } = useModalStore()
+  const { currentPath } = useSimpleCloudStorageStore()
+
+  // Check if file can be previewed
+  const canPreview = () => {
+    if (type !== 'file') return false
+    const file = item as StorageObject
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf'].includes(extension || '')
+  }
+
+  // Handle preview action
+  const handlePreview = () => {
+    if (type === 'file' && canPreview()) {
+      const file = item as StorageObject
+      // Construct the file path from current path and file name
+      const filePath = `${currentPath}/${file.name}`
+      
+      openFilePreviewModal({
+        name: file.name,
+        path: filePath,
+        size: file.size,
+        type: file.name.split('.').pop()?.toLowerCase()
+      })
+    }
+  }
 
   // Get icon and color based on item type
   const getItemIcon = () => {
@@ -167,10 +195,26 @@ export function CloudStorageItemCard({
   // Context menu items
   const contextMenuItems = (
     <>
-      <ContextMenuItem onClick={onOpen}>
-        <Eye className="h-4 w-4 mr-2" />
-        {type === 'folder' ? 'Öffnen' : 'Vorschau'}
-      </ContextMenuItem>
+      {type === 'folder' ? (
+        <ContextMenuItem onClick={onOpen}>
+          <FolderOpen className="h-4 w-4 mr-2" />
+          Öffnen
+        </ContextMenuItem>
+      ) : (
+        <>
+          {canPreview() ? (
+            <ContextMenuItem onClick={onPreview || handlePreview}>
+              <Eye className="h-4 w-4 mr-2" />
+              Vorschau
+            </ContextMenuItem>
+          ) : (
+            <ContextMenuItem onClick={onOpen}>
+              <Eye className="h-4 w-4 mr-2" />
+              Öffnen
+            </ContextMenuItem>
+          )}
+        </>
+      )}
       
       {type === 'file' && onDownload && (
         <ContextMenuItem onClick={onDownload}>
@@ -268,10 +312,26 @@ export function CloudStorageItemCard({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={onOpen}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      {type === 'folder' ? 'Öffnen' : 'Vorschau'}
-                    </DropdownMenuItem>
+                    {type === 'folder' ? (
+                      <DropdownMenuItem onClick={onOpen}>
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Öffnen
+                      </DropdownMenuItem>
+                    ) : (
+                      <>
+                        {canPreview() ? (
+                          <DropdownMenuItem onClick={onPreview || handlePreview}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Vorschau
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem onClick={onOpen}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Öffnen
+                          </DropdownMenuItem>
+                        )}
+                      </>
+                    )}
                     
                     {type === 'file' && onDownload && (
                       <DropdownMenuItem onClick={onDownload}>
@@ -427,13 +487,17 @@ export function CloudStorageItemCard({
               </Button>
             )}
             
-            {onPreview && (
+            {(onPreview || (type === 'file' && canPreview())) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onPreview()
+                  if (onPreview) {
+                    onPreview()
+                  } else {
+                    handlePreview()
+                  }
                 }}
                 className="h-8 w-8 p-0"
               >
