@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FileContextMenu } from '@/components/file-context-menu'
-import { useCloudStorageOperations, useCloudStoragePreview } from '@/hooks/use-cloud-storage-store'
+import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from '@/hooks/use-cloud-storage-store'
 import { useToast } from '@/hooks/use-toast'
 
 // Mock the hooks
@@ -18,6 +18,7 @@ jest.mock('@/lib/storage-service', () => ({
 
 const mockUseCloudStorageOperations = useCloudStorageOperations as jest.MockedFunction<typeof useCloudStorageOperations>
 const mockUseCloudStoragePreview = useCloudStoragePreview as jest.MockedFunction<typeof useCloudStoragePreview>
+const mockUseCloudStorageArchive = useCloudStorageArchive as jest.MockedFunction<typeof useCloudStorageArchive>
 const mockUseToast = useToast as jest.MockedFunction<typeof useToast>
 
 const mockFile = {
@@ -61,6 +62,13 @@ describe('FileContextMenu', () => {
       toasts: [],
     })
 
+    mockUseCloudStorageArchive.mockReturnValue({
+      isArchiveViewOpen: false,
+      openArchiveView: jest.fn(),
+      closeArchiveView: jest.fn(),
+      archiveFile: jest.fn(),
+    } as any)
+
     jest.clearAllMocks()
   })
 
@@ -78,7 +86,7 @@ describe('FileContextMenu', () => {
 
     expect(screen.getByText('Vorschau anzeigen')).toBeInTheDocument()
     expect(screen.getByText('Herunterladen')).toBeInTheDocument()
-    expect(screen.getByText('Löschen (Archivieren)')).toBeInTheDocument()
+    expect(screen.getByText('Endgültig löschen')).toBeInTheDocument()
   })
 
   it('handles file download correctly', async () => {
@@ -163,10 +171,10 @@ describe('FileContextMenu', () => {
     const fileItem = screen.getByTestId('file-item')
     await user.pointer({ keys: '[MouseRight]', target: fileItem })
 
-    const deleteButton = screen.getByText('Löschen (Archivieren)')
+    const deleteButton = screen.getByText('Endgültig löschen')
     await user.click(deleteButton)
 
-    expect(screen.getByText('Datei archivieren')).toBeInTheDocument()
+    expect(screen.getByText('Datei löschen')).toBeInTheDocument()
     expect(screen.getByText(/Möchten Sie die Datei/)).toBeInTheDocument()
     expect(screen.getByText('test-document.pdf')).toBeInTheDocument()
   })
@@ -184,18 +192,18 @@ describe('FileContextMenu', () => {
     const fileItem = screen.getByTestId('file-item')
     await user.pointer({ keys: '[MouseRight]', target: fileItem })
 
-    const deleteButton = screen.getByText('Löschen (Archivieren)')
+    const deleteButton = screen.getByText('Endgültig löschen')
     await user.click(deleteButton)
 
-    const confirmButton = screen.getByText('Archivieren')
+    const confirmButton = screen.getByText('Endgültig löschen')
     await user.click(confirmButton)
 
     expect(mockDeleteFile).toHaveBeenCalledWith(mockFile)
     
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
-        title: "Datei archiviert",
-        description: `${mockFile.name} wurde ins Archiv verschoben.`,
+        title: "Datei gelöscht",
+        description: `${mockFile.name} wurde erfolgreich gelöscht.`,
       })
     })
   })
@@ -224,7 +232,7 @@ describe('FileContextMenu', () => {
     await user.pointer({ keys: '[MouseRight]', target: fileItem })
 
     const downloadButton = screen.getByText('Herunterladen')
-    const deleteButton = screen.getByText('Löschen (Archivieren)')
+    const deleteButton = screen.getByText('Endgültig löschen')
 
     expect(downloadButton).toHaveAttribute('data-disabled')
     expect(deleteButton).toHaveAttribute('data-disabled')

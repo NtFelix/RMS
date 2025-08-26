@@ -343,7 +343,7 @@ export function CloudStorageSimple({
     try {
       await Promise.all(selectedFiles.map(file => deleteFile(file)))
       toast({
-        description: `${selectedFiles.length} Dateien wurden ins Archiv verschoben.`
+        description: `${selectedFiles.length} Dateien wurden dauerhaft gelöscht.`
       })
     } catch (error) {
       toast({
@@ -377,7 +377,7 @@ export function CloudStorageSimple({
     try {
       await deleteFile(file)
       toast({
-        description: `${file.name} wurde ins Archiv verschoben.`
+        description: `${file.name} wurde dauerhaft gelöscht.`
       })
     } catch (error) {
       toast({

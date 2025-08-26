@@ -534,7 +534,7 @@ export function CloudStorageEnhanced({
       }))
       
       toast({
-        description: `${selectedFiles.length} Dateien wurden ins Archiv verschoben.`
+        description: `${selectedFiles.length} Dateien wurden dauerhaft gelöscht.`
       })
       
       return new Set() // Clear selections
@@ -570,7 +570,7 @@ export function CloudStorageEnhanced({
     try {
       await deleteFile(file)
       toast({
-        description: `${file.name} wurde ins Archiv verschoben.`
+        description: `${file.name} wurde dauerhaft gelöscht.`
       })
     } catch (error) {
       toast({

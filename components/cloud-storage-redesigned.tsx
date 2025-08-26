@@ -226,7 +226,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
     }
     setSelectedItems(new Set())
     toast({
-      description: `${selectedFiles.length} Dateien wurden ins Archiv verschoben.`
+      description: `${selectedFiles.length} Dateien wurden dauerhaft gelöscht.`
     })
   }
 
@@ -266,7 +266,7 @@ export function CloudStorageRedesigned({ userId, initialFiles, initialFolders, i
     try {
       await deleteFile(file)
       toast({
-        description: `${file.name} wurde ins Archiv verschoben.`
+        description: `${file.name} wurde dauerhaft gelöscht.`
       })
     } catch (error) {
       toast({
