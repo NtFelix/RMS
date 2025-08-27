@@ -52,7 +52,7 @@ const sidebarNavItems = [
     icon: CheckSquare,
   },
   {
-    title: "Cloud Storage",
+    title: "Dokumente",
     href: "/dateien",
     icon: Folder,
   },
