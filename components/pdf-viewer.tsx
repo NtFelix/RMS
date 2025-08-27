@@ -48,14 +48,8 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
         // Dynamic import of PDF.js to avoid SSR issues
         if (!pdfjsLib) {
           pdfjsLib = await import('pdfjs-dist')
-          // Set up PDF.js worker with multiple fallback options
-          try {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`
-          } catch (workerError) {
-            console.warn('Failed to set up PDF.js worker, trying fallback:', workerError)
-            // Fallback to unpkg CDN
-            pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`
-          }
+          // Use local worker file to avoid CDN issues
+          pdfjsLib.GlobalWorkerOptions.workerSrc = '/js/pdf.worker.min.js'
         }
         
         const loadingTask = pdfjsLib.getDocument(fileUrl)
