@@ -51,6 +51,7 @@ interface SimpleCloudStorageState {
   refreshCurrentPath: () => Promise<void>
   downloadFile: (file: StorageObject) => Promise<void>
   deleteFile: (file: StorageObject) => Promise<void>
+  renameFile: (file: StorageObject, newName: string) => Promise<void>
   reset: () => void
 }
 
@@ -200,6 +201,41 @@ export const useSimpleCloudStorageStore = create<SimpleCloudStorageState>((set, 
       })
     } catch (error) {
       console.error('Delete failed:', error)
+      throw error
+    }
+  },
+  
+  renameFile: async (file: StorageObject, newName: string) => {
+    try {
+      const { currentPath, files } = get()
+      const filePath = `${currentPath}/${file.name}`
+      
+      const response = await fetch('/api/dateien/rename', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filePath,
+          newName
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Fehler beim Umbenennen der Datei')
+      }
+      
+      // Update file in current files list
+      set({
+        files: files.map(f => 
+          f.id === file.id 
+            ? { ...f, name: newName }
+            : f
+        )
+      })
+    } catch (error) {
+      console.error('Rename failed:', error)
       throw error
     }
   },

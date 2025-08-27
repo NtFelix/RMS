@@ -30,6 +30,7 @@ import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // A
 import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
 import { FileUploadModal } from "@/components/file-upload-modal"; // Added
 import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
+import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -79,6 +80,10 @@ export default function DashboardRootLayout({
     isConfirmationModalOpen,
     confirmationModalConfig,
     closeConfirmationModal,
+    // File Rename Modal state
+    isFileRenameModalOpen,
+    fileRenameData,
+    closeFileRenameModal,
   } = useModalStore()
 
   return (
@@ -132,6 +137,16 @@ export default function DashboardRootLayout({
 
       {/* FilePreviewModal - Global file preview modal */}
       <FilePreviewModal />
+
+      {/* FileRenameModal - Global file rename modal */}
+      {isFileRenameModalOpen && fileRenameData && (
+        <FileRenameModal
+          isOpen={isFileRenameModalOpen}
+          onClose={closeFileRenameModal}
+          fileName={fileRenameData.fileName}
+          onRename={fileRenameData.onRename}
+        />
+      )}
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

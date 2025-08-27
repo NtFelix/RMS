@@ -103,6 +103,12 @@ interface FilePreviewData {
   type?: string;
 }
 
+interface FileRenameData {
+  fileName: string;
+  filePath: string;
+  onRename: (newName: string) => Promise<void>;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -260,6 +266,12 @@ export interface ModalState {
   openFilePreviewModal: (fileData: FilePreviewData) => void;
   closeFilePreviewModal: () => void;
 
+  // File Rename Modal State
+  isFileRenameModalOpen: boolean;
+  fileRenameData?: FileRenameData;
+  openFileRenameModal: (fileData: FileRenameData) => void;
+  closeFileRenameModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -370,6 +382,11 @@ const initialFilePreviewModalState = {
   filePreviewData: undefined,
 };
 
+const initialFileRenameModalState = {
+  isFileRenameModalOpen: false,
+  fileRenameData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -384,6 +401,7 @@ const createInitialModalState = () => ({
   ...initialApartmentTenantDetailsModalState,
   ...initialUploadModalState,
   ...initialFilePreviewModalState,
+  ...initialFileRenameModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -739,6 +757,13 @@ export const useModalStore = create<ModalState>((set, get) => {
       filePreviewData: fileData,
     }),
     closeFilePreviewModal: () => set(initialFilePreviewModalState),
+
+    // File Rename Modal
+    openFileRenameModal: (fileData: FileRenameData) => set({
+      isFileRenameModalOpen: true,
+      fileRenameData: fileData,
+    }),
+    closeFileRenameModal: () => set(initialFileRenameModalState),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

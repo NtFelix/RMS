@@ -516,6 +516,8 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
  * Renames a file in the same directory
  */
 export async function renameFile(filePath: string, newName: string): Promise<void> {
+  await validateUserPath(filePath);
+  
   const pathSegments = filePath.split('/');
   const directory = pathSegments.slice(0, -1).join('/');
   const newPath = `${directory}/${newName}`;
