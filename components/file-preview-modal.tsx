@@ -207,7 +207,7 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
               </div>
               
               {/* Controls */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 {/* Image-specific controls */}
                 {isImage && fileUrl && !isLoading && !error && (
                   <>
@@ -272,23 +272,25 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleDownload}
+                  onClick={handleOpenExternal}
                   disabled={!fileUrl}
-                  title="Herunterladen"
+                  title="In neuem Tab öffnen"
+                  className="mr-2"
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Extern öffnen
                 </Button>
                 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleOpenExternal}
+                  onClick={handleDownload}
                   disabled={!fileUrl}
-                  title="In neuem Tab öffnen"
+                  title="Herunterladen"
+                  className="mr-2"
                 >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Extern öffnen
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
                 </Button>
               </div>
             </div>
