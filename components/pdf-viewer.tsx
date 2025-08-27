@@ -105,29 +105,27 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
         }
       }
 
-      // Use device pixel ratio for sharper rendering
+      // Get device pixel ratio for high DPI displays
       const devicePixelRatio = window.devicePixelRatio || 1
-      const scaledViewport = page.getViewport({ 
-        scale: scale * devicePixelRatio, 
-        rotation 
-      })
-
-      // Set canvas dimensions for high DPI
-      canvas.height = scaledViewport.height
-      canvas.width = scaledViewport.width
+      
+      // Set canvas internal resolution (for sharpness)
+      canvas.height = viewport.height * devicePixelRatio
+      canvas.width = viewport.width * devicePixelRatio
+      
+      // Set canvas display size (what user sees - normal size)
       canvas.style.width = `${viewport.width}px`
       canvas.style.height = `${viewport.height}px`
 
       // Clear the canvas for crisp rendering
       context.clearRect(0, 0, canvas.width, canvas.height)
       
-      // Scale the context for high DPI rendering
+      // Scale context to match device pixel ratio
       context.scale(devicePixelRatio, devicePixelRatio)
 
-      // Render page with high DPI
+      // Render page with original viewport
       const renderContext = {
         canvasContext: context,
-        viewport: scaledViewport,
+        viewport: viewport,  // Use original viewport, not scaled
         canvas: canvas
       }
 
