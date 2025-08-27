@@ -40,9 +40,12 @@ export function FileUploadZone({
   useEffect(() => {
     const completedUploads = uploadQueue.filter(item => item.status === 'completed')
     const hasCompletedUploads = completedUploads.length > 0
+    const allCompleted = uploadQueue.length > 0 && uploadQueue.every(item => 
+      item.status === 'completed' || item.status === 'error'
+    )
     
-    // Call onUploadComplete for each newly completed upload
-    if (hasCompletedUploads && !isUploading) {
+    // Call onUploadComplete when all uploads are finished (completed or error)
+    if (hasCompletedUploads && !isUploading && allCompleted) {
       // Use a timeout to ensure the upload process has fully completed
       const timeoutId = setTimeout(() => {
         onUploadComplete?.()
@@ -190,12 +193,12 @@ export function FileUploadZone({
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("flex flex-col h-full space-y-4", className)}>
       {/* Upload Zone */}
       <Card
         data-testid="upload-card"
         className={cn(
-          "border-2 border-dashed transition-colors cursor-pointer",
+          "border-2 border-dashed transition-colors cursor-pointer flex-shrink-0",
           isDragOver && !disabled && "border-primary bg-primary/5",
           disabled && "opacity-50 cursor-not-allowed",
           !isDragOver && !disabled && "hover:border-primary/50"
@@ -206,24 +209,24 @@ export function FileUploadZone({
         onDrop={handleDrop}
         onClick={openFilePicker}
       >
-        <CardContent className="flex flex-col items-center justify-center py-12 px-6 text-center">
+        <CardContent className="flex flex-col items-center justify-center py-8 px-6 text-center">
           <Upload className={cn(
-            "h-12 w-12 mb-4",
+            "h-10 w-10 mb-3",
             isDragOver && !disabled ? "text-primary" : "text-muted-foreground"
           )} />
           
-          <h3 className="text-lg font-semibold mb-2">
+          <h3 className="text-base font-semibold mb-2">
             {isDragOver && !disabled ? "Dateien hier ablegen" : "Dateien hochladen"}
           </h3>
           
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-muted-foreground mb-3">
             {isDragOver && !disabled 
               ? "Lassen Sie die Dateien los, um sie hochzuladen"
               : "Ziehen Sie Dateien hierher oder klicken Sie, um Dateien auszuwählen"
             }
           </p>
           
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground mb-3">
             <p>Unterstützte Formate: PDF, Bilder (JPG, PNG), Dokumente</p>
             <p>Maximale Dateigröße: 10 MB</p>
           </div>
@@ -231,7 +234,7 @@ export function FileUploadZone({
           {!disabled && (
             <Button 
               variant="outline" 
-              className="mt-4"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation()
                 openFilePicker()
@@ -257,9 +260,9 @@ export function FileUploadZone({
 
       {/* Upload Queue */}
       {uploadQueue.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
+        <Card className="flex-1 flex flex-col min-h-0">
+          <CardContent className="p-4 flex flex-col h-full">
+            <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h4 className="text-sm font-semibold">
                 Upload-Warteschlange ({uploadQueue.length})
               </h4>
@@ -270,6 +273,22 @@ export function FileUploadZone({
                     <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                     Wird hochgeladen...
                   </Badge>
+                )}
+                
+                {uploadQueue.some(item => item.status === 'completed') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const completedIds = uploadQueue
+                        .filter(item => item.status === 'completed')
+                        .map(item => item.id)
+                      completedIds.forEach(id => removeFromUploadQueue(id))
+                    }}
+                    disabled={isUploading}
+                  >
+                    Erledigte entfernen
+                  </Button>
                 )}
                 
                 <Button
@@ -283,7 +302,7 @@ export function FileUploadZone({
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
               {uploadQueue.map((item) => (
                 <div
                   key={item.id}

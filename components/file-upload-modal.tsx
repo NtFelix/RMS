@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { FileUploadZone } from "@/components/file-upload-zone"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
@@ -25,12 +26,10 @@ export function FileUploadModal() {
       // Call the provided completion callback
       uploadModalOnComplete?.()
       
-      // Close the modal
-      closeUploadModal()
+      // Don't close the modal immediately - let user see the results
+      // The modal will be closed manually or when user starts a new upload
     } catch (error) {
       console.error('Error refreshing files after upload:', error)
-      // Still close the modal even if refresh fails
-      closeUploadModal()
     }
   }
 
@@ -67,8 +66,8 @@ export function FileUploadModal() {
 
   return (
     <Dialog open={isUploadModalOpen} onOpenChange={closeUploadModal}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>
             {uploadModalFiles && uploadModalFiles.length > 0 
               ? `${uploadModalFiles.length} Datei${uploadModalFiles.length > 1 ? 'en' : ''} hochladen`
@@ -77,12 +76,19 @@ export function FileUploadModal() {
           </DialogTitle>
         </DialogHeader>
         
-        <div className="mt-4">
+        <div className="flex-1 overflow-hidden">
           <FileUploadZone
             targetPath={uploadModalTargetPath}
             onUploadComplete={handleUploadComplete}
+            className="h-full"
           />
         </div>
+
+        <DialogFooter className="flex-shrink-0">
+          <Button variant="outline" onClick={closeUploadModal}>
+            Schließen
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
