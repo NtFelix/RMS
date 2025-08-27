@@ -41,6 +41,7 @@ const mockGetContext = jest.fn(() => ({
   clearRect: jest.fn(),
   fillRect: jest.fn(),
   drawImage: jest.fn(),
+  scale: jest.fn(),
 }))
 
 Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {

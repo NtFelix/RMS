@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Download, Maximize2, Minimize2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
@@ -29,7 +29,7 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
   const [isLoading, setIsLoading] = useState(true)
   const [isRendering, setIsRendering] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isFullscreen, setIsFullscreen] = useState(false)
+
   const [pageInput, setPageInput] = useState("1")
   const [isClient, setIsClient] = useState(false)
 
@@ -105,16 +105,29 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
         }
       }
 
-      // Set canvas dimensions
-      canvas.height = viewport.height
-      canvas.width = viewport.width
+      // Use device pixel ratio for sharper rendering
+      const devicePixelRatio = window.devicePixelRatio || 1
+      const scaledViewport = page.getViewport({ 
+        scale: scale * devicePixelRatio, 
+        rotation 
+      })
+
+      // Set canvas dimensions for high DPI
+      canvas.height = scaledViewport.height
+      canvas.width = scaledViewport.width
       canvas.style.width = `${viewport.width}px`
       canvas.style.height = `${viewport.height}px`
 
-      // Render page
+      // Clear the canvas for crisp rendering
+      context.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Scale the context for high DPI rendering
+      context.scale(devicePixelRatio, devicePixelRatio)
+
+      // Render page with high DPI
       const renderContext = {
         canvasContext: context,
-        viewport: viewport,
+        viewport: scaledViewport,
         canvas: canvas
       }
 
@@ -151,10 +164,7 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
   // Rotation function
   const rotate = () => setRotation(prev => (prev + 90) % 360)
 
-  // Fullscreen toggle
-  const toggleFullscreen = () => {
-    setIsFullscreen(prev => !prev)
-  }
+
 
   // Handle page input change
   const handlePageInputChange = (value: string) => {
@@ -219,11 +229,7 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
           e.preventDefault()
           rotate()
           break
-        case 'f':
-        case 'F':
-          e.preventDefault()
-          toggleFullscreen()
-          break
+
         case 'd':
         case 'D':
           if (e.ctrlKey || e.metaKey) {
@@ -347,7 +353,7 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
           </Button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mr-12">
           {/* Zoom controls */}
           <div className="flex items-center gap-1 px-3 py-1 bg-muted rounded-md">
             <Button
@@ -386,21 +392,6 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
             <RotateCw className="h-4 w-4" />
           </Button>
 
-          {/* Fullscreen toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleFullscreen}
-            className="h-8 w-8 p-0"
-            title={isFullscreen ? "Vollbild verlassen" : "Vollbild"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="h-4 w-4" />
-            ) : (
-              <Maximize2 className="h-4 w-4" />
-            )}
-          </Button>
-
           <Separator orientation="vertical" className="h-6" />
 
           {/* Download */}
@@ -419,10 +410,7 @@ export function PDFViewer({ fileUrl, fileName, className, onDownload, onError }:
       {/* PDF Canvas */}
       <div 
         ref={containerRef}
-        className={cn(
-          "flex-1 overflow-auto bg-gradient-to-br from-muted/20 to-muted/5 p-4",
-          isFullscreen && "fixed inset-0 z-50 bg-background"
-        )}
+        className="flex-1 overflow-auto bg-gradient-to-br from-muted/20 to-muted/5 p-4"
       >
         <div className="flex justify-center">
           <div className="relative">
