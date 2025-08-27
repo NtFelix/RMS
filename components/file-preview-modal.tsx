@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, ExternalLink, ZoomIn, ZoomOut, RotateCw, RotateCcw, Maximize2, Minimize2 } from "lucide-react"
+import { Download, ExternalLink, ZoomIn, ZoomOut, RotateCw, RotateCcw } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -25,7 +25,6 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [zoom, setZoom] = useState(100)
   const [rotation, setRotation] = useState(0)
-  const [isFullscreen, setIsFullscreen] = useState(false)
 
   // Determine file type
   const isImage = filePreviewData ? ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(
@@ -108,10 +107,6 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
     setRotation(0)
   }
 
-  const toggleFullscreen = () => {
-    setIsFullscreen(prev => !prev)
-  }
-
   // Get file URL when modal opens
   useEffect(() => {
     if (isFilePreviewModalOpen && filePreviewData) {
@@ -122,7 +117,6 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
       setError(null)
       setZoom(100)
       setRotation(0)
-      setIsFullscreen(false)
     }
   }, [isFilePreviewModalOpen, filePreviewData])
 
@@ -164,11 +158,7 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
             handleRotateClockwise()
           }
           break
-        case 'f':
-        case 'F':
-          e.preventDefault()
-          toggleFullscreen()
-          break
+
         case 'd':
         case 'D':
           if (e.ctrlKey || e.metaKey) {
@@ -189,8 +179,7 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
     <Dialog open={isFilePreviewModalOpen} onOpenChange={() => closeFilePreviewModal()}>
       <DialogContent 
         className={cn(
-          "max-w-7xl h-[95vh] p-0 gap-0 overflow-hidden rounded-lg",
-          isFullscreen && "max-w-[98vw] h-[98vh]",
+          "max-w-[98vw] h-[98vh] p-0 gap-0 overflow-hidden rounded-lg",
           className
         )}
       >
@@ -273,16 +262,6 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={toggleFullscreen}
-                className="h-8 w-8 p-0"
-                title={isFullscreen ? "Verkleinern" : "Vollbild"}
-              >
-                {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
                 onClick={handleDownload}
                 disabled={!fileUrl}
                 title="Herunterladen"
@@ -355,8 +334,8 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
                       style={{
                         transform: `scale(${zoom / 100}) rotate(${rotation}deg)`,
                         transformOrigin: 'center',
-                        maxHeight: zoom <= 100 ? 'calc(100vh - 220px)' : 'none',
-                        maxWidth: zoom <= 100 ? 'calc(100vw - 120px)' : 'none'
+                        maxHeight: zoom <= 100 ? 'calc(98vh - 180px)' : 'none',
+                        maxWidth: zoom <= 100 ? 'calc(98vw - 80px)' : 'none'
                       }}
                       onError={() => setError('Bild konnte nicht geladen werden')}
                       onLoad={() => {
@@ -368,9 +347,9 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
                           const imgWidth = img.naturalWidth
                           const imgHeight = img.naturalHeight
                           
-                          if (imgWidth > containerWidth - 120 || imgHeight > containerHeight - 120) {
-                            const scaleX = (containerWidth - 120) / imgWidth
-                            const scaleY = (containerHeight - 120) / imgHeight
+                          if (imgWidth > containerWidth - 80 || imgHeight > containerHeight - 80) {
+                            const scaleX = (containerWidth - 80) / imgWidth
+                            const scaleY = (containerHeight - 80) / imgHeight
                             const scale = Math.min(scaleX, scaleY, 1) * 100
                             if (scale < 100) {
                               setZoom(Math.round(scale))
