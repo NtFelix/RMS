@@ -260,7 +260,7 @@ export function FileUploadZone({
 
       {/* Upload Queue */}
       {uploadQueue.length > 0 && (
-        <Card className="flex-1 flex flex-col min-h-0">
+        <Card className="flex-1 flex flex-col h-[400px]">
           <CardContent className="p-4 flex flex-col h-full">
             <div className="flex items-center justify-between mb-4 flex-shrink-0">
               <h4 className="text-sm font-semibold">
@@ -302,7 +302,7 @@ export function FileUploadZone({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+            <div className="flex-1 overflow-y-auto space-y-3 pr-2 max-h-[300px]">
               {uploadQueue.map((item) => (
                 <div
                   key={item.id}
