@@ -283,7 +283,7 @@ export function CloudStorageItemCard({
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={onOpen}
+            onClick={type === 'file' && canPreview() ? (onPreview || handlePreview) : onOpen}
           >
             <div className="p-4">
               {/* Selection checkbox */}
