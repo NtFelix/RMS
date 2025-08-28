@@ -208,7 +208,46 @@ export const useSimpleCloudStorageStore = create<SimpleCloudStorageState>((set, 
   renameFile: async (file: StorageObject, newName: string) => {
     try {
       const { currentPath, files } = get()
-      const filePath = `${currentPath}/${file.name}`
+      
+      // Ensure currentPath doesn't have trailing slash
+      let cleanCurrentPath = currentPath
+      if (cleanCurrentPath.endsWith('/')) {
+        cleanCurrentPath = cleanCurrentPath.slice(0, -1)
+      }
+      
+      // Debug: First check what files are actually in the directory
+      console.log('Frontend: Starting rename process...')
+      
+      try {
+        const debugResponse = await fetch('/api/dateien/debug', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            path: cleanCurrentPath
+          })
+        })
+        
+        if (debugResponse.ok) {
+          const debugData = await debugResponse.json()
+          console.log('Frontend: Directory debug info:', debugData)
+        }
+      } catch (debugError) {
+        console.warn('Frontend: Debug request failed:', debugError)
+      }
+      
+      // Construct file path without double encoding
+      const filePath = `${cleanCurrentPath}/${file.name}`
+      
+      console.log('Frontend: Renaming file request:', {
+        currentPath: cleanCurrentPath,
+        fileName: file.name,
+        fileId: file.id,
+        newName: newName,
+        fullPath: filePath,
+        fileObject: file
+      })
       
       const response = await fetch('/api/dateien/rename', {
         method: 'POST',

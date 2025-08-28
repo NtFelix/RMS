@@ -498,10 +498,42 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   await validateUserPath(oldPath);
   await validateUserPath(newPath);
   
-  const sanitizedOldPath = pathUtils.sanitizePath(oldPath);
-  const sanitizedNewPath = pathUtils.sanitizePath(newPath);
+  // Clean paths - remove leading slashes
+  let cleanOldPath = oldPath.startsWith('/') ? oldPath.slice(1) : oldPath;
+  let cleanNewPath = newPath.startsWith('/') ? newPath.slice(1) : newPath;
+  
+  const sanitizedOldPath = pathUtils.sanitizePath(cleanOldPath);
+  const sanitizedNewPath = pathUtils.sanitizePath(cleanNewPath);
+  
+  console.log('Moving file:', {
+    originalOldPath: oldPath,
+    originalNewPath: newPath,
+    sanitizedOldPath,
+    sanitizedNewPath
+  });
   
   const supabase = createClient();
+  
+  // First check if the source file exists
+  const pathSegments = sanitizedOldPath.split('/');
+  const directory = pathSegments.slice(0, -1).join('/');
+  const fileName = pathSegments[pathSegments.length - 1];
+  
+  const { data: files, error: listError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .list(directory, {
+      limit: 1000,
+      search: fileName
+    });
+  
+  if (listError) {
+    throw new Error(`Failed to check file existence: ${listError.message}`);
+  }
+  
+  const fileExists = files?.some(file => file.name === fileName);
+  if (!fileExists) {
+    throw new Error(`Source file not found: ${sanitizedOldPath}`);
+  }
   
   const { error } = await supabase.storage
     .from(STORAGE_BUCKET)
@@ -518,11 +550,24 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
 export async function renameFile(filePath: string, newName: string): Promise<void> {
   await validateUserPath(filePath);
   
-  const pathSegments = filePath.split('/');
+  // Clean the file path
+  let cleanFilePath = filePath;
+  if (cleanFilePath.startsWith('/')) {
+    cleanFilePath = cleanFilePath.slice(1);
+  }
+  
+  const pathSegments = cleanFilePath.split('/');
   const directory = pathSegments.slice(0, -1).join('/');
   const newPath = `${directory}/${newName}`;
   
-  await moveFile(filePath, newPath);
+  console.log('Storage service renaming:', {
+    originalPath: cleanFilePath,
+    newPath: newPath,
+    directory: directory,
+    newName: newName
+  });
+  
+  await moveFile(cleanFilePath, newPath);
 }
 
 /**

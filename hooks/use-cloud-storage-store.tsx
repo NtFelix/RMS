@@ -487,25 +487,52 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       }
     },
     
-    renameFile: async (file: StorageObject, newName: string) => {
+    renameFile: async (file: StorageObject, newName: string): Promise<void> => {
       set((state) => {
-        state.isOperationInProgress = true
-        state.operationError = null
-      })
+        state.isOperationInProgress = true;
+        state.operationError = null;
+      });
       
       try {
-        const { renameFile } = await import('@/lib/storage-service')
-        const filePath = `${get().currentPath}/${file.name}`
-        await renameFile(filePath, newName)
+        const { renameFile } = await import('@/lib/storage-service');
+        
+        // Get the current path and ensure it doesn't have a trailing slash
+        let currentPath = get().currentPath;
+        if (currentPath.endsWith('/')) {
+          currentPath = currentPath.slice(0, -1);
+        }
+        
+        // Construct the full path to the file without double encoding
+        // The file.name should already be the correct name from Supabase
+        const filePath = `${currentPath}/${file.name}`;
+        
+        console.log('Renaming file via storage service:', {
+          currentPath,
+          fileName: file.name,
+          newName,
+          fullPath: filePath
+        });
+        
+        // Call the rename function
+        await renameFile(filePath, newName);
         
         // Update file in current files list
         set((state) => {
-          const fileIndex = state.files.findIndex(f => f.id === file.id)
+          const fileIndex = state.files.findIndex(f => f.id === file.id);
           if (fileIndex !== -1) {
-            state.files[fileIndex] = { ...file, name: newName }
+            // Create a new object to trigger re-render
+            const updatedFiles = [...state.files];
+            updatedFiles[fileIndex] = { 
+              ...file, 
+              name: newName,
+              // Update the last_accessed_at timestamp
+              last_accessed_at: new Date().toISOString()
+            };
+            state.files = updatedFiles;
           }
-        })
+        });
       } catch (error) {
+        console.error('Error renaming file:', error)
         set((state) => {
           state.operationError = error instanceof Error ? error.message : 'Rename failed'
         })
