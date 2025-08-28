@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/context-menu"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
+import { FileRenameModal } from "@/components/file-rename-modal"
 import { useToast } from "@/hooks/use-toast"
 import type { StorageObject } from "@/hooks/use-cloud-storage-store"
 
@@ -32,6 +33,7 @@ interface FileContextMenuProps {
 
 export function FileContextMenu({ file, children, showArchiveOption = true }: FileContextMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showRenameModal, setShowRenameModal] = useState(false)
   const { toast } = useToast()
   
   const {
@@ -136,11 +138,18 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
           <ContextMenuSeparator />
           
           <ContextMenuItem 
-            disabled={true} // TODO: Implement rename functionality in future
-            className="text-muted-foreground"
+            onSelect={(e) => {
+              e.preventDefault()
+              // Close the context menu by focusing outside of it
+              document.dispatchEvent(new MouseEvent('mousedown'))
+              // Show the rename modal after a small delay
+              setTimeout(() => {
+                setShowRenameModal(true)
+              }, 0)
+            }}
           >
             <Edit3 className="mr-2 h-4 w-4" />
-            Umbenennen (bald verfügbar)
+            Umbenennen
           </ContextMenuItem>
           
           <ContextMenuItem 
@@ -188,6 +197,29 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
         confirmButtonText="Endgültig löschen"
         confirmButtonVariant="destructive"
         cancelButtonText="Abbrechen"
+      />
+
+      <FileRenameModal
+        isOpen={showRenameModal}
+        onClose={() => setShowRenameModal(false)}
+        fileName={file.name}
+        onRename={async (newName) => {
+          try {
+            const { renameFile } = useCloudStorageOperations()
+            await renameFile(file, newName)
+            toast({
+              title: "Erfolg",
+              description: `Datei wurde erfolgreich in "${newName}" umbenannt.`,
+            })
+          } catch (error) {
+            toast({
+              title: "Fehler beim Umbenennen",
+              description: error instanceof Error ? error.message : "Die Datei konnte nicht umbenannt werden.",
+              variant: "destructive"
+            })
+            throw error // Re-throw to let the modal handle the error state
+          }
+        }}
       />
     </>
   )
