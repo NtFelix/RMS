@@ -112,8 +112,8 @@ export default function Footer() {
           viewport={{ once: true }}
           className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4"
         >
-          <p className="text-muted-foreground text-sm">© 2024 ImmobilienVerwalter. Alle Rechte vorbehalten.</p>
-          <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Immobilienverwaltung für alle zu vereinfachen.</p>
+          <p className="text-muted-foreground text-sm">© 2024 Mietfluss. Alle Rechte vorbehalten.</p>
+          <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Mietverwaltung für alle zu vereinfachen.</p>
         </motion.div>
       </div>
     </footer>
