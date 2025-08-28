@@ -50,10 +50,10 @@ export default function Footer() {
               viewport={{ once: true }}
             >
               <h3 className="text-2xl font-bold text-foreground mb-4">
-                Immobilien<span className="text-primary">Verwalter</span>
+                <span className="text-primary">Miet</span>fluss
               </h3>
               <p className="text-muted-foreground leading-relaxed mb-6">
-                Die All-in-One-Plattform zur Optimierung Ihres Immobilienverwaltungs-Workflows.
+                Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung.
               </p>
               <div className="flex gap-4">
                 {socialLinks.map((social, index) => (
