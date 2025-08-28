@@ -95,7 +95,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               </span>
               <br />
               <span className="text-foreground/80">
-                — statt Stunden mit Excel
+                statt Stunden mit Excel
               </span>
             </motion.h1>
 
