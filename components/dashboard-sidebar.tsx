@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
+import { useFeatureFlagEnabled } from "posthog-js/react"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -63,6 +64,7 @@ export function DashboardSidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
+  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
   return (
     <>
@@ -105,25 +107,27 @@ export function DashboardSidebar() {
           </div>
           <ScrollArea className="flex-1 pt-6 pb-4">
             <nav className="grid gap-1 px-2">
-              {sidebarNavItems.map((item) => {
-                const isActive = isRouteActive(item.href)
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                      getActiveStateClasses(item.href),
-                    )}
-                    data-active={isActive}
-                    aria-current={isActive ? "page" : undefined}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.title}
-                  </Link>
-                )
-              })}
+              {sidebarNavItems
+                .filter((item) => !(item.href === '/dateien' && !documentsEnabled))
+                .map((item) => {
+                  const isActive = isRouteActive(item.href)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+                        getActiveStateClasses(item.href),
+                      )}
+                      data-active={isActive}
+                      aria-current={isActive ? "page" : undefined}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      {item.title}
+                    </Link>
+                  )
+                })}
             </nav>
           </ScrollArea>
           <div className="mt-auto border-t p-4">
