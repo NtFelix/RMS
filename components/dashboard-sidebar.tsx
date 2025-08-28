@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -107,27 +107,30 @@ export function DashboardSidebar() {
           </div>
           <ScrollArea className="flex-1 pt-6 pb-4">
             <nav className="grid gap-1 px-2">
-              {sidebarNavItems
-                .filter((item) => !(item.href === '/dateien' && !documentsEnabled))
-                .map((item) => {
-                  const isActive = isRouteActive(item.href)
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setIsOpen(false)}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                        getActiveStateClasses(item.href),
-                      )}
-                      data-active={isActive}
-                      aria-current={isActive ? "page" : undefined}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      {item.title}
-                    </Link>
-                  )
-                })}
+              {sidebarNavItems.map((item) => {
+                const isActive = isRouteActive(item.href)
+                const isDocuments = item.href === '/dateien'
+                const hidden = isDocuments && !documentsEnabled
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+                      getActiveStateClasses(item.href),
+                      hidden && "invisible pointer-events-none",
+                    )}
+                    data-active={isActive}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-hidden={hidden || undefined}
+                    tabIndex={hidden ? -1 : undefined}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.title}
+                  </Link>
+                )
+              })}
             </nav>
           </ScrollArea>
           <div className="mt-auto border-t p-4">
