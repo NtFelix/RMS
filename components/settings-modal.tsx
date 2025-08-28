@@ -9,7 +9,7 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
 // Consolidated lucide-react import to include Info and Monitor
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor } from "lucide-react";
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, Zap } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -88,6 +88,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
   // Settings: Betriebskosten Guide visibility
   const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
+  const [newDashboardEnabled, setNewDashboardEnabled] = useState<boolean>(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -705,9 +706,50 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       ),
     },
     {
+      value: "feature-preview",
+      label: "Feature Vorschau",
+      icon: Zap,
+      content: (
+        <div className="flex flex-col space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Feature Vorschau</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Schalten Sie hier experimentelle Funktionen frei. Diese Funktionen sind möglicherweise noch in der Entwicklung.
+            </p>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div>
+                  <h3 className="font-medium">Neues Dashboard</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Aktivieren Sie das überarbeitete Dashboard mit erweiterten Analysen.
+                  </p>
+                </div>
+                <Switch
+                  checked={newDashboardEnabled}
+                  onCheckedChange={setNewDashboardEnabled}
+                  className="data-[state=checked]:bg-primary"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
+                <div className="flex items-start">
+                  <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Hinweis</p>
+                    <p>Experimentelle Funktionen können unerwartetes Verhalten aufweisen. Bitte melden Sie uns etwaige Probleme.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
       value: "information",
       label: "Informationen",
-      icon: Info, // Using the imported Info icon
+      icon: Info,
       content: (
         <div className="flex flex-col space-y-4">
           <h2 className="text-xl font-semibold">App Informationen</h2>
@@ -716,22 +758,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
           </p>
         </div>
-      ),
+      )
     }
   ]
 
-  // Effect to set the version number when the information tab is selected,
-  // or when the modal opens if it's the default tab.
+  // Effect to set the version number when the information tab is selected
   useEffect(() => {
-    // Set the hardcoded version if the tab is active or upon component initialization.
-    // Since it's hardcoded, we can set it directly.
-    // The initial state already sets it, but this ensures it if logic changes.
     if (activeTab === 'information') {
-      setPackageJsonVersion("v2.0.0"); // Updated Hardcoded version
+      setPackageJsonVersion("v2.0.0");
     }
-    // If you want it to always be set regardless of tab, you can remove the condition,
-    // but initializing the state is usually sufficient for hardcoded values.
-  }, [activeTab]); // Dependency on activeTab ensures it updates if tab changes, though less critical for hardcoded.
+  }, [activeTab]);
 
   return (
     <>
