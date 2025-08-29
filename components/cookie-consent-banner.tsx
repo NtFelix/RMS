@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import posthog from 'posthog-js';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -22,7 +23,16 @@ export function CookieConsentBanner() {
     // Here you can add additional logic based on the consent level
     // For example, initializing analytics only if 'all' is accepted
     if (level === 'all') {
-      // Initialize analytics or other tracking scripts
+      // Opt-in PostHog capturing and ensure feature flags are available immediately
+      if (posthog?.opt_in_capturing) {
+        posthog.opt_in_capturing();
+        posthog.reloadFeatureFlags?.();
+        // Optionally record consent acceptance (only after opting in)
+        posthog.capture('consent_accepted', { level: 'all' });
+      }
+    } else {
+      // Ensure analytics are disabled when only necessary cookies are accepted
+      posthog?.opt_out_capturing?.();
     }
   };
 
