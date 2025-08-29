@@ -847,7 +847,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                                   className="text-xs text-muted-foreground underline hover:text-primary" 
                                   href={f.documentationUrl} 
                                   target="_blank" 
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   Dokumentation
