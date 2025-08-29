@@ -9,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include Info and Monitor
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, Zap } from "lucide-react";
+// Consolidated lucide-react import to include all used icons
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -794,7 +794,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     {
       value: "feature-preview",
       label: "Vorschau",
-      icon: Zap,
+      icon: FlaskConical,
       content: (
         <div className="flex flex-col space-y-6">
           <div>
