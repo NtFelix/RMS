@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { usePostHog, useActiveFeatureFlags } from 'posthog-js/react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // DialogOverlay removed, DialogDescription added
 import { Input } from "@/components/ui/input"
@@ -8,8 +9,8 @@ import { Button } from "@/components/ui/button"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include Info and Monitor
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor } from "lucide-react";
+// Consolidated lucide-react import to include all used icons
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { loadStripe } from '@stripe/stripe-js';
 import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
@@ -72,6 +73,37 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+
+  // PostHog early access features
+  const posthog = usePostHog()
+  const activeFlags = useActiveFeatureFlags()
+  
+  type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
+  interface EarlyAccessFeature {
+    flagKey: string
+    name: string
+    description?: string
+    documentationUrl?: string | null
+    stage: EarlyAccessStage
+    enabled?: boolean
+  }
+  
+  // State for each feature stage
+  const [alphaFeatures, setAlphaFeatures] = useState<EarlyAccessFeature[]>([])
+  const [betaFeatures, setBetaFeatures] = useState<EarlyAccessFeature[]>([])
+  const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
+  const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
+  const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
+  
+  // Helper to get display name for each stage
+  const getStageDisplayName = (stage: string) => {
+    switch (stage) {
+      case 'alpha': return 'Alpha';
+      case 'beta': return 'Beta';
+      case 'concept': return 'Geplant';
+      default: return stage.charAt(0).toUpperCase() + stage.slice(1);
+    }
+  }
 
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
@@ -253,6 +285,75 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       setBetriebskostenGuideEnabled(hidden !== 'true');
     }
   }, [open]);
+
+  // Load early access features using PostHog JS SDK per docs
+  useEffect(() => {
+    if (!posthog) return
+    setIsLoadingFeatures(true)
+    try {
+      // force_reload = true to avoid cached list; include all stages
+      // @ts-ignore: method is available on Web SDK, types may lag
+      posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
+        const active = activeFlags || []
+        
+        // Group features by their stage and add enabled status
+        const featuresByStage: Record<string, EarlyAccessFeature[]> = {}
+        
+        features.forEach((f) => {
+          const stage = f.stage || 'other'
+          if (!featuresByStage[stage]) {
+            featuresByStage[stage] = []
+          }
+          featuresByStage[stage].push({
+            ...f,
+            enabled: active.includes(f.flagKey)
+          })
+        })
+        
+        setBetaFeatures(featuresByStage['beta'] || [])
+        setConceptFeatures(featuresByStage['concept'] || [])
+        setAlphaFeatures(featuresByStage['alpha'] || [])
+        setOtherFeatures(featuresByStage['other'] || [])
+        setIsLoadingFeatures(false)
+      }, true, ['alpha', 'beta', 'concept'])
+    } catch (e) {
+      console.error('Failed to load early access features', e)
+      setIsLoadingFeatures(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posthog, JSON.stringify(activeFlags)])
+
+  // Toggle early access enrollment
+  const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
+    if (!posthog) return
+
+    // Helper to update the enabled state for a feature in any state array
+    const updateFeatureState = (prev: EarlyAccessFeature[]) => 
+      prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f))
+
+    // Optimistic UI update for all feature states
+    setAlphaFeatures(updateFeatureState)
+    setBetaFeatures(updateFeatureState)
+    setConceptFeatures(updateFeatureState)
+    setOtherFeatures(updateFeatureState)
+
+    try {
+      // @ts-ignore: available on Web SDK
+      posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
+      // @ts-ignore: optional method to refresh flags
+      await posthog.reloadFeatureFlags?.()
+    } catch (e) {
+      console.error('Failed to toggle early access', e)
+      // Revert on error for all feature states
+      const revertFeatureState = (prev: EarlyAccessFeature[]) => 
+        prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
+      
+      setAlphaFeatures(revertFeatureState)
+      setBetaFeatures(revertFeatureState)
+      setConceptFeatures(revertFeatureState)
+      setOtherFeatures(revertFeatureState)
+    }
+  }
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -705,9 +806,94 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       ),
     },
     {
+      value: "feature-preview",
+      label: "Vorschau",
+      icon: FlaskConical,
+      content: (
+        <div className="flex flex-col space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Feature Vorschau</h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto.
+            </p>
+
+            {isLoadingFeatures ? (
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Dynamic feature sections */}
+                {[
+                  { stage: 'alpha', features: alphaFeatures },
+                  { stage: 'beta', features: betaFeatures },
+                  { stage: 'concept', features: conceptFeatures },
+                  { stage: 'other', features: otherFeatures }
+                ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
+                  <div key={stage} className="space-y-3">
+                    <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
+                    <div className="space-y-3">
+                      {features.map((f) => (
+                        <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
+                          <div className="pr-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{f.name}</span>
+                              {f.documentationUrl && (
+                                <a 
+                                  className="text-xs text-muted-foreground underline hover:text-primary" 
+                                  href={f.documentationUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Dokumentation
+                                </a>
+                              )}
+                            </div>
+                            {f.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+                            )}
+                          </div>
+                          <Switch
+                            checked={!!f.enabled}
+                            onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
+                            className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                            disabled={isLoadingFeatures}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && (
+                  <p className="text-sm text-muted-foreground">
+                    Derzeit sind keine Early-Access-Funktionen verfügbar.
+                  </p>
+                )}
+
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-md text-sm text-amber-800 dark:text-amber-200">
+                  <div className="flex items-start">
+                    <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Wichtiger Hinweis</p>
+                      <p>Diese Funktionen befinden sich in der Entwicklung und sind möglicherweise nicht vollständig funktionsfähig. Es kann zu unerwartetem Verhalten kommen. Bitte nutzen Sie diese Funktionen mit Vorsicht und melden Sie uns etwaige Probleme.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )
+    },
+    {
       value: "information",
       label: "Informationen",
-      icon: Info, // Using the imported Info icon
+      icon: Info,
       content: (
         <div className="flex flex-col space-y-4">
           <h2 className="text-xl font-semibold">App Informationen</h2>
@@ -716,22 +902,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
           </p>
         </div>
-      ),
+      )
     }
   ]
 
-  // Effect to set the version number when the information tab is selected,
-  // or when the modal opens if it's the default tab.
+  // Effect to set the version number when the information tab is selected
   useEffect(() => {
-    // Set the hardcoded version if the tab is active or upon component initialization.
-    // Since it's hardcoded, we can set it directly.
-    // The initial state already sets it, but this ensures it if logic changes.
     if (activeTab === 'information') {
-      setPackageJsonVersion("v2.0.0"); // Updated Hardcoded version
+      setPackageJsonVersion("v2.0.0");
     }
-    // If you want it to always be set regardless of tab, you can remove the condition,
-    // but initializing the state is usually sufficient for hardcoded values.
-  }, [activeTab]); // Dependency on activeTab ensures it updates if tab changes, though less critical for hardcoded.
+  }, [activeTab]);
 
   return (
     <>
