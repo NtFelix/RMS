@@ -1,6 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
+import { getPostHogServer } from "../../posthog-server"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -8,7 +9,40 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient()
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+    
+    // If we have a user, identify them in PostHog server-side
+    if (data?.user) {
+      const posthog = getPostHogServer()
+      
+      try {
+        // Identify the user with their ID and properties
+        posthog.identify({
+          distinctId: data.user.id,
+          properties: {
+            email: data.user.email,
+            name: data.user.user_metadata?.name || '',
+            last_sign_in: new Date().toISOString(),
+          },
+        })
+
+        // Track the login event
+        posthog.capture({
+          distinctId: data.user.id,
+          event: 'user_logged_in',
+          properties: {
+            provider: data.user.app_metadata?.provider || 'email',
+            email: data.user.email,
+          },
+        })
+
+        // Flush the queue to ensure the event is sent
+        await posthog.shutdownAsync()
+      } catch (error) {
+        console.error('Error tracking login in PostHog:', error)
+        // Don't fail the auth flow if PostHog tracking fails
+      }
+    }
   }
 
   // URL to redirect to after sign in process completes
