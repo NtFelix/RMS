@@ -862,12 +862,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </p>
                 )}
 
-                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
+                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-md text-sm text-amber-800 dark:text-amber-200">
                   <div className="flex items-start">
                     <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
                     <div>
-                      <p className="font-medium">Hinweis</p>
-                      <p>Early-Access-Opt-ins überschreiben andere Rollout-Bedingungen des Feature Flags.</p>
+                      <p className="font-medium">Wichtiger Hinweis</p>
+                      <p>Diese Funktionen befinden sich in der Entwicklung und sind möglicherweise nicht vollständig funktionsfähig. Es kann zu unerwartetem Verhalten kommen. Bitte nutzen Sie diese Funktionen mit Vorsicht und melden Sie uns etwaige Probleme.</p>
                     </div>
                   </div>
                 </div>
