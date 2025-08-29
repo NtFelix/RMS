@@ -16,25 +16,19 @@ export async function GET(request: Request) {
       const posthog = getPostHogServer()
       
       try {
-        // Identify the user with their ID and properties
-        posthog.identify({
-          distinctId: data.user.id,
-          properties: {
-            email: data.user.email,
-            name: data.user.user_metadata?.name || '',
-            last_sign_in: new Date().toISOString(),
-          },
-        })
-
-        // Track the login event
+        // Track the login event and set user properties in a single call
         posthog.capture({
           distinctId: data.user.id,
           event: 'user_logged_in',
           properties: {
             provider: data.user.app_metadata?.provider || 'email',
-            email: data.user.email,
+            $set: {
+              email: data.user.email,
+              name: data.user.user_metadata?.name || '',
+              last_sign_in: new Date().toISOString(),
+            },
           },
-        })
+        });
 
         // Flush the queue to ensure the event is sent
         await posthog.shutdownAsync()
