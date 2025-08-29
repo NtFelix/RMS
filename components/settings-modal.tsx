@@ -78,7 +78,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const posthog = usePostHog()
   const activeFlags = useActiveFeatureFlags()
   
-  type EarlyAccessStage = 'concept' | 'beta' | 'alpha'
+  type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
   interface EarlyAccessFeature {
     flagKey: string
     name: string
@@ -87,9 +87,23 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     stage: EarlyAccessStage
     enabled?: boolean
   }
+  
+  // State for each feature stage
+  const [alphaFeatures, setAlphaFeatures] = useState<EarlyAccessFeature[]>([])
   const [betaFeatures, setBetaFeatures] = useState<EarlyAccessFeature[]>([])
   const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
+  const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
+  
+  // Helper to get display name for each stage
+  const getStageDisplayName = (stage: string) => {
+    switch (stage) {
+      case 'alpha': return 'Alpha';
+      case 'beta': return 'Beta';
+      case 'concept': return 'Geplant';
+      default: return stage.charAt(0).toUpperCase() + stage.slice(1);
+    }
+  }
 
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
@@ -278,21 +292,31 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     if (!posthog) return
     setIsLoadingFeatures(true)
     try {
-      // force_reload = true to avoid cached list; stages limited to concept+beta
-      // getEarlyAccessFeatures(cb, force_reload, stages)
+      // force_reload = true to avoid cached list; include all stages
       // @ts-ignore: method is available on Web SDK, types may lag
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
-        const betas = features.filter((f) => f.stage === 'beta' || f.stage === 'alpha')
-        const concepts = features.filter((f) => f.stage === 'concept')
         const active = activeFlags || []
-        const betasWithStatus = betas.map((f) => ({
-          ...f,
-          enabled: active.includes(f.flagKey),
-        }))
-        setBetaFeatures(betasWithStatus)
-        setConceptFeatures(concepts)
+        
+        // Group features by their stage and add enabled status
+        const featuresByStage: Record<string, EarlyAccessFeature[]> = {}
+        
+        features.forEach((f) => {
+          const stage = f.stage || 'other'
+          if (!featuresByStage[stage]) {
+            featuresByStage[stage] = []
+          }
+          featuresByStage[stage].push({
+            ...f,
+            enabled: active.includes(f.flagKey)
+          })
+        })
+        
+        setBetaFeatures(featuresByStage['beta'] || [])
+        setConceptFeatures(featuresByStage['concept'] || [])
+        setAlphaFeatures(featuresByStage['alpha'] || [])
+        setOtherFeatures(featuresByStage['other'] || [])
         setIsLoadingFeatures(false)
-      }, true, ['concept', 'beta'])
+      }, true, ['alpha', 'beta', 'concept'])
     } catch (e) {
       console.error('Failed to load early access features', e)
       setIsLoadingFeatures(false)
@@ -788,67 +812,55 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               </div>
             ) : (
               <div className="space-y-8">
-                {/* Betas */}
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Beta</h3>
-                  {betaFeatures.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Keine Beta-Funktionen verfügbar.</p>
-                  ) : (
+                {/* Dynamic feature sections */}
+                {[
+                  { stage: 'alpha', features: alphaFeatures },
+                  { stage: 'beta', features: betaFeatures },
+                  { stage: 'concept', features: conceptFeatures },
+                  { stage: 'other', features: otherFeatures }
+                ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
+                  <div key={stage} className="space-y-3">
+                    <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
                     <div className="space-y-3">
-                      {betaFeatures.map((f) => (
+                      {features.map((f) => (
                         <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
                           <div className="pr-4">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{f.name}</span>
-                              {f.documentationUrl ? (
-                                <a className="text-xs text-muted-foreground underline" href={f.documentationUrl} target="_blank" rel="noreferrer">Dokumentation</a>
-                              ) : null}
+                              {f.documentationUrl && (
+                                <a 
+                                  className="text-xs text-muted-foreground underline hover:text-primary" 
+                                  href={f.documentationUrl} 
+                                  target="_blank" 
+                                  rel="noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Dokumentation
+                                </a>
+                              )}
                             </div>
-                            {f.description ? (
+                            {f.description && (
                               <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
-                            ) : null}
+                            )}
                           </div>
                           <Switch
                             checked={!!f.enabled}
                             onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
                             className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                            disabled={isLoadingFeatures}
                           />
                         </div>
                       ))}
                     </div>
-                  )}
-                </div>
+                  </div>
+                ))}
 
-                {/* Coming soon (Concept) */}
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">In Planung</h3>
-                  {conceptFeatures.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Derzeit keine geplanten Funktionen.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {conceptFeatures.map((f) => (
-                        <div key={f.flagKey} className="p-4 rounded-lg border">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="pr-4">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{f.name}</span>
-                                {f.documentationUrl ? (
-                                  <a className="text-xs text-muted-foreground underline" href={f.documentationUrl} target="_blank" rel="noreferrer">Dokumentation</a>
-                                ) : null}
-                              </div>
-                              {f.description ? (
-                                <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
-                              ) : null}
-                            </div>
-                            <Button size="sm" variant="outline" onClick={() => toggleEarlyAccess(f.flagKey, true)}>
-                              Interesse anmelden
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                {alphaFeatures.length === 0 && betaFeatures.length === 0 && 
+                 conceptFeatures.length === 0 && otherFeatures.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Derzeit sind keine Early-Access-Funktionen verfügbar.
+                  </p>
+                )}
 
                 <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
                   <div className="flex items-start">
