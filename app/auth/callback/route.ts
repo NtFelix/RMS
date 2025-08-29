@@ -41,8 +41,8 @@ export async function GET(request: Request) {
           },
         });
 
-        // Flush the queue to ensure the event is sent
-        await posthog.shutdownAsync()
+        // Flush the queue to ensure the event is sent without shutting down the client
+        await posthog.flush()
       } catch (error) {
         console.error('Error tracking login in PostHog:', error)
         // Don't fail the auth flow if PostHog tracking fails
