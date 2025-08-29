@@ -327,8 +327,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // Toggle early access enrollment
   const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
     if (!posthog) return
-    // optimistic UI
-    setBetaFeatures((prev) => prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f)))
+
+    // Helper to update the enabled state for a feature in any state array
+    const updateFeatureState = (prev: EarlyAccessFeature[]) => 
+      prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f))
+
+    // Optimistic UI update for all feature states
+    setAlphaFeatures(updateFeatureState)
+    setBetaFeatures(updateFeatureState)
+    setConceptFeatures(updateFeatureState)
+    setOtherFeatures(updateFeatureState)
+
     try {
       // @ts-ignore: available on Web SDK
       posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
@@ -336,8 +345,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       await posthog.reloadFeatureFlags?.()
     } catch (e) {
       console.error('Failed to toggle early access', e)
-      // revert on error
-      setBetaFeatures((prev) => prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f)))
+      // Revert on error for all feature states
+      const revertFeatureState = (prev: EarlyAccessFeature[]) => 
+        prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
+      
+      setAlphaFeatures(revertFeatureState)
+      setBetaFeatures(revertFeatureState)
+      setConceptFeatures(revertFeatureState)
+      setOtherFeatures(revertFeatureState)
     }
   }
 
