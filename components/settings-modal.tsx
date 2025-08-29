@@ -869,8 +869,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </div>
                 ))}
 
-                {alphaFeatures.length === 0 && betaFeatures.length === 0 && 
-                 conceptFeatures.length === 0 && otherFeatures.length === 0 && (
+                {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && (
                   <p className="text-sm text-muted-foreground">
                     Derzeit sind keine Early-Access-Funktionen verfügbar.
                   </p>
