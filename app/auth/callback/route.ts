@@ -1,7 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
-import { getPostHogServer } from "../../posthog-server"
+import { getPostHogServer } from "../../posthog-server.mjs"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)

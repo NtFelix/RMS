@@ -1,8 +1,8 @@
-const { PostHog } = require('posthog-node')
+import { PostHog } from 'posthog-node'
 
 let posthogInstance = null
 
-function getPostHogServer() {
+export function getPostHogServer() {
   if (!posthogInstance) {
     posthogInstance = new PostHog(process.env.POSTHOG_API_KEY, {
       host: process.env.POSTHOG_HOST,
@@ -11,8 +11,4 @@ function getPostHogServer() {
     })
   }
   return posthogInstance
-}
-
-module.exports = {
-  getPostHogServer
 }
