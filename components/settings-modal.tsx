@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { usePostHog, useActiveFeatureFlags } from 'posthog-js/react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // DialogOverlay removed, DialogDescription added
 import { Input } from "@/components/ui/input"
@@ -72,6 +73,23 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
+
+  // PostHog early access features
+  const posthog = usePostHog()
+  const activeFlags = useActiveFeatureFlags()
+  
+  type EarlyAccessStage = 'concept' | 'beta' | 'alpha'
+  interface EarlyAccessFeature {
+    flagKey: string
+    name: string
+    description?: string
+    documentationUrl?: string | null
+    stage: EarlyAccessStage
+    enabled?: boolean
+  }
+  const [betaFeatures, setBetaFeatures] = useState<EarlyAccessFeature[]>([])
+  const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
+  const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
 
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
@@ -254,6 +272,50 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       setBetriebskostenGuideEnabled(hidden !== 'true');
     }
   }, [open]);
+
+  // Load early access features using PostHog JS SDK per docs
+  useEffect(() => {
+    if (!posthog) return
+    setIsLoadingFeatures(true)
+    try {
+      // force_reload = true to avoid cached list; stages limited to concept+beta
+      // getEarlyAccessFeatures(cb, force_reload, stages)
+      // @ts-ignore: method is available on Web SDK, types may lag
+      posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
+        const betas = features.filter((f) => f.stage === 'beta' || f.stage === 'alpha')
+        const concepts = features.filter((f) => f.stage === 'concept')
+        const active = activeFlags || []
+        const betasWithStatus = betas.map((f) => ({
+          ...f,
+          enabled: active.includes(f.flagKey),
+        }))
+        setBetaFeatures(betasWithStatus)
+        setConceptFeatures(concepts)
+        setIsLoadingFeatures(false)
+      }, true, ['concept', 'beta'])
+    } catch (e) {
+      console.error('Failed to load early access features', e)
+      setIsLoadingFeatures(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posthog, JSON.stringify(activeFlags)])
+
+  // Toggle early access enrollment
+  const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
+    if (!posthog) return
+    // optimistic UI
+    setBetaFeatures((prev) => prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f)))
+    try {
+      // @ts-ignore: available on Web SDK
+      posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
+      // @ts-ignore: optional method to refresh flags
+      await posthog.reloadFeatureFlags?.()
+    } catch (e) {
+      console.error('Failed to toggle early access', e)
+      // revert on error
+      setBetaFeatures((prev) => prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f)))
+    }
+  }
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -714,34 +776,91 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <div>
             <h2 className="text-xl font-semibold mb-4">Feature Vorschau</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Schalten Sie hier experimentelle Funktionen frei. Diese Funktionen sind möglicherweise noch in der Entwicklung.
+              Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto.
             </p>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div>
-                  <h3 className="font-medium">Neues Dashboard</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Aktivieren Sie das überarbeitete Dashboard mit erweiterten Analysen.
-                  </p>
-                </div>
-                <Switch
-                  checked={newDashboardEnabled}
-                  onCheckedChange={setNewDashboardEnabled}
-                  className="data-[state=checked]:bg-primary"
-                />
-              </div>
 
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
-                <div className="flex items-start">
-                  <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium">Hinweis</p>
-                    <p>Experimentelle Funktionen können unerwartetes Verhalten aufweisen. Bitte melden Sie uns etwaige Probleme.</p>
+            {isLoadingFeatures ? (
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-20 w-full" />
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {/* Betas */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Beta</h3>
+                  {betaFeatures.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Keine Beta-Funktionen verfügbar.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {betaFeatures.map((f) => (
+                        <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
+                          <div className="pr-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{f.name}</span>
+                              {f.documentationUrl ? (
+                                <a className="text-xs text-muted-foreground underline" href={f.documentationUrl} target="_blank" rel="noreferrer">Dokumentation</a>
+                              ) : null}
+                            </div>
+                            {f.description ? (
+                              <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+                            ) : null}
+                          </div>
+                          <Switch
+                            checked={!!f.enabled}
+                            onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
+                            className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Coming soon (Concept) */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">In Planung</h3>
+                  {conceptFeatures.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Derzeit keine geplanten Funktionen.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {conceptFeatures.map((f) => (
+                        <div key={f.flagKey} className="p-4 rounded-lg border">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="pr-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{f.name}</span>
+                                {f.documentationUrl ? (
+                                  <a className="text-xs text-muted-foreground underline" href={f.documentationUrl} target="_blank" rel="noreferrer">Dokumentation</a>
+                                ) : null}
+                              </div>
+                              {f.description ? (
+                                <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+                              ) : null}
+                            </div>
+                            <Button size="sm" variant="outline" onClick={() => toggleEarlyAccess(f.flagKey, true)}>
+                              Interesse anmelden
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
+                  <div className="flex items-start">
+                    <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium">Hinweis</p>
+                      <p>Early-Access-Opt-ins überschreiben andere Rollout-Bedingungen des Feature Flags.</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       )
