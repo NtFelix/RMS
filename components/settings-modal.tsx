@@ -793,7 +793,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     },
     {
       value: "feature-preview",
-      label: "Feature Vorschau",
+      label: "Vorschau",
       icon: Zap,
       content: (
         <div className="flex flex-col space-y-6">
