@@ -120,7 +120,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
   // Settings: Betriebskosten Guide visibility
   const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
-  const [newDashboardEnabled, setNewDashboardEnabled] = useState<boolean>(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
