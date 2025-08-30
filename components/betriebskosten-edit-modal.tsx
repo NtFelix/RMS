@@ -53,7 +53,7 @@ import { LabelWithTooltip } from "./ui/label-with-tooltip";
 import { CustomCombobox, type ComboboxOption } from "./ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 import { DateRangePicker } from "./ui/date-range-picker";
-import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate } from "@/utils/date-calculations";
+import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
@@ -624,53 +624,74 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ) : (
-                  <DateRangePicker
-                    startDate={startdatum}
-                    endDate={enddatum}
-                    onStartDateChange={handleStartdatumChange}
-                    onEndDateChange={handleEnddatumChange}
-                    disabled={isSaving}
-                  />
-                )}
-                
-                {/* Year Navigation Buttons */}
-                {!isLoadingDetails && (
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => {
-                        // Extract year from current startdatum and subtract 1
-                        const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
-                        const newYear = currentStartYear - 1;
-                        setStartdatum(`01.01.${newYear}`);
-                        setEnddatum(`31.12.${newYear}`);
-                        setBetriebskostenModalDirty(true);
-                      }}
+                  <>
+                    <DateRangePicker
+                      startDate={startdatum}
+                      endDate={enddatum}
+                      onStartDateChange={handleStartdatumChange}
+                      onEndDateChange={handleEnddatumChange}
                       disabled={isSaving}
-                      title="Ein Jahr zurück"
-                    >
-                      -1 Jahr
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="xs"
-                      onClick={() => {
-                        // Extract year from current startdatum and add 1
-                        const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
-                        const newYear = currentStartYear + 1;
-                        setStartdatum(`01.01.${newYear}`);
-                        setEnddatum(`31.12.${newYear}`);
-                        setBetriebskostenModalDirty(true);
-                      }}
-                      disabled={isSaving}
-                      title="Ein Jahr vor"
-                    >
-                      +1 Jahr
-                    </Button>
-                  </div>
+                      showPeriodInfo={false}
+                    />
+                    
+                    {/* Year Navigation Buttons - positioned directly below date inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 w-full rounded-md"
+                        onClick={() => {
+                          // Extract year from current startdatum and subtract 1
+                          const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                          const newYear = currentStartYear - 1;
+                          setStartdatum(`01.01.${newYear}`);
+                          setEnddatum(`31.12.${newYear}`);
+                          setBetriebskostenModalDirty(true);
+                        }}
+                        disabled={isSaving}
+                        title="Ein Jahr zurück"
+                      >
+                        -1 Jahr
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 w-full rounded-md"
+                        onClick={() => {
+                          // Extract year from current startdatum and add 1
+                          const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                          const newYear = currentStartYear + 1;
+                          setStartdatum(`01.01.${newYear}`);
+                          setEnddatum(`31.12.${newYear}`);
+                          setBetriebskostenModalDirty(true);
+                        }}
+                        disabled={isSaving}
+                        title="Ein Jahr vor"
+                      >
+                        +1 Jahr
+                      </Button>
+                    </div>
+                    
+                    {/* Period information - moved below the year buttons */}
+                    {(() => {
+                      const validation = validateDateRange(startdatum, enddatum);
+                      return (
+                        <div className="space-y-2">
+                          {validation.isValid && validation.periodDays && (
+                            <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                              <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
+                            </div>
+                          )}
+                          
+                          {validation.errors.range && (
+                            <p className={`text-sm ${validation.errors.range.startsWith('Warnung') ? 'text-yellow-600' : 'text-red-600'}`}>
+                              {validation.errors.range}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
                 )}
               </div>
 

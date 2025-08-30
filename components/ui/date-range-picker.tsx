@@ -12,6 +12,7 @@ interface DateRangePickerProps {
   onEndDateChange: (date: string) => void;
   disabled?: boolean;
   className?: string;
+  showPeriodInfo?: boolean;
 }
 
 export function DateRangePicker({
@@ -20,7 +21,8 @@ export function DateRangePicker({
   onStartDateChange,
   onEndDateChange,
   disabled = false,
-  className = ""
+  className = "",
+  showPeriodInfo = true
 }: DateRangePickerProps) {
   const validation = validateDateRange(startDate, endDate);
   const hasError = !validation.isValid;
@@ -98,19 +100,21 @@ export function DateRangePicker({
       </div>
       
       {/* Period information and validation messages */}
-      <div className="space-y-2">
-        {validation.isValid && validation.periodDays && (
-          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-            <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startDate, endDate)}
-          </div>
-        )}
-        
-        {validation.errors.range && (
-          <p className={`text-sm ${validation.errors.range.startsWith('Warnung') ? 'text-yellow-600' : 'text-red-600'}`}>
-            {validation.errors.range}
-          </p>
-        )}
-      </div>
+      {showPeriodInfo && (
+        <div className="space-y-2">
+          {validation.isValid && validation.periodDays && (
+            <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+              <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startDate, endDate)}
+            </div>
+          )}
+          
+          {validation.errors.range && (
+            <p className={`text-sm ${validation.errors.range.startsWith('Warnung') ? 'text-yellow-600' : 'text-red-600'}`}>
+              {validation.errors.range}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
