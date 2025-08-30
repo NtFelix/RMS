@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import { Input } from "./input";
-import { Label } from "./label";
+import { DatePicker } from "./date-picker";
 import { LabelWithTooltip } from "./label-with-tooltip";
-import { validateDateRange, formatPeriodDuration, germanToIsoDate } from "@/utils/date-calculations";
+import { validateDateRange, formatPeriodDuration, germanToIsoDate, isoToGermanDate } from "@/utils/date-calculations";
 
 interface DateRangePickerProps {
   startDate: string;
@@ -26,12 +25,32 @@ export function DateRangePicker({
   const validation = validateDateRange(startDate, endDate);
   const hasError = !validation.isValid;
   
-  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onStartDateChange(e.target.value);
+  const handleStartDateChange = (date: Date | undefined) => {
+    if (date) {
+      // Convert Date to German format string
+      const germanDate = date.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      onStartDateChange(germanDate);
+    } else {
+      onStartDateChange('');
+    }
   };
   
-  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onEndDateChange(e.target.value);
+  const handleEndDateChange = (date: Date | undefined) => {
+    if (date) {
+      // Convert Date to German format string
+      const germanDate = date.toLocaleDateString('de-DE', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      onEndDateChange(germanDate);
+    } else {
+      onEndDateChange('');
+    }
   };
   
   return (
@@ -40,16 +59,15 @@ export function DateRangePicker({
         <div className="space-y-2">
           <LabelWithTooltip 
             htmlFor="startdatum" 
-            infoText="Das Startdatum des Abrechnungszeitraums im Format TT.MM.JJJJ"
+            infoText="Das Startdatum des Abrechnungszeitraums. Klicken Sie auf das Kalender-Icon für die Datumsauswahl."
           >
             Startdatum *
           </LabelWithTooltip>
-          <Input
+          <DatePicker
             id="startdatum"
-            type="text"
             value={startDate}
             onChange={handleStartDateChange}
-            placeholder="TT.MM.JJJJ (z.B. 01.01.2024)"
+            placeholder="Startdatum auswählen"
             disabled={disabled}
             className={hasError && validation.errors.startdatum ? "border-red-500" : ""}
           />
@@ -61,16 +79,15 @@ export function DateRangePicker({
         <div className="space-y-2">
           <LabelWithTooltip 
             htmlFor="enddatum" 
-            infoText="Das Enddatum des Abrechnungszeitraums im Format TT.MM.JJJJ"
+            infoText="Das Enddatum des Abrechnungszeitraums. Klicken Sie auf das Kalender-Icon für die Datumsauswahl."
           >
             Enddatum *
           </LabelWithTooltip>
-          <Input
+          <DatePicker
             id="enddatum"
-            type="text"
             value={endDate}
             onChange={handleEndDateChange}
-            placeholder="TT.MM.JJJJ (z.B. 31.12.2024)"
+            placeholder="Enddatum auswählen"
             disabled={disabled}
             className={hasError && validation.errors.enddatum ? "border-red-500" : ""}
           />
