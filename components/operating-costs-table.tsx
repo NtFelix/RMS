@@ -59,15 +59,15 @@ export function OperatingCostsTable({
   }; 
 
   const handleOpenWasserzaehlerModal = async (item: Nebenkosten) => {
-    if (!item.haeuser_id || !item.jahr) {
-      toast.error("Haus-ID oder Jahr für Nebenkostenabrechnung nicht gefunden.");
+    if (!item.haeuser_id || !item.startdatum || !item.enddatum) {
+      toast.error("Haus-ID oder Datumsangaben für Nebenkostenabrechnung nicht gefunden.");
       return;
     }
     setIsLoadingDataForModal(true);
     setSelectedNebenkostenItem(item); // Set this early for the loading indicator text
     try {
       // Call the new server action
-      const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
+      const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.startdatum, item.enddatum);
 
       if (mieterResult.success && mieterResult.data) {
         // Fetch existing Wasserzaehler records
@@ -124,14 +124,14 @@ export function OperatingCostsTable({
   };
 
   const handleOpenAbrechnungModal = async (item: Nebenkosten) => {
-    if (!item.haeuser_id || !item.jahr) {
-      toast.error("Haus-ID oder Jahr für Nebenkostenabrechnung nicht für Abrechnung gefunden.");
+    if (!item.haeuser_id || !item.startdatum || !item.enddatum) {
+      toast.error("Haus-ID oder Datumsangaben für Nebenkostenabrechnung nicht für Abrechnung gefunden.");
       return;
     }
     setIsLoadingAbrechnungData(true);
     setSelectedNebenkostenForAbrechnung(item);
     try {
-      const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.jahr);
+      const mieterResult = await getMieterForNebenkostenAction(item.haeuser_id, item.startdatum, item.enddatum);
       if (mieterResult.success && mieterResult.data) {
         setTenantsForAbrechnungModal(mieterResult.data);
 
@@ -209,7 +209,12 @@ export function OperatingCostsTable({
                     onClick={() => onEdit?.(item)}
                     className="cursor-pointer hover:bg-muted/50"
                   >
-                    <TableCell className="font-medium">{item.jahr || '-'}</TableCell>
+                    <TableCell className="font-medium">
+                      {item.startdatum && item.enddatum 
+                        ? `${item.startdatum} bis ${item.enddatum}` 
+                        : '-'
+                      }
+                    </TableCell>
                     <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
                     <TableCell>
                       {item.nebenkostenart && item.nebenkostenart.length > 0

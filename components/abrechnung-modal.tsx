@@ -37,19 +37,24 @@ const GERMAN_MONTHS = [
 // Financial calculation constants
 const PREPAYMENT_BUFFER_MULTIPLIER = 1.1; // 10% buffer for prepayment calculation
 
-const calculateOccupancy = (einzug: string | null | undefined, auszug: string | null | undefined, abrechnungsjahr: number): { percentage: number, daysInYear: number, daysOccupied: number } => {
-  const daysInBillingYear = 360; // Fixed for 30/360 convention
-
+const calculateOccupancy = (
+  einzug: string | null | undefined, 
+  auszug: string | null | undefined, 
+  startdatum: string, 
+  enddatum: string
+): { percentage: number, daysInPeriod: number, daysOccupied: number } => {
   if (!einzug) {
-    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
+    const totalDays = Math.ceil((new Date(enddatum).getTime() - new Date(startdatum).getTime()) / (1000 * 3600 * 24)) + 1;
+    return { percentage: 0, daysInPeriod: totalDays, daysOccupied: 0 };
   }
 
-  const actualBillingYearStartDate = new Date(Date.UTC(abrechnungsjahr, 0, 1));
-  const actualBillingYearEndDate = new Date(Date.UTC(abrechnungsjahr, 11, 31, 23, 59, 59, 999));
+  const billingStartDate = new Date(startdatum);
+  const billingEndDate = new Date(enddatum);
+  const totalDaysInPeriod = Math.ceil((billingEndDate.getTime() - billingStartDate.getTime()) / (1000 * 3600 * 24)) + 1;
 
   const moveInDate = new Date(einzug);
-  if (isNaN(moveInDate.getTime()) || moveInDate > actualBillingYearEndDate) {
-    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
+  if (isNaN(moveInDate.getTime()) || moveInDate > billingEndDate) {
+    return { percentage: 0, daysInPeriod: totalDaysInPeriod, daysOccupied: 0 };
   }
 
   let moveOutDate: Date | null = null;
@@ -60,39 +65,27 @@ const calculateOccupancy = (einzug: string | null | undefined, auszug: string | 
     }
   }
 
-  if (moveOutDate && moveOutDate < actualBillingYearStartDate) {
-    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
+  if (moveOutDate && moveOutDate < billingStartDate) {
+    return { percentage: 0, daysInPeriod: totalDaysInPeriod, daysOccupied: 0 };
   }
 
-  const effectivePeriodStart = moveInDate < actualBillingYearStartDate ? actualBillingYearStartDate : moveInDate;
-  const effectivePeriodEnd = (!moveOutDate || moveOutDate > actualBillingYearEndDate) ? actualBillingYearEndDate : moveOutDate;
+  const effectivePeriodStart = moveInDate < billingStartDate ? billingStartDate : moveInDate;
+  const effectivePeriodEnd = (!moveOutDate || moveOutDate > billingEndDate) ? billingEndDate : moveOutDate;
 
   if (effectivePeriodStart > effectivePeriodEnd) {
-    return { percentage: 0, daysInYear: daysInBillingYear, daysOccupied: 0 };
+    return { percentage: 0, daysInPeriod: totalDaysInPeriod, daysOccupied: 0 };
   }
 
-  let y1 = effectivePeriodStart.getUTCFullYear();
-  let m1 = effectivePeriodStart.getUTCMonth();
-  let d1 = effectivePeriodStart.getUTCDate();
+  // Calculate actual days occupied (simple day difference)
+  const calculatedDaysOccupied = Math.ceil((effectivePeriodEnd.getTime() - effectivePeriodStart.getTime()) / (1000 * 3600 * 24)) + 1;
 
-  let y2 = effectivePeriodEnd.getUTCFullYear();
-  let m2 = effectivePeriodEnd.getUTCMonth();
-  let d2 = effectivePeriodEnd.getUTCDate();
-
-  if (d1 === 31) d1 = 30;
-  if (d2 === 31) d2 = 30;
-
-  let calculatedDaysOccupied = (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1) + 1;
-
-  calculatedDaysOccupied = Math.max(0, calculatedDaysOccupied);
-  calculatedDaysOccupied = Math.min(calculatedDaysOccupied, daysInBillingYear);
-
-  const percentage = (calculatedDaysOccupied / daysInBillingYear) * 100;
+  const clampedDaysOccupied = Math.max(0, Math.min(calculatedDaysOccupied, totalDaysInPeriod));
+  const percentage = totalDaysInPeriod > 0 ? (clampedDaysOccupied / totalDaysInPeriod) * 100 : 0;
 
   return {
     percentage: Math.max(0, Math.min(100, percentage)),
-    daysInYear: daysInBillingYear,
-    daysOccupied: calculatedDaysOccupied,
+    daysInPeriod: totalDaysInPeriod,
+    daysOccupied: clampedDaysOccupied,
   };
 };
 
@@ -129,7 +122,7 @@ interface TenantCostDetails {
   // Add these new fields:
   occupancyPercentage: number;
   daysOccupied: number;
-  daysInBillingYear: number;
+  daysInBillingPeriod: number;
   recommendedPrepayment?: number; // New field for recommended prepayment
 }
 
@@ -161,10 +154,13 @@ export function AbrechnungModal({
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
   // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
-  const wgFactors = useMemo(
-    () => computeWgFactorsByTenant(tenants, Number(nebenkostenItem?.jahr || new Date().getFullYear())),
-    [tenants, nebenkostenItem?.jahr]
-  );
+  const wgFactors = useMemo(() => {
+    if (!nebenkostenItem?.startdatum || !nebenkostenItem?.enddatum) {
+      // Fallback to current year if date range is not available
+      return computeWgFactorsByTenant(tenants, new Date().getFullYear());
+    }
+    return computeWgFactorsByTenant(tenants, nebenkostenItem.startdatum, nebenkostenItem.enddatum);
+  }, [tenants, nebenkostenItem?.startdatum, nebenkostenItem?.enddatum]);
 
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
@@ -181,13 +177,15 @@ export function AbrechnungModal({
 
     // Use the precomputed wgFactors from the useMemo hook
     const wgFactorsByTenant = wgFactors;
-    const abrechnungsjahr = Number(nebenkostenItem?.jahr);
+    const startdatum = nebenkostenItem?.startdatum || '';
+    const enddatum = nebenkostenItem?.enddatum || '';
 
     // Helper function for calculation logic (extracted to avoid repetition)
     const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
       const {
         id: nebenkostenItemId,
-        jahr,
+        startdatum: itemStartdatum,
+        enddatum: itemEnddatum,
         nebenkostenart,
         betrag,
         berechnungsart,
@@ -196,7 +194,12 @@ export function AbrechnungModal({
       } = nebenkostenItem!;
 
       // 1. Call calculateOccupancy
-      const { percentage: occupancyPercentage, daysOccupied, daysInYear: daysInBillingYear } = calculateOccupancy(tenant.einzug, tenant.auszug, abrechnungsjahr);
+      const { percentage: occupancyPercentage, daysOccupied, daysInPeriod: daysInBillingPeriod } = calculateOccupancy(
+        tenant.einzug, 
+        tenant.auszug, 
+        itemStartdatum || startdatum, 
+        itemEnddatum || enddatum
+      );
 
       // (Vorauszahlungen logic remains here - no changes needed for it based on current plan)
       let totalVorauszahlungen = 0;
@@ -218,16 +221,25 @@ export function AbrechnungModal({
       const einzugDate = tenant.einzug ? new Date(tenant.einzug) : null;
       const auszugDate = tenant.auszug ? new Date(tenant.auszug) : null;
 
-      for (let month = 0; month < 12; month++) {
-        const currentMonthStart = new Date(Date.UTC(abrechnungsjahr, month, 1));
-        const currentMonthEnd = new Date(Date.UTC(abrechnungsjahr, month + 1, 0));
-        const monthName = GERMAN_MONTHS[month];
+      // Calculate prepayments for the actual billing period
+      const billingStart = new Date(itemStartdatum || startdatum);
+      const billingEnd = new Date(itemEnddatum || enddatum);
+      
+      // Generate months within the billing period
+      const currentDate = new Date(billingStart.getFullYear(), billingStart.getMonth(), 1);
+      
+      while (currentDate <= billingEnd) {
+        const currentMonthStart = new Date(currentDate);
+        const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+        const monthName = GERMAN_MONTHS[currentDate.getMonth()];
+        
         let effectivePrepaymentForMonth = 0;
         const isActiveThisMonth = !!(
           einzugDate && !isNaN(einzugDate.getTime()) &&
           einzugDate <= currentMonthEnd &&
           (!auszugDate || isNaN(auszugDate.getTime()) || auszugDate >= currentMonthStart)
         );
+        
         if (isActiveThisMonth) {
           for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
             if (prepaymentSchedule[i].date <= currentMonthStart) {
@@ -237,11 +249,15 @@ export function AbrechnungModal({
           }
           totalVorauszahlungen += effectivePrepaymentForMonth;
         }
+        
         monthlyVorauszahlungenDetails.push({
-          monthName,
+          monthName: `${monthName} ${currentDate.getFullYear()}`,
           amount: effectivePrepaymentForMonth,
           isActiveMonth: isActiveThisMonth,
         });
+        
+        // Move to next month
+        currentDate.setMonth(currentDate.getMonth() + 1);
       }
       // End Vorauszahlungen
 
@@ -369,7 +385,7 @@ export function AbrechnungModal({
         finalSettlement: finalSettlement,
         occupancyPercentage,
         daysOccupied,
-        daysInBillingYear,
+        daysInBillingPeriod,
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
@@ -452,7 +468,7 @@ export function AbrechnungModal({
       // 2. Settlement Period
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Zeitraum: 01.01.${Number(nebenkostenItem.jahr)} - 31.12.${Number(nebenkostenItem.jahr)}`, 20, startY);
+      doc.text(`Zeitraum: ${nebenkostenItem.startdatum} - ${nebenkostenItem.enddatum}`, 20, startY);
       startY += 6;
 
       // 3. Property Details
@@ -650,11 +666,11 @@ export function AbrechnungModal({
     }
 
     let filename = "";
-      const currentJahr = Number(nebenkostenItem.jahr); // Ensure jahr is treated as number for filename
+      const currentPeriod = `${nebenkostenItem.startdatum}_${nebenkostenItem.enddatum}`; // Use date range for filename
     if (dataForProcessing.length === 1) {
       const singleTenant = dataForProcessing[0];
       processTenant(singleTenant);
-        filename = `Abrechnung_${currentJahr}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
+        filename = `Abrechnung_${currentPeriod}_${singleTenant.tenantName.replace(/\s+/g, '_')}.pdf`;
     } else { // Multiple tenants
       dataForProcessing.forEach((td, index) => {
         processTenant(td);
@@ -663,7 +679,7 @@ export function AbrechnungModal({
           startY = 20; // Reset Y for new page - This should be handled within processTenant or immediately after addPage if needed
         }
       });
-        filename = `Abrechnung_${currentJahr}_Alle_Mieter.pdf`;
+        filename = `Abrechnung_${currentPeriod}_Alle_Mieter.pdf`;
     }
     doc.save(filename);
   };
@@ -692,10 +708,10 @@ export function AbrechnungModal({
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Betriebskostenabrechnung {Number(nebenkostenItem.jahr)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
+            Betriebskostenabrechnung {nebenkostenItem.startdatum} bis {nebenkostenItem.enddatum} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Detaillierte Betriebskostenabrechnung für das Jahr {Number(nebenkostenItem.jahr)} mit Aufschlüsselung nach Mietern.
+            Detaillierte Betriebskostenabrechnung für den Zeitraum {nebenkostenItem.startdatum} bis {nebenkostenItem.enddatum} mit Aufschlüsselung nach Mietern.
           </DialogDescription>
         </DialogHeader>
 
@@ -801,7 +817,7 @@ export function AbrechnungModal({
               <div className="my-3">
                 <div className="flex justify-between mb-1">
                   <span className="text-sm font-medium text-gray-700">
-                    Anwesenheit im Abrechnungsjahr ({tenantData.daysOccupied} / {tenantData.daysInBillingYear} Tage)
+                    Anwesenheit im Abrechnungszeitraum ({tenantData.daysOccupied} / {tenantData.daysInBillingPeriod} Tage)
                   </span>
                   <span className="text-sm font-medium text-gray-700">
                     {formatNumber(tenantData.occupancyPercentage)}%
@@ -913,7 +929,7 @@ export function AbrechnungModal({
                         <h4 className="font-semibold mb-3">Abrechnungsdetails</h4>
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span>Gesamtkosten {Number(nebenkostenItem?.jahr)}:</span>
+                            <span>Gesamtkosten {nebenkostenItem?.startdatum} bis {nebenkostenItem?.enddatum}:</span>
                             <span>{formatCurrency(tenantData.totalTenantCost)}</span>
                           </div>
                           <div className="flex justify-between">
@@ -929,7 +945,7 @@ export function AbrechnungModal({
                           {tenantData.recommendedPrepayment !== undefined && (
                             <>
                               <div className="h-px bg-gray-200 my-2"></div>
-                              <h4 className="font-semibold mt-3 mb-2">Empfehlung für {Number(nebenkostenItem?.jahr) + 1}</h4>
+                              <h4 className="font-semibold mt-3 mb-2">Empfehlung für nächsten Zeitraum</h4>
                               <div className="space-y-1">
                                 <div className="flex justify-between">
                                   <span>Empfohlene Vorauszahlung:</span>

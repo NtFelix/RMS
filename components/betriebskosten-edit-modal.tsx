@@ -52,6 +52,8 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { LabelWithTooltip } from "./ui/label-with-tooltip";
 import { CustomCombobox, type ComboboxOption } from "./ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
+import { DateRangePicker } from "./ui/date-range-picker";
+import { getDefaultDateRange, validateDateRange } from "@/utils/date-calculations";
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
@@ -69,7 +71,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     setBetriebskostenModalDirty,
   } = useModalStore();
 
-  const [jahr, setJahr] = useState("");
+  const [startdatum, setStartdatum] = useState("");
+  const [enddatum, setEnddatum] = useState("");
   const [wasserkosten, setWasserkosten] = useState("");
   const [hausId, setHausId] = useState("");
   const [costItems, setCostItems] = useState<CostItem[]>([]);
@@ -231,7 +234,14 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
   useEffect(() => {
     const resetAllStates = (forNewEntry: boolean = true) => {
-      setJahr(forNewEntry ? new Date().getFullYear().toString() : "");
+      if (forNewEntry) {
+        const defaultRange = getDefaultDateRange();
+        setStartdatum(defaultRange.startdatum);
+        setEnddatum(defaultRange.enddatum);
+      } else {
+        setStartdatum("");
+        setEnddatum("");
+      }
       setWasserkosten("");
       setHausId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
       setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
@@ -259,7 +269,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             if (response.success && response.data) {
               const fetchedData = response.data;
               setModalNebenkostenData(fetchedData);
-              setJahr(fetchedData.jahr || "");
+              setStartdatum(fetchedData.startdatum || "");
+              setEnddatum(fetchedData.enddatum || "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               setWasserkosten(fetchedData.wasserkosten?.toString() || "");
 
@@ -296,11 +307,11 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   }, [isBetriebskostenModalOpen, betriebskostenInitialData, betriebskostenModalHaeuser, toast, setBetriebskostenModalDirty]);
 
   useEffect(() => {
-    if (isBetriebskostenModalOpen && hausId && jahr) {
+    if (isBetriebskostenModalOpen && hausId && startdatum && enddatum) {
       const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
-          const tenantResponse = await getMieterByHausIdAction(hausId, jahr);
+          const tenantResponse = await getMieterByHausIdAction(hausId, startdatum, enddatum);
           if (tenantResponse.success && tenantResponse.data) {
             setSelectedHausMieter(tenantResponse.data);
           } else {
@@ -318,7 +329,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     } else if (!isBetriebskostenModalOpen || !hausId) {
       setSelectedHausMieter([]);
     }
-  }, [isBetriebskostenModalOpen, hausId, jahr, toast]);
+  }, [isBetriebskostenModalOpen, hausId, startdatum, enddatum, toast]);
 
   const syncRechnungenState = (
     currentTenants: Mieter[], 
@@ -362,8 +373,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
     const currentEditId = modalNebenkostenData?.id || betriebskostenInitialData?.id;
 
-    if (!jahr || !hausId) {
-      toast({ title: "Fehlende Eingaben", description: "Jahr und Haus sind Pflichtfelder.", variant: "destructive" });
+    // Validate date range
+    const dateValidation = validateDateRange(startdatum, enddatum);
+    if (!dateValidation.isValid) {
+      const errorMessages = Object.values(dateValidation.errors).filter(Boolean);
+      toast({ 
+        title: "Ungültige Datumsangaben", 
+        description: errorMessages.join('. '), 
+        variant: "destructive" 
+      });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
+    if (!startdatum || !enddatum || !hausId) {
+      toast({ title: "Fehlende Eingaben", description: "Startdatum, Enddatum und Haus sind Pflichtfelder.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
@@ -423,7 +447,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     }
 
     const submissionData = {
-      jahr: jahr.trim(),
+      startdatum: startdatum.trim(),
+      enddatum: enddatum.trim(),
       nebenkostenart: nebenkostenartArray,
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
@@ -516,8 +541,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     }
   };
 
-  const handleJahrChange = (e: React.ChangeEvent<HTMLInputElement>) => { setJahr(e.target.value); setBetriebskostenModalDirty(true); };
-  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { setWasserkosten(e.target.value); setBetriebskostenModalDirty(true); };
+  const handleStartdatumChange = (date: string) => { 
+    setStartdatum(date); 
+    setBetriebskostenModalDirty(true); 
+  };
+  
+  const handleEnddatumChange = (date: string) => { 
+    setEnddatum(date); 
+    setBetriebskostenModalDirty(true); 
+  };
+  
+  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
+    setWasserkosten(e.target.value); 
+    setBetriebskostenModalDirty(true); 
+  };
+  
   const handleHausChange = (newHausId: string | null) => { 
     setHausId(newHausId || ''); 
     setBetriebskostenModalDirty(true); 
@@ -545,21 +583,31 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           </DialogHeader>
           
           <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <LabelWithTooltip htmlFor="formJahr" infoText="Das Jahr, für das die Nebenkostenabrechnung gilt.">
-                  Jahr *
-                </LabelWithTooltip>
-                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <Input id="formJahr" value={jahr} onChange={handleJahrChange} placeholder="z.B. 2023" required disabled={isSaving} />
-                )}
-              </div>
+            <div className="space-y-4">
               <div className="space-y-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
                   Haus *
                 </LabelWithTooltip>
                 {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
                   <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
+                )}
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Abrechnungszeitraum *</h4>
+                {isLoadingDetails ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <DateRangePicker
+                    startDate={startdatum}
+                    endDate={enddatum}
+                    onStartDateChange={handleStartdatumChange}
+                    onEndDateChange={handleEnddatumChange}
+                    disabled={isSaving}
+                  />
                 )}
               </div>
             </div>

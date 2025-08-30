@@ -58,7 +58,8 @@ export type HausMitFlaeche = {
 
 export type Nebenkosten = {
   id: string;
-  jahr: string;
+  startdatum: string; // ISO date string (YYYY-MM-DD)
+  enddatum: string;   // ISO date string (YYYY-MM-DD)
   nebenkostenart: string[] | null;
   betrag: number[] | null;
   berechnungsart: string[] | null;
@@ -180,8 +181,13 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   const supabase = createSupabaseServerClient();
   let query = supabase.from("Nebenkosten").select('*');
   
+  // If year is provided, filter by date range that overlaps with that year
   if (year) {
-    query = query.eq('jahr', year);
+    const yearStart = `${year}-01-01`;
+    const yearEnd = `${year}-12-31`;
+    query = query
+      .lte('startdatum', yearEnd)
+      .gte('enddatum', yearStart);
   }
 
   const { data, error } = await query;
@@ -194,7 +200,11 @@ export async function fetchNebenkosten(year?: string): Promise<Nebenkosten[]> {
   return data as Nebenkosten[];
 }
 
-export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promise<{
+export async function getHausGesamtFlaeche(
+  hausId: string, 
+  startdatum?: string, 
+  enddatum?: string
+): Promise<{
   gesamtFlaeche: number;
   anzahlWohnungen: number;
   anzahlMieter: number;
@@ -274,24 +284,20 @@ export async function getHausGesamtFlaeche(hausId: string, jahr?: string): Promi
         if (mieterError) {
           console.warn('Error fetching tenant data, will continue without it:', mieterError);
         } else if (mieter && mieter.length > 0) {
-          if (jahr) {
-            // If a year is provided, filter tenants who lived there during that year
-            const yearNum = parseInt(jahr);
-            const yearStart = new Date(yearNum, 0, 1).toISOString().split('T')[0];
-            const yearEnd = new Date(yearNum, 11, 31).toISOString().split('T')[0];
-            
+          if (startdatum && enddatum) {
+            // If date range is provided, filter tenants who lived there during that period
             anzahlMieter = mieter.filter(tenant => {
-              const moveIn = tenant.einzug || '';
-              const moveOut = tenant.auszug || '9999-12-31'; // If no move-out date, assume still living there
+              const moveIn = tenant.einzug || '1900-01-01';
+              const moveOut = tenant.auszug || '2099-12-31'; // If no move-out date, assume still living there
 
-              // Check if the tenant's stay overlaps with the target year
+              // Check if the tenant's stay overlaps with the billing period
               return (
-                (moveIn <= yearEnd) &&
-                (moveOut >= yearStart || !tenant.auszug)
+                (moveIn <= enddatum) &&
+                (moveOut >= startdatum || !tenant.auszug)
               );
             }).length;
           } else {
-            // If no year is provided, just count all tenants
+            // If no date range is provided, just count all tenants
             anzahlMieter = mieter.length;
           }
         }
@@ -339,7 +345,7 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
     
     for (const item of data) {
       // --- Start of added console logs ---
-      console.log(`Processing Nebenkosten ID: ${item.id}, Jahr: ${item.jahr}`);
+      console.log(`Processing Nebenkosten ID: ${item.id}, Zeitraum: ${item.startdatum} bis ${item.enddatum}`);
       console.log(`  Directly from DB - wasskerkosten: ${item.wasserkosten}, wasserverbrauch: ${item.wasserverbrauch}`);
 
       if (item.haeuser_id === 'b203ef5c-0de4-4063-b2ed-bb981a13f032') {
@@ -354,7 +360,7 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
           continue;
         }
         
-        const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(item.haeuser_id, item.jahr);
+        const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(item.haeuser_id, item.startdatum, item.enddatum);
         
         // --- Added console log for final composed item ---
         const finalItem = {
@@ -375,12 +381,11 @@ export async function fetchNebenkostenList(): Promise<Nebenkosten[]> {
       }
     }
     
-    // Sort the results by year in descending order (newest first)
+    // Sort the results by start date in descending order (newest first)
     const sortedNebenkosten = nebendkostenWithArea.sort((a, b) => {
-      // Convert years to numbers for proper numeric comparison
-      const yearA = parseInt(a.jahr || '0', 10);
-      const yearB = parseInt(b.jahr || '0', 10);
-      return yearB - yearA; // Sort in descending order (newest first)
+      const dateA = new Date(a.startdatum || '1900-01-01');
+      const dateB = new Date(b.startdatum || '1900-01-01');
+      return dateB.getTime() - dateA.getTime(); // Sort in descending order (newest first)
     });
     
     return sortedNebenkosten as Nebenkosten[];
@@ -428,7 +433,7 @@ export async function fetchNebenkostenDetailsById(id: string): Promise<Nebenkost
     }
 
     // Get house metrics
-    const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(data.haeuser_id, data.jahr || undefined);
+    const { gesamtFlaeche, anzahlWohnungen, anzahlMieter } = await getHausGesamtFlaeche(data.haeuser_id, data.startdatum, data.enddatum);
     
     return {
       ...data,
@@ -638,7 +643,7 @@ export type WasserzaehlerFormData = {
 };
 
 /**
- * Fetches Wasserzähler data for a specific house and year
+ * Fetches Wasserzähler data for a specific house and year (backward compatibility)
  * @param hausId The ID of the house
  * @param year The year to fetch data for (e.g., '2024')
  * @returns Object containing mieter list and existing readings for the specified house and year
@@ -646,6 +651,23 @@ export type WasserzaehlerFormData = {
 export async function fetchWasserzaehlerByHausAndYear(
   hausId: string,
   year: string
+): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+  const startdatum = `${year}-01-01`;
+  const enddatum = `${year}-12-31`;
+  return fetchWasserzaehlerByHausAndDateRange(hausId, startdatum, enddatum);
+}
+
+/**
+ * Fetches Wasserzähler data for a specific house and date range
+ * @param hausId The ID of the house
+ * @param startdatum The start date of the billing period (YYYY-MM-DD)
+ * @param enddatum The end date of the billing period (YYYY-MM-DD)
+ * @returns Object containing mieter list and existing readings for the specified house and date range
+ */
+export async function fetchWasserzaehlerByHausAndDateRange(
+  hausId: string,
+  startdatum: string,
+  enddatum: string
 ): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   const supabase = createSupabaseServerClient();
 
@@ -668,16 +690,13 @@ export async function fetchWasserzaehlerByHausAndYear(
 
     const wohnungIds = wohnungenInHaus.map(w => w.id);
 
-    // 2. Fetch Mieter for these Wohnungen, filtered by year
-    const yearStart = `${year}-01-01`;
-    const yearEnd = `${year}-12-31`;
-    
+    // 2. Fetch Mieter for these Wohnungen, filtered by date range
     const { data: relevantMieter, error: mieterError } = await supabase
       .from('Mieter')
       .select('*')
       .in('wohnung_id', wohnungIds)
-      .lte('einzug', yearEnd)
-      .or(`auszug.gte.${yearStart},auszug.is.null`);
+      .lte('einzug', enddatum)
+      .or(`auszug.gte.${startdatum},auszug.is.null`);
 
     if (mieterError) {
       console.error(`Error fetching Mieter for Wohnungen in Haus ID ${hausId}:`, mieterError);
@@ -688,22 +707,22 @@ export async function fetchWasserzaehlerByHausAndYear(
       return { mieterList: [], existingReadings: [] };
     }
 
-    // 3. Fetch Wasserzaehler readings for these mieters in the specified year
+    // 3. Fetch Wasserzaehler readings for these mieters in the specified date range
     let existingReadings: Wasserzaehler[] = [];
     if (relevantMieter.length > 0) {
       const mieterIds = relevantMieter.map(m => m.id);
-      const yearStartDate = new Date(`${year}-01-01`);
-      const yearEndDate = new Date(`${year}-12-31`);
+      const startDate = new Date(startdatum);
+      const endDate = new Date(enddatum);
 
       const { data: readings, error: readingsError } = await supabase
         .from('Wasserzaehler')
         .select('*')
         .in('mieter_id', mieterIds)
-        .gte('ablese_datum', yearStartDate.toISOString())
-        .lte('ablese_datum', yearEndDate.toISOString());
+        .gte('ablese_datum', startDate.toISOString())
+        .lte('ablese_datum', endDate.toISOString());
 
       if (readingsError) {
-        console.error(`Error fetching Wasserzaehler readings for Haus ${hausId} in ${year}:`, readingsError);
+        console.error(`Error fetching Wasserzaehler readings for Haus ${hausId} in date range ${startdatum} to ${enddatum}:`, readingsError);
       } else if (readings) {
         existingReadings = readings;
       }
@@ -715,7 +734,7 @@ export async function fetchWasserzaehlerByHausAndYear(
     };
 
   } catch (error) {
-    console.error('Unexpected error in fetchWasserzaehlerByHausAndYear:', error);
+    console.error('Unexpected error in fetchWasserzaehlerByHausAndDateRange:', error);
     return { mieterList: [], existingReadings: [] };
   }
 }
@@ -729,10 +748,10 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
   const supabase = createSupabaseServerClient();
 
   try {
-    // 1. Fetch Nebenkosten entry to get haeuser_id and jahr
+    // 1. Fetch Nebenkosten entry to get haeuser_id, startdatum, and enddatum
     const { data: nebenkostenEntry, error: nebenkostenError } = await supabase
       .from('Nebenkosten')
-      .select('haeuser_id, jahr')
+      .select('haeuser_id, startdatum, enddatum')
       .eq('id', nebenkostenId)
       .single();
 
@@ -741,15 +760,15 @@ export async function fetchWasserzaehlerModalData(nebenkostenId: string): Promis
       throw new Error(`Nebenkosten entry with ID ${nebenkostenId} not found.`);
     }
 
-    const { haeuser_id, jahr } = nebenkostenEntry;
+    const { haeuser_id, startdatum, enddatum } = nebenkostenEntry;
 
-    if (!haeuser_id || !jahr) {
-      console.error(`Nebenkosten entry ${nebenkostenId} is missing haeuser_id or jahr.`);
+    if (!haeuser_id || !startdatum || !enddatum) {
+      console.error(`Nebenkosten entry ${nebenkostenId} is missing haeuser_id, startdatum, or enddatum.`);
       return { mieterList: [], existingReadings: [] };
     }
 
-    // 2. Use the new function to get data by house and year
-    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndYear(haeuser_id, jahr);
+    // 2. Use the new function to get data by house and date range
+    const { mieterList, existingReadings } = await fetchWasserzaehlerByHausAndDateRange(haeuser_id, startdatum, enddatum);
 
     // 3. Filter existingReadings to only include those for the current nebenkosten_id
     //    This maintains backward compatibility with the existing code

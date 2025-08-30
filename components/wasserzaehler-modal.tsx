@@ -84,11 +84,15 @@ export function WasserzaehlerModal() {
                   reading => reading.mieter_id === mieter.id
                 );
 
-                // Get the current year from the nebenkosten data
-                const currentYear = wasserzaehlerNebenkosten?.jahr;
+                // Get the current date range from the nebenkosten data
+                const currentStartdatum = wasserzaehlerNebenkosten?.startdatum;
+                const currentEnddatum = wasserzaehlerNebenkosten?.enddatum;
+                
+                // Extract year from the start date for getting previous year's reading
+                const currentYear = currentStartdatum ? new Date(currentStartdatum).getFullYear() : new Date().getFullYear();
                 
                 // Pass the current year to get the previous year's reading
-                const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id, currentYear);
+                const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id, currentYear.toString());
                 const previous_reading = previousReadingResponse.success 
                   ? (previousReadingResponse.data || null) 
                   : null;
@@ -352,7 +356,7 @@ export function WasserzaehlerModal() {
       >
         <DialogHeader>
           <DialogTitle>
-            Wasserzählerstände für {wasserzaehlerNebenkosten.Haeuser?.name || "Unbekanntes Haus"} - {wasserzaehlerNebenkosten.jahr}
+            Wasserzählerstände für {wasserzaehlerNebenkosten.Haeuser?.name || "Unbekanntes Haus"} - {wasserzaehlerNebenkosten.startdatum} bis {wasserzaehlerNebenkosten.enddatum}
           </DialogTitle>
           <DialogDescription>
             Geben Sie die Zählerstände für jeden Mieter ein. Der Verbrauch wird automatisch berechnet.

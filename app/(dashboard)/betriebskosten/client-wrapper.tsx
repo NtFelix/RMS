@@ -53,17 +53,26 @@ export default function BetriebskostenClientView({
     }
     if (searchQuery) {
       result = result.filter(item =>
-        item.jahr?.toString().toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.startdatum?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.enddatum?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.Haeuser?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.nebenkostenart && item.nebenkostenart.join(" ").toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
     if (filter === "current_year") {
-      const currentYear = new Date().getFullYear().toString();
-      result = result.filter(item => item.jahr === currentYear);
+      const currentYear = new Date().getFullYear();
+      const currentYearStart = `${currentYear}-01-01`;
+      const currentYearEnd = `${currentYear}-12-31`;
+      result = result.filter(item => 
+        item.startdatum && item.enddatum &&
+        item.startdatum <= currentYearEnd && item.enddatum >= currentYearStart
+      );
     } else if (filter === "previous") {
-      const currentYear = new Date().getFullYear().toString();
-      result = result.filter(item => item.jahr !== currentYear);
+      const currentYear = new Date().getFullYear();
+      const currentYearStart = `${currentYear}-01-01`;
+      result = result.filter(item => 
+        item.enddatum && item.enddatum < currentYearStart
+      );
     }
     setFilteredNebenkosten(result);
   }, [searchQuery, filter, initialNebenkosten, selectedHouseId]);

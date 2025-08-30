@@ -6,7 +6,8 @@ import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter
 
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
-  jahr: string;
+  startdatum: string; // ISO date string (YYYY-MM-DD)
+  enddatum: string;   // ISO date string (YYYY-MM-DD)
   nebenkostenart: string[];
   betrag: number[];
   berechnungsart: string[];
@@ -545,18 +546,34 @@ export async function saveWasserzaehlerData(
 
 export async function getMieterForNebenkostenAction(
   hausId: string,
-  jahr: string
+  startdatum: string,
+  enddatum: string
 ): Promise<{ success: boolean; data?: Mieter[]; message?: string }> {
   "use server"; // Ensures this runs as a server action
 
-  if (!hausId || !jahr) {
-    return { success: false, message: 'Ungültige Haus-ID oder Jahr angegeben.' };
+  if (!hausId || !startdatum || !enddatum) {
+    return { success: false, message: 'Ungültige Haus-ID oder Datumsangaben.' };
+  }
+
+  // Validate date format and range
+  const startDate = new Date(startdatum);
+  const endDate = new Date(enddatum);
+  
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    return { 
+      success: false, 
+      message: 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.' 
+    };
+  }
+  
+  if (startDate >= endDate) {
+    return { 
+      success: false, 
+      message: 'Enddatum muss nach dem Startdatum liegen.' 
+    };
   }
 
   const supabase = await createClient(); // Uses the server client from utils/supabase/server
-  const yearNum = parseInt(jahr);
-  const yearStartStr = `${yearNum}-01-01`;
-  const yearEndStr = `${yearNum}-12-31`;
 
   try {
     const { data: wohnungen, error: wohnungenError } = await supabase
@@ -590,12 +607,14 @@ export async function getMieterForNebenkostenAction(
       return { success: true, data: [] };
     }
 
+    // Filter tenants based on date range overlap with billing period
     const filteredMieter = mieter.filter(m => {
-      const einzug = m.einzug || '';
-      const auszug = m.auszug || '9999-12-31';
-      const tenantEinzugRelevant = einzug <= yearEndStr;
-      const tenantAuszugRelevant = auszug >= yearStartStr;
-      return tenantEinzugRelevant && tenantAuszugRelevant;
+      const tenantEinzug = m.einzug || '1900-01-01'; // Default to very early date if no move-in
+      const tenantAuszug = m.auszug || '2099-12-31'; // Default to far future if still living there
+      
+      // Check if tenant period overlaps with billing period
+      // Overlap exists if: tenant_start <= billing_end AND tenant_end >= billing_start
+      return tenantEinzug <= enddatum && tenantAuszug >= startdatum;
     });
 
     return { success: true, data: filteredMieter as Mieter[] };

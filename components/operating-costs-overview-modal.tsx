@@ -35,9 +35,11 @@ export function OperatingCostsOverviewModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Übersicht der Betriebskosten für {nebenkosten.jahr}</DialogTitle>
+          <DialogTitle className="text-xl">
+            Übersicht der Betriebskosten für {nebenkosten.startdatum} bis {nebenkosten.enddatum}
+          </DialogTitle>
           <DialogDescription className="sr-only"> {/* Added sr-only if it should be visually hidden but available to screen readers */}
-            Detailansicht der Betriebskostenabrechnung für das Haus {nebenkosten.Haeuser?.name || 'N/A'} im Jahr {nebenkosten.jahr}.
+            Detailansicht der Betriebskostenabrechnung für das Haus {nebenkosten.Haeuser?.name || 'N/A'} vom {nebenkosten.startdatum} bis {nebenkosten.enddatum}.
           </DialogDescription>
           {nebenkosten.Haeuser?.name && (
             <p className="text-sm text-muted-foreground">
