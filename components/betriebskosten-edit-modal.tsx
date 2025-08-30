@@ -606,8 +606,6 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
             {/* Property & Period Selection Section */}
             <div className="bg-gray-50 rounded-lg p-4 space-y-4">
-              <h3 className="text-sm font-medium text-gray-700 mb-3">Grunddaten</h3>
-              
               {/* House Selection */}
               <div className="space-y-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
@@ -620,47 +618,6 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
               {/* Date Range Selection */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-700">Abrechnungszeitraum *</h4>
-                  {isLoadingDetails ? (
-                    <div className="flex gap-2">
-                      <Skeleton className="h-7 w-20" />
-                      <Skeleton className="h-7 w-28" />
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={() => {
-                          const currentYear = new Date().getFullYear();
-                          setStartdatum(`01.01.${currentYear}`);
-                          setEnddatum(`31.12.${currentYear}`);
-                          setBetriebskostenModalDirty(true);
-                        }}
-                        disabled={isSaving}
-                      >
-                        Dieses Jahr
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        onClick={() => {
-                          const previousYear = new Date().getFullYear() - 1;
-                          setStartdatum(`01.01.${previousYear}`);
-                          setEnddatum(`31.12.${previousYear}`);
-                          setBetriebskostenModalDirty(true);
-                        }}
-                        disabled={isSaving}
-                      >
-                        Vorheriges Jahr
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                
                 {isLoadingDetails ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Skeleton className="h-10 w-full" />
@@ -674,6 +631,46 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                     onEndDateChange={handleEnddatumChange}
                     disabled={isSaving}
                   />
+                )}
+                
+                {/* Year Navigation Buttons */}
+                {!isLoadingDetails && (
+                  <div className="flex justify-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => {
+                        // Extract year from current startdatum and subtract 1
+                        const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                        const newYear = currentStartYear - 1;
+                        setStartdatum(`01.01.${newYear}`);
+                        setEnddatum(`31.12.${newYear}`);
+                        setBetriebskostenModalDirty(true);
+                      }}
+                      disabled={isSaving}
+                      title="Ein Jahr zurück"
+                    >
+                      -1 Jahr
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      onClick={() => {
+                        // Extract year from current startdatum and add 1
+                        const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                        const newYear = currentStartYear + 1;
+                        setStartdatum(`01.01.${newYear}`);
+                        setEnddatum(`31.12.${newYear}`);
+                        setBetriebskostenModalDirty(true);
+                      }}
+                      disabled={isSaving}
+                      title="Ein Jahr vor"
+                    >
+                      +1 Jahr
+                    </Button>
+                  </div>
                 )}
               </div>
 

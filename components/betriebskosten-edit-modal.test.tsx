@@ -110,40 +110,54 @@ describe('BetriebskostenEditModal', () => {
     it('renders all form fields', () => {
       render(<BetriebskostenEditModal />);
       
-      expect(screen.getByText('Grunddaten')).toBeInTheDocument();
       expect(screen.getByText('Haus *')).toBeInTheDocument(); // CustomCombobox doesn't have proper label association
-      expect(screen.getByText('Abrechnungszeitraum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Startdatum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Enddatum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Wasserkosten (€)')).toBeInTheDocument();
       expect(screen.getByText('Kostenaufstellung')).toBeInTheDocument();
-      expect(screen.getByText('Dieses Jahr')).toBeInTheDocument();
-      expect(screen.getByText('Vorheriges Jahr')).toBeInTheDocument();
+      expect(screen.getByText('-1 Jahr')).toBeInTheDocument();
+      expect(screen.getByText('+1 Jahr')).toBeInTheDocument();
     });
 
-    it('sets current year dates when "Dieses Jahr" button is clicked', async () => {
+    it('navigates to next year when "+1 Jahr" button is clicked', async () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const currentYear = new Date().getFullYear();
-      const dieseJahrButton = screen.getByText('Dieses Jahr');
-      await user.click(dieseJahrButton);
+      // First set a specific year to test from
+      const startYear = 2023;
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, `01.01.${startYear}`);
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, `31.12.${startYear}`);
       
-      expect(screen.getByDisplayValue(`01.01.${currentYear}`)).toBeInTheDocument();
-      expect(screen.getByDisplayValue(`31.12.${currentYear}`)).toBeInTheDocument();
+      const nextYearButton = screen.getByText('+1 Jahr');
+      await user.click(nextYearButton);
+      
+      expect(screen.getByDisplayValue(`01.01.${startYear + 1}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${startYear + 1}`)).toBeInTheDocument();
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
     });
 
-    it('sets previous year dates when "Vorheriges Jahr" button is clicked', async () => {
+    it('navigates to previous year when "-1 Jahr" button is clicked', async () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const previousYear = new Date().getFullYear() - 1;
-      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
-      await user.click(vorigesJahrButton);
+      // First set a specific year to test from
+      const startYear = 2023;
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, `01.01.${startYear}`);
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, `31.12.${startYear}`);
       
-      expect(screen.getByDisplayValue(`01.01.${previousYear}`)).toBeInTheDocument();
-      expect(screen.getByDisplayValue(`31.12.${previousYear}`)).toBeInTheDocument();
+      const previousYearButton = screen.getByText('-1 Jahr');
+      await user.click(previousYearButton);
+      
+      expect(screen.getByDisplayValue(`01.01.${startYear - 1}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${startYear - 1}`)).toBeInTheDocument();
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
     });
 
@@ -273,9 +287,13 @@ describe('BetriebskostenEditModal', () => {
       
       render(<BetriebskostenEditModal />);
 
-      // Use the "Vorheriges Jahr" button to set 2024 dates
-      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
-      await user.click(vorigesJahrButton);
+      // Set 2024 dates manually first
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
 
       // Wait for tenants to load and then check for "nach Rechnung" functionality
       // This test is simplified since the Select component interaction is complex in JSDOM
@@ -407,9 +425,13 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      // Use the "Vorheriges Jahr" button to set 2024 dates
-      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
-      await user.click(vorigesJahrButton);
+      // Set 2024 dates manually
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Müll');
@@ -506,9 +528,13 @@ describe('BetriebskostenEditModal', () => {
         expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
       });
 
-      // Use the "Vorheriges Jahr" button to set 2024 dates
-      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
-      await user.click(vorigesJahrButton);
+      // Set 2024 dates manually
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
 
       // Modify the water costs
       const wasserkostenInput = screen.getByLabelText('Wasserkosten (€)');
@@ -674,9 +700,9 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      // Use the "Dieses Jahr" button to trigger dirty state
-      const dieseJahrButton = screen.getByText('Dieses Jahr');
-      await user.click(dieseJahrButton);
+      // Use the "+1 Jahr" button to trigger dirty state
+      const nextYearButton = screen.getByText('+1 Jahr');
+      await user.click(nextYearButton);
       
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
     });
