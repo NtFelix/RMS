@@ -61,7 +61,7 @@ export function DateRangePicker({
         <div className="space-y-2">
           <LabelWithTooltip 
             htmlFor="startdatum" 
-            infoText="Das Startdatum des Abrechnungszeitraums. Klicken Sie auf das Kalender-Icon für die Datumsauswahl."
+            infoText="Das Startdatum des Abrechnungszeitraums. Klicken Sie auf das Eingabefeld, um ein Datum auszuwählen."
           >
             Startdatum *
           </LabelWithTooltip>
@@ -81,7 +81,7 @@ export function DateRangePicker({
         <div className="space-y-2">
           <LabelWithTooltip 
             htmlFor="enddatum" 
-            infoText="Das Enddatum des Abrechnungszeitraums. Klicken Sie auf das Kalender-Icon für die Datumsauswahl."
+            infoText="Das Enddatum des Abrechnungszeitraums. Klicken Sie auf das Eingabefeld, um ein Datum auszuwählen."
           >
             Enddatum *
           </LabelWithTooltip>
