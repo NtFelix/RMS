@@ -110,7 +110,9 @@ describe('BetriebskostenEditModal', () => {
     it('renders all form fields', () => {
       render(<BetriebskostenEditModal />);
       
+      expect(screen.getByText('Grunddaten')).toBeInTheDocument();
       expect(screen.getByText('Haus *')).toBeInTheDocument(); // CustomCombobox doesn't have proper label association
+      expect(screen.getByText('Abrechnungszeitraum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Startdatum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Enddatum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Wasserkosten (€)')).toBeInTheDocument();
@@ -271,13 +273,9 @@ describe('BetriebskostenEditModal', () => {
       
       render(<BetriebskostenEditModal />);
 
-      // Set dates first to trigger tenant loading
-      const startdatumInput = screen.getByLabelText('Startdatum *');
-      const enddatumInput = screen.getByLabelText('Enddatum *');
-      await user.clear(startdatumInput);
-      await user.type(startdatumInput, '01.01.2024');
-      await user.clear(enddatumInput);
-      await user.type(enddatumInput, '31.12.2024');
+      // Use the "Vorheriges Jahr" button to set 2024 dates
+      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
+      await user.click(vorigesJahrButton);
 
       // Wait for tenants to load and then check for "nach Rechnung" functionality
       // This test is simplified since the Select component interaction is complex in JSDOM
@@ -409,12 +407,9 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const startdatumInput = screen.getByLabelText('Startdatum *');
-      const enddatumInput = screen.getByLabelText('Enddatum *');
-      await user.clear(startdatumInput);
-      await user.type(startdatumInput, '01.01.2024');
-      await user.clear(enddatumInput);
-      await user.type(enddatumInput, '31.12.2024');
+      // Use the "Vorheriges Jahr" button to set 2024 dates
+      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
+      await user.click(vorigesJahrButton);
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Müll');
@@ -511,13 +506,9 @@ describe('BetriebskostenEditModal', () => {
         expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
       });
 
-      // Modify the dates
-      const startdatumInput = screen.getByLabelText('Startdatum *');
-      const enddatumInput = screen.getByLabelText('Enddatum *');
-      await user.clear(startdatumInput);
-      await user.type(startdatumInput, '01.01.2024');
-      await user.clear(enddatumInput);
-      await user.type(enddatumInput, '31.12.2024');
+      // Use the "Vorheriges Jahr" button to set 2024 dates
+      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
+      await user.click(vorigesJahrButton);
 
       // Modify the water costs
       const wasserkostenInput = screen.getByLabelText('Wasserkosten (€)');
@@ -683,8 +674,9 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const startdatumInput = screen.getByLabelText('Startdatum *');
-      await user.type(startdatumInput, '01.01.2024');
+      // Use the "Dieses Jahr" button to trigger dirty state
+      const dieseJahrButton = screen.getByText('Dieses Jahr');
+      await user.click(dieseJahrButton);
       
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
     });
@@ -693,10 +685,9 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const startdatumInput = screen.getByLabelText('Startdatum *');
-      const enddatumInput = screen.getByLabelText('Enddatum *');
-      await user.type(startdatumInput, '01.01.2024');
-      await user.type(enddatumInput, '31.12.2024');
+      // Use the "Dieses Jahr" button to set current year dates
+      const dieseJahrButton = screen.getByText('Dieses Jahr');
+      await user.click(dieseJahrButton);
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test');

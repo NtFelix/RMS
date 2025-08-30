@@ -603,8 +603,12 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4">
-            <div className="space-y-4">
+          <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
+            {/* Property & Period Selection Section */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">Grunddaten</h3>
+              
+              {/* House Selection */}
               <div className="space-y-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
                   Haus *
@@ -613,27 +617,22 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
                 )}
               </div>
-              
-              <div className="space-y-2">
-                {isLoadingDetails ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-6 w-32" />
+
+              {/* Date Range Selection */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-medium text-gray-700">Abrechnungszeitraum *</h4>
+                  {isLoadingDetails ? (
                     <div className="flex gap-2">
-                      <Skeleton className="h-8 w-24" />
-                      <Skeleton className="h-8 w-32" />
+                      <Skeleton className="h-7 w-20" />
+                      <Skeleton className="h-7 w-28" />
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Skeleton className="h-10 w-full" />
-                      <Skeleton className="h-10 w-full" />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap gap-2 mb-3">
+                  ) : (
+                    <div className="flex gap-2">
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
+                        size="xs"
                         onClick={() => {
                           const currentYear = new Date().getFullYear();
                           setStartdatum(`01.01.${currentYear}`);
@@ -647,7 +646,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
+                        size="xs"
                         onClick={() => {
                           const previousYear = new Date().getFullYear() - 1;
                           setStartdatum(`01.01.${previousYear}`);
@@ -659,25 +658,34 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                         Vorheriges Jahr
                       </Button>
                     </div>
-                    <DateRangePicker
-                      startDate={startdatum}
-                      endDate={enddatum}
-                      onStartDateChange={handleStartdatumChange}
-                      onEndDateChange={handleEnddatumChange}
-                      disabled={isSaving}
-                    />
-                  </>
+                  )}
+                </div>
+                
+                {isLoadingDetails ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <DateRangePicker
+                    startDate={startdatum}
+                    endDate={enddatum}
+                    onStartDateChange={handleStartdatumChange}
+                    onEndDateChange={handleEnddatumChange}
+                    disabled={isSaving}
+                  />
                 )}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Jahr.">
-                Wasserkosten (€)
-              </LabelWithTooltip>
-              {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving} />
-              )}
+              {/* Water Costs */}
+              <div className="space-y-2">
+                <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Abrechnungszeitraum.">
+                  Wasserkosten (€)
+                </LabelWithTooltip>
+                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
+                  <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving} />
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
