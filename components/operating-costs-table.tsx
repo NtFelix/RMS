@@ -11,6 +11,7 @@ import {
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
 import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung, Haus } from "../lib/data-fetching" // Adjusted path, Added Rechnung and Haus
+import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
@@ -185,7 +186,7 @@ export function OperatingCostsTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Jahr</TableHead>
+            <TableHead>Zeitraum</TableHead>
             <TableHead>Haus</TableHead>
             <TableHead>Kostenarten</TableHead>
             <TableHead>Beträge</TableHead>
@@ -211,7 +212,7 @@ export function OperatingCostsTable({
                   >
                     <TableCell className="font-medium">
                       {item.startdatum && item.enddatum 
-                        ? `${item.startdatum} bis ${item.enddatum}` 
+                        ? `${isoToGermanDate(item.startdatum)} bis ${isoToGermanDate(item.enddatum)}` 
                         : '-'
                       }
                     </TableCell>

@@ -4,7 +4,7 @@ import React from "react";
 import { Input } from "./input";
 import { Label } from "./label";
 import { LabelWithTooltip } from "./label-with-tooltip";
-import { validateDateRange, formatPeriodDuration } from "@/utils/date-calculations";
+import { validateDateRange, formatPeriodDuration, germanToIsoDate } from "@/utils/date-calculations";
 
 interface DateRangePickerProps {
   startDate: string;
@@ -26,21 +26,30 @@ export function DateRangePicker({
   const validation = validateDateRange(startDate, endDate);
   const hasError = !validation.isValid;
   
+  const handleStartDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onStartDateChange(e.target.value);
+  };
+  
+  const handleEndDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onEndDateChange(e.target.value);
+  };
+  
   return (
     <div className={`space-y-4 ${className}`}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <LabelWithTooltip 
             htmlFor="startdatum" 
-            infoText="Das Startdatum des Abrechnungszeitraums"
+            infoText="Das Startdatum des Abrechnungszeitraums im Format TT.MM.JJJJ"
           >
             Startdatum *
           </LabelWithTooltip>
           <Input
             id="startdatum"
-            type="date"
+            type="text"
             value={startDate}
-            onChange={(e) => onStartDateChange(e.target.value)}
+            onChange={handleStartDateChange}
+            placeholder="TT.MM.JJJJ (z.B. 01.01.2024)"
             disabled={disabled}
             className={hasError && validation.errors.startdatum ? "border-red-500" : ""}
           />
@@ -52,15 +61,16 @@ export function DateRangePicker({
         <div className="space-y-2">
           <LabelWithTooltip 
             htmlFor="enddatum" 
-            infoText="Das Enddatum des Abrechnungszeitraums"
+            infoText="Das Enddatum des Abrechnungszeitraums im Format TT.MM.JJJJ"
           >
             Enddatum *
           </LabelWithTooltip>
           <Input
             id="enddatum"
-            type="date"
+            type="text"
             value={endDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+            onChange={handleEndDateChange}
+            placeholder="TT.MM.JJJJ (z.B. 31.12.2024)"
             disabled={disabled}
             className={hasError && validation.errors.enddatum ? "border-red-500" : ""}
           />

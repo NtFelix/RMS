@@ -3,6 +3,72 @@
  */
 
 /**
+ * Convert German date format (DD.MM.YYYY) to ISO format (YYYY-MM-DD)
+ */
+export function germanToIsoDate(germanDate: string): string {
+  if (!germanDate) return '';
+  
+  // Check if it's already in ISO format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(germanDate)) {
+    return germanDate;
+  }
+  
+  // Parse German format DD.MM.YYYY
+  const match = germanDate.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!match) return '';
+  
+  const [, day, month, year] = match;
+  return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+/**
+ * Convert ISO date format (YYYY-MM-DD) to German format (DD.MM.YYYY)
+ */
+export function isoToGermanDate(isoDate: string): string {
+  if (!isoDate) return '';
+  
+  // Check if it's already in German format
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(isoDate)) {
+    return isoDate;
+  }
+  
+  // Parse ISO format YYYY-MM-DD
+  const match = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '';
+  
+  const [, year, month, day] = match;
+  return `${parseInt(day)}.${parseInt(month)}.${year}`;
+}
+
+/**
+ * Validate German date format and convert to ISO if valid
+ */
+export function validateGermanDate(germanDate: string): { isValid: boolean; isoDate?: string; error?: string } {
+  if (!germanDate.trim()) {
+    return { isValid: false, error: 'Datum ist erforderlich' };
+  }
+  
+  const isoDate = germanToIsoDate(germanDate);
+  if (!isoDate) {
+    return { isValid: false, error: 'Datum muss im Format TT.MM.JJJJ sein (z.B. 01.01.2024)' };
+  }
+  
+  // Validate the actual date
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) {
+    return { isValid: false, error: 'Ungültiges Datum' };
+  }
+  
+  // Check if the date components match (to catch invalid dates like 31.02.2024)
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+    return { isValid: false, error: 'Ungültiges Datum' };
+  }
+  
+  return { isValid: true, isoDate };
+}
+
+/**
  * Calculate the number of days between two dates (inclusive)
  */
 export function calculateDaysBetween(startDate: Date, endDate: Date): number {
@@ -24,8 +90,12 @@ export function calculateTenantOccupancy(
   startdatum: string,
   enddatum: string
 ): TenantOccupancy {
-  const periodStart = new Date(startdatum);
-  const periodEnd = new Date(enddatum);
+  // Convert German dates to ISO if needed
+  const startIso = germanToIsoDate(startdatum) || startdatum;
+  const endIso = germanToIsoDate(enddatum) || enddatum;
+  
+  const periodStart = new Date(startIso);
+  const periodEnd = new Date(endIso);
   const totalPeriodDays = calculateDaysBetween(periodStart, periodEnd);
   
   // Default tenant start to period start if no move-in date
@@ -64,36 +134,26 @@ export interface DateRangeValidation {
 export function validateDateRange(startdatum: string, enddatum: string): DateRangeValidation {
   const errors: DateRangeValidation['errors'] = {};
   
-  // Validate date format
-  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  
-  if (!startdatum || !dateRegex.test(startdatum)) {
-    errors.startdatum = 'Startdatum muss im Format YYYY-MM-DD sein';
+  // Validate start date (accept both German and ISO format)
+  const startValidation = validateGermanDate(startdatum);
+  if (!startValidation.isValid) {
+    errors.startdatum = startValidation.error;
   }
   
-  if (!enddatum || !dateRegex.test(enddatum)) {
-    errors.enddatum = 'Enddatum muss im Format YYYY-MM-DD sein';
+  // Validate end date (accept both German and ISO format)
+  const endValidation = validateGermanDate(enddatum);
+  if (!endValidation.isValid) {
+    errors.enddatum = endValidation.error;
   }
   
-  // If format is valid, check if dates are valid
-  if (!errors.startdatum && !errors.enddatum) {
-    const startDate = new Date(startdatum);
-    const endDate = new Date(enddatum);
+  // If both dates are valid, check the range
+  if (startValidation.isValid && endValidation.isValid && startValidation.isoDate && endValidation.isoDate) {
+    const startDate = new Date(startValidation.isoDate);
+    const endDate = new Date(endValidation.isoDate);
     
-    if (isNaN(startDate.getTime())) {
-      errors.startdatum = 'Ungültiges Startdatum';
-    }
-    
-    if (isNaN(endDate.getTime())) {
-      errors.enddatum = 'Ungültiges Enddatum';
-    }
-    
-    // Check date range
-    if (!errors.startdatum && !errors.enddatum) {
-      if (endDate <= startDate) {
-        errors.range = 'Enddatum muss nach dem Startdatum liegen';
-      }
-      
+    if (endDate <= startDate) {
+      errors.range = 'Enddatum muss nach dem Startdatum liegen';
+    } else {
       const periodDays = calculateDaysBetween(startDate, endDate);
       
       // Warn about unusual periods
@@ -118,13 +178,13 @@ export function validateDateRange(startdatum: string, enddatum: string): DateRan
 }
 
 /**
- * Get default date range for current year
+ * Get default date range for current year in German format
  */
 export function getDefaultDateRange(): { startdatum: string; enddatum: string } {
   const currentYear = new Date().getFullYear();
   return {
-    startdatum: `${currentYear}-01-01`,
-    enddatum: `${currentYear}-12-31`
+    startdatum: `01.01.${currentYear}`,
+    enddatum: `31.12.${currentYear}`
   };
 }
 
@@ -133,8 +193,12 @@ export function getDefaultDateRange(): { startdatum: string; enddatum: string } 
  */
 export function formatPeriodDuration(startdatum: string, enddatum: string): string {
   try {
-    const startDate = new Date(startdatum);
-    const endDate = new Date(enddatum);
+    // Convert to ISO format if needed
+    const startIso = germanToIsoDate(startdatum) || startdatum;
+    const endIso = germanToIsoDate(enddatum) || enddatum;
+    
+    const startDate = new Date(startIso);
+    const endDate = new Date(endIso);
     const days = calculateDaysBetween(startDate, endDate);
     
     if (days === 1) {

@@ -53,7 +53,7 @@ import { LabelWithTooltip } from "./ui/label-with-tooltip";
 import { CustomCombobox, type ComboboxOption } from "./ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
 import { DateRangePicker } from "./ui/date-range-picker";
-import { getDefaultDateRange, validateDateRange } from "@/utils/date-calculations";
+import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate } from "@/utils/date-calculations";
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
@@ -269,8 +269,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             if (response.success && response.data) {
               const fetchedData = response.data;
               setModalNebenkostenData(fetchedData);
-              setStartdatum(fetchedData.startdatum || "");
-              setEnddatum(fetchedData.enddatum || "");
+              // Convert ISO dates from database to German format for display
+              setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
+              setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               setWasserkosten(fetchedData.wasserkosten?.toString() || "");
 
@@ -311,7 +312,17 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
-          const tenantResponse = await getMieterByHausIdAction(hausId, startdatum, enddatum);
+          // Convert German dates to ISO format for API call
+          const startIso = germanToIsoDate(startdatum);
+          const endIso = germanToIsoDate(enddatum);
+          
+          if (!startIso || !endIso) {
+            setSelectedHausMieter([]);
+            setIsFetchingTenants(false);
+            return;
+          }
+          
+          const tenantResponse = await getMieterByHausIdAction(hausId, startIso, endIso);
           if (tenantResponse.success && tenantResponse.data) {
             setSelectedHausMieter(tenantResponse.data);
           } else {
@@ -446,9 +457,19 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       berechnungsartArray.push(berechnungsart);
     }
 
+    // Convert German dates to ISO format for database
+    const startIso = germanToIsoDate(startdatum.trim());
+    const endIso = germanToIsoDate(enddatum.trim());
+    
+    if (!startIso || !endIso) {
+      toast({ title: "Ungültige Datumsangaben", description: "Bitte überprüfen Sie die Datumsformate.", variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
     const submissionData = {
-      startdatum: startdatum.trim(),
-      enddatum: enddatum.trim(),
+      startdatum: startIso,
+      enddatum: endIso,
       nebenkostenart: nebenkostenartArray,
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
