@@ -615,20 +615,58 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
               </div>
               
               <div className="space-y-2">
-                <h4 className="text-sm font-medium">Abrechnungszeitraum *</h4>
                 {isLoadingDetails ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Skeleton className="h-10 w-full" />
-                    <Skeleton className="h-10 w-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-6 w-32" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-8 w-24" />
+                      <Skeleton className="h-8 w-32" />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
                   </div>
                 ) : (
-                  <DateRangePicker
-                    startDate={startdatum}
-                    endDate={enddatum}
-                    onStartDateChange={handleStartdatumChange}
-                    onEndDateChange={handleEnddatumChange}
-                    disabled={isSaving}
-                  />
+                  <>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const currentYear = new Date().getFullYear();
+                          setStartdatum(`01.01.${currentYear}`);
+                          setEnddatum(`31.12.${currentYear}`);
+                          setBetriebskostenModalDirty(true);
+                        }}
+                        disabled={isSaving}
+                      >
+                        Dieses Jahr
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const previousYear = new Date().getFullYear() - 1;
+                          setStartdatum(`01.01.${previousYear}`);
+                          setEnddatum(`31.12.${previousYear}`);
+                          setBetriebskostenModalDirty(true);
+                        }}
+                        disabled={isSaving}
+                      >
+                        Vorheriges Jahr
+                      </Button>
+                    </div>
+                    <DateRangePicker
+                      startDate={startdatum}
+                      endDate={enddatum}
+                      onStartDateChange={handleStartdatumChange}
+                      onEndDateChange={handleEnddatumChange}
+                      disabled={isSaving}
+                    />
+                  </>
                 )}
               </div>
             </div>

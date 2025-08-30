@@ -110,10 +110,39 @@ describe('BetriebskostenEditModal', () => {
     it('renders all form fields', () => {
       render(<BetriebskostenEditModal />);
       
-      expect(screen.getByLabelText('Jahr *')).toBeInTheDocument();
       expect(screen.getByText('Haus *')).toBeInTheDocument(); // CustomCombobox doesn't have proper label association
+      expect(screen.getByLabelText('Startdatum *')).toBeInTheDocument();
+      expect(screen.getByLabelText('Enddatum *')).toBeInTheDocument();
       expect(screen.getByLabelText('Wasserkosten (€)')).toBeInTheDocument();
       expect(screen.getByText('Kostenaufstellung')).toBeInTheDocument();
+      expect(screen.getByText('Dieses Jahr')).toBeInTheDocument();
+      expect(screen.getByText('Vorheriges Jahr')).toBeInTheDocument();
+    });
+
+    it('sets current year dates when "Dieses Jahr" button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const currentYear = new Date().getFullYear();
+      const dieseJahrButton = screen.getByText('Dieses Jahr');
+      await user.click(dieseJahrButton);
+      
+      expect(screen.getByDisplayValue(`01.01.${currentYear}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${currentYear}`)).toBeInTheDocument();
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
+    });
+
+    it('sets previous year dates when "Vorheriges Jahr" button is clicked', async () => {
+      const user = userEvent.setup();
+      render(<BetriebskostenEditModal />);
+      
+      const previousYear = new Date().getFullYear() - 1;
+      const vorigesJahrButton = screen.getByText('Vorheriges Jahr');
+      await user.click(vorigesJahrButton);
+      
+      expect(screen.getByDisplayValue(`01.01.${previousYear}`)).toBeInTheDocument();
+      expect(screen.getByDisplayValue(`31.12.${previousYear}`)).toBeInTheDocument();
+      expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
     });
 
     it('renders for new entry with one default cost item', () => {
@@ -129,7 +158,8 @@ describe('BetriebskostenEditModal', () => {
     it('populates form fields when editing existing entry', async () => {
       const mockEntry = {
         id: '1',
-        jahr: '2023',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
         haeuser_id: 'h1',
         nebenkostenart: ['Strom', 'Wasser'],
         betrag: [100, 50],
@@ -151,9 +181,10 @@ describe('BetriebskostenEditModal', () => {
       render(<BetriebskostenEditModal />);
 
       await waitFor(() => {
-        expect(screen.getByDisplayValue('2023')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('01.01.2023')).toBeInTheDocument();
       });
 
+      expect(screen.getByDisplayValue('31.12.2023')).toBeInTheDocument();
       expect(screen.getByDisplayValue('20')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Strom')).toBeInTheDocument();
       expect(screen.getByDisplayValue('100')).toBeInTheDocument();
@@ -240,15 +271,18 @@ describe('BetriebskostenEditModal', () => {
       
       render(<BetriebskostenEditModal />);
 
-      // Set Jahr first to trigger tenant loading
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.clear(jahrInput);
-      await user.type(jahrInput, '2024');
+      // Set dates first to trigger tenant loading
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
 
       // Wait for tenants to load and then check for "nach Rechnung" functionality
       // This test is simplified since the Select component interaction is complex in JSDOM
       await waitFor(() => {
-        expect(mockGetMieterByHausIdAction).toHaveBeenCalledWith('h1', '2024');
+        expect(mockGetMieterByHausIdAction).toHaveBeenCalledWith('h1', '2024-01-01', '2024-12-31');
       });
     });
   });
@@ -285,8 +319,10 @@ describe('BetriebskostenEditModal', () => {
       render(<BetriebskostenEditModal />);
       
       // Fill required fields but leave cost item art empty
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const submitButton = screen.getByRole('button', { name: 'Speichern' });
       await user.click(submitButton);
@@ -313,7 +349,7 @@ describe('BetriebskostenEditModal', () => {
       
       render(<BetriebskostenEditModal />);
       
-      // Jahr should be empty by default when no houses are available
+      // Dates should be empty by default when no houses are available
       // Add a valid cost item
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test Kosten');
@@ -327,7 +363,7 @@ describe('BetriebskostenEditModal', () => {
       await waitFor(() => {
         expect(mockToastFn).toHaveBeenCalledWith({
           title: 'Fehlende Eingaben',
-          description: 'Jahr und Haus sind Pflichtfelder.',
+          description: 'Startdatum, Enddatum und Haus sind Pflichtfelder.',
           variant: 'destructive',
         });
       });
@@ -340,8 +376,10 @@ describe('BetriebskostenEditModal', () => {
       render(<BetriebskostenEditModal />);
       
       // Fill required fields
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test Kosten');
@@ -371,9 +409,12 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.clear(jahrInput);
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Müll');
@@ -386,7 +427,8 @@ describe('BetriebskostenEditModal', () => {
 
       await waitFor(() => {
         expect(mockCreateNebenkosten).toHaveBeenCalledWith({
-          jahr: '2024',
+          startdatum: '2024-01-01',
+          enddatum: '2024-12-31',
           nebenkostenart: ['Müll'],
           betrag: [150],
           berechnungsart: ['pro Flaeche'], // Default value
@@ -402,7 +444,8 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       const mockEntry = {
         id: 'test-id-123',
-        jahr: '2023',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
         haeuser_id: 'h1',
         nebenkostenart: ['Strom'],
         betrag: [100],
@@ -441,7 +484,8 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       const mockEntry = {
         id: 'test-id-456',
-        jahr: '2023',
+        startdatum: '2023-01-01',
+        enddatum: '2023-12-31',
         haeuser_id: 'h1',
         nebenkostenart: ['Strom', 'Wasser'],
         betrag: [100, 50],
@@ -467,10 +511,13 @@ describe('BetriebskostenEditModal', () => {
         expect(screen.getByDisplayValue('Wasser')).toBeInTheDocument();
       });
 
-      // Modify the year
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.clear(jahrInput);
-      await user.type(jahrInput, '2024');
+      // Modify the dates
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.clear(startdatumInput);
+      await user.type(startdatumInput, '01.01.2024');
+      await user.clear(enddatumInput);
+      await user.type(enddatumInput, '31.12.2024');
 
       // Modify the water costs
       const wasserkostenInput = screen.getByLabelText('Wasserkosten (€)');
@@ -491,7 +538,8 @@ describe('BetriebskostenEditModal', () => {
 
       await waitFor(() => {
         expect(mockUpdateNebenkosten).toHaveBeenCalledWith('test-id-456', {
-          jahr: '2024',
+          startdatum: '2024-01-01',
+          enddatum: '2024-12-31',
           nebenkostenart: ['Heizung', 'Wasser'],
           betrag: [150, 50],
           berechnungsart: ['pauschal', 'pro Flaeche'],
@@ -512,8 +560,10 @@ describe('BetriebskostenEditModal', () => {
       
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test');
@@ -543,8 +593,10 @@ describe('BetriebskostenEditModal', () => {
       
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test');
@@ -556,7 +608,7 @@ describe('BetriebskostenEditModal', () => {
       await user.click(submitButton);
 
       expect(screen.getByRole('button', { name: 'Speichern...' })).toBeDisabled();
-      expect(jahrInput).toBeDisabled();
+      expect(startdatumInput).toBeDisabled();
       
       resolveCreateNebenkosten!({ success: true });
     });
@@ -577,8 +629,10 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test');
@@ -598,8 +652,10 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test');
@@ -627,8 +683,8 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      await user.type(startdatumInput, '01.01.2024');
       
       expect(mockSetBetriebskostenModalDirty).toHaveBeenCalledWith(true);
     });
@@ -637,8 +693,10 @@ describe('BetriebskostenEditModal', () => {
       const user = userEvent.setup();
       render(<BetriebskostenEditModal />);
       
-      const jahrInput = screen.getByLabelText('Jahr *');
-      await user.type(jahrInput, '2024');
+      const startdatumInput = screen.getByLabelText('Startdatum *');
+      const enddatumInput = screen.getByLabelText('Enddatum *');
+      await user.type(startdatumInput, '01.01.2024');
+      await user.type(enddatumInput, '31.12.2024');
       
       const artInput = screen.getAllByPlaceholderText('Kostenart')[0];
       await user.type(artInput, 'Test');
