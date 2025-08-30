@@ -30,7 +30,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -651,6 +651,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                         disabled={isSaving}
                         title="Ein Jahr zurück"
                       >
+                        <ChevronDown className="w-4 h-4 mr-2" />
                         -1 Jahr
                       </Button>
                       <Button
@@ -668,6 +669,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                         disabled={isSaving}
                         title="Ein Jahr vor"
                       >
+                        <ChevronUp className="w-4 h-4 mr-2" />
                         +1 Jahr
                       </Button>
                     </div>
