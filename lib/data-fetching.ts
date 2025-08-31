@@ -288,10 +288,10 @@ export async function getHausGesamtFlaeche(
             // If date range is provided, filter tenants who lived there during that period
             anzahlMieter = mieter.filter(tenant => {
               const moveIn = tenant.einzug || '1900-01-01';
-              const moveOut = tenant.auszug || '2099-12-31'; // If no move-out date, assume still living there
+              const moveOut = tenant.auszug || '9999-12-31'; // If no move-out date, assume still living there (using far future date)
 
               // Check if the tenant's stay overlaps with the billing period
-              // If auszug is null, moveOut is set to '2099-12-31', so moveOut >= startdatum will always be true
+              // If auszug is null, moveOut is set to '9999-12-31', so moveOut >= startdatum will always be true
               return moveIn <= enddatum && moveOut >= startdatum;
             }).length;
           } else {
