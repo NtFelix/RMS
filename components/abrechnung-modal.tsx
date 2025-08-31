@@ -11,8 +11,11 @@ import { useEffect, useState, useMemo } from "react"; // Import useEffect, useSt
 import { useToast } from "@/hooks/use-toast";
 import { FileDown, Droplet, Landmark, CheckCircle2, AlertCircle } from 'lucide-react'; // Added FileDown and other icon imports
 import { Progress } from "@/components/ui/progress";
-import { formatNumber } from "@/utils/format"; // New import for number formatting
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { isoToGermanDate } from "@/utils/date-calculations"; // New import for number formatting
 import { computeWgFactorsByTenant, getApartmentOccupants } from "@/utils/wg-cost-calculations";
+import { formatNumber } from "@/utils/format"; // New import for number formatting
 // import jsPDF from 'jspdf'; // Removed for dynamic import
 // import autoTable from 'jspdf-autotable'; // Removed for dynamic import
 
@@ -468,7 +471,7 @@ export function AbrechnungModal({
       // 2. Settlement Period
       doc.setFontSize(10);
       doc.setFont("helvetica", "normal");
-      doc.text(`Zeitraum: ${nebenkostenItem.startdatum} - ${nebenkostenItem.enddatum}`, 20, startY);
+      doc.text(`Zeitraum: ${isoToGermanDate(nebenkostenItem.startdatum)} - ${isoToGermanDate(nebenkostenItem.enddatum)}`, 20, startY);
       startY += 6;
 
       // 3. Property Details
@@ -708,10 +711,10 @@ export function AbrechnungModal({
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Betriebskostenabrechnung {nebenkostenItem.startdatum} bis {nebenkostenItem.enddatum} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
+            Betriebskostenabrechnung {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Detaillierte Betriebskostenabrechnung für den Zeitraum {nebenkostenItem.startdatum} bis {nebenkostenItem.enddatum} mit Aufschlüsselung nach Mietern.
+            Detaillierte Betriebskostenabrechnung für den Zeitraum {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} mit Aufschlüsselung nach Mietern.
           </DialogDescription>
         </DialogHeader>
 
@@ -929,7 +932,7 @@ export function AbrechnungModal({
                         <h4 className="font-semibold mb-3">Abrechnungsdetails</h4>
                         <div className="space-y-2">
                           <div className="flex justify-between">
-                            <span>Gesamtkosten {nebenkostenItem?.startdatum} bis {nebenkostenItem?.enddatum}:</span>
+                            <span>Gesamtkosten {isoToGermanDate(nebenkostenItem?.startdatum)} bis {isoToGermanDate(nebenkostenItem?.enddatum)}:</span>
                             <span>{formatCurrency(tenantData.totalTenantCost)}</span>
                           </div>
                           <div className="flex justify-between">
