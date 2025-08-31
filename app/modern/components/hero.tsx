@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
+import { VideoPlayer } from "@/components/ui/video-player"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -68,14 +69,14 @@ export default function Hero({ onGetStarted }: HeroProps) {
         }}
       />
 
-      <div className="relative z-10 max-w-7xl mx-auto px-0 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-16">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12 items-center">
           {/* Left: Headline and CTA */}
-          <div className="text-left">
+          <div className="text-center w-full">
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
               className="mb-6"
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
@@ -95,7 +96,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               </span>
               <br />
               <span className="text-foreground/80">
-                — statt Stunden mit Excel
+                statt Stunden mit Excel
               </span>
             </motion.h1>
 
@@ -103,7 +104,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-xl leading-relaxed"
+              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed text-center"
             >
               Erstellen Sie mühelos korrekte und transparente Abrechnungen. Sparen Sie Zeit und vermeiden Sie Fehler mit unserer benutzerfreundlichen Lösung für Vermieter und Immobilienverwalter.
             </motion.p>
@@ -113,12 +114,15 @@ export default function Hero({ onGetStarted }: HeroProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
             >
-              <CallToAction variant="hero" onGetStarted={onGetStarted} />
+              <div className="flex flex-col items-center">
+                <CallToAction variant="hero" onGetStarted={onGetStarted} />
+              </div>
             </motion.div>
           </div>
 
           {/* Right: Product mockup */}
           <motion.div
+            className="w-full"
             initial={{ opacity: 0, y: 20, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.25 }}
@@ -134,25 +138,22 @@ export default function Hero({ onGetStarted }: HeroProps) {
                   <div className="ml-3 text-sm text-muted-foreground truncate">Demo: Abrechnung erstellen</div>
                 </div>
 
-                {/* Mock content */}
+                {/* Video content */}
                 <div className="p-4 sm:p-6">
-                  <div className="rounded-full bg-muted/70 flex items-center gap-2 px-3 py-2 text-muted-foreground text-sm">
-                    <div className="w-4 h-4 rounded-full bg-primary/60" />
-                    <span className="truncate">Dashboard-Beispiel der Nebenkostenabrechnung</span>
-                  </div>
-                  <p className="mt-3 text-sm text-muted-foreground">So sieht eine Abrechnungsvorschau aus. In der Demo siehst du jeden Schritt bis zum PDF.</p>
-
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    <div className="h-24 rounded-md bg-accent/40" />
-                    <div className="h-24 rounded-md bg-accent/40" />
-                    <div className="h-24 rounded-md bg-accent/40" />
-                  </div>
-
-                  <div className="mt-6 rounded-lg border border-border bg-background/60 p-4">
-                    <div className="h-40 rounded-md bg-muted/60" />
-                    <div className="mt-3 h-2 w-2/3 rounded bg-muted/60" />
-                    <div className="mt-2 h-2 w-1/2 rounded bg-muted/50" />
-                  </div>
+                  <VideoPlayer
+                    src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4"
+                    className="w-full aspect-video rounded-lg"
+                    autoplay={true}
+                    muted={true}
+                    loop={true}
+                    playsInline={true}
+                    showPosterFallback={true}
+                  />
+                  
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Sehen Sie, wie einfach es ist, eine komplette Nebenkostenabrechnung zu erstellen. 
+                    Von der Eingabe bis zum fertigen PDF in wenigen Minuten.
+                  </p>
                 </div>
               </div>
             </div>
