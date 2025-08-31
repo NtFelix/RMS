@@ -291,10 +291,8 @@ export async function getHausGesamtFlaeche(
               const moveOut = tenant.auszug || '2099-12-31'; // If no move-out date, assume still living there
 
               // Check if the tenant's stay overlaps with the billing period
-              return (
-                (moveIn <= enddatum) &&
-                (moveOut >= startdatum || !tenant.auszug)
-              );
+              // If auszug is null, moveOut is set to '2099-12-31', so moveOut >= startdatum will always be true
+              return moveIn <= enddatum && moveOut >= startdatum;
             }).length;
           } else {
             // If no date range is provided, just count all tenants
