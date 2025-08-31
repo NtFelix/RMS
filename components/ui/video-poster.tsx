@@ -1,6 +1,7 @@
 "use client"
 
 import { Play } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface VideoPosterProps {
   onClick?: () => void
@@ -10,7 +11,7 @@ interface VideoPosterProps {
 export function VideoPoster({ onClick, className }: VideoPosterProps) {
   return (
     <div 
-      className={`relative bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg overflow-hidden cursor-pointer group ${className}`}
+      className={cn("relative bg-gradient-to-br from-primary/10 to-secondary/10 rounded-lg overflow-hidden cursor-pointer group", className)}
       onClick={onClick}
     >
       {/* Mock dashboard content as poster */}
