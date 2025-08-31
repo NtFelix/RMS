@@ -34,16 +34,17 @@ Successfully updated the landing page mockup to include the Betriebskosten overv
 - **Mobile Optimization**: Different behavior for mobile vs desktop
 - **Streaming Playback**: Uses `preload="none"` for progressive loading
 
-### Mobile Experience
-- **No Autoplay on Cellular**: Prevents unexpected data usage
+### Desktop vs Mobile Experience
+- **Desktop Auto-Loading**: Video starts loading automatically after 1 second on desktop
+- **Mobile Data Conservation**: No auto-loading on mobile to save bandwidth
+- **No Autoplay on Cellular**: Prevents unexpected data usage on mobile
 - **Touch-Friendly Controls**: Large touch targets for mobile
 - **Poster Fallback**: Shows interactive poster if video can't load
-- **Streaming Performance**: Video loads progressively as needed
-- **Buffering States**: Clear feedback during streaming and buffering
+- **Adaptive Preloading**: Uses `metadata` preload on desktop, `none` on mobile
 
 ### User Experience
 - **Progressive Enhancement**: Works without JavaScript
-- **Streaming Loading**: Video loads progressively, not all at once
+- **Smart Loading Strategy**: Auto-loads on desktop, manual on mobile
 - **Buffering Feedback**: Shows buffering state during streaming
 - **Error Recovery**: Graceful fallback to poster image
 - **Accessibility**: Screen reader friendly with proper labels

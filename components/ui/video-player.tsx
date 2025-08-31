@@ -37,6 +37,7 @@ export function VideoPlayer({
   const [isLoading, setIsLoading] = useState(false)
   const [isBuffering, setIsBuffering] = useState(false)
   const [shouldAutoplay, setShouldAutoplay] = useState(false)
+  const [shouldAutoLoad, setShouldAutoLoad] = useState(false)
   const [hasError, setHasError] = useState(false)
 
   // Check if user is on cellular connection (if available)
@@ -59,15 +60,33 @@ export function VideoPlayer({
     return src
   }
 
+  // Get preload strategy based on device
+  const getPreloadStrategy = () => {
+    // On desktop, use metadata preload for faster initial loading
+    // On mobile, use none to save bandwidth
+    return !isMobile() && !isOnCellular() ? "metadata" : "none"
+  }
+
   // Check if device is mobile
   const isMobile = () => {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
 
   useEffect(() => {
-    // Only autoplay if not on mobile cellular connection
-    if (autoplay && !isMobile() && !isOnCellular()) {
+    const isDesktop = !isMobile() && !isOnCellular()
+    
+    // Only autoplay if on desktop with good connection
+    if (autoplay && isDesktop) {
       setShouldAutoplay(true)
+    }
+    
+    // Auto-load on desktop after a short delay to let page settle
+    if (isDesktop) {
+      const timer = setTimeout(() => {
+        setShouldAutoLoad(true)
+      }, 1000) // 1 second delay after component mount
+      
+      return () => clearTimeout(timer)
     }
   }, [autoplay])
 
@@ -136,6 +155,17 @@ export function VideoPlayer({
     }
   }, [shouldAutoplay])
 
+  // Auto-load video on desktop
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !shouldAutoLoad) return
+
+    // Start loading the video if not already loaded
+    if (video.readyState === 0) {
+      video.load()
+    }
+  }, [shouldAutoLoad])
+
   const togglePlay = () => {
     const video = videoRef.current
     if (!video) return
@@ -187,7 +217,7 @@ export function VideoPlayer({
         playsInline={playsInline}
         controls={controls}
         className="w-full h-full object-cover rounded-lg"
-        preload="none"
+        preload={getPreloadStrategy()}
       />
       
       {/* Loading overlay */}

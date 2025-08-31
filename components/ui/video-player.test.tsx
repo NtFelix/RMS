@@ -97,7 +97,26 @@ describe('VideoPlayer', () => {
     expect(video).toHaveAttribute('src', lowQualitySrc)
   })
 
-  it('uses streaming with preload none', () => {
+  it('uses metadata preload on desktop', () => {
+    // Mock desktop user agent
+    Object.defineProperty(navigator, 'userAgent', {
+      writable: true,
+      value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    })
+
+    render(<VideoPlayer src={mockSrc} />)
+    
+    const video = document.querySelector('video')!
+    expect(video).toHaveAttribute('preload', 'metadata')
+  })
+
+  it('uses none preload on mobile', () => {
+    // Mock mobile user agent
+    Object.defineProperty(navigator, 'userAgent', {
+      writable: true,
+      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)'
+    })
+
     render(<VideoPlayer src={mockSrc} />)
     
     const video = document.querySelector('video')!
@@ -113,5 +132,23 @@ describe('VideoPlayer', () => {
     await waitFor(() => {
       expect(screen.getByText('Buffering...')).toBeInTheDocument()
     })
+  })
+
+  it('auto-loads on desktop after delay', async () => {
+    // Mock desktop user agent
+    Object.defineProperty(navigator, 'userAgent', {
+      writable: true,
+      value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    })
+
+    const mockLoad = jest.fn()
+    HTMLVideoElement.prototype.load = mockLoad
+
+    render(<VideoPlayer src={mockSrc} />)
+    
+    // Wait for the auto-load timer (1 second + a bit more)
+    await new Promise(resolve => setTimeout(resolve, 1100))
+    
+    expect(mockLoad).toHaveBeenCalled()
   })
 })
