@@ -3,6 +3,7 @@
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
+import { VideoPlayer } from "@/components/ui/video-player"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -137,25 +138,27 @@ export default function Hero({ onGetStarted }: HeroProps) {
                   <div className="ml-3 text-sm text-muted-foreground truncate">Demo: Abrechnung erstellen</div>
                 </div>
 
-                {/* Mock content */}
+                {/* Video content */}
                 <div className="p-4 sm:p-6">
-                  <div className="rounded-full bg-muted/70 flex items-center gap-2 px-3 py-2 text-muted-foreground text-sm">
+                  <div className="rounded-full bg-muted/70 flex items-center gap-2 px-3 py-2 text-muted-foreground text-sm mb-4">
                     <div className="w-4 h-4 rounded-full bg-primary/60" />
-                    <span className="truncate">Dashboard-Beispiel der Nebenkostenabrechnung</span>
+                    <span className="truncate">Live Demo: Nebenkostenabrechnung erstellen</span>
                   </div>
-                  <p className="mt-3 text-sm text-muted-foreground">So sieht eine Abrechnungsvorschau aus. In der Demo siehst du jeden Schritt bis zum PDF.</p>
-
-                  <div className="mt-6 grid grid-cols-3 gap-3">
-                    <div className="h-24 rounded-md bg-accent/40" />
-                    <div className="h-24 rounded-md bg-accent/40" />
-                    <div className="h-24 rounded-md bg-accent/40" />
-                  </div>
-
-                  <div className="mt-6 rounded-lg border border-border bg-background/60 p-4">
-                    <div className="h-40 rounded-md bg-muted/60" />
-                    <div className="mt-3 h-2 w-2/3 rounded bg-muted/60" />
-                    <div className="mt-2 h-2 w-1/2 rounded bg-muted/50" />
-                  </div>
+                  
+                  <VideoPlayer
+                    src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4"
+                    className="w-full aspect-video rounded-lg"
+                    autoplay={true}
+                    muted={true}
+                    loop={true}
+                    playsInline={true}
+                    showPosterFallback={true}
+                  />
+                  
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Sehen Sie, wie einfach es ist, eine komplette Nebenkostenabrechnung zu erstellen. 
+                    Von der Eingabe bis zum fertigen PDF in wenigen Minuten.
+                  </p>
                 </div>
               </div>
             </div>
