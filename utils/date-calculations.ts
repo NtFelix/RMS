@@ -69,11 +69,12 @@ export function validateGermanDate(germanDate: string): { isValid: boolean; isoD
 }
 
 /**
- * Calculate the number of days between two dates (inclusive)
+ * Calculate the number of days between two dates (inclusive of both dates)
  */
 export function calculateDaysBetween(startDate: Date, endDate: Date): number {
-  const timeDiff = endDate.getTime() - startDate.getTime();
-  return Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1; // +1 to make it inclusive
+  const oneDay = 24 * 60 * 60 * 1000; // hours*minutes*seconds*milliseconds
+  // Add 1 to include both start and end dates
+  return Math.round(Math.abs((endDate.getTime() - startDate.getTime()) / oneDay)) + 1;
 }
 
 /**
@@ -98,10 +99,20 @@ export function calculateTenantOccupancy(
   const periodEnd = new Date(endIso);
   const totalPeriodDays = calculateDaysBetween(periodStart, periodEnd);
   
-  // Default tenant start to period start if no move-in date
-  const tenantStart = tenant.einzug ? new Date(tenant.einzug) : periodStart;
+  // If no move-in date, return 0 occupancy
+  if (!tenant.einzug) {
+    return { tenantId: tenant.id, occupancyDays: 0, occupancyRatio: 0 };
+  }
+  
+  // Parse German date strings (DD.MM.YYYY) to Date objects
+  const parseGermanDate = (dateStr: string) => {
+    const [day, month, year] = dateStr.split('.').map(Number);
+    return new Date(year, month - 1, day);
+  };
+  
+  const tenantStart = parseGermanDate(tenant.einzug);
   // Default tenant end to period end if no move-out date (still living there)
-  const tenantEnd = tenant.auszug ? new Date(tenant.auszug) : periodEnd;
+  const tenantEnd = tenant.auszug ? parseGermanDate(tenant.auszug) : periodEnd;
   
   // Calculate overlap between tenant occupancy and billing period
   const overlapStart = new Date(Math.max(periodStart.getTime(), tenantStart.getTime()));
