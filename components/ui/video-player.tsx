@@ -169,7 +169,7 @@ export function VideoPlayer({
       video.removeEventListener('ended', handleEnded)
       video.removeEventListener('error', handleError)
     }
-  }, [shouldAutoplay])
+  }, [shouldAutoplay, isPlaying])
 
   // Auto-load video on desktop
   useEffect(() => {
