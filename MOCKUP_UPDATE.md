@@ -44,6 +44,7 @@ Successfully updated the landing page mockup to include the Betriebskosten overv
 
 ### User Experience
 - **Progressive Enhancement**: Works without JavaScript
+- **SSR Compatible**: Properly handles server-side rendering
 - **Smart Loading Strategy**: Auto-loads on desktop, manual on mobile
 - **Buffering Feedback**: Shows buffering state during streaming
 - **Error Recovery**: Graceful fallback to poster image

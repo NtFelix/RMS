@@ -39,9 +39,13 @@ export function VideoPlayer({
   const [shouldAutoplay, setShouldAutoplay] = useState(false)
   const [shouldAutoLoad, setShouldAutoLoad] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const [isClient, setIsClient] = useState(false)
 
   // Check if user is on cellular connection (if available)
   const isOnCellular = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return false // Default to false during SSR
+    }
     if ('connection' in navigator) {
       const connection = (navigator as any).connection
       return connection?.effectiveType === 'slow-2g' || 
@@ -54,6 +58,7 @@ export function VideoPlayer({
 
   // Get appropriate video source based on connection
   const getVideoSrc = () => {
+    if (!isClient) return src // Default to main source during SSR
     if (srcLowQuality && (isOnCellular() || isMobile())) {
       return srcLowQuality
     }
@@ -62,6 +67,7 @@ export function VideoPlayer({
 
   // Get preload strategy based on device
   const getPreloadStrategy = () => {
+    if (!isClient) return "none" // Default to none during SSR
     // On desktop, use metadata preload for faster initial loading
     // On mobile, use none to save bandwidth
     return !isMobile() && !isOnCellular() ? "metadata" : "none"
@@ -69,10 +75,20 @@ export function VideoPlayer({
 
   // Check if device is mobile
   const isMobile = () => {
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return false // Default to false during SSR (will be treated as desktop)
+    }
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
 
+  // Set client state after hydration
   useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  useEffect(() => {
+    if (!isClient) return // Wait for client-side hydration
+    
     const isDesktop = !isMobile() && !isOnCellular()
     
     // Only autoplay if on desktop with good connection
@@ -88,7 +104,7 @@ export function VideoPlayer({
       
       return () => clearTimeout(timer)
     }
-  }, [autoplay])
+  }, [autoplay, isClient])
 
   useEffect(() => {
     const video = videoRef.current
