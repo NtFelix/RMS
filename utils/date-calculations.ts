@@ -104,15 +104,10 @@ export function calculateTenantOccupancy(
     return { tenantId: tenant.id, occupancyDays: 0, occupancyRatio: 0 };
   }
   
-  // Parse German date strings (DD.MM.YYYY) to Date objects
-  const parseGermanDate = (dateStr: string) => {
-    const [day, month, year] = dateStr.split('.').map(Number);
-    return new Date(year, month - 1, day);
-  };
-  
-  const tenantStart = parseGermanDate(tenant.einzug);
+  // Parse ISO date strings (YYYY-MM-DD) to Date objects
+  const tenantStart = new Date(tenant.einzug);
   // Default tenant end to period end if no move-out date (still living there)
-  const tenantEnd = tenant.auszug ? parseGermanDate(tenant.auszug) : periodEnd;
+  const tenantEnd = tenant.auszug ? new Date(tenant.auszug) : periodEnd;
   
   // Calculate overlap between tenant occupancy and billing period
   const overlapStart = new Date(Math.max(periodStart.getTime(), tenantStart.getTime()));
