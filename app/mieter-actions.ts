@@ -144,10 +144,9 @@ export async function getMieterByHausIdAction(
     // If date range is provided, filter tenants based on overlap with billing period
     if (startdatum && enddatum) {
       // Get tenants who have any overlap with the billing period
-      // Tenant overlaps if: tenant_start <= billing_end AND tenant_end >= billing_start
-      // Where tenant_end is auszug (or null if still living there)
+      // Tenant overlaps if: tenant_start <= billing_end AND (tenant_end >= billing_start OR tenant_end is null)
       query = query
-        .or(`and(einzug.lte.${enddatum},auszug.is.null),and(einzug.lte.${enddatum},auszug.gte.${startdatum})`);
+        .or(`and(einzug.lte.${enddatum},or(auszug.is.null,auszug.gte.${startdatum}))`);
     }
 
     const { data: mieterData, error: mieterError } = await query;
