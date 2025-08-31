@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isoToGermanDate } from "@/utils/date-calculations";
 import {
   Dialog,
   DialogContent,
@@ -356,7 +357,7 @@ export function WasserzaehlerModal() {
       >
         <DialogHeader>
           <DialogTitle>
-            Wasserzählerstände für {wasserzaehlerNebenkosten.Haeuser?.name || "Unbekanntes Haus"} - {wasserzaehlerNebenkosten.startdatum} bis {wasserzaehlerNebenkosten.enddatum}
+            Wasserzählerstände für {wasserzaehlerNebenkosten.Haeuser?.name || "Unbekanntes Haus"} - {isoToGermanDate(wasserzaehlerNebenkosten.startdatum)} bis {isoToGermanDate(wasserzaehlerNebenkosten.enddatum)}
           </DialogTitle>
           <DialogDescription>
             Geben Sie die Zählerstände für jeden Mieter ein. Der Verbrauch wird automatisch berechnet.
