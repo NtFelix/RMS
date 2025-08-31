@@ -3,6 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Added DialogDescription
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Nebenkosten } from "@/lib/data-fetching"
+import { isoToGermanDate } from "@/utils/date-calculations"
 import { SummaryCards } from "./summary-cards"
 
 export function OperatingCostsOverviewModal({
@@ -36,10 +37,10 @@ export function OperatingCostsOverviewModal({
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">
-            Übersicht der Betriebskosten für {nebenkosten.startdatum} bis {nebenkosten.enddatum}
+            Übersicht der Betriebskosten für {isoToGermanDate(nebenkosten.startdatum)} bis {isoToGermanDate(nebenkosten.enddatum)}
           </DialogTitle>
-          <DialogDescription className="sr-only"> {/* Added sr-only if it should be visually hidden but available to screen readers */}
-            Detailansicht der Betriebskostenabrechnung für das Haus {nebenkosten.Haeuser?.name || 'N/A'} vom {nebenkosten.startdatum} bis {nebenkosten.enddatum}.
+          <DialogDescription className="sr-only">
+            Detailansicht der Betriebskostenabrechnung für das Haus {nebenkosten.Haeuser?.name || 'N/A'} vom {isoToGermanDate(nebenkosten.startdatum)} bis {isoToGermanDate(nebenkosten.enddatum)}.
           </DialogDescription>
           {nebenkosten.Haeuser?.name && (
             <p className="text-sm text-muted-foreground">
