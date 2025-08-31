@@ -93,7 +93,7 @@ export function DashboardSidebar() {
                   sizes="24px"
                 />
               </div>
-              <span>Property Manager</span>
+              <span>Mietfluss</span>
             </Link>
           </div>
           <ScrollArea className="flex-1 pt-6 pb-4">
