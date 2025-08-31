@@ -84,16 +84,16 @@ export function DashboardSidebar() {
         <div className="h-full w-full flex flex-col bg-background border-r border-border">
           <div className="border-b px-6 py-4">
             <Link href="/" className="flex items-center gap-2 font-semibold">
-              <div className="relative w-6 h-6 rounded-full overflow-hidden">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden">
                 <Image
                   src={LOGO_URL}
                   alt="IV Logo"
                   fill
                   className="object-cover"
-                  sizes="24px"
+                  sizes="32px"
                 />
               </div>
-              <span>Mietfluss</span>
+              <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
           <ScrollArea className="flex-1 pt-6 pb-4">
