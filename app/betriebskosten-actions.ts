@@ -610,7 +610,7 @@ export async function getMieterForNebenkostenAction(
     // Filter tenants based on date range overlap with billing period
     const filteredMieter = mieter.filter(m => {
       const tenantEinzug = m.einzug || '1900-01-01'; // Default to very early date if no move-in
-      const tenantAuszug = m.auszug || '2099-12-31'; // Default to far future if still living there
+      const tenantAuszug = m.auszug || '9999-12-31'; // Default to far future if still living there
       
       // Check if tenant period overlaps with billing period
       // Overlap exists if: tenant_start <= billing_end AND tenant_end >= billing_start

@@ -91,7 +91,7 @@ export function computeWgFactorsByTenant(tenants: Mieter[], yearOrStartdatum: nu
 
 function isTenantActiveOnDate(tenant: Mieter, date: Date): boolean {
   const einzugDate = tenant.einzug ? new Date(tenant.einzug) : new Date('1900-01-01');
-  const auszugDate = tenant.auszug ? new Date(tenant.auszug) : new Date('2099-12-31');
+  const auszugDate = tenant.auszug ? new Date(tenant.auszug) : new Date('9999-12-31'); // Far future date for active tenants
   
   return date >= einzugDate && date <= auszugDate;
 }
