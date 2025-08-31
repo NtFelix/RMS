@@ -142,7 +142,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                 <div className="p-4 sm:p-6">
                   <div className="rounded-full bg-muted/70 flex items-center gap-2 px-3 py-2 text-muted-foreground text-sm mb-4">
                     <div className="w-4 h-4 rounded-full bg-primary/60" />
-                    <span className="truncate">Live Demo: Nebenkostenabrechnung erstellen</span>
+                    <span className="truncate">Nebenkostenabrechnung erstellen</span>
                   </div>
                   
                   <VideoPlayer
