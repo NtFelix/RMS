@@ -34,7 +34,8 @@ export function VideoPlayer({
   const [isPlaying, setIsPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(muted)
   const [showControls, setShowControls] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isBuffering, setIsBuffering] = useState(false)
   const [shouldAutoplay, setShouldAutoplay] = useState(false)
   const [hasError, setHasError] = useState(false)
 
@@ -74,10 +75,15 @@ export function VideoPlayer({
     const video = videoRef.current
     if (!video) return
 
-    const handleLoadedData = () => {
-      setIsLoading(false)
+    const handleLoadStart = () => {
+      setIsLoading(true)
       setHasError(false)
-      if (shouldAutoplay) {
+    }
+
+    const handleCanPlay = () => {
+      setIsLoading(false)
+      setIsBuffering(false)
+      if (shouldAutoplay && !isPlaying) {
         video.play().then(() => {
           setIsPlaying(true)
         }).catch(() => {
@@ -87,22 +93,42 @@ export function VideoPlayer({
       }
     }
 
-    const handlePlay = () => setIsPlaying(true)
+    const handleWaiting = () => {
+      setIsBuffering(true)
+    }
+
+    const handlePlaying = () => {
+      setIsBuffering(false)
+    }
+
+    const handlePlay = () => {
+      setIsPlaying(true)
+      setIsLoading(false)
+    }
+    
     const handlePause = () => setIsPlaying(false)
     const handleEnded = () => setIsPlaying(false)
+    
     const handleError = () => {
       setIsLoading(false)
+      setIsBuffering(false)
       setHasError(true)
     }
 
-    video.addEventListener('loadeddata', handleLoadedData)
+    video.addEventListener('loadstart', handleLoadStart)
+    video.addEventListener('canplay', handleCanPlay)
+    video.addEventListener('waiting', handleWaiting)
+    video.addEventListener('playing', handlePlaying)
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
     video.addEventListener('ended', handleEnded)
     video.addEventListener('error', handleError)
 
     return () => {
-      video.removeEventListener('loadeddata', handleLoadedData)
+      video.removeEventListener('loadstart', handleLoadStart)
+      video.removeEventListener('canplay', handleCanPlay)
+      video.removeEventListener('waiting', handleWaiting)
+      video.removeEventListener('playing', handlePlaying)
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
       video.removeEventListener('ended', handleEnded)
@@ -117,7 +143,14 @@ export function VideoPlayer({
     if (isPlaying) {
       video.pause()
     } else {
-      video.play()
+      // Start loading if not already loaded
+      if (video.readyState === 0) {
+        video.load()
+      }
+      video.play().catch(() => {
+        // Play failed, show controls
+        setShowControls(true)
+      })
     }
   }
 
@@ -154,18 +187,23 @@ export function VideoPlayer({
         playsInline={playsInline}
         controls={controls}
         className="w-full h-full object-cover rounded-lg"
-        preload="metadata"
+        preload="none"
       />
       
       {/* Loading overlay */}
-      {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-muted/80 rounded-lg" role="status" aria-label="Loading video">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      {(isLoading || isBuffering) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted/80 rounded-lg" role="status" aria-label={isLoading ? "Loading video" : "Buffering"}>
+          <div className="flex flex-col items-center gap-2">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="text-sm text-muted-foreground">
+              {isLoading ? "Loading..." : "Buffering..."}
+            </span>
+          </div>
         </div>
       )}
 
       {/* Custom controls overlay */}
-      {!controls && (showControls || !isPlaying) && !isLoading && (
+      {!controls && (showControls || !isPlaying) && !isLoading && !isBuffering && (
         <div className="absolute inset-0 bg-black/20 flex items-center justify-center rounded-lg transition-opacity duration-200">
           <div className="flex items-center gap-2 bg-black/60 rounded-full px-4 py-2 backdrop-blur-sm">
             <button
@@ -196,7 +234,7 @@ export function VideoPlayer({
       )}
 
       {/* Click to play overlay for mobile/cellular */}
-      {!shouldAutoplay && !isPlaying && !isLoading && (
+      {!shouldAutoplay && !isPlaying && !isLoading && !isBuffering && (
         <div 
           className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-lg cursor-pointer"
           onClick={togglePlay}

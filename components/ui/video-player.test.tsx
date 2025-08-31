@@ -36,19 +36,17 @@ describe('VideoPlayer', () => {
     expect(video).toHaveAttribute('playsinline')
   })
 
-  it('shows loading state initially', () => {
+  it('does not show loading state initially with streaming', () => {
     render(<VideoPlayer src={mockSrc} />)
     
-    expect(screen.getByRole('status')).toBeInTheDocument() // loading spinner
+    // With preload="none", no loading state should show initially
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('shows play button when not autoplaying', async () => {
     render(<VideoPlayer src={mockSrc} autoplay={false} />)
     
-    // Simulate video loaded
-    const video = document.querySelector('video')!
-    fireEvent.loadedData(video)
-    
+    // With streaming, play button should be visible immediately
     await waitFor(() => {
       expect(screen.getByLabelText('Play video')).toBeInTheDocument()
     })
@@ -97,5 +95,23 @@ describe('VideoPlayer', () => {
     
     const video = document.querySelector('video')!
     expect(video).toHaveAttribute('src', lowQualitySrc)
+  })
+
+  it('uses streaming with preload none', () => {
+    render(<VideoPlayer src={mockSrc} />)
+    
+    const video = document.querySelector('video')!
+    expect(video).toHaveAttribute('preload', 'none')
+  })
+
+  it('shows buffering state when video is waiting', async () => {
+    render(<VideoPlayer src={mockSrc} />)
+    
+    const video = document.querySelector('video')!
+    fireEvent.waiting(video)
+    
+    await waitFor(() => {
+      expect(screen.getByText('Buffering...')).toBeInTheDocument()
+    })
   })
 })
