@@ -55,6 +55,8 @@ export function VideoPlayer({
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
+  const isPlayingRef = useRef(isPlaying)
+  isPlayingRef.current = isPlaying
   const [isMuted, setIsMuted] = useState(muted)
   const [showControls, setShowControls] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -118,7 +120,7 @@ export function VideoPlayer({
     const handleCanPlay = () => {
       setIsLoading(false)
       setIsBuffering(false)
-      if (shouldAutoplay && !isPlaying) {
+      if (shouldAutoplay && !isPlayingRef.current) {
         video.play().then(() => {
           setIsPlaying(true)
         }).catch(() => {
@@ -169,7 +171,7 @@ export function VideoPlayer({
       video.removeEventListener('ended', handleEnded)
       video.removeEventListener('error', handleError)
     }
-  }, [shouldAutoplay, isPlaying])
+  }, [shouldAutoplay])
 
   // Auto-load video on desktop
   useEffect(() => {
