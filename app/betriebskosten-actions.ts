@@ -4,6 +4,22 @@ import { createClient } from "@/utils/supabase/server"; // Adjusted based on com
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
+/**
+ * Gets the most recent Wasserzaehler record for each mieter from a list of records
+ * @param records Array of Wasserzaehler records, expected to be sorted by ablese_datum descending
+ * @returns Object mapping mieter_id to their most recent Wasserzaehler record
+ */
+function getMostRecentByMieter(records: Wasserzaehler[]): Record<string, Wasserzaehler> {
+  const mostRecent: Record<string, Wasserzaehler> = {};
+  for (const record of records) {
+    // Since records are sorted descending, the first one for a mieter is the most recent
+    if (!mostRecent[record.mieter_id]) {
+      mostRecent[record.mieter_id] = record;
+    }
+  }
+  return mostRecent;
+}
+
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
   startdatum: string; // ISO date string (YYYY-MM-DD)
@@ -306,6 +322,93 @@ export async function getPreviousWasserzaehlerRecordAction(
   }
 }
 
+/**
+ * Batch fetch previous Wasserzaehler records for multiple tenants
+ * This is much more efficient than individual calls and prevents Cloudflare Worker timeouts
+ */
+export async function getBatchPreviousWasserzaehlerRecordsAction(
+  mieterIds: string[],
+  currentYear?: string
+): Promise<{ success: boolean; data?: Record<string, Wasserzaehler | null>; message?: string }> {
+  "use server";
+
+  if (!mieterIds || mieterIds.length === 0) {
+    return { success: false, message: "Keine Mieter-IDs angegeben." };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, message: "Benutzer nicht authentifiziert." };
+  }
+
+  try {
+    const result: Record<string, Wasserzaehler | null> = {};
+
+    // First, try to get readings from the previous year if currentYear is provided
+    if (currentYear) {
+      const currentYearNum = parseInt(currentYear, 10);
+      if (!isNaN(currentYearNum)) {
+        const previousYear = (currentYearNum - 1).toString();
+        
+        // Batch query for previous year readings
+        const { data: previousYearData, error: previousYearError } = await supabase
+          .from("Wasserzaehler")
+          .select("*, Nebenkosten!inner(jahr)")
+          .in("mieter_id", mieterIds)
+          .eq("user_id", user.id)
+          .eq("Nebenkosten.jahr", previousYear)
+          .order("ablese_datum", { ascending: false });
+
+        if (previousYearError) {
+          console.error(`Error fetching previous year's Wasserzaehler records:`, previousYearError);
+        } else if (previousYearData) {
+          // Get the most recent record for each mieter and add to result
+          const groupedByMieter = getMostRecentByMieter(previousYearData);
+          Object.assign(result, groupedByMieter);
+        }
+      }
+    }
+
+    // For mieter_ids that don't have previous year data, get their most recent reading
+    const mieterIdsWithoutPreviousYear = mieterIds.filter(id => !result[id]);
+    
+    if (mieterIdsWithoutPreviousYear.length > 0) {
+      // Get the most recent records before the current year in a single query
+      const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('Wasserzaehler')
+        .select('*')
+        .in('mieter_id', mieterIdsWithoutPreviousYear)
+        .eq('user_id', user.id)
+        .lt('ablese_datum', currentYearStart) // Only get readings before the current year
+        .order('ablese_datum', { ascending: false });
+
+      if (fallbackError) {
+        console.error('Error finding fallback Wasserzaehler records:', fallbackError);
+      } else if (fallbackData && fallbackData.length > 0) {
+        // Get the most recent record for each mieter and add to result
+        const groupedByMieter = getMostRecentByMieter(fallbackData);
+        Object.assign(result, groupedByMieter);
+      }
+    }
+
+    // Ensure all mieter_ids are represented in the result (with null if no data found)
+    mieterIds.forEach(mieterId => {
+      if (!(mieterId in result)) {
+        result[mieterId] = null;
+      }
+    });
+
+    return { success: true, data: result };
+
+  } catch (error: any) {
+    console.error('Unexpected error in getBatchPreviousWasserzaehlerRecordsAction:', error);
+    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
+  }
+}
+
 export async function getRechnungenForNebenkostenAction(nebenkostenId: string): Promise<{
   success: boolean;
   data?: Rechnung[];
@@ -399,37 +502,29 @@ export async function saveWasserzaehlerData(
   // }
 
   // Strategy: Delete existing entries for this nebenkosten_id, then insert new ones.
+  // Use a single transaction-like operation to minimize database calls
   const { error: deleteError } = await supabase
     .from("Wasserzaehler")
     .delete()
-    .eq("nebenkosten_id", nebenkosten_id) // Corrected column name
-    .eq("user_id", user.id); // Ensure user can only delete their own records
+    .eq("nebenkosten_id", nebenkosten_id)
+    .eq("user_id", user.id);
 
-  // --- Log Deletion Result ---
   if (deleteError) {
     console.error(`[saveWasserzaehlerData] Error deleting Wasserzaehler entries for ${nebenkosten_id}:`, deleteError);
     return { success: false, message: `Fehler beim Löschen vorhandener Einträge: ${deleteError.message}` };
-  } else {
-    console.log(`[saveWasserzaehlerData] Successfully deleted existing Wasserzaehler entries for ${nebenkosten_id}.`);
   }
 
   // If there are no new entries to save, we are done after deletion.
   // However, we still need to update Nebenkosten.wasserverbrauch to 0.
   if (!entries || entries.length === 0) {
-    // --- Log Update to 0 (if entries are empty) ---
-    console.log(`[saveWasserzaehlerData] Attempting to set wasserverbrauch to 0 for Nebenkosten ID: ${nebenkosten_id}`);
-    const { data: updateData, error: updateNkError } = await supabase
+    const { error: updateNkError } = await supabase
       .from("Nebenkosten")
       .update({ wasserverbrauch: 0 })
       .eq("id", nebenkosten_id)
-      .eq("user_id", user.id)
-      .select(); // Add .select() to see what was updated
+      .eq("user_id", user.id);
 
     if (updateNkError) {
-      console.error(`[saveWasserzaehlerData] Error updating Nebenkosten.wasserverbrauch to 0 for ${nebenkosten_id}:`, updateNkError);
-      // Non-fatal, but log it. The main operation (deleting entries) was successful.
-    } else {
-      console.log(`[saveWasserzaehlerData] Successfully updated Nebenkosten.wasserverbrauch to 0 for ${nebenkosten_id}. Update data:`, updateData);
+      console.error(`[saveWasserzaehlerData] Error updating Nebenkosten.wasserverbrauch to 0:`, updateNkError);
     }
 
     revalidatePath("/dashboard/betriebskosten");
@@ -476,7 +571,6 @@ export async function saveWasserzaehlerData(
     });
 
   if (recordsToInsert.length === 0) {
-    console.error('No valid records to insert after validation');
     return { success: false, message: 'Keine gültigen Datensätze zum Speichern gefunden' };
   }
 
@@ -485,58 +579,28 @@ export async function saveWasserzaehlerData(
     .insert(recordsToInsert)
     .select();
 
-  // --- Log Insertion Result ---
   if (insertError) {
-    console.error(`[saveWasserzaehlerData] Error inserting new Wasserzaehler data for ${nebenkosten_id}:`, insertError);
+    console.error(`[saveWasserzaehlerData] Error inserting Wasserzaehler data:`, insertError);
     return { success: false, message: `Fehler beim Speichern der Wasserzählerdaten: ${insertError.message}` };
-  } else {
-    console.log(`[saveWasserzaehlerData] Successfully inserted ${insertedData ? insertedData.length : 0} new Wasserzaehler entries for ${nebenkosten_id}.`);
   }
 
-  // After successful insert, calculate sum and update Nebenkosten
-  // 1. Query all Wasserzaehler records for this nebenkosten_id and user_id
-  const { data: zaehlerRecords, error: fetchError } = await supabase
-    .from("Wasserzaehler")
-    .select("verbrauch")
-    .eq("nebenkosten_id", nebenkosten_id)
-    .eq("user_id", user.id);
+  // Calculate total consumption directly from the inserted data to avoid additional query
+  const totalVerbrauch = insertedData.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
 
-  // --- Log Sum Calculation ---
-  if (fetchError) {
-    console.error(`[saveWasserzaehlerData] Error fetching Wasserzaehler records for sum (nebenkosten_id: ${nebenkosten_id}):`, fetchError);
-    // This is not ideal, as data was inserted but sum couldn't be updated.
-    // Return success as main operation (insert) was successful, but include a warning or partial success message.
-    return {
-      success: true,
-      data: insertedData,
-      message: `Wasserzählerdaten gespeichert, aber Gesamtverbrauch konnte nicht aktualisiert werden: ${fetchError.message}`
-    };
-  } else {
-    console.log(`[saveWasserzaehlerData] Fetched ${zaehlerRecords ? zaehlerRecords.length : 0} records for sum. Calculated totalVerbrauch: ${zaehlerRecords.reduce((sum, record) => sum + (record.verbrauch || 0), 0)} for Nebenkosten ID: ${nebenkosten_id}`);
-  }
-
-  // 2. Calculate the sum of verbrauch
-  const totalVerbrauch = zaehlerRecords.reduce((sum, record) => sum + (record.verbrauch || 0), 0);
-
-  // 3. Update the Nebenkosten table
-  // --- Log Final Nebenkosten Update ---
-  console.log(`[saveWasserzaehlerData] Attempting to update Nebenkosten ID: ${nebenkosten_id} with totalVerbrauch: ${totalVerbrauch}`);
-  const { data: finalUpdateData, error: updateNkError } = await supabase
+  // Update the Nebenkosten table with the calculated total
+  const { error: updateNkError } = await supabase
     .from("Nebenkosten")
     .update({ wasserverbrauch: totalVerbrauch })
     .eq("id", nebenkosten_id)
-    .eq("user_id", user.id) // Ensure user context for security
-    .select(); // Add .select()
+    .eq("user_id", user.id);
 
   if (updateNkError) {
-    console.error(`[saveWasserzaehlerData] Error updating Nebenkosten.wasserverbrauch with totalVerbrauch for ${nebenkosten_id}:`, updateNkError);
+    console.error(`[saveWasserzaehlerData] Error updating Nebenkosten.wasserverbrauch:`, updateNkError);
     return {
       success: true,
       data: insertedData,
-      message: `Wasserzählerdaten gespeichert und Gesamtverbrauch berechnet (${totalVerbrauch}), aber Update der Nebenkosten ist fehlgeschlagen: ${updateNkError.message}`
+      message: `Wasserzählerdaten gespeichert, aber Gesamtverbrauch konnte nicht aktualisiert werden: ${updateNkError.message}`
     };
-  } else {
-    console.log(`[saveWasserzaehlerData] Successfully updated Nebenkosten.wasserverbrauch with totalVerbrauch (${totalVerbrauch}) for ${nebenkosten_id}. Update data:`, finalUpdateData);
   }
 
   revalidatePath("/dashboard/betriebskosten");

@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
-import { getPreviousWasserzaehlerRecordAction } from "@/app/betriebskosten-actions";
+import { getBatchPreviousWasserzaehlerRecordsAction } from "@/app/betriebskosten-actions";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 
@@ -77,6 +77,17 @@ export function WasserzaehlerModal() {
             error: Error;
           };
 
+          // Get the current date range from the nebenkosten data
+          const currentStartdatum = wasserzaehlerNebenkosten?.startdatum;
+          const currentYear = currentStartdatum ? new Date(currentStartdatum).getFullYear() : new Date().getFullYear();
+          
+          // Batch fetch all previous readings at once to avoid performance issues
+          const mieterIds = wasserzaehlerMieterList.map(mieter => mieter.id);
+          const batchPreviousReadingsResponse = await getBatchPreviousWasserzaehlerRecordsAction(mieterIds, currentYear.toString());
+          const previousReadingsMap = batchPreviousReadingsResponse.success 
+            ? (batchPreviousReadingsResponse.data || {}) 
+            : {};
+
           // Process each mieter's data with individual error handling
           const results = await Promise.allSettled(
             wasserzaehlerMieterList.map(async (mieter) => {
@@ -85,18 +96,8 @@ export function WasserzaehlerModal() {
                   reading => reading.mieter_id === mieter.id
                 );
 
-                // Get the current date range from the nebenkosten data
-                const currentStartdatum = wasserzaehlerNebenkosten?.startdatum;
-                const currentEnddatum = wasserzaehlerNebenkosten?.enddatum;
-                
-                // Extract year from the start date for getting previous year's reading
-                const currentYear = currentStartdatum ? new Date(currentStartdatum).getFullYear() : new Date().getFullYear();
-                
-                // Pass the current year to get the previous year's reading
-                const previousReadingResponse = await getPreviousWasserzaehlerRecordAction(mieter.id, currentYear.toString());
-                const previous_reading = previousReadingResponse.success 
-                  ? (previousReadingResponse.data || null) 
-                  : null;
+                // Get previous reading from the batch result
+                const previous_reading = previousReadingsMap[mieter.id] || null;
 
                 return {
                   mieter_id: mieter.id,
@@ -405,10 +406,10 @@ export function WasserzaehlerModal() {
 
                 {entry.previous_reading ? (
                   <p className="text-sm text-muted-foreground">
-                    Vorherige Ablesung: {entry.previous_reading.ablese_datum ? new Date(entry.previous_reading.ablese_datum).toLocaleDateString() : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand}
+                    Vorjahres-Abrechnung: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand} m³
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Keine vorherige Ablesung gefunden.</p>
+                  <p className="text-sm text-muted-foreground">Keine Vorjahres-Abrechnung vorhanden.</p>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
