@@ -1,114 +1,225 @@
-name: Build & Performance Check
+name: Lighthouse CI
 
 on:
   push:
     branches: ["main", "v2.0"]
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.mdx'
 
+# Set a timeout for the entire job (in minutes)
 jobs:
-  build-and-lighthouse:
+  lighthouse:
+    name: Lighthouse Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      # 1) Code auschecken
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2) Cache Node Modules  
-      - name: Cache Node Modules
+      # Cache Node.js dependencies and build outputs
+      - name: Cache Node.js modules
+        id: cache-node-modules
         uses: actions/cache@v4
         with:
           path: |
             ~/.npm
+            ~/.cache
             node_modules
+            .next/cache
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-node-
 
-      # 3) Node.js installieren
+      # Setup Node.js with caching
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
 
-      # 4) Abhängigkeiten installieren
-      - name: Install Dependencies
+      # Install dependencies and tools
+      - name: Install dependencies
         run: |
+          # Install project dependencies
           if [ -f yarn.lock ]; then
-            yarn install --frozen-lockfile
+            yarn install --frozen-lockfile --prefer-offline
           else
-            npm ci
+            npm ci --prefer-offline
           fi
+          
+          # Install Lighthouse CI and wait-on as dev dependencies
+          npm install --save-dev @lhci/cli wait-on
 
-      # 5) Performance Tools installieren
-      - name: Install Performance Tools
-        run: npm install -g @lhci/cli wait-on
-
-      # 6) Next.js Build
-      - name: Build Next.js
+      # Build the application
+      - name: Build application
         run: npm run build
 
-      # 7) Start, Audit & Cleanup
-      - name: Start, Audit & Cleanup
+      # Run Lighthouse audits
+      - name: Run Lighthouse audits
+        id: lighthouse
+        timeout-minutes: 8
         run: |
-          set -e  # Fehlerbehandlung
+          # Create output directories
+          mkdir -p .lighthouseci/mobile .lighthouseci/desktop
           
-          # App im Hintergrund starten
-          npm run start &
-          APP_PID=$!
+          # Function to run Lighthouse and handle errors
+          run_lighthouse() {
+            local form_factor=$1
+            local output_dir=".lighthouseci/$form_factor"
+            local max_attempts=3
+            local attempt=1
+            local success=false
+            
+            while [ $attempt -le $max_attempts ] && [ "$success" = false ]; do
+              echo "Running Lighthouse $form_factor audit (attempt $attempt/$max_attempts)..."
+              
+              # Start Next.js server in background
+              npm run start & 
+              APP_PID=$!
+              
+              # Function to cleanup
+              cleanup() {
+                if kill -0 $APP_PID 2>/dev/null; then
+                  echo "Stopping Next.js server..."
+                  kill $APP_PID 2>/dev/null || true
+                  wait $APP_PID 2>/dev/null || true
+                fi
+              }
+              
+              # Ensure cleanup happens on script exit or error
+              trap cleanup EXIT
+              
+              # Wait for server to be ready
+              if npx wait-on --timeout 60000 http://localhost:3000; then
+                # Run Lighthouse
+                if npx lhci collect \
+                  --url=http://localhost:3000 \
+                  --settings.emulatedFormFactor=$form_factor \
+                  --settings.maxWaitForLoad=90000 \
+                  --no-upload; then
+                  
+                  # Move reports to appropriate directory
+                  if ls .lighthouseci/lhr-*.json 1> /dev/null 2>&1; then
+                    mv .lighthouseci/lhr-*.json "$output_dir/"
+                    success=true
+                    echo "Lighthouse $form_factor audit completed successfully"
+                  else
+                    echo "Warning: No Lighthouse reports were generated"
+                  fi
+                else
+                  echo "Lighthouse $form_factor audit failed (attempt $attempt/$max_attempts)"
+                fi
+              else
+                echo "Error: Application failed to start within timeout"
+              fi
+              
+              # Cleanup and increment attempt counter
+              cleanup
+              attempt=$((attempt + 1))
+              
+              # Small delay between retries
+              if [ $attempt -le $max_attempts ] && [ "$success" = false ]; then
+                echo "Retrying in 5 seconds..."
+                sleep 5
+              fi
+            done
+            
+            if [ "$success" = false ]; then
+              echo "Error: Failed to complete Lighthouse $form_factor audit after $max_attempts attempts"
+              return 1
+            fi
+          }
           
-          # Warten bis App verfügbar ist (mit Timeout)
-          npx wait-on http://localhost:3000 --timeout 60000
+          # Run audits for both mobile and desktop
+          run_lighthouse mobile
+          run_lighthouse desktop
           
-          # Verzeichnisse anlegen
-          mkdir -p ./.lighthouseci/mobile
-          mkdir -p ./.lighthouseci/desktop
-          
-          # Mobile Audit
-          npx lhci collect \
-            --url=http://localhost:3000 \
-            --settings.emulatedFormFactor=mobile \
-            --no-upload
-          
-          # Sichere Datei-Bewegung für Mobile
-          if ls ./.lighthouseci/lhr-*.json 1> /dev/null 2>&1; then
-            mv ./.lighthouseci/lhr-*.json ./.lighthouseci/mobile/
-          else
-            echo "Warning: No mobile lighthouse reports found"
+          # Verify reports were generated
+          if [ -z "$(find .lighthouseci -name '*.json' -print -quit)" ]; then
+            echo "Error: No Lighthouse reports were generated"
+            exit 1
           fi
-          
-          # Desktop Audit
-          npx lhci collect \
-            --url=http://localhost:3000 \
-            --settings.emulatedFormFactor=desktop \
-            --no-upload
-          
-          # Sichere Datei-Bewegung für Desktop
-          if ls ./.lighthouseci/lhr-*.json 1> /dev/null 2>&1; then
-            mv ./.lighthouseci/lhr-*.json ./.lighthouseci/desktop/
-          else
-            echo "Warning: No desktop lighthouse reports found"
-          fi
-          
-          # Server beenden
-          kill $APP_PID || echo "App process already terminated"
 
-      # 8) Debug: Verzeichnisse auflisten
-      - name: List Lighthouse reports
-        run: |
-          echo "=== Lighthouse directory structure ==="
-          ls -la ./.lighthouseci/ || echo "No .lighthouseci directory found"
-          echo "=== Mobile reports ==="
-          ls -la ./.lighthouseci/mobile/ || echo "No mobile reports found"
-          echo "=== Desktop reports ==="
-          ls -la ./.lighthouseci/desktop/ || echo "No desktop reports found"
-
-      # 9) Upload Lighthouse reports (mit Kondition)
+      # Upload results as artifacts
       - name: Upload Lighthouse reports
+        if: always()
         uses: actions/upload-artifact@v4
-        if: always()  # Auch bei Warnings ausführen
         with:
           name: lighthouse-reports
           path: |
-            ./.lighthouseci/mobile
-            ./.lighthouseci/desktop
-          if-no-files-found: warn  # Nur warnen, nicht fehlschlagen
+            .lighthouseci/mobile
+            .lighthouseci/desktop
+          retention-days: 7
+          if-no-files-found: warn
+
+      # Optional: Add a comment to the PR with the results
+      - name: Add PR comment with results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs').promises;
+            const { context } = require('@actions/github');
+            const core = require('@actions/core');
+            
+            try {
+              // Read and process Lighthouse reports
+              const processReport = async (reportPath) => {
+                try {
+                  const files = await fs.readdir(reportPath);
+                  const jsonFiles = files.filter(file => file.endsWith('.json'));
+                  
+                  if (jsonFiles.length === 0) return null;
+                  
+                  const report = JSON.parse(await fs.readFile(`${reportPath}/${jsonFiles[0]}`, 'utf8'));
+                  const { categories } = report;
+                  
+                  return Object.entries(categories).map(([key, value]) => ({
+                    name: value.title,
+                    score: Math.round(value.score * 100)
+                  }));
+                } catch (error) {
+                  core.warning(`Failed to process report at ${reportPath}: ${error.message}`);
+                  return null;
+                }
+              };
+              
+              const mobileScores = await processReport('.lighthouseci/mobile');
+              const desktopScores = await processReport('.lighthouseci/desktop');
+              
+              if (!mobileScores && !desktopScores) {
+                core.warning('No valid Lighthouse reports found');
+                return;
+              }
+              
+              const formatScores = (scores) => {
+                if (!scores) return '❌ No data';
+                return scores.map(s => `${s.name}: ${s.score}%`).join(' | ');
+              };
+              
+              const comment = `## ⚡ Lighthouse Audit Results
+              
+### Mobile
+${formatScores(mobileScores)}
+
+### Desktop
+${formatScores(desktopScores)}
+
+[View full report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (error) {
+              core.warning(`Failed to create PR comment: ${error.message}`);
+            }
