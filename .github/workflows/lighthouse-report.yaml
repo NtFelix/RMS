@@ -204,15 +204,18 @@ jobs:
                 return scores.map(s => `${s.name}: ${s.score}%`).join(' | ');
               };
               
-              const comment = `## ⚡ Lighthouse Audit Results
-              
-### Mobile
-${formatScores(mobileScores)}
+              // Build the comment using string concatenation to avoid YAML parsing issues
+              const comment = '## ⚡ Lighthouse Audit Results\n\n### Mobile\n' + 
+                formatScores(mobileScores) + 
+                '\n\n### Desktop\n' + 
+                formatScores(desktopScores) + 
+                '\n\n[View full report](' + 
+                process.env.GITHUB_SERVER_URL + '/' + 
+                process.env.GITHUB_REPOSITORY + 
+                '/actions/runs/' + 
+                process.env.GITHUB_RUN_ID + 
+                ')';
 
-### Desktop
-${formatScores(desktopScores)}
-
-[View full report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
               
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
