@@ -4,6 +4,22 @@ import { createClient } from "@/utils/supabase/server"; // Adjusted based on com
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
+/**
+ * Gets the most recent Wasserzaehler record for each mieter from a list of records
+ * @param records Array of Wasserzaehler records, expected to be sorted by ablese_datum descending
+ * @returns Object mapping mieter_id to their most recent Wasserzaehler record
+ */
+function getMostRecentByMieter(records: Wasserzaehler[]): Record<string, Wasserzaehler> {
+  const mostRecent: Record<string, Wasserzaehler> = {};
+  for (const record of records) {
+    // Since records are sorted descending, the first one for a mieter is the most recent
+    if (!mostRecent[record.mieter_id]) {
+      mostRecent[record.mieter_id] = record;
+    }
+  }
+  return mostRecent;
+}
+
 // Define an input type for Nebenkosten data
 export type NebenkostenFormData = {
   startdatum: string; // ISO date string (YYYY-MM-DD)
@@ -348,18 +364,9 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
         if (previousYearError) {
           console.error(`Error fetching previous year's Wasserzaehler records:`, previousYearError);
         } else if (previousYearData) {
-          // Group by mieter_id and get the most recent reading for each
-          const groupedByMieter = previousYearData.reduce((acc, record) => {
-            if (!acc[record.mieter_id] || new Date(record.ablese_datum) > new Date(acc[record.mieter_id].ablese_datum)) {
-              acc[record.mieter_id] = record;
-            }
-            return acc;
-          }, {} as Record<string, Wasserzaehler>);
-
-          // Add found records to result
-          Object.keys(groupedByMieter).forEach(mieterId => {
-            result[mieterId] = groupedByMieter[mieterId];
-          });
+          // Get the most recent record for each mieter and add to result
+          const groupedByMieter = getMostRecentByMieter(previousYearData);
+          Object.assign(result, groupedByMieter);
         }
       }
     }
@@ -397,19 +404,10 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
 
       if (fallbackError) {
         console.error(`Error fetching fallback Wasserzaehler records:`, fallbackError);
-      } else if (fallbackData) {
-        // Group by mieter_id and get the most recent reading for each
-        const groupedByMieter = fallbackData.reduce((acc, record) => {
-          if (!acc[record.mieter_id] || new Date(record.ablese_datum) > new Date(acc[record.mieter_id].ablese_datum)) {
-            acc[record.mieter_id] = record;
-          }
-          return acc;
-        }, {} as Record<string, Wasserzaehler>);
-
-        // Add found records to result
-        Object.keys(groupedByMieter).forEach(mieterId => {
-          result[mieterId] = groupedByMieter[mieterId];
-        });
+      } else if (fallbackData && fallbackData.length > 0) {
+        // Get the most recent record for each mieter and add to result
+        const groupedByMieter = getMostRecentByMieter(fallbackData);
+        Object.assign(result, groupedByMieter);
       }
     }
 
