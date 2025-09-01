@@ -406,10 +406,10 @@ export function WasserzaehlerModal() {
 
                 {entry.previous_reading ? (
                   <p className="text-sm text-muted-foreground">
-                    Vorherige Ablesung: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand}
+                    Vorjahres-Abrechnung: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand} m³
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Keine vorherige Ablesung gefunden.</p>
+                  <p className="text-sm text-muted-foreground">Keine Vorjahres-Abrechnung vorhanden.</p>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
