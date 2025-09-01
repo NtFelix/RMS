@@ -375,12 +375,14 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
     const mieterIdsWithoutPreviousYear = mieterIds.filter(id => !result[id]);
     
     if (mieterIdsWithoutPreviousYear.length > 0) {
-      // First, get the most recent record ID for each mieter
+      // First, get the most recent record ID for each mieter from previous years only
+      const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
       const { data: latestRecordIds, error: latestRecordError } = await supabase
         .from('Wasserzaehler')
-        .select('id, mieter_id')
+        .select('id, mieter_id, ablese_datum')
         .in('mieter_id', mieterIdsWithoutPreviousYear)
         .eq('user_id', user.id)
+        .lt('ablese_datum', currentYearStart) // Only get readings before the current year
         .order('ablese_datum', { ascending: false });
 
       if (latestRecordError) {
