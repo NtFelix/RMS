@@ -406,7 +406,7 @@ export function WasserzaehlerModal() {
 
                 {entry.previous_reading ? (
                   <p className="text-sm text-muted-foreground">
-                    Vorherige Ablesung: {entry.previous_reading.ablese_datum ? new Date(entry.previous_reading.ablese_datum).toLocaleDateString() : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand}
+                    Vorherige Ablesung: {entry.previous_reading.ablese_datum ? isoToGermanDate(entry.previous_reading.ablese_datum) : 'Datum unbekannt'} - Stand: {entry.previous_reading.zaehlerstand}
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">Keine vorherige Ablesung gefunden.</p>
