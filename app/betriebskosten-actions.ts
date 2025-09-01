@@ -375,37 +375,18 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
     const mieterIdsWithoutPreviousYear = mieterIds.filter(id => !result[id]);
     
     if (mieterIdsWithoutPreviousYear.length > 0) {
-      // First, get the most recent record ID for each mieter from previous years only
+      // Get the most recent records before the current year in a single query
       const currentYearStart = currentYear ? `${currentYear}-01-01` : new Date().toISOString().split('T')[0];
-      const { data: latestRecordIds, error: latestRecordError } = await supabase
+      const { data: fallbackData, error: fallbackError } = await supabase
         .from('Wasserzaehler')
-        .select('id, mieter_id, ablese_datum')
+        .select('*')
         .in('mieter_id', mieterIdsWithoutPreviousYear)
         .eq('user_id', user.id)
         .lt('ablese_datum', currentYearStart) // Only get readings before the current year
         .order('ablese_datum', { ascending: false });
 
-      if (latestRecordError) {
-        console.error('Error finding latest record IDs:', latestRecordError);
-        return { success: false, message: 'Error finding latest records' };
-      }
-
-      // Group by mieter_id to get the most recent record for each mieter
-      const latestRecordsMap = new Map();
-      latestRecordIds?.forEach(record => {
-        if (!latestRecordsMap.has(record.mieter_id)) {
-          latestRecordsMap.set(record.mieter_id, record.id);
-        }
-      });
-
-      // Fetch the full records for the latest IDs
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('Wasserzaehler')
-        .select('*')
-        .in('id', Array.from(latestRecordsMap.values()));
-
       if (fallbackError) {
-        console.error(`Error fetching fallback Wasserzaehler records:`, fallbackError);
+        console.error('Error finding fallback Wasserzaehler records:', fallbackError);
       } else if (fallbackData && fallbackData.length > 0) {
         // Get the most recent record for each mieter and add to result
         const groupedByMieter = getMostRecentByMieter(fallbackData);
