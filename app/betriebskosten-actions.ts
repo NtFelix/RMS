@@ -368,12 +368,32 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
     const mieterIdsWithoutPreviousYear = mieterIds.filter(id => !result[id]);
     
     if (mieterIdsWithoutPreviousYear.length > 0) {
+      // First, get the most recent record ID for each mieter
+      const { data: latestRecordIds, error: latestRecordError } = await supabase
+        .from('Wasserzaehler')
+        .select('id, mieter_id')
+        .in('mieter_id', mieterIdsWithoutPreviousYear)
+        .eq('user_id', user.id)
+        .order('ablese_datum', { ascending: false });
+
+      if (latestRecordError) {
+        console.error('Error finding latest record IDs:', latestRecordError);
+        return { success: false, message: 'Error finding latest records' };
+      }
+
+      // Group by mieter_id to get the most recent record for each mieter
+      const latestRecordsMap = new Map();
+      latestRecordIds?.forEach(record => {
+        if (!latestRecordsMap.has(record.mieter_id)) {
+          latestRecordsMap.set(record.mieter_id, record.id);
+        }
+      });
+
+      // Fetch the full records for the latest IDs
       const { data: fallbackData, error: fallbackError } = await supabase
-        .from("Wasserzaehler")
-        .select("*")
-        .in("mieter_id", mieterIdsWithoutPreviousYear)
-        .eq("user_id", user.id)
-        .order("ablese_datum", { ascending: false });
+        .from('Wasserzaehler')
+        .select('*')
+        .in('id', Array.from(latestRecordsMap.values()));
 
       if (fallbackError) {
         console.error(`Error fetching fallback Wasserzaehler records:`, fallbackError);
