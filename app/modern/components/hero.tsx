@@ -4,6 +4,7 @@ import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
 import { VideoPlayer } from "@/components/ui/video-player"
+import { HERO_VIDEO_URL } from "@/lib/constants"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -141,7 +142,7 @@ export default function Hero({ onGetStarted }: HeroProps) {
                 {/* Video content */}
                 <div className="p-4 sm:p-6">
                   <VideoPlayer
-                    src="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4"
+                    src={HERO_VIDEO_URL}
                     className="w-full aspect-video rounded-lg"
                     autoplay={true}
                     muted={true}
