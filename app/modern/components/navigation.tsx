@@ -124,7 +124,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
               />
             </div>
             <span className="text-base font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-              Immobilien<span className="text-primary">Verwalter</span>
+              <span className="text-primary">Miet</span>fluss
             </span>
           </Link>
         </div>
@@ -141,7 +141,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                 />
               </div>
               <span className="text-lg sm:text-xl font-bold text-foreground group-hover:text-foreground/80 transition-colors">
-                Immobilien<span className="text-primary">Verwalter</span>
+                <span className="text-primary">Miet</span>fluss
               </span>
             </Link>
           </PillContainer>

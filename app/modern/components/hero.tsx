@@ -3,6 +3,8 @@
 import { motion } from "framer-motion"
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
+import { VideoPlayer } from "@/components/ui/video-player"
+import { HERO_VIDEO_URL } from "@/lib/constants"
 
 interface HeroProps {
   onGetStarted: () => void;
@@ -68,48 +70,96 @@ export default function Hero({ onGetStarted }: HeroProps) {
         }}
       />
 
-      <div className="relative z-10 text-center max-w-6xl mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="mb-6"
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Mühelose Immobilienverwaltung</span>
+      <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-16">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12 items-center">
+          {/* Left: Headline and CTA */}
+          <div className="text-center w-full">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="mb-6"
+            >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 border border-border backdrop-blur-sm">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span className="text-sm text-muted-foreground">Vereinfachen Sie Ihre Abrechnung</span>
+              </div>
+            </motion.div>
+
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight tracking-tight"
+            >
+              <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
+                Abrechnung in 5 Minuten
+              </span>
+              <br />
+              <span className="text-foreground/80">
+                statt Stunden mit Excel
+              </span>
+            </motion.h1>
+
+            <motion.p
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed text-center"
+            >
+              Erstellen Sie mühelos korrekte und transparente Abrechnungen. Sparen Sie Zeit und vermeiden Sie Fehler mit unserer benutzerfreundlichen Lösung für Vermieter und Immobilienverwalter.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.6 }}
+            >
+              <div className="flex flex-col items-center">
+                <CallToAction variant="hero" onGetStarted={onGetStarted} />
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-          className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold mb-6 bg-gradient-to-r from-foreground via-foreground/80 to-muted-foreground bg-clip-text text-transparent leading-tight"
-        >
-          Optimieren Sie Ihre
-          <br />
-          <span className="bg-gradient-to-r from-primary via-primary/80 to-secondary bg-clip-text text-transparent">
-            Immobilien
-          </span>
-        </motion.h1>
+          {/* Right: Product mockup */}
+          <motion.div
+            className="w-full"
+            initial={{ opacity: 0, y: 20, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.8, delay: 0.25 }}
+          >
+            <div className="relative">
+              <div className="absolute -inset-6 bg-gradient-to-r from-primary/20 to-secondary/20 blur-2xl rounded-3xl" aria-hidden />
+              <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+                {/* Window top bar */}
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+                  <span className="w-3 h-3 rounded-full bg-red-400" />
+                  <span className="w-3 h-3 rounded-full bg-yellow-400" />
+                  <span className="w-3 h-3 rounded-full bg-green-400" />
+                  <div className="ml-3 text-sm text-muted-foreground truncate">Demo: Abrechnung erstellen</div>
+                </div>
 
-        <motion.p
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto leading-relaxed"
-        >
-          Verwalten Sie Ihre Immobilien mit unserem umfassenden Immobilienverwaltungssystem. Verfolgen Sie Finanzen, verwalten Sie Mieter und organisieren Sie Aufgaben – alles an einem Ort.
-        </motion.p>
-
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-        >
-          <CallToAction variant="hero" onGetStarted={onGetStarted} />
-        </motion.div>
+                {/* Video content */}
+                <div className="p-4 sm:p-6">
+                  <VideoPlayer
+                    src={HERO_VIDEO_URL}
+                    className="w-full aspect-video rounded-lg"
+                    autoplay={true}
+                    muted={true}
+                    loop={true}
+                    playsInline={true}
+                    showPosterFallback={true}
+                  />
+                  
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    Sehen Sie, wie einfach es ist, eine komplette Nebenkostenabrechnung zu erstellen. 
+                    Von der Eingabe bis zum fertigen PDF in wenigen Minuten.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Bottom Gradient - Adjusted for theme */}
@@ -117,3 +167,4 @@ export default function Hero({ onGetStarted }: HeroProps) {
     </section>
   )
 }
+

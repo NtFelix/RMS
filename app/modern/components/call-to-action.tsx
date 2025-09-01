@@ -26,7 +26,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
   
 
   return (
-    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center w-full">
       <Button
         size="lg"
         onClick={onGetStarted}
