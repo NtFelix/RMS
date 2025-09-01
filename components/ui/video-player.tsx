@@ -5,6 +5,29 @@ import { Play, Pause, Volume2, VolumeX } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { VideoPoster } from "./video-poster"
 
+// Check if user is on cellular connection (if available)
+const isOnCellular = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false // Default to false during SSR
+  }
+  if ('connection' in navigator) {
+    const connection = (navigator as any).connection
+    return connection?.effectiveType === 'slow-2g' || 
+           connection?.effectiveType === '2g' || 
+           connection?.effectiveType === '3g' ||
+           connection?.saveData === true
+  }
+  return false
+}
+
+// Check if device is mobile
+const isMobile = () => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return false // Default to false during SSR (will be treated as desktop)
+  }
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
 interface VideoPlayerProps {
   src: string
   srcLowQuality?: string
@@ -41,21 +64,6 @@ export function VideoPlayer({
   const [hasError, setHasError] = useState(false)
   const [isClient, setIsClient] = useState(false)
 
-  // Check if user is on cellular connection (if available)
-  const isOnCellular = () => {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-      return false // Default to false during SSR
-    }
-    if ('connection' in navigator) {
-      const connection = (navigator as any).connection
-      return connection?.effectiveType === 'slow-2g' || 
-             connection?.effectiveType === '2g' || 
-             connection?.effectiveType === '3g' ||
-             connection?.saveData === true
-    }
-    return false
-  }
-
   // Get appropriate video source based on connection
   const getVideoSrc = () => {
     if (!isClient) return src // Default to main source during SSR
@@ -71,14 +79,6 @@ export function VideoPlayer({
     // On desktop, use metadata preload for faster initial loading
     // On mobile, use none to save bandwidth
     return !isMobile() && !isOnCellular() ? "metadata" : "none"
-  }
-
-  // Check if device is mobile
-  const isMobile = () => {
-    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-      return false // Default to false during SSR (will be treated as desktop)
-    }
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   }
 
   // Set client state after hydration
