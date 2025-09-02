@@ -496,13 +496,20 @@ export async function saveWasserzaehlerData(
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.error("User not authenticated for saveWasserzaehlerData");
-    return { success: false, message: "User not authenticated" };
+    logger.warn("Unauthenticated access attempt to saveWasserzaehlerData", {
+      operation: 'saveWasserzaehlerData'
+    });
+    return { success: false, message: "Benutzer nicht authentifiziert" };
   }
 
   const { nebenkosten_id, entries } = formData;
 
-  console.log(`[saveWasserzaehlerData] Called with nebenkosten_id: ${nebenkosten_id}, num_entries: ${entries ? entries.length : 'null or 0'}`);
+  logger.info('Starting Wasserzähler data save operation', {
+    userId: user.id,
+    nebenkostenId: nebenkosten_id,
+    entryCount: entries ? entries.length : 0,
+    operation: 'saveWasserzaehlerData'
+  });
 
   try {
     // Prepare readings data for database function
@@ -513,35 +520,72 @@ export async function saveWasserzaehlerData(
       verbrauch: entry.verbrauch ? (typeof entry.verbrauch === 'string' ? parseFloat(entry.verbrauch) : entry.verbrauch) : 0
     })) : [];
 
-    // Use optimized database function for batch operation
-    const { data, error } = await supabase.rpc('save_wasserzaehler_batch', {
-      nebenkosten_id: nebenkosten_id,
-      user_id: user.id,
-      readings: JSON.stringify(readingsData)
-    });
+    // Use enhanced RPC call with retry logic for critical save operations
+    const result = await withRetry(
+      () => safeRpcCall<any[]>(
+        supabase,
+        'save_wasserzaehler_batch',
+        {
+          nebenkosten_id: nebenkosten_id,
+          user_id: user.id,
+          readings: JSON.stringify(readingsData)
+        }
+      ),
+      {
+        maxRetries: 3,
+        baseDelayMs: 1500,
+        retryCondition: (result) => !result.success && result.message?.includes('timeout')
+      }
+    );
 
-    if (error) {
-      console.error(`[saveWasserzaehlerData] Database function error:`, error);
+    if (!result.success) {
+      logger.error('Failed to save Wasserzähler data', undefined, {
+        userId: user.id,
+        nebenkostenId: nebenkosten_id,
+        entryCount: readingsData.length,
+        errorMessage: result.message,
+        performanceMetrics: result.performanceMetrics
+      });
+      
+      const userMessage = generateUserFriendlyErrorMessage(
+        { message: result.message }, 
+        'Speichern der Wasserzählerdaten'
+      );
+      
       return { 
         success: false, 
-        message: `Fehler beim Speichern der Wasserzählerdaten: ${error.message}` 
+        message: userMessage
       };
     }
 
     // Extract result from database function
-    const result = data?.[0];
-    if (!result?.success) {
+    const dbResult = result.data?.[0];
+    if (!dbResult?.success) {
+      logger.error('Database function returned failure', undefined, {
+        userId: user.id,
+        nebenkostenId: nebenkosten_id,
+        dbMessage: dbResult?.message
+      });
+      
       return { 
         success: false, 
-        message: result?.message || 'Unbekannter Fehler beim Speichern' 
+        message: dbResult?.message || 'Unbekannter Fehler beim Speichern' 
       };
     }
 
     revalidatePath("/dashboard/betriebskosten");
 
-    const successMessage = result.inserted_count > 0 
-      ? `${result.inserted_count} Wasserzählerdaten erfolgreich gespeichert. Gesamtverbrauch: ${result.total_verbrauch} m³`
-      : result.message;
+    const successMessage = dbResult.inserted_count > 0 
+      ? `${dbResult.inserted_count} Wasserzählerdaten erfolgreich gespeichert. Gesamtverbrauch: ${dbResult.total_verbrauch} m³`
+      : dbResult.message;
+
+    logger.info('Successfully saved Wasserzähler data', {
+      userId: user.id,
+      nebenkostenId: nebenkosten_id,
+      insertedCount: dbResult.inserted_count,
+      totalVerbrauch: dbResult.total_verbrauch,
+      executionTime: result.performanceMetrics?.executionTime
+    });
 
     return { 
       success: true, 
@@ -549,11 +593,21 @@ export async function saveWasserzaehlerData(
       data: readingsData 
     };
 
-  } catch (error) {
-    console.error(`[saveWasserzaehlerData] Unexpected error:`, error);
+  } catch (error: any) {
+    logger.error('Unexpected error in saveWasserzaehlerData', error, {
+      userId: user.id,
+      nebenkostenId: nebenkosten_id,
+      operation: 'saveWasserzaehlerData'
+    });
+    
+    const userMessage = generateUserFriendlyErrorMessage(
+      error, 
+      'Speichern der Wasserzählerdaten'
+    );
+    
     return { 
       success: false, 
-      message: 'Ein unerwarteter Fehler ist aufgetreten' 
+      message: userMessage
     };
   }
 }
@@ -675,37 +729,44 @@ export async function getMieterForNebenkostenAction(
 // OPTIMIZED SERVER ACTIONS USING DATABASE FUNCTIONS
 // ============================================================================
 
+// Import enhanced error handling utilities
+import { 
+  safeRpcCall as enhancedSafeRpcCall, 
+  withRetry, 
+  PerformanceMonitor,
+  generateUserFriendlyErrorMessage 
+} from '@/lib/error-handling';
+import { logger } from '@/utils/logger';
+
 /**
- * Utility function for safe RPC calls with proper error handling
- * @param supabase - Supabase client instance
- * @param functionName - Name of the database function to call
- * @param params - Parameters to pass to the database function
- * @returns Promise with success status, data, and optional error message
+ * Enhanced utility function for safe RPC calls with comprehensive error handling and performance logging
+ * @deprecated Use enhancedSafeRpcCall from @/lib/error-handling instead
  */
 export async function safeRpcCall<T>(
   supabase: any,
   functionName: string,
   params: Record<string, any>
 ): Promise<SafeRpcCallResult<T>> {
+  // Get user ID for logging context
+  let userId: string | undefined;
   try {
-    const { data, error } = await supabase.rpc(functionName, params);
-    
-    if (error) {
-      console.error(`RPC ${functionName} error:`, error);
-      return { 
-        success: false, 
-        message: `Database operation failed: ${error.message}` 
-      };
-    }
-    
-    return { success: true, data };
-  } catch (error: any) {
-    console.error(`Unexpected error in ${functionName}:`, error);
-    return { 
-      success: false, 
-      message: 'An unexpected error occurred' 
-    };
+    const { data: { user } } = await supabase.auth.getUser();
+    userId = user?.id;
+  } catch (error) {
+    // Continue without user ID if auth fails
   }
+
+  const result = await enhancedSafeRpcCall<T>(supabase, functionName, params, {
+    userId,
+    logPerformance: true
+  });
+
+  // Add metrics to performance monitor
+  if (result.performanceMetrics) {
+    PerformanceMonitor.addMetric(result.performanceMetrics);
+  }
+
+  return result;
 }
 
 /**
@@ -722,16 +783,33 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-      return { success: false, message: "User not authenticated" };
+      logger.warn('Unauthenticated access attempt to fetchNebenkostenListOptimized');
+      return { success: false, message: "Benutzer nicht authentifiziert" };
     }
 
-    const result = await safeRpcCall<OptimizedNebenkosten[]>(
-      supabase,
-      'get_nebenkosten_with_metrics',
-      { user_id: user.id }
+    logger.info('Starting optimized nebenkosten list fetch', { 
+      userId: user.id,
+      operation: 'fetchNebenkostenListOptimized'
+    });
+
+    const result = await withRetry(
+      () => safeRpcCall<OptimizedNebenkosten[]>(
+        supabase,
+        'get_nebenkosten_with_metrics',
+        { user_id: user.id }
+      ),
+      {
+        maxRetries: 2,
+        baseDelayMs: 1000
+      }
     );
 
     if (!result.success) {
+      logger.error('Failed to fetch optimized nebenkosten list', undefined, {
+        userId: user.id,
+        errorMessage: result.message,
+        performanceMetrics: result.performanceMetrics
+      });
       return result;
     }
 
@@ -745,13 +823,27 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
       anzahlMieter: item.anzahl_mieter
     }));
 
+    logger.info('Successfully fetched optimized nebenkosten list', {
+      userId: user.id,
+      itemCount: transformedData.length,
+      executionTime: result.performanceMetrics?.executionTime
+    });
+
     return { success: true, data: transformedData };
 
   } catch (error: any) {
-    console.error('Unexpected error in fetchNebenkostenListOptimized:', error);
+    logger.error('Unexpected error in fetchNebenkostenListOptimized', error, {
+      operation: 'fetchNebenkostenListOptimized'
+    });
+    
+    const userMessage = generateUserFriendlyErrorMessage(
+      error, 
+      'Laden der Betriebskosten-Liste'
+    );
+    
     return { 
       success: false, 
-      message: 'An unexpected error occurred while fetching optimized nebenkosten data' 
+      message: userMessage
     };
   }
 }
@@ -767,7 +859,11 @@ export async function getWasserzaehlerModalDataAction(
 ): Promise<OptimizedActionResponse<WasserzaehlerModalData[]>> {
   "use server";
   
-  if (!nebenkostenId) {
+  if (!nebenkostenId || nebenkostenId.trim() === '') {
+    logger.warn('Invalid nebenkosten ID provided to getWasserzaehlerModalDataAction', {
+      nebenkostenId,
+      operation: 'getWasserzaehlerModalDataAction'
+    });
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
@@ -776,25 +872,67 @@ export async function getWasserzaehlerModalDataAction(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      logger.warn('Unauthenticated access attempt to getWasserzaehlerModalDataAction', {
+        nebenkostenId,
+        operation: 'getWasserzaehlerModalDataAction'
+      });
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    const result = await safeRpcCall<WasserzaehlerModalData[]>(
-      supabase,
-      'get_wasserzaehler_modal_data',
-      { 
-        nebenkosten_id: nebenkostenId,
-        user_id: user.id 
+    logger.info('Starting Wasserzähler modal data fetch', {
+      userId: user.id,
+      nebenkostenId,
+      operation: 'getWasserzaehlerModalDataAction'
+    });
+
+    const result = await withRetry(
+      () => safeRpcCall<WasserzaehlerModalData[]>(
+        supabase,
+        'get_wasserzaehler_modal_data',
+        { 
+          nebenkosten_id: nebenkostenId,
+          user_id: user.id 
+        }
+      ),
+      {
+        maxRetries: 2,
+        baseDelayMs: 1000
       }
     );
+
+    if (!result.success) {
+      logger.error('Failed to fetch Wasserzähler modal data', undefined, {
+        userId: user.id,
+        nebenkostenId,
+        errorMessage: result.message,
+        performanceMetrics: result.performanceMetrics
+      });
+      return result;
+    }
+
+    logger.info('Successfully fetched Wasserzähler modal data', {
+      userId: user.id,
+      nebenkostenId,
+      recordCount: result.data?.length || 0,
+      executionTime: result.performanceMetrics?.executionTime
+    });
 
     return result;
 
   } catch (error: any) {
-    console.error('Unexpected error in getWasserzaehlerModalDataAction:', error);
+    logger.error('Unexpected error in getWasserzaehlerModalDataAction', error, {
+      nebenkostenId,
+      operation: 'getWasserzaehlerModalDataAction'
+    });
+    
+    const userMessage = generateUserFriendlyErrorMessage(
+      error, 
+      'Laden der Wasserzählerdaten'
+    );
+    
     return { 
       success: false, 
-      message: 'Ein unerwarteter Fehler ist beim Laden der Wasserzählerdaten aufgetreten' 
+      message: userMessage
     };
   }
 }
@@ -810,7 +948,11 @@ export async function getAbrechnungModalDataAction(
 ): Promise<OptimizedActionResponse<AbrechnungModalData>> {
   "use server";
   
-  if (!nebenkostenId) {
+  if (!nebenkostenId || nebenkostenId.trim() === '') {
+    logger.warn('Invalid nebenkosten ID provided to getAbrechnungModalDataAction', {
+      nebenkostenId,
+      operation: 'getAbrechnungModalDataAction'
+    });
     return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
   }
 
@@ -819,25 +961,71 @@ export async function getAbrechnungModalDataAction(
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
+      logger.warn('Unauthenticated access attempt to getAbrechnungModalDataAction', {
+        nebenkostenId,
+        operation: 'getAbrechnungModalDataAction'
+      });
       return { success: false, message: "Benutzer nicht authentifiziert." };
     }
 
-    const result = await safeRpcCall<AbrechnungModalData>(
-      supabase,
-      'get_abrechnung_modal_data',
-      { 
-        nebenkosten_id: nebenkostenId,
-        user_id: user.id 
+    logger.info('Starting Abrechnung modal data fetch', {
+      userId: user.id,
+      nebenkostenId,
+      operation: 'getAbrechnungModalDataAction'
+    });
+
+    const result = await withRetry(
+      () => safeRpcCall<AbrechnungModalData>(
+        supabase,
+        'get_abrechnung_modal_data',
+        { 
+          nebenkosten_id: nebenkostenId,
+          user_id: user.id 
+        }
+      ),
+      {
+        maxRetries: 2,
+        baseDelayMs: 1000
       }
     );
+
+    if (!result.success) {
+      logger.error('Failed to fetch Abrechnung modal data', undefined, {
+        userId: user.id,
+        nebenkostenId,
+        errorMessage: result.message,
+        performanceMetrics: result.performanceMetrics
+      });
+      return result;
+    }
+
+    logger.info('Successfully fetched Abrechnung modal data', {
+      userId: user.id,
+      nebenkostenId,
+      tenantCount: result.data?.tenants?.length || 0,
+      rechnungenCount: result.data?.rechnungen?.length || 0,
+      executionTime: result.performanceMetrics?.executionTime
+    });
 
     return result;
 
   } catch (error: any) {
-    console.error('Unexpected error in getAbrechnungModalDataAction:', error);
+    logger.error('Unexpected error in getAbrechnungModalDataAction', error, {
+      nebenkostenId,
+      operation: 'getAbrechnungModalDataAction'
+    });
+    
+    const userMessage = generateUserFriendlyErrorMessage(
+      error, 
+      'Laden der Abrechnungsdaten'
+    );
+    
     return { 
       success: false, 
-      message: 'Ein unerwarteter Fehler ist beim Laden der Abrechnungsdaten aufgetreten' 
+      message: userMessage
+    };
+  }
+}e: 'Ein unerwarteter Fehler ist beim Laden der Abrechnungsdaten aufgetreten' 
     };
   }
 }
