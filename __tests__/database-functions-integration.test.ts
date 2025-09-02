@@ -4,47 +4,15 @@
  * and have the correct TypeScript types.
  */
 
-// Mock data types for testing - these match the expected return types from the database functions
-type OptimizedNebenkosten = {
-  id: string;
-  startdatum: string;
-  enddatum: string;
-  nebenkostenart: string[] | null;
-  betrag: number[] | null;
-  berechnungsart: string[] | null;
-  wasserkosten: number | null;
-  wasserverbrauch: number | null;
-  haeuser_id: string;
-  user_id_field: string;
-  haus_name: string;
-  gesamt_flaeche: number;
-  anzahl_wohnungen: number;
-  anzahl_mieter: number;
-};
-
-type WasserzaehlerModalData = {
-  mieter_id: string;
-  mieter_name: string;
-  wohnung_name: string;
-  wohnung_groesse: number;
-  current_reading: {
-    ablese_datum: string | null;
-    zaehlerstand: number | null;
-    verbrauch: number | null;
-  } | null;
-  previous_reading: {
-    ablese_datum: string;
-    zaehlerstand: number;
-    verbrauch: number;
-  } | null;
-};
-
-type AbrechnungModalData = {
-  nebenkosten_data: any;
-  tenants: any[];
-  rechnungen: any[];
-  wasserzaehler_readings: any[];
-};
+import { 
+  OptimizedNebenkosten, 
+  WasserzaehlerModalData, 
+  AbrechnungModalData,
+  isOptimizedNebenkosten,
+  isWasserzaehlerModalData,
+  isAbrechnungModalData
+} from '@/types/optimized-betriebskosten';
+import { createClient } from '@/utils/supabase/client';
 
 describe('Database Functions Type Definitions', () => {
   describe('OptimizedNebenkosten Type', () => {
@@ -59,7 +27,7 @@ describe('Database Functions Type Definitions', () => {
         wasserkosten: 150,
         wasserverbrauch: 1000,
         haeuser_id: 'house-id',
-        user_id_field: 'user-id',
+        user_id: 'user-id',
         haus_name: 'Test House',
         gesamt_flaeche: 100,
         anzahl_wohnungen: 5,
@@ -74,6 +42,29 @@ describe('Database Functions Type Definitions', () => {
       expect(typeof mockData.anzahl_mieter).toBe('number');
       expect(Array.isArray(mockData.nebenkostenart)).toBe(true);
       expect(Array.isArray(mockData.betrag)).toBe(true);
+    });
+
+    it('should pass type guard validation', () => {
+      const mockData: OptimizedNebenkosten = {
+        id: 'test-id',
+        startdatum: '2024-01-01',
+        enddatum: '2024-12-31',
+        nebenkostenart: ['Wasser'],
+        betrag: [100],
+        berechnungsart: ['Verbrauch'],
+        wasserkosten: 150,
+        wasserverbrauch: 1000,
+        haeuser_id: 'house-id',
+        user_id: 'user-id',
+        haus_name: 'Test House',
+        gesamt_flaeche: 100,
+        anzahl_wohnungen: 5,
+        anzahl_mieter: 8
+      };
+
+      expect(isOptimizedNebenkosten(mockData)).toBe(true);
+      expect(isOptimizedNebenkosten({})).toBe(false);
+      expect(isOptimizedNebenkosten(null)).toBe(false);
     });
   });
 
@@ -119,6 +110,21 @@ describe('Database Functions Type Definitions', () => {
       expect(mockData.current_reading).toBeNull();
       expect(mockData.previous_reading).toBeNull();
     });
+
+    it('should pass type guard validation', () => {
+      const mockData: WasserzaehlerModalData = {
+        mieter_id: 'tenant-id',
+        mieter_name: 'Test Tenant',
+        wohnung_name: 'Apartment 1',
+        wohnung_groesse: 75,
+        current_reading: null,
+        previous_reading: null
+      };
+
+      expect(isWasserzaehlerModalData(mockData)).toBe(true);
+      expect(isWasserzaehlerModalData({})).toBe(false);
+      expect(isWasserzaehlerModalData(null)).toBe(false);
+    });
   });
 
   describe('AbrechnungModalData Type', () => {
@@ -134,6 +140,19 @@ describe('Database Functions Type Definitions', () => {
       expect(Array.isArray(mockData.tenants)).toBe(true);
       expect(Array.isArray(mockData.rechnungen)).toBe(true);
       expect(Array.isArray(mockData.wasserzaehler_readings)).toBe(true);
+    });
+
+    it('should pass type guard validation', () => {
+      const mockData: AbrechnungModalData = {
+        nebenkosten_data: { id: 'test', name: 'Test Nebenkosten' } as any,
+        tenants: [],
+        rechnungen: [],
+        wasserzaehler_readings: []
+      };
+
+      expect(isAbrechnungModalData(mockData)).toBe(true);
+      expect(isAbrechnungModalData({})).toBe(false);
+      expect(isAbrechnungModalData(null)).toBe(false);
     });
   });
 

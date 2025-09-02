@@ -64,14 +64,14 @@ export type Nebenkosten = {
   betrag: number[] | null;
   berechnungsart: string[] | null;
   wasserkosten: number | null;
-  wasserverbrauch?: number | null; // Added for water consumption
+  wasserverbrauch: number | null; // Changed from optional to required for consistency
   haeuser_id: string;
+  user_id: string; // Changed from optional to required for consistency
   Haeuser?: { name: string } | null;
-  user_id?: string; 
   Rechnungen?: RechnungSql[] | null;
-  gesamtFlaeche?: number; // Added for total area
-  anzahlWohnungen?: number; // Number of apartments
-  anzahlMieter?: number; // Number of tenants
+  gesamtFlaeche?: number; // Added for total area (calculated field)
+  anzahlWohnungen?: number; // Number of apartments (calculated field)
+  anzahlMieter?: number; // Number of tenants (calculated field)
 };
 
 // Added as per subtask

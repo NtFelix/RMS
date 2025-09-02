@@ -4,50 +4,14 @@ import { createClient } from "@/utils/supabase/server"; // Adjusted based on com
 import { revalidatePath } from "next/cache";
 import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
-// Types for optimized data structures
-export type OptimizedNebenkosten = {
-  // Existing database fields (unchanged)
-  id: string;
-  startdatum: string;
-  enddatum: string;
-  nebenkostenart: string[] | null;
-  betrag: number[] | null;
-  berechnungsart: string[] | null;
-  wasserkosten: number | null;
-  wasserverbrauch: number | null;
-  haeuser_id: string;
-  user_id_field: string;
-  
-  // Calculated fields returned by database function (not stored in tables)
-  haus_name: string;
-  gesamt_flaeche: number;
-  anzahl_wohnungen: number;
-  anzahl_mieter: number;
-};
-
-export type WasserzaehlerModalData = {
-  mieter_id: string;
-  mieter_name: string;
-  wohnung_name: string;
-  wohnung_groesse: number;
-  current_reading: {
-    ablese_datum: string | null;
-    zaehlerstand: number | null;
-    verbrauch: number | null;
-  } | null;
-  previous_reading: {
-    ablese_datum: string;
-    zaehlerstand: number;
-    verbrauch: number;
-  } | null;
-};
-
-export type AbrechnungModalData = {
-  nebenkosten_data: Nebenkosten;  // From existing Nebenkosten table
-  tenants: Mieter[];              // From existing Mieter table
-  rechnungen: Rechnung[];         // From existing Rechnungen table
-  wasserzaehler_readings: Wasserzaehler[]; // From existing Wasserzaehler table
-};
+// Import optimized types from centralized location
+import { 
+  OptimizedNebenkosten, 
+  WasserzaehlerModalData, 
+  AbrechnungModalData,
+  OptimizedActionResponse,
+  SafeRpcCallResult
+} from "@/types/optimized-betriebskosten";
 
 /**
  * Gets the most recent Wasserzaehler record for each mieter from a list of records
@@ -749,7 +713,7 @@ export async function safeRpcCall<T>(
   supabase: any,
   functionName: string,
   params: Record<string, any>
-): Promise<{ success: boolean; data?: T; message?: string }> {
+): Promise<SafeRpcCallResult<T>> {
   try {
     const { data, error } = await supabase.rpc(functionName, params);
     
@@ -777,7 +741,7 @@ export async function safeRpcCall<T>(
  * This reduces database calls from O(n) to O(1) where n is the number of nebenkosten items
  * @returns Promise with success status, optimized nebenkosten data, and optional error message
  */
-export async function fetchNebenkostenListOptimized(): Promise<{ success: boolean; data?: OptimizedNebenkosten[]; message?: string }> {
+export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
   "use server";
   
   const supabase = await createClient();
@@ -813,6 +777,98 @@ export async function fetchNebenkostenListOptimized(): Promise<{ success: boolea
 
   } catch (error: any) {
     console.error('Unexpected error in fetchNebenkostenListOptimized:', error);
+    return { 
+      success: false, 
+      message: 'An unexpected error occurred while fetching optimized nebenkosten data' 
+    };
+  }
+}
+
+/**
+ * Optimized server action to get all Wasserzähler modal data in a single call
+ * Uses the get_wasserzaehler_modal_data database function to replace multiple separate actions
+ * @param nebenkostenId - The ID of the Nebenkosten entry
+ * @returns Promise with success status, structured modal data, and optional error message
+ */
+export async function getWasserzaehlerModalDataAction(
+  nebenkostenId: string
+): Promise<OptimizedActionResponse<WasserzaehlerModalData[]>> {
+  "use server";
+  
+  if (!nebenkostenId) {
+    return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
+  }
+
+  const supabase = await createClient();
+  
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    const result = await safeRpcCall<WasserzaehlerModalData[]>(
+      supabase,
+      'get_wasserzaehler_modal_data',
+      { 
+        nebenkosten_id: nebenkostenId,
+        user_id: user.id 
+      }
+    );
+
+    return result;
+
+  } catch (error: any) {
+    console.error('Unexpected error in getWasserzaehlerModalDataAction:', error);
+    return { 
+      success: false, 
+      message: 'Ein unerwarteter Fehler ist beim Laden der Wasserzählerdaten aufgetreten' 
+    };
+  }
+}
+
+/**
+ * Optimized server action to get all Abrechnung modal data in a single call
+ * Uses the get_abrechnung_modal_data database function to replace multiple separate actions
+ * @param nebenkostenId - The ID of the Nebenkosten entry
+ * @returns Promise with success status, structured modal data, and optional error message
+ */
+export async function getAbrechnungModalDataAction(
+  nebenkostenId: string
+): Promise<OptimizedActionResponse<AbrechnungModalData>> {
+  "use server";
+  
+  if (!nebenkostenId) {
+    return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
+  }
+
+  const supabase = await createClient();
+  
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return { success: false, message: "Benutzer nicht authentifiziert." };
+    }
+
+    const result = await safeRpcCall<AbrechnungModalData>(
+      supabase,
+      'get_abrechnung_modal_data',
+      { 
+        nebenkosten_id: nebenkostenId,
+        user_id: user.id 
+      }
+    );
+
+    return result;
+
+  } catch (error: any) {
+    console.error('Unexpected error in getAbrechnungModalDataAction:', error);
+    return { 
+      success: false, 
+      message: 'Ein unerwarteter Fehler ist beim Laden der Abrechnungsdaten aufgetreten' 
+    };
+  }
+}nexpected error in fetchNebenkostenListOptimized:', error);
     return { 
       success: false, 
       message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` 
