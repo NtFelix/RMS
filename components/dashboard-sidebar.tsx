@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Activity } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
@@ -49,6 +49,11 @@ const sidebarNavItems = [
     title: "Aufgaben",
     href: "/todos",
     icon: CheckSquare,
+  },
+  {
+    title: "Performance",
+    href: "/performance",
+    icon: Activity,
   },
 ]
 

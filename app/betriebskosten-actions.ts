@@ -2,7 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server"; // Adjusted based on common project structure
 import { revalidatePath } from "next/cache";
-import { Nebenkosten, fetchNebenkostenDetailsById, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
+import { Nebenkosten, WasserzaehlerFormData, Mieter, Wasserzaehler, Rechnung, fetchWasserzaehlerByHausAndYear } from "../lib/data-fetching"; // Adjusted path, Added Rechnung
 
 // Import optimized types from centralized location
 import { 
@@ -1132,9 +1132,6 @@ export async function getAbrechnungModalDataAction(
     return { 
       success: false, 
       message: userMessage
-    };
-  }
-}e: 'Ein unerwarteter Fehler ist beim Laden der Abrechnungsdaten aufgetreten' 
     };
   }
 }
