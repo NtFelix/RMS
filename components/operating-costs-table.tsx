@@ -36,7 +36,7 @@ export function OperatingCostsTable({
   ownerName,
   allHaeuser
 }: OperatingCostsTableProps) {
-  const { openWasserzaehlerModal } = useModalStore();
+  const { openWasserzaehlerModalOptimized } = useModalStore();
   const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
   const [isLoadingWasserzaehlerModal, setIsLoadingWasserzaehlerModal] = useState(false);
   const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<OptimizedNebenkosten | null>(null);
@@ -67,42 +67,10 @@ export function OperatingCostsTable({
       const result = await getWasserzaehlerModalDataAction(item.id);
 
       if (result.success && result.data) {
-        // Transform the optimized data to the format expected by the modal
-        const mieterData: Mieter[] = result.data.map((modalData: WasserzaehlerModalData) => ({
-          id: modalData.mieter_id,
-          name: modalData.mieter_name,
-          wohnung_id: '', // Not needed for modal
-          einzug: '', // Not needed for modal
-          auszug: null, // Not needed for modal
-          email: null, // Not needed for modal
-          telefonnummer: null, // Not needed for modal
-          notiz: null, // Not needed for modal
-          nebenkosten: null, // Not needed for modal
-          user_id: '', // Not needed for modal
-          Wohnungen: {
-            name: modalData.wohnung_name,
-            groesse: modalData.wohnung_groesse
-          }
-        }));
-
-        // Transform existing readings to the format expected by the modal
-        const existingReadings: Wasserzaehler[] | null = result.data
-          .filter(modalData => modalData.current_reading)
-          .map(modalData => ({
-            id: '', // Not needed for modal
-            mieter_id: modalData.mieter_id,
-            ablese_datum: modalData.current_reading!.ablese_datum || '',
-            zaehlerstand: modalData.current_reading!.zaehlerstand || 0,
-            verbrauch: modalData.current_reading!.verbrauch || 0,
-            nebenkosten_id: item.id,
-            user_id: '' // Not needed for modal
-          }));
-
-        // Open modal using modal store with transformed data
-        openWasserzaehlerModal(
+        // Open modal using the new optimized method with pre-structured data
+        openWasserzaehlerModalOptimized(
           item,
-          mieterData,
-          existingReadings.length > 0 ? existingReadings : null,
+          result.data,
           handleSaveWasserzaehler
         );
       } else {
