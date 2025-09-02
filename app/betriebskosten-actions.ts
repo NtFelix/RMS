@@ -216,41 +216,8 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
   }
 }
 
-export async function getWasserzaehlerRecordsAction(
-  nebenkostenId: string
-): Promise<{ success: boolean; data?: Wasserzaehler[]; message?: string }> {
-  "use server";
-
-  if (!nebenkostenId) {
-    return { success: false, message: "Ungültige Nebenkosten-ID angegeben." };
-  }
-
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    return { success: false, message: "Benutzer nicht authentifiziert." };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from("Wasserzaehler")
-      .select("*")
-      .eq("nebenkosten_id", nebenkostenId) // Ensure correct column name here
-      .eq("user_id", user.id);
-
-    if (error) {
-      console.error(`Error fetching Wasserzaehler records for nebenkosten_id ${nebenkostenId}:`, error);
-      return { success: false, message: `Fehler beim Abrufen der Wasserzählerdaten: ${error.message}` };
-    }
-
-    return { success: true, data: data as Wasserzaehler[] };
-
-  } catch (error: any) {
-    console.error('Unexpected error in getWasserzaehlerRecordsAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
-  }
-}
+// getWasserzaehlerRecordsAction removed - replaced by getWasserzaehlerModalDataAction
+// which uses get_wasserzaehler_modal_data database function for better performance
 
 /**
  * Gets the previous Wasserzaehler record for a specific mieter.
@@ -644,86 +611,8 @@ export async function saveWasserzaehlerDataOptimized(
   return await saveWasserzaehlerData(optimizedFormData);
 }
 
-export async function getMieterForNebenkostenAction(
-  hausId: string,
-  startdatum: string,
-  enddatum: string
-): Promise<{ success: boolean; data?: Mieter[]; message?: string }> {
-  "use server"; // Ensures this runs as a server action
-
-  if (!hausId || !startdatum || !enddatum) {
-    return { success: false, message: 'Ungültige Haus-ID oder Datumsangaben.' };
-  }
-
-  // Validate date format and range
-  const startDate = new Date(startdatum);
-  const endDate = new Date(enddatum);
-  
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-    return { 
-      success: false, 
-      message: 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.' 
-    };
-  }
-  
-  if (startDate >= endDate) {
-    return { 
-      success: false, 
-      message: 'Enddatum muss nach dem Startdatum liegen.' 
-    };
-  }
-
-  const supabase = await createClient(); // Uses the server client from utils/supabase/server
-
-  try {
-    const { data: wohnungen, error: wohnungenError } = await supabase
-      .from('Wohnungen')
-      .select('id')
-      .eq('haus_id', hausId);
-
-    if (wohnungenError) {
-      console.error(`Error fetching Wohnungen for hausId ${hausId} in action:`, wohnungenError);
-      return { success: false, message: `Fehler beim Abrufen der Wohnungen: ${wohnungenError.message}` };
-    }
-
-    if (!wohnungen || wohnungen.length === 0) {
-      // Not necessarily an error, could be a house with no apartments yet
-      return { success: true, data: [] };
-    }
-
-    const wohnungIds = wohnungen.map(w => w.id);
-
-    const { data: mieter, error: mieterError } = await supabase
-      .from('Mieter')
-      .select('*, Wohnungen(name, groesse)') // Fetch Mieter details including apartment size
-      .in('wohnung_id', wohnungIds);
-
-    if (mieterError) {
-      console.error(`Error fetching Mieter for Wohnungen in hausId ${hausId} in action:`, mieterError);
-      return { success: false, message: `Fehler beim Abrufen der Mieter: ${mieterError.message}` };
-    }
-
-    if (!mieter || mieter.length === 0) {
-      return { success: true, data: [] };
-    }
-
-    // Filter tenants based on date range overlap with billing period
-    const filteredMieter = mieter.filter(m => {
-      const tenantEinzug = m.einzug || '1900-01-01'; // Default to very early date if no move-in
-      const tenantAuszug = m.auszug || '9999-12-31'; // Default to far future if still living there
-      
-      // Check if tenant period overlaps with billing period
-      // Overlap exists if: tenant_start <= billing_end AND tenant_end >= billing_start
-      return tenantEinzug <= enddatum && tenantAuszug >= startdatum;
-    });
-
-    return { success: true, data: filteredMieter as Mieter[] };
-
-  } catch (error: any) {
-    console.error('Unexpected error in getMieterForNebenkostenAction:', error);
-    return { success: false, message: `Ein unerwarteter Fehler ist aufgetreten: ${error.message}` };
-  }
-}
+// getMieterForNebenkostenAction removed - replaced by getWasserzaehlerModalDataAction
+// which uses get_wasserzaehler_modal_data database function for better performance
 
 // ============================================================================
 // OPTIMIZED SERVER ACTIONS USING DATABASE FUNCTIONS
