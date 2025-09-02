@@ -11,6 +11,7 @@ import {
   ContextMenuSeparator
 } from "@/components/ui/context-menu"
 import { Nebenkosten, Mieter, WasserzaehlerFormData, Wasserzaehler, Rechnung, Haus } from "../lib/data-fetching" // Adjusted path, Added Rechnung and Haus
+import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
@@ -21,8 +22,8 @@ import { useModalStore } from "@/hooks/use-modal-store"
 
 
 interface OperatingCostsTableProps {
-  nebenkosten: Nebenkosten[]; 
-  onEdit?: (item: Nebenkosten) => void; 
+  nebenkosten: OptimizedNebenkosten[]; 
+  onEdit?: (item: OptimizedNebenkosten) => void; 
   onDeleteItem: (id: string) => void;
   ownerName: string;
   allHaeuser: Haus[];
@@ -36,11 +37,11 @@ export function OperatingCostsTable({
   allHaeuser
 }: OperatingCostsTableProps) {
   const { openWasserzaehlerModal } = useModalStore();
-  const [overviewItem, setOverviewItem] = useState<Nebenkosten | null>(null);
+  const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
   const [isLoadingDataForModal, setIsLoadingDataForModal] = useState(false);
-  const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<Nebenkosten | null>(null);
+  const [selectedNebenkostenItem, setSelectedNebenkostenItem] = useState<OptimizedNebenkosten | null>(null);
   const [isAbrechnungModalOpen, setIsAbrechnungModalOpen] = useState(false);
-  const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<Nebenkosten | null>(null);
+  const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
   const [tenantsForAbrechnungModal, setTenantsForAbrechnungModal] = useState<Mieter[]>([]);
   const [isLoadingAbrechnungData, setIsLoadingAbrechnungData] = useState(false);
   const [rechnungenForAbrechnungModal, setRechnungenForAbrechnungModal] = useState<Rechnung[]>([]);
@@ -51,7 +52,7 @@ export function OperatingCostsTable({
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
   };
   
-  const handleOpenOverview = (item: Nebenkosten) => {
+  const handleOpenOverview = (item: OptimizedNebenkosten) => {
     setOverviewItem(item);
   };
   
@@ -59,7 +60,7 @@ export function OperatingCostsTable({
     setOverviewItem(null);
   }; 
 
-  const handleOpenWasserzaehlerModal = async (item: Nebenkosten) => {
+  const handleOpenWasserzaehlerModal = async (item: OptimizedNebenkosten) => {
     if (!item.haeuser_id || !item.startdatum || !item.enddatum) {
       toast.error("Haus-ID oder Datumsangaben für Nebenkostenabrechnung nicht gefunden.");
       return;
@@ -124,7 +125,7 @@ export function OperatingCostsTable({
     }
   };
 
-  const handleOpenAbrechnungModal = async (item: Nebenkosten) => {
+  const handleOpenAbrechnungModal = async (item: OptimizedNebenkosten) => {
     if (!item.haeuser_id || !item.startdatum || !item.enddatum) {
       toast.error("Haus-ID oder Datumsangaben für Nebenkostenabrechnung nicht für Abrechnung gefunden.");
       return;
@@ -216,7 +217,7 @@ export function OperatingCostsTable({
                         : '-'
                       }
                     </TableCell>
-                    <TableCell>{item.Haeuser?.name || 'N/A'}</TableCell>
+                    <TableCell>{item.haus_name || 'N/A'}</TableCell>
                     <TableCell>
                       {item.nebenkostenart && item.nebenkostenart.length > 0
                         ? item.nebenkostenart.map((art: string, idx: number) => <div key={idx}>{art || '-'}</div>)

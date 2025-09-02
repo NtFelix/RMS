@@ -3,18 +3,23 @@
 export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
-import { fetchNebenkostenList, fetchHaeuser as fetchHaeuserServer } from "../../../lib/data-fetching";
+import { fetchHaeuser as fetchHaeuserServer } from "../../../lib/data-fetching";
+import { fetchNebenkostenListOptimized } from "@/app/betriebskosten-actions";
 import { createClient } from "@/utils/supabase/server";
 import BetriebskostenClientView from "./client-wrapper"; // Import the default export
 // Types are still needed for data fetching
-import { Nebenkosten, Haus } from "../../../lib/data-fetching";
+import { Haus } from "../../../lib/data-fetching";
+import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 // Server actions are fine to be imported by Server Components if needed, but not directly by client-wrapper
 
 export default async function BetriebskostenPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
-  const nebenkostenData: Nebenkosten[] = await fetchNebenkostenList();
+  // Use optimized function that eliminates individual getHausGesamtFlaeche calls
+  const nebenkostenResult = await fetchNebenkostenListOptimized();
+  const nebenkostenData: OptimizedNebenkosten[] = nebenkostenResult.success ? nebenkostenResult.data || [] : [];
+  
   const haeuserData: Haus[] = await fetchHaeuserServer();
 
   let ownerName = "Vermieter Name";
