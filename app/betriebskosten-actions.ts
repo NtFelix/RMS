@@ -456,6 +456,64 @@ export async function getWasserzaehlerByHausAndYearAction(
   }
 }
 
+/**
+ * Optimized server action to save Wasserzähler data using batch processing
+ * 
+ * **Performance Optimization**: Uses the `save_wasserzaehler_batch` database function to perform
+ * server-side batch processing, validation, and automatic total calculation, preventing 
+ * Cloudflare Worker timeouts on large datasets.
+ * 
+ * **Key Features**:
+ * - Batch insert operations for multiple water meter readings
+ * - Server-side data validation with regex patterns
+ * - Automatic calculation of total water consumption
+ * - Updates Nebenkosten.wasserverbrauch with calculated total
+ * - Comprehensive error handling with retry logic
+ * - Performance monitoring and detailed logging
+ * 
+ * **Database Function**: `save_wasserzaehler_batch(nebenkosten_id, user_id, readings)`
+ * 
+ * **Expected Performance**:
+ * - Reduces save time from 8-12s to 3-5s
+ * - Handles 50+ readings without timeout
+ * - Eliminates individual insert operations
+ * - Provides atomic transaction safety
+ * 
+ * @param {WasserzaehlerFormData} formData - The water meter data to save:
+ *   - `nebenkosten_id`: UUID of the associated Nebenkosten entry
+ *   - `entries`: Array of water meter readings with mieter_id, zaehlerstand, verbrauch, etc.
+ * 
+ * @returns {Promise<{success: boolean; message?: string; data?: any[]}>} Promise resolving to:
+ *   - `success`: Boolean indicating operation success
+ *   - `message`: Success message with total consumption or error details
+ *   - `data`: Array of processed readings (on success)
+ * 
+ * @throws {Error} When user is not authenticated or database operation fails
+ * 
+ * @example
+ * ```typescript
+ * const formData = {
+ *   nebenkosten_id: 'nebenkosten-uuid',
+ *   entries: [
+ *     {
+ *       mieter_id: 'tenant-1-uuid',
+ *       zaehlerstand: 1234.5,
+ *       verbrauch: 150.0,
+ *       ablese_datum: '2024-12-31'
+ *     },
+ *     // ... more entries
+ *   ]
+ * };
+ * 
+ * const result = await saveWasserzaehlerData(formData);
+ * if (result.success) {
+ *   console.log(result.message); // "5 Wasserzählerdaten erfolgreich gespeichert. Gesamtverbrauch: 750 m³"
+ * }
+ * ```
+ * 
+ * @see {@link docs/database-functions.md#save_wasserzaehler_batch} Database function documentation
+ * @see {@link saveWasserzaehlerDataOptimized} Client-side validation version
+ */
 export async function saveWasserzaehlerData(
   formData: WasserzaehlerFormData
 ): Promise<{ success: boolean; message?: string; data?: any[] }> {
@@ -580,8 +638,48 @@ export async function saveWasserzaehlerData(
 }
 
 /**
- * Optimized version of saveWasserzaehlerData with client-side validation
- * This function performs validation before submission to reduce server load
+ * Enhanced version of saveWasserzaehlerData with client-side validation
+ * 
+ * **Performance Enhancement**: Performs comprehensive client-side validation before 
+ * submitting data to the server, reducing server load and providing immediate feedback 
+ * to users for validation errors.
+ * 
+ * **Validation Features**:
+ * - Validates required fields (mieter_id, zaehlerstand)
+ * - Checks numeric format and ranges for meter readings
+ * - Validates date formats and logical date ranges
+ * - Ensures consumption calculations are reasonable
+ * - Provides detailed validation error messages in German
+ * 
+ * **Workflow**:
+ * 1. Performs client-side validation using wasserzaehler-validation utils
+ * 2. Returns validation errors immediately if data is invalid
+ * 3. If validation passes, calls the optimized saveWasserzaehlerData function
+ * 4. Provides structured error reporting for UI feedback
+ * 
+ * @param {WasserzaehlerFormData} formData - The water meter data to validate and save
+ * 
+ * @returns {Promise<{success: boolean; message?: string; data?: any[]; validationErrors?: string[]}>} Promise resolving to:
+ *   - `success`: Boolean indicating operation success
+ *   - `message`: Success/error message or validation summary
+ *   - `data`: Array of processed readings (on success)
+ *   - `validationErrors`: Array of validation error messages (on validation failure)
+ * 
+ * @example
+ * ```typescript
+ * const result = await saveWasserzaehlerDataOptimized(formData);
+ * if (!result.success && result.validationErrors) {
+ *   // Handle validation errors in UI
+ *   result.validationErrors.forEach(error => {
+ *     console.error('Validation error:', error);
+ *   });
+ * } else if (result.success) {
+ *   console.log('Data saved successfully:', result.message);
+ * }
+ * ```
+ * 
+ * @see {@link saveWasserzaehlerData} Base save function
+ * @see {@link utils/wasserzaehler-validation.ts} Validation utilities
  */
 export async function saveWasserzaehlerDataOptimized(
   formData: WasserzaehlerFormData
@@ -659,10 +757,46 @@ export async function safeRpcCall<T>(
 }
 
 /**
- * Optimized replacement for fetchNebenkostenList
- * Uses the get_nebenkosten_with_metrics database function to eliminate individual getHausGesamtFlaeche calls
- * This reduces database calls from O(n) to O(1) where n is the number of nebenkosten items
- * @returns Promise with success status, optimized nebenkosten data, and optional error message
+ * Optimized replacement for fetchNebenkostenList that eliminates performance bottlenecks
+ * 
+ * **Performance Optimization**: Uses the `get_nebenkosten_with_metrics` database function to eliminate 
+ * individual `getHausGesamtFlaeche` calls, reducing database calls from O(n) to O(1) where n is the 
+ * number of nebenkosten items.
+ * 
+ * **Key Improvements**:
+ * - Single database query with JOINs and aggregations
+ * - Pre-calculated house metrics (total area, apartment count, tenant count)
+ * - Efficient tenant filtering by date range overlap
+ * - Comprehensive error handling with retry logic
+ * - Performance monitoring and logging
+ * 
+ * **Database Function**: `get_nebenkosten_with_metrics(user_id)`
+ * 
+ * **Expected Performance**: 
+ * - Reduces page load time from 5-8s to 2-3s
+ * - Eliminates Cloudflare Worker timeout issues
+ * - Scales efficiently with large datasets (100+ items)
+ * 
+ * @returns {Promise<OptimizedActionResponse<OptimizedNebenkosten[]>>} Promise resolving to:
+ *   - `success`: Boolean indicating operation success
+ *   - `data`: Array of nebenkosten with pre-calculated house metrics
+ *   - `message`: Error message if operation failed
+ * 
+ * @throws {Error} When database connection fails or user is not authenticated
+ * 
+ * @example
+ * ```typescript
+ * const result = await fetchNebenkostenListOptimized();
+ * if (result.success) {
+ *   console.log(`Loaded ${result.data.length} nebenkosten items`);
+ *   result.data.forEach(item => {
+ *     console.log(`${item.Haeuser.name}: ${item.anzahlMieter} tenants`);
+ *   });
+ * }
+ * ```
+ * 
+ * @see {@link docs/database-functions.md#get_nebenkosten_with_metrics} Database function documentation
+ * @see {@link .kiro/specs/betriebskosten-performance-optimization/design.md} Performance optimization design
  */
 export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionResponse<OptimizedNebenkosten[]>> {
   "use server";
@@ -738,10 +872,52 @@ export async function fetchNebenkostenListOptimized(): Promise<OptimizedActionRe
 }
 
 /**
- * Optimized server action to get all Wasserzähler modal data in a single call
- * Uses the get_wasserzaehler_modal_data database function to replace multiple separate actions
- * @param nebenkostenId - The ID of the Nebenkosten entry
- * @returns Promise with success status, structured modal data, and optional error message
+ * Optimized server action to fetch all Wasserzähler modal data in a single database call
+ * 
+ * **Performance Optimization**: Replaces multiple separate server actions with a single optimized 
+ * database function call, eliminating multiple round-trips and reducing modal loading time.
+ * 
+ * **Replaces These Actions**:
+ * - `getMieterForNebenkostenAction()`
+ * - `getWasserzaehlerRecordsAction()`
+ * - `getBatchPreviousWasserzaehlerRecordsAction()`
+ * 
+ * **Key Features**:
+ * - Fetches tenants who lived during the billing period
+ * - Retrieves current water meter readings for the nebenkosten
+ * - Gets previous year readings for comparison
+ * - Handles missing data gracefully with null values
+ * - Includes apartment size information for calculations
+ * 
+ * **Database Function**: `get_wasserzaehler_modal_data(nebenkosten_id, user_id)`
+ * 
+ * **Expected Performance**:
+ * - Reduces modal open time from 3-5s to 1-2s
+ * - Eliminates 3+ separate database queries
+ * - Prevents Cloudflare Worker timeouts on large datasets
+ * 
+ * @param {string} nebenkostenId - The UUID of the Nebenkosten entry to fetch data for
+ * 
+ * @returns {Promise<OptimizedActionResponse<WasserzaehlerModalData[]>>} Promise resolving to:
+ *   - `success`: Boolean indicating operation success
+ *   - `data`: Array of tenant data with current and previous readings
+ *   - `message`: Error message if operation failed
+ * 
+ * @throws {Error} When nebenkosten ID is invalid or user lacks access permissions
+ * 
+ * @example
+ * ```typescript
+ * const result = await getWasserzaehlerModalDataAction('nebenkosten-uuid');
+ * if (result.success && result.data) {
+ *   result.data.forEach(tenant => {
+ *     console.log(`${tenant.mieter_name}: Current ${tenant.current_reading?.zaehlerstand || 'N/A'}`);
+ *     console.log(`Previous: ${tenant.previous_reading?.zaehlerstand || 'N/A'}`);
+ *   });
+ * }
+ * ```
+ * 
+ * @see {@link docs/database-functions.md#get_wasserzaehler_modal_data} Database function documentation
+ * @see {@link components/wasserzaehler-modal.tsx} Modal component that consumes this data
  */
 export async function getWasserzaehlerModalDataAction(
   nebenkostenId: string
@@ -827,10 +1003,54 @@ export async function getWasserzaehlerModalDataAction(
 }
 
 /**
- * Optimized server action to get all Abrechnung modal data in a single call
- * Uses the get_abrechnung_modal_data database function to replace multiple separate actions
- * @param nebenkostenId - The ID of the Nebenkosten entry
- * @returns Promise with success status, structured modal data, and optional error message
+ * Optimized server action to fetch all Abrechnung modal data in a single database call
+ * 
+ * **Performance Optimization**: Consolidates multiple data fetching operations into a single 
+ * optimized database function call, significantly reducing modal loading time and preventing 
+ * Cloudflare Worker timeouts.
+ * 
+ * **Data Aggregation**: Fetches and structures all required data for the Abrechnung modal:
+ * - Complete nebenkosten information with house details
+ * - All relevant tenants with apartment information
+ * - Existing rechnungen (bills) for this nebenkosten period
+ * - Water meter readings for consumption calculations
+ * - Pre-calculated house metrics (area, apartment count, tenant count)
+ * 
+ * **Database Function**: `get_abrechnung_modal_data(nebenkosten_id, user_id)`
+ * 
+ * **Expected Performance**:
+ * - Reduces modal open time from 4-6s to 1-2s
+ * - Eliminates 5+ separate database queries
+ * - Handles large datasets efficiently (50+ tenants)
+ * - Prevents timeout issues with complex calculations
+ * 
+ * @param {string} nebenkostenId - The UUID of the Nebenkosten entry to fetch data for
+ * 
+ * @returns {Promise<OptimizedActionResponse<AbrechnungModalData>>} Promise resolving to:
+ *   - `success`: Boolean indicating operation success
+ *   - `data`: Structured object containing all modal data:
+ *     - `nebenkosten_data`: Complete nebenkosten info with house details
+ *     - `tenants`: Array of relevant tenants with apartment info
+ *     - `rechnungen`: Array of existing bills for this period
+ *     - `wasserzaehler_readings`: Array of water meter readings
+ *   - `message`: Error message if operation failed
+ * 
+ * @throws {Error} When nebenkosten ID is invalid or user lacks access permissions
+ * 
+ * @example
+ * ```typescript
+ * const result = await getAbrechnungModalDataAction('nebenkosten-uuid');
+ * if (result.success && result.data) {
+ *   const { nebenkosten_data, tenants, rechnungen, wasserzaehler_readings } = result.data;
+ *   console.log(`House: ${nebenkosten_data.Haeuser.name}`);
+ *   console.log(`Tenants: ${tenants.length}`);
+ *   console.log(`Existing bills: ${rechnungen.length}`);
+ *   console.log(`Water readings: ${wasserzaehler_readings.length}`);
+ * }
+ * ```
+ * 
+ * @see {@link docs/database-functions.md#get_abrechnung_modal_data} Database function documentation
+ * @see {@link components/abrechnung-modal.tsx} Modal component that consumes this data
  */
 export async function getAbrechnungModalDataAction(
   nebenkostenId: string

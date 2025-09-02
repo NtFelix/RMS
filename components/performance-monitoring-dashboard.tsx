@@ -79,12 +79,16 @@ export function PerformanceMonitoringDashboard({
     const [isLoading, setIsLoading] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-    // Function names we're monitoring
+    // Function names we're monitoring - includes all critical betriebskosten operations
     const monitoredFunctions = [
         'get_nebenkosten_with_metrics',
-        'get_wasserzaehler_modal_data',
+        'get_wasserzaehler_modal_data', 
         'get_abrechnung_modal_data',
-        'save_wasserzaehler_batch'
+        'save_wasserzaehler_batch',
+        'fetchNebenkostenListOptimized',
+        'getWasserzaehlerModalDataAction',
+        'getAbrechnungModalDataAction',
+        'saveWasserzaehlerData'
     ];
 
     const refreshData = () => {
