@@ -16,7 +16,7 @@ import { isoToGermanDate } from "@/utils/date-calculations"
 import { Edit, Trash2, FileText, Droplets } from "lucide-react" // Removed Calculator
 import { OperatingCostsOverviewModal } from "./operating-costs-overview-modal"
 import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
-import { saveWasserzaehlerData, getWasserzaehlerModalDataAction, getAbrechnungModalDataAction } from "@/app/betriebskosten-actions" // Updated to use optimized actions
+import { saveWasserzaehlerDataOptimized, getWasserzaehlerModalDataAction, getAbrechnungModalDataAction } from "@/app/betriebskosten-actions" // Updated to use optimized actions
 import { toast } from "sonner" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
 
@@ -87,23 +87,28 @@ export function OperatingCostsTable({
 
   const handleSaveWasserzaehler = async (data: WasserzaehlerFormData): Promise<{ success: boolean; message?: string }> => {
     try {
-      const result = await saveWasserzaehlerData(data);
+      const result = await saveWasserzaehlerDataOptimized(data);
       if (result.success) {
-        toast.success("Wasserzählerdaten erfolgreich gespeichert!");
+        toast.success(result.message || "Wasserzählerdaten erfolgreich gespeichert!");
         // Return success result to the modal
         return { success: true };
       } else {
+        // Handle validation errors specifically
+        if (result.validationErrors && result.validationErrors.length > 0) {
+          const validationMessage = result.validationErrors.join('\n');
+          toast.error(`Validierungsfehler:\n${validationMessage}`);
+          return { success: false, message: `Validierungsfehler: ${validationMessage}` };
+        }
+        
         const errorMessage = result.message || "Die Wasserzählerstände konnten nicht gespeichert werden.";
-        throw new Error(errorMessage);
+        toast.error(errorMessage);
+        return { success: false, message: errorMessage };
       }
     } catch (error) {
-      console.error("Error calling saveWasserzaehlerData:", error);
-      if (error instanceof Error) {
-        // Return error result to the modal
-        return { success: false, message: error.message };
-      } else {
-        return { success: false, message: "Ein unerwarteter Fehler ist aufgetreten." };
-      }
+      console.error("Error calling saveWasserzaehlerDataOptimized:", error);
+      const errorMessage = error instanceof Error ? error.message : "Ein unerwarteter Fehler ist aufgetreten.";
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
     }
   };
 

@@ -322,12 +322,115 @@ BEGIN
 END;
 $$;
 
+-- Function 4: save_wasserzaehler_batch
+-- Optimized batch save operation for Wasserzähler data with automatic total calculation
+CREATE OR REPLACE FUNCTION save_wasserzaehler_batch(
+    nebenkosten_id UUID,
+    user_id UUID,
+    readings JSONB
+)
+RETURNS TABLE (
+    success BOOLEAN,
+    message TEXT,
+    total_verbrauch NUMERIC,
+    inserted_count INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $
+DECLARE
+    reading_record JSONB;
+    total_consumption NUMERIC := 0;
+    insert_count INTEGER := 0;
+    nebenkosten_exists BOOLEAN := FALSE;
+BEGIN
+    -- Verify nebenkosten exists and belongs to user
+    SELECT EXISTS(
+        SELECT 1 FROM "Nebenkosten" n 
+        WHERE n.id = save_wasserzaehler_batch.nebenkosten_id 
+        AND n.user_id = save_wasserzaehler_batch.user_id
+    ) INTO nebenkosten_exists;
+    
+    IF NOT nebenkosten_exists THEN
+        RETURN QUERY SELECT FALSE, 'Nebenkosten entry not found or access denied'::TEXT, 0::NUMERIC, 0::INTEGER;
+        RETURN;
+    END IF;
+    
+    -- Delete existing entries for this nebenkosten_id
+    DELETE FROM "Wasserzaehler" 
+    WHERE nebenkosten_id = save_wasserzaehler_batch.nebenkosten_id 
+    AND user_id = save_wasserzaehler_batch.user_id;
+    
+    -- If no readings provided, set total to 0 and return
+    IF readings IS NULL OR jsonb_array_length(readings) = 0 THEN
+        UPDATE "Nebenkosten" 
+        SET wasserverbrauch = 0 
+        WHERE id = save_wasserzaehler_batch.nebenkosten_id 
+        AND user_id = save_wasserzaehler_batch.user_id;
+        
+        RETURN QUERY SELECT TRUE, 'All existing readings deleted and total consumption set to 0'::TEXT, 0::NUMERIC, 0::INTEGER;
+        RETURN;
+    END IF;
+    
+    -- Insert new readings and calculate total
+    FOR reading_record IN SELECT * FROM jsonb_array_elements(readings)
+    LOOP
+        -- Validate required fields
+        IF (reading_record->>'mieter_id') IS NULL OR 
+           (reading_record->>'zaehlerstand') IS NULL OR
+           NOT (reading_record->>'zaehlerstand' ~ '^[0-9]+\.?[0-9]*$') THEN
+            CONTINUE; -- Skip invalid entries
+        END IF;
+        
+        -- Insert the reading
+        INSERT INTO "Wasserzaehler" (
+            user_id,
+            mieter_id,
+            ablese_datum,
+            zaehlerstand,
+            verbrauch,
+            nebenkosten_id
+        ) VALUES (
+            save_wasserzaehler_batch.user_id,
+            (reading_record->>'mieter_id')::UUID,
+            COALESCE(
+                (reading_record->>'ablese_datum')::DATE,
+                CURRENT_DATE
+            ),
+            (reading_record->>'zaehlerstand')::NUMERIC,
+            COALESCE((reading_record->>'verbrauch')::NUMERIC, 0),
+            save_wasserzaehler_batch.nebenkosten_id
+        );
+        
+        -- Add to total consumption
+        total_consumption := total_consumption + COALESCE((reading_record->>'verbrauch')::NUMERIC, 0);
+        insert_count := insert_count + 1;
+    END LOOP;
+    
+    -- Update Nebenkosten with calculated total
+    UPDATE "Nebenkosten" 
+    SET wasserverbrauch = total_consumption 
+    WHERE id = save_wasserzaehler_batch.nebenkosten_id 
+    AND user_id = save_wasserzaehler_batch.user_id;
+    
+    RETURN QUERY SELECT TRUE, 
+                        CASE 
+                            WHEN insert_count > 0 THEN 'Wasserzähler data saved successfully'::TEXT
+                            ELSE 'No valid readings to save'::TEXT
+                        END,
+                        total_consumption, 
+                        insert_count;
+END;
+$;
+
 -- Grant execute permissions to authenticated users
 GRANT EXECUTE ON FUNCTION get_nebenkosten_with_metrics(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_wasserzaehler_modal_data(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_abrechnung_modal_data(UUID, UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION save_wasserzaehler_batch(UUID, UUID, JSONB) TO authenticated;
 
 -- Add comments for documentation
 COMMENT ON FUNCTION get_nebenkosten_with_metrics(UUID) IS 'Optimized function to fetch Nebenkosten with calculated house metrics in a single query, replacing individual getHausGesamtFlaeche calls';
 COMMENT ON FUNCTION get_wasserzaehler_modal_data(UUID, UUID) IS 'Fetches all Wasserzähler modal data including tenants, current readings, and previous readings in one optimized call';
 COMMENT ON FUNCTION get_abrechnung_modal_data(UUID, UUID) IS 'Fetches all Abrechnung modal data including nebenkosten details, tenants, rechnungen, and wasserzaehler readings in one call';
+COMMENT ON FUNCTION save_wasserzaehler_batch(UUID, UUID, JSONB) IS 'Optimized batch save operation for Wasserzähler data with automatic total calculation and validation';

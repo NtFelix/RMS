@@ -89,6 +89,70 @@ BEGIN
         EXTRACT(MILLISECONDS FROM (end_time - start_time));
 END $$;
 
+-- Test 4: save_wasserzaehler_batch function
+-- Replace with actual nebenkosten_id and user_id
+DO $
+DECLARE
+    test_nebenkosten_id UUID := 'your-nebenkosten-id-here'; -- Replace with actual nebenkosten ID
+    test_user_id UUID := 'your-user-id-here'; -- Replace with actual user ID
+    test_readings JSONB := '[
+        {
+            "mieter_id": "test-mieter-1",
+            "ablese_datum": "2024-01-15",
+            "zaehlerstand": 1234.5,
+            "verbrauch": 50.2
+        },
+        {
+            "mieter_id": "test-mieter-2",
+            "ablese_datum": "2024-01-15",
+            "zaehlerstand": 2345.6,
+            "verbrauch": 60.3
+        }
+    ]';
+    result_record RECORD;
+BEGIN
+    -- Test the batch save function
+    SELECT * INTO result_record
+    FROM save_wasserzaehler_batch(test_nebenkosten_id, test_user_id, test_readings);
+    
+    IF result_record IS NOT NULL THEN
+        RAISE NOTICE 'save_wasserzaehler_batch result:';
+        RAISE NOTICE 'Success: %', result_record.success;
+        RAISE NOTICE 'Message: %', result_record.message;
+        RAISE NOTICE 'Total Verbrauch: %', result_record.total_verbrauch;
+        RAISE NOTICE 'Inserted Count: %', result_record.inserted_count;
+    ELSE
+        RAISE NOTICE 'save_wasserzaehler_batch returned no data';
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'save_wasserzaehler_batch test failed: %', SQLERRM;
+END $;
+
+-- Test 5: save_wasserzaehler_batch with empty readings (should set total to 0)
+DO $
+DECLARE
+    test_nebenkosten_id UUID := 'your-nebenkosten-id-here'; -- Replace with actual nebenkosten ID
+    test_user_id UUID := 'your-user-id-here'; -- Replace with actual user ID
+    test_readings JSONB := '[]'; -- Empty array
+    result_record RECORD;
+BEGIN
+    -- Test the batch save function with empty readings
+    SELECT * INTO result_record
+    FROM save_wasserzaehler_batch(test_nebenkosten_id, test_user_id, test_readings);
+    
+    IF result_record IS NOT NULL THEN
+        RAISE NOTICE 'save_wasserzaehler_batch (empty) result:';
+        RAISE NOTICE 'Success: %', result_record.success;
+        RAISE NOTICE 'Message: %', result_record.message;
+        RAISE NOTICE 'Total Verbrauch: %', result_record.total_verbrauch;
+        RAISE NOTICE 'Inserted Count: %', result_record.inserted_count;
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'save_wasserzaehler_batch (empty) test failed: %', SQLERRM;
+END $;
+
 -- Verify function signatures
 SELECT 
     routine_name,
@@ -99,6 +163,7 @@ WHERE routine_schema = 'public'
 AND routine_name IN (
     'get_nebenkosten_with_metrics',
     'get_wasserzaehler_modal_data', 
-    'get_abrechnung_modal_data'
+    'get_abrechnung_modal_data',
+    'save_wasserzaehler_batch'
 )
 ORDER BY routine_name;
