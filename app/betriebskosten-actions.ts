@@ -743,19 +743,18 @@ export async function saveWasserzaehlerDataOptimized(
 import { 
   safeRpcCall as enhancedSafeRpcCall, 
   withRetry, 
-  PerformanceMonitor,
   generateUserFriendlyErrorMessage 
 } from '@/lib/error-handling';
 import { logger } from '@/utils/logger';
 
 /**
- * Enhanced utility function for safe RPC calls with comprehensive error handling and performance logging
+ * Enhanced utility function for safe RPC calls with comprehensive error handling
  * @deprecated Use enhancedSafeRpcCall from @/lib/error-handling instead
  */
 export async function safeRpcCall<T>(
   supabase: any,
   functionName: string,
-  params: Record<string, any>
+  params: any[] = []
 ): Promise<SafeRpcCallResult<T>> {
   // Get user ID for logging context
   let userId: string | undefined;
@@ -767,16 +766,15 @@ export async function safeRpcCall<T>(
   }
 
   const result = await enhancedSafeRpcCall<T>(supabase, functionName, params, {
-    userId,
-    logPerformance: true
+    userId
   });
 
-  // Add metrics to performance monitor
-  if (result.performanceMetrics) {
-    PerformanceMonitor.addMetric(result.performanceMetrics);
-  }
-
-  return result;
+  // Ensure we return a properly typed result
+  return {
+    success: result.success,
+    data: result.data,
+    message: result.message
+  };
 }
 
 /**
