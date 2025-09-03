@@ -582,7 +582,7 @@ export async function saveWasserzaehlerData(
       {
         maxRetries: 3,
         baseDelayMs: 1500,
-        retryCondition: (result) => !result.success && result.message?.includes('timeout')
+        retryCondition: (result) => !result.success && (result.message?.includes('timeout') ?? false)
       }
     );
 
@@ -754,7 +754,7 @@ import { logger } from '@/utils/logger';
 export async function safeRpcCall<T>(
   supabase: any,
   functionName: string,
-  params: any[] = []
+  params: any[] | Record<string, any> = []
 ): Promise<SafeRpcCallResult<T>> {
   // Get user ID for logging context
   let userId: string | undefined;
@@ -765,7 +765,10 @@ export async function safeRpcCall<T>(
     // Continue without user ID if auth fails
   }
 
-  const result = await enhancedSafeRpcCall<T>(supabase, functionName, params, {
+  // Convert array params to object format if needed
+  const paramsObject = Array.isArray(params) ? {} : params;
+
+  const result = await enhancedSafeRpcCall<T>(supabase, functionName, paramsObject, {
     userId
   });
 
@@ -984,7 +987,7 @@ export async function getWasserzaehlerModalDataAction(
       {
         maxRetries: 2,
         baseDelayMs: 1000,
-        retryCondition: (result) => !result.success && (result.message?.includes('does not exist') || result.message?.includes('FROM-clause entry'))
+        retryCondition: (result) => !result.success && ((result.message?.includes('does not exist') ?? false) || (result.message?.includes('FROM-clause entry') ?? false))
       }
     );
 
@@ -1010,7 +1013,7 @@ export async function getWasserzaehlerModalDataAction(
           .single();
 
         if (nebenkostenError || !nebenkostenData) {
-          logger.error('Failed to fetch Nebenkosten details', nebenkostenError, {
+          logger.error('Failed to fetch Nebenkosten details', nebenkostenError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1037,7 +1040,7 @@ export async function getWasserzaehlerModalDataAction(
           .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
 
         if (tenantsError) {
-          logger.error('Failed to fetch tenants', tenantsError, {
+          logger.error('Failed to fetch tenants', tenantsError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1052,7 +1055,7 @@ export async function getWasserzaehlerModalDataAction(
           .eq("user_id", user.id);
 
         if (currentError) {
-          logger.error('Failed to fetch current readings', currentError, {
+          logger.error('Failed to fetch current readings', currentError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1069,7 +1072,7 @@ export async function getWasserzaehlerModalDataAction(
           .order("ablese_datum", { ascending: false });
 
         if (previousError) {
-          logger.error('Failed to fetch previous readings', previousError, {
+          logger.error('Failed to fetch previous readings', previousError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1080,11 +1083,14 @@ export async function getWasserzaehlerModalDataAction(
           const currentReading = currentReadings?.find(r => r.mieter_id === tenant.id);
           const previousReading = previousReadings?.find(r => r.mieter_id === tenant.id);
           
+          // Type assertion for Wohnungen since Supabase join returns it as an object, not array
+          const wohnung = Array.isArray(tenant.Wohnungen) ? tenant.Wohnungen[0] : tenant.Wohnungen;
+          
           return {
             mieter_id: tenant.id,
             mieter_name: tenant.name,
-            wohnung_name: tenant.Wohnungen?.name || 'Unbekannt',
-            wohnung_groesse: tenant.Wohnungen?.groesse || 0,
+            wohnung_name: wohnung?.name || 'Unbekannt',
+            wohnung_groesse: wohnung?.groesse || 0,
             current_reading: currentReading ? {
               ablese_datum: currentReading.ablese_datum,
               zaehlerstand: currentReading.zaehlerstand,
@@ -1237,7 +1243,7 @@ export async function getAbrechnungModalDataAction(
       {
         maxRetries: 2,
         baseDelayMs: 1000,
-        retryCondition: (result) => !result.success && (result.message?.includes('does not exist') || result.message?.includes('FROM-clause entry'))
+        retryCondition: (result) => !result.success && ((result.message?.includes('does not exist') ?? false) || (result.message?.includes('FROM-clause entry') ?? false))
       }
     );
 
@@ -1269,7 +1275,7 @@ export async function getAbrechnungModalDataAction(
           .single();
 
         if (nebenkostenError || !nebenkostenData) {
-          logger.error('Failed to fetch Nebenkosten details', nebenkostenError, {
+          logger.error('Failed to fetch Nebenkosten details', nebenkostenError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1294,7 +1300,7 @@ export async function getAbrechnungModalDataAction(
           .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
 
         if (tenantsError) {
-          logger.error('Failed to fetch tenants', tenantsError, {
+          logger.error('Failed to fetch tenants', tenantsError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1309,7 +1315,7 @@ export async function getAbrechnungModalDataAction(
           .eq("user_id", user.id);
 
         if (rechnungenError) {
-          logger.error('Failed to fetch rechnungen', rechnungenError, {
+          logger.error('Failed to fetch rechnungen', rechnungenError || undefined, {
             userId: user.id,
             nebenkostenId
           });
@@ -1323,7 +1329,7 @@ export async function getAbrechnungModalDataAction(
           .eq("user_id", user.id);
 
         if (wasserzaehlerError) {
-          logger.error('Failed to fetch wasserzaehler readings', wasserzaehlerError, {
+          logger.error('Failed to fetch wasserzaehler readings', wasserzaehlerError || undefined, {
             userId: user.id,
             nebenkostenId
           });

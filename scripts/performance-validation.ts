@@ -10,7 +10,7 @@
  * @see .kiro/specs/betriebskosten-performance-optimization/tasks.md - Task 10
  */
 
-import { createClient } from '../utils/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { safeRpcCall, PerformanceMonitor } from '../lib/error-handling';
 import { LoadTester, LoadTestScenarios, TestDataGenerators } from '../__tests__/performance/load-testing-utils';
 import fs from 'fs';
@@ -45,7 +45,10 @@ interface LoadTestResult {
 }
 
 class PerformanceValidator {
-  private supabase = createClient();
+  private supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
   private loadTester = new LoadTester();
   private results: PerformanceValidationResult;
 
