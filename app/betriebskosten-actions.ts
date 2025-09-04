@@ -1230,158 +1230,120 @@ export async function getAbrechnungModalDataAction(
       operation: 'getAbrechnungModalDataAction'
     });
 
-    // Try to use the optimized database function first
-    const result = await withRetry(
-      () => safeRpcCall<AbrechnungModalData>(
-        supabase,
-        'get_abrechnung_modal_data',
-        { 
-          nebenkosten_id: nebenkostenId,
-          user_id: user.id 
-        }
-      ),
-      {
-        maxRetries: 2,
-        baseDelayMs: 1000,
-        retryCondition: (result) => !result.success && ((result.message?.includes('does not exist') ?? false) || (result.message?.includes('FROM-clause entry') ?? false))
-      }
-    );
+    // NOTE: Always use server-side queries for Abrechnung modal data.
+    // Kept RPC code for reference if we want to switch back later.
+    // --- BEGIN: Previous RPC approach (disabled) ---
+    // const result = await withRetry(
+    //   () => safeRpcCall<AbrechnungModalData>(
+    //     supabase,
+    //     'get_abrechnung_modal_data',
+    //     { nebenkosten_id: nebenkostenId, user_id: user.id }
+    //   ),
+    //   { maxRetries: 2, baseDelayMs: 1000 }
+    // );
+    // if (result.success) return result;
+    // --- END: Previous RPC approach ---
 
-    if (!result.success) {
-      // If the database function doesn't exist, fall back to individual queries
-      const originalError = result.performanceMetrics?.errorMessage || result.message || '';
-      if (originalError.includes('does not exist') || 
-          originalError.includes('FROM-clause entry') || 
-          originalError.includes('missing FROM-clause entry')) {
-        logger.warn('Database function not available, using fallback queries', {
-          userId: user.id,
-          nebenkostenId,
-          functionName: 'get_abrechnung_modal_data',
-          originalError
-        });
+    // Fetch Nebenkosten with house info
+    const { data: nebenkostenData, error: nebenkostenError } = await supabase
+      .from("Nebenkosten")
+      .select(`
+        *,
+        Haeuser (
+          name,
+          groesse
+        )
+      `)
+      .eq("id", nebenkostenId)
+      .eq("user_id", user.id)
+      .single();
 
-        // Fallback implementation using regular queries
-        const { data: nebenkostenData, error: nebenkostenError } = await supabase
-          .from("Nebenkosten")
-          .select(`
-            *,
-            Haeuser (
-              name,
-              groesse
-            )
-          `)
-          .eq("id", nebenkostenId)
-          .eq("user_id", user.id)
-          .single();
-
-        if (nebenkostenError || !nebenkostenData) {
-          logger.error('Failed to fetch Nebenkosten details', nebenkostenError || undefined, {
-            userId: user.id,
-            nebenkostenId
-          });
-          return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
-        }
-
-        // Get tenants who lived in the house during the billing period
-        const { data: tenants, error: tenantsError } = await supabase
-          .from("Mieter")
-          .select(`
-            *,
-            Wohnungen!inner (
-              name,
-              groesse,
-              miete,
-              haus_id
-            )
-          `)
-          .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
-          .eq("user_id", user.id)
-          .lte("einzug", nebenkostenData.enddatum)
-          .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
-
-        if (tenantsError) {
-          logger.error('Failed to fetch tenants', tenantsError || undefined, {
-            userId: user.id,
-            nebenkostenId
-          });
-          return { success: false, message: "Fehler beim Laden der Mieterdaten." };
-        }
-
-        // Get existing rechnungen for this nebenkosten
-        const { data: rechnungen, error: rechnungenError } = await supabase
-          .from("Rechnungen")
-          .select("*")
-          .eq("nebenkosten_id", nebenkostenId)
-          .eq("user_id", user.id);
-
-        if (rechnungenError) {
-          logger.error('Failed to fetch rechnungen', rechnungenError || undefined, {
-            userId: user.id,
-            nebenkostenId
-          });
-        }
-
-        // Get wasserzaehler readings for this nebenkosten
-        const { data: wasserzaehlerReadings, error: wasserzaehlerError } = await supabase
-          .from("Wasserzaehler")
-          .select("*")
-          .eq("nebenkosten_id", nebenkostenId)
-          .eq("user_id", user.id);
-
-        if (wasserzaehlerError) {
-          logger.error('Failed to fetch wasserzaehler readings', wasserzaehlerError || undefined, {
-            userId: user.id,
-            nebenkostenId
-          });
-        }
-
-        // Calculate house metrics
-        const totalArea = nebenkostenData.Haeuser?.groesse || 
-          (tenants || []).reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
-        
-        const apartmentCount = new Set((tenants || []).map(t => t.wohnung_id)).size;
-
-        // Build the response data
-        const modalData: AbrechnungModalData = {
-          nebenkosten_data: {
-            ...nebenkostenData,
-            gesamtFlaeche: totalArea,
-            anzahlWohnungen: apartmentCount,
-            anzahlMieter: (tenants || []).length
-          } as Nebenkosten,
-          tenants: tenants || [],
-          rechnungen: rechnungen || [],
-          wasserzaehler_readings: wasserzaehlerReadings || []
-        };
-
-        logger.info('Successfully fetched Abrechnung modal data using fallback', {
-          userId: user.id,
-          nebenkostenId,
-          tenantCount: modalData.tenants.length,
-          rechnungenCount: modalData.rechnungen.length
-        });
-
-        return { success: true, data: modalData };
-      }
-
-      logger.error('Failed to fetch Abrechnung modal data', undefined, {
+    if (nebenkostenError || !nebenkostenData) {
+      logger.error('Failed to fetch Nebenkosten details', nebenkostenError || undefined, {
         userId: user.id,
-        nebenkostenId,
-        errorMessage: result.message,
-        performanceMetrics: result.performanceMetrics
+        nebenkostenId
       });
-      return result;
+      return { success: false, message: "Nebenkosten-Eintrag nicht gefunden." };
     }
 
-    logger.info('Successfully fetched Abrechnung modal data using optimized function', {
+    // Fetch tenants overlapping the billing period for the same house
+    const { data: tenants, error: tenantsError } = await supabase
+      .from("Mieter")
+      .select(`
+        *,
+        Wohnungen!inner (
+          name,
+          groesse,
+          miete,
+          haus_id
+        )
+      `)
+      .eq("Wohnungen.haus_id", nebenkostenData.haeuser_id)
+      .eq("user_id", user.id)
+      .lte("einzug", nebenkostenData.enddatum)
+      .or(`auszug.is.null,auszug.gte.${nebenkostenData.startdatum}`);
+
+    if (tenantsError) {
+      logger.error('Failed to fetch tenants', tenantsError || undefined, {
+        userId: user.id,
+        nebenkostenId
+      });
+      return { success: false, message: "Fehler beim Laden der Mieterdaten." };
+    }
+
+    // Fetch rechnungen
+    const { data: rechnungen, error: rechnungenError } = await supabase
+      .from("Rechnungen")
+      .select("*")
+      .eq("nebenkosten_id", nebenkostenId)
+      .eq("user_id", user.id);
+
+    if (rechnungenError) {
+      logger.error('Failed to fetch rechnungen', rechnungenError || undefined, {
+        userId: user.id,
+        nebenkostenId
+      });
+    }
+
+    // Fetch wasserzaehler readings
+    const { data: wasserzaehlerReadings, error: wasserzaehlerError } = await supabase
+      .from("Wasserzaehler")
+      .select("*")
+      .eq("nebenkosten_id", nebenkostenId)
+      .eq("user_id", user.id);
+
+    if (wasserzaehlerError) {
+      logger.error('Failed to fetch wasserzaehler readings', wasserzaehlerError || undefined, {
+        userId: user.id,
+        nebenkostenId
+      });
+    }
+
+    // Aggregate basic metrics for the modal (compatible with component expectations)
+    const totalArea = nebenkostenData.Haeuser?.groesse ||
+      (tenants || []).reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
+    const apartmentCount = new Set((tenants || []).map(t => t.wohnung_id)).size;
+
+    const modalData: AbrechnungModalData = {
+      nebenkosten_data: {
+        ...nebenkostenData,
+        gesamtFlaeche: totalArea,
+        anzahlWohnungen: apartmentCount,
+        anzahlMieter: (tenants || []).length
+      } as Nebenkosten,
+      tenants: tenants || [],
+      rechnungen: rechnungen || [],
+      wasserzaehler_readings: wasserzaehlerReadings || []
+    };
+
+    logger.info('Successfully fetched Abrechnung modal data (server-side queries)', {
       userId: user.id,
       nebenkostenId,
-      tenantCount: result.data?.tenants?.length || 0,
-      rechnungenCount: result.data?.rechnungen?.length || 0,
-      executionTime: result.performanceMetrics?.executionTime
+      tenantCount: modalData.tenants.length,
+      rechnungenCount: modalData.rechnungen.length
     });
 
-    return result;
+    return { success: true, data: modalData };
 
   } catch (error: any) {
     logger.error('Unexpected error in getAbrechnungModalDataAction', error, {

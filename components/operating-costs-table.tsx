@@ -121,6 +121,18 @@ export function OperatingCostsTable({
       const result = await getAbrechnungModalDataAction(item.id);
 
       if (result.success && result.data) {
+        // Debug: log fetched data before updating state
+        console.debug('[OperatingCostsTable] getAbrechnungModalDataAction success', {
+          nebenkostenId: item.id,
+          tenantsCount: Array.isArray(result.data.tenants) ? result.data.tenants.length : 'n/a',
+          rechnungenCount: Array.isArray(result.data.rechnungen) ? result.data.rechnungen.length : 'n/a',
+          wasserzaehlerCount: Array.isArray(result.data.wasserzaehler_readings) ? result.data.wasserzaehler_readings.length : 'n/a',
+          firstTenant: Array.isArray(result.data.tenants) && result.data.tenants.length > 0 ? {
+            id: (result.data.tenants[0] as any).id,
+            name: (result.data.tenants[0] as any).name,
+            wohnung_id: (result.data.tenants[0] as any).wohnung_id,
+          } : null,
+        });
         setAbrechnungModalData(result.data);
         setIsAbrechnungModalOpen(true);
       } else {
@@ -267,9 +279,9 @@ export function OperatingCostsTable({
           isOpen={isAbrechnungModalOpen}
           onClose={handleCloseAbrechnungModal}
           nebenkostenItem={selectedNebenkostenForAbrechnung}
-          tenants={abrechnungModalData.tenants}
-          rechnungen={abrechnungModalData.rechnungen}
-          wasserzaehlerReadings={abrechnungModalData.wasserzaehler_readings}
+          tenants={abrechnungModalData.tenants ?? []}
+          rechnungen={abrechnungModalData.rechnungen ?? []}
+          wasserzaehlerReadings={abrechnungModalData.wasserzaehler_readings ?? []}
           ownerName={ownerName}
           ownerAddress={(() => {
             const selectedHaus = allHaeuser.find(h => h.id === selectedNebenkostenForAbrechnung.haeuser_id);

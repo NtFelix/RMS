@@ -169,15 +169,35 @@ export function AbrechnungModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
+  // Guard: ensure we always work with an array for tenants
+  const safeTenants = Array.isArray(tenants) ? tenants : [];
+  
   // Performance monitoring - log when modal opens with pre-loaded data
   useEffect(() => {
-    if (isOpen && nebenkostenItem && tenants.length > 0) {
-      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants.length} tenants, ${rechnungen.length} rechnungen, ${wasserzaehlerReadings?.length || 0} wasserzaehler readings`);
+    if (isOpen && nebenkostenItem && tenants?.length > 0) {
+      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${wasserzaehlerReadings?.length || 0} wasserzaehler readings`);
     }
-  }, [isOpen, nebenkostenItem, tenants.length, rechnungen.length, wasserzaehlerReadings?.length]);
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, wasserzaehlerReadings]);
+
+  // Debug: Log tenants whenever they change
+  useEffect(() => {
+    if (!isOpen) return;
+    console.debug('[AbrechnungModal] tenants prop changed', {
+      isOpen,
+      nebenkostenId: nebenkostenItem?.id,
+      tenantsCount: Array.isArray(tenants) ? tenants.length : 'n/a',
+      firstTenant: Array.isArray(tenants) && tenants.length > 0 ? {
+        id: (tenants[0] as any).id,
+        name: (tenants[0] as any).name,
+        wohnung_id: (tenants[0] as any).wohnung_id,
+      } : null,
+    });
+  }, [isOpen, nebenkostenItem?.id, tenants]);
   
   // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
   const wgFactors = useMemo(() => {
+    if (!tenants || tenants.length === 0) return {};
+    
     if (!nebenkostenItem?.startdatum || !nebenkostenItem?.enddatum) {
       // Fallback to current year if date range is not available
       return computeWgFactorsByTenant(tenants, new Date().getFullYear());
@@ -195,6 +215,12 @@ export function AbrechnungModal({
     }
     return nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch;
   }, [nebenkostenItem?.wasserkosten, nebenkostenItem?.wasserverbrauch]);
+
+  // Calculate total house area with fallback - moved outside of calculateCostsForTenant to fix hook violation
+  const totalHouseArea = useMemo(() => {
+    if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
+    return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
+  }, [tenants]);
 
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
@@ -281,19 +307,15 @@ export function AbrechnungModal({
         // Move to next month
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
-      // End Vorauszahlungen
 
-      const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
-        ? gesamtFlaeche
-        : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
       const apartmentSize = tenant.Wohnungen?.groesse || 0;
       const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
 
       const costItemsDetails: TenantCostDetails['costItems'] = [];
 
       if (nebenkostenart && betrag && berechnungsart) {
-        const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
-        const activeTenantsCount = Math.max(1, tenants.length);
+        const uniqueAptIds = new Set(safeTenants.map(t => t.wohnung_id).filter(Boolean));
+        const activeTenantsCount = Math.max(1, safeTenants.length);
 
         nebenkostenart.forEach((costName, index) => {
           const totalCostForItem = betrag[index] || 0;
@@ -411,7 +433,7 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
-  }, [nebenkostenItem, wgFactors, rechnungen, wasserzaehlerReadings]);
+  }, [nebenkostenItem, wgFactors, rechnungen, wasserzaehlerReadings, totalHouseArea]);
 
   // Optimized useEffect that uses pre-loaded data and memoized calculations
   useEffect(() => {
@@ -421,7 +443,7 @@ export function AbrechnungModal({
     }
 
     if (loadAllRelevantTenants) {
-      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
+      const allTenantsData = safeTenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
       setCalculatedTenantData(allTenantsData);
     } else {
       if (!selectedTenantId) {
@@ -429,7 +451,7 @@ export function AbrechnungModal({
         return;
       }
 
-      const activeTenant = tenants.find(t => t.id === selectedTenantId);
+      const activeTenant = safeTenants.find(t => t.id === selectedTenantId);
       if (!activeTenant) {
         setCalculatedTenantData([]); // Clear data if selected tenant not found
         return;
@@ -717,7 +739,7 @@ export function AbrechnungModal({
 
   // Memoize tenant options to avoid recreating on every render
   const tenantOptions: ComboboxOption[] = useMemo(() => 
-    tenants.map(tenant => ({
+    (Array.isArray(tenants) ? tenants : []).map(tenant => ({
       value: tenant.id,
       label: tenant.name,
     })), [tenants]
