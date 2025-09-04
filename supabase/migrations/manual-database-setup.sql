@@ -376,15 +376,15 @@ BEGIN
     
     -- Delete existing entries for this nebenkosten_id
     DELETE FROM "Wasserzaehler" 
-    WHERE nebenkosten_id = save_wasserzaehler_batch.nebenkosten_id 
-    AND user_id = save_wasserzaehler_batch.user_id;
+    WHERE "Wasserzaehler".nebenkosten_id = save_wasserzaehler_batch.nebenkosten_id 
+    AND "Wasserzaehler".user_id = save_wasserzaehler_batch.user_id;
     
     -- If no readings provided, set total to 0 and return
     IF readings IS NULL OR jsonb_array_length(readings) = 0 THEN
         UPDATE "Nebenkosten" 
         SET wasserverbrauch = 0 
-        WHERE id = save_wasserzaehler_batch.nebenkosten_id 
-        AND user_id = save_wasserzaehler_batch.user_id;
+        WHERE "Nebenkosten".id = save_wasserzaehler_batch.nebenkosten_id 
+        AND "Nebenkosten".user_id = save_wasserzaehler_batch.user_id;
         
         RETURN QUERY SELECT TRUE, 'All existing readings deleted and total consumption set to 0'::TEXT, 0::NUMERIC, 0::INTEGER;
         RETURN;
@@ -428,8 +428,8 @@ BEGIN
     -- Update Nebenkosten with calculated total
     UPDATE "Nebenkosten" 
     SET wasserverbrauch = total_consumption 
-    WHERE id = save_wasserzaehler_batch.nebenkosten_id 
-    AND user_id = save_wasserzaehler_batch.user_id;
+    WHERE "Nebenkosten".id = save_wasserzaehler_batch.nebenkosten_id 
+    AND "Nebenkosten".user_id = save_wasserzaehler_batch.user_id;
     
     RETURN QUERY SELECT TRUE, 
                         CASE 
