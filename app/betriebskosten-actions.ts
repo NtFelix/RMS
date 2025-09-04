@@ -1383,8 +1383,8 @@ async function getAbrechnungModalDataFallback(
 
   // Aggregate basic metrics for the modal (compatible with component expectations)
   const totalArea = nebenkostenData.Haeuser?.groesse ||
-    (tenants || []).reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
-  const apartmentCount = new Set((tenants || []).map(t => t.wohnung_id)).size;
+    (tenants || []).reduce((sum: number, t: any) => sum + (t.Wohnungen?.groesse || 0), 0);
+  const apartmentCount = new Set((tenants || []).map((t: any) => t.wohnung_id)).size;
 
   const modalData: AbrechnungModalData = {
     nebenkosten_data: {
@@ -1525,7 +1525,8 @@ export async function createAbrechnungCalculationAction(
       calculateOccupancyPercentage,
       calculateWaterCostDistribution,
       calculatePrepayments,
-      validateCalculationData
+      validateCalculationData,
+      calculateRecommendedPrepayment
     } = await import('@/utils/abrechnung-calculations');
 
     // Validate input data
@@ -1549,8 +1550,7 @@ export async function createAbrechnungCalculationAction(
       try {
         // Calculate occupancy percentage
         const occupancy = calculateOccupancyPercentage(
-          tenant.einzug,
-          tenant.auszug,
+          tenant,
           nebenkosten_data.startdatum,
           nebenkosten_data.enddatum
         );
@@ -1559,8 +1559,6 @@ export async function createAbrechnungCalculationAction(
         const operatingCosts = calculateTenantCosts(
           tenant,
           nebenkosten_data,
-          tenants,
-          rechnungen,
           occupancy
         );
 
@@ -1575,8 +1573,8 @@ export async function createAbrechnungCalculationAction(
         const prepayments = calculatePrepayments(
           tenant,
           nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum,
-          options.calculateMonthlyBreakdown
+          nebenkosten_data.enddatum
+          
         );
 
         // Calculate totals and settlement
@@ -1602,8 +1600,12 @@ export async function createAbrechnungCalculationAction(
           totalCosts,
           prepayments,
           finalSettlement,
-          recommendedPrepayment: options.includeRecommendations ? recommendedPrepayment : undefined
         };
+
+        // Calculate recommended prepayment for next period if requested
+        if (options.includeRecommendations && totalCosts > 0) {
+          tenantCalculation.recommendedPrepayment = calculateRecommendedPrepayment(tenantCalculation);
+        }
 
         tenantCalculations.push(tenantCalculation);
 
@@ -1633,7 +1635,9 @@ export async function createAbrechnungCalculationAction(
       totalWaterCosts: tenantCalculations.reduce((sum, t) => sum + t.waterCosts.totalCost, 0),
       totalPrepayments: tenantCalculations.reduce((sum, t) => sum + t.prepayments.totalPrepayments, 0),
       totalSettlements: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0),
-      averageSettlement: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0) / tenantCalculations.length
+      averageSettlement: tenantCalculations.reduce((sum, t) => sum + t.finalSettlement, 0) / tenantCalculations.length,
+      tenantsWithRefund: tenantCalculations.filter(t => t.finalSettlement < 0).length,
+      tenantsWithAdditionalPayment: tenantCalculations.filter(t => t.finalSettlement > 0).length
     };
 
     const result: AbrechnungCalculationResult = {
@@ -1830,8 +1834,6 @@ export async function createAbrechnungCalculationOptimizedAction(
         const operatingCosts = calculateTenantCosts(
           tenant,
           nebenkosten_data,
-          tenants_with_occupancy,
-          rechnungen,
           occupancy
         );
 
@@ -1846,19 +1848,13 @@ export async function createAbrechnungCalculationOptimizedAction(
         const prepayments = calculatePrepayments(
           tenant,
           nebenkosten_data.startdatum,
-          nebenkosten_data.enddatum,
-          options.calculateMonthlyBreakdown
+          nebenkosten_data.enddatum
+          
         );
 
         // Calculate totals and settlement
         const totalCosts = operatingCosts.totalCost + waterCosts.totalCost;
         const finalSettlement = totalCosts - prepayments.totalPrepayments;
-
-        // Calculate recommended prepayment for next period if requested
-        let recommendedPrepayment = 0;
-        if (options.includeRecommendations && totalCosts > 0) {
-          recommendedPrepayment = calculateRecommendedPrepayment(totalCosts);
-        }
 
         const tenantCalculation: TenantCalculationResult = {
           tenantId: tenant.id,
@@ -1873,8 +1869,12 @@ export async function createAbrechnungCalculationOptimizedAction(
           totalCosts,
           prepayments,
           finalSettlement,
-          recommendedPrepayment: options.includeRecommendations ? recommendedPrepayment : undefined
         };
+
+        // Calculate recommended prepayment for next period if requested
+        if (options.includeRecommendations && totalCosts > 0) {
+          tenantCalculation.recommendedPrepayment = calculateRecommendedPrepayment(tenantCalculation);
+        }
 
         tenantCalculations.push(tenantCalculation);
 

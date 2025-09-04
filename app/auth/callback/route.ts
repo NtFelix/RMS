@@ -1,4 +1,3 @@
-export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
 import { getPostHogServer } from "../../posthog-server.mjs"
