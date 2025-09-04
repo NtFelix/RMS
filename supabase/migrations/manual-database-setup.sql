@@ -111,7 +111,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    haus_id UUID;
+    target_haus_id UUID;
     start_datum DATE;
     end_datum DATE;
     current_year INTEGER;
@@ -119,12 +119,12 @@ DECLARE
 BEGIN
     -- Get nebenkosten details
     SELECT n.haeuser_id, n.startdatum, n.enddatum
-    INTO haus_id, start_datum, end_datum
+    INTO target_haus_id, start_datum, end_datum
     FROM "Nebenkosten" n
     WHERE n.id = get_wasserzaehler_modal_data.nebenkosten_id 
     AND n.user_id = get_wasserzaehler_modal_data.user_id;
     
-    IF haus_id IS NULL THEN
+    IF target_haus_id IS NULL THEN
         RAISE EXCEPTION 'Nebenkosten entry not found or access denied';
     END IF;
     
@@ -142,7 +142,7 @@ BEGIN
             w.groesse as wohnung_groesse
         FROM "Mieter" m
         JOIN "Wohnungen" w ON m.wohnung_id = w.id
-        WHERE w.haus_id = get_wasserzaehler_modal_data.haus_id
+        WHERE w.haus_id = target_haus_id
         AND m.user_id = get_wasserzaehler_modal_data.user_id
         AND w.user_id = get_wasserzaehler_modal_data.user_id
         -- Filter by date overlap
@@ -208,18 +208,18 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    haus_id UUID;
+    target_haus_id UUID;
     start_datum DATE;
     end_datum DATE;
 BEGIN
     -- Get nebenkosten details first
     SELECT n.haeuser_id, n.startdatum, n.enddatum
-    INTO haus_id, start_datum, end_datum
+    INTO target_haus_id, start_datum, end_datum
     FROM "Nebenkosten" n
     WHERE n.id = get_abrechnung_modal_data.nebenkosten_id 
     AND n.user_id = get_abrechnung_modal_data.user_id;
     
-    IF haus_id IS NULL THEN
+    IF target_haus_id IS NULL THEN
         RAISE EXCEPTION 'Nebenkosten entry not found or access denied';
     END IF;
     
@@ -289,7 +289,7 @@ BEGIN
         ) as tenants_data
         FROM "Mieter" m
         JOIN "Wohnungen" w ON m.wohnung_id = w.id
-        WHERE w.haus_id = get_abrechnung_modal_data.haus_id
+        WHERE w.haus_id = target_haus_id
         AND m.user_id = get_abrechnung_modal_data.user_id
         AND w.user_id = get_abrechnung_modal_data.user_id
         AND COALESCE(m.einzug, '1900-01-01'::DATE) <= end_datum
@@ -456,19 +456,19 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 DECLARE
-    haus_id UUID;
+    target_haus_id UUID;
     start_datum DATE;
     end_datum DATE;
     total_days INTEGER;
 BEGIN
     -- Get nebenkosten details first
     SELECT n.haeuser_id, n.startdatum, n.enddatum
-    INTO haus_id, start_datum, end_datum
+    INTO target_haus_id, start_datum, end_datum
     FROM "Nebenkosten" n
     WHERE n.id = get_abrechnung_calculation_data.nebenkosten_id 
     AND n.user_id = get_abrechnung_calculation_data.user_id;
     
-    IF haus_id IS NULL THEN
+    IF target_haus_id IS NULL THEN
         RAISE EXCEPTION 'Nebenkosten entry not found or access denied';
     END IF;
     
@@ -550,7 +550,7 @@ BEGIN
         ) as tenants_data
         FROM "Mieter" m
         JOIN "Wohnungen" w ON m.wohnung_id = w.id
-        WHERE w.haus_id = get_abrechnung_calculation_data.haus_id
+        WHERE w.haus_id = target_haus_id
         AND m.user_id = get_abrechnung_calculation_data.user_id
         AND w.user_id = get_abrechnung_calculation_data.user_id
         AND COALESCE(m.einzug, '1900-01-01'::DATE) <= end_datum
@@ -626,7 +626,7 @@ BEGIN
             END
         ) as house_metrics
         FROM "Haeuser" h
-        WHERE h.id = get_abrechnung_calculation_data.haus_id
+        WHERE h.id = target_haus_id
         AND h.user_id = get_abrechnung_calculation_data.user_id
     ),
     calculation_metadata_data AS (

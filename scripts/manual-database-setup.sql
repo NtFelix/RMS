@@ -141,7 +141,7 @@ BEGIN
             w.groesse as wohnung_groesse
         FROM "Mieter" m
         JOIN "Wohnungen" w ON m.wohnung_id = w.id
-        WHERE w.haus_id = get_wasserzaehler_modal_data.haus_id
+        WHERE w.haus_id = haus_id
         AND m.user_id = get_wasserzaehler_modal_data.user_id
         AND w.user_id = get_wasserzaehler_modal_data.user_id
         -- Filter by date overlap

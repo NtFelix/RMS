@@ -588,7 +588,7 @@ export async function saveWasserzaehlerData(
         {
           nebenkosten_id: nebenkosten_id,
           user_id: user.id,
-          readings: JSON.stringify(readingsData)
+          readings: readingsData
         }
       ),
       {
