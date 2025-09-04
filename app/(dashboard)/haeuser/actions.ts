@@ -98,12 +98,12 @@ export async function deleteHouseAction(houseId: string): Promise<{ success: boo
 // Added imports for the new action
 import { fetchWasserzaehlerModalData, Mieter, Wasserzaehler } from "@/lib/data-fetching";
 
-export async function getWasserzaehlerModalDataAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
+export async function getWasserzaehlerModalDataLegacyAction(nebenkostenId: string): Promise<{ mieterList: Mieter[]; existingReadings: Wasserzaehler[] }> {
   try {
     const data = await fetchWasserzaehlerModalData(nebenkostenId);
     return data;
   } catch (error) {
-    console.error("Error in getWasserzaehlerModalDataAction:", error);
+    console.error("Error in getWasserzaehlerModalDataLegacyAction:", error);
     // Return empty data on error, consistent with fetchWasserzaehlerModalData's own error handling for some cases.
     return { mieterList: [], existingReadings: [] };
   }

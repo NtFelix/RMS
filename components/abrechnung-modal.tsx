@@ -1,5 +1,19 @@
 "use client"
 
+/**
+ * AbrechnungModal - Optimized for performance
+ * 
+ * This modal has been optimized to use pre-loaded data from the get_abrechnung_modal_data
+ * database function, eliminating individual data fetching calls within the modal.
+ * 
+ * Key optimizations:
+ * - Uses pre-structured data passed via props (tenants, rechnungen, wasserzaehlerReadings)
+ * - Eliminates redundant API calls during modal initialization
+ * - Processes data efficiently using memoized calculations
+ * 
+ * @see .kiro/specs/betriebskosten-performance-optimization/tasks.md - Task 8
+ */
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -134,11 +148,10 @@ interface AbrechnungModalProps {
   onClose: () => void;
   nebenkostenItem: Nebenkosten | null;
   tenants: Mieter[];
-  rechnungen: Rechnung[]; // Assumed new prop
+  rechnungen: Rechnung[];
   wasserzaehlerReadings?: Wasserzaehler[];
   ownerName: string;
   ownerAddress: string;
-  // wohnungen prop is removed as Mieter type now includes Wohnungen directly with name and groesse
 }
 
 export function AbrechnungModal({
@@ -146,7 +159,7 @@ export function AbrechnungModal({
   onClose,
   nebenkostenItem,
   tenants,
-  rechnungen, // Destructured assumed new prop
+  rechnungen,
   wasserzaehlerReadings,
   ownerName,
   ownerAddress,
@@ -156,8 +169,35 @@ export function AbrechnungModal({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
+  // Guard: ensure we always work with an array for tenants
+  const safeTenants = Array.isArray(tenants) ? tenants : [];
+  
+  // Performance monitoring - log when modal opens with pre-loaded data
+  useEffect(() => {
+    if (isOpen && nebenkostenItem && tenants?.length > 0) {
+      console.log(`[AbrechnungModal] Opened with pre-loaded data: ${tenants?.length || 0} tenants, ${rechnungen?.length || 0} rechnungen, ${wasserzaehlerReadings?.length || 0} wasserzaehler readings`);
+    }
+  }, [isOpen, nebenkostenItem, tenants, rechnungen, wasserzaehlerReadings]);
+
+  // Debug: Log tenants whenever they change
+  useEffect(() => {
+    if (!isOpen) return;
+    console.debug('[AbrechnungModal] tenants prop changed', {
+      isOpen,
+      nebenkostenId: nebenkostenItem?.id,
+      tenantsCount: Array.isArray(tenants) ? tenants.length : 'n/a',
+      firstTenant: Array.isArray(tenants) && tenants.length > 0 ? {
+        id: (tenants[0] as any).id,
+        name: (tenants[0] as any).name,
+        wohnung_id: (tenants[0] as any).wohnung_id,
+      } : null,
+    });
+  }, [isOpen, nebenkostenItem?.id, tenants]);
+  
   // Calculate WG factors for all tenants (memoized to prevent unnecessary recalculations)
   const wgFactors = useMemo(() => {
+    if (!tenants || tenants.length === 0) return {};
+    
     if (!nebenkostenItem?.startdatum || !nebenkostenItem?.enddatum) {
       // Fallback to current year if date range is not available
       return computeWgFactorsByTenant(tenants, new Date().getFullYear());
@@ -168,23 +208,34 @@ export function AbrechnungModal({
   const [selectedTenantId, setSelectedTenantId] = useState<string | null>(null);
   const [loadAllRelevantTenants, setLoadAllRelevantTenants] = useState<boolean>(false); // New state variable
 
-  useEffect(() => {
-    if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0) {
-      setCalculatedTenantData([]);
-      return;
+  // Memoize the price per cubic meter calculation
+  const pricePerCubicMeter = useMemo(() => {
+    if (!nebenkostenItem?.wasserkosten || !nebenkostenItem?.wasserverbrauch || nebenkostenItem.wasserverbrauch <= 0) {
+      return 0;
     }
+    return nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch;
+  }, [nebenkostenItem?.wasserkosten, nebenkostenItem?.wasserverbrauch]);
 
-    const pricePerCubicMeter = (nebenkostenItem.wasserkosten && nebenkostenItem.wasserverbrauch && nebenkostenItem.wasserverbrauch > 0)
-      ? nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch
-      : 0;
+  // Use the correct house size from database (gesamtFlaeche) with fallback calculation
+  const totalHouseArea = useMemo(() => {
+    // First try to use the gesamtFlaeche from nebenkostenItem (from database)
+    if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
+      return nebenkostenItem.gesamtFlaeche;
+    }
+    
+    // Fallback: calculate from tenants data if gesamtFlaeche is not available
+    if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
+    return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
+  }, [nebenkostenItem?.gesamtFlaeche, tenants]);
 
-    // Use the precomputed wgFactors from the useMemo hook
-    const wgFactorsByTenant = wgFactors;
-    const startdatum = nebenkostenItem?.startdatum || '';
-    const enddatum = nebenkostenItem?.enddatum || '';
+  // Memoize the calculation function to avoid recreating it on every render
+  const calculateCostsForTenant = useMemo(() => {
+    if (!nebenkostenItem) return null;
+    
+    const startdatum = nebenkostenItem.startdatum || '';
+    const enddatum = nebenkostenItem.enddatum || '';
 
-    // Helper function for calculation logic (extracted to avoid repetition)
-    const calculateCostsForTenant = (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
+    return (tenant: Mieter, pricePerCubicMeter: number): TenantCostDetails => {
       const {
         id: nebenkostenItemId,
         startdatum: itemStartdatum,
@@ -229,12 +280,12 @@ export function AbrechnungModal({
       const billingEnd = new Date(itemEnddatum || enddatum);
       
       // Generate months within the billing period
-      const currentDate = new Date(billingStart.getFullYear(), billingStart.getMonth(), 1);
+      const currentDate = new Date(Date.UTC(billingStart.getUTCFullYear(), billingStart.getUTCMonth(), 1));
       
       while (currentDate <= billingEnd) {
-        const currentMonthStart = new Date(currentDate);
-        const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-        const monthName = GERMAN_MONTHS[currentDate.getMonth()];
+        const currentMonthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
+        const currentMonthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
+        const monthName = GERMAN_MONTHS[currentDate.getUTCMonth()];
         
         let effectivePrepaymentForMonth = 0;
         const isActiveThisMonth = !!(
@@ -244,37 +295,54 @@ export function AbrechnungModal({
         );
         
         if (isActiveThisMonth) {
+          // Find the base prepayment amount for this month
+          let basePrepaymentAmount = 0;
           for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
-            if (prepaymentSchedule[i].date <= currentMonthStart) {
-              effectivePrepaymentForMonth = prepaymentSchedule[i].amount;
+            // Check if this prepayment entry's date is within or before the current month
+            const prepaymentYear = prepaymentSchedule[i].date.getUTCFullYear();
+            const prepaymentMonth = prepaymentSchedule[i].date.getUTCMonth();
+            const currentYear = currentDate.getUTCFullYear();
+            const currentMonth = currentDate.getUTCMonth();
+            
+            // Include prepayment if it's from the same month/year or earlier
+            if (prepaymentYear < currentYear || 
+                (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
+              basePrepaymentAmount = prepaymentSchedule[i].amount;
               break;
             }
           }
+          
+          // Calculate occupancy percentage for this specific month
+          const monthOccupancy = calculateOccupancy(
+            tenant.einzug,
+            tenant.auszug,
+            currentMonthStart.toISOString().split('T')[0],
+            currentMonthEnd.toISOString().split('T')[0]
+          );
+          
+          // Apply occupancy proration to the prepayment
+          effectivePrepaymentForMonth = basePrepaymentAmount * (monthOccupancy.percentage / 100);
           totalVorauszahlungen += effectivePrepaymentForMonth;
         }
         
         monthlyVorauszahlungenDetails.push({
-          monthName: `${monthName} ${currentDate.getFullYear()}`,
+          monthName: `${monthName} ${currentDate.getUTCFullYear()}`,
           amount: effectivePrepaymentForMonth,
           isActiveMonth: isActiveThisMonth,
         });
         
         // Move to next month
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
       }
-      // End Vorauszahlungen
 
-      const totalHouseArea = gesamtFlaeche && gesamtFlaeche > 0
-        ? gesamtFlaeche
-        : tenants.reduce((sum, t) => sum + (t.Wohnungen?.groesse || 0), 0);
       const apartmentSize = tenant.Wohnungen?.groesse || 0;
       const apartmentName = tenant.Wohnungen?.name || 'Unbekannt';
 
       const costItemsDetails: TenantCostDetails['costItems'] = [];
 
       if (nebenkostenart && betrag && berechnungsart) {
-        const uniqueAptIds = new Set(tenants.map(t => t.wohnung_id).filter(Boolean));
-        const activeTenantsCount = Math.max(1, tenants.length);
+        const uniqueAptIds = new Set(safeTenants.map(t => t.wohnung_id).filter(Boolean));
+        const activeTenantsCount = Math.max(1, safeTenants.length);
 
         nebenkostenart.forEach((costName, index) => {
           const totalCostForItem = betrag[index] || 0;
@@ -392,9 +460,17 @@ export function AbrechnungModal({
         recommendedPrepayment: Math.round(recommendedPrepayment * 100) / 100, // Round to 2 decimal places
       };
     };
+  }, [nebenkostenItem, wgFactors, rechnungen, wasserzaehlerReadings, totalHouseArea]);
+
+  // Optimized useEffect that uses pre-loaded data and memoized calculations
+  useEffect(() => {
+    if (!isOpen || !nebenkostenItem || !tenants || tenants.length === 0 || !calculateCostsForTenant) {
+      setCalculatedTenantData([]);
+      return;
+    }
 
     if (loadAllRelevantTenants) {
-      const allTenantsData = tenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
+      const allTenantsData = safeTenants.map(tenant => calculateCostsForTenant(tenant, pricePerCubicMeter));
       setCalculatedTenantData(allTenantsData);
     } else {
       if (!selectedTenantId) {
@@ -402,7 +478,7 @@ export function AbrechnungModal({
         return;
       }
 
-      const activeTenant = tenants.find(t => t.id === selectedTenantId);
+      const activeTenant = safeTenants.find(t => t.id === selectedTenantId);
       if (!activeTenant) {
         setCalculatedTenantData([]); // Clear data if selected tenant not found
         return;
@@ -410,13 +486,14 @@ export function AbrechnungModal({
       const singleTenantCalculatedData = calculateCostsForTenant(activeTenant, pricePerCubicMeter);
       setCalculatedTenantData([singleTenantCalculatedData]);
     }
-  }, [isOpen, nebenkostenItem, tenants, rechnungen, selectedTenantId, loadAllRelevantTenants, wasserzaehlerReadings, wgFactors]); // Added wgFactors to dependency array
+  }, [isOpen, tenants, selectedTenantId, loadAllRelevantTenants, calculateCostsForTenant, pricePerCubicMeter]);
 
-  const generateSettlementPDF = async ( // Changed to async
+  // Optimized PDF generation function with better error handling
+  const generateSettlementPDF = async (
     tenantData: TenantCostDetails | TenantCostDetails[],
     nebenkostenItem: Nebenkosten,
-    ownerName: string, // Now a required parameter
-    ownerAddress: string // Now a required parameter
+    ownerName: string,
+    ownerAddress: string
   ) => {
     const { default: jsPDF } = await import('jspdf');
     const autoTableModule = await import('jspdf-autotable');
@@ -687,14 +764,17 @@ export function AbrechnungModal({
     doc.save(filename);
   };
 
+  // Memoize tenant options to avoid recreating on every render
+  const tenantOptions: ComboboxOption[] = useMemo(() => 
+    (Array.isArray(tenants) ? tenants : []).map(tenant => ({
+      value: tenant.id,
+      label: tenant.name,
+    })), [tenants]
+  );
+
   if (!isOpen || !nebenkostenItem) {
     return null;
   }
-
-  const tenantOptions: ComboboxOption[] = tenants.map(tenant => ({
-    value: tenant.id,
-    label: tenant.name,
-  }));
 
   const handleLoadAllTenants = () => {
     setLoadAllRelevantTenants(true);
@@ -713,8 +793,13 @@ export function AbrechnungModal({
           <DialogTitle>
             Betriebskostenabrechnung {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} - Haus: {nebenkostenItem.Haeuser?.name || 'N/A'}
           </DialogTitle>
-          <DialogDescription className="sr-only">
+          <DialogDescription>
             Detaillierte Betriebskostenabrechnung für den Zeitraum {isoToGermanDate(nebenkostenItem.startdatum)} bis {isoToGermanDate(nebenkostenItem.enddatum)} mit Aufschlüsselung nach Mietern.
+            {tenants.length > 0 && (
+              <span className="block text-sm text-green-600 mt-1">
+                ✓ Daten für {tenants.length} Mieter erfolgreich geladen
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -1002,12 +1087,30 @@ export function AbrechnungModal({
         </div>
 
         <DialogFooter className="mt-8 pt-4 border-t">
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isGeneratingPDF}>
             Schließen
           </Button>
-          <Button variant="default" onClick={async () => { await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress); }}>
+          <Button 
+            variant="default" 
+            onClick={async () => { 
+              setIsGeneratingPDF(true);
+              try {
+                await generateSettlementPDF(calculatedTenantData, nebenkostenItem!, ownerName, ownerAddress);
+              } catch (error) {
+                console.error('Error generating PDF:', error);
+                toast({
+                  title: "Fehler bei PDF-Generierung",
+                  description: "Ein Fehler ist beim Erstellen der PDF aufgetreten.",
+                  variant: "destructive",
+                });
+              } finally {
+                setIsGeneratingPDF(false);
+              }
+            }}
+            disabled={isGeneratingPDF || calculatedTenantData.length === 0}
+          >
             <FileDown className="mr-2 h-4 w-4" />
-            Als PDF exportieren
+            {isGeneratingPDF ? "PDF wird erstellt..." : "Als PDF exportieren"}
           </Button>
         </DialogFooter>
       </DialogContent>

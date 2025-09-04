@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { Nebenkosten, Mieter, WasserzaehlerFormEntry, WasserzaehlerFormData, Wasserzaehler } from "@/lib/data-fetching";
-import { getBatchPreviousWasserzaehlerRecordsAction } from "@/app/betriebskosten-actions";
+import { WasserzaehlerModalData } from "@/types/optimized-betriebskosten";
 import { useToast } from "@/hooks/use-toast";
 import { useModalStore } from "@/hooks/use-modal-store";
 
@@ -25,7 +25,13 @@ interface ModalWasserzaehlerEntry extends Omit<WasserzaehlerFormEntry, 'ablese_d
   ablese_datum: string;
   zaehlerstand: string;
   verbrauch: string;
-  previous_reading: Wasserzaehler | null;
+  wohnung_name: string;
+  wohnung_groesse: number;
+  previous_reading: {
+    ablese_datum: string;
+    zaehlerstand: number;
+    verbrauch: number;
+  } | null;
   warning?: string;
 }
 
@@ -35,6 +41,7 @@ export function WasserzaehlerModal() {
     wasserzaehlerNebenkosten,
     wasserzaehlerMieterList,
     wasserzaehlerExistingReadings,
+    wasserzaehlerOptimizedData,
     wasserzaehlerOnSave,
     isWasserzaehlerModalDirty,
     closeWasserzaehlerModal,
@@ -50,130 +57,69 @@ export function WasserzaehlerModal() {
   const [generalDate, setGeneralDate] = useState<Date | undefined>(new Date());
   const { toast } = useToast();
 
-
-  
   // Threshold for high consumption warning (50% more than previous year)
   const HIGH_CONSUMPTION_INCREASE_THRESHOLD = 1.5; // 50% increase
 
   useEffect(() => {
-    if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten && wasserzaehlerMieterList) {
+    if (isWasserzaehlerModalOpen && wasserzaehlerNebenkosten) {
       setIsLoading(true);
-      const processMieterList = async () => {
-        try {
-          // Define types for our custom Promise.allSettled results
-          type MieterDataResult = {
-            mieter_id: string;
-            mieter_name: string;
-            ablese_datum: string;
-            zaehlerstand: string;
-            verbrauch: string;
-            previous_reading: Wasserzaehler | null;
-            warning: string;
-          };
+      
+      try {
+        let newFormData: ModalWasserzaehlerEntry[] = [];
 
-          type MieterError = {
-            mieter_id: string;
-            mieter_name: string;
-            error: Error;
-          };
+        // Use optimized data if available (new approach)
+        if (wasserzaehlerOptimizedData && wasserzaehlerOptimizedData.length > 0) {
+          newFormData = wasserzaehlerOptimizedData.map((modalData: WasserzaehlerModalData) => ({
+            mieter_id: modalData.mieter_id,
+            mieter_name: modalData.mieter_name,
+            wohnung_name: modalData.wohnung_name,
+            wohnung_groesse: modalData.wohnung_groesse,
+            ablese_datum: modalData.current_reading?.ablese_datum || '',
+            zaehlerstand: modalData.current_reading?.zaehlerstand?.toString() || '',
+            verbrauch: modalData.current_reading?.verbrauch?.toString() || '',
+            previous_reading: modalData.previous_reading,
+            warning: '',
+          }));
+        } 
+        // Fallback to legacy data processing (for backward compatibility)
+        else if (wasserzaehlerMieterList && wasserzaehlerMieterList.length > 0) {
+          newFormData = wasserzaehlerMieterList.map((mieter) => {
+            const existingReadingForMieter = wasserzaehlerExistingReadings?.find(
+              reading => reading.mieter_id === mieter.id
+            );
 
-          // Get the current date range from the nebenkosten data
-          const currentStartdatum = wasserzaehlerNebenkosten?.startdatum;
-          const currentYear = currentStartdatum ? new Date(currentStartdatum).getFullYear() : new Date().getFullYear();
-          
-          // Batch fetch all previous readings at once to avoid performance issues
-          const mieterIds = wasserzaehlerMieterList.map(mieter => mieter.id);
-          const batchPreviousReadingsResponse = await getBatchPreviousWasserzaehlerRecordsAction(mieterIds, currentYear.toString());
-          const previousReadingsMap = batchPreviousReadingsResponse.success 
-            ? (batchPreviousReadingsResponse.data || {}) 
-            : {};
-
-          // Process each mieter's data with individual error handling
-          const results = await Promise.allSettled(
-            wasserzaehlerMieterList.map(async (mieter) => {
-              try {
-                const existingReadingForMieter = wasserzaehlerExistingReadings?.find(
-                  reading => reading.mieter_id === mieter.id
-                );
-
-                // Get previous reading from the batch result
-                const previous_reading = previousReadingsMap[mieter.id] || null;
-
-                return {
-                  mieter_id: mieter.id,
-                  mieter_name: mieter.name,
-                  ablese_datum: existingReadingForMieter?.ablese_datum || '',
-                  zaehlerstand: existingReadingForMieter?.zaehlerstand?.toString() || '',
-                  verbrauch: existingReadingForMieter?.verbrauch?.toString() || '',
-                  previous_reading,
-                  warning: '',
-                } as MieterDataResult;
-              } catch (error) {
-                console.error(`Error fetching data for mieter ${mieter.id}:`, error);
-                throw {
-                  mieter_id: mieter.id,
-                  mieter_name: mieter.name,
-                  error: error instanceof Error ? error : new Error(String(error))
-                } as MieterError;
-              }
-            })
-          );
-
-          // Process results and show warnings for any failures
-          const newFormData: ModalWasserzaehlerEntry[] = [];
-          const errorMessages: string[] = [];
-
-          results.forEach((result, index) => {
-            if (result.status === 'fulfilled') {
-              newFormData.push(result.value);
-            } else {
-              const errorInfo = result.reason as MieterError;
-              const errorMessage = `Fehler beim Laden der Daten für Mieter ${errorInfo.mieter_name}`;
-              errorMessages.push(errorMessage);
-              
-              // Add the mieter with an error message
-              newFormData.push({
-                mieter_id: errorInfo.mieter_id,
-                mieter_name: errorInfo.mieter_name,
-                ablese_datum: '',
-                zaehlerstand: '',
-                verbrauch: '',
-                previous_reading: null,
-                warning: 'Fehler beim Laden der Vorjahresdaten',
-              });
-            }
+            return {
+              mieter_id: mieter.id,
+              mieter_name: mieter.name,
+              wohnung_name: mieter.Wohnungen?.name || 'Unbekannte Wohnung',
+              wohnung_groesse: mieter.Wohnungen?.groesse || 0,
+              ablese_datum: existingReadingForMieter?.ablese_datum || '',
+              zaehlerstand: existingReadingForMieter?.zaehlerstand?.toString() || '',
+              verbrauch: existingReadingForMieter?.verbrauch?.toString() || '',
+              previous_reading: null, // Legacy mode doesn't have previous readings pre-loaded
+              warning: '',
+            };
           });
-
-          // Show error toast if there were any failures
-          if (errorMessages.length > 0) {
-            toast({
-              title: "Hinweis",
-              description: `Es gab Probleme beim Laden einiger Vorjahresdaten. ${errorMessages.length} von ${results.length} Mietern betroffen.`,
-              variant: "default",
-            });
-          }
-
-          setFormData(newFormData);
-          setInitialFormData(JSON.parse(JSON.stringify(newFormData)));
-          setWasserzaehlerModalDirty(false);
-        } catch (error) {
-          console.error("Error preparing Wasserzaehler modal data:", error);
-          toast({
-            title: "Fehler",
-            description: "Die Daten für das Wasserzähler-Modal konnten nicht geladen werden.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsLoading(false);
         }
-      };
 
-      processMieterList();
+        setFormData(newFormData);
+        setInitialFormData(JSON.parse(JSON.stringify(newFormData)));
+        setWasserzaehlerModalDirty(false);
+      } catch (error) {
+        console.error("Error preparing Wasserzaehler modal data:", error);
+        toast({
+          title: "Fehler",
+          description: "Die Daten für das Wasserzähler-Modal konnten nicht geladen werden.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
     } else if (!isWasserzaehlerModalOpen) {
       setFormData([]);
       setInitialFormData([]);
     }
-  }, [isWasserzaehlerModalOpen, wasserzaehlerNebenkosten, wasserzaehlerMieterList, wasserzaehlerExistingReadings, setWasserzaehlerModalDirty, toast]);
+  }, [isWasserzaehlerModalOpen, wasserzaehlerNebenkosten, wasserzaehlerOptimizedData, wasserzaehlerMieterList, wasserzaehlerExistingReadings, setWasserzaehlerModalDirty, toast]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -181,7 +127,7 @@ export function WasserzaehlerModal() {
     setWasserzaehlerModalDirty(hasChanged);
   }, [formData, initialFormData, setWasserzaehlerModalDirty, isLoading]);
 
-  const handleInputChange = (index: number, field: keyof Omit<ModalWasserzaehlerEntry, 'mieter_id' | 'mieter_name' | 'previous_reading'>, value: string) => {
+  const handleInputChange = (index: number, field: keyof Omit<ModalWasserzaehlerEntry, 'mieter_id' | 'mieter_name' | 'wohnung_name' | 'wohnung_groesse' | 'previous_reading'>, value: string) => {
     const newFormData = [...formData];
     const entry = newFormData[index];
     (entry as any)[field] = value;
@@ -402,7 +348,14 @@ export function WasserzaehlerModal() {
           ) : formData.length > 0 ? (
             formData.map((entry, index) => (
               <div key={entry.mieter_id} className="p-4 bg-muted/50 border rounded-lg space-y-3">
-                <p className="font-semibold text-lg">{entry.mieter_name}</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-lg">{entry.mieter_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {entry.wohnung_name} • {entry.wohnung_groesse} m²
+                    </p>
+                  </div>
+                </div>
 
                 {entry.previous_reading ? (
                   <p className="text-sm text-muted-foreground">

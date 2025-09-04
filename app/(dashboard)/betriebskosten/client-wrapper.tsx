@@ -8,7 +8,8 @@ import { PlusCircle, Droplets, FileText, X } from "lucide-react";
 import { OperatingCostsFilters } from "@/components/operating-costs-filters";
 import { OperatingCostsTable } from "@/components/operating-costs-table";
 
-import { Nebenkosten, Haus } from "../../../lib/data-fetching"; // Ensure correct path
+import { Haus } from "../../../lib/data-fetching"; // Ensure correct path
+import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten";
 import { deleteNebenkosten as deleteNebenkostenServerAction } from "@/app/betriebskosten-actions"; // Fixed path
 import ConfirmationAlertDialog from "@/components/ui/confirmation-alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +20,7 @@ import { getCookie, setCookie } from "@/utils/cookies";
 
 // Props for the main client view component
 interface BetriebskostenClientViewProps {
-  initialNebenkosten: Nebenkosten[];
+  initialNebenkosten: OptimizedNebenkosten[];
   initialHaeuser: Haus[];
   ownerName: string;
 }
@@ -34,7 +35,7 @@ export default function BetriebskostenClientView({
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedHouseId, setSelectedHouseId] = useState<string>("all");
-  const [filteredNebenkosten, setFilteredNebenkosten] = useState<Nebenkosten[]>(initialNebenkosten);
+  const [filteredNebenkosten, setFilteredNebenkosten] = useState<OptimizedNebenkosten[]>(initialNebenkosten);
   // isModalOpen and editingNebenkosten are now managed by useModalStore
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedItemIdForDelete, setSelectedItemIdForDelete] = useState<string | null>(null);
@@ -55,7 +56,7 @@ export default function BetriebskostenClientView({
       result = result.filter(item =>
         item.startdatum?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.enddatum?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.Haeuser?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.haus_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (item.nebenkostenart && item.nebenkostenart.join(" ").toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
@@ -88,8 +89,16 @@ export default function BetriebskostenClientView({
     });
   }, [openBetriebskostenModal, initialHaeuser, router]);
 
-  const handleOpenEditModal = useCallback((item: Nebenkosten) => {
-    openBetriebskostenModal(item, initialHaeuser, () => {
+  const handleOpenEditModal = useCallback((item: OptimizedNebenkosten) => {
+    // Convert OptimizedNebenkosten to Nebenkosten format for the modal
+    const nebenkostenItem = {
+      ...item,
+      Haeuser: { name: item.haus_name },
+      gesamtFlaeche: item.gesamt_flaeche,
+      anzahlWohnungen: item.anzahl_wohnungen,
+      anzahlMieter: item.anzahl_mieter
+    };
+    openBetriebskostenModal(nebenkostenItem, initialHaeuser, () => {
       router.refresh(); // Example refresh
     });
   }, [openBetriebskostenModal, initialHaeuser, router]);
