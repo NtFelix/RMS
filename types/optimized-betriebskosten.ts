@@ -193,3 +193,177 @@ export function isAbrechnungModalData(data: any): data is AbrechnungModalData {
     Array.isArray(data.wasserzaehler_readings)
   );
 }
+
+// ============================================================================
+// ENHANCED ABRECHNUNG CALCULATION TYPES
+// ============================================================================
+
+/**
+ * Detailed cost breakdown for operating costs (excluding water)
+ */
+export type OperatingCostBreakdown = {
+  costItems: Array<{
+    costName: string;
+    totalCostForItem: number;
+    calculationType: string;
+    tenantShare: number;
+    pricePerSqm?: number;
+    distributionBasis?: string | number;
+  }>;
+  totalCost: number;
+};
+
+/**
+ * Water cost calculation details
+ */
+export type WaterCostBreakdown = {
+  totalBuildingWaterCost: number;
+  totalBuildingConsumption: number;
+  pricePerCubicMeter: number;
+  tenantConsumption: number;
+  totalCost: number;
+  meterReading?: {
+    previousReading: number;
+    currentReading: number;
+    consumptionPeriod: string;
+  };
+};
+
+/**
+ * Prepayment calculation with monthly breakdown
+ */
+export type PrepaymentBreakdown = {
+  monthlyPayments: Array<{
+    month: string;
+    amount: number;
+    isActiveMonth: boolean;
+    occupancyPercentage: number;
+  }>;
+  totalPrepayments: number;
+  averageMonthlyPayment: number;
+};
+
+/**
+ * Occupancy calculation result
+ */
+export type OccupancyCalculation = {
+  percentage: number;
+  daysOccupied: number;
+  daysInPeriod: number;
+  moveInDate?: string;
+  moveOutDate?: string;
+  effectivePeriodStart: string;
+  effectivePeriodEnd: string;
+};
+
+/**
+ * Complete calculation result for a single tenant
+ */
+export type TenantCalculationResult = {
+  tenantId: string;
+  tenantName: string;
+  apartmentName: string;
+  apartmentSize: number;
+  occupancyPercentage: number;
+  daysOccupied: number;
+  daysInPeriod: number;
+  operatingCosts: OperatingCostBreakdown;
+  waterCosts: WaterCostBreakdown;
+  totalCosts: number;
+  prepayments: PrepaymentBreakdown;
+  finalSettlement: number;
+  recommendedPrepayment?: number;
+};
+
+/**
+ * Summary statistics for all tenant calculations
+ */
+export type AbrechnungSummary = {
+  totalTenants: number;
+  totalOperatingCosts: number;
+  totalWaterCosts: number;
+  totalPrepayments: number;
+  totalSettlements: number;
+  averageSettlement: number;
+  tenantsWithRefund: number;
+  tenantsWithAdditionalPayment: number;
+};
+
+/**
+ * Complete result of the abrechnung calculation process
+ */
+export type AbrechnungCalculationResult = {
+  nebenkostenId: string;
+  calculationDate: string;
+  billingPeriod: {
+    startDate: string;
+    endDate: string;
+  };
+  propertyInfo: {
+    houseName: string;
+    totalArea: number;
+    apartmentCount: number;
+  };
+  tenantCalculations: TenantCalculationResult[];
+  summary: AbrechnungSummary;
+  calculationOptions: {
+    includeRecommendations?: boolean;
+    validateWaterReadings?: boolean;
+    calculateMonthlyBreakdown?: boolean;
+  };
+};
+
+/**
+ * Validation result for calculation input data
+ */
+export type CalculationValidationResult = {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+};
+
+/**
+ * Parameters for enhanced abrechnung calculation
+ */
+export type AbrechnungCalculationOptions = {
+  includeRecommendations?: boolean;
+  validateWaterReadings?: boolean;
+  calculateMonthlyBreakdown?: boolean;
+  generatePdfPreview?: boolean;
+  saveCalculationResults?: boolean;
+};
+
+/**
+ * Type guard to check if data is TenantCalculationResult
+ */
+export function isTenantCalculationResult(data: any): data is TenantCalculationResult {
+  return (
+    data !== null &&
+    data !== undefined &&
+    typeof data === 'object' &&
+    typeof data.tenantId === 'string' &&
+    typeof data.tenantName === 'string' &&
+    typeof data.totalCosts === 'number' &&
+    typeof data.finalSettlement === 'number' &&
+    data.operatingCosts !== null &&
+    data.waterCosts !== null &&
+    data.prepayments !== null
+  );
+}
+
+/**
+ * Type guard to check if data is AbrechnungCalculationResult
+ */
+export function isAbrechnungCalculationResult(data: any): data is AbrechnungCalculationResult {
+  return (
+    data !== null &&
+    data !== undefined &&
+    typeof data === 'object' &&
+    typeof data.nebenkostenId === 'string' &&
+    typeof data.calculationDate === 'string' &&
+    data.billingPeriod !== null &&
+    data.propertyInfo !== null &&
+    Array.isArray(data.tenantCalculations) &&
+    data.summary !== null
+  );
+}

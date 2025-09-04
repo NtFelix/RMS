@@ -17,6 +17,7 @@
 -- - get_wasserzaehler_modal_data: Wasserzähler modal data in one call
 -- - get_abrechnung_modal_data: Abrechnung modal data in one call  
 -- - save_wasserzaehler_batch: Batch save for water meter readings
+-- - get_abrechnung_calculation_data: Enhanced abrechnung creation with pre-calculated occupancy
 -- ============================================================================
 
 -- Function 1: get_nebenkosten_with_metrics
@@ -440,17 +441,232 @@ BEGIN
 END;
 $$;
 
+-- Function 5: get_abrechnung_calculation_data
+-- Enhanced function for abrechnung creation with pre-calculated metrics
+CREATE OR REPLACE FUNCTION get_abrechnung_calculation_data(nebenkosten_id UUID, user_id UUID)
+RETURNS TABLE (
+    nebenkosten_data JSONB,
+    tenants_with_occupancy JSONB,
+    rechnungen JSONB,
+    wasserzaehler_readings JSONB,
+    house_metrics JSONB,
+    calculation_metadata JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    haus_id UUID;
+    start_datum DATE;
+    end_datum DATE;
+    total_days INTEGER;
+BEGIN
+    -- Get nebenkosten details first
+    SELECT n.haeuser_id, n.startdatum, n.enddatum
+    INTO haus_id, start_datum, end_datum
+    FROM "Nebenkosten" n
+    WHERE n.id = get_abrechnung_calculation_data.nebenkosten_id 
+    AND n.user_id = get_abrechnung_calculation_data.user_id;
+    
+    IF haus_id IS NULL THEN
+        RAISE EXCEPTION 'Nebenkosten entry not found or access denied';
+    END IF;
+    
+    -- Calculate total days in billing period
+    total_days := (end_datum - start_datum) + 1;
+    
+    RETURN QUERY
+    WITH nebenkosten_with_house AS (
+        -- Get nebenkosten data with house information
+        SELECT jsonb_build_object(
+            'id', n.id,
+            'startdatum', n.startdatum,
+            'enddatum', n.enddatum,
+            'nebenkostenart', n.nebenkostenart,
+            'betrag', n.betrag,
+            'berechnungsart', n.berechnungsart,
+            'wasserkosten', n.wasserkosten,
+            'wasserverbrauch', n.wasserverbrauch,
+            'haeuser_id', n.haeuser_id,
+            'user_id', n.user_id,
+            'Haeuser', jsonb_build_object(
+                'name', COALESCE(h.name, 'Unbekanntes Haus'),
+                'groesse', h.groesse
+            )
+        ) as nebenkosten_data
+        FROM "Nebenkosten" n
+        LEFT JOIN "Haeuser" h ON n.haeuser_id = h.id
+        WHERE n.id = get_abrechnung_calculation_data.nebenkosten_id
+        AND n.user_id = get_abrechnung_calculation_data.user_id
+    ),
+    relevant_tenants_with_occupancy AS (
+        -- Get tenants with pre-calculated occupancy percentages
+        SELECT jsonb_agg(
+            jsonb_build_object(
+                'id', m.id,
+                'name', m.name,
+                'email', m.email,
+                'telefonnummer', m.telefonnummer,
+                'einzug', m.einzug,
+                'auszug', m.auszug,
+                'notiz', m.notiz,
+                'nebenkosten', m.nebenkosten,
+                'wohnung_id', m.wohnung_id,
+                'user_id', m.user_id,
+                'Wohnungen', jsonb_build_object(
+                    'name', w.name,
+                    'groesse', w.groesse,
+                    'miete', w.miete
+                ),
+                -- Pre-calculate occupancy data
+                'occupancy', jsonb_build_object(
+                    'moveInDate', m.einzug,
+                    'moveOutDate', m.auszug,
+                    'effectiveStartDate', GREATEST(COALESCE(m.einzug, '1900-01-01'::DATE), start_datum),
+                    'effectiveEndDate', LEAST(COALESCE(m.auszug, '9999-12-31'::DATE), end_datum),
+                    'daysOccupied', CASE 
+                        WHEN m.einzug IS NULL THEN 0
+                        WHEN m.einzug > end_datum THEN 0
+                        WHEN m.auszug IS NOT NULL AND m.auszug < start_datum THEN 0
+                        ELSE GREATEST(0, 
+                            LEAST(COALESCE(m.auszug, '9999-12-31'::DATE), end_datum) - 
+                            GREATEST(COALESCE(m.einzug, '1900-01-01'::DATE), start_datum) + 1
+                        )
+                    END,
+                    'totalDaysInPeriod', total_days,
+                    'occupancyPercentage', CASE 
+                        WHEN m.einzug IS NULL THEN 0
+                        WHEN m.einzug > end_datum THEN 0
+                        WHEN m.auszug IS NOT NULL AND m.auszug < start_datum THEN 0
+                        ELSE ROUND(
+                            (GREATEST(0, 
+                                LEAST(COALESCE(m.auszug, '9999-12-31'::DATE), end_datum) - 
+                                GREATEST(COALESCE(m.einzug, '1900-01-01'::DATE), start_datum) + 1
+                            )::NUMERIC / total_days::NUMERIC) * 100, 2
+                        )
+                    END
+                )
+            )
+        ) as tenants_data
+        FROM "Mieter" m
+        JOIN "Wohnungen" w ON m.wohnung_id = w.id
+        WHERE w.haus_id = get_abrechnung_calculation_data.haus_id
+        AND m.user_id = get_abrechnung_calculation_data.user_id
+        AND w.user_id = get_abrechnung_calculation_data.user_id
+        AND COALESCE(m.einzug, '1900-01-01'::DATE) <= end_datum
+        AND COALESCE(m.auszug, '9999-12-31'::DATE) >= start_datum
+    ),
+    rechnungen_data AS (
+        -- Get rechnungen for this nebenkosten
+        SELECT COALESCE(jsonb_agg(
+            jsonb_build_object(
+                'id', r.id,
+                'nebenkosten_id', r.nebenkosten_id,
+                'mieter_id', r.mieter_id,
+                'name', r.name,
+                'betrag', r.betrag,
+                'user_id', r.user_id
+            )
+        ), '[]'::jsonb) as rechnungen_data
+        FROM "Rechnungen" r
+        WHERE r.nebenkosten_id = get_abrechnung_calculation_data.nebenkosten_id
+        AND r.user_id = get_abrechnung_calculation_data.user_id
+    ),
+    wasserzaehler_data AS (
+        -- Get wasserzaehler readings for this nebenkosten
+        SELECT COALESCE(jsonb_agg(
+            jsonb_build_object(
+                'id', wz.id,
+                'mieter_id', wz.mieter_id,
+                'ablese_datum', wz.ablese_datum,
+                'zaehlerstand', wz.zaehlerstand,
+                'verbrauch', wz.verbrauch,
+                'nebenkosten_id', wz.nebenkosten_id,
+                'user_id', wz.user_id
+            )
+        ), '[]'::jsonb) as wasserzaehler_data
+        FROM "Wasserzaehler" wz
+        WHERE wz.nebenkosten_id = get_abrechnung_calculation_data.nebenkosten_id
+        AND wz.user_id = get_abrechnung_calculation_data.user_id
+    ),
+    house_metrics_data AS (
+        -- Calculate comprehensive house metrics
+        SELECT jsonb_build_object(
+            'totalArea', COALESCE(h.groesse, (
+                SELECT COALESCE(SUM(w.groesse), 0)
+                FROM "Wohnungen" w
+                WHERE w.haus_id = h.id AND w.user_id = get_abrechnung_calculation_data.user_id
+            )),
+            'apartmentCount', (
+                SELECT COUNT(*)::INTEGER
+                FROM "Wohnungen" w
+                WHERE w.haus_id = h.id AND w.user_id = get_abrechnung_calculation_data.user_id
+            ),
+            'activeTenantCount', (
+                SELECT COUNT(DISTINCT m.id)::INTEGER
+                FROM "Wohnungen" w
+                JOIN "Mieter" m ON w.id = m.wohnung_id
+                WHERE w.haus_id = h.id 
+                AND w.user_id = get_abrechnung_calculation_data.user_id
+                AND m.user_id = get_abrechnung_calculation_data.user_id
+                AND COALESCE(m.einzug, '1900-01-01'::DATE) <= end_datum
+                AND COALESCE(m.auszug, '9999-12-31'::DATE) >= start_datum
+            ),
+            'totalWaterConsumption', COALESCE((
+                SELECT SUM(wz.verbrauch)
+                FROM "Wasserzaehler" wz
+                WHERE wz.nebenkosten_id = get_abrechnung_calculation_data.nebenkosten_id
+                AND wz.user_id = get_abrechnung_calculation_data.user_id
+            ), 0),
+            'pricePerCubicMeter', CASE 
+                WHEN COALESCE((SELECT n.wasserverbrauch FROM "Nebenkosten" n WHERE n.id = get_abrechnung_calculation_data.nebenkosten_id), 0) > 0
+                THEN COALESCE((SELECT n.wasserkosten FROM "Nebenkosten" n WHERE n.id = get_abrechnung_calculation_data.nebenkosten_id), 0) / 
+                     COALESCE((SELECT n.wasserverbrauch FROM "Nebenkosten" n WHERE n.id = get_abrechnung_calculation_data.nebenkosten_id), 1)
+                ELSE 0
+            END
+        ) as house_metrics
+        FROM "Haeuser" h
+        WHERE h.id = get_abrechnung_calculation_data.haus_id
+        AND h.user_id = get_abrechnung_calculation_data.user_id
+    ),
+    calculation_metadata_data AS (
+        -- Generate calculation metadata
+        SELECT jsonb_build_object(
+            'calculationDate', CURRENT_TIMESTAMP,
+            'billingPeriodDays', total_days,
+            'functionVersion', '1.0',
+            'optimizationLevel', 'enhanced'
+        ) as calculation_metadata
+    )
+    SELECT 
+        nwh.nebenkosten_data,
+        COALESCE(rt.tenants_data, '[]'::jsonb) as tenants_with_occupancy,
+        rd.rechnungen_data as rechnungen,
+        wd.wasserzaehler_data as wasserzaehler_readings,
+        hm.house_metrics,
+        cmd.calculation_metadata
+    FROM nebenkosten_with_house nwh
+    CROSS JOIN relevant_tenants_with_occupancy rt
+    CROSS JOIN rechnungen_data rd
+    CROSS JOIN wasserzaehler_data wd
+    CROSS JOIN house_metrics_data hm
+    CROSS JOIN calculation_metadata_data cmd;
+END;
+$$;
+
 -- Grant execute permissions to authenticated users
 GRANT EXECUTE ON FUNCTION get_nebenkosten_with_metrics(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_wasserzaehler_modal_data(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_abrechnung_modal_data(UUID, UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION save_wasserzaehler_batch(UUID, UUID, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION get_abrechnung_calculation_data(UUID, UUID) TO authenticated;
 
 -- Add comments for documentation
 COMMENT ON FUNCTION get_nebenkosten_with_metrics(UUID) IS 'Optimized function to fetch Nebenkosten with calculated house metrics in a single query, replacing individual getHausGesamtFlaeche calls';
 COMMENT ON FUNCTION get_wasserzaehler_modal_data(UUID, UUID) IS 'Fetches all Wasserzähler modal data including tenants, current readings, and previous readings in one optimized call';
 COMMENT ON FUNCTION get_abrechnung_modal_data(UUID, UUID) IS 'Fetches all Abrechnung modal data including nebenkosten details, tenants, rechnungen, and wasserzaehler readings in one call';
 COMMENT ON FUNCTION save_wasserzaehler_batch(UUID, UUID, JSONB) IS 'Optimized batch save operation for Wasserzähler data with automatic total calculation and validation';
+COMMENT ON FUNCTION get_abrechnung_calculation_data(UUID, UUID) IS 'Enhanced function for abrechnung creation with pre-calculated occupancy percentages and comprehensive house metrics for server-side processing';
 
 -- ============================================================================
 -- VERIFICATION QUERIES
@@ -468,7 +684,8 @@ AND routine_name IN (
     'get_nebenkosten_with_metrics',
     'get_wasserzaehler_modal_data', 
     'get_abrechnung_modal_data',
-    'save_wasserzaehler_batch'
+    'save_wasserzaehler_batch',
+    'get_abrechnung_calculation_data'
 )
 ORDER BY routine_name;
 
