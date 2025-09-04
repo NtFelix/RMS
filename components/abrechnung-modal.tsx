@@ -295,9 +295,8 @@ export function AbrechnungModal({
         );
         
         if (isActiveThisMonth) {
-          // Find the most recent prepayment that is effective during this month
-          // A prepayment dated on day X of month Y applies to month Y and all subsequent months
-          // until a newer prepayment entry is found
+          // Find the base prepayment amount for this month
+          let basePrepaymentAmount = 0;
           for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
             // Check if this prepayment entry's date is within or before the current month
             const prepaymentYear = prepaymentSchedule[i].date.getFullYear();
@@ -308,10 +307,21 @@ export function AbrechnungModal({
             // Include prepayment if it's from the same month/year or earlier
             if (prepaymentYear < currentYear || 
                 (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
-              effectivePrepaymentForMonth = prepaymentSchedule[i].amount;
+              basePrepaymentAmount = prepaymentSchedule[i].amount;
               break;
             }
           }
+          
+          // Calculate occupancy percentage for this specific month
+          const monthOccupancy = calculateOccupancy(
+            tenant.einzug,
+            tenant.auszug,
+            currentMonthStart.toISOString().split('T')[0],
+            currentMonthEnd.toISOString().split('T')[0]
+          );
+          
+          // Apply occupancy proration to the prepayment
+          effectivePrepaymentForMonth = basePrepaymentAmount * (monthOccupancy.percentage / 100);
           totalVorauszahlungen += effectivePrepaymentForMonth;
         }
         
