@@ -145,7 +145,7 @@ function mapSupabaseError(error: any): StructuredError {
  * @returns Promise with success status, data, performance metrics, and structured error information
  */
 export async function safeRpcCall<T>(
-  supabase: SupabaseClient,
+  supabase: any,
   functionName: string,
   params: Record<string, any>,
   options: {
