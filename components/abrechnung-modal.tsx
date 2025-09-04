@@ -295,8 +295,19 @@ export function AbrechnungModal({
         );
         
         if (isActiveThisMonth) {
+          // Find the most recent prepayment that is effective during this month
+          // A prepayment dated on day X of month Y applies to month Y and all subsequent months
+          // until a newer prepayment entry is found
           for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
-            if (prepaymentSchedule[i].date <= currentMonthStart) {
+            // Check if this prepayment entry's date is within or before the current month
+            const prepaymentYear = prepaymentSchedule[i].date.getFullYear();
+            const prepaymentMonth = prepaymentSchedule[i].date.getMonth();
+            const currentYear = currentDate.getFullYear();
+            const currentMonth = currentDate.getMonth();
+            
+            // Include prepayment if it's from the same month/year or earlier
+            if (prepaymentYear < currentYear || 
+                (prepaymentYear === currentYear && prepaymentMonth <= currentMonth)) {
               effectivePrepaymentForMonth = prepaymentSchedule[i].amount;
               break;
             }
