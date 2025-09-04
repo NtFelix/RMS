@@ -216,11 +216,17 @@ export function AbrechnungModal({
     return nebenkostenItem.wasserkosten / nebenkostenItem.wasserverbrauch;
   }, [nebenkostenItem?.wasserkosten, nebenkostenItem?.wasserverbrauch]);
 
-  // Calculate total house area with fallback - moved outside of calculateCostsForTenant to fix hook violation
+  // Use the correct house size from database (gesamtFlaeche) with fallback calculation
   const totalHouseArea = useMemo(() => {
+    // First try to use the gesamtFlaeche from nebenkostenItem (from database)
+    if (nebenkostenItem?.gesamtFlaeche && nebenkostenItem.gesamtFlaeche > 0) {
+      return nebenkostenItem.gesamtFlaeche;
+    }
+    
+    // Fallback: calculate from tenants data if gesamtFlaeche is not available
     if (!tenants || !Array.isArray(tenants) || tenants.length === 0) return 0;
     return tenants.reduce((sum, tenant) => sum + (tenant?.Wohnungen?.groesse || 0), 0);
-  }, [tenants]);
+  }, [nebenkostenItem?.gesamtFlaeche, tenants]);
 
   // Memoize the calculation function to avoid recreating it on every render
   const calculateCostsForTenant = useMemo(() => {
