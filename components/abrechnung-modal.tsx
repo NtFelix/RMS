@@ -280,12 +280,12 @@ export function AbrechnungModal({
       const billingEnd = new Date(itemEnddatum || enddatum);
       
       // Generate months within the billing period
-      const currentDate = new Date(billingStart.getFullYear(), billingStart.getMonth(), 1);
+      const currentDate = new Date(Date.UTC(billingStart.getUTCFullYear(), billingStart.getUTCMonth(), 1));
       
       while (currentDate <= billingEnd) {
-        const currentMonthStart = new Date(currentDate);
-        const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-        const monthName = GERMAN_MONTHS[currentDate.getMonth()];
+        const currentMonthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
+        const currentMonthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
+        const monthName = GERMAN_MONTHS[currentDate.getUTCMonth()];
         
         let effectivePrepaymentForMonth = 0;
         const isActiveThisMonth = !!(
@@ -299,10 +299,10 @@ export function AbrechnungModal({
           let basePrepaymentAmount = 0;
           for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
             // Check if this prepayment entry's date is within or before the current month
-            const prepaymentYear = prepaymentSchedule[i].date.getFullYear();
-            const prepaymentMonth = prepaymentSchedule[i].date.getMonth();
-            const currentYear = currentDate.getFullYear();
-            const currentMonth = currentDate.getMonth();
+            const prepaymentYear = prepaymentSchedule[i].date.getUTCFullYear();
+            const prepaymentMonth = prepaymentSchedule[i].date.getUTCMonth();
+            const currentYear = currentDate.getUTCFullYear();
+            const currentMonth = currentDate.getUTCMonth();
             
             // Include prepayment if it's from the same month/year or earlier
             if (prepaymentYear < currentYear || 
@@ -326,13 +326,13 @@ export function AbrechnungModal({
         }
         
         monthlyVorauszahlungenDetails.push({
-          monthName: `${monthName} ${currentDate.getFullYear()}`,
+          monthName: `${monthName} ${currentDate.getUTCFullYear()}`,
           amount: effectivePrepaymentForMonth,
           isActiveMonth: isActiveThisMonth,
         });
         
         // Move to next month
-        currentDate.setMonth(currentDate.getMonth() + 1);
+        currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
       }
 
       const apartmentSize = tenant.Wohnungen?.groesse || 0;

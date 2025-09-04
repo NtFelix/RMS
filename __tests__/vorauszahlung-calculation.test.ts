@@ -93,12 +93,12 @@ describe('Vorauszahlung Calculation Logic', () => {
     prepaymentSchedule.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     // Generate months within the billing period
-    const currentDate = new Date(billingStart.getFullYear(), billingStart.getMonth(), 1);
+    const currentDate = new Date(Date.UTC(billingStart.getUTCFullYear(), billingStart.getUTCMonth(), 1));
 
     while (currentDate <= billingEnd) {
-      const currentMonthStart = new Date(currentDate);
-      const currentMonthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      const monthName = GERMAN_MONTHS[currentDate.getMonth()];
+      const currentMonthStart = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth(), 1));
+      const currentMonthEnd = new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() + 1, 0));
+      const monthName = GERMAN_MONTHS[currentDate.getUTCMonth()];
 
       let effectivePrepaymentForMonth = 0;
       const isActiveThisMonth = !!(
@@ -111,10 +111,10 @@ describe('Vorauszahlung Calculation Logic', () => {
         let basePrepaymentAmount = 0;
         for (let i = prepaymentSchedule.length - 1; i >= 0; i--) {
           // Check if this prepayment entry's date is within or before the current month
-          const prepaymentYear = prepaymentSchedule[i].date.getFullYear();
-          const prepaymentMonth = prepaymentSchedule[i].date.getMonth();
-          const currentYear = currentDate.getFullYear();
-          const currentMonth = currentDate.getMonth();
+          const prepaymentYear = prepaymentSchedule[i].date.getUTCFullYear();
+          const prepaymentMonth = prepaymentSchedule[i].date.getUTCMonth();
+          const currentYear = currentDate.getUTCFullYear();
+          const currentMonth = currentDate.getUTCMonth();
 
           // Include prepayment if it's from the same month/year or earlier
           if (prepaymentYear < currentYear || 
@@ -138,13 +138,13 @@ describe('Vorauszahlung Calculation Logic', () => {
       }
 
       monthlyVorauszahlungenDetails.push({
-        monthName: `${monthName} ${currentDate.getFullYear()}`,
+        monthName: `${monthName} ${currentDate.getUTCFullYear()}`,
         amount: effectivePrepaymentForMonth,
         isActiveMonth: isActiveThisMonth,
       });
 
       // Move to next month
-      currentDate.setMonth(currentDate.getMonth() + 1);
+      currentDate.setUTCMonth(currentDate.getUTCMonth() + 1);
     }
 
     return { totalVorauszahlungen, monthlyVorauszahlungenDetails };
@@ -208,7 +208,7 @@ describe('Vorauszahlung Calculation Logic', () => {
     // March should have prorated amount (March has 31 days, tenant is there for 17 days: 15th-31st)
     // 17 days out of 31 days = ~54.84% of 600 EUR = ~329.03 EUR
     const marchPayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'März 2024');
-    expect(marchPayment?.amount).toBeCloseTo(309.68, 2); // Actual calculated value
+    expect(marchPayment?.amount).toBeCloseTo(329.03, 2); // Actual calculated value
     expect(marchPayment?.isActiveMonth).toBe(true);
     
     // April should have full 600 EUR (full month)
@@ -235,7 +235,7 @@ describe('Vorauszahlung Calculation Logic', () => {
     // October should have prorated amount (October has 31 days, tenant is there for 15 days: 1st-15th)
     // 15 days out of 31 days = ~48.39% of 600 EUR = ~290.32 EUR
     const octoberPayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'Oktober 2024');
-    expect(octoberPayment?.amount).toBeCloseTo(309.68, 2); // Actual calculated value
+    expect(octoberPayment?.amount).toBeCloseTo(290.32, 2); // Actual calculated value
     expect(octoberPayment?.isActiveMonth).toBe(true);
     
     // November should have 0 EUR (not active)
@@ -299,13 +299,34 @@ describe('Vorauszahlung Calculation Logic', () => {
     // June should have prorated amount (June has 30 days, tenant is there for 16 days: 15th-30th)
     // 16 days out of 30 days = 53.33% of 60 EUR = 32 EUR
     const junePayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'Juni 2024');
-    expect(junePayment?.amount).toBe(30); // Actual calculated value
+    expect(junePayment?.amount).toBe(32); // Actual calculated value
     expect(junePayment?.isActiveMonth).toBe(true);
     
     // July should have full 60 EUR (full month)
     const julyPayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'Juli 2024');
     expect(julyPayment?.amount).toBe(60);
     expect(julyPayment?.isActiveMonth).toBe(true);
+  });
+
+  it('should pay full 500 EUR when tenant moves in on Jan 1st and billing starts Jan 1st', () => {
+    const billingStart = new Date('2024-01-01');
+    const billingEnd = new Date('2024-12-31');
+    const prepaymentSchedule = [
+      { date: new Date('2024-01-01'), amount: 500 } // 500 EUR per month
+    ];
+    const einzugDate = new Date('2024-01-01'); // Moves in Jan 1st (same as billing start)
+
+    const result = calculateVorauszahlungen(billingStart, billingEnd, prepaymentSchedule, einzugDate);
+
+    // January should have full 500 EUR (100% occupancy)
+    const januaryPayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'Januar 2024');
+    expect(januaryPayment?.amount).toBe(500); // Full payment
+    expect(januaryPayment?.isActiveMonth).toBe(true);
+    
+    // February should also have full 500 EUR (full month)
+    const februaryPayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'Februar 2024');
+    expect(februaryPayment?.amount).toBe(500);
+    expect(februaryPayment?.isActiveMonth).toBe(true);
   });
 
   it('should prorate 60 EUR prepayment to 30 EUR when tenant moves out mid-month', () => {
@@ -328,7 +349,7 @@ describe('Vorauszahlung Calculation Logic', () => {
     // June should have prorated amount (June has 30 days, tenant is there for 15 days: 1st-15th)
     // 15 days out of 30 days = 50% of 60 EUR = 30 EUR (exactly as mentioned in example)
     const junePayment = result.monthlyVorauszahlungenDetails.find(p => p.monthName === 'Juni 2024');
-    expect(junePayment?.amount).toBe(32); // Actual calculated value
+    expect(junePayment?.amount).toBe(30); // Actual calculated value
     expect(junePayment?.isActiveMonth).toBe(true);
     
     // July should have 0 EUR (not active)
