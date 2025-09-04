@@ -174,7 +174,7 @@ BEGIN
         FROM "Wasserzaehler" wz
         JOIN "Nebenkosten" n ON wz.nebenkosten_id = n.id
         WHERE wz.user_id = get_wasserzaehler_modal_data.user_id
-        AND wz.mieter_id IN (SELECT mieter_id FROM relevant_tenants)
+        AND wz.mieter_id IN (SELECT rt.mieter_id FROM relevant_tenants rt)
         AND wz.ablese_datum < start_datum
         ORDER BY wz.mieter_id, 
                  -- Prefer readings from previous year, then most recent

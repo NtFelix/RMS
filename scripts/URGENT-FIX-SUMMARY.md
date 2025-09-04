@@ -1,12 +1,15 @@
-# 🚨 URGENT FIX: Ambiguous Column Reference Error
+# 🚨 URGENT FIX: Ambiguous Column Reference Errors
 
-## Problem Identified
-The server logs show: **"column reference 'haus_id' is ambiguous"**
+## Problems Identified
+The server logs show multiple ambiguous column reference errors:
+1. **"column reference 'haus_id' is ambiguous"** ✅ FIXED
+2. **"column reference 'mieter_id' is ambiguous"** ✅ FIXED
 
-This error occurs because PostgreSQL cannot determine which `haus_id` column to use when there are multiple tables with the same column name in a query.
+These errors occur because PostgreSQL cannot determine which column to use when there are multiple tables with the same column name in a query.
 
-## Root Cause
-In the database functions, the local variable `haus_id` conflicts with the `haus_id` column in the `Wohnungen` table, causing PostgreSQL to be unable to resolve which one to use in WHERE clauses.
+## Root Causes
+1. **haus_id ambiguity**: Local variable `haus_id` conflicted with `w.haus_id` column in `Wohnungen` table
+2. **mieter_id ambiguity**: In the `previous_readings` CTE, the subquery `SELECT mieter_id FROM relevant_tenants` was ambiguous
 
 ## Fix Applied
 **Changed all local variables from `haus_id` to `target_haus_id`** in three functions:
@@ -15,24 +18,32 @@ In the database functions, the local variable `haus_id` conflicts with the `haus
 2. `get_abrechnung_modal_data` 
 3. `get_abrechnung_calculation_data`
 
-### Before (Ambiguous):
+### Fix 1: haus_id Variable Conflict
+**Before (Ambiguous):**
 ```sql
 DECLARE
     haus_id UUID;  -- ❌ Conflicts with w.haus_id column
 BEGIN
-    SELECT n.haeuser_id INTO haus_id FROM "Nebenkosten" n ...
-    
     WHERE w.haus_id = haus_id  -- ❌ Ambiguous!
 ```
 
-### After (Fixed):
+**After (Fixed):**
 ```sql
 DECLARE
     target_haus_id UUID;  -- ✅ Unique variable name
 BEGIN
-    SELECT n.haeuser_id INTO target_haus_id FROM "Nebenkosten" n ...
-    
     WHERE w.haus_id = target_haus_id  -- ✅ Clear reference!
+```
+
+### Fix 2: mieter_id Subquery Ambiguity
+**Before (Ambiguous):**
+```sql
+AND wz.mieter_id IN (SELECT mieter_id FROM relevant_tenants)  -- ❌ Ambiguous!
+```
+
+**After (Fixed):**
+```sql
+AND wz.mieter_id IN (SELECT rt.mieter_id FROM relevant_tenants rt)  -- ✅ Clear reference!
 ```
 
 ## Immediate Action Required
@@ -57,6 +68,12 @@ SELECT * FROM get_wasserzaehler_modal_data(
 );
 ```
 
+Quick test for mieter_id fix:
+```bash
+# Run in Supabase SQL Editor
+\i scripts/test-mieter-id-fix.sql
+```
+
 ### 3. Test in Application
 - Navigate to betriebskosten page
 - Try opening Wasserzähler modal
@@ -64,8 +81,10 @@ SELECT * FROM get_wasserzaehler_modal_data(
 
 ## Expected Result
 - ✅ No more "column reference 'haus_id' is ambiguous" errors
+- ✅ No more "column reference 'mieter_id' is ambiguous" errors  
 - ✅ Wasserzähler modal loads successfully
 - ✅ Functions return proper "not found" errors for invalid data instead of SQL errors
+- ✅ get_abrechnung_modal_data should work (already working based on logs)
 
 ## Files Modified
 - `supabase/migrations/manual-database-setup.sql` - Fixed all three functions

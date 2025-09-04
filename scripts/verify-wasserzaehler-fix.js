@@ -64,6 +64,9 @@ async function verifyFixes() {
       } else if (testError.message.includes('ambiguous')) {
         console.error('❌ CRITICAL: Ambiguous column reference still exists:', testError.message);
         console.error('❌ The database functions need to be updated in Supabase');
+        if (testError.message.includes('mieter_id')) {
+          console.error('❌ Specific issue: mieter_id column ambiguity in previous_readings CTE');
+        }
         return false;
       } else {
         console.error('❌ Unexpected error:', testError.message);
