@@ -3,6 +3,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // Added DialogDescription
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Nebenkosten } from "@/lib/data-fetching"
+import { OptimizedNebenkosten } from "@/types/optimized-betriebskosten"
+import { isoToGermanDate } from "@/utils/date-calculations"
 import { SummaryCards } from "./summary-cards"
 
 export function OperatingCostsOverviewModal({
@@ -12,7 +14,7 @@ export function OperatingCostsOverviewModal({
 }: {
   isOpen: boolean
   onClose: () => void
-  nebenkosten: Nebenkosten
+  nebenkosten: OptimizedNebenkosten
 }) {
   if (!nebenkosten) return null
 
@@ -35,13 +37,15 @@ export function OperatingCostsOverviewModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Übersicht der Betriebskosten für {nebenkosten.jahr}</DialogTitle>
-          <DialogDescription className="sr-only"> {/* Added sr-only if it should be visually hidden but available to screen readers */}
-            Detailansicht der Betriebskostenabrechnung für das Haus {nebenkosten.Haeuser?.name || 'N/A'} im Jahr {nebenkosten.jahr}.
+          <DialogTitle className="text-xl">
+            Übersicht der Betriebskosten für {isoToGermanDate(nebenkosten.startdatum)} bis {isoToGermanDate(nebenkosten.enddatum)}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Detailansicht der Betriebskostenabrechnung für das Haus {nebenkosten.haus_name || 'N/A'} vom {isoToGermanDate(nebenkosten.startdatum)} bis {isoToGermanDate(nebenkosten.enddatum)}.
           </DialogDescription>
-          {nebenkosten.Haeuser?.name && (
+          {nebenkosten.haus_name && (
             <p className="text-sm text-muted-foreground">
-              Haus: {nebenkosten.Haeuser.name}
+              Haus: {nebenkosten.haus_name}
             </p>
           )}
         </DialogHeader>

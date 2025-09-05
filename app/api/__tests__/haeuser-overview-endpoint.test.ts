@@ -151,7 +151,7 @@ describe('/api/haeuser/[id]/overview', () => {
         strasse: 'Teststraße 1',
         ort: 'Teststadt',
         size: '200',
-        totalArea: 135, // 75 + 60
+        totalArea: 200, // Uses house.groesse when available
         totalRent: 1200, // Only from occupied apartment
         apartmentCount: 2,
         tenantCount: 1,
@@ -216,7 +216,7 @@ describe('/api/haeuser/[id]/overview', () => {
 
     expect(NextResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        totalArea: 0,
+        totalArea: 200, // Uses house.groesse even when no apartments
         totalRent: 0,
         apartmentCount: 0,
         tenantCount: 0,

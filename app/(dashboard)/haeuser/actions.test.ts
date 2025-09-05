@@ -7,7 +7,7 @@ jest.mock('@/utils/supabase/server');
 jest.mock('next/cache');
 jest.mock('@/lib/data-fetching');
 
-import { handleSubmit, deleteHouseAction, getWasserzaehlerModalDataAction } from './actions';
+import { handleSubmit, deleteHouseAction, getWasserzaehlerModalDataLegacyAction } from './actions';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { fetchWasserzaehlerModalData } from '@/lib/data-fetching';
@@ -149,7 +149,7 @@ describe('House Actions', () => {
     });
   });
 
-  describe('getWasserzaehlerModalDataAction', () => {
+  describe('getWasserzaehlerModalDataLegacyAction', () => {
     it('successfully fetches wasserzaehler modal data', async () => {
       const mockData = {
         mieterList: [
@@ -165,7 +165,7 @@ describe('House Actions', () => {
       mockFetchWasserzaehlerModalData.mockResolvedValue(mockData as any);
 
       const nebenkostenId = 'nebenkosten-123';
-      const result = await getWasserzaehlerModalDataAction(nebenkostenId);
+      const result = await getWasserzaehlerModalDataLegacyAction(nebenkostenId);
 
       expect(mockFetchWasserzaehlerModalData).toHaveBeenCalledWith(nebenkostenId);
       expect(result).toEqual(mockData);
@@ -177,10 +177,10 @@ describe('House Actions', () => {
       mockFetchWasserzaehlerModalData.mockRejectedValue(error);
 
       const nebenkostenId = 'nebenkosten-123';
-      const result = await getWasserzaehlerModalDataAction(nebenkostenId);
+      const result = await getWasserzaehlerModalDataLegacyAction(nebenkostenId);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error in getWasserzaehlerModalDataAction:',
+        'Error in getWasserzaehlerModalDataLegacyAction:',
         error
       );
       expect(result).toEqual({

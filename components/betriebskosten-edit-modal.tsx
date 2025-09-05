@@ -30,7 +30,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PlusCircle, Trash2, GripVertical } from "lucide-react";
+import { PlusCircle, Trash2, GripVertical, CalendarPlus, CalendarMinus } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -52,6 +52,8 @@ import { useModalStore } from "@/hooks/use-modal-store";
 import { LabelWithTooltip } from "./ui/label-with-tooltip";
 import { CustomCombobox, type ComboboxOption } from "./ui/custom-combobox";
 import { SortableCostItem, type CostItem, type RechnungEinzel } from "./sortable-cost-item";
+import { DateRangePicker } from "./ui/date-range-picker";
+import { getDefaultDateRange, validateDateRange, germanToIsoDate, isoToGermanDate, formatPeriodDuration } from "@/utils/date-calculations";
 
 // Re-export for other components that might need it
 export type { CostItem, RechnungEinzel };
@@ -69,7 +71,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     setBetriebskostenModalDirty,
   } = useModalStore();
 
-  const [jahr, setJahr] = useState("");
+  const [startdatum, setStartdatum] = useState("");
+  const [enddatum, setEnddatum] = useState("");
   const [wasserkosten, setWasserkosten] = useState("");
   const [hausId, setHausId] = useState("");
   const [costItems, setCostItems] = useState<CostItem[]>([]);
@@ -231,7 +234,14 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
   useEffect(() => {
     const resetAllStates = (forNewEntry: boolean = true) => {
-      setJahr(forNewEntry ? new Date().getFullYear().toString() : "");
+      if (forNewEntry) {
+        const defaultRange = getDefaultDateRange();
+        setStartdatum(defaultRange.startdatum);
+        setEnddatum(defaultRange.enddatum);
+      } else {
+        setStartdatum("");
+        setEnddatum("");
+      }
       setWasserkosten("");
       setHausId(forNewEntry && betriebskostenModalHaeuser && betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : "");
       setCostItems([{ id: generateId(), art: '', betrag: '', berechnungsart: BERECHNUNGSART_OPTIONS[0]?.value || '' }]);
@@ -259,7 +269,9 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             if (response.success && response.data) {
               const fetchedData = response.data;
               setModalNebenkostenData(fetchedData);
-              setJahr(fetchedData.jahr || "");
+              // Convert ISO dates from database to German format for display
+              setStartdatum(fetchedData.startdatum ? isoToGermanDate(fetchedData.startdatum) : "");
+              setEnddatum(fetchedData.enddatum ? isoToGermanDate(fetchedData.enddatum) : "");
               setHausId(fetchedData.haeuser_id || (betriebskostenModalHaeuser.length > 0 ? betriebskostenModalHaeuser[0].id : ""));
               setWasserkosten(fetchedData.wasserkosten?.toString() || "");
 
@@ -296,11 +308,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
   }, [isBetriebskostenModalOpen, betriebskostenInitialData, betriebskostenModalHaeuser, toast, setBetriebskostenModalDirty]);
 
   useEffect(() => {
-    if (isBetriebskostenModalOpen && hausId && jahr) {
+    if (isBetriebskostenModalOpen && hausId && startdatum && enddatum) {
       const fetchTenants = async () => {
         setIsFetchingTenants(true);
         try {
-          const tenantResponse = await getMieterByHausIdAction(hausId, jahr);
+          // Convert German dates to ISO format for API call
+          const startIso = germanToIsoDate(startdatum);
+          const endIso = germanToIsoDate(enddatum);
+          
+          if (!startIso || !endIso) {
+            setSelectedHausMieter([]);
+            setIsFetchingTenants(false);
+            return;
+          }
+          
+          const tenantResponse = await getMieterByHausIdAction(hausId, startIso, endIso);
           if (tenantResponse.success && tenantResponse.data) {
             setSelectedHausMieter(tenantResponse.data);
           } else {
@@ -318,7 +340,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     } else if (!isBetriebskostenModalOpen || !hausId) {
       setSelectedHausMieter([]);
     }
-  }, [isBetriebskostenModalOpen, hausId, jahr, toast]);
+  }, [isBetriebskostenModalOpen, hausId, startdatum, enddatum, toast]);
 
   const syncRechnungenState = (
     currentTenants: Mieter[], 
@@ -362,8 +384,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
     const currentEditId = modalNebenkostenData?.id || betriebskostenInitialData?.id;
 
-    if (!jahr || !hausId) {
-      toast({ title: "Fehlende Eingaben", description: "Jahr und Haus sind Pflichtfelder.", variant: "destructive" });
+    // Validate date range
+    const dateValidation = validateDateRange(startdatum, enddatum);
+    if (!dateValidation.isValid) {
+      const errorMessages = Object.values(dateValidation.errors).filter(Boolean);
+      toast({ 
+        title: "Ungültige Datumsangaben", 
+        description: errorMessages.join('. '), 
+        variant: "destructive" 
+      });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
+    if (!startdatum || !enddatum || !hausId) {
+      toast({ title: "Fehlende Eingaben", description: "Startdatum, Enddatum und Haus sind Pflichtfelder.", variant: "destructive" });
       setIsSaving(false); setBetriebskostenModalDirty(true);
       return;
     }
@@ -422,8 +457,19 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
       berechnungsartArray.push(berechnungsart);
     }
 
+    // Convert German dates to ISO format for database
+    const startIso = germanToIsoDate(startdatum.trim());
+    const endIso = germanToIsoDate(enddatum.trim());
+    
+    if (!startIso || !endIso) {
+      toast({ title: "Ungültige Datumsangaben", description: "Bitte überprüfen Sie die Datumsformate.", variant: "destructive" });
+      setIsSaving(false); setBetriebskostenModalDirty(true);
+      return;
+    }
+
     const submissionData = {
-      jahr: jahr.trim(),
+      startdatum: startIso,
+      enddatum: endIso,
       nebenkostenart: nebenkostenartArray,
       betrag: betragArray,
       berechnungsart: berechnungsartArray,
@@ -516,8 +562,21 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
     }
   };
 
-  const handleJahrChange = (e: React.ChangeEvent<HTMLInputElement>) => { setJahr(e.target.value); setBetriebskostenModalDirty(true); };
-  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { setWasserkosten(e.target.value); setBetriebskostenModalDirty(true); };
+  const handleStartdatumChange = (date: string) => { 
+    setStartdatum(date); 
+    setBetriebskostenModalDirty(true); 
+  };
+  
+  const handleEnddatumChange = (date: string) => { 
+    setEnddatum(date); 
+    setBetriebskostenModalDirty(true); 
+  };
+  
+  const handleWasserkostenChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
+    setWasserkosten(e.target.value); 
+    setBetriebskostenModalDirty(true); 
+  };
+  
   const handleHausChange = (newHausId: string | null) => { 
     setHausId(newHausId || ''); 
     setBetriebskostenModalDirty(true); 
@@ -544,16 +603,10 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 overflow-y-auto max-h-[70vh] p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <LabelWithTooltip htmlFor="formJahr" infoText="Das Jahr, für das die Nebenkostenabrechnung gilt.">
-                  Jahr *
-                </LabelWithTooltip>
-                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                  <Input id="formJahr" value={jahr} onChange={handleJahrChange} placeholder="z.B. 2023" required disabled={isSaving} />
-                )}
-              </div>
+          <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
+            {/* Property & Period Selection Section */}
+            <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+              {/* House Selection */}
               <div className="space-y-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
                   Haus *
@@ -562,15 +615,97 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                   <CustomCombobox width="w-full" options={houseOptions} value={hausId} onChange={handleHausChange} placeholder="Haus auswählen..." searchPlaceholder="Haus suchen..." emptyText="Kein Haus gefunden." disabled={isSaving} />
                 )}
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Jahr.">
-                Wasserkosten (€)
-              </LabelWithTooltip>
-              {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
-                <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving} />
-              )}
+              {/* Date Range Selection */}
+              <div className="space-y-3">
+                {isLoadingDetails ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ) : (
+                  <>
+                    <DateRangePicker
+                      startDate={startdatum}
+                      endDate={enddatum}
+                      onStartDateChange={handleStartdatumChange}
+                      onEndDateChange={handleEnddatumChange}
+                      disabled={isSaving}
+                      showPeriodInfo={false}
+                    />
+                    
+                    {/* Year Navigation Buttons - positioned directly below date inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 w-full rounded-md"
+                        onClick={() => {
+                          // Extract year from current startdatum and subtract 1
+                          const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                          const newYear = currentStartYear - 1;
+                          setStartdatum(`01.01.${newYear}`);
+                          setEnddatum(`31.12.${newYear}`);
+                          setBetriebskostenModalDirty(true);
+                        }}
+                        disabled={isSaving}
+                        title="Ein Jahr zurück"
+                      >
+                        <CalendarMinus className="w-4 h-4 mr-2" />
+                        -1 Jahr
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 w-full rounded-md"
+                        onClick={() => {
+                          // Extract year from current startdatum and add 1
+                          const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
+                          const newYear = currentStartYear + 1;
+                          setStartdatum(`01.01.${newYear}`);
+                          setEnddatum(`31.12.${newYear}`);
+                          setBetriebskostenModalDirty(true);
+                        }}
+                        disabled={isSaving}
+                        title="Ein Jahr vor"
+                      >
+                        <CalendarPlus className="w-4 h-4 mr-2" />
+                        +1 Jahr
+                      </Button>
+                    </div>
+                    
+                    {/* Period information - moved below the year buttons */}
+                    {(() => {
+                      const validation = validateDateRange(startdatum, enddatum);
+                      return (
+                        <div className="space-y-2">
+                          {validation.isValid && validation.periodDays && (
+                            <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                              <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
+                            </div>
+                          )}
+                          
+                          {validation.errors.range && (
+                            <p className={`text-sm ${validation.errors.range.startsWith('Warnung') ? 'text-yellow-600' : 'text-red-600'}`}>
+                              {validation.errors.range}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+
+              {/* Water Costs */}
+              <div className="space-y-2">
+                <LabelWithTooltip htmlFor="formWasserkosten" infoText="Die gesamten Wasserkosten für das ausgewählte Haus in diesem Abrechnungszeitraum.">
+                  Wasserkosten (€)
+                </LabelWithTooltip>
+                {isLoadingDetails ? <Skeleton className="h-10 w-full" /> : (
+                  <Input id="formWasserkosten" type="number" value={wasserkosten} onChange={handleWasserkostenChange} placeholder="z.B. 500.00" step="0.01" disabled={isSaving} />
+                )}
+              </div>
             </div>
 
             <div className="space-y-2">
