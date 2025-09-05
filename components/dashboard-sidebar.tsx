@@ -114,7 +114,7 @@ export function DashboardSidebar() {
               ))}
             </nav>
           </ScrollArea>
-          <div className="mt-auto border-t p-4 mb-2">
+          <div className="mt-auto border-t p-4 pb-6">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />
           </div>
