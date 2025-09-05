@@ -96,8 +96,8 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <ScrollArea className="flex-1 pt-6 pb-4">
-            <nav className="grid gap-1 px-2">
+          <ScrollArea className="flex-1 pt-2 pb-4">
+            <nav className="grid gap-1 px-2 pt-1">
               {sidebarNavItems.map((item) => (
                 <Link
                   key={item.href}
