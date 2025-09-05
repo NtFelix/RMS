@@ -13,6 +13,7 @@ export async function generateMetadata({ searchParams }: { searchParams?: Promis
     const paramId = Array.isArray(paramRaw) ? paramRaw[0] : paramRaw;
     
     if (paramId && typeof paramId === "string") {
+      // Use cached data if available, otherwise fetch
       const pages = await getDatabasePages();
       const selectedPage = pages.find(p => p.id === paramId);
       
@@ -20,6 +21,11 @@ export async function generateMetadata({ searchParams }: { searchParams?: Promis
         return {
           title: `${selectedPage.title} - Documentation`,
           description: `Documentation for ${selectedPage.title}${selectedPage.category ? ` in ${selectedPage.category}` : ''}`,
+          openGraph: {
+            title: `${selectedPage.title} - Documentation`,
+            description: `Documentation for ${selectedPage.title}${selectedPage.category ? ` in ${selectedPage.category}` : ''}`,
+            type: 'article',
+          },
         };
       }
     }
@@ -27,6 +33,11 @@ export async function generateMetadata({ searchParams }: { searchParams?: Promis
     return {
       title: 'Documentation - RMS',
       description: 'Comprehensive documentation for the Rent Management System',
+      openGraph: {
+        title: 'Documentation - RMS',
+        description: 'Comprehensive documentation for the Rent Management System',
+        type: 'website',
+      },
     };
   } catch {
     return {
