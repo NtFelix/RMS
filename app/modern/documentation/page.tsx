@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Navigation from "../components/navigation";
 import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
+import DocumentationErrorBoundary from "../components/documentation-error-boundary";
 import { getDatabasePages, getPageContent, NotionFileData, NotionPageData, BlockWithChildren } from "../../../lib/notion-service";
 
 export const dynamic = 'force-dynamic';
@@ -123,25 +124,27 @@ function renderPage(
   return (
     <>
       <Navigation />
-      <div className="min-h-screen pt-16">
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <DocumentationSidebar
-              pages={allPagesMetadata}
-              activePageId={selectedPageId}
-            />
-            <div className="lg:col-span-3">
-              <DocumentationContent
-                isLoading={false}
-                pageContent={currentPageContent}
-                pageFiles={currentPageFiles}
+      <DocumentationErrorBoundary>
+        <div className="min-h-screen pt-16">
+          <div className="max-w-7xl mx-auto px-4 py-8">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+              <DocumentationSidebar
                 pages={allPagesMetadata}
-                error={error}
+                activePageId={selectedPageId}
               />
+              <div className="lg:col-span-3">
+                <DocumentationContent
+                  isLoading={false}
+                  pageContent={currentPageContent}
+                  pageFiles={currentPageFiles}
+                  pages={allPagesMetadata}
+                  error={error}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </DocumentationErrorBoundary>
     </>
   );
 }
