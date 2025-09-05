@@ -40,7 +40,8 @@ export async function generateMetadata({ searchParams }: { searchParams?: Promis
         type: 'website',
       },
     };
-  } catch {
+  } catch (error) {
+    console.error("Error generating documentation metadata:", error);
     return {
       title: 'Documentation - RMS',
       description: 'Comprehensive documentation for the Rent Management System',
@@ -95,11 +96,9 @@ export default async function DocumentationPage({
       }
 
       if (selectedPageId) {
-        // Fetch content and files in parallel for better performance
-        const [content, meta] = await Promise.all([
-          getPageContent(selectedPageId),
-          Promise.resolve(allPagesMetadata.find((p) => p.id === selectedPageId))
-        ]);
+        // Fetch content and find metadata
+        const meta = allPagesMetadata.find((p) => p.id === selectedPageId);
+        const content = await getPageContent(selectedPageId);
         
         currentPageContent = content;
         currentPageFiles = meta?.filesAndMedia ?? null;
