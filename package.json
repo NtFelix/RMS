@@ -55,7 +55,7 @@
     "framer-motion": "^12.16.0",
     "immer": "latest",
     "input-otp": "1.4.1",
-    "jspdf": "^3.0.1",
+    "jspdf": "^3.0.2",
     "jspdf-autotable": "^5.0.2",
     "jszip": "^3.10.1",
     "lucide-react": "^0.454.0",
