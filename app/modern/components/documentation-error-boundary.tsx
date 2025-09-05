@@ -29,7 +29,7 @@ export class DocumentationErrorBoundary extends Component<Props, State> {
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined });
+    window.location.reload();
   };
 
   render() {
