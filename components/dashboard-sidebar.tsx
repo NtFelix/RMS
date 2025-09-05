@@ -96,7 +96,7 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <ScrollArea className="flex-1 pt-6 pb-4">
+          <ScrollArea className="flex-1 pt-4 pb-4">
             <nav className="grid gap-1 px-2">
               {sidebarNavItems.map((item) => (
                 <Link
@@ -114,7 +114,7 @@ export function DashboardSidebar() {
               ))}
             </nav>
           </ScrollArea>
-          <div className="mt-auto border-t p-4">
+          <div className="mt-auto border-t p-4 pb-6">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />
           </div>
