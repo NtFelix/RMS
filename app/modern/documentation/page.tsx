@@ -6,6 +6,7 @@ import DocumentationErrorBoundary from "../components/documentation-error-bounda
 import { getDatabasePages, getPageContent, NotionFileData, NotionPageData, BlockWithChildren } from "../../../lib/notion-service";
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 export async function generateMetadata({ searchParams }: { searchParams?: Promise<{ [key: string]: string | string[] | undefined }> }): Promise<Metadata> {
   try {
