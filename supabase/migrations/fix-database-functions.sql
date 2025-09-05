@@ -131,9 +131,6 @@ DECLARE
     v_cnt_mieter_user INTEGER;
     v_cnt_mieter_period INTEGER;
 BEGIN
-    -- Log input parameters
-    RAISE NOTICE 'Function called with nebenkosten_id: %, user_id: %', $1, $2;
-    
     -- Get nebenkosten details first
     BEGIN
         SELECT n.haeuser_id, n.startdatum, n.enddatum
@@ -147,33 +144,26 @@ BEGIN
             RAISE EXCEPTION 'Nebenkosten entry not found or access denied for nebenkosten_id: % and user_id: %', $1, $2;
         END IF;
         
-        RAISE NOTICE 'Found nebenkosten entry: haus_id=%, start_datum=%, end_datum=%', 
-                     v_haus_id, start_datum, end_datum;
-        
-        -- Debug counts
+        -- Get counts for internal use only (no logging to console)
         SELECT COUNT(*) INTO v_cnt_wohnungen FROM "Wohnungen" w WHERE w.haus_id = v_haus_id;
-        RAISE NOTICE 'Wohnungen in Haus: %', v_cnt_wohnungen;
         
         SELECT COUNT(*) INTO v_cnt_mieter_house
         FROM "Mieter" m
         JOIN "Wohnungen" w ON w.id = m.wohnung_id
         WHERE w.haus_id = v_haus_id;
-        RAISE NOTICE 'Mieter im Haus (alle Nutzer): %', v_cnt_mieter_house;
         
         SELECT COUNT(*) INTO v_cnt_mieter_user
         FROM "Mieter" m
         JOIN "Wohnungen" w ON w.id = m.wohnung_id
         WHERE w.haus_id = v_haus_id AND m.user_id = $2;
-        RAISE NOTICE 'Mieter im Haus (user_id=%): %', $2, v_cnt_mieter_user;
         
-        RAISE NOTICE 'Checking tenants for period: % to %', start_datum, end_datum;
+        -- Check for tenants in the given period
         SELECT COUNT(*) INTO v_cnt_mieter_period
         FROM "Mieter" m
         JOIN "Wohnungen" w ON w.id = m.wohnung_id
         WHERE w.haus_id = v_haus_id
           AND m.user_id = $2
           AND (m.einzug <= end_datum AND (m.auszug IS NULL OR m.auszug >= start_datum));
-        RAISE NOTICE 'Mieter im Zeitraum (OVERLAPS): %', v_cnt_mieter_period;
     EXCEPTION WHEN OTHERS THEN
         RAISE EXCEPTION 'Error fetching nebenkosten details: %', SQLERRM;
     END;
