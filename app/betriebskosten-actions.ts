@@ -364,12 +364,15 @@ export async function getBatchPreviousWasserzaehlerRecordsAction(
         const previousYear = (currentYearNum - 1).toString();
         
         // Batch query for previous year readings
+        const previousYearStart = `${previousYear}-01-01`;
+        const previousYearEnd = `${previousYear}-12-31`;
         const { data: previousYearData, error: previousYearError } = await supabase
           .from("Wasserzaehler")
-          .select("*, Nebenkosten!inner(jahr)")
+          .select("*")
           .in("mieter_id", mieterIds)
           .eq("user_id", user.id)
-          .eq("Nebenkosten.jahr", previousYear)
+          .gte("ablese_datum", previousYearStart)
+          .lte("ablese_datum", previousYearEnd)
           .order("ablese_datum", { ascending: false });
 
         if (previousYearError) {
