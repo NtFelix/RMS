@@ -389,17 +389,27 @@ export function CloudStorageSimple({
   }, [deleteFile, toast])
 
   const handleFolderDelete = useCallback(async (folder: VirtualFolder) => {
-    try {
-      await deleteFolder(folder)
-      toast({
-        description: `Ordner "${folder.displayName || folder.name}" wurde dauerhaft gelöscht.`
-      })
-    } catch (error) {
-      toast({
-        description: error instanceof Error ? error.message : "Der Ordner konnte nicht gelöscht werden.",
-        variant: "destructive"
-      })
-    }
+    const { openFolderDeleteConfirmationModal } = useModalStore.getState()
+    
+    openFolderDeleteConfirmationModal({
+      folderName: folder.displayName || folder.name,
+      folderPath: folder.path,
+      fileCount: folder.fileCount,
+      onConfirm: async () => {
+        try {
+          await deleteFolder(folder)
+          toast({
+            description: `Ordner "${folder.displayName || folder.name}" wurde dauerhaft gelöscht.`
+          })
+        } catch (error) {
+          toast({
+            description: error instanceof Error ? error.message : "Der Ordner konnte nicht gelöscht werden.",
+            variant: "destructive"
+          })
+          throw error // Re-throw to let the modal handle the error state
+        }
+      }
+    })
   }, [deleteFolder, toast])
   
   /**

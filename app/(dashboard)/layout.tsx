@@ -32,6 +32,7 @@ import { FileUploadModal } from "@/components/file-upload-modal"; // Added
 import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
+import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -89,6 +90,10 @@ export default function DashboardRootLayout({
     isCreateFolderModalOpen,
     createFolderModalData,
     closeCreateFolderModal,
+    // Folder Delete Confirmation Modal state
+    isFolderDeleteConfirmationModalOpen,
+    folderDeleteConfirmationData,
+    closeFolderDeleteConfirmationModal,
   } = useModalStore()
 
   return (
@@ -160,6 +165,18 @@ export default function DashboardRootLayout({
           onClose={closeCreateFolderModal}
           currentPath={createFolderModalData.currentPath}
           onFolderCreated={createFolderModalData.onFolderCreated}
+        />
+      )}
+
+      {/* FolderDeleteConfirmationModal - Global folder delete confirmation modal */}
+      {isFolderDeleteConfirmationModalOpen && folderDeleteConfirmationData && (
+        <FolderDeleteConfirmationModal
+          isOpen={isFolderDeleteConfirmationModalOpen}
+          onClose={closeFolderDeleteConfirmationModal}
+          folderName={folderDeleteConfirmationData.folderName}
+          folderPath={folderDeleteConfirmationData.folderPath}
+          fileCount={folderDeleteConfirmationData.fileCount}
+          onConfirm={folderDeleteConfirmationData.onConfirm}
         />
       )}
 

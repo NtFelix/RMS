@@ -115,6 +115,13 @@ interface FileRenameData {
   onRename: (newName: string) => Promise<void>;
 }
 
+interface FolderDeleteConfirmationData {
+  folderName: string;
+  folderPath: string;
+  fileCount: number;
+  onConfirm: () => Promise<void>;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -291,6 +298,12 @@ export interface ModalState {
   confirmationModalConfig: ConfirmationModalConfig | null;
   openConfirmationModal: (config: ConfirmationModalConfig) => void;
   closeConfirmationModal: () => void;
+
+  // Folder Delete Confirmation Modal State
+  isFolderDeleteConfirmationModalOpen: boolean;
+  folderDeleteConfirmationData?: FolderDeleteConfirmationData;
+  openFolderDeleteConfirmationModal: (data: FolderDeleteConfirmationData) => void;
+  closeFolderDeleteConfirmationModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -407,6 +420,11 @@ const initialCreateFolderModalState = {
   createFolderModalData: undefined,
 };
 
+const initialFolderDeleteConfirmationModalState = {
+  isFolderDeleteConfirmationModalOpen: false,
+  folderDeleteConfirmationData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -423,6 +441,7 @@ const createInitialModalState = () => ({
   ...initialFilePreviewModalState,
   ...initialFileRenameModalState,
   ...initialCreateFolderModalState,
+  ...initialFolderDeleteConfirmationModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -827,5 +846,12 @@ export const useModalStore = create<ModalState>((set, get) => {
         confirmationModalTimeoutId = null;
       }, MODAL_ANIMATION_DURATION); 
     },
+
+    // Folder Delete Confirmation Modal
+    openFolderDeleteConfirmationModal: (data: FolderDeleteConfirmationData) => set({
+      isFolderDeleteConfirmationModalOpen: true,
+      folderDeleteConfirmationData: data,
+    }),
+    closeFolderDeleteConfirmationModal: () => set(initialFolderDeleteConfirmationModalState),
   };
 });
