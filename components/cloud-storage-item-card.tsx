@@ -75,6 +75,7 @@ export function CloudStorageItemCard({
   className
 }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const { openFilePreviewModal, openFileRenameModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
 
@@ -322,7 +323,25 @@ export function CloudStorageItemCard({
             )}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
-            onClick={type === 'file' && canPreview() ? (onPreview || handlePreview) : onOpen}
+            onClick={(e) => {
+              // Don't trigger card click if dropdown is open or was just closed
+              if (isDropdownOpen) {
+                e.preventDefault()
+                e.stopPropagation()
+                return
+              }
+              
+              // Normal card click behavior
+              if (type === 'file' && canPreview()) {
+                if (onPreview) {
+                  onPreview()
+                } else {
+                  handlePreview()
+                }
+              } else if (onOpen) {
+                onOpen()
+              }
+            }}
           >
             <div className="p-4">
               {/* Selection checkbox */}
@@ -344,9 +363,17 @@ export function CloudStorageItemCard({
                 "absolute top-2 right-2 transition-opacity",
                 isHovered ? "opacity-100" : "opacity-0"
               )}>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 w-8 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                      }}
+                    >
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -354,6 +381,7 @@ export function CloudStorageItemCard({
                     {type === 'folder' ? (
                       <DropdownMenuItem onSelect={(e) => {
                         e.preventDefault()
+                        setIsDropdownOpen(false)
                         if (onOpen) onOpen()
                       }}>
                         <FolderOpen className="h-4 w-4 mr-2" />
@@ -364,6 +392,7 @@ export function CloudStorageItemCard({
                         {canPreview() ? (
                           <DropdownMenuItem onSelect={(e) => {
                             e.preventDefault()
+                            setIsDropdownOpen(false)
                             if (onPreview) {
                               onPreview()
                             } else {
@@ -376,6 +405,7 @@ export function CloudStorageItemCard({
                         ) : (
                           <DropdownMenuItem onSelect={(e) => {
                             e.preventDefault()
+                            setIsDropdownOpen(false)
                             if (onOpen) onOpen()
                           }}>
                             <Eye className="h-4 w-4 mr-2" />
@@ -388,6 +418,7 @@ export function CloudStorageItemCard({
                     {type === 'file' && onDownload && (
                       <DropdownMenuItem onSelect={(e) => {
                         e.preventDefault()
+                        setIsDropdownOpen(false)
                         onDownload()
                       }}>
                         <Download className="h-4 w-4 mr-2" />
@@ -400,6 +431,7 @@ export function CloudStorageItemCard({
                     {type === 'file' && (
                       <DropdownMenuItem onSelect={(e) => {
                         e.preventDefault()
+                        setIsDropdownOpen(false)
                         if (onRename) {
                           onRename()
                         } else {
@@ -413,6 +445,7 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuItem onSelect={(e) => {
                       e.preventDefault()
+                      setIsDropdownOpen(false)
                       if (onMove) {
                         onMove()
                       } else {
@@ -425,6 +458,7 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuItem onSelect={(e) => {
                       e.preventDefault()
+                      setIsDropdownOpen(false)
                       console.log('Copy placeholder')
                     }}>
                       <Copy className="h-4 w-4 mr-2" />
@@ -435,6 +469,7 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuItem onSelect={(e) => {
                       e.preventDefault()
+                      setIsDropdownOpen(false)
                       if (onShare) {
                         onShare()
                       } else {
@@ -447,6 +482,7 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuItem onSelect={(e) => {
                       e.preventDefault()
+                      setIsDropdownOpen(false)
                       if (onStar) {
                         onStar()
                       } else {
@@ -461,6 +497,7 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuItem onSelect={(e) => {
                       e.preventDefault()
+                      setIsDropdownOpen(false)
                       console.log('Properties placeholder')
                     }}>
                       <Eye className="h-4 w-4 mr-2" />
@@ -472,6 +509,7 @@ export function CloudStorageItemCard({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onSelect={(e) => {
                           e.preventDefault()
+                          setIsDropdownOpen(false)
                           onDelete()
                         }} className="text-destructive">
                           <Trash2 className="h-4 w-4 mr-2" />
