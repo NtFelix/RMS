@@ -97,6 +97,11 @@ interface ConfirmationModalConfig {
   cancelText?: string;
 }
 
+interface CreateFolderModalData {
+  currentPath: string;
+  onFolderCreated: (folderName: string) => void;
+}
+
 interface FilePreviewData {
   name: string;
   path: string;
@@ -275,6 +280,12 @@ export interface ModalState {
   openFileRenameModal: (fileData: FileRenameData) => void;
   closeFileRenameModal: () => void;
 
+  // Create Folder Modal State
+  isCreateFolderModalOpen: boolean;
+  createFolderModalData?: CreateFolderModalData;
+  openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => void;
+  closeCreateFolderModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -391,6 +402,11 @@ const initialFileRenameModalState = {
   fileRenameData: undefined,
 };
 
+const initialCreateFolderModalState = {
+  isCreateFolderModalOpen: false,
+  createFolderModalData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -406,6 +422,7 @@ const createInitialModalState = () => ({
   ...initialUploadModalState,
   ...initialFilePreviewModalState,
   ...initialFileRenameModalState,
+  ...initialCreateFolderModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -778,6 +795,16 @@ export const useModalStore = create<ModalState>((set, get) => {
       fileRenameData: fileData,
     }),
     closeFileRenameModal: () => set(initialFileRenameModalState),
+
+    // Create Folder Modal
+    openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => set({
+      isCreateFolderModalOpen: true,
+      createFolderModalData: {
+        currentPath,
+        onFolderCreated,
+      },
+    }),
+    closeCreateFolderModal: () => set(initialCreateFolderModalState),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

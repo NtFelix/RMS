@@ -31,6 +31,7 @@ import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-detai
 import { FileUploadModal } from "@/components/file-upload-modal"; // Added
 import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 import { FileRenameModal } from "@/components/file-rename-modal"; // Added
+import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -84,6 +85,10 @@ export default function DashboardRootLayout({
     isFileRenameModalOpen,
     fileRenameData,
     closeFileRenameModal,
+    // Create Folder Modal state
+    isCreateFolderModalOpen,
+    createFolderModalData,
+    closeCreateFolderModal,
   } = useModalStore()
 
   return (
@@ -145,6 +150,16 @@ export default function DashboardRootLayout({
           onClose={closeFileRenameModal}
           fileName={fileRenameData.fileName}
           onRename={fileRenameData.onRename}
+        />
+      )}
+
+      {/* CreateFolderModal - Global create folder modal */}
+      {isCreateFolderModalOpen && createFolderModalData && (
+        <CreateFolderModal
+          isOpen={isCreateFolderModalOpen}
+          onClose={closeCreateFolderModal}
+          currentPath={createFolderModalData.currentPath}
+          onFolderCreated={createFolderModalData.onFolderCreated}
         />
       )}
 

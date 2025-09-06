@@ -47,7 +47,7 @@ export function CloudStorageSimple({
 }: CloudStorageSimpleProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { openUploadModal } = useModalStore()
+  const { openUploadModal, openCreateFolderModal } = useModalStore()
   
   // Local navigation state
   const [currentNavPath, setCurrentNavPath] = useState(initialPath)
@@ -401,6 +401,37 @@ export function CloudStorageSimple({
       })
     }
   }, [currentNavPath, initialPath, openUploadModal, handleRefresh, toast])
+
+  /**
+   * Handle create folder
+   */
+  const handleCreateFolder = useCallback(() => {
+    const targetPath = currentNavPath || initialPath
+    if (targetPath) {
+      openCreateFolderModal(targetPath, (folderName: string) => {
+        // Add the new folder to the current folders list immediately for better UX
+        const newFolder: VirtualFolder = {
+          name: folderName,
+          path: `${targetPath}/${folderName}`,
+          type: 'storage',
+          isEmpty: true,
+          children: [],
+          fileCount: 0,
+          displayName: folderName
+        }
+        
+        // Update the folders list
+        setFolders([...folders, newFolder])
+        
+        // Refresh to get the latest data from server
+        handleRefresh()
+        
+        toast({
+          description: `Ordner "${folderName}" wurde erfolgreich erstellt.`
+        })
+      })
+    }
+  }, [currentNavPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
   
   // Determine loading and error states
   const showLoading = isLoading || isNavigating
@@ -414,7 +445,7 @@ export function CloudStorageSimple({
           {/* Quick Actions */}
           <CloudStorageQuickActions
             onUpload={handleUpload}
-            onCreateFolder={() => {/* TODO: Create folder */}}
+            onCreateFolder={handleCreateFolder}
             onSearch={setSearchQuery}
             onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
             onViewMode={setViewMode}
@@ -548,7 +579,7 @@ export function CloudStorageSimple({
                     <Upload className="h-4 w-4 mr-2" />
                     Dateien hochladen
                   </Button>
-                  <Button variant="outline" onClick={() => {/* TODO: Create folder */}}>
+                  <Button variant="outline" onClick={handleCreateFolder}>
                     <Plus className="h-4 w-4 mr-2" />
                     Ordner erstellen
                   </Button>
