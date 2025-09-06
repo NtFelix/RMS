@@ -115,8 +115,8 @@ export function CreateFolderModal({
         
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="folder-name" className="text-right">
+            <div className="space-y-2">
+              <Label htmlFor="folder-name">
                 Name
               </Label>
               <Input
@@ -124,7 +124,6 @@ export function CreateFolderModal({
                 value={folderName}
                 onChange={(e) => setFolderName(e.target.value)}
                 placeholder="Ordnername eingeben..."
-                className="col-span-3"
                 disabled={isCreating}
                 autoFocus
               />
