@@ -49,6 +49,7 @@ export interface StorageService {
   triggerFileDownload(path: string, filename?: string): Promise<void>;
   deleteFile(path: string): Promise<void>;
   moveFile(oldPath: string, newPath: string): Promise<void>;
+  moveFolder(oldFolderPath: string, newFolderPath: string): Promise<void>;
   renameFile(filePath: string, newName: string): Promise<void>;
   createPlaceholder(path: string): Promise<void>;
   getFileUrl(path: string): Promise<string>;
@@ -1072,6 +1073,201 @@ export async function bulkArchiveFiles(paths: string[]): Promise<string[]> {
 }
 
 /**
+ * Moves a folder and all its contents to a new location
+ */
+export async function moveFolder(oldFolderPath: string, newFolderPath: string): Promise<void> {
+  await validateUserPath(oldFolderPath);
+  await validateUserPath(newFolderPath);
+  
+  // Clean paths
+  let cleanOldPath = oldFolderPath.startsWith('/') ? oldFolderPath.slice(1) : oldFolderPath;
+  let cleanNewPath = newFolderPath.startsWith('/') ? newFolderPath.slice(1) : newFolderPath;
+  
+  cleanOldPath = cleanOldPath.replace(/\/+/g, '/').replace(/\/$/, '');
+  cleanNewPath = cleanNewPath.replace(/\/+/g, '/').replace(/\/$/, '');
+  
+  console.log('📁 Starting folder move operation:', {
+    from: cleanOldPath,
+    to: cleanNewPath
+  });
+  
+  const supabase = createClient();
+  
+  try {
+    // Get all files in the source folder recursively
+    const allFiles = await getAllFilesInFolder(cleanOldPath);
+    
+    if (allFiles.length === 0) {
+      console.log('📁 Folder is empty, creating target folder with .keep file');
+      
+      // Create target folder with .keep file
+      const keepFilePath = `${cleanNewPath}/.keep`;
+      const keepFileContent = new Blob([''], { type: 'text/plain' });
+      
+      const { error: createError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(keepFilePath, keepFileContent, {
+          cacheControl: '3600',
+          upsert: true
+        });
+      
+      if (createError) {
+        throw new Error(`Failed to create target folder: ${createError.message}`);
+      }
+      
+      // Remove source .keep file if it exists
+      try {
+        await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove([`${cleanOldPath}/.keep`]);
+      } catch (removeError) {
+        console.warn('Could not remove source .keep file:', removeError);
+      }
+      
+      console.log('✅ Empty folder moved successfully');
+      return;
+    }
+    
+    console.log(`📁 Found ${allFiles.length} files to move`);
+    
+    // Move all files
+    let movedCount = 0;
+    let errorCount = 0;
+    
+    for (const file of allFiles) {
+      try {
+        // Calculate relative path within the folder
+        const relativePath = file.path.substring(cleanOldPath.length + 1);
+        const targetFilePath = `${cleanNewPath}/${relativePath}`;
+        
+        console.log(`📄 Moving file ${movedCount + 1}/${allFiles.length}: ${file.name}`);
+        
+        await moveFile(file.path, targetFilePath);
+        movedCount++;
+        
+        // Small delay to avoid overwhelming the server
+        if (movedCount % 5 === 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+      } catch (error) {
+        console.error(`❌ Failed to move file ${file.name}:`, error);
+        errorCount++;
+        
+        // Continue with other files even if one fails
+        continue;
+      }
+    }
+    
+    console.log(`📁 Folder move completed: ${movedCount} files moved, ${errorCount} errors`);
+    
+    if (errorCount > 0) {
+      throw new Error(`Folder move partially failed: ${errorCount} files could not be moved`);
+    }
+    
+    // Clean up empty source folder structure
+    await cleanupEmptyFolders(cleanOldPath);
+    
+    console.log('🎉 Folder move operation completed successfully');
+    
+  } catch (error) {
+    console.error('❌ Folder move operation failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Recursively gets all files in a folder
+ */
+async function getAllFilesInFolder(folderPath: string): Promise<Array<{name: string, path: string}>> {
+  const supabase = createClient();
+  const allFiles: Array<{name: string, path: string}> = [];
+  
+  async function scanFolder(currentPath: string): Promise<void> {
+    try {
+      const { data: contents, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .list(currentPath, { limit: 1000 });
+      
+      if (error) {
+        console.warn(`Could not scan folder ${currentPath}:`, error);
+        return;
+      }
+      
+      if (!contents) return;
+      
+      for (const item of contents) {
+        if (item.name === '.keep') continue;
+        
+        const itemPath = `${currentPath}/${item.name}`;
+        
+        if (item.metadata?.size) {
+          // It's a file
+          allFiles.push({
+            name: item.name,
+            path: itemPath
+          });
+        } else if (!item.name.includes('.')) {
+          // It's a folder, scan recursively
+          await scanFolder(itemPath);
+        }
+      }
+      
+      // Also check for nested files indicated by paths with slashes
+      for (const item of contents) {
+        if (item.name && item.name.includes('/')) {
+          const parts = item.name.split('/');
+          if (parts.length > 1) {
+            // This indicates a nested file
+            allFiles.push({
+              name: parts[parts.length - 1],
+              path: `${currentPath}/${item.name}`
+            });
+          }
+        }
+      }
+      
+    } catch (error) {
+      console.warn(`Exception scanning folder ${currentPath}:`, error);
+    }
+  }
+  
+  await scanFolder(folderPath);
+  return allFiles;
+}
+
+/**
+ * Cleans up empty folders after moving files
+ */
+async function cleanupEmptyFolders(folderPath: string): Promise<void> {
+  const supabase = createClient();
+  
+  try {
+    // Remove any remaining .keep files
+    const { data: contents } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(folderPath, { limit: 1000 });
+    
+    if (contents) {
+      const keepFiles = contents
+        .filter(item => item.name === '.keep')
+        .map(item => `${folderPath}/${item.name}`);
+      
+      if (keepFiles.length > 0) {
+        await supabase.storage
+          .from(STORAGE_BUCKET)
+          .remove(keepFiles);
+        
+        console.log(`🧹 Cleaned up ${keepFiles.length} .keep files`);
+      }
+    }
+    
+  } catch (error) {
+    console.warn('Could not cleanup empty folders:', error);
+  }
+}
+
+/**
  * Archives all files in a folder (for folder deletion)
  */
 export async function archiveFolder(folderPath: string): Promise<string[]> {
@@ -1094,6 +1290,7 @@ export const storageService: StorageService = {
   triggerFileDownload,
   deleteFile,
   moveFile,
+  moveFolder,
   renameFile,
   createPlaceholder,
   getFileUrl,

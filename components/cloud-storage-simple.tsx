@@ -640,13 +640,30 @@ export function CloudStorageSimple({
                       currentPath: currentNavPath,
                       userId,
                       onMove: async (targetPath: string) => {
-                        // For now, show a message that folder moving is complex
-                        toast({
-                          title: "Ordner verschieben",
-                          description: "Das Verschieben von Ordnern wird in einer zukünftigen Version implementiert.",
-                          variant: "default",
+                        const { moveFolder } = await import('@/lib/storage-service')
+                        
+                        // Construct source and target paths properly
+                        const sourceFolderPath = folder.path
+                        const targetFolderPath = `${targetPath}/${folder.name}`
+                        
+                        console.log('🎬 Component: Starting folder move operation:', {
+                          folderName: folder.name,
+                          folderDisplayName: folder.displayName,
+                          sourceFolderPath,
+                          targetFolderPath,
+                          currentNavPath,
+                          targetPath,
+                          fullFolderObject: folder
                         })
-                        throw new Error("Folder moving not yet implemented")
+                        
+                        try {
+                          await moveFolder(sourceFolderPath, targetFolderPath)
+                          console.log('🎉 Component: Folder move completed successfully')
+                          handleRefresh()
+                        } catch (error) {
+                          console.error('❌ Component: Folder move failed:', error)
+                          throw error
+                        }
                       }
                     })
                   }}

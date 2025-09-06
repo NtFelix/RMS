@@ -80,22 +80,30 @@ export function FolderContextMenu({
       currentPath,
       userId,
       onMove: async (targetPath: string) => {
-        // Import moveFile function dynamically
-        const { moveFile } = await import('@/lib/storage-service')
+        // Import moveFolder function dynamically
+        const { moveFolder } = await import('@/lib/storage-service')
         
-        // Move all files in the folder to the new location
-        // This is a simplified approach - in a real implementation,
-        // you might want to move the entire folder structure
-        const newFolderPath = `${targetPath}/${folder.name}`
+        // Construct source and target paths properly
+        const sourceFolderPath = folder.path
+        const targetFolderPath = `${targetPath}/${folder.name}`
         
-        // For now, we'll show a message that folder moving is complex
-        toast({
-          title: "Ordner verschieben",
-          description: "Das Verschieben von Ordnern wird in einer zukünftigen Version implementiert.",
-          variant: "default",
+        console.log('🎬 Folder Context Menu: Starting folder move operation:', {
+          folderName: folder.name,
+          folderDisplayName: folder.displayName,
+          sourceFolderPath,
+          targetFolderPath,
+          currentPath,
+          targetPath,
+          fullFolderObject: folder
         })
         
-        throw new Error("Folder moving not yet implemented")
+        try {
+          await moveFolder(sourceFolderPath, targetFolderPath)
+          console.log('🎉 Folder Context Menu: Folder move completed successfully')
+        } catch (error) {
+          console.error('❌ Folder Context Menu: Folder move failed:', error)
+          throw error
+        }
       }
     })
   }

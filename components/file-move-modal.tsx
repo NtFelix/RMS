@@ -180,7 +180,9 @@ export function FileMoveModal({
       await onMove(selectedPath)
       toast({
         title: "Erfolgreich verschoben",
-        description: `${itemType === 'file' ? 'Datei' : 'Ordner'} wurde erfolgreich verschoben.`
+        description: itemType === 'file' 
+          ? `Datei "${itemName}" wurde erfolgreich verschoben.`
+          : `Ordner "${itemName}" und alle enthaltenen Dateien wurden erfolgreich verschoben.`
       })
       onClose()
     } catch (error) {
@@ -279,7 +281,10 @@ export function FileMoveModal({
             {itemType === 'file' ? 'Datei' : 'Ordner'} verschieben
           </DialogTitle>
           <DialogDescription>
-            Wählen Sie den Zielordner für "{itemName}" aus.
+            {itemType === 'file' 
+              ? `Wählen Sie den Zielordner für die Datei "${itemName}" aus.`
+              : `Wählen Sie den Zielordner für den Ordner "${itemName}" und alle enthaltenen Dateien aus.`
+            }
           </DialogDescription>
         </DialogHeader>
         
