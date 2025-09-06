@@ -8,7 +8,6 @@ import {
   FolderOpen, 
   Building, 
   Home, 
-  Users,
   Download, 
   Eye, 
   Trash2, 
@@ -210,9 +209,7 @@ export function CloudStorageItemCard({
   const contextMenuItems = (
     <>
       {type === 'folder' ? (
-        <ContextMenuItem onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+        <ContextMenuItem onSelect={() => {
           if (onOpen) onOpen()
         }}>
           <FolderOpen className="h-4 w-4 mr-2" />
@@ -221,9 +218,7 @@ export function CloudStorageItemCard({
       ) : (
         <>
           {canPreview() ? (
-            <ContextMenuItem onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
+            <ContextMenuItem onSelect={() => {
               if (onPreview) {
                 onPreview()
               } else {
@@ -234,9 +229,7 @@ export function CloudStorageItemCard({
               Vorschau
             </ContextMenuItem>
           ) : (
-            <ContextMenuItem onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
+            <ContextMenuItem onSelect={() => {
               if (onOpen) onOpen()
             }}>
               <Eye className="h-4 w-4 mr-2" />
@@ -247,9 +240,7 @@ export function CloudStorageItemCard({
       )}
       
       {type === 'file' && onDownload && (
-        <ContextMenuItem onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+        <ContextMenuItem onSelect={() => {
           onDownload()
         }}>
           <Download className="h-4 w-4 mr-2" />
@@ -260,9 +251,7 @@ export function CloudStorageItemCard({
       <ContextMenuSeparator />
       
       {type === 'file' && (
-        <ContextMenuItem onClick={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
+        <ContextMenuItem onSelect={() => {
           if (onRename) {
             onRename()
           } else {
@@ -363,9 +352,7 @@ export function CloudStorageItemCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {type === 'folder' ? (
-                      <DropdownMenuItem onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
+                      <DropdownMenuItem onSelect={() => {
                         if (onOpen) onOpen()
                       }}>
                         <FolderOpen className="h-4 w-4 mr-2" />
@@ -374,9 +361,7 @@ export function CloudStorageItemCard({
                     ) : (
                       <>
                         {canPreview() ? (
-                          <DropdownMenuItem onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
+                          <DropdownMenuItem onSelect={() => {
                             if (onPreview) {
                               onPreview()
                             } else {
@@ -387,9 +372,7 @@ export function CloudStorageItemCard({
                             Vorschau
                           </DropdownMenuItem>
                         ) : (
-                          <DropdownMenuItem onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
+                          <DropdownMenuItem onSelect={() => {
                             if (onOpen) onOpen()
                           }}>
                             <Eye className="h-4 w-4 mr-2" />
@@ -400,9 +383,7 @@ export function CloudStorageItemCard({
                     )}
                     
                     {type === 'file' && onDownload && (
-                      <DropdownMenuItem onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
+                      <DropdownMenuItem onSelect={() => {
                         onDownload()
                       }}>
                         <Download className="h-4 w-4 mr-2" />
@@ -413,9 +394,7 @@ export function CloudStorageItemCard({
                     <DropdownMenuSeparator />
                     
                     {type === 'file' && (
-                      <DropdownMenuItem onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
+                      <DropdownMenuItem onSelect={() => {
                         if (onRename) {
                           onRename()
                         } else {
@@ -459,9 +438,7 @@ export function CloudStorageItemCard({
                     {onDelete && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
+                        <DropdownMenuItem onSelect={() => {
                           onDelete()
                         }} className="text-destructive">
                           <Trash2 className="h-4 w-4 mr-2" />
