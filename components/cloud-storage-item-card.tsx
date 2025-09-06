@@ -369,7 +369,7 @@ export function CloudStorageItemCard({
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-48">
                     {type === 'folder' ? (
                       <DropdownMenuItem onSelect={(e) => {
                         e.preventDefault()
@@ -529,7 +529,7 @@ export function CloudStorageItemCard({
             </div>
           </Card>
         </ContextMenuTrigger>
-        <ContextMenuContent>
+        <ContextMenuContent className="w-48">
           {contextMenuItems}
         </ContextMenuContent>
       </ContextMenu>
@@ -633,7 +633,7 @@ export function CloudStorageItemCard({
           </div>
         </div>
       </ContextMenuTrigger>
-      <ContextMenuContent>
+      <ContextMenuContent className="w-48">
         {contextMenuItems}
       </ContextMenuContent>
     </ContextMenu>
