@@ -35,6 +35,12 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     folders,
     setFolders 
   } = useCloudStorageStore()
+  
+  // Helper function to get file count from cloud storage folders data
+  const getFileCountFromStore = (path: string): number => {
+    const folder = folders.find(f => f.path === path)
+    return folder?.fileCount || 0
+  }
   const { handleFolderClick, isNavigating } = useFolderNavigation(userId)
   const { isDirectoryActive, getDirectoryActiveClasses } = useDirectoryActiveState()
 
@@ -72,13 +78,13 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
         {
           id: 'miscellaneous',
           name: 'Sonstiges',
-          path: buildUserPath(userId, 'miscellaneous'),
+          path: buildUserPath(userId, 'Miscellaneous'),
           type: 'category' as const,
           icon: FileText,
           children: [] as TreeNode[],
           isExpanded: expandedNodes.has('miscellaneous'),
-          fileCount: 0,
-          isEmpty: true // Will be updated based on actual files
+          fileCount: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')),
+          isEmpty: getFileCountFromStore(buildUserPath(userId, 'Miscellaneous')) === 0
         },
         {
           id: 'archive',
@@ -88,82 +94,92 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
           icon: Archive,
           children: [] as TreeNode[],
           isExpanded: expandedNodes.has('archive'),
-          fileCount: 0,
-          isEmpty: true // Will be updated based on actual files
+          fileCount: getFileCountFromStore(buildUserPath(userId, '__archive__')),
+          isEmpty: getFileCountFromStore(buildUserPath(userId, '__archive__')) === 0
         }
       ]
 
       // Build house structure
       const haeuser = categories.find(c => c.id === 'haeuser')!
       houses.forEach(house => {
+        const housePath = buildHousePath(userId, house.id)
+        const houseFileCount = getFileCountFromStore(housePath)
         const houseNode: TreeNode = {
           id: `house-${house.id}`,
           name: house.name,
-          path: buildHousePath(userId, house.id),
+          path: housePath,
           type: 'house',
           icon: Building,
           children: [],
           isExpanded: expandedNodes.has(`house-${house.id}`),
-          fileCount: 0,
-          isEmpty: false
+          fileCount: houseFileCount,
+          isEmpty: houseFileCount === 0
         }
 
         // Add house documents category
+        const houseDocsPath = buildUserPath(userId, house.id, 'house_documents')
+        const houseDocsFileCount = getFileCountFromStore(houseDocsPath)
         const houseDocsNode: TreeNode = {
           id: `house-docs-${house.id}`,
           name: 'Hausdokumente',
-          path: buildUserPath(userId, house.id, 'house_documents'),
+          path: houseDocsPath,
           type: 'category',
           icon: FileText,
           children: [],
           isExpanded: false,
-          fileCount: 0,
-          isEmpty: true
+          fileCount: houseDocsFileCount,
+          isEmpty: houseDocsFileCount === 0
         }
         houseNode.children.push(houseDocsNode)
 
         // Add apartments for this house
         const houseApartments = apartments.filter(apt => apt.haus_id === house.id)
         houseApartments.forEach(apartment => {
+          const apartmentPath = buildApartmentPath(userId, house.id, apartment.id)
+          const apartmentFileCount = getFileCountFromStore(apartmentPath)
           const apartmentNode: TreeNode = {
             id: `apartment-${apartment.id}`,
             name: apartment.name,
-            path: buildApartmentPath(userId, house.id, apartment.id),
+            path: apartmentPath,
             type: 'apartment',
             icon: Home,
             children: [],
             isExpanded: expandedNodes.has(`apartment-${apartment.id}`),
-            fileCount: 0,
-            isEmpty: false
+            fileCount: apartmentFileCount,
+            isEmpty: apartmentFileCount === 0
           }
 
           // Add apartment documents category
+          const apartmentDocsPath = buildUserPath(userId, house.id, apartment.id, 'apartment_documents')
+          const apartmentDocsFileCount = getFileCountFromStore(apartmentDocsPath)
           const apartmentDocsNode: TreeNode = {
             id: `apartment-docs-${apartment.id}`,
             name: 'Wohnungsdokumente',
-            path: buildUserPath(userId, house.id, apartment.id, 'apartment_documents'),
+            path: apartmentDocsPath,
             type: 'category',
             icon: FileText,
             children: [],
             isExpanded: false,
-            fileCount: 0,
-            isEmpty: true
+            fileCount: apartmentDocsFileCount,
+            isEmpty: apartmentDocsFileCount === 0
           }
           apartmentNode.children.push(apartmentDocsNode)
 
           // Add tenants for this apartment
           const apartmentTenants = tenants.filter(tenant => tenant.wohnung_id === apartment.id)
           apartmentTenants.forEach(tenant => {
+            const tenantPath = buildTenantPath(userId, house.id, apartment.id, tenant.id)
+            const tenantFileCount = getFileCountFromStore(tenantPath)
             const tenantNode: TreeNode = {
               id: `tenant-${tenant.id}`,
               name: tenant.name,
-              path: buildTenantPath(userId, house.id, apartment.id, tenant.id),
+              path: tenantPath,
               type: 'tenant',
               icon: Users,
               children: [],
               isExpanded: false,
-              fileCount: 0,
-              isEmpty: true
+              fileCount: tenantFileCount,
+              isEmpty: tenantFileCount === 0
             }
             apartmentNode.children.push(tenantNode)
           })
@@ -174,6 +190,28 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
         haeuser.children.push(houseNode)
       })
 
+      // Add custom folders from the cloud storage store
+      const customFolders = folders.filter(folder => 
+        folder.type === 'storage' && 
+        folder.path.startsWith(buildUserPath(userId)) &&
+        folder.path.split('/').length === 2 // Only root level custom folders
+      )
+      
+      customFolders.forEach(folder => {
+        const customFolderNode: TreeNode = {
+          id: `custom-${folder.name}`,
+          name: folder.displayName || folder.name,
+          path: folder.path,
+          type: 'category',
+          icon: Folder,
+          children: [],
+          isExpanded: expandedNodes.has(`custom-${folder.name}`),
+          fileCount: folder.fileCount,
+          isEmpty: folder.isEmpty
+        }
+        categories.push(customFolderNode)
+      })
+
       rootNode.children = categories
       return [rootNode]
     }
@@ -181,7 +219,7 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
     if (!isLoading && !error) {
       setTreeData(buildTreeStructure())
     }
-  }, [userId, houses, apartments, tenants, expandedNodes, isLoading, error])
+  }, [userId, houses, apartments, tenants, expandedNodes, isLoading, error, folders])
 
   // Generate breadcrumbs from current path
   const generateBreadcrumbs = (path: string): BreadcrumbItem[] => {

@@ -167,13 +167,10 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
     // Add house folders
     if (houses && houses.length > 0) {
       for (const house of houses) {
-        // Check if house folder has any files
+        // Check if house folder has any files (recursively)
         const housePath = `${targetPath}/${house.id}`
-        const { data: houseContents } = await supabase.storage
-          .from('documents')
-          .list(housePath, { limit: 1 })
-        
-        const hasFiles = houseContents && houseContents.length > 0
+        const fileCount = await countFilesRecursively(supabase, housePath)
+        const hasFiles = fileCount > 0
         
         folders.push({
           name: house.id,
@@ -181,7 +178,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
           type: 'house',
           isEmpty: !hasFiles,
           children: [],
-          fileCount: hasFiles ? houseContents.length : 0,
+          fileCount: fileCount,
           displayName: house.name
         })
       }
@@ -189,11 +186,8 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
     
     // Add miscellaneous folder
     const miscPath = `${targetPath}/Miscellaneous`
-    const { data: miscContents } = await supabase.storage
-      .from('documents')
-      .list(miscPath, { limit: 1 })
-    
-    const miscHasFiles = miscContents && miscContents.length > 0
+    const miscFileCount = await countFilesRecursively(supabase, miscPath)
+    const miscHasFiles = miscFileCount > 0
     
     folders.push({
       name: 'Miscellaneous',
@@ -201,7 +195,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       type: 'category',
       isEmpty: !miscHasFiles,
       children: [],
-      fileCount: miscHasFiles ? miscContents.length : 0,
+      fileCount: miscFileCount,
       displayName: 'Sonstiges'
     })
 
@@ -268,19 +262,18 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
           if (!exists) {
             const folderPath = `${targetPath}/${folderName}`
             
-            // Try to get more info about the folder
+            // Try to get more info about the folder (count files recursively)
             try {
-              const { data: folderContents } = await supabase.storage
-                .from('documents')
-                .list(folderPath, { limit: 100 })
+              const fileCount = await countFilesRecursively(supabase, folderPath)
+              const isEmpty = fileCount === 0
               
               folders.push({
                 name: folderName,
                 path: folderPath,
                 type: 'storage',
-                isEmpty: !folderContents || folderContents.filter((item: any) => item.name !== '.keep').length === 0,
+                isEmpty: isEmpty,
                 children: [],
-                fileCount: folderContents ? folderContents.filter((item: any) => item.name !== '.keep').length : 0,
+                fileCount: fileCount,
                 displayName: folderName
               })
 
@@ -573,11 +566,8 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
     
     // Add house documents folder
     const houseDocsPath = `${targetPath}/house_documents`
-    const { data: houseDocsContents } = await supabase.storage
-      .from('documents')
-      .list(houseDocsPath, { limit: 1 })
-    
-    const houseDocsHasFiles = houseDocsContents && houseDocsContents.length > 0
+    const houseDocsFileCount = await countFilesRecursively(supabase, houseDocsPath)
+    const houseDocsHasFiles = houseDocsFileCount > 0
     
     folders.push({
       name: 'house_documents',
@@ -585,7 +575,7 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
       type: 'category',
       isEmpty: !houseDocsHasFiles,
       children: [],
-      fileCount: houseDocsHasFiles ? houseDocsContents.length : 0,
+      fileCount: houseDocsFileCount,
       displayName: 'Hausdokumente'
     })
     
@@ -779,18 +769,8 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
     
     // Add apartment documents folder
     const apartmentDocsPath = `${targetPath}/apartment_documents`
-    let apartmentDocsContents = null
-    try {
-      const result = await supabase.storage
-        .from('documents')
-        .list(apartmentDocsPath, { limit: 1 })
-      apartmentDocsContents = result.data
-    } catch (error) {
-      // Silently handle storage errors
-      apartmentDocsContents = []
-    }
-    
-    const apartmentDocsHasFiles = apartmentDocsContents && apartmentDocsContents.length > 0
+    const apartmentDocsFileCount = await countFilesRecursively(supabase, apartmentDocsPath)
+    const apartmentDocsHasFiles = apartmentDocsFileCount > 0
     
     folders.push({
       name: 'apartment_documents',
@@ -798,7 +778,7 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
       type: 'category',
       isEmpty: !apartmentDocsHasFiles,
       children: [],
-      fileCount: apartmentDocsHasFiles ? apartmentDocsContents.length : 0,
+      fileCount: apartmentDocsFileCount,
       displayName: 'Wohnungsdokumente'
     })
     
@@ -1330,5 +1310,38 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
       success: false,
       error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Löschen des Ordners'
     }
+  }
+}
+// Helper
+ function to count files recursively
+async function countFilesRecursively(supabase: any, path: string): Promise<number> {
+  try {
+    const { data: contents, error } = await supabase.storage
+      .from('documents')
+      .list(path, { limit: 100 })
+    
+    if (error || !contents) return 0
+    
+    let fileCount = 0
+    
+    for (const item of contents) {
+      if (item.name === '.keep') continue
+      
+      if (item.metadata?.size) {
+        // It's a file
+        fileCount++
+      } else if (!item.name.includes('.')) {
+        // It's a folder, count recursively (with depth limit)
+        const depth = (path.match(/\//g) || []).length
+        if (depth < 10) {
+          const subPath = `${path}/${item.name}`
+          fileCount += await countFilesRecursively(supabase, subPath)
+        }
+      }
+    }
+    
+    return fileCount
+  } catch (error) {
+    return 0
   }
 }
