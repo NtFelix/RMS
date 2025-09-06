@@ -11,6 +11,7 @@ interface TreeNode {
   displayName?: string
   children?: TreeNode[]
   isEmpty?: boolean
+  fileCount?: number
 }
 
 export async function GET(request: NextRequest) {
@@ -69,7 +70,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
     type: 'folder',
     displayName: 'Cloud Storage',
     children: [],
-    isEmpty: false
+    isEmpty: false,
+    fileCount: 0 // Root folder file count not needed for tree display
   })
 
   try {
@@ -125,7 +127,10 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
     for (const folderName of discoveredFolders) {
       const folderPath = `${rootPath}/${folderName}`
       const contents = folderContents.get(folderName) || []
-      const isEmpty = contents.filter((item: any) => item.name !== '.keep').length === 0
+      
+      // Count files recursively to get accurate file count
+      const fileCount = await countFilesRecursively(supabase, folderPath)
+      const isEmpty = fileCount === 0
 
       if (houseIds.has(folderName)) {
         // This is a house folder
@@ -137,7 +142,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
           type: 'folder',
           displayName: house?.name || folderName,
           children: [],
-          isEmpty
+          isEmpty,
+          fileCount
         })
       } else if (folderName === 'Miscellaneous') {
         // Miscellaneous folder
@@ -148,7 +154,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
           type: 'folder',
           displayName: 'Sonstiges',
           children: [],
-          isEmpty
+          isEmpty,
+          fileCount
         })
       } else {
         // This is a custom folder - check if it contains any house/apartment structure
@@ -169,7 +176,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
             type: 'folder',
             displayName: folderName,
             children: [],
-            isEmpty
+            isEmpty,
+            fileCount
           })
         }
       }
@@ -187,7 +195,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
             type: 'folder',
             displayName: house.name,
             children: [],
-            isEmpty: true
+            isEmpty: true,
+            fileCount: 0
           })
         }
       }
@@ -203,7 +212,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
         type: 'folder',
         displayName: 'Sonstiges',
         children: [],
-        isEmpty: true
+        isEmpty: true,
+        fileCount: 0
       })
     }
 
@@ -376,12 +386,9 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
           const childPath = `${folderPath}/${folderName}`
           
           try {
-            // Check if folder has contents
-            const { data: childContents } = await supabase.storage
-              .from('documents')
-              .list(childPath, { limit: 1 })
-            
-            const isEmpty = !childContents || childContents.filter((child: any) => child.name !== '.keep').length === 0
+            // Count files recursively in this folder
+            const fileCount = await countFilesRecursively(supabase, childPath)
+            const isEmpty = fileCount === 0
             
             // Determine display name based on context
             let displayName = folderName
@@ -416,7 +423,8 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
               type: 'folder',
               displayName,
               children: [],
-              isEmpty
+              isEmpty,
+              fileCount
             })
           } catch (error) {
             // Skip problematic folders

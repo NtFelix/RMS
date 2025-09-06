@@ -26,6 +26,7 @@ interface TreeNode {
   isExpanded?: boolean
   isLoading?: boolean
   isEmpty?: boolean
+  fileCount?: number
 }
 
 interface FileMoveModalProps {
@@ -255,9 +256,13 @@ export function FileMoveModal({
               {node.displayName || node.name}
             </span>
             
-            {node.isEmpty && (
+            {node.isEmpty ? (
               <span className="ml-2 text-xs text-muted-foreground">(leer)</span>
-            )}
+            ) : node.fileCount !== undefined && node.fileCount > 0 ? (
+              <span className="ml-2 text-xs text-muted-foreground">
+                ({node.fileCount} {node.fileCount === 1 ? 'Datei' : 'Dateien'})
+              </span>
+            ) : null}
           </div>
         </div>
         
