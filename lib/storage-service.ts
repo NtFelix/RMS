@@ -770,14 +770,58 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     .from(STORAGE_BUCKET)
     .move(cleanOldPath, cleanNewPath);
   
+  // Check if the move actually worked, even if there's an error reported
+  let moveActuallyWorked = false;
   if (moveError) {
-    console.error('❌ Move operation failed:', {
-      error: moveError,
-      errorMessage: moveError.message,
-      errorCode: moveError.statusCode,
+    console.log('🔍 Move reported error, checking if file actually moved...');
+    try {
+      // Check if file exists at target location
+      const { data: targetCheck, error: targetCheckError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .download(cleanNewPath);
+      
+      if (!targetCheckError && targetCheck) {
+        console.log('✅ File found at target location despite error - move actually worked!');
+        moveActuallyWorked = true;
+        
+        // Also check if source file is gone
+        const { data: sourceCheck, error: sourceCheckError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .download(cleanOldPath);
+        
+        if (sourceCheckError) {
+          console.log('✅ Source file no longer exists - move was complete');
+        } else {
+          console.log('⚠️ Source file still exists - this was a copy, not a move');
+        }
+      }
+    } catch (checkError) {
+      console.log('🔍 Could not verify target file existence:', checkError);
+    }
+  }
+  
+  // Check if the error is meaningful or just an empty object
+  const hasRealError = moveError && !moveActuallyWorked && (
+    moveError.message || 
+    moveError.statusCode || 
+    moveError.name || 
+    Object.keys(moveError).length > 0
+  );
+  
+  if (hasRealError) {
+    // Better error logging - handle empty error objects
+    const errorDetails = {
+      hasError: !!moveError,
+      errorMessage: moveError?.message || 'No error message',
+      errorCode: moveError?.statusCode || 'No status code',
+      errorName: moveError?.name || 'No error name',
+      errorString: JSON.stringify(moveError),
+      errorKeys: Object.keys(moveError || {}),
       from: cleanOldPath,
       to: cleanNewPath
-    });
+    };
+    
+    console.warn('⚠️ Direct move operation failed, trying alternative approach:', errorDetails);
     
     // Try alternative approach: copy then delete
     console.log('🔄 Attempting alternative approach: copy + delete...');
@@ -791,6 +835,8 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
         throw new Error(`Failed to download source file: ${downloadError.message}`);
       }
       
+      console.log('✅ Source file downloaded successfully, size:', sourceFileData?.size);
+      
       // Upload to new location
       const { error: uploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -802,6 +848,8 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
         throw new Error(`Failed to upload to target location: ${uploadError.message}`);
       }
       
+      console.log('✅ File uploaded to target location successfully');
+      
       // Delete original file
       const { error: deleteError } = await supabase.storage
         .from(STORAGE_BUCKET)
@@ -810,18 +858,60 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
       if (deleteError) {
         console.warn('⚠️ File copied successfully but failed to delete original:', deleteError);
         // Don't throw error here as the file was successfully copied
+        console.log('📝 Note: Original file still exists at:', cleanOldPath);
+      } else {
+        console.log('✅ Original file deleted successfully');
       }
       
-      console.log('✅ Alternative move approach successful');
+      console.log('✅ Alternative move approach completed successfully');
+      
+      // Verify the file was actually moved by checking if it exists at the target
+      try {
+        const { data: verifyData, error: verifyError } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .download(cleanNewPath);
+        
+        if (verifyError) {
+          console.warn('⚠️ Could not verify file at target location:', verifyError);
+        } else {
+          console.log('✅ Verified: File exists at target location, size:', verifyData?.size);
+        }
+      } catch (verifyException) {
+        console.warn('⚠️ Exception during verification:', verifyException);
+      }
+      
+      // Don't throw an error here since the operation was successful
     } catch (alternativeError) {
       console.error('❌ Alternative move approach also failed:', alternativeError);
-      throw new Error(`Failed to move file: ${moveError.message}. Alternative approach also failed: ${alternativeError instanceof Error ? alternativeError.message : 'Unknown error'}`);
+      throw new Error(`Move operation failed. Direct move error: ${moveError?.message || 'Unknown error'}. Alternative approach error: ${alternativeError instanceof Error ? alternativeError.message : 'Unknown error'}`);
     }
+  } else if (moveActuallyWorked) {
+    console.log('✅ File moved successfully using direct move (despite error report):', {
+      from: cleanOldPath,
+      to: cleanNewPath
+    });
   } else {
     console.log('✅ File moved successfully using direct move:', {
       from: cleanOldPath,
       to: cleanNewPath
     });
+  }
+  
+  // Final verification that the move was successful
+  try {
+    const { data: finalCheck, error: finalCheckError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .download(cleanNewPath);
+    
+    if (finalCheckError) {
+      console.error('❌ Final verification failed - file not found at target:', finalCheckError);
+      throw new Error(`Move operation may have failed - file not found at target location: ${cleanNewPath}`);
+    } else {
+      console.log('✅ Final verification successful - file exists at target, size:', finalCheck?.size);
+    }
+  } catch (finalError) {
+    console.error('❌ Exception during final verification:', finalError);
+    throw new Error(`Move operation verification failed: ${finalError instanceof Error ? finalError.message : 'Unknown error'}`);
   }
   
   // Invalidate cache for both source and target directories
@@ -833,7 +923,7 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     cacheManager.invalidatePrefix(targetDir);
   }
   
-  console.log('🎉 Move operation completed successfully');
+  console.log('🎉 Move operation completed and verified successfully');
 }
 
 /**
