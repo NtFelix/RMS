@@ -137,8 +137,22 @@ export function FileContextMenu({
       currentPath,
       userId,
       onMove: async (targetPath: string) => {
-        const newFilePath = `${targetPath}/${file.name}`
-        await moveFile(file, newFilePath)
+        // Import moveFile function
+        const { moveFile } = await import('@/lib/storage-service')
+        
+        // Construct source and target paths properly
+        const sourcePath = `${currentPath}/${file.name}`
+        const targetFilePath = `${targetPath}/${file.name}`
+        
+        console.log('Moving file from context menu:', {
+          fileName: file.name,
+          sourcePath,
+          targetFilePath,
+          currentPath,
+          targetPath
+        })
+        
+        await moveFile(sourcePath, targetFilePath)
       }
     })
   }

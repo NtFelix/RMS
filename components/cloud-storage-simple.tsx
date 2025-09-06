@@ -673,8 +673,20 @@ export function CloudStorageSimple({
                       userId,
                       onMove: async (targetPath: string) => {
                         const { moveFile } = await import('@/lib/storage-service')
-                        const newFilePath = `${targetPath}/${file.name}`
-                        await moveFile(`${currentNavPath}/${file.name}`, newFilePath)
+                        
+                        // Construct source and target paths properly
+                        const sourcePath = `${currentNavPath}/${file.name}`
+                        const targetFilePath = `${targetPath}/${file.name}`
+                        
+                        console.log('Moving file:', {
+                          fileName: file.name,
+                          sourcePath,
+                          targetFilePath,
+                          currentNavPath,
+                          targetPath
+                        })
+                        
+                        await moveFile(sourcePath, targetFilePath)
                         handleRefresh()
                       }
                     })

@@ -521,49 +521,106 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   await validateUserPath(oldPath);
   await validateUserPath(newPath);
   
-  // Clean paths - remove leading slashes
+  // Clean paths - remove leading slashes and normalize
   let cleanOldPath = oldPath.startsWith('/') ? oldPath.slice(1) : oldPath;
   let cleanNewPath = newPath.startsWith('/') ? newPath.slice(1) : newPath;
   
-  const sanitizedOldPath = pathUtils.sanitizePath(cleanOldPath);
-  const sanitizedNewPath = pathUtils.sanitizePath(cleanNewPath);
+  // Normalize paths to avoid double slashes
+  cleanOldPath = cleanOldPath.replace(/\/+/g, '/');
+  cleanNewPath = cleanNewPath.replace(/\/+/g, '/');
   
   console.log('Moving file:', {
     originalOldPath: oldPath,
     originalNewPath: newPath,
-    sanitizedOldPath,
-    sanitizedNewPath
+    cleanOldPath,
+    cleanNewPath
   });
   
   const supabase = createClient();
   
-  // First check if the source file exists
-  const pathSegments = sanitizedOldPath.split('/');
-  const directory = pathSegments.slice(0, -1).join('/');
-  const fileName = pathSegments[pathSegments.length - 1];
+  // Check if source file exists by listing the directory
+  const oldPathSegments = cleanOldPath.split('/');
+  const sourceDirectory = oldPathSegments.slice(0, -1).join('/');
+  const fileName = oldPathSegments[oldPathSegments.length - 1];
   
-  const { data: files, error: listError } = await supabase.storage
+  console.log('Checking source file existence:', {
+    sourceDirectory,
+    fileName,
+    fullOldPath: cleanOldPath
+  });
+  
+  // List files in source directory to verify file exists
+  const { data: sourceFiles, error: listError } = await supabase.storage
     .from(STORAGE_BUCKET)
-    .list(directory, {
-      limit: 1000,
-      search: fileName
+    .list(sourceDirectory || '', {
+      limit: 1000
     });
   
   if (listError) {
-    throw new Error(`Failed to check file existence: ${listError.message}`);
+    console.error('Error listing source directory:', listError);
+    throw new Error(`Failed to check source directory: ${listError.message}`);
   }
   
-  const fileExists = files?.some(file => file.name === fileName);
+  const fileExists = sourceFiles?.some(file => file.name === fileName);
   if (!fileExists) {
-    throw new Error(`Source file not found: ${sanitizedOldPath}`);
+    console.error('Source file not found:', {
+      searchedFor: fileName,
+      inDirectory: sourceDirectory,
+      availableFiles: sourceFiles?.map(f => f.name) || []
+    });
+    throw new Error(`Source file not found: ${fileName} in ${sourceDirectory || 'root'}`);
   }
   
-  const { error } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .move(sanitizedOldPath, sanitizedNewPath);
+  // Ensure target directory exists by checking if we can list it
+  const newPathSegments = cleanNewPath.split('/');
+  const targetDirectory = newPathSegments.slice(0, -1).join('/');
+  const targetFileName = newPathSegments[newPathSegments.length - 1];
   
-  if (error) {
-    throw new Error(`Failed to move file: ${error.message}`);
+  console.log('Checking target directory:', {
+    targetDirectory,
+    targetFileName,
+    fullNewPath: cleanNewPath
+  });
+  
+  // Try to list target directory to ensure it exists
+  const { data: targetDirContents, error: targetListError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .list(targetDirectory || '', {
+      limit: 1
+    });
+  
+  if (targetListError) {
+    console.error('Error accessing target directory:', targetListError);
+    throw new Error(`Target directory not accessible: ${targetListError.message}`);
+  }
+  
+  // Perform the move operation
+  console.log('Performing move operation:', {
+    from: cleanOldPath,
+    to: cleanNewPath
+  });
+  
+  const { error: moveError } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .move(cleanOldPath, cleanNewPath);
+  
+  if (moveError) {
+    console.error('Move operation failed:', moveError);
+    throw new Error(`Failed to move file: ${moveError.message}`);
+  }
+  
+  console.log('File moved successfully:', {
+    from: cleanOldPath,
+    to: cleanNewPath
+  });
+  
+  // Invalidate cache for both source and target directories
+  const sourceDir = cleanOldPath.substring(0, cleanOldPath.lastIndexOf('/'));
+  const targetDir = cleanNewPath.substring(0, cleanNewPath.lastIndexOf('/'));
+  
+  cacheManager.invalidatePrefix(sourceDir);
+  if (sourceDir !== targetDir) {
+    cacheManager.invalidatePrefix(targetDir);
   }
 }
 
