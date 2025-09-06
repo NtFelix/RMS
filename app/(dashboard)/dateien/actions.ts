@@ -278,9 +278,9 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
                 name: folderName,
                 path: folderPath,
                 type: 'storage',
-                isEmpty: !folderContents || folderContents.filter(item => item.name !== '.keep').length === 0,
+                isEmpty: !folderContents || folderContents.filter((item: any) => item.name !== '.keep').length === 0,
                 children: [],
-                fileCount: folderContents ? folderContents.filter(item => item.name !== '.keep').length : 0,
+                fileCount: folderContents ? folderContents.filter((item: any) => item.name !== '.keep').length : 0,
                 displayName: folderName
               })
 
@@ -480,9 +480,9 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
                 name: folderName,
                 path: folderPath,
                 type: 'storage',
-                isEmpty: !folderContents || folderContents.filter(item => item.name !== '.keep').length === 0,
+                isEmpty: !folderContents || folderContents.filter((item: any) => item.name !== '.keep').length === 0,
                 children: [],
-                fileCount: folderContents ? folderContents.filter(item => item.name !== '.keep').length : 0,
+                fileCount: folderContents ? folderContents.filter((item: any) => item.name !== '.keep').length : 0,
                 displayName: folderName
               })
 
@@ -1139,6 +1139,167 @@ export async function getPathContents(userId: string, path?: string): Promise<{
       folders: [],
       breadcrumbs: [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }],
       error: 'Unerwarteter Fehler beim Laden der Dateien'
+    }
+  }
+}
+
+export async function deleteFolder(userId: string, folderPath: string): Promise<{
+  success: boolean
+  error?: string
+}> {
+  try {
+    const supabase = await createClient()
+    
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    if (authError || !user || user.id !== userId) {
+      return {
+        success: false,
+        error: 'Nicht authentifiziert'
+      }
+    }
+
+    // Validate that the path belongs to the user
+    if (!folderPath.startsWith(`user_${userId}`)) {
+      return {
+        success: false,
+        error: 'Ungültiger Pfad'
+      }
+    }
+
+    // Check if it's a protected system folder (house, apartment, tenant folders)
+    const pathSegments = folderPath.split('/')
+    const isSystemFolder = pathSegments.length <= 3 && pathSegments[1] !== 'Miscellaneous'
+    
+    if (isSystemFolder) {
+      // For system folders (house/apartment/tenant), we need to check if they exist in the database
+      if (pathSegments.length === 2) {
+        // House folder - check if house exists
+        const houseId = pathSegments[1]
+        const { data: house } = await supabase
+          .from('Haeuser')
+          .select('id')
+          .eq('id', houseId)
+          .eq('user_id', userId)
+          .single()
+        
+        if (house) {
+          return {
+            success: false,
+            error: 'Hausordner können nicht gelöscht werden, solange das Haus in der Datenbank existiert'
+          }
+        }
+      } else if (pathSegments.length === 3) {
+        // Apartment folder - check if apartment exists
+        const apartmentId = pathSegments[2]
+        const { data: apartment } = await supabase
+          .from('Wohnungen')
+          .select('id')
+          .eq('id', apartmentId)
+          .eq('user_id', userId)
+          .single()
+        
+        if (apartment) {
+          return {
+            success: false,
+            error: 'Wohnungsordner können nicht gelöscht werden, solange die Wohnung in der Datenbank existiert'
+          }
+        }
+      } else if (pathSegments.length === 4) {
+        // Tenant folder - check if tenant exists
+        const tenantId = pathSegments[3]
+        const { data: tenant } = await supabase
+          .from('Mieter')
+          .select('id')
+          .eq('id', tenantId)
+          .eq('user_id', userId)
+          .single()
+        
+        if (tenant) {
+          return {
+            success: false,
+            error: 'Mieterordner können nicht gelöscht werden, solange der Mieter in der Datenbank existiert'
+          }
+        }
+      }
+    }
+
+    // List all files in the folder recursively
+    const { data: allFiles, error: listError } = await supabase.storage
+      .from('documents')
+      .list(folderPath, {
+        limit: 1000
+      })
+
+    if (listError) {
+      return {
+        success: false,
+        error: `Fehler beim Auflisten der Dateien: ${listError.message}`
+      }
+    }
+
+    // Collect all file paths to delete
+    const filesToDelete: string[] = []
+    
+    if (allFiles && allFiles.length > 0) {
+      // Get all files in the folder
+      for (const item of allFiles) {
+        if (item.name !== '.keep') {
+          filesToDelete.push(`${folderPath}/${item.name}`)
+        }
+      }
+
+      // Also check for nested folders by searching for files with the folder prefix
+      const { data: nestedFiles, error: nestedError } = await supabase.storage
+        .from('documents')
+        .list('', {
+          limit: 10000,
+          search: folderPath
+        })
+
+      if (!nestedError && nestedFiles) {
+        const folderPrefix = `${folderPath}/`
+        for (const file of nestedFiles) {
+          if (file.name && file.name.startsWith(folderPrefix) && file.name !== `${folderPath}/.keep`) {
+            filesToDelete.push(file.name)
+          }
+        }
+      }
+    }
+
+    // Delete all files in the folder
+    if (filesToDelete.length > 0) {
+      const { error: deleteError } = await supabase.storage
+        .from('documents')
+        .remove(filesToDelete)
+
+      if (deleteError) {
+        return {
+          success: false,
+          error: `Fehler beim Löschen der Dateien: ${deleteError.message}`
+        }
+      }
+    }
+
+    // Also remove the .keep file if it exists
+    const { error: keepError } = await supabase.storage
+      .from('documents')
+      .remove([`${folderPath}/.keep`])
+
+    // Don't fail if .keep file doesn't exist
+    if (keepError && !keepError.message.includes('not found')) {
+      console.warn('Could not remove .keep file:', keepError)
+    }
+
+    return {
+      success: true
+    }
+  } catch (error) {
+    console.error('Error in deleteFolder:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unerwarteter Fehler beim Löschen des Ordners'
     }
   }
 }

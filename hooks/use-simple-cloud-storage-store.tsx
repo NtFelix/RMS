@@ -52,6 +52,7 @@ interface SimpleCloudStorageState {
   downloadFile: (file: StorageObject) => Promise<void>
   deleteFile: (file: StorageObject) => Promise<void>
   renameFile: (file: StorageObject, newName: string) => Promise<void>
+  deleteFolder: (folder: VirtualFolder) => Promise<void>
   reset: () => void
 }
 
@@ -250,6 +251,35 @@ export const useSimpleCloudStorageStore = create<SimpleCloudStorageState>((set, 
       })
     } catch (error) {
       console.error('Rename failed:', error)
+      throw error
+    }
+  },
+  
+  deleteFolder: async (folder: VirtualFolder) => {
+    try {
+      const { folders } = get()
+      
+      // Extract user ID from folder path
+      const userIdMatch = folder.path.match(/^user_([^\/]+)/)
+      if (!userIdMatch) {
+        throw new Error('Invalid folder path format')
+      }
+      const userId = userIdMatch[1]
+      
+      // Use server action to delete folder
+      const { deleteFolder } = await import('@/app/(dashboard)/dateien/actions')
+      const { success, error } = await deleteFolder(userId, folder.path)
+      
+      if (!success) {
+        throw new Error(error || 'Fehler beim Löschen des Ordners')
+      }
+      
+      // Remove folder from current folders list
+      set({
+        folders: folders.filter(f => f.path !== folder.path)
+      })
+    } catch (error) {
+      console.error('Delete folder failed:', error)
       throw error
     }
   },

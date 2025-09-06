@@ -312,7 +312,7 @@ export function CloudStorageItemCard({
             onDelete()
           }} className="text-destructive">
             <Trash2 className="h-4 w-4 mr-2" />
-            Löschen
+            {type === 'folder' ? 'Ordner löschen' : 'Löschen'}
           </ContextMenuItem>
         </>
       )}
@@ -463,7 +463,7 @@ export function CloudStorageItemCard({
                           onDelete()
                         }} className="text-destructive">
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Löschen
+                          {type === 'folder' ? 'Ordner löschen' : 'Löschen'}
                         </DropdownMenuItem>
                       </>
                     )}
@@ -596,6 +596,7 @@ export function CloudStorageItemCard({
                   onDelete()
                 }}
                 className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                title={type === 'folder' ? 'Ordner löschen' : 'Datei löschen'}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

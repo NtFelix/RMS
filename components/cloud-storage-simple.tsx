@@ -71,7 +71,8 @@ export function CloudStorageSimple({
     navigateToPath,
     refreshCurrentPath,
     downloadFile,
-    deleteFile
+    deleteFile,
+    deleteFolder
   } = useSimpleCloudStorageStore()
   
   // UI state
@@ -386,6 +387,20 @@ export function CloudStorageSimple({
       })
     }
   }, [deleteFile, toast])
+
+  const handleFolderDelete = useCallback(async (folder: VirtualFolder) => {
+    try {
+      await deleteFolder(folder)
+      toast({
+        description: `Ordner "${folder.displayName || folder.name}" wurde dauerhaft gelöscht.`
+      })
+    } catch (error) {
+      toast({
+        description: error instanceof Error ? error.message : "Der Ordner konnte nicht gelöscht werden.",
+        variant: "destructive"
+      })
+    }
+  }, [deleteFolder, toast])
   
   /**
    * Handle upload
@@ -606,6 +621,7 @@ export function CloudStorageSimple({
                   isSelected={selectedItems.has(folder.path)}
                   onSelect={(selected) => handleItemSelect(folder.path, selected)}
                   onOpen={() => handleFolderClick(folder)}
+                  onDelete={() => handleFolderDelete(folder)}
                 />
               ))}
 
