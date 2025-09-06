@@ -22,6 +22,7 @@ import {
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
 import { FileRenameModal } from "@/components/file-rename-modal"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import type { StorageObject } from "@/hooks/use-cloud-storage-store"
 
@@ -29,9 +30,17 @@ interface FileContextMenuProps {
   file: StorageObject
   children: React.ReactNode
   showArchiveOption?: boolean
+  currentPath?: string
+  userId?: string
 }
 
-export function FileContextMenu({ file, children, showArchiveOption = true }: FileContextMenuProps) {
+export function FileContextMenu({ 
+  file, 
+  children, 
+  showArchiveOption = true, 
+  currentPath, 
+  userId 
+}: FileContextMenuProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const { toast } = useToast()
@@ -39,11 +48,13 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
   const {
     downloadFile,
     deleteFile,
+    moveFile,
     isOperationInProgress,
   } = useCloudStorageOperations()
   
   const { openPreview } = useCloudStoragePreview()
   const { archiveFile, openArchiveView } = useCloudStorageArchive()
+  const { openFileMoveModal } = useModalStore()
 
   // Get file type for icon display
   const getFileIcon = (fileName: string) => {
@@ -110,6 +121,28 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
     }
   }
 
+  const handleMove = () => {
+    if (!currentPath || !userId) {
+      toast({
+        title: "Verschieben nicht möglich",
+        description: "Pfad oder Benutzer-ID fehlt.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    openFileMoveModal({
+      item: file,
+      itemType: 'file',
+      currentPath,
+      userId,
+      onMove: async (targetPath: string) => {
+        const newFilePath = `${targetPath}/${file.name}`
+        await moveFile(file, newFilePath)
+      }
+    })
+  }
+
   return (
     <>
       <ContextMenu>
@@ -153,11 +186,11 @@ export function FileContextMenu({ file, children, showArchiveOption = true }: Fi
           </ContextMenuItem>
           
           <ContextMenuItem 
-            disabled={true} // TODO: Implement move functionality in future
-            className="text-muted-foreground"
+            onClick={handleMove}
+            disabled={isOperationInProgress || !currentPath || !userId}
           >
             <Move className="mr-2 h-4 w-4" />
-            Verschieben (bald verfügbar)
+            Verschieben
           </ContextMenuItem>
           
           <ContextMenuSeparator />

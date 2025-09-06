@@ -33,6 +33,7 @@ import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
 import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
+import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -94,6 +95,10 @@ export default function DashboardRootLayout({
     isFolderDeleteConfirmationModalOpen,
     folderDeleteConfirmationData,
     closeFolderDeleteConfirmationModal,
+    // File Move Modal state
+    isFileMoveModalOpen,
+    fileMoveData,
+    closeFileMoveModal,
   } = useModalStore()
 
   return (
@@ -177,6 +182,19 @@ export default function DashboardRootLayout({
           folderPath={folderDeleteConfirmationData.folderPath}
           fileCount={folderDeleteConfirmationData.fileCount}
           onConfirm={folderDeleteConfirmationData.onConfirm}
+        />
+      )}
+
+      {/* FileMoveModal - Global file/folder move modal */}
+      {isFileMoveModalOpen && fileMoveData && (
+        <FileMoveModal
+          isOpen={isFileMoveModalOpen}
+          onClose={closeFileMoveModal}
+          item={fileMoveData.item}
+          itemType={fileMoveData.itemType}
+          currentPath={fileMoveData.currentPath}
+          userId={fileMoveData.userId}
+          onMove={fileMoveData.onMove}
         />
       )}
 

@@ -122,6 +122,14 @@ interface FolderDeleteConfirmationData {
   onConfirm: () => Promise<void>;
 }
 
+interface FileMoveData {
+  item: any; // StorageObject | VirtualFolder
+  itemType: 'file' | 'folder';
+  currentPath: string;
+  userId: string;
+  onMove: (targetPath: string) => Promise<void>;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -304,6 +312,12 @@ export interface ModalState {
   folderDeleteConfirmationData?: FolderDeleteConfirmationData;
   openFolderDeleteConfirmationModal: (data: FolderDeleteConfirmationData) => void;
   closeFolderDeleteConfirmationModal: () => void;
+
+  // File Move Modal State
+  isFileMoveModalOpen: boolean;
+  fileMoveData?: FileMoveData;
+  openFileMoveModal: (data: FileMoveData) => void;
+  closeFileMoveModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -425,6 +439,11 @@ const initialFolderDeleteConfirmationModalState = {
   folderDeleteConfirmationData: undefined,
 };
 
+const initialFileMoveModalState = {
+  isFileMoveModalOpen: false,
+  fileMoveData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -442,6 +461,7 @@ const createInitialModalState = () => ({
   ...initialFileRenameModalState,
   ...initialCreateFolderModalState,
   ...initialFolderDeleteConfirmationModalState,
+  ...initialFileMoveModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -853,5 +873,12 @@ export const useModalStore = create<ModalState>((set, get) => {
       folderDeleteConfirmationData: data,
     }),
     closeFolderDeleteConfirmationModal: () => set(initialFolderDeleteConfirmationModalState),
+
+    // File Move Modal
+    openFileMoveModal: (data: FileMoveData) => set({
+      isFileMoveModalOpen: true,
+      fileMoveData: data,
+    }),
+    closeFileMoveModal: () => set(initialFileMoveModalState),
   };
 });

@@ -632,6 +632,24 @@ export function CloudStorageSimple({
                   onSelect={(selected) => handleItemSelect(folder.path, selected)}
                   onOpen={() => handleFolderClick(folder)}
                   onDelete={isFolderDeletable(folder) ? () => handleFolderDelete(folder) : undefined}
+                  onMove={() => {
+                    const { openFileMoveModal } = useModalStore.getState()
+                    openFileMoveModal({
+                      item: folder,
+                      itemType: 'folder',
+                      currentPath: currentNavPath,
+                      userId,
+                      onMove: async (targetPath: string) => {
+                        // For now, show a message that folder moving is complex
+                        toast({
+                          title: "Ordner verschieben",
+                          description: "Das Verschieben von Ordnern wird in einer zukünftigen Version implementiert.",
+                          variant: "default",
+                        })
+                        throw new Error("Folder moving not yet implemented")
+                      }
+                    })
+                  }}
                 />
               ))}
 
@@ -646,6 +664,21 @@ export function CloudStorageSimple({
                   onSelect={(selected) => handleItemSelect(file.id, selected)}
                   onDownload={() => handleFileDownload(file)}
                   onDelete={() => handleFileDelete(file)}
+                  onMove={() => {
+                    const { openFileMoveModal } = useModalStore.getState()
+                    openFileMoveModal({
+                      item: file,
+                      itemType: 'file',
+                      currentPath: currentNavPath,
+                      userId,
+                      onMove: async (targetPath: string) => {
+                        const { moveFile } = await import('@/lib/storage-service')
+                        const newFilePath = `${targetPath}/${file.name}`
+                        await moveFile(`${currentNavPath}/${file.name}`, newFilePath)
+                        handleRefresh()
+                      }
+                    })
+                  }}
                 />
               ))}
             </div>
