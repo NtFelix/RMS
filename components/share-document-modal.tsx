@@ -128,7 +128,7 @@ export function ShareDocumentModal({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 pt-2 pb-0">
+        <div className="space-y-6 pt-2 pb-0">
           {/* Expiration Time Selection */}
           <div className="space-y-2">
             <Label htmlFor="expiration">
