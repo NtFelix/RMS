@@ -678,16 +678,30 @@ export function CloudStorageSimple({
                         const sourcePath = `${currentNavPath}/${file.name}`
                         const targetFilePath = `${targetPath}/${file.name}`
                         
-                        console.log('Moving file:', {
+                        console.log('🎬 Component: Starting move operation:', {
                           fileName: file.name,
+                          fileId: file.id,
+                          fileSize: file.size,
+                          fileMetadata: file.metadata,
                           sourcePath,
                           targetFilePath,
                           currentNavPath,
-                          targetPath
+                          targetPath,
+                          fullFileObject: file
                         })
                         
-                        await moveFile(sourcePath, targetFilePath)
-                        handleRefresh()
+                        try {
+                          // Debug: List source directory before move
+                          const { debugListDirectory } = await import('@/lib/storage-service')
+                          await debugListDirectory(currentNavPath)
+                          
+                          await moveFile(sourcePath, targetFilePath)
+                          console.log('🎉 Component: Move completed successfully')
+                          handleRefresh()
+                        } catch (error) {
+                          console.error('❌ Component: Move failed:', error)
+                          throw error
+                        }
                       }
                     })
                   }}

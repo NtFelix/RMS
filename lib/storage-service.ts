@@ -515,6 +515,45 @@ export async function deleteFile(path: string): Promise<void> {
 }
 
 /**
+ * Debug function to list all files in a directory with detailed information
+ */
+export async function debugListDirectory(path: string): Promise<void> {
+  try {
+    const supabase = createClient();
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    
+    console.log('🔍 Debug: Listing directory:', cleanPath);
+    
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .list(cleanPath, {
+        limit: 1000
+      });
+    
+    if (error) {
+      console.error('❌ Debug: Error listing directory:', error);
+      return;
+    }
+    
+    console.log('📁 Debug: Directory contents:', {
+      path: cleanPath,
+      itemCount: data?.length || 0,
+      items: data?.map(item => ({
+        name: item.name,
+        id: item.id,
+        size: item.metadata?.size,
+        hasMetadata: !!item.metadata,
+        metadataKeys: item.metadata ? Object.keys(item.metadata) : [],
+        created: item.created_at,
+        updated: item.updated_at
+      })) || []
+    });
+  } catch (error) {
+    console.error('❌ Debug: Exception listing directory:', error);
+  }
+}
+
+/**
  * Moves a file from one path to another
  */
 export async function moveFile(oldPath: string, newPath: string): Promise<void> {
@@ -529,25 +568,46 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   cleanOldPath = cleanOldPath.replace(/\/+/g, '/');
   cleanNewPath = cleanNewPath.replace(/\/+/g, '/');
   
-  console.log('Moving file:', {
+  console.log('🔄 Starting move operation:', {
     originalOldPath: oldPath,
     originalNewPath: newPath,
     cleanOldPath,
-    cleanNewPath
+    cleanNewPath,
+    bucket: STORAGE_BUCKET
   });
   
   const supabase = createClient();
   
+  // First, let's try to get the file directly to see if it exists
+  console.log('🔍 Attempting direct file access...');
+  try {
+    const { data: fileData, error: directAccessError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .download(cleanOldPath);
+    
+    if (directAccessError) {
+      console.error('❌ Direct file access failed:', directAccessError);
+    } else {
+      console.log('✅ Direct file access successful, file size:', fileData?.size);
+    }
+  } catch (directError) {
+    console.error('❌ Exception during direct file access:', directError);
+  }
+  
   // Check if source file exists by listing the directory
   const oldPathSegments = cleanOldPath.split('/');
   const sourceDirectory = oldPathSegments.slice(0, -1).join('/');
-  const fileName = oldPathSegments[oldPathSegments.length - 1];
+  let fileName = oldPathSegments[oldPathSegments.length - 1];
   
-  console.log('Checking source file existence:', {
+  console.log('🔍 Checking source file existence:', {
     sourceDirectory,
     fileName,
-    fullOldPath: cleanOldPath
+    fullOldPath: cleanOldPath,
+    pathSegments: oldPathSegments
   });
+  
+  // Debug: List directory contents with detailed information
+  await debugListDirectory(sourceDirectory || '');
   
   // List files in source directory to verify file exists
   const { data: sourceFiles, error: listError } = await supabase.storage
@@ -557,29 +617,100 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     });
   
   if (listError) {
-    console.error('Error listing source directory:', listError);
+    console.error('❌ Error listing source directory:', listError);
     throw new Error(`Failed to check source directory: ${listError.message}`);
   }
   
-  const fileExists = sourceFiles?.some(file => file.name === fileName);
+  console.log('📁 Source directory contents:', {
+    directory: sourceDirectory || 'root',
+    fileCount: sourceFiles?.length || 0,
+    files: sourceFiles?.map(f => ({
+      name: f.name,
+      size: f.metadata?.size,
+      type: f.metadata ? 'file' : 'folder',
+      nameLength: f.name.length,
+      nameBytes: new TextEncoder().encode(f.name).length
+    })) || []
+  });
+  
+  // Try multiple ways to find the file
+  let fileExists = false;
+  let matchedFile = null;
+  
+  // Exact match
+  matchedFile = sourceFiles?.find(file => file.name === fileName);
+  if (matchedFile) {
+    fileExists = true;
+    console.log('✅ Found file with exact match');
+  }
+  
+  // Case-insensitive match
   if (!fileExists) {
-    console.error('Source file not found:', {
+    matchedFile = sourceFiles?.find(file => file.name.toLowerCase() === fileName.toLowerCase());
+    if (matchedFile) {
+      fileExists = true;
+      console.log('✅ Found file with case-insensitive match:', {
+        searched: fileName,
+        found: matchedFile.name
+      });
+      // Update fileName to use the actual name from storage
+      fileName = matchedFile.name;
+    }
+  }
+  
+  // Partial match (in case of encoding issues)
+  if (!fileExists) {
+    matchedFile = sourceFiles?.find(file => 
+      file.name.includes(fileName) || fileName.includes(file.name)
+    );
+    if (matchedFile) {
+      fileExists = true;
+      console.log('✅ Found file with partial match:', {
+        searched: fileName,
+        found: matchedFile.name
+      });
+      // Update fileName to use the actual name from storage
+      fileName = matchedFile.name;
+    }
+  }
+  
+  if (!fileExists) {
+    console.error('❌ Source file not found after all attempts:', {
       searchedFor: fileName,
-      inDirectory: sourceDirectory,
-      availableFiles: sourceFiles?.map(f => f.name) || []
+      searchedForLength: fileName.length,
+      searchedForBytes: new TextEncoder().encode(fileName).length,
+      inDirectory: sourceDirectory || 'root',
+      availableFiles: sourceFiles?.map(f => ({
+        name: f.name,
+        length: f.name.length,
+        bytes: new TextEncoder().encode(f.name).length
+      })) || []
     });
     throw new Error(`Source file not found: ${fileName} in ${sourceDirectory || 'root'}`);
   }
   
+  console.log('✅ Source file found in directory listing');
+  
+  // Update paths if fileName was corrected
+  cleanOldPath = `${sourceDirectory}/${fileName}`;
+  
   // Ensure target directory exists by checking if we can list it
   const newPathSegments = cleanNewPath.split('/');
   const targetDirectory = newPathSegments.slice(0, -1).join('/');
-  const targetFileName = newPathSegments[newPathSegments.length - 1];
+  let targetFileName = newPathSegments[newPathSegments.length - 1];
   
-  console.log('Checking target directory:', {
+  // If we corrected the source fileName, also update the target
+  if (fileName !== oldPathSegments[oldPathSegments.length - 1]) {
+    targetFileName = fileName;
+    cleanNewPath = `${targetDirectory}/${targetFileName}`;
+    console.log('🔄 Updated target path to match corrected filename:', cleanNewPath);
+  }
+  
+  console.log('🎯 Checking target directory:', {
     targetDirectory,
     targetFileName,
-    fullNewPath: cleanNewPath
+    fullNewPath: cleanNewPath,
+    pathSegments: newPathSegments
   });
   
   // Try to list target directory to ensure it exists
@@ -590,14 +721,49 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     });
   
   if (targetListError) {
-    console.error('Error accessing target directory:', targetListError);
-    throw new Error(`Target directory not accessible: ${targetListError.message}`);
+    console.error('❌ Error accessing target directory:', targetListError);
+    
+    // If target directory doesn't exist, try to create it with a .keep file
+    console.log('🔧 Attempting to create target directory...');
+    try {
+      const keepFilePath = `${targetDirectory}/.keep`;
+      const keepFileContent = new Blob([''], { type: 'text/plain' });
+      
+      const { error: createError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(keepFilePath, keepFileContent, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (createError) {
+        console.error('❌ Failed to create target directory:', createError);
+        throw new Error(`Target directory not accessible and cannot be created: ${targetListError.message}`);
+      }
+      
+      console.log('✅ Target directory created successfully');
+    } catch (createDirError) {
+      console.error('❌ Exception creating target directory:', createDirError);
+      throw new Error(`Target directory not accessible: ${targetListError.message}`);
+    }
+  } else {
+    console.log('✅ Target directory accessible:', {
+      directory: targetDirectory || 'root',
+      itemCount: targetDirContents?.length || 0
+    });
+  }
+  
+  // Check if target file already exists
+  const targetFileExists = targetDirContents?.some(file => file.name === targetFileName);
+  if (targetFileExists) {
+    console.warn('⚠️ Target file already exists, move will overwrite it');
   }
   
   // Perform the move operation
-  console.log('Performing move operation:', {
+  console.log('🚀 Performing move operation:', {
     from: cleanOldPath,
-    to: cleanNewPath
+    to: cleanNewPath,
+    willOverwrite: targetFileExists
   });
   
   const { error: moveError } = await supabase.storage
@@ -605,14 +771,58 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     .move(cleanOldPath, cleanNewPath);
   
   if (moveError) {
-    console.error('Move operation failed:', moveError);
-    throw new Error(`Failed to move file: ${moveError.message}`);
+    console.error('❌ Move operation failed:', {
+      error: moveError,
+      errorMessage: moveError.message,
+      errorCode: moveError.statusCode,
+      from: cleanOldPath,
+      to: cleanNewPath
+    });
+    
+    // Try alternative approach: copy then delete
+    console.log('🔄 Attempting alternative approach: copy + delete...');
+    try {
+      // First, download the source file
+      const { data: sourceFileData, error: downloadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .download(cleanOldPath);
+      
+      if (downloadError) {
+        throw new Error(`Failed to download source file: ${downloadError.message}`);
+      }
+      
+      // Upload to new location
+      const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(cleanNewPath, sourceFileData, {
+          upsert: true
+        });
+      
+      if (uploadError) {
+        throw new Error(`Failed to upload to target location: ${uploadError.message}`);
+      }
+      
+      // Delete original file
+      const { error: deleteError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .remove([cleanOldPath]);
+      
+      if (deleteError) {
+        console.warn('⚠️ File copied successfully but failed to delete original:', deleteError);
+        // Don't throw error here as the file was successfully copied
+      }
+      
+      console.log('✅ Alternative move approach successful');
+    } catch (alternativeError) {
+      console.error('❌ Alternative move approach also failed:', alternativeError);
+      throw new Error(`Failed to move file: ${moveError.message}. Alternative approach also failed: ${alternativeError instanceof Error ? alternativeError.message : 'Unknown error'}`);
+    }
+  } else {
+    console.log('✅ File moved successfully using direct move:', {
+      from: cleanOldPath,
+      to: cleanNewPath
+    });
   }
-  
-  console.log('File moved successfully:', {
-    from: cleanOldPath,
-    to: cleanNewPath
-  });
   
   // Invalidate cache for both source and target directories
   const sourceDir = cleanOldPath.substring(0, cleanOldPath.lastIndexOf('/'));
@@ -622,6 +832,8 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   if (sourceDir !== targetDir) {
     cacheManager.invalidatePrefix(targetDir);
   }
+  
+  console.log('🎉 Move operation completed successfully');
 }
 
 /**
@@ -802,3 +1014,6 @@ export const storageService: StorageService = {
   bulkArchiveFiles,
   archiveFolder,
 };
+
+// Export debug function for troubleshooting
+export { debugListDirectory };

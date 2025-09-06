@@ -144,15 +144,25 @@ export function FileContextMenu({
         const sourcePath = `${currentPath}/${file.name}`
         const targetFilePath = `${targetPath}/${file.name}`
         
-        console.log('Moving file from context menu:', {
+        console.log('🎬 Context Menu: Starting move operation:', {
           fileName: file.name,
+          fileId: file.id,
+          fileSize: file.size,
+          fileMetadata: file.metadata,
           sourcePath,
           targetFilePath,
           currentPath,
-          targetPath
+          targetPath,
+          fullFileObject: file
         })
         
-        await moveFile(sourcePath, targetFilePath)
+        try {
+          await moveFile(sourcePath, targetFilePath)
+          console.log('🎉 Context Menu: Move completed successfully')
+        } catch (error) {
+          console.error('❌ Context Menu: Move failed:', error)
+          throw error
+        }
       }
     })
   }
