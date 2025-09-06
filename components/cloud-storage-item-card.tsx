@@ -287,12 +287,7 @@ export function CloudStorageItemCard({
         </ContextMenuItem>
       )}
       
-      <ContextMenuSeparator />
-      
-      <ContextMenuItem onClick={() => console.log('Properties placeholder')}>
-        <Eye className="h-4 w-4 mr-2" />
-        Eigenschaften
-      </ContextMenuItem>
+
       
       {onDelete && (
         <>
@@ -481,16 +476,7 @@ export function CloudStorageItemCard({
                       </DropdownMenuItem>
                     )}
                     
-                    <DropdownMenuSeparator />
-                    
-                    <DropdownMenuItem onSelect={(e) => {
-                      e.preventDefault()
-                      setIsDropdownOpen(false)
-                      console.log('Properties placeholder')
-                    }}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      Eigenschaften
-                    </DropdownMenuItem>
+
                     
                     {onDelete && (
                       <>
