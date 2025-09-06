@@ -2,13 +2,13 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronRight, Search, Folder, FileText } from "lucide-react"; // Using Folder for categories
+import { ChevronDown, ChevronRight, Search, Folder } from "lucide-react"; // Using Folder for categories
 import { Input } from "../../../components/ui/input";
 import { NotionPageData } from "../../../lib/notion-service"; // NotionPageData now refers to metadata only
+import Link from "next/link";
 
 interface DocumentationSidebarProps {
   pages: NotionPageData[]; // This is now allPagesMetadata
-  onSelectPage: (pageId: string) => void;
   activePageId: string | null;
 }
 
@@ -25,7 +25,7 @@ interface SidebarSection {
   items: SidebarItem[];
 }
 
-export default function DocumentationSidebar({ pages, onSelectPage, activePageId }: DocumentationSidebarProps) {
+export default function DocumentationSidebar({ pages, activePageId }: DocumentationSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -87,10 +87,7 @@ export default function DocumentationSidebar({ pages, onSelectPage, activePageId
     );
   };
 
-  // handleNavClick is now simplified to just call onSelectPage
-  const handleNavClick = (pageId: string) => {
-    onSelectPage(pageId);
-  };
+  // Navigation is handled via <Link> to update the search param (?pageId=...)
 
   const dynamicSidebarSections: SidebarSection[] = useMemo(() => {
     const sections: SidebarSection[] = [];
@@ -190,9 +187,9 @@ export default function DocumentationSidebar({ pages, onSelectPage, activePageId
                   {section.items.map((item) => {
                     const isActive = item.id === activePageId;
                     return (
-                      <button
+                      <Link
                         key={item.id}
-                        onClick={() => handleNavClick(item.id)}
+                        href={{ pathname: "/modern/documentation", query: { pageId: item.id } }}
                         className={`block w-full text-left p-2 text-sm rounded-md transition-colors ${
                           isActive
                             ? "font-semibold text-primary bg-primary/10"
@@ -200,7 +197,7 @@ export default function DocumentationSidebar({ pages, onSelectPage, activePageId
                         }`}
                       >
                         {item.title}
-                      </button>
+                      </Link>
                     );
                   })}
                 </div>

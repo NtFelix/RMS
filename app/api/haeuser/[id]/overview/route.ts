@@ -141,7 +141,10 @@ export async function GET(
     });
 
     // Calculate enhanced summary statistics
-    const totalArea = wohnungenData.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
+    // Use house.groesse if available, otherwise sum apartment sizes
+    const totalArea = hausData.groesse && hausData.groesse > 0 
+      ? hausData.groesse 
+      : wohnungenData.reduce((sum, wohnung) => sum + (wohnung.groesse || 0), 0);
     const totalRent = wohnungen
       .filter(w => w.status === 'vermietet')
       .reduce((sum, wohnung) => sum + (wohnung.miete || 0), 0);

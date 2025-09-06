@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
+import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
 
 // Overview Modal Types
@@ -202,9 +203,11 @@ export interface ModalState {
   wasserzaehlerNebenkosten?: Nebenkosten;
   wasserzaehlerMieterList: Mieter[];
   wasserzaehlerExistingReadings?: Wasserzaehler[] | null;
+  wasserzaehlerOptimizedData?: WasserzaehlerModalData[] | null;
   wasserzaehlerOnSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>;
   isWasserzaehlerModalDirty: boolean;
   openWasserzaehlerModal: (nebenkosten?: Nebenkosten, mieterList?: Mieter[], existingReadings?: Wasserzaehler[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
+  openWasserzaehlerModalOptimized: (nebenkosten?: Nebenkosten, optimizedData?: WasserzaehlerModalData[] | null, onSave?: (data: WasserzaehlerFormData) => Promise<{ success: boolean; message?: string }>) => void;
   closeWasserzaehlerModal: (options?: CloseModalOptions) => void;
   setWasserzaehlerModalDirty: (isDirty: boolean) => void;
 
@@ -339,6 +342,7 @@ const initialWasserzaehlerModalState = {
   wasserzaehlerNebenkosten: undefined,
   wasserzaehlerMieterList: [],
   wasserzaehlerExistingReadings: undefined,
+  wasserzaehlerOptimizedData: undefined,
   wasserzaehlerOnSave: undefined,
   isWasserzaehlerModalDirty: false,
 };
@@ -520,6 +524,16 @@ export const useModalStore = create<ModalState>((set, get) => {
       wasserzaehlerNebenkosten: nebenkosten,
       wasserzaehlerMieterList: mieterList || [],
       wasserzaehlerExistingReadings: existingReadings,
+      wasserzaehlerOptimizedData: undefined, // Clear optimized data when using legacy method
+      wasserzaehlerOnSave: onSave,
+      isWasserzaehlerModalDirty: false
+    }),
+    openWasserzaehlerModalOptimized: (nebenkosten, optimizedData, onSave) => set({
+      isWasserzaehlerModalOpen: true,
+      wasserzaehlerNebenkosten: nebenkosten,
+      wasserzaehlerMieterList: [], // Clear legacy data when using optimized method
+      wasserzaehlerExistingReadings: undefined, // Clear legacy data when using optimized method
+      wasserzaehlerOptimizedData: optimizedData,
       wasserzaehlerOnSave: onSave,
       isWasserzaehlerModalDirty: false
     }),

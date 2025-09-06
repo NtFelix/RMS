@@ -82,13 +82,38 @@ export async function deleteTenantAction(tenantId: string): Promise<{ success: b
   }
 }
 
-export async function getMieterByHausIdAction(hausId: string, jahr?: string): Promise<{ success: boolean; data?: Mieter[] | null; error?: string | null; }> {
+export async function getMieterByHausIdAction(
+  hausId: string, 
+  startdatum?: string, 
+  enddatum?: string
+): Promise<{ success: boolean; data?: Mieter[] | null; error?: string | null; }> {
   if (!hausId) {
     return { success: false, error: "Haus ID is required.", data: null };
   }
 
   const supabase = await createClient();
-  const targetYear = jahr ? parseInt(jahr, 10) : null;
+
+  // Validate date parameters if provided
+  if (startdatum && enddatum) {
+    const startDate = new Date(startdatum);
+    const endDate = new Date(enddatum);
+    
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return { 
+        success: false, 
+        error: 'Ungültiges Datumsformat. Verwenden Sie YYYY-MM-DD.', 
+        data: null 
+      };
+    }
+    
+    if (startDate >= endDate) {
+      return { 
+        success: false, 
+        error: 'Enddatum muss nach dem Startdatum liegen.', 
+        data: null 
+      };
+    }
+  }
 
   try {
     // Step 1: Fetch Wohnungen associated with the hausId
@@ -116,17 +141,12 @@ export async function getMieterByHausIdAction(hausId: string, jahr?: string): Pr
       .select("*, Wohnungen(name, groesse, miete)")
       .in("wohnung_id", wohnungIds);
 
-    // If a year is provided, filter tenants based on their move-in and move-out dates
-    if (targetYear && !isNaN(targetYear)) {
-      const yearStart = `${targetYear}-01-01`;
-      const yearEnd = `${targetYear}-12-31`;
-      
-      // Get tenants who either:
-      // 1. Moved in before or during the year and didn't move out yet
-      // 2. Moved in before or during the year and moved out after or during the year
-      // 3. Moved in before the year and moved out after the year
+    // If date range is provided, filter tenants based on overlap with billing period
+    if (startdatum && enddatum) {
+      // Get tenants who have any overlap with the billing period
+      // Tenant overlaps if: tenant_start <= billing_end AND (tenant_end >= billing_start OR tenant_end is null)
       query = query
-        .or(`and(einzug.lte.${yearEnd},auszug.is.null),and(einzug.lte.${yearEnd},auszug.gte.${yearStart}),and(einzug.lte.${yearStart},auszug.gte.${yearEnd})`);
+        .or(`and(einzug.lte.${enddatum},or(auszug.is.null,auszug.gte.${startdatum}))`);
     }
 
     const { data: mieterData, error: mieterError } = await query;

@@ -21,3 +21,6 @@ export const FEATURE_FLAGS = {
   ENABLE_NAVIGATION_CACHE: process.env.NEXT_PUBLIC_ENABLE_NAVIGATION_CACHE !== 'false', // Default enabled
   ENABLE_OPTIMISTIC_UI: process.env.NEXT_PUBLIC_ENABLE_OPTIMISTIC_UI !== 'false', // Default enabled
 } as const;
+
+// Video URLs
+export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4';

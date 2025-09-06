@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import { motion } from "framer-motion";
 import { NotionPageData, NotionFileData, BlockWithChildren } from "../../../lib/notion-service"; // Adjusted path, added NotionFileData
 import { BlockObjectResponse } from "@notionhq/client/build/src/api-endpoints";
@@ -19,8 +19,7 @@ interface DocumentationContentProps {
 }
 
 // Helper function to render Notion rich text arrays
-// (This function remains unchanged)
-const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
+const NotionRichText = memo(({ richTextArray }: { richTextArray: any[] }) => {
   if (!richTextArray) return null;
   return (
     <>
@@ -41,7 +40,7 @@ const NotionRichText = ({ richTextArray }: { richTextArray: any[] }) => {
       })}
     </>
   );
-};
+});
 
 interface NotionBlockProps {
   block: BlockWithChildren;
@@ -50,7 +49,7 @@ interface NotionBlockProps {
 }
 
 // Component to render a single Notion block
-const NotionBlock = ({ block, isHeaderRow = false, hasRowHeader = false }: NotionBlockProps) => {
+const NotionBlock = memo(({ block, isHeaderRow = false, hasRowHeader = false }: NotionBlockProps) => {
   const { type } = block;
 
   switch (type) {
@@ -220,9 +219,9 @@ const NotionBlock = ({ block, isHeaderRow = false, hasRowHeader = false }: Notio
       console.warn(`Unsupported block type: ${type}`, block);
       return <p className="text-red-500 my-2">[Unsupported block type: {type}]</p>;
   }
-};
+});
 
-const LoadingSkeleton = () => (
+const LoadingSkeleton = memo(() => (
   <div className="space-y-6">
     <Skeleton className="h-10 w-3/4" />
     <Skeleton className="h-4 w-full" />
@@ -231,9 +230,9 @@ const LoadingSkeleton = () => (
     <Skeleton className="h-32 w-full" />
     <Skeleton className="h-4 w-4/5" />
   </div>
-);
+));
 
-export default function DocumentationContent({ isLoading, pageContent, pageFiles, pages, error }: DocumentationContentProps) {
+const DocumentationContent = memo(function DocumentationContent({ isLoading, pageContent, pageFiles, pages, error }: DocumentationContentProps) {
   if (isLoading) {
     return <LoadingSkeleton />;
   }
@@ -379,4 +378,6 @@ export default function DocumentationContent({ isLoading, pageContent, pageFiles
       )}
     </motion.section>
   );
-}
+});
+
+export default DocumentationContent;

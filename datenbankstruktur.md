@@ -90,7 +90,8 @@ create table public."Mieter" (
 create table public."Nebenkosten" (
   id uuid not null default gen_random_uuid (),
   user_id uuid not null default auth.uid (),
-  jahr text null check (length(jahr) <= 50),
+  startdatum date not null,
+  enddatum date not null,
   nebenkostenart text[] null,
   betrag numeric[] null,
   berechnungsart text[] null,
@@ -98,8 +99,12 @@ create table public."Nebenkosten" (
   haeuser_id uuid not null,
   wasserverbrauch numeric null,
   constraint Nebenkosten_pkey primary key (id),
-  constraint Nebenkosten_haeuser_id_fkey foreign key (haeuser_id) references "Haeuser" (id)
+  constraint Nebenkosten_haeuser_id_fkey foreign key (haeuser_id) references "Haeuser" (id),
+  constraint check_date_range check (enddatum > startdatum)
 ) tablespace pg_default;
+
+-- Add index for date range queries
+create index idx_nebenkosten_date_range on "Nebenkosten" (startdatum, enddatum);
 ```
 
 ## Rechnungen

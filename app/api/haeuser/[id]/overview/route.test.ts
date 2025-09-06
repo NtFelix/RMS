@@ -106,7 +106,7 @@ describe('/api/haeuser/[id]/overview', () => {
       strasse: 'Teststraße 1',
       ort: 'Berlin',
       size: '500',
-      totalArea: 240, // 80 + 60 + 100
+      totalArea: 500, // Uses house.groesse when available
       totalRent: 2700, // 1200 + 1500 (only occupied apartments)
       apartmentCount: 3,
       tenantCount: 2,
@@ -244,7 +244,7 @@ describe('/api/haeuser/[id]/overview', () => {
       name: 'Mixed Haus',
       strasse: 'Teststraße 1',
       ort: 'Berlin',
-      groesse: '300',
+      groesse: 300,
       Wohnungen: [
         {
           id: '660e8400-e29b-41d4-a716-446655440001',

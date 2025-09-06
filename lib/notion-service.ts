@@ -2,8 +2,14 @@ import { Client } from "@notionhq/client";
 import { BlockObjectResponse, PageObjectResponse, SelectPropertyItemObjectResponse } from "@notionhq/client/build/src/api-endpoints";
 
 let notionClientInstance: Client | null = null;
-// This variable is no longer needed at this scope, as NEXT_PUBLIC_NOTION_DATABASE_ID will be read directly inside getNotionClient
-// let currentNotionDatabaseId: string | null | undefined = null;
+
+// Simple in-memory cache for database pages (resets on server restart)
+let pagesCache: { data: NotionPageData[]; timestamp: number } | null = null;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Cache for page content (smaller cache duration since content changes more frequently)
+const contentCache = new Map<string, { data: BlockWithChildren[]; timestamp: number }>();
+const CONTENT_CACHE_DURATION = 2 * 60 * 1000; // 2 minutes in milliseconds
 
 function getNotionClient(): Client {
   if (!notionClientInstance) {
@@ -48,6 +54,11 @@ export interface NotionPageData {
 }
 
 export async function getDatabasePages(): Promise<NotionPageData[]> {
+  // Check cache first
+  if (pagesCache && (Date.now() - pagesCache.timestamp) < CACHE_DURATION) {
+    return pagesCache.data;
+  }
+
   const client = getNotionClient();
   const databaseId = process.env.NOTION_DATABASE_ID; // Use server-side variable
 
@@ -69,7 +80,7 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
       // sorts: [{ property: "Last edited time", direction: "descending" }], // Optional: add sorting if needed
     });
 
-    return response.results.map((page) => {
+    const pages = response.results.map((page) => {
       const typedPage = page as PageObjectResponse;
       let title = "Untitled";
       let category: string | null = null;
@@ -154,6 +165,14 @@ export async function getDatabasePages(): Promise<NotionPageData[]> {
         filesAndMedia: filesAndMedia.length > 0 ? filesAndMedia : undefined,
       };
     });
+
+    // Cache the results
+    pagesCache = {
+      data: pages,
+      timestamp: Date.now()
+    };
+
+    return pages;
   } catch (error) {
     console.error("Failed to fetch database pages from Notion:", error);
     throw error; // Re-throw the error to be handled by the caller
@@ -166,6 +185,12 @@ export type BlockWithChildren = BlockObjectResponse & {
 };
 
 export async function getPageContent(pageId: string): Promise<BlockWithChildren[]> {
+  // Check cache first
+  const cached = contentCache.get(pageId);
+  if (cached && (Date.now() - cached.timestamp) < CONTENT_CACHE_DURATION) {
+    return cached.data;
+  }
+
   try {
     const blocks: BlockObjectResponse[] = [];
     let cursor: string | undefined;
@@ -211,9 +236,31 @@ export async function getPageContent(pageId: string): Promise<BlockWithChildren[
         return block;
       });
 
-    return Promise.all(blocksWithChildren);
+    const content = await Promise.all(blocksWithChildren);
+    
+    // Cache the results
+    contentCache.set(pageId, {
+      data: content,
+      timestamp: Date.now()
+    });
+
+    return content;
   } catch (error) {
     console.error(`Failed to fetch content for page ${pageId} from Notion:`, error);
     throw error; // Re-throw the error
   }
+}
+
+// Utility function to clear caches (useful for development or manual cache invalidation)
+export function clearNotionCaches(): void {
+  pagesCache = null;
+  contentCache.clear();
+}
+
+// Utility function to get cache stats (useful for debugging)
+export function getCacheStats(): { pagesCache: boolean; contentCacheSize: number } {
+  return {
+    pagesCache: pagesCache !== null,
+    contentCacheSize: contentCache.size
+  };
 }

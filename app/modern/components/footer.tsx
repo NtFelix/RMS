@@ -50,10 +50,10 @@ export default function Footer() {
               viewport={{ once: true }}
             >
               <h3 className="text-2xl font-bold text-foreground mb-4">
-                Immobilien<span className="text-primary">Verwalter</span>
+                <span className="text-primary">Miet</span>fluss
               </h3>
               <p className="text-muted-foreground leading-relaxed mb-6">
-                Die All-in-One-Plattform zur Optimierung Ihres Immobilienverwaltungs-Workflows.
+                Die moderne Lösung für Ihre Mietverwaltung und Nebenkostenabrechnung.
               </p>
               <div className="flex gap-4">
                 {socialLinks.map((social, index) => (
@@ -110,10 +110,10 @@ export default function Footer() {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           viewport={{ once: true }}
-          className="pt-8 border-t border-border flex flex-col md:flex-row justify-between items-center gap-4"
+          className="pt-8 border-t border-border flex flex-col justify-center items-center text-center gap-3"
         >
-          <p className="text-muted-foreground text-sm">© 2024 ImmobilienVerwalter. Alle Rechte vorbehalten.</p>
-          <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Immobilienverwaltung für alle zu vereinfachen.</p>
+          <p className="text-muted-foreground text-sm">© 2025 Mietfluss. Alle Rechte vorbehalten.</p>
+          <p className="text-muted-foreground/70 text-sm">Entwickelt, um die Mietverwaltung für alle zu vereinfachen.</p>
         </motion.div>
       </div>
     </footer>

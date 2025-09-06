@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import posthog from 'posthog-js'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -37,7 +38,12 @@ export default function RegisterPage() {
 
     const supabase = createClient()
 
-    const { error } = await supabase.auth.signUp({
+    // Track signup attempt
+    posthog.capture('signup_attempt', {
+      email,
+    })
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -46,9 +52,28 @@ export default function RegisterPage() {
     })
 
     if (error) {
+      // Track failed signup
+      posthog.capture('signup_failed', {
+        email,
+        error: error.message,
+      })
+      
       setError(error.message)
       setIsLoading(false)
       return
+    }
+
+    // Track successful signup
+    if (data?.user) {
+      posthog.identify(data.user.id, {
+        email: data.user.email,
+        signup_date: new Date().toISOString(),
+      })
+      
+      posthog.capture('signup_success', {
+        email: data.user.email,
+        provider: 'email',
+      })
     }
 
     setMessage("Überprüfen Sie Ihre E-Mail für den Bestätigungslink.")
