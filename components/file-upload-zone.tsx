@@ -135,7 +135,17 @@ export function FileUploadZone({
     
     // Add valid files to upload queue
     if (validFiles.length > 0) {
-      addToUploadQueue(validFiles, targetPath)
+      // Clean up target path to ensure consistency
+      const cleanTargetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '')
+      
+      console.log('Adding files to upload queue:', {
+        fileCount: validFiles.length,
+        targetPath,
+        cleanTargetPath,
+        files: validFiles.map(f => f.name)
+      })
+      
+      addToUploadQueue(validFiles, cleanTargetPath)
       // Start processing uploads automatically with a small delay
       setTimeout(() => {
         processUploadQueue().catch(error => {
@@ -143,7 +153,7 @@ export function FileUploadZone({
         })
       }, 200)
     }
-  }, [targetPath, addToUploadQueue])
+  }, [targetPath, addToUploadQueue, processUploadQueue])
 
   // Open file picker
   const openFilePicker = useCallback(() => {

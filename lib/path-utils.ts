@@ -34,12 +34,15 @@ const PATH_TRAVERSAL = /\.\./g;
  * Sanitizes a path segment by removing dangerous characters and normalizing
  */
 export function sanitizePathSegment(segment: string): string {
+  // For user_ prefixes, preserve them as-is
+  if (segment.startsWith('user_')) {
+    return segment;
+  }
+  
   return segment
     .replace(DANGEROUS_CHARS, '')
     .replace(PATH_TRAVERSAL, '')
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9\-_.]/g, '') // Allow dots for file extensions
+    .replace(/[<>:"|?*\x00-\x1f]/g, '') // Remove only truly dangerous characters
     .substring(0, 255); // Limit individual segment length
 }
 
@@ -92,10 +95,39 @@ export function sanitizePath(path: string): string {
   // Remove leading/trailing slashes and normalize
   const normalized = path.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
   
-  // Split into segments and sanitize each
-  const segments = normalized.split('/').map(segment => sanitizePathSegment(segment));
+  // Split into segments and sanitize each, but preserve the original structure for existing folders
+  const segments = normalized.split('/');
+  const sanitizedSegments = segments.map((segment, index) => {
+    // For user_ prefix and existing folder names, preserve them more carefully
+    if (index === 0 && segment.startsWith('user_')) {
+      return segment; // Keep user_ prefix as-is
+    }
+    
+    // For file names (last segment with extension), preserve the extension
+    if (index === segments.length - 1 && segment.includes('.')) {
+      const parts = segment.split('.');
+      const name = parts.slice(0, -1).join('.');
+      const extension = parts[parts.length - 1];
+      
+      // Sanitize the name part but keep the extension
+      const sanitizedName = name
+        .replace(DANGEROUS_CHARS, '')
+        .replace(PATH_TRAVERSAL, '')
+        .replace(/[<>:"|?*\x00-\x1f]/g, '') // Remove dangerous chars but allow more flexibility
+        .substring(0, 200); // Limit name length
+      
+      return `${sanitizedName}.${extension}`;
+    }
+    
+    // For folder names, be less aggressive with sanitization to preserve existing structure
+    return segment
+      .replace(DANGEROUS_CHARS, '')
+      .replace(PATH_TRAVERSAL, '')
+      .replace(/[<>:"|?*\x00-\x1f]/g, '') // Remove only truly dangerous characters
+      .substring(0, 255); // Limit individual segment length
+  });
   
-  return segments.join('/');
+  return sanitizedSegments.filter(Boolean).join('/');
 }
 
 /**

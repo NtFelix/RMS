@@ -165,7 +165,17 @@ export async function uploadFile(
     
     // Validate and sanitize path
     await validateUserPath(path);
-    const sanitizedPath = pathUtils.sanitizePath(path);
+    let sanitizedPath = pathUtils.sanitizePath(path);
+    
+    // Clean up path to avoid issues with folder creation
+    sanitizedPath = sanitizedPath.replace(/\/+/g, '/').replace(/^\//, '').replace(/\/$/, '');
+    
+    console.log('Storage service uploading file:', {
+      originalPath: path,
+      sanitizedPath,
+      fileName: file.name,
+      fileSize: file.size
+    });
     
     // Use retry logic with circuit breaker
     const result = await withRetry(
@@ -189,8 +199,15 @@ export async function uploadFile(
           const { data, error } = await Promise.race([uploadPromise, timeoutPromise]);
           
           if (error) {
+            console.error('Supabase upload error:', error);
             throw mapError(error, 'upload_file');
           }
+          
+          console.log('Upload successful:', {
+            path: sanitizedPath,
+            fileName: file.name,
+            uploadedPath: data?.path
+          });
           
           // Invalidate cache for the directory
           const directoryPath = sanitizedPath.substring(0, sanitizedPath.lastIndexOf('/'));
@@ -223,6 +240,12 @@ export async function uploadFile(
   } catch (error) {
     const endTime = Date.now();
     const storageError = mapError(error, 'upload_file');
+    
+    console.error('Upload failed:', {
+      path,
+      fileName: file.name,
+      error: storageError
+    });
     
     // Record failed operation metrics
     performanceMonitor.addMetric({

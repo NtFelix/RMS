@@ -36,7 +36,17 @@ export function FileUploadModal() {
   // Auto-add files to upload queue if they were provided via drag and drop
   useEffect(() => {
     if (uploadModalFiles && uploadModalFiles.length > 0 && uploadModalTargetPath && isUploadModalOpen) {
-      addToUploadQueue(uploadModalFiles, uploadModalTargetPath)
+      // Clean up target path to ensure consistency
+      const cleanTargetPath = uploadModalTargetPath.replace(/\/+/g, '/').replace(/\/$/, '')
+      
+      console.log('Auto-adding files to upload queue from modal:', {
+        fileCount: uploadModalFiles.length,
+        originalTargetPath: uploadModalTargetPath,
+        cleanTargetPath,
+        files: uploadModalFiles.map(f => f.name)
+      })
+      
+      addToUploadQueue(uploadModalFiles, cleanTargetPath)
       // Start processing uploads automatically with a small delay
       setTimeout(() => {
         processUploadQueue().catch(error => {

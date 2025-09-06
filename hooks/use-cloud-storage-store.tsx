@@ -787,9 +787,21 @@ export const useCloudStorageStore = create<CloudStorageState>()(
               }
             })
             
-            // Construct full file path
+            // Construct full file path - ensure we don't create duplicate folders
             const fileName = item.file.name
-            const fullPath = `${item.targetPath}/${fileName}`
+            let targetPath = item.targetPath
+            
+            // Clean up the target path to avoid double slashes or path issues
+            targetPath = targetPath.replace(/\/+/g, '/').replace(/\/$/, '')
+            
+            const fullPath = `${targetPath}/${fileName}`
+            
+            console.log('Uploading file:', {
+              fileName,
+              targetPath,
+              fullPath,
+              originalTargetPath: item.targetPath
+            })
             
             // Simulate progress updates (since Supabase doesn't provide real progress)
             progressInterval = setInterval(() => {
