@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { 
   Select,
   SelectContent,
@@ -149,16 +150,14 @@ export function ShareDocumentModal({
           </div>
 
           {/* Download Option */}
-          <div className="flex items-center space-x-2">
-            <input
-              type="checkbox"
+          <div className="flex items-center space-x-3">
+            <Checkbox
               id="allow-download"
               checked={allowDownload}
-              onChange={(e) => setAllowDownload(e.target.checked)}
-              className="rounded border-gray-300"
+              onCheckedChange={setAllowDownload}
             />
-            <Label htmlFor="allow-download" className="flex items-center cursor-pointer">
-              <Download className="h-4 w-4 mr-1" />
+            <Label htmlFor="allow-download" className="flex items-center cursor-pointer text-sm font-medium">
+              <Download className="h-4 w-4 mr-2" />
               Download ermöglichen
             </Label>
           </div>
