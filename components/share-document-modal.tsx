@@ -154,7 +154,7 @@ export function ShareDocumentModal({
             <Checkbox
               id="allow-download"
               checked={allowDownload}
-              onCheckedChange={setAllowDownload}
+              onCheckedChange={(checked) => setAllowDownload(checked === true)}
             />
             <Label htmlFor="allow-download" className="flex items-center cursor-pointer text-sm font-medium">
               <Download className="h-4 w-4 mr-2" />
