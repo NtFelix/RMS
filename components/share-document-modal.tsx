@@ -195,9 +195,8 @@ export function ShareDocumentModal({
                 />
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={handleCopyUrl}
-                  className="flex-shrink-0"
+                  className="flex-shrink-0 h-10 px-3"
                 >
                   {isCopied ? (
                     <Check className="h-4 w-4" />
