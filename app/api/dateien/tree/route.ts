@@ -128,8 +128,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
       const folderPath = `${rootPath}/${folderName}`
       const contents = folderContents.get(folderName) || []
       
-      // Count files recursively to get accurate file count
-      const fileCount = await countFilesRecursively(supabase, folderPath)
+      // Count direct files only
+      const fileCount = await countDirectFiles(supabase, folderPath)
       const isEmpty = fileCount === 0
 
       if (houseIds.has(folderName)) {
@@ -299,8 +299,8 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
       for (const apartment of houseApartments) {
         const apartmentPath = `${folderPath}/${apartment.id}`
         
-        // Count files in apartment folder
-        const fileCount = await countFilesRecursively(supabase, apartmentPath)
+        // Count direct files in apartment folder
+        const fileCount = await countDirectFiles(supabase, apartmentPath)
         
         children.push({
           id: apartment.id,
@@ -337,8 +337,8 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
       for (const tenant of apartmentTenants) {
         const tenantPath = `${folderPath}/${tenant.id}`
         
-        // Count files in tenant folder
-        const fileCount = await countFilesRecursively(supabase, tenantPath)
+        // Count direct files in tenant folder
+        const fileCount = await countDirectFiles(supabase, tenantPath)
         
         children.push({
           id: tenant.id,
@@ -386,8 +386,8 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
           const childPath = `${folderPath}/${folderName}`
           
           try {
-            // Count files recursively in this folder
-            const fileCount = await countFilesRecursively(supabase, childPath)
+            // Count direct files in this folder
+            const fileCount = await countDirectFiles(supabase, childPath)
             const isEmpty = fileCount === 0
             
             // Determine display name based on context
@@ -452,8 +452,8 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
   })
 }
 
-// Helper function to count files recursively
-async function countFilesRecursively(supabase: any, path: string): Promise<number> {
+// Helper function to count direct files only (not recursive)
+async function countDirectFiles(supabase: any, path: string): Promise<number> {
   try {
     const { data: contents, error } = await supabase.storage
       .from('documents')
@@ -467,15 +467,10 @@ async function countFilesRecursively(supabase: any, path: string): Promise<numbe
       if (item.name === '.keep') continue
       
       if (item.metadata?.size) {
+        // It's a file - count it
         fileCount++
-      } else if (!item.name.includes('.')) {
-        // It's a folder, count recursively (with depth limit)
-        const depth = (path.match(/\//g) || []).length
-        if (depth < 10) {
-          const subPath = `${path}/${item.name}`
-          fileCount += await countFilesRecursively(supabase, subPath)
-        }
       }
+      // Don't count folders or recurse into them
     }
     
     return fileCount

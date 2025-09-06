@@ -167,9 +167,9 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
     // Add house folders
     if (houses && houses.length > 0) {
       for (const house of houses) {
-        // Check if house folder has any files (recursively)
+        // Check if house folder has any files (direct files only)
         const housePath = `${targetPath}/${house.id}`
-        const fileCount = await countFilesRecursively(supabase, housePath)
+        const fileCount = await countDirectFiles(supabase, housePath)
         const hasFiles = fileCount > 0
         
         folders.push({
@@ -186,7 +186,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
     
     // Add miscellaneous folder
     const miscPath = `${targetPath}/Miscellaneous`
-    const miscFileCount = await countFilesRecursively(supabase, miscPath)
+    const miscFileCount = await countDirectFiles(supabase, miscPath)
     const miscHasFiles = miscFileCount > 0
     
     folders.push({
@@ -262,9 +262,9 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
           if (!exists) {
             const folderPath = `${targetPath}/${folderName}`
             
-            // Try to get more info about the folder (count files recursively)
+            // Try to get more info about the folder (count direct files only)
             try {
-              const fileCount = await countFilesRecursively(supabase, folderPath)
+              const fileCount = await countDirectFiles(supabase, folderPath)
               const isEmpty = fileCount === 0
               
               folders.push({
@@ -566,7 +566,7 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
     
     // Add house documents folder
     const houseDocsPath = `${targetPath}/house_documents`
-    const houseDocsFileCount = await countFilesRecursively(supabase, houseDocsPath)
+    const houseDocsFileCount = await countDirectFiles(supabase, houseDocsPath)
     const houseDocsHasFiles = houseDocsFileCount > 0
     
     folders.push({
@@ -582,9 +582,9 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
     // Add apartment folders
     if (apartments && apartments.length > 0) {
       for (const apartment of apartments) {
-        // Count files recursively in apartment folder and subfolders
+        // Count direct files in apartment folder
         const apartmentPath = `${targetPath}/${apartment.id}`
-        const fileCount = await countFilesRecursively(supabase, apartmentPath)
+        const fileCount = await countDirectFiles(supabase, apartmentPath)
         
         folders.push({
           name: apartment.id,
@@ -628,8 +628,8 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
   }
 }
 
-// Helper function to count files recursively
-async function countFilesRecursively(supabase: any, path: string): Promise<number> {
+// Helper function to count direct files only (not recursive)
+async function countDirectFiles(supabase: any, path: string): Promise<number> {
   try {
     const { data: contents, error } = await supabase.storage
       .from('documents')
@@ -644,16 +644,10 @@ async function countFilesRecursively(supabase: any, path: string): Promise<numbe
       
       try {
         if (item.metadata?.size) {
-          // It's a file
+          // It's a file - count it
           fileCount++
-        } else if (!item.name.includes('.')) {
-          // It's a folder, count recursively (with depth limit to prevent infinite loops)
-          const depth = (path.match(/\//g) || []).length
-          if (depth < 10) { // Limit recursion depth
-            const subPath = `${path}/${item.name}`
-            fileCount += await countFilesRecursively(supabase, subPath)
-          }
         }
+        // Don't count folders or recurse into them
       } catch (itemError) {
         // Skip problematic items instead of failing
         continue
@@ -769,7 +763,7 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
     
     // Add apartment documents folder
     const apartmentDocsPath = `${targetPath}/apartment_documents`
-    const apartmentDocsFileCount = await countFilesRecursively(supabase, apartmentDocsPath)
+    const apartmentDocsFileCount = await countDirectFiles(supabase, apartmentDocsPath)
     const apartmentDocsHasFiles = apartmentDocsFileCount > 0
     
     folders.push({
@@ -795,7 +789,7 @@ async function getApartmentFolderContentsInternal(supabase: any, userId: string,
           let fileCount = 0
           
           try {
-            fileCount = await countFilesRecursively(supabase, tenantPath)
+            fileCount = await countDirectFiles(supabase, tenantPath)
           } catch (countError) {
             // If file counting fails, still create the folder
             if (process.env.NODE_ENV === 'development') {
