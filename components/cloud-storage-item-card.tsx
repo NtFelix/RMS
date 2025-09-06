@@ -269,10 +269,23 @@ export function CloudStorageItemCard({
       
       <ContextMenuSeparator />
       
-      <ContextMenuItem onClick={onShare || (() => console.log('Share placeholder'))}>
-        <Share2 className="h-4 w-4 mr-2" />
-        Teilen
-      </ContextMenuItem>
+      {type === 'file' && (
+        <ContextMenuItem onClick={() => {
+          if (onShare) {
+            onShare()
+          } else {
+            const { openShareDocumentModal } = useModalStore.getState()
+            const file = item as StorageObject
+            openShareDocumentModal({
+              fileName: file.name,
+              filePath: `${currentPath}/${file.name}`
+            })
+          }
+        }}>
+          <Share2 className="h-4 w-4 mr-2" />
+          Teilen
+        </ContextMenuItem>
+      )}
       
       <ContextMenuSeparator />
       
@@ -448,18 +461,25 @@ export function CloudStorageItemCard({
                     
                     <DropdownMenuSeparator />
                     
-                    <DropdownMenuItem onSelect={(e) => {
-                      e.preventDefault()
-                      setIsDropdownOpen(false)
-                      if (onShare) {
-                        onShare()
-                      } else {
-                        console.log('Share placeholder')
-                      }
-                    }}>
-                      <Share2 className="h-4 w-4 mr-2" />
-                      Teilen
-                    </DropdownMenuItem>
+                    {type === 'file' && (
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault()
+                        setIsDropdownOpen(false)
+                        if (onShare) {
+                          onShare()
+                        } else {
+                          const { openShareDocumentModal } = useModalStore.getState()
+                          const file = item as StorageObject
+                          openShareDocumentModal({
+                            fileName: file.name,
+                            filePath: `${currentPath}/${file.name}`
+                          })
+                        }
+                      }}>
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Teilen
+                      </DropdownMenuItem>
+                    )}
                     
                     <DropdownMenuSeparator />
                     

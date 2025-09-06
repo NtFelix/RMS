@@ -34,6 +34,7 @@ import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
 import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
+import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -99,6 +100,10 @@ export default function DashboardRootLayout({
     isFileMoveModalOpen,
     fileMoveData,
     closeFileMoveModal,
+    // Share Document Modal state
+    isShareDocumentModalOpen,
+    shareDocumentData,
+    closeShareDocumentModal,
   } = useModalStore()
 
   return (
@@ -195,6 +200,16 @@ export default function DashboardRootLayout({
           currentPath={fileMoveData.currentPath}
           userId={fileMoveData.userId}
           onMove={fileMoveData.onMove}
+        />
+      )}
+
+      {/* ShareDocumentModal - Global document sharing modal */}
+      {isShareDocumentModalOpen && shareDocumentData && (
+        <ShareDocumentModal
+          isOpen={isShareDocumentModalOpen}
+          onClose={closeShareDocumentModal}
+          fileName={shareDocumentData.fileName}
+          filePath={shareDocumentData.filePath}
         />
       )}
 

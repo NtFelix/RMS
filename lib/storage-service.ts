@@ -928,6 +928,64 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
 }
 
 /**
+ * Creates a signed URL for sharing a file
+ * @param path - The file path in storage
+ * @param expiresIn - Number of seconds until the URL expires (default: 1 hour)
+ * @param options - Additional options for the signed URL
+ * @returns Promise<string> - The signed URL
+ */
+export async function createSignedUrl(
+  path: string, 
+  expiresIn: number = 3600, // Default: 1 hour
+  options?: { download?: boolean | string }
+): Promise<string> {
+  try {
+    await validateUserPath(path);
+    const sanitizedPath = pathUtils.sanitizePath(path);
+    
+    // Remove leading slash if present
+    const cleanPath = sanitizedPath.startsWith('/') ? sanitizedPath.slice(1) : sanitizedPath;
+    
+    console.log('Creating signed URL:', {
+      originalPath: path,
+      cleanPath,
+      expiresIn,
+      options
+    });
+    
+    const supabase = createClient();
+    
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(cleanPath, expiresIn, options);
+    
+    if (error) {
+      console.error('Error creating signed URL:', error);
+      throw mapError(error, 'create_signed_url');
+    }
+    
+    if (!data?.signedUrl) {
+      throw new Error('No signed URL returned from Supabase');
+    }
+    
+    console.log('Signed URL created successfully:', {
+      path: cleanPath,
+      expiresIn,
+      urlLength: data.signedUrl.length
+    });
+    
+    return data.signedUrl;
+  } catch (error) {
+    const storageError = mapError(error, 'create_signed_url');
+    console.error('Failed to create signed URL:', {
+      path,
+      error: storageError
+    });
+    throw storageError;
+  }
+}
+
+/**
  * Renames a file in the same directory
  */
 export async function renameFile(filePath: string, newName: string): Promise<void> {

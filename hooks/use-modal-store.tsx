@@ -130,6 +130,11 @@ interface FileMoveData {
   onMove: (targetPath: string) => Promise<void>;
 }
 
+interface ShareDocumentData {
+  fileName: string;
+  filePath: string;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -318,6 +323,12 @@ export interface ModalState {
   fileMoveData?: FileMoveData;
   openFileMoveModal: (data: FileMoveData) => void;
   closeFileMoveModal: () => void;
+
+  // Share Document Modal State
+  isShareDocumentModalOpen: boolean;
+  shareDocumentData?: ShareDocumentData;
+  openShareDocumentModal: (data: ShareDocumentData) => void;
+  closeShareDocumentModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -444,6 +455,11 @@ const initialFileMoveModalState = {
   fileMoveData: undefined,
 };
 
+const initialShareDocumentModalState = {
+  isShareDocumentModalOpen: false,
+  shareDocumentData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -462,6 +478,7 @@ const createInitialModalState = () => ({
   ...initialCreateFolderModalState,
   ...initialFolderDeleteConfirmationModalState,
   ...initialFileMoveModalState,
+  ...initialShareDocumentModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -880,5 +897,12 @@ export const useModalStore = create<ModalState>((set, get) => {
       fileMoveData: data,
     }),
     closeFileMoveModal: () => set(initialFileMoveModalState),
+
+    // Share Document Modal
+    openShareDocumentModal: (data: ShareDocumentData) => set({
+      isShareDocumentModalOpen: true,
+      shareDocumentData: data,
+    }),
+    closeShareDocumentModal: () => set(initialShareDocumentModalState),
   };
 });
