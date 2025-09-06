@@ -352,7 +352,8 @@ export function CloudStorageItemCard({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {type === 'folder' ? (
-                      <DropdownMenuItem onSelect={() => {
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault()
                         if (onOpen) onOpen()
                       }}>
                         <FolderOpen className="h-4 w-4 mr-2" />
@@ -361,7 +362,8 @@ export function CloudStorageItemCard({
                     ) : (
                       <>
                         {canPreview() ? (
-                          <DropdownMenuItem onSelect={() => {
+                          <DropdownMenuItem onSelect={(e) => {
+                            e.preventDefault()
                             if (onPreview) {
                               onPreview()
                             } else {
@@ -372,7 +374,8 @@ export function CloudStorageItemCard({
                             Vorschau
                           </DropdownMenuItem>
                         ) : (
-                          <DropdownMenuItem onSelect={() => {
+                          <DropdownMenuItem onSelect={(e) => {
+                            e.preventDefault()
                             if (onOpen) onOpen()
                           }}>
                             <Eye className="h-4 w-4 mr-2" />
@@ -383,7 +386,8 @@ export function CloudStorageItemCard({
                     )}
                     
                     {type === 'file' && onDownload && (
-                      <DropdownMenuItem onSelect={() => {
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault()
                         onDownload()
                       }}>
                         <Download className="h-4 w-4 mr-2" />
@@ -394,7 +398,8 @@ export function CloudStorageItemCard({
                     <DropdownMenuSeparator />
                     
                     {type === 'file' && (
-                      <DropdownMenuItem onSelect={() => {
+                      <DropdownMenuItem onSelect={(e) => {
+                        e.preventDefault()
                         if (onRename) {
                           onRename()
                         } else {
@@ -406,31 +411,58 @@ export function CloudStorageItemCard({
                       </DropdownMenuItem>
                     )}
                     
-                    <DropdownMenuItem onClick={onMove || (() => console.log('Move placeholder'))}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      if (onMove) {
+                        onMove()
+                      } else {
+                        console.log('Move placeholder')
+                      }
+                    }}>
                       <Move className="h-4 w-4 mr-2" />
                       Verschieben
                     </DropdownMenuItem>
                     
-                    <DropdownMenuItem onClick={() => console.log('Copy placeholder')}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      console.log('Copy placeholder')
+                    }}>
                       <Copy className="h-4 w-4 mr-2" />
                       Kopieren
                     </DropdownMenuItem>
                     
                     <DropdownMenuSeparator />
                     
-                    <DropdownMenuItem onClick={onShare || (() => console.log('Share placeholder'))}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      if (onShare) {
+                        onShare()
+                      } else {
+                        console.log('Share placeholder')
+                      }
+                    }}>
                       <Share2 className="h-4 w-4 mr-2" />
                       Teilen
                     </DropdownMenuItem>
                     
-                    <DropdownMenuItem onClick={onStar || (() => console.log('Star placeholder'))}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      if (onStar) {
+                        onStar()
+                      } else {
+                        console.log('Star placeholder')
+                      }
+                    }}>
                       <Star className="h-4 w-4 mr-2" />
                       Zu Favoriten hinzufügen
                     </DropdownMenuItem>
                     
                     <DropdownMenuSeparator />
                     
-                    <DropdownMenuItem onClick={() => console.log('Properties placeholder')}>
+                    <DropdownMenuItem onSelect={(e) => {
+                      e.preventDefault()
+                      console.log('Properties placeholder')
+                    }}>
                       <Eye className="h-4 w-4 mr-2" />
                       Eigenschaften
                     </DropdownMenuItem>
@@ -438,7 +470,8 @@ export function CloudStorageItemCard({
                     {onDelete && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => {
+                        <DropdownMenuItem onSelect={(e) => {
+                          e.preventDefault()
                           onDelete()
                         }} className="text-destructive">
                           <Trash2 className="h-4 w-4 mr-2" />
