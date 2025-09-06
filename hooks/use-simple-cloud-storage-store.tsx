@@ -23,6 +23,29 @@ export interface VirtualFolder {
   displayName?: string
 }
 
+/**
+ * Helper function to determine if a folder can be deleted
+ * Only custom storage folders can be deleted, not system folders
+ */
+export function isFolderDeletable(folder: VirtualFolder): boolean {
+  // Only allow deletion of custom storage folders
+  if (folder.type !== 'storage') {
+    return false
+  }
+  
+  // Additional checks for specific system folders that might be marked as 'storage'
+  const systemFolderNames = [
+    'Miscellaneous',
+    'house_documents', 
+    'apartment_documents',
+    'Hausdokumente',
+    'Wohnungsdokumente',
+    'Sonstiges'
+  ]
+  
+  return !systemFolderNames.includes(folder.name)
+}
+
 export interface BreadcrumbItem {
   name: string
   path: string

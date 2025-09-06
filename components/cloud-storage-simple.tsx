@@ -10,7 +10,7 @@ import {
   ArrowUp
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useSimpleCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem } from "@/hooks/use-simple-cloud-storage-store"
+import { useSimpleCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-simple-cloud-storage-store"
 import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
@@ -631,7 +631,7 @@ export function CloudStorageSimple({
                   isSelected={selectedItems.has(folder.path)}
                   onSelect={(selected) => handleItemSelect(folder.path, selected)}
                   onOpen={() => handleFolderClick(folder)}
-                  onDelete={() => handleFolderDelete(folder)}
+                  onDelete={isFolderDeletable(folder) ? () => handleFolderDelete(folder) : undefined}
                 />
               ))}
 

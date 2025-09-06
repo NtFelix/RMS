@@ -1168,9 +1168,38 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
       }
     }
 
-    // Check if it's a protected system folder (house, apartment, tenant folders)
+    // Check if it's a protected system folder (house, apartment, tenant, or category folders)
     const pathSegments = folderPath.split('/')
-    const isSystemFolder = pathSegments.length <= 3 && pathSegments[1] !== 'Miscellaneous'
+    
+    // Protect system folders and category folders
+    if (pathSegments.length === 2) {
+      // Root level folders - could be house folders or Miscellaneous
+      if (pathSegments[1] === 'Miscellaneous') {
+        return {
+          success: false,
+          error: 'Der Ordner "Sonstiges" ist ein Systemordner und kann nicht gelöscht werden'
+        }
+      }
+    } else if (pathSegments.length === 3) {
+      // Could be apartment folders or category folders like house_documents
+      if (pathSegments[2] === 'house_documents') {
+        return {
+          success: false,
+          error: 'Der Ordner "Hausdokumente" ist ein Systemordner und kann nicht gelöscht werden'
+        }
+      }
+    } else if (pathSegments.length === 4) {
+      // Could be tenant folders or category folders like apartment_documents
+      if (pathSegments[3] === 'apartment_documents') {
+        return {
+          success: false,
+          error: 'Der Ordner "Wohnungsdokumente" ist ein Systemordner und kann nicht gelöscht werden'
+        }
+      }
+    }
+
+    // Check if it's a system folder that exists in the database
+    const isSystemFolder = pathSegments.length <= 4 && pathSegments[1] !== 'Miscellaneous'
     
     if (isSystemFolder) {
       // For system folders (house/apartment/tenant), we need to check if they exist in the database
