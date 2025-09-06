@@ -45,7 +45,9 @@ const globalDropdownManager = {
   callbacks: new Set<() => void>(),
   register: (closeCallback: () => void) => {
     globalDropdownManager.callbacks.add(closeCallback)
-    return () => globalDropdownManager.callbacks.delete(closeCallback)
+    return () => {
+      globalDropdownManager.callbacks.delete(closeCallback)
+    }
   },
   closeAll: (except?: () => void) => {
     globalDropdownManager.callbacks.forEach(callback => {
