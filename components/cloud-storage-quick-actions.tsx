@@ -16,7 +16,8 @@ import {
   List,
   SortAsc,
   Image,
-  FileText
+  FileText,
+  Plus
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -176,15 +177,25 @@ export function CloudStorageQuickActions({
             </Button>
           </div>
 
-          <Button variant="outline" onClick={onCreateFolder} className="h-9">
-            <FolderPlus className="h-4 w-4 mr-2" />
-            Ordner erstellen
-          </Button>
-          
-          <Button onClick={onUpload} className="h-9">
-            <Upload className="h-4 w-4 mr-2" />
-            Hochladen
-          </Button>
+          {/* Unified add/upload dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="h-9">
+                <Plus className="h-4 w-4 mr-2" />
+                Hinzufügen
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={onUpload}>
+                <Upload className="h-4 w-4 mr-2" />
+                Dateien hochladen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onCreateFolder}>
+                <FolderPlus className="h-4 w-4 mr-2" />
+                Ordner erstellen
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
