@@ -197,20 +197,19 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
         folder.path.split('/').length === 2 // Only root level custom folders
       )
       
-      customFolders.forEach(folder => {
-        const customFolderNode: TreeNode = {
-          id: `custom-${folder.name}`,
-          name: folder.displayName || folder.name,
-          path: folder.path,
-          type: 'category',
-          icon: Folder,
-          children: [],
-          isExpanded: expandedNodes.has(`custom-${folder.name}`),
-          fileCount: folder.fileCount,
-          isEmpty: folder.isEmpty
-        }
-        categories.push(customFolderNode)
-      })
+      const customFolderNodes = customFolders.map(folder => ({
+        id: `custom-${folder.name}`,
+        name: folder.displayName || folder.name,
+        path: folder.path,
+        type: 'category' as const,
+        icon: Folder,
+        children: [] as TreeNode[],
+        isExpanded: expandedNodes.has(`custom-${folder.name}`),
+        fileCount: folder.fileCount,
+        isEmpty: folder.isEmpty
+      }))
+      
+      categories.push(...customFolderNodes)
 
       rootNode.children = categories
       return [rootNode]

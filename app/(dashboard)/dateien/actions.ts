@@ -1312,36 +1312,4 @@ export async function deleteFolder(userId: string, folderPath: string): Promise<
     }
   }
 }
-// Helper
- function to count files recursively
-async function countFilesRecursively(supabase: any, path: string): Promise<number> {
-  try {
-    const { data: contents, error } = await supabase.storage
-      .from('documents')
-      .list(path, { limit: 100 })
-    
-    if (error || !contents) return 0
-    
-    let fileCount = 0
-    
-    for (const item of contents) {
-      if (item.name === '.keep') continue
-      
-      if (item.metadata?.size) {
-        // It's a file
-        fileCount++
-      } else if (!item.name.includes('.')) {
-        // It's a folder, count recursively (with depth limit)
-        const depth = (path.match(/\//g) || []).length
-        if (depth < 10) {
-          const subPath = `${path}/${item.name}`
-          fileCount += await countFilesRecursively(supabase, subPath)
-        }
-      }
-    }
-    
-    return fileCount
-  } catch (error) {
-    return 0
-  }
-}
+
