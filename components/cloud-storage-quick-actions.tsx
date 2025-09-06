@@ -154,8 +154,28 @@ export function CloudStorageQuickActions({
           </DropdownMenu>
         </div>
 
-        {/* Primary action buttons on the right */}
+        {/* Primary action buttons and view controls on the right */}
         <div className="flex items-center space-x-2">
+          {/* View mode toggle */}
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onViewMode('grid')}
+              className="rounded-r-none h-9 px-3"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onViewMode('list')}
+              className="rounded-l-none h-9 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
+
           <Button variant="outline" onClick={onCreateFolder} className="h-9">
             <FolderPlus className="h-4 w-4 mr-2" />
             Ordner erstellen
@@ -168,60 +188,34 @@ export function CloudStorageQuickActions({
         </div>
       </div>
 
-      {/* Secondary actions and controls */}
+      {/* Bulk actions when items are selected */}
       {selectedCount > 0 && (
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            {/* Bulk actions when items are selected */}
-            <Badge variant="secondary" className="px-3 py-1">
-              {selectedCount} ausgewählt
-            </Badge>
+        <div className="flex items-center space-x-2">
+          <Badge variant="secondary" className="px-3 py-1">
+            {selectedCount} ausgewählt
+          </Badge>
+          
+          <div className="flex items-center space-x-1">
+            {onBulkDownload && (
+              <Button variant="outline" size="sm" onClick={onBulkDownload}>
+                <Download className="h-4 w-4 mr-1" />
+                Herunterladen
+              </Button>
+            )}
             
-            <div className="flex items-center space-x-1">
-              {onBulkDownload && (
-                <Button variant="outline" size="sm" onClick={onBulkDownload}>
-                  <Download className="h-4 w-4 mr-1" />
-                  Herunterladen
-                </Button>
-              )}
-              
-              {onBulkArchive && (
-                <Button variant="outline" size="sm" onClick={onBulkArchive}>
-                  <Archive className="h-4 w-4 mr-1" />
-                  Archivieren
-                </Button>
-              )}
-              
-              {onBulkDelete && (
-                <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Löschen
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* View controls on the right */}
-          <div className="flex items-center space-x-2">
-            {/* View mode toggle */}
-            <div className="flex border rounded-md">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewMode('grid')}
-                className="rounded-r-none h-8 px-3"
-              >
-                <Grid3X3 className="h-4 w-4" />
+            {onBulkArchive && (
+              <Button variant="outline" size="sm" onClick={onBulkArchive}>
+                <Archive className="h-4 w-4 mr-1" />
+                Archivieren
               </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onViewMode('list')}
-                className="rounded-l-none h-8 px-3"
-              >
-                <List className="h-4 w-4" />
+            )}
+            
+            {onBulkDelete && (
+              <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
+                <Trash2 className="h-4 w-4 mr-1" />
+                Löschen
               </Button>
-            </div>
+            )}
           </div>
         </div>
       )}
