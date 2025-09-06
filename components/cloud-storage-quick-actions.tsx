@@ -70,15 +70,88 @@ export function CloudStorageQuickActions({
     <div className="space-y-4">
       {/* Search and primary actions row */}
       <div className="flex items-center justify-between gap-4">
-        {/* Search input on the left */}
-        <div className="relative flex-shrink-0">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Dateien und Ordner durchsuchen..."
-            value={searchQuery}
-            onChange={(e) => onSearch(e.target.value)}
-            className="pl-10 h-9 w-80"
-          />
+        {/* Search input and sort button on the left */}
+        <div className="flex items-center space-x-2">
+          <div className="relative flex-shrink-0">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Dateien und Ordner durchsuchen..."
+              value={searchQuery}
+              onChange={(e) => onSearch(e.target.value)}
+              className="pl-10 h-9 w-80"
+            />
+          </div>
+          
+          {/* Sort dropdown next to search */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                <SortAsc className="h-4 w-4 mr-2" />
+                Sortieren
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => onSort('name')}>
+                Nach Name
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSort('date')}>
+                Nach Datum (neueste zuerst)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSort('size')}>
+                Nach Größe (größte zuerst)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSort('type')}>
+                Nach Dateityp
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Categories dropdown next to sort */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9">
+                <Filter className="h-4 w-4 mr-2" />
+                Kategorien
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => handleFilterChange('all')}>
+                <span className="flex items-center">
+                  Alle
+                  {activeFilter === 'all' && <span className="ml-2 text-xs">✓</span>}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleFilterChange('folders')}>
+                <span className="flex items-center">
+                  <FolderPlus className="h-3 w-3 mr-2" />
+                  Ordner
+                  {activeFilter === 'folders' && <span className="ml-2 text-xs">✓</span>}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFilterChange('images')}>
+                <span className="flex items-center">
+                  <Image className="h-3 w-3 mr-2" />
+                  Bilder
+                  {activeFilter === 'images' && <span className="ml-2 text-xs">✓</span>}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFilterChange('documents')}>
+                <span className="flex items-center">
+                  <FileText className="h-3 w-3 mr-2" />
+                  Dokumente
+                  {activeFilter === 'documents' && <span className="ml-2 text-xs">✓</span>}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleFilterChange('recent')}>
+                <span className="flex items-center">
+                  <Clock className="h-3 w-3 mr-2" />
+                  Kürzlich
+                  {activeFilter === 'recent' && <span className="ml-2 text-xs">✓</span>}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Primary action buttons on the right */}
@@ -96,139 +169,62 @@ export function CloudStorageQuickActions({
       </div>
 
       {/* Secondary actions and controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          {/* Filter buttons */}
-          <Button
-            variant={activeFilter === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange('all')}
-            className="h-8"
-          >
-            Alle
-          </Button>
-          
-          <Button
-            variant={activeFilter === 'folders' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange('folders')}
-            className="h-8"
-          >
-            <FolderPlus className="h-3 w-3 mr-1" />
-            Ordner
-          </Button>
-          
-          <Button
-            variant={activeFilter === 'images' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange('images')}
-            className="h-8"
-          >
-            <Image className="h-3 w-3 mr-1" />
-            Bilder
-          </Button>
-          
-          <Button
-            variant={activeFilter === 'documents' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange('documents')}
-            className="h-8"
-          >
-            <FileText className="h-3 w-3 mr-1" />
-            Dokumente
-          </Button>
-          
-          <Button
-            variant={activeFilter === 'recent' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleFilterChange('recent')}
-            className="h-8"
-          >
-            <Clock className="h-3 w-3 mr-1" />
-            Kürzlich
-          </Button>
-
-          {/* Bulk actions when items are selected */}
-          {selectedCount > 0 && (
-            <>
-              <Separator orientation="vertical" className="h-6" />
-              <Badge variant="secondary" className="px-3 py-1">
-                {selectedCount} ausgewählt
-              </Badge>
+      {selectedCount > 0 && (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            {/* Bulk actions when items are selected */}
+            <Badge variant="secondary" className="px-3 py-1">
+              {selectedCount} ausgewählt
+            </Badge>
+            
+            <div className="flex items-center space-x-1">
+              {onBulkDownload && (
+                <Button variant="outline" size="sm" onClick={onBulkDownload}>
+                  <Download className="h-4 w-4 mr-1" />
+                  Herunterladen
+                </Button>
+              )}
               
-              <div className="flex items-center space-x-1">
-                {onBulkDownload && (
-                  <Button variant="outline" size="sm" onClick={onBulkDownload}>
-                    <Download className="h-4 w-4 mr-1" />
-                    Herunterladen
-                  </Button>
-                )}
-                
-                {onBulkArchive && (
-                  <Button variant="outline" size="sm" onClick={onBulkArchive}>
-                    <Archive className="h-4 w-4 mr-1" />
-                    Archivieren
-                  </Button>
-                )}
-                
-                {onBulkDelete && (
-                  <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Löschen
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+              {onBulkArchive && (
+                <Button variant="outline" size="sm" onClick={onBulkArchive}>
+                  <Archive className="h-4 w-4 mr-1" />
+                  Archivieren
+                </Button>
+              )}
+              
+              {onBulkDelete && (
+                <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Löschen
+                </Button>
+              )}
+            </div>
+          </div>
 
-        {/* View controls on the right */}
-        <div className="flex items-center space-x-2">
-          {/* Sort dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <SortAsc className="h-4 w-4 mr-2" />
-                Sortieren
+          {/* View controls on the right */}
+          <div className="flex items-center space-x-2">
+            {/* View mode toggle */}
+            <div className="flex border rounded-md">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => onViewMode('grid')}
+                className="rounded-r-none h-8 px-3"
+              >
+                <Grid3X3 className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onSort('name')}>
-                Nach Name
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSort('date')}>
-                Nach Datum (neueste zuerst)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSort('size')}>
-                Nach Größe (größte zuerst)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSort('type')}>
-                Nach Dateityp
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* View mode toggle */}
-          <div className="flex border rounded-md">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onViewMode('grid')}
-              className="rounded-r-none h-8 px-3"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onViewMode('list')}
-              className="rounded-l-none h-8 px-3"
-            >
-              <List className="h-4 w-4" />
-            </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => onViewMode('list')}
+                className="rounded-l-none h-8 px-3"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
