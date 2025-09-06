@@ -32,6 +32,37 @@ export interface BreadcrumbItem {
 // Cache for preventing concurrent requests to the same path
 const requestCache = new Map<string, Promise<any>>()
 
+// Helper function to check if a folder ID exists in the database
+async function isValidHouseId(supabase: any, userId: string, houseId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('Haeuser')
+      .select('id')
+      .eq('id', houseId)
+      .eq('user_id', userId)
+      .single()
+    
+    return !error && data
+  } catch {
+    return false
+  }
+}
+
+async function isValidApartmentId(supabase: any, userId: string, apartmentId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('Wohnungen')
+      .select('id')
+      .eq('id', apartmentId)
+      .eq('user_id', userId)
+      .single()
+    
+    return !error && data
+  } catch {
+    return false
+  }
+}
+
 export async function getInitialFiles(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -228,11 +259,31 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       }
     }
 
-    // Check if this is a house folder - if so, create apartment subfolders
+    // Check if this is a house or apartment folder - only if they exist in the database
     const pathSegments = targetPath.split('/')
     const userId = pathSegments[0].replace('user_', '')
-    const isHouseFolder = pathSegments.length === 2 && pathSegments[1] !== 'Miscellaneous'
-    const isApartmentFolder = pathSegments.length === 3 && pathSegments[1] !== 'Miscellaneous'
+    
+    // Check if this could be a house folder (depth 2, not Miscellaneous)
+    const couldBeHouseFolder = pathSegments.length === 2 && pathSegments[1] !== 'Miscellaneous'
+    const couldBeApartmentFolder = pathSegments.length === 3 && pathSegments[1] !== 'Miscellaneous'
+    
+    let isActualHouseFolder = false
+    let isActualApartmentFolder = false
+    
+    if (couldBeHouseFolder) {
+      const houseId = pathSegments[1]
+      isActualHouseFolder = await isValidHouseId(supabase, userId, houseId)
+    }
+    
+    if (couldBeApartmentFolder) {
+      const houseId = pathSegments[1]
+      const apartmentId = pathSegments[2]
+      // Only check if apartment is valid if the house is also valid
+      const isValidHouse = await isValidHouseId(supabase, userId, houseId)
+      if (isValidHouse) {
+        isActualApartmentFolder = await isValidApartmentId(supabase, userId, apartmentId)
+      }
+    }
     
     // Debug logging in development
     if (process.env.NODE_ENV === 'development') {
@@ -240,18 +291,20 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
         targetPath,
         pathSegments,
         userId,
-        isHouseFolder,
-        isApartmentFolder,
+        couldBeHouseFolder,
+        couldBeApartmentFolder,
+        isActualHouseFolder,
+        isActualApartmentFolder,
         segmentCount: pathSegments.length
       })
     }
     
-    if (isHouseFolder) {
+    if (isActualHouseFolder) {
       const houseId = pathSegments[1]
       return await getHouseFolderContents(supabase, userId, houseId, targetPath, data || [])
     }
     
-    if (isApartmentFolder) {
+    if (isActualApartmentFolder) {
       const houseId = pathSegments[1]
       const apartmentId = pathSegments[2]
       return await getApartmentFolderContentsInternal(supabase, userId, houseId, apartmentId, targetPath, data || [])
@@ -744,54 +797,92 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
 
       // Try to resolve friendly names depending on depth
       if (i === 1) {
-        // House level
-        try {
-          const { data: house } = await supabase
-            .from('Haeuser')
-            .select('name')
-            .eq('id', segment)
-            .single()
-          crumbs.push({ name: house?.name || mapCategoryName(segment), path: currentPath, type: 'house' })
-        } catch {
-          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'house' })
+        // Potential house level - check if it's actually a house in the database
+        if (segment === 'Miscellaneous') {
+          crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+        } else {
+          // Check if this is a valid house ID
+          const isValidHouse = await isValidHouseId(supabase, userId, segment)
+          if (isValidHouse) {
+            try {
+              const { data: house } = await supabase
+                .from('Haeuser')
+                .select('name')
+                .eq('id', segment)
+                .single()
+              crumbs.push({ name: house?.name || segment, path: currentPath, type: 'house' })
+            } catch {
+              crumbs.push({ name: segment, path: currentPath, type: 'house' })
+            }
+          } else {
+            // It's a custom folder, treat as category
+            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+          }
         }
         continue
       }
 
       if (i === 2) {
-        // Apartment level or category under house
+        // Potential apartment level or category under house/custom folder
         if (segment === 'house_documents' || segment === 'Miscellaneous') {
           crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
         } else {
-          try {
-            const { data: apartment } = await supabase
-              .from('Wohnungen')
-              .select('name')
-              .eq('id', segment)
-              .single()
-            crumbs.push({ name: apartment?.name || mapCategoryName(segment), path: currentPath, type: 'apartment' })
-          } catch {
-            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'apartment' })
+          // Check if the parent is a valid house and this is a valid apartment
+          const parentSegment = pathSegments[i - 1]
+          const isParentValidHouse = await isValidHouseId(supabase, userId, parentSegment)
+          
+          if (isParentValidHouse) {
+            const isValidApartment = await isValidApartmentId(supabase, userId, segment)
+            if (isValidApartment) {
+              try {
+                const { data: apartment } = await supabase
+                  .from('Wohnungen')
+                  .select('name')
+                  .eq('id', segment)
+                  .single()
+                crumbs.push({ name: apartment?.name || segment, path: currentPath, type: 'apartment' })
+              } catch {
+                crumbs.push({ name: segment, path: currentPath, type: 'apartment' })
+              }
+            } else {
+              // It's a custom folder under a house
+              crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+            }
+          } else {
+            // Parent is not a house, so this is just a custom folder
+            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
           }
         }
         continue
       }
 
       if (i === 3) {
-        // Tenant level or category under apartment
+        // Potential tenant level or category under apartment/custom folder
         if (segment === 'apartment_documents') {
           crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
         } else {
-          try {
-            const { data: tenant } = await supabase
-              .from('Mieter')
-              .select('name, vorname')
-              .eq('id', segment)
-              .single()
-            const tenantName = tenant ? `${tenant.vorname ?? ''} ${tenant.name ?? ''}`.trim() : null
-            crumbs.push({ name: tenantName || mapCategoryName(segment), path: currentPath, type: 'tenant' })
-          } catch {
-            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'tenant' })
+          // Check if we're under a valid apartment
+          const grandParentSegment = pathSegments[i - 2]
+          const parentSegment = pathSegments[i - 1]
+          const isGrandParentValidHouse = await isValidHouseId(supabase, userId, grandParentSegment)
+          const isParentValidApartment = isGrandParentValidHouse && await isValidApartmentId(supabase, userId, parentSegment)
+          
+          if (isParentValidApartment) {
+            try {
+              const { data: tenant } = await supabase
+                .from('Mieter')
+                .select('name, vorname')
+                .eq('id', segment)
+                .single()
+              const tenantName = tenant ? `${tenant.vorname ?? ''} ${tenant.name ?? ''}`.trim() : null
+              crumbs.push({ name: tenantName || segment, path: currentPath, type: 'tenant' })
+            } catch {
+              // Not a valid tenant, treat as custom folder
+              crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
+            }
+          } else {
+            // Not under a valid apartment, treat as custom folder
+            crumbs.push({ name: mapCategoryName(segment), path: currentPath, type: 'category' })
           }
         }
         continue
