@@ -12,7 +12,6 @@ import {
   Eye, 
   Trash2, 
   MoreHorizontal,
-  Star,
   Share2,
   Edit3,
   Copy,
@@ -54,7 +53,6 @@ interface ItemCardProps {
   onRename?: () => void
   onMove?: () => void
   onShare?: () => void
-  onStar?: () => void
   className?: string
 }
 
@@ -71,7 +69,6 @@ export function CloudStorageItemCard({
   onRename,
   onMove,
   onShare,
-  onStar,
   className
 }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -281,11 +278,6 @@ export function CloudStorageItemCard({
         Teilen
       </ContextMenuItem>
       
-      <ContextMenuItem onClick={onStar || (() => console.log('Star placeholder'))}>
-        <Star className="h-4 w-4 mr-2" />
-        Zu Favoriten hinzufügen
-      </ContextMenuItem>
-      
       <ContextMenuSeparator />
       
       <ContextMenuItem onClick={() => console.log('Properties placeholder')}>
@@ -478,19 +470,6 @@ export function CloudStorageItemCard({
                     }}>
                       <Share2 className="h-4 w-4 mr-2" />
                       Teilen
-                    </DropdownMenuItem>
-                    
-                    <DropdownMenuItem onSelect={(e) => {
-                      e.preventDefault()
-                      setIsDropdownOpen(false)
-                      if (onStar) {
-                        onStar()
-                      } else {
-                        console.log('Star placeholder')
-                      }
-                    }}>
-                      <Star className="h-4 w-4 mr-2" />
-                      Zu Favoriten hinzufügen
                     </DropdownMenuItem>
                     
                     <DropdownMenuSeparator />
