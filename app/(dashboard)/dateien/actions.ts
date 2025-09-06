@@ -63,6 +63,14 @@ async function isValidApartmentId(supabase: any, userId: string, apartmentId: st
   }
 }
 
+// Helper function to discover subdirectories by trying to list them directly
+async function discoverSubdirectories(supabase: any, targetPath: string): Promise<VirtualFolder[]> {
+  // For now, let's disable this function and rely on the normal listing
+  // The issue seems to be that Supabase storage doesn't list empty directories
+  // But when we create folders with .keep files, they should appear in the normal list
+  return []
+}
+
 export async function getInitialFiles(userId: string, path?: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -219,6 +227,85 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       })
     }
 
+    // Try to discover custom folders by listing all files under the user directory
+    try {
+      // Get all files under the user directory (recursive)
+      const { data: userFiles, error: userFilesError } = await supabase.storage
+        .from('documents')
+        .list(targetPath, {
+          limit: 10000 // High limit to get all files
+        })
+
+      if (!userFilesError && userFiles) {
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Debug - Discovered custom folders:', {
+            totalFiles: userFiles.length,
+            targetPath
+          })
+        }
+
+        const discoveredFolders = new Set<string>()
+
+        // Look through all files to find directory indicators
+        for (const file of userFiles) {
+          if (file.name && file.name.includes('/')) {
+            // This file is in a subdirectory
+            const folderName = file.name.split('/')[0]
+            discoveredFolders.add(folderName)
+            
+
+          } else if (file.name && !file.metadata && !file.name.includes('.')) {
+            // This might be a directory itself
+            discoveredFolders.add(file.name)
+            
+
+          }
+        }
+
+        // Add discovered folders to the list
+        for (const folderName of discoveredFolders) {
+          const exists = folders.some(f => f.name === folderName)
+          if (!exists) {
+            const folderPath = `${targetPath}/${folderName}`
+            
+            // Try to get more info about the folder
+            try {
+              const { data: folderContents } = await supabase.storage
+                .from('documents')
+                .list(folderPath, { limit: 100 })
+              
+              folders.push({
+                name: folderName,
+                path: folderPath,
+                type: 'storage',
+                isEmpty: !folderContents || folderContents.filter(item => item.name !== '.keep').length === 0,
+                children: [],
+                fileCount: folderContents ? folderContents.filter(item => item.name !== '.keep').length : 0,
+                displayName: folderName
+              })
+
+
+            } catch (error) {
+              // If we can't list the folder contents, still add it
+              folders.push({
+                name: folderName,
+                path: folderPath,
+                type: 'storage',
+                isEmpty: true,
+                children: [],
+                fileCount: 0,
+                displayName: folderName
+              })
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Debug - Error in root folder discovery:', error)
+      }
+    }
+
     return { files, folders }
   } catch (error) {
     // Log error only in development
@@ -258,6 +345,8 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
         error: 'Fehler beim Laden der Dateien'
       }
     }
+
+
 
     // Check if this is a house or apartment folder - only if they exist in the database
     const pathSegments = targetPath.split('/')
@@ -314,12 +403,18 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
     const files: StorageFile[] = []
     const folders: VirtualFolder[] = []
 
+    // First, process the items returned by Supabase
     ;(data || []).forEach((item: any) => {
       // Skip placeholder files
       if (item.name === '.keep') return
       
-      // Check if it's a folder (no metadata.size indicates a folder in Supabase)
-      if (!item.metadata?.size && !item.name.includes('.')) {
+      // Check if it's a folder - Supabase returns folders as items with null metadata or no size
+      // The key indicator is that folders have null metadata, not just size 0
+      const isFolder = (item.metadata === null || item.metadata === undefined) && 
+                      !item.name.includes('.') && 
+                      item.name !== '.keep'
+      
+      if (isFolder) {
         folders.push({
           name: item.name,
           path: `${targetPath}/${item.name}`,
@@ -328,8 +423,8 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
           children: [], // Add children property
           fileCount: 0   // Default to 0, will be updated by the client
         })
-      } else {
-        // It's a file
+      } else if (item.metadata?.size > 0) {
+        // It's a file with actual content
         files.push({
           name: item.name,
           id: item.id || item.name,
@@ -341,6 +436,83 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
         })
       }
     })
+
+    // Try to discover folders using search functionality
+    try {
+      const { data: searchResults, error: searchError } = await supabase.storage
+        .from('documents')
+        .list('', {
+          limit: 1000,
+          search: targetPath
+        })
+
+      if (!searchError && searchResults) {
+
+
+        const targetPrefix = `${targetPath}/`
+        const discoveredFolders = new Set<string>()
+
+        for (const result of searchResults) {
+          if (result.name && result.name.startsWith(targetPrefix)) {
+            const relativePath = result.name.substring(targetPrefix.length)
+            const pathParts = relativePath.split('/')
+            
+            if (pathParts.length >= 2) {
+              const folderName = pathParts[0]
+              discoveredFolders.add(folderName)
+            }
+          }
+        }
+
+        // Add discovered folders to the list
+        for (const folderName of discoveredFolders) {
+          const exists = folders.some(f => f.name === folderName)
+          if (!exists) {
+            const folderPath = `${targetPath}/${folderName}`
+            
+            // Try to get more info about the folder
+            try {
+              const { data: folderContents } = await supabase.storage
+                .from('documents')
+                .list(folderPath, { limit: 100 })
+              
+              folders.push({
+                name: folderName,
+                path: folderPath,
+                type: 'storage',
+                isEmpty: !folderContents || folderContents.filter(item => item.name !== '.keep').length === 0,
+                children: [],
+                fileCount: folderContents ? folderContents.filter(item => item.name !== '.keep').length : 0,
+                displayName: folderName
+              })
+
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Debug - Added discovered folder:', {
+                  folderName,
+                  folderPath,
+                  fileCount: folderContents ? folderContents.length : 0
+                })
+              }
+            } catch (error) {
+              // If we can't list the folder contents, still add it
+              folders.push({
+                name: folderName,
+                path: folderPath,
+                type: 'storage',
+                isEmpty: true,
+                children: [],
+                fileCount: 0,
+                displayName: folderName
+              })
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Debug - Error in folder discovery:', error)
+      }
+    }
 
     return { files, folders }
   } catch (error) {
