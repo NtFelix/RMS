@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileUploadZone } from "@/components/file-upload-zone"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useCloudStorageStore } from "@/hooks/use-cloud-storage-store"
@@ -93,12 +92,6 @@ export function FileUploadModal() {
             className="h-full"
           />
         </div>
-
-        <DialogFooter className="flex-shrink-0">
-          <Button variant="outline" onClick={closeUploadModal}>
-            Schließen
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
