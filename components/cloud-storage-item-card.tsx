@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { 
   File, 
   FileText, 
@@ -40,19 +40,25 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { useSimpleCloudStorageStore } from "@/hooks/use-simple-cloud-storage-store"
 
 // Global dropdown manager to ensure only one dropdown is open at a time
-let globalDropdownCloseCallbacks: Set<() => void> = new Set()
-
-const registerDropdown = (closeCallback: () => void) => {
-  globalDropdownCloseCallbacks.add(closeCallback)
-  return () => globalDropdownCloseCallbacks.delete(closeCallback)
-}
-
-const closeAllDropdowns = (except?: () => void) => {
-  globalDropdownCloseCallbacks.forEach(callback => {
-    if (callback !== except) {
-      callback()
-    }
-  })
+// Using a more React-friendly approach that works with SSR and strict mode
+const globalDropdownManager = {
+  callbacks: new Set<() => void>(),
+  register: (closeCallback: () => void) => {
+    globalDropdownManager.callbacks.add(closeCallback)
+    return () => globalDropdownManager.callbacks.delete(closeCallback)
+  },
+  closeAll: (except?: () => void) => {
+    globalDropdownManager.callbacks.forEach(callback => {
+      if (callback !== except) {
+        try {
+          callback()
+        } catch (error) {
+          // Silently handle errors to prevent crashes
+          console.warn('Error closing dropdown:', error)
+        }
+      }
+    })
+  }
 }
 
 interface ItemCardProps {
@@ -92,19 +98,19 @@ export function CloudStorageItemCard({
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
 
   // Create a unique close callback for this dropdown
-  const closeThisDropdown = () => setIsDropdownOpen(false)
+  const closeThisDropdown = useCallback(() => setIsDropdownOpen(false), [])
 
   // Register this dropdown with the global manager
   useEffect(() => {
-    const unregister = registerDropdown(closeThisDropdown)
+    const unregister = globalDropdownManager.register(closeThisDropdown)
     return unregister
-  }, [])
+  }, [closeThisDropdown])
 
   // Handle dropdown open change with global management
   const handleDropdownOpenChange = (open: boolean) => {
     if (open) {
       // Close all other dropdowns before opening this one
-      closeAllDropdowns(closeThisDropdown)
+      globalDropdownManager.closeAll(closeThisDropdown)
     }
     setIsDropdownOpen(open)
   }
@@ -294,7 +300,7 @@ export function CloudStorageItemCard({
         </ContextMenuItem>
       )}
       
-      <ContextMenuItem onClick={onMove || (() => console.log('Move placeholder'))}>
+      <ContextMenuItem onSelect={onMove || (() => console.log('Move placeholder'))}>
         <Move className="h-4 w-4 mr-2" />
         Verschieben
       </ContextMenuItem>
@@ -302,7 +308,7 @@ export function CloudStorageItemCard({
       {type === 'file' && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => {
+          <ContextMenuItem onSelect={() => {
             if (onShare) {
               onShare()
             } else {
