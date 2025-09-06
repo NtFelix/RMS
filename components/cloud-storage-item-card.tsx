@@ -306,11 +306,13 @@ export function CloudStorageItemCard({
       {onDelete && (
         <>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onDelete()
-          }} className="text-destructive">
+          <ContextMenuItem 
+            onSelect={() => {
+              // onSelect automatically closes the context menu
+              onDelete()
+            }}
+            className="text-destructive"
+          >
             <Trash2 className="h-4 w-4 mr-2" />
             {type === 'folder' ? 'Ordner löschen' : 'Löschen'}
           </ContextMenuItem>
