@@ -14,7 +14,6 @@ import {
   MoreHorizontal,
   Share2,
   Edit3,
-  Copy,
   Move
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
@@ -266,10 +265,7 @@ export function CloudStorageItemCard({
         Verschieben
       </ContextMenuItem>
       
-      <ContextMenuItem onClick={() => console.log('Copy placeholder')}>
-        <Copy className="h-4 w-4 mr-2" />
-        Kopieren
-      </ContextMenuItem>
+
       
       <ContextMenuSeparator />
       
@@ -448,14 +444,7 @@ export function CloudStorageItemCard({
                       Verschieben
                     </DropdownMenuItem>
                     
-                    <DropdownMenuItem onSelect={(e) => {
-                      e.preventDefault()
-                      setIsDropdownOpen(false)
-                      console.log('Copy placeholder')
-                    }}>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Kopieren
-                    </DropdownMenuItem>
+
                     
                     <DropdownMenuSeparator />
                     
