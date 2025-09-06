@@ -68,103 +68,37 @@ export function CloudStorageQuickActions({
 
   return (
     <div className="space-y-4">
-      {/* Primary actions */}
-      <div className="flex items-center justify-between">
+      {/* Search and primary actions row */}
+      <div className="flex items-center justify-between gap-4">
+        {/* Search input on the left */}
+        <div className="relative flex-shrink-0">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Dateien und Ordner durchsuchen..."
+            value={searchQuery}
+            onChange={(e) => onSearch(e.target.value)}
+            className="pl-10 h-9 w-80"
+          />
+        </div>
+
+        {/* Primary action buttons on the right */}
         <div className="flex items-center space-x-2">
-          <Button onClick={onUpload} className="h-9">
-            <Upload className="h-4 w-4 mr-2" />
-            Hochladen
-          </Button>
-          
           <Button variant="outline" onClick={onCreateFolder} className="h-9">
             <FolderPlus className="h-4 w-4 mr-2" />
             Ordner erstellen
           </Button>
           
-          {selectedCount > 0 && (
-            <>
-              <Separator orientation="vertical" className="h-6" />
-              <Badge variant="secondary" className="px-3 py-1">
-                {selectedCount} ausgewählt
-              </Badge>
-              
-              <div className="flex items-center space-x-1">
-                {onBulkDownload && (
-                  <Button variant="outline" size="sm" onClick={onBulkDownload}>
-                    <Download className="h-4 w-4 mr-1" />
-                    Herunterladen
-                  </Button>
-                )}
-                
-                {onBulkArchive && (
-                  <Button variant="outline" size="sm" onClick={onBulkArchive}>
-                    <Archive className="h-4 w-4 mr-1" />
-                    Archivieren
-                  </Button>
-                )}
-                
-                {onBulkDelete && (
-                  <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Löschen
-                  </Button>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="flex items-center space-x-2">
-          {/* Sort dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <SortAsc className="h-4 w-4 mr-2" />
-                Sortieren
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onSort('name')}>
-                Nach Name
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSort('date')}>
-                Nach Datum (neueste zuerst)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSort('size')}>
-                Nach Größe (größte zuerst)
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onSort('type')}>
-                Nach Dateityp
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {/* View mode toggle */}
-          <div className="flex border rounded-md">
-            <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onViewMode('grid')}
-              className="rounded-r-none h-8 px-3"
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onViewMode('list')}
-              className="rounded-l-none h-8 px-3"
-            >
-              <List className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button onClick={onUpload} className="h-9">
+            <Upload className="h-4 w-4 mr-2" />
+            Hochladen
+          </Button>
         </div>
       </div>
 
-      {/* Search and filters */}
-      <div className="flex items-center justify-between space-x-4">
+      {/* Secondary actions and controls */}
+      <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          
+          {/* Filter buttons */}
           <Button
             variant={activeFilter === 'all' ? 'default' : 'outline'}
             size="sm"
@@ -213,17 +147,86 @@ export function CloudStorageQuickActions({
             <Clock className="h-3 w-3 mr-1" />
             Kürzlich
           </Button>
+
+          {/* Bulk actions when items are selected */}
+          {selectedCount > 0 && (
+            <>
+              <Separator orientation="vertical" className="h-6" />
+              <Badge variant="secondary" className="px-3 py-1">
+                {selectedCount} ausgewählt
+              </Badge>
+              
+              <div className="flex items-center space-x-1">
+                {onBulkDownload && (
+                  <Button variant="outline" size="sm" onClick={onBulkDownload}>
+                    <Download className="h-4 w-4 mr-1" />
+                    Herunterladen
+                  </Button>
+                )}
+                
+                {onBulkArchive && (
+                  <Button variant="outline" size="sm" onClick={onBulkArchive}>
+                    <Archive className="h-4 w-4 mr-1" />
+                    Archivieren
+                  </Button>
+                )}
+                
+                {onBulkDelete && (
+                  <Button variant="outline" size="sm" onClick={onBulkDelete} className="text-destructive hover:text-destructive">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Löschen
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Search input moved to the right */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Dateien und Ordner durchsuchen..."
-            value={searchQuery}
-            onChange={(e) => onSearch(e.target.value)}
-            className="pl-10 h-9 w-64"
-          />
+        {/* View controls on the right */}
+        <div className="flex items-center space-x-2">
+          {/* Sort dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <SortAsc className="h-4 w-4 mr-2" />
+                Sortieren
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onSort('name')}>
+                Nach Name
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSort('date')}>
+                Nach Datum (neueste zuerst)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSort('size')}>
+                Nach Größe (größte zuerst)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onSort('type')}>
+                Nach Dateityp
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* View mode toggle */}
+          <div className="flex border rounded-md">
+            <Button
+              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onViewMode('grid')}
+              className="rounded-r-none h-8 px-3"
+            >
+              <Grid3X3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onViewMode('list')}
+              className="rounded-l-none h-8 px-3"
+            >
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
