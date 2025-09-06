@@ -268,7 +268,7 @@ export function FileMoveModal({
     )
   }, [selectedPath, currentPath, handleFolderSelect, toggleFolder])
 
-  const itemName = 'name' in item ? item.name : item.displayName || item.name
+  const itemName = (item as any).displayName || (item as any).name || 'Unknown'
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

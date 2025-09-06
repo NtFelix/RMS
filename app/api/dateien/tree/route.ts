@@ -118,8 +118,8 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
       .eq('user_id', userId)
       .order('name')
 
-    const houseIds = new Set(houses?.map(h => h.id) || [])
-    const apartmentIds = new Set(apartments?.map(a => a.id) || [])
+    const houseIds = new Set(houses?.map((h: any) => h.id) || [])
+    const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])
 
     // Process discovered folders
     for (const folderName of discoveredFolders) {
@@ -129,7 +129,7 @@ async function loadRootTree(supabase: any, userId: string): Promise<TreeNode[]> 
 
       if (houseIds.has(folderName)) {
         // This is a house folder
-        const house = houses?.find(h => h.id === folderName)
+        const house = houses?.find((h: any) => h.id === folderName)
         tree.push({
           id: folderName,
           name: folderName,
@@ -249,9 +249,9 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
       .select('id, name, wohnung_id')
       .eq('user_id', userId)
 
-    const houseIds = new Set(houses?.map(h => h.id) || [])
-    const apartmentIds = new Set(apartments?.map(a => a.id) || [])
-    const tenantIds = new Set(tenants?.map(t => t.id) || [])
+    const houseIds = new Set(houses?.map((h: any) => h.id) || [])
+    const apartmentIds = new Set(apartments?.map((a: any) => a.id) || [])
+    const tenantIds = new Set(tenants?.map((t: any) => t.id) || [])
 
     // Check if this is a house folder (and it exists in database)
     const isHouseFolder = pathSegments.length === 2 && 
@@ -284,7 +284,7 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
       })
 
       // Get apartments for this house
-      const houseApartments = apartments?.filter(a => a.haus_id === houseId) || []
+      const houseApartments = apartments?.filter((a: any) => a.haus_id === houseId) || []
 
       for (const apartment of houseApartments) {
         const apartmentPath = `${folderPath}/${apartment.id}`
@@ -322,7 +322,7 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
       })
 
       // Get tenants for this apartment
-      const apartmentTenants = tenants?.filter(t => t.wohnung_id === apartmentId) || []
+      const apartmentTenants = tenants?.filter((t: any) => t.wohnung_id === apartmentId) || []
 
       for (const tenant of apartmentTenants) {
         const tenantPath = `${folderPath}/${tenant.id}`
@@ -388,17 +388,17 @@ async function loadFolderChildren(supabase: any, userId: string, folderPath: str
             
             // If this folder name matches a house ID, use house name
             if (houseIds.has(folderName)) {
-              const house = houses?.find(h => h.id === folderName)
+              const house = houses?.find((h: any) => h.id === folderName)
               displayName = house?.name || folderName
             }
             // If this folder name matches an apartment ID, use apartment name
             else if (apartmentIds.has(folderName)) {
-              const apartment = apartments?.find(a => a.id === folderName)
+              const apartment = apartments?.find((a: any) => a.id === folderName)
               displayName = apartment?.name || folderName
             }
             // If this folder name matches a tenant ID, use tenant name
             else if (tenantIds.has(folderName)) {
-              const tenant = tenants?.find(t => t.id === folderName)
+              const tenant = tenants?.find((t: any) => t.id === folderName)
               displayName = tenant?.name || folderName
             }
             // Special folder names

@@ -803,7 +803,7 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
   // Check if the error is meaningful or just an empty object
   const hasRealError = moveError && !moveActuallyWorked && (
     moveError.message || 
-    moveError.statusCode || 
+    (moveError as any).statusCode || 
     moveError.name || 
     Object.keys(moveError).length > 0
   );
@@ -813,7 +813,7 @@ export async function moveFile(oldPath: string, newPath: string): Promise<void> 
     const errorDetails = {
       hasError: !!moveError,
       errorMessage: moveError?.message || 'No error message',
-      errorCode: moveError?.statusCode || 'No status code',
+      errorCode: (moveError as any)?.statusCode || 'No status code',
       errorName: moveError?.name || 'No error name',
       errorString: JSON.stringify(moveError),
       errorKeys: Object.keys(moveError || {}),
@@ -1105,5 +1105,4 @@ export const storageService: StorageService = {
   archiveFolder,
 };
 
-// Export debug function for troubleshooting
-export { debugListDirectory };
+// Debug function is already exported above with the function declaration
