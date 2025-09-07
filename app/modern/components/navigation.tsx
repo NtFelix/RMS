@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard } from "lucide-react"
 import Image from "next/image"
 import { LOGO_URL } from "@/lib/constants"
 import { Button } from '@/components/ui/button' // Corrected import path
@@ -189,6 +189,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
+                  <DropdownMenuItem asChild>
+                    <Link href="/home" className="flex items-center cursor-pointer">
+                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onSelect={handleLogout}
                     className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
@@ -291,6 +298,13 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           </div>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-lg border-border/50 shadow-xl">
+                          <DropdownMenuItem asChild>
+                            <Link href="/home" className="flex items-center cursor-pointer" onClick={() => setIsOpen(false)}>
+                              <LayoutDashboard className="w-4 h-4 mr-2" />
+                              Dashboard
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onSelect={handleLogout}
                             className="text-destructive hover:!bg-destructive/10 hover:!text-destructive focus:!bg-destructive/10 focus:!text-destructive cursor-pointer"
