@@ -1,11 +1,12 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Building2, Plus, Building, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { MobileAddMenu } from './mobile-add-menu'
 
 // TypeScript interfaces for navigation props
 export interface NavItem {
@@ -60,6 +61,7 @@ const navigationItems: NavItem[] = [
 export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
   const pathname = usePathname()
   const isMobile = useIsMobile()
+  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
 
   // Don't render on desktop
   if (!isMobile) {
@@ -79,8 +81,7 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
     // Handle different action types
     switch (item.action) {
       case 'add-menu':
-        // TODO: Open add menu dropdown
-        console.log('Open add menu')
+        setIsAddMenuOpen(true)
         break
       case 'dropdown':
         // TODO: Open more menu dropdown
@@ -94,72 +95,80 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
   }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 md:hidden safe-area-inset-bottom">
-      <div className="flex items-center justify-around px-1 py-2">
-        {navigationItems.map((item) => {
-          const Icon = item.icon
-          const active = isActive(item.href)
-          
-          // Central plus button gets special styling
-          const isPlusButton = item.id === 'add'
-          
-          if (item.href && item.action === 'navigation') {
+    <>
+      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 md:hidden safe-area-inset-bottom">
+        <div className="flex items-center justify-around px-1 py-2">
+          {navigationItems.map((item) => {
+            const Icon = item.icon
+            const active = isActive(item.href)
+            
+            // Central plus button gets special styling
+            const isPlusButton = item.id === 'add'
+            
+            if (item.href && item.action === 'navigation') {
+              return (
+                <Link
+                  key={item.id}
+                  href={item.href}
+                  className={cn(
+                    'flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation',
+                    'active:scale-95 active:bg-opacity-80',
+                    active 
+                      ? 'text-blue-600 bg-blue-50 shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  )}
+                  aria-label={`Navigate to ${item.label}`}
+                  role="button"
+                >
+                  <Icon className={cn(
+                    'mb-1 transition-transform duration-200',
+                    active ? 'w-6 h-6 scale-110' : 'w-5 h-5'
+                  )} />
+                  <span className={cn(
+                    'text-xs font-medium transition-all duration-200',
+                    active ? 'font-semibold' : 'font-normal'
+                  )}>
+                    {item.label}
+                  </span>
+                </Link>
+              )
+            }
+
             return (
-              <Link
+              <button
                 key={item.id}
-                href={item.href}
+                onClick={() => handleItemClick(item)}
                 className={cn(
                   'flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation',
                   'active:scale-95 active:bg-opacity-80',
-                  active 
-                    ? 'text-blue-600 bg-blue-50 shadow-sm' 
+                  isPlusButton
+                    ? 'text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:scale-105'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 )}
-                aria-label={`Navigate to ${item.label}`}
+                aria-label={isPlusButton ? 'Open add menu' : `Open ${item.label} menu`}
                 role="button"
               >
                 <Icon className={cn(
                   'mb-1 transition-transform duration-200',
-                  active ? 'w-6 h-6 scale-110' : 'w-5 h-5'
+                  isPlusButton ? 'w-6 h-6' : 'w-5 h-5'
                 )} />
                 <span className={cn(
                   'text-xs font-medium transition-all duration-200',
-                  active ? 'font-semibold' : 'font-normal'
+                  isPlusButton ? 'font-semibold' : 'font-normal'
                 )}>
                   {item.label}
                 </span>
-              </Link>
+              </button>
             )
-          }
+          })}
+        </div>
+      </nav>
 
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleItemClick(item)}
-              className={cn(
-                'flex flex-col items-center justify-center min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl transition-all duration-200 touch-manipulation',
-                'active:scale-95 active:bg-opacity-80',
-                isPlusButton
-                  ? 'text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl transform hover:scale-105'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              )}
-              aria-label={isPlusButton ? 'Open add menu' : `Open ${item.label} menu`}
-              role="button"
-            >
-              <Icon className={cn(
-                'mb-1 transition-transform duration-200',
-                isPlusButton ? 'w-6 h-6' : 'w-5 h-5'
-              )} />
-              <span className={cn(
-                'text-xs font-medium transition-all duration-200',
-                isPlusButton ? 'font-semibold' : 'font-normal'
-              )}>
-                {item.label}
-              </span>
-            </button>
-          )
-        })}
-      </div>
-    </nav>
+      {/* Mobile Add Menu */}
+      <MobileAddMenu 
+        isOpen={isAddMenuOpen} 
+        onClose={() => setIsAddMenuOpen(false)} 
+      />
+    </>
   )
 }
