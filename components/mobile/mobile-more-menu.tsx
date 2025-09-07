@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Users, DollarSign, Calculator, CheckSquare, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useMobileNavigation } from '@/hooks/use-mobile-nav-store'
 
 export interface MoreMenuItem {
   id: string
@@ -15,12 +16,12 @@ export interface MoreMenuItem {
 
 export interface MobileMoreMenuProps {
   isOpen: boolean
-  onClose: () => void
   currentPath?: string
 }
 
-export function MobileMoreMenu({ isOpen, onClose, currentPath }: MobileMoreMenuProps) {
+export function MobileMoreMenu({ isOpen, currentPath }: MobileMoreMenuProps) {
   const pathname = usePathname()
+  const { closeMoreMenu } = useMobileNavigation()
 
   // More menu items configuration
   const moreMenuItems: MoreMenuItem[] = [
@@ -58,29 +59,9 @@ export function MobileMoreMenu({ isOpen, onClose, currentPath }: MobileMoreMenuP
   // Handle backdrop click
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      onClose()
+      closeMoreMenu()
     }
   }
-
-  // Handle escape key and prevent body scroll
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-      // Prevent body scroll when menu is open
-      document.body.style.overflow = 'hidden'
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
-    }
-  }, [isOpen, onClose])
 
   if (!isOpen) {
     return null
@@ -95,14 +76,17 @@ export function MobileMoreMenu({ isOpen, onClose, currentPath }: MobileMoreMenuP
       aria-label="Weitere Navigation"
     >
       {/* Dropdown Menu */}
-      <div className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+      <div 
+        className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
+        data-mobile-dropdown
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">
             Weitere
           </h3>
           <button
-            onClick={onClose}
+            onClick={closeMoreMenu}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors touch-manipulation"
             aria-label="Menü schließen"
           >
@@ -120,7 +104,7 @@ export function MobileMoreMenu({ isOpen, onClose, currentPath }: MobileMoreMenuP
               <Link
                 key={item.id}
                 href={item.href}
-                onClick={onClose} // Close menu when navigating
+                onClick={closeMoreMenu} // Close menu when navigating
                 className={cn(
                   'w-full flex items-center gap-3 p-4 rounded-xl transition-all duration-200 touch-manipulation',
                   'hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98]',

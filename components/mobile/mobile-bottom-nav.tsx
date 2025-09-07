@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Home, Building2, Plus, Building, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useMobileNavigation } from '@/hooks/use-mobile-nav-store'
 import { MobileAddMenu } from './mobile-add-menu'
 import { MobileMoreMenu } from './mobile-more-menu'
 
@@ -62,8 +63,12 @@ const navigationItems: NavItem[] = [
 export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
   const pathname = usePathname()
   const isMobile = useIsMobile()
-  const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
+  const { 
+    isAddMenuOpen, 
+    isMoreMenuOpen, 
+    openAddMenu, 
+    openMoreMenu 
+  } = useMobileNavigation()
 
   // Don't render on desktop
   if (!isMobile) {
@@ -83,10 +88,10 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
     // Handle different action types
     switch (item.action) {
       case 'add-menu':
-        setIsAddMenuOpen(true)
+        openAddMenu()
         break
       case 'dropdown':
-        setIsMoreMenuOpen(true)
+        openMoreMenu()
         break
       case 'navigation':
       default:
@@ -97,7 +102,10 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 md:hidden safe-area-inset-bottom">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-t border-gray-200 md:hidden safe-area-inset-bottom"
+        data-mobile-nav
+      >
         <div className="flex items-center justify-around px-1 py-2">
           {navigationItems.map((item) => {
             const Icon = item.icon
@@ -120,6 +128,7 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
                   )}
                   aria-label={`Navigate to ${item.label}`}
                   role="button"
+                  data-mobile-nav
                 >
                   <Icon className={cn(
                     'mb-1 transition-transform duration-200',
@@ -148,6 +157,7 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
                 )}
                 aria-label={isPlusButton ? 'Open add menu' : `Open ${item.label} menu`}
                 role="button"
+                data-mobile-nav
               >
                 <Icon className={cn(
                   'mb-1 transition-transform duration-200',
@@ -167,14 +177,12 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
 
       {/* Mobile Add Menu */}
       <MobileAddMenu 
-        isOpen={isAddMenuOpen} 
-        onClose={() => setIsAddMenuOpen(false)} 
+        isOpen={isAddMenuOpen}
       />
 
       {/* Mobile More Menu */}
       <MobileMoreMenu 
-        isOpen={isMoreMenuOpen} 
-        onClose={() => setIsMoreMenuOpen(false)}
+        isOpen={isMoreMenuOpen}
         currentPath={currentPath || pathname}
       />
     </>

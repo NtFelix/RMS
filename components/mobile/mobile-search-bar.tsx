@@ -116,16 +116,20 @@ export function MobileSearchBar({
           )}
           aria-label="Suche öffnen"
           role="button"
+          data-mobile-nav
         >
           <Search className="w-5 h-5" />
         </button>
       ) : (
         // Expanded state - Full input field
-        <div className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300',
-          'bg-white border-gray-200 shadow-sm',
-          'animate-in slide-in-from-right-4 duration-300'
-        )}>
+        <div 
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300',
+            'bg-white border-gray-200 shadow-sm',
+            'animate-in slide-in-from-right-4 duration-300'
+          )}
+          data-mobile-dropdown
+        >
           <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
           <input
             ref={inputRef}

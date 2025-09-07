@@ -92,6 +92,7 @@ export function MobileFilterButton({
         )}
         aria-label={`Filter options${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
         role="button"
+        data-mobile-nav
       >
         <Filter className="w-4 h-4" />
         <span className="font-medium">Filter</span>
@@ -112,7 +113,10 @@ export function MobileFilterButton({
           aria-modal="true"
           aria-label="Filter Menü"
         >
-          <div className="fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300 max-h-[70vh] flex flex-col">
+          <div 
+            className="fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300 max-h-[70vh] flex flex-col"
+            data-mobile-dropdown
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
               <div className="flex items-center gap-2">

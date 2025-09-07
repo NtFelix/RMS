@@ -4,6 +4,7 @@ import React from 'react'
 import { Building2, Building, Users, DollarSign, CheckSquare, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModalStore } from '@/hooks/use-modal-store'
+import { useMobileNavigation } from '@/hooks/use-mobile-nav-store'
 
 export interface AddMenuItem {
   id: string
@@ -14,12 +15,11 @@ export interface AddMenuItem {
 
 export interface MobileAddMenuProps {
   isOpen: boolean
-  onClose: () => void
 }
 
 export type AddItemType = 'house' | 'apartment' | 'tenant' | 'finance' | 'task'
 
-export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
+export function MobileAddMenu({ isOpen }: MobileAddMenuProps) {
   const {
     openHouseModal,
     openWohnungModal,
@@ -27,6 +27,8 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
     openFinanceModal,
     openAufgabeModal
   } = useModalStore()
+  
+  const { closeAddMenu } = useMobileNavigation()
 
   // Add menu items configuration
   const addMenuItems: AddMenuItem[] = [
@@ -36,7 +38,7 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
       icon: Building2,
       action: () => {
         openHouseModal()
-        onClose()
+        closeAddMenu()
       }
     },
     {
@@ -45,7 +47,7 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
       icon: Building,
       action: () => {
         openWohnungModal()
-        onClose()
+        closeAddMenu()
       }
     },
     {
@@ -54,7 +56,7 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
       icon: Users,
       action: () => {
         openTenantModal()
-        onClose()
+        closeAddMenu()
       }
     },
     {
@@ -63,7 +65,7 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
       icon: DollarSign,
       action: () => {
         openFinanceModal()
-        onClose()
+        closeAddMenu()
       }
     },
     {
@@ -72,7 +74,7 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
       icon: CheckSquare,
       action: () => {
         openAufgabeModal()
-        onClose()
+        closeAddMenu()
       }
     }
   ]
@@ -80,29 +82,9 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
   // Handle backdrop click
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
-      onClose()
+      closeAddMenu()
     }
   }
-
-  // Handle escape key
-  React.useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose()
-      }
-    }
-
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape)
-      // Prevent body scroll when menu is open
-      document.body.style.overflow = 'hidden'
-    }
-
-    return () => {
-      document.removeEventListener('keydown', handleEscape)
-      document.body.style.overflow = 'unset'
-    }
-  }, [isOpen, onClose])
 
   if (!isOpen) {
     return null
@@ -117,14 +99,17 @@ export function MobileAddMenu({ isOpen, onClose }: MobileAddMenuProps) {
       aria-label="Hinzufügen Menü"
     >
       {/* Dropdown Menu */}
-      <div className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+      <div 
+        className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
+        data-mobile-dropdown
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">
             Hinzufügen
           </h3>
           <button
-            onClick={onClose}
+            onClick={closeAddMenu}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors touch-manipulation"
             aria-label="Menü schließen"
           >
