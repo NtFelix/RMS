@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Home, Users, Ruler, Euro } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 type SummaryCardsProps = {
   totalArea: number
@@ -11,6 +12,8 @@ type SummaryCardsProps = {
 }
 
 export function SummaryCards({ totalArea, apartmentCount, tenantCount, totalCosts }: SummaryCardsProps) {
+  const isMobile = useIsMobile()
+  
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat('de-DE').format(value)
   }
@@ -43,9 +46,9 @@ export function SummaryCards({ totalArea, apartmentCount, tenantCount, totalCost
   ]
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className={isMobile ? "grid gap-4 grid-cols-1" : "grid gap-4 md:grid-cols-2 lg:grid-cols-4"}>
       {cards.map((card, index) => (
-        <Card key={index}>
+        <Card key={index} className={isMobile ? "min-h-[88px]" : ""}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">{card.title}</CardTitle>
             <div className="h-5 w-5 text-muted-foreground">
