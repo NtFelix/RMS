@@ -112,7 +112,10 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
             variant={"outline"}
             size="icon"
             className={cn(
-              "absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground",
+              // Mobile-first: larger touch target
+              "absolute right-1 top-1/2 min-h-[36px] min-w-[36px] -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground",
+              // Desktop: smaller sizing
+              "sm:h-7 sm:w-7 sm:min-h-0 sm:min-w-0",
               disabled && "cursor-not-allowed opacity-50"
             )}
             disabled={disabled}
