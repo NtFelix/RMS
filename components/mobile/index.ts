@@ -9,3 +9,6 @@ export type { MobileMoreMenuProps, MoreMenuItem } from './mobile-more-menu'
 
 export { MobileFilterButton } from './mobile-filter-button'
 export type { MobileFilterButtonProps, FilterOption } from './mobile-filter-button'
+
+export { MobileSearchBar } from './mobile-search-bar'
+export type { MobileSearchBarProps } from './mobile-search-bar'
