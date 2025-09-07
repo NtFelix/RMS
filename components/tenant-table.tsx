@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { TenantContextMenu } from "@/components/tenant-context-menu"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog"
@@ -8,6 +8,9 @@ import { toast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { useRouter } from "next/navigation"
 import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { MobileFilterButton, FilterOption } from "@/components/mobile/mobile-filter-button"
+import { MobileSearchBar } from "@/components/mobile/mobile-search-bar"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import { Tenant, NebenkostenEntry } from "@/types/Tenant";
 
@@ -22,17 +25,20 @@ interface TenantTableProps {
   searchQuery: string;
   onEdit?: (t: Tenant) => void;
   onDelete?: (id: string) => void;
+  onFilterChange?: (filter: string) => void;
+  onSearchChange?: (search: string) => void;
 }
 
 
 
-export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete }: TenantTableProps) {
+export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, onDelete, onFilterChange, onSearchChange }: TenantTableProps) {
   const router = useRouter()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [sortKey, setSortKey] = useState<TenantSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const isMobile = useIsMobile()
 
   // Map wohnung_id to wohnung name
   const wohnungsMap = useMemo(() => {
@@ -40,6 +46,35 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
     wohnungen?.forEach(w => { map[w.id] = w.name })
     return map
   }, [wohnungen])
+
+  // Mobile filter options
+  const filterOptions: FilterOption[] = useMemo(() => {
+    const totalTenants = tenants.length
+    const currentTenants = tenants.filter(tenant => !tenant.auszug).length
+    const previousTenants = tenants.filter(tenant => !!tenant.auszug).length
+
+    return [
+      { id: 'all', label: 'Alle', count: totalTenants },
+      { id: 'current', label: 'Aktuell', count: currentTenants },
+      { id: 'previous', label: 'Vorherige', count: previousTenants }
+    ]
+  }, [tenants])
+
+  // Mobile filter handlers
+  const handleMobileFilterChange = useCallback((filters: string[]) => {
+    // For tenant filters, we only allow one filter at a time
+    const newFilter = filters.length > 0 ? filters[filters.length - 1] : 'all'
+    onFilterChange?.(newFilter)
+  }, [onFilterChange])
+
+  const handleMobileSearchChange = useCallback((search: string) => {
+    onSearchChange?.(search)
+  }, [onSearchChange])
+
+  // Get active filters for mobile filter button
+  const activeFilters = useMemo(() => {
+    return filter === 'all' ? [] : [filter]
+  }, [filter])
 
   // Sorting, filtering and search logic
   const sortedAndFilteredData = useMemo(() => {
@@ -135,6 +170,25 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
 
   return (
     <div className="rounded-md border">
+      {/* Mobile Filter and Search Bar */}
+      {isMobile && (onFilterChange || onSearchChange) && (
+        <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-gray-50/50">
+          {onFilterChange && (
+            <MobileFilterButton
+              filters={filterOptions}
+              activeFilters={activeFilters}
+              onFilterChange={handleMobileFilterChange}
+            />
+          )}
+          {onSearchChange && (
+            <MobileSearchBar
+              value={searchQuery}
+              onChange={handleMobileSearchChange}
+              placeholder="Mieter suchen..."
+            />
+          )}
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>

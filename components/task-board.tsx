@@ -1,12 +1,15 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { format } from "date-fns"
 import { de } from "date-fns/locale"
 import { TaskCard, type TaskCardTask } from "@/components/task-card"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { toast } from "@/hooks/use-toast"
 import { toggleTaskStatusAction } from "@/app/todos-actions"
+import { MobileFilterButton, FilterOption } from "@/components/mobile/mobile-filter-button"
+import { MobileSearchBar } from "@/components/mobile/mobile-search-bar"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export interface Task extends Omit<TaskCardTask, 'status' | 'createdAt' | 'updatedAt'> {
   erstellungsdatum: string
@@ -19,6 +22,8 @@ interface TaskBoardProps {
   tasks: Task[]
   onTaskUpdated: (task: Task) => void
   onTaskDeleted: (taskId: string) => void
+  onFilterChange?: (filter: string) => void
+  onSearchChange?: (search: string) => void
 }
 
 export function TaskBoard({ 
@@ -26,11 +31,43 @@ export function TaskBoard({
   searchQuery, 
   tasks, 
   onTaskUpdated, 
-  onTaskDeleted 
+  onTaskDeleted,
+  onFilterChange,
+  onSearchChange
 }: TaskBoardProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { openAufgabeModal } = useModalStore()
+  const isMobile = useIsMobile()
   
+  // Mobile filter options
+  const filterOptions: FilterOption[] = useMemo(() => {
+    const totalTasks = tasks.length
+    const openTasks = tasks.filter(task => !task.ist_erledigt).length
+    const doneTasks = tasks.filter(task => task.ist_erledigt).length
+
+    return [
+      { id: 'all', label: 'Alle', count: totalTasks },
+      { id: 'open', label: 'Offen', count: openTasks },
+      { id: 'done', label: 'Erledigt', count: doneTasks }
+    ]
+  }, [tasks])
+
+  // Mobile filter handlers
+  const handleMobileFilterChange = useCallback((filters: string[]) => {
+    // For task filters, we only allow one filter at a time
+    const newFilter = filters.length > 0 ? filters[filters.length - 1] : 'all'
+    onFilterChange?.(newFilter)
+  }, [onFilterChange])
+
+  const handleMobileSearchChange = useCallback((search: string) => {
+    onSearchChange?.(search)
+  }, [onSearchChange])
+
+  // Get active filters for mobile filter button
+  const activeFilters = useMemo(() => {
+    return filter === 'all' ? [] : [filter]
+  }, [filter])
+
   // Filter and sort tasks based on current filter and search query
   const filteredTasks = tasks.filter(task => {
     const matchesFilter = 
@@ -166,6 +203,25 @@ export function TaskBoard({
 
   return (
     <div className="w-full">
+      {/* Mobile Filter and Search Bar */}
+      {isMobile && (onFilterChange || onSearchChange) && (
+        <div className="flex items-center gap-3 p-4 mb-4 border border-gray-200 rounded-xl bg-gray-50/50">
+          {onFilterChange && (
+            <MobileFilterButton
+              filters={filterOptions}
+              activeFilters={activeFilters}
+              onFilterChange={handleMobileFilterChange}
+            />
+          )}
+          {onSearchChange && (
+            <MobileSearchBar
+              value={searchQuery}
+              onChange={handleMobileSearchChange}
+              placeholder="Aufgabe suchen..."
+            />
+          )}
+        </div>
+      )}
       {isLoading && tasks.length === 0 ? (
         <div className="flex items-center justify-center p-8">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />

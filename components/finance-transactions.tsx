@@ -13,6 +13,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { toast } from "@/hooks/use-toast"
 import { formatCurrency } from "@/utils/format"
 import { CustomCombobox } from "@/components/ui/custom-combobox"
+import { MobileFilterButton, FilterOption } from "@/components/mobile/mobile-filter-button"
+import { MobileSearchBar } from "@/components/mobile/mobile-search-bar"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 const ALL_APARTMENTS_FILTER = 'Alle Wohnungen';
 const ALL_YEARS_FILTER = 'Alle Jahre';
@@ -89,6 +92,7 @@ export function FinanceTransactions({
   const [financeToDelete, setFinanceToDelete] = useState<Finanz | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const isMobile = useIsMobile()
   const observer = useRef<IntersectionObserver | null>(null)
   const lastTransactionElementRef = useCallback((node: HTMLTableRowElement) => {
     if (isLoading) return
@@ -110,6 +114,35 @@ export function FinanceTransactions({
     [ALL_YEARS_FILTER, ...availableYears.map(y => y.toString())].map(y => ({ value: y, label: y })), 
     [availableYears]
   )
+
+  // Mobile filter options - combining all filter types into one
+  const mobileFilterOptions: FilterOption[] = useMemo(() => {
+    const totalTransactions = finances.length
+    const incomeTransactions = finances.filter(f => f.ist_einnahmen).length
+    const expenseTransactions = finances.filter(f => !f.ist_einnahmen).length
+
+    return [
+      { id: 'Alle Transaktionen', label: 'Alle', count: totalTransactions },
+      { id: 'Einnahme', label: 'Einnahmen', count: incomeTransactions },
+      { id: 'Ausgabe', label: 'Ausgaben', count: expenseTransactions }
+    ]
+  }, [finances])
+
+  // Mobile filter handlers
+  const handleMobileFilterChange = useCallback((filterIds: string[]) => {
+    // For finance filters, we only allow one filter at a time
+    const newFilter = filterIds.length > 0 ? filterIds[filterIds.length - 1] : 'Alle Transaktionen'
+    handleFilterChange('selectedType', newFilter)
+  }, [])
+
+  const handleMobileSearchChange = useCallback((search: string) => {
+    handleFilterChange('searchQuery', search)
+  }, [])
+
+  // Get active filters for mobile filter button
+  const activeMobileFilters = useMemo(() => {
+    return filters.selectedType === 'Alle Transaktionen' ? [] : [filters.selectedType]
+  }, [filters.selectedType])
 
   // Since filtering is now done server-side, we just use the finances directly
   const sortedAndFilteredData = finances
@@ -199,8 +232,25 @@ export function FinanceTransactions({
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
+            {/* Mobile Filter and Search Bar */}
+            {isMobile && (
+              <div className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl bg-gray-50/50">
+                <MobileFilterButton
+                  filters={mobileFilterOptions}
+                  activeFilters={activeMobileFilters}
+                  onFilterChange={handleMobileFilterChange}
+                />
+                <MobileSearchBar
+                  value={filters.searchQuery}
+                  onChange={handleMobileSearchChange}
+                  placeholder="Transaktion suchen..."
+                />
+              </div>
+            )}
+            {/* Desktop Filters */}
+            {!isMobile && (
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full">
                 <CustomCombobox
                   options={apartmentOptions}
                   value={filters.selectedApartment}
@@ -242,6 +292,7 @@ export function FinanceTransactions({
                 <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</ButtonWithTooltip>
               </div>
             </div>
+            )}
             <div className="rounded-md border relative min-h-[60vh]">
               {isFilterLoading && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex items-center justify-center">

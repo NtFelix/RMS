@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { AbrechnungModal } from "./abrechnung-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { 
@@ -19,6 +19,9 @@ import { WasserzaehlerModal } from "./wasserzaehler-modal" // Added
 import { saveWasserzaehlerDataOptimized, getWasserzaehlerModalDataAction, getAbrechnungModalDataAction } from "@/app/betriebskosten-actions" // Updated to use optimized actions
 import { toast } from "sonner" // For notifications
 import { useModalStore } from "@/hooks/use-modal-store"
+import { MobileFilterButton, FilterOption } from "@/components/mobile/mobile-filter-button"
+import { MobileSearchBar } from "@/components/mobile/mobile-search-bar"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 
 interface OperatingCostsTableProps {
@@ -27,6 +30,10 @@ interface OperatingCostsTableProps {
   onDeleteItem: (id: string) => void;
   ownerName: string;
   allHaeuser: Haus[];
+  filter?: string;
+  searchQuery?: string;
+  onFilterChange?: (filter: string) => void;
+  onSearchChange?: (search: string) => void;
 }
 
 export function OperatingCostsTable({
@@ -34,7 +41,11 @@ export function OperatingCostsTable({
   onEdit,
   onDeleteItem,
   ownerName,
-  allHaeuser
+  allHaeuser,
+  filter = 'all',
+  searchQuery = '',
+  onFilterChange,
+  onSearchChange
 }: OperatingCostsTableProps) {
   const { openWasserzaehlerModalOptimized } = useModalStore();
   const [overviewItem, setOverviewItem] = useState<OptimizedNebenkosten | null>(null);
@@ -44,11 +55,40 @@ export function OperatingCostsTable({
   const [selectedNebenkostenForAbrechnung, setSelectedNebenkostenForAbrechnung] = useState<OptimizedNebenkosten | null>(null);
   const [abrechnungModalData, setAbrechnungModalData] = useState<AbrechnungModalData | null>(null);
   const [isLoadingAbrechnungData, setIsLoadingAbrechnungData] = useState(false);
+  const isMobile = useIsMobile();
   
   const formatCurrency = (value: number | null | undefined) => {
     if (value == null) return "-";
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(value);
   };
+
+  // Mobile filter options
+  const filterOptions: FilterOption[] = useMemo(() => {
+    const totalItems = nebenkosten.length
+    // You can add more specific filters based on your business logic
+    // For now, using basic filters similar to other tables
+    return [
+      { id: 'all', label: 'Alle', count: totalItems },
+      { id: 'pending', label: 'Ausstehend', count: totalItems }, // Placeholder count
+      { id: 'previous', label: 'Vorherige', count: 0 } // Placeholder count
+    ]
+  }, [nebenkosten])
+
+  // Mobile filter handlers
+  const handleMobileFilterChange = useCallback((filters: string[]) => {
+    // For operating costs filters, we only allow one filter at a time
+    const newFilter = filters.length > 0 ? filters[filters.length - 1] : 'all'
+    onFilterChange?.(newFilter)
+  }, [onFilterChange])
+
+  const handleMobileSearchChange = useCallback((search: string) => {
+    onSearchChange?.(search)
+  }, [onSearchChange])
+
+  // Get active filters for mobile filter button
+  const activeFilters = useMemo(() => {
+    return filter === 'all' ? [] : [filter]
+  }, [filter])
   
   const handleOpenOverview = (item: OptimizedNebenkosten) => {
     setOverviewItem(item);
@@ -157,6 +197,25 @@ export function OperatingCostsTable({
 
   return (
     <div className="rounded-md border">
+      {/* Mobile Filter and Search Bar */}
+      {isMobile && (onFilterChange || onSearchChange) && (
+        <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-gray-50/50">
+          {onFilterChange && (
+            <MobileFilterButton
+              filters={filterOptions}
+              activeFilters={activeFilters}
+              onFilterChange={handleMobileFilterChange}
+            />
+          )}
+          {onSearchChange && (
+            <MobileSearchBar
+              value={searchQuery}
+              onChange={handleMobileSearchChange}
+              placeholder="Betriebskosten suchen..."
+            />
+          )}
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>
