@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useOptimizedAnimations, useMobileDebounce } from '@/hooks/use-mobile-performance'
 
 export interface MobileSearchBarProps {
   value: string
@@ -14,45 +15,53 @@ export interface MobileSearchBarProps {
   onBlur?: () => void
 }
 
-export function MobileSearchBar({ 
+export const MobileSearchBar = memo<MobileSearchBarProps>(({ 
   value, 
   onChange, 
   placeholder = "Suchen...",
   className,
   onFocus,
   onBlur
-}: MobileSearchBarProps) {
+}) => {
   const [isExpanded, setIsExpanded] = useState(false)
   const isMobile = useIsMobile()
   const inputRef = useRef<HTMLInputElement>(null)
+  const { duration, shouldReduceMotion } = useOptimizedAnimations()
 
   // Don't render on desktop
   if (!isMobile) {
     return null
   }
 
-  // Handle expand animation and auto-focus
-  const handleExpand = () => {
-    setIsExpanded(true)
-    // Auto-focus after animation starts
-    setTimeout(() => {
-      inputRef.current?.focus()
-    }, 100)
-  }
+  // Debounced onChange for better performance
+  const debouncedOnChange = useMobileDebounce(onChange, 150)
 
-  // Handle collapse
-  const handleCollapse = () => {
+  // Optimized expand handler
+  const handleExpand = useCallback(() => {
+    setIsExpanded(true)
+    // Auto-focus after animation starts with requestAnimationFrame for better performance
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, shouldReduceMotion ? 0 : 100)
+    })
+  }, [shouldReduceMotion])
+
+  // Optimized collapse handler
+  const handleCollapse = useCallback(() => {
     setIsExpanded(false)
     inputRef.current?.blur()
-  }
+  }, [])
 
-  // Handle clear search
-  const handleClear = () => {
+  // Optimized clear handler
+  const handleClear = useCallback(() => {
     onChange('')
-    inputRef.current?.focus()
-  }
+    requestAnimationFrame(() => {
+      inputRef.current?.focus()
+    })
+  }, [onChange])
 
-  // Handle escape key
+  // Optimized escape key handler with proper cleanup
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isExpanded) {
@@ -60,60 +69,84 @@ export function MobileSearchBar({
       }
     }
 
+    const handleVisibilityChange = () => {
+      if (document.hidden && isExpanded) {
+        handleCollapse()
+      }
+    }
+
     if (isExpanded) {
-      document.addEventListener('keydown', handleEscape)
+      document.addEventListener('keydown', handleEscape, { passive: true })
+      document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
-  }, [isExpanded])
+  }, [isExpanded, handleCollapse])
 
-  // Handle input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value)
-  }
+  // Optimized input change handler with debouncing
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value
+    // Update immediately for UI responsiveness
+    onChange(newValue)
+    // Also call debounced version for expensive operations
+    debouncedOnChange(newValue)
+  }, [onChange, debouncedOnChange])
 
-  // Handle input focus
-  const handleInputFocus = () => {
+  // Optimized input focus handler
+  const handleInputFocus = useCallback(() => {
     onFocus?.()
-  }
+  }, [onFocus])
 
-  // Handle input blur
-  const handleInputBlur = () => {
+  // Optimized input blur handler
+  const handleInputBlur = useCallback(() => {
     onBlur?.()
     // Don't collapse if there's a value
     if (!value) {
       handleCollapse()
     }
-  }
+  }, [onBlur, value, handleCollapse])
 
-  // Handle keyboard navigation
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  // Optimized keyboard navigation
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       // Prevent form submission and blur input
       e.preventDefault()
       inputRef.current?.blur()
     }
-  }
+  }, [])
 
   return (
     <div className={cn(
-      'relative transition-all duration-300 ease-in-out',
+      'relative ease-in-out',
+      !shouldReduceMotion && `transition-all duration-${duration}`,
       isExpanded ? 'w-full' : 'w-auto',
       className
-    )}>
+    )}
+    style={{
+      // Hardware acceleration for smooth animations
+      transform: 'translate3d(0, 0, 0)',
+      backfaceVisibility: 'hidden'
+    }}>
       {!isExpanded ? (
         // Collapsed state - Icon only
         <button
           onClick={handleExpand}
           className={cn(
-            'flex items-center justify-center rounded-xl border transition-all duration-200 touch-manipulation',
+            'flex items-center justify-center rounded-xl border touch-manipulation',
             'min-h-[44px] min-w-[44px] w-[44px] h-[44px]',
             'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
             'active:scale-95 active:bg-opacity-80',
-            'shadow-sm'
+            'shadow-sm',
+            !shouldReduceMotion && `transition-all duration-${Math.min(duration, 200)}`
           )}
+          style={{
+            // Hardware acceleration for smooth animations
+            transform: 'translate3d(0, 0, 0)',
+            backfaceVisibility: 'hidden'
+          }}
           aria-label="Suche öffnen"
           role="button"
           data-mobile-nav
@@ -124,11 +157,17 @@ export function MobileSearchBar({
         // Expanded state - Full input field
         <div 
           className={cn(
-            'flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300',
+            'flex items-center gap-2 px-4 py-2 rounded-xl border',
             'bg-white border-gray-200 shadow-sm',
-            'animate-in slide-in-from-right-4 duration-300'
+            !shouldReduceMotion && `transition-all duration-${duration}`,
+            !shouldReduceMotion && `animate-in slide-in-from-right-4 duration-${duration}`
           )}
           data-mobile-dropdown
+          style={{
+            // Hardware acceleration for smooth animations
+            transform: 'translate3d(0, 0, 0)',
+            backfaceVisibility: 'hidden'
+          }}
         >
           <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
           <input
@@ -155,10 +194,16 @@ export function MobileSearchBar({
             <button
               onClick={handleClear}
               className={cn(
-                'flex items-center justify-center rounded-full transition-colors touch-manipulation',
+                'flex items-center justify-center rounded-full touch-manipulation',
                 'w-6 h-6 text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-                'active:scale-95'
+                'active:scale-95',
+                !shouldReduceMotion && `transition-colors duration-${Math.min(duration, 200)}`
               )}
+              style={{
+                // Hardware acceleration for smooth animations
+                transform: 'translate3d(0, 0, 0)',
+                backfaceVisibility: 'hidden'
+              }}
               aria-label="Suche löschen"
               type="button"
             >
@@ -168,10 +213,16 @@ export function MobileSearchBar({
           <button
             onClick={handleCollapse}
             className={cn(
-              'flex items-center justify-center rounded-full transition-colors touch-manipulation ml-1',
+              'flex items-center justify-center rounded-full touch-manipulation ml-1',
               'w-6 h-6 text-gray-400 hover:text-gray-600 hover:bg-gray-100',
-              'active:scale-95'
+              'active:scale-95',
+              !shouldReduceMotion && `transition-colors duration-${Math.min(duration, 200)}`
             )}
+            style={{
+              // Hardware acceleration for smooth animations
+              transform: 'translate3d(0, 0, 0)',
+              backfaceVisibility: 'hidden'
+            }}
             aria-label="Suche schließen"
             type="button"
           >
@@ -181,4 +232,6 @@ export function MobileSearchBar({
       )}
     </div>
   )
-}
+})
+
+MobileSearchBar.displayName = 'MobileSearchBar'

@@ -12,3 +12,18 @@ export type { MobileFilterButtonProps, FilterOption } from './mobile-filter-butt
 
 export { MobileSearchBar } from './mobile-search-bar'
 export type { MobileSearchBarProps } from './mobile-search-bar'
+
+// Performance-optimized exports
+export { 
+  MobilePerformanceWrapper,
+  LazyMobileBottomNavigation,
+  LazyMobileBottomNav,
+  LazyMobileAddMenu,
+  LazyMobileMoreMenu,
+  LazyMobileFilterButton,
+  LazyMobileSearchBar
+} from './mobile-performance-wrapper'
+export type { 
+  MobilePerformanceWrapperProps,
+  LazyMobileBottomNavProps
+} from './mobile-performance-wrapper'

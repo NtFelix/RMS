@@ -8,7 +8,8 @@ import { SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useOrientationAwareMobile } from "@/hooks/use-orientation"
-import { MobileBottomNav } from "@/components/mobile"
+import { LazyMobileBottomNavigation } from "@/components/mobile/mobile-performance-wrapper"
+import { cn } from "@/lib/utils"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { setOpen } = useCommandMenu()
@@ -65,12 +66,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       
-      {/* Mobile bottom navigation - positioned with proper z-index */}
-      {isMobile && (
-        <div className="relative z-50">
-          <MobileBottomNav />
-        </div>
-      )}
+      {/* Mobile bottom navigation - lazy loaded and performance optimized */}
+      <LazyMobileBottomNavigation />
     </div>
   )
 }

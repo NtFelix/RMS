@@ -104,8 +104,10 @@ export function useMobileNavigation() {
     }
   }, [orientationState.isChanging, orientationState.orientation])
   
-  // Click-outside handler setup
+  // Optimized click-outside handler setup with proper cleanup
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+    
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
       
@@ -126,21 +128,42 @@ export function useMobileNavigation() {
       }
     }
     
+    const handleVisibilityChange = () => {
+      // Close dropdowns when page becomes hidden (e.g., tab switch)
+      if (document.hidden && store.activeDropdown !== 'none') {
+        store.closeAllDropdowns()
+      }
+    }
+    
     // Only add listeners if there's an active dropdown
     if (store.activeDropdown !== 'none') {
-      document.addEventListener('mousedown', handleClickOutside)
-      document.addEventListener('keydown', handleEscapeKey)
+      // Use passive listeners for better performance
+      document.addEventListener('mousedown', handleClickOutside, { passive: true })
+      document.addEventListener('keydown', handleEscapeKey, { passive: true })
+      document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
       
-      // Prevent body scroll when dropdown is open
-      document.body.style.overflow = 'hidden'
+      // Prevent body scroll when dropdown is open with timeout to avoid layout thrashing
+      timeoutId = setTimeout(() => {
+        document.body.style.overflow = 'hidden'
+      }, 0)
     } else {
       // Restore body scroll when no dropdowns are open
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
       document.body.style.overflow = 'unset'
     }
     
     return () => {
+      // Cleanup all event listeners
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleEscapeKey)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      
+      // Clear timeout and restore scroll
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
       document.body.style.overflow = 'unset'
     }
   }, [store.activeDropdown]) // Remove store from dependencies to prevent infinite loop

@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, memo, useCallback, useMemo } from 'react'
 import { Filter, ChevronDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useOptimizedAnimations, useMobileDebounce } from '@/hooks/use-mobile-performance'
 
 export interface FilterOption {
   id: string
@@ -18,63 +19,84 @@ export interface MobileFilterButtonProps {
   className?: string
 }
 
-export function MobileFilterButton({ 
+export const MobileFilterButton = memo<MobileFilterButtonProps>(({ 
   filters, 
   activeFilters, 
   onFilterChange,
   className 
-}: MobileFilterButtonProps) {
+}) => {
   const [isExpanded, setIsExpanded] = useState(false)
   const isMobile = useIsMobile()
+  const { duration, shouldReduceMotion } = useOptimizedAnimations()
 
   // Don't render on desktop
   if (!isMobile) {
     return null
   }
 
-  // Handle backdrop click
-  const handleBackdropClick = (e: React.MouseEvent) => {
+  // Debounced filter change for better performance
+  const debouncedFilterChange = useMobileDebounce(onFilterChange, 150)
+
+  // Memoized backdrop click handler
+  const handleBackdropClick = useCallback((e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       setIsExpanded(false)
     }
-  }
+  }, [])
 
-  // Handle escape key
+  // Optimized escape key handler with proper cleanup
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isExpanded) {
         setIsExpanded(false)
       }
     }
 
+    const handleVisibilityChange = () => {
+      if (document.hidden && isExpanded) {
+        setIsExpanded(false)
+      }
+    }
+
     if (isExpanded) {
-      document.addEventListener('keydown', handleEscape)
-      // Prevent body scroll when dropdown is open
-      document.body.style.overflow = 'hidden'
+      document.addEventListener('keydown', handleEscape, { passive: true })
+      document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
+      
+      // Prevent body scroll when dropdown is open with timeout to avoid layout thrashing
+      timeoutId = setTimeout(() => {
+        document.body.style.overflow = 'hidden'
+      }, 0)
     }
 
     return () => {
       document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
       document.body.style.overflow = 'unset'
     }
   }, [isExpanded])
 
-  // Handle filter toggle
-  const handleFilterToggle = (filterId: string) => {
+  // Optimized filter toggle with debouncing
+  const handleFilterToggle = useCallback((filterId: string) => {
     const newActiveFilters = activeFilters.includes(filterId)
       ? activeFilters.filter(id => id !== filterId)
       : [...activeFilters, filterId]
     
-    onFilterChange(newActiveFilters)
-  }
+    debouncedFilterChange(newActiveFilters)
+  }, [activeFilters, debouncedFilterChange])
 
-  // Clear all filters
-  const handleClearAll = () => {
+  // Optimized clear all handler
+  const handleClearAll = useCallback(() => {
     onFilterChange([])
-  }
+  }, [onFilterChange])
 
-  // Get active filter count
-  const activeFilterCount = activeFilters.length
+  // Memoized active filter count
+  const activeFilterCount = useMemo(() => activeFilters.length, [activeFilters])
 
   return (
     <>
@@ -82,14 +104,20 @@ export function MobileFilterButton({
       <button
         onClick={() => setIsExpanded(true)}
         className={cn(
-          'flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-200 touch-manipulation',
+          'flex items-center gap-2 px-4 py-2 rounded-xl border touch-manipulation',
           'min-h-[44px] min-w-[44px]',
+          !shouldReduceMotion && `transition-all duration-${Math.min(duration, 200)}`,
           'active:scale-95 active:bg-opacity-80',
           activeFilterCount > 0
             ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
             : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50',
           className
         )}
+        style={{
+          // Hardware acceleration for smooth animations
+          transform: 'translate3d(0, 0, 0)',
+          backfaceVisibility: 'hidden'
+        }}
         aria-label={`Filter options${activeFilterCount > 0 ? ` (${activeFilterCount} active)` : ''}`}
         role="button"
         data-mobile-nav
@@ -114,8 +142,16 @@ export function MobileFilterButton({
           aria-label="Filter Menü"
         >
           <div 
-            className="fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300 max-h-[70vh] flex flex-col"
+            className={cn(
+              "fixed bottom-4 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-[70vh] flex flex-col",
+              !shouldReduceMotion && `animate-in slide-in-from-bottom-4 duration-${duration}`
+            )}
             data-mobile-dropdown
+            style={{
+              // Hardware acceleration for smooth animations
+              transform: 'translate3d(0, 0, 0)',
+              backfaceVisibility: 'hidden'
+            }}
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-100 flex-shrink-0">
@@ -158,13 +194,19 @@ export function MobileFilterButton({
                     key={filter.id}
                     onClick={() => handleFilterToggle(filter.id)}
                     className={cn(
-                      'w-full flex items-center justify-between p-4 rounded-xl transition-all duration-200 touch-manipulation',
+                      'w-full flex items-center justify-between p-4 rounded-xl touch-manipulation',
+                      !shouldReduceMotion && `transition-all duration-${Math.min(duration, 200)}`,
                       'hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98]',
                       'text-left',
                       isActive
                         ? 'bg-blue-50 text-blue-700 border border-blue-200'
                         : 'text-gray-700 hover:text-gray-900'
                     )}
+                    style={{
+                      // Hardware acceleration for smooth animations
+                      transform: 'translate3d(0, 0, 0)',
+                      backfaceVisibility: 'hidden'
+                    }}
                     aria-label={`${isActive ? 'Deaktiviere' : 'Aktiviere'} Filter: ${filter.label}`}
                     role="checkbox"
                     aria-checked={isActive}
@@ -215,7 +257,15 @@ export function MobileFilterButton({
             <div className="p-4 border-t border-gray-100 flex-shrink-0">
               <button
                 onClick={() => setIsExpanded(false)}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl transition-colors touch-manipulation active:scale-[0.98]"
+                className={cn(
+                  "w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-xl touch-manipulation active:scale-[0.98]",
+                  !shouldReduceMotion && `transition-colors duration-${Math.min(duration, 200)}`
+                )}
+                style={{
+                  // Hardware acceleration for smooth animations
+                  transform: 'translate3d(0, 0, 0)',
+                  backfaceVisibility: 'hidden'
+                }}
                 aria-label="Filter anwenden"
               >
                 Filter anwenden
@@ -226,4 +276,6 @@ export function MobileFilterButton({
       )}
     </>
   )
-}
+})
+
+MobileFilterButton.displayName = 'MobileFilterButton'
