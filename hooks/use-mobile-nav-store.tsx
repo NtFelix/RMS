@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
+import { useOrientation } from './use-orientation'
 
 export interface MobileNavState {
   // Dropdown states
@@ -83,16 +84,25 @@ export const useMobileNavStore = create<MobileNavState>((set, get) => ({
 
 /**
  * Hook for managing mobile navigation state with automatic cleanup
- * Handles route changes and provides click-outside functionality
+ * Handles route changes, orientation changes, and provides click-outside functionality
  */
 export function useMobileNavigation() {
   const pathname = usePathname()
   const store = useMobileNavStore()
+  const orientationState = useOrientation()
   
   // Close all dropdowns when route changes
   useEffect(() => {
     store.closeAllDropdowns()
   }, [pathname]) // Remove store from dependencies to prevent infinite loop
+  
+  // Handle orientation changes
+  useEffect(() => {
+    // Close dropdowns when orientation starts changing to prevent layout issues
+    if (orientationState.isChanging) {
+      store.closeAllDropdowns()
+    }
+  }, [orientationState.isChanging, orientationState.orientation])
   
   // Click-outside handler setup
   useEffect(() => {

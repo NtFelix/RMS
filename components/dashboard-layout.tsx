@@ -7,13 +7,13 @@ import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useCommandMenu } from "@/hooks/use-command-menu"
-import { useIsMobile } from "@/hooks/use-mobile"
+import { useOrientationAwareMobile } from "@/hooks/use-orientation"
 import { MobileBottomNav } from "@/components/mobile"
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { setOpen } = useCommandMenu()
   const [mounted, setMounted] = useState(false)
-  const isMobile = useIsMobile()
+  const { isMobile, orientation, isChanging } = useOrientationAwareMobile()
 
   // Prevent hydration errors by only rendering after mount
   useEffect(() => {
@@ -50,7 +50,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         )}
         
         {/* Main content area with mobile-specific padding */}
-        <main className={`flex flex-1 flex-col min-h-0 ${isMobile ? 'p-4 pb-20' : 'p-6'}`}>
+        <main className={cn(
+          "flex flex-1 flex-col min-h-0 transition-all duration-300",
+          isMobile 
+            ? orientation === 'landscape' 
+              ? 'p-2 pb-16' // Less padding in landscape mode
+              : 'p-4 pb-20' // Standard mobile padding in portrait
+            : 'p-6', // Desktop padding
+          isChanging && "opacity-95" // Slight opacity change during orientation transition
+        )}>
           <div className="flex-1 overflow-y-auto rounded-xl bg-white border shadow-sm">
             {children}
           </div>

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Users, DollarSign, Calculator, CheckSquare, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useMobileNavigation } from '@/hooks/use-mobile-nav-store'
+import { useOrientation } from '@/hooks/use-orientation'
 
 export interface MoreMenuItem {
   id: string
@@ -22,6 +23,7 @@ export interface MobileMoreMenuProps {
 export function MobileMoreMenu({ isOpen, currentPath }: MobileMoreMenuProps) {
   const pathname = usePathname()
   const { closeMoreMenu } = useMobileNavigation()
+  const { orientation } = useOrientation()
 
   // More menu items configuration
   const moreMenuItems: MoreMenuItem[] = [
@@ -77,8 +79,15 @@ export function MobileMoreMenu({ isOpen, currentPath }: MobileMoreMenuProps) {
     >
       {/* Dropdown Menu */}
       <div 
-        className="fixed bottom-20 left-4 right-4 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
+        className={cn(
+          "fixed bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-in slide-in-from-bottom-4 duration-300",
+          // Orientation-aware positioning
+          orientation === 'landscape' 
+            ? "bottom-16 left-8 right-8 max-h-[60vh]" // Higher position and more padding in landscape
+            : "bottom-20 left-4 right-4 max-h-[70vh]" // Standard position in portrait
+        )}
         data-mobile-dropdown
+        data-orientation={orientation}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
@@ -95,7 +104,10 @@ export function MobileMoreMenu({ isOpen, currentPath }: MobileMoreMenuProps) {
         </div>
 
         {/* Menu Items */}
-        <div className="p-2">
+        <div className={cn(
+          "overflow-y-auto",
+          orientation === 'landscape' ? "p-1" : "p-2" // Tighter padding in landscape
+        )}>
           {moreMenuItems.map((item) => {
             const Icon = item.icon
             const active = isActive(item.href)
@@ -106,9 +118,11 @@ export function MobileMoreMenu({ isOpen, currentPath }: MobileMoreMenuProps) {
                 href={item.href}
                 onClick={closeMoreMenu} // Close menu when navigating
                 className={cn(
-                  'w-full flex items-center gap-3 p-4 rounded-xl transition-all duration-200 touch-manipulation',
+                  'w-full flex items-center gap-3 rounded-xl transition-all duration-200 touch-manipulation',
                   'hover:bg-gray-50 active:bg-gray-100 active:scale-[0.98]',
                   'text-left',
+                  // Orientation-aware padding
+                  orientation === 'landscape' ? 'p-3' : 'p-4',
                   active 
                     ? 'bg-blue-50 text-blue-700 hover:bg-blue-100' 
                     : 'text-gray-700 hover:text-gray-900'
