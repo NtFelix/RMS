@@ -288,12 +288,33 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // Load early access features using PostHog JS SDK per docs
   useEffect(() => {
-    if (!posthog) return
+    if (!posthog || !posthog.__loaded) {
+      console.log('PostHog not ready for early access features', { posthog: !!posthog, loaded: posthog?.__loaded });
+      return;
+    }
+    
+    // Check if user has opted in to capturing
+    if (posthog.has_opted_out_capturing?.()) {
+      console.log('PostHog tracking is opted out, early access features not available');
+      setIsLoadingFeatures(false);
+      return;
+    }
+    
     setIsLoadingFeatures(true)
+    console.log('Loading early access features...');
+    
     try {
+      // Check if the method exists
+      if (typeof posthog.getEarlyAccessFeatures !== 'function') {
+        console.warn('getEarlyAccessFeatures method not available on PostHog instance');
+        setIsLoadingFeatures(false);
+        return;
+      }
+      
       // force_reload = true to avoid cached list; include all stages
       // @ts-ignore: method is available on Web SDK, types may lag
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
+        console.log('Received early access features:', features);
         const active = activeFlags || []
         
         // Group features by their stage and add enabled status
@@ -315,17 +336,23 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setAlphaFeatures(featuresByStage['alpha'] || [])
         setOtherFeatures(featuresByStage['other'] || [])
         setIsLoadingFeatures(false)
+        console.log('Early access features loaded and categorized');
       }, true, ['alpha', 'beta', 'concept'])
     } catch (e) {
       console.error('Failed to load early access features', e)
       setIsLoadingFeatures(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posthog, JSON.stringify(activeFlags)])
+  }, [posthog, posthog?.__loaded, JSON.stringify(activeFlags)])
 
   // Toggle early access enrollment
   const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
-    if (!posthog) return
+    if (!posthog || !posthog.__loaded) {
+      console.warn('PostHog not ready for toggling early access');
+      return;
+    }
+
+    console.log(`Toggling early access for ${flagKey}: ${enable}`);
 
     // Helper to update the enabled state for a feature in any state array
     const updateFeatureState = (prev: EarlyAccessFeature[]) => 
@@ -338,12 +365,38 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setOtherFeatures(updateFeatureState)
 
     try {
+      // Check if the method exists
+      if (typeof posthog.updateEarlyAccessFeatureEnrollment !== 'function') {
+        throw new Error('updateEarlyAccessFeatureEnrollment method not available');
+      }
+      
       // @ts-ignore: available on Web SDK
       posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
+      
       // @ts-ignore: optional method to refresh flags
-      await posthog.reloadFeatureFlags?.()
+      if (typeof posthog.reloadFeatureFlags === 'function') {
+        await posthog.reloadFeatureFlags();
+        console.log(`Successfully toggled ${flagKey} and reloaded feature flags`);
+      } else {
+        console.log(`Successfully toggled ${flagKey} (reloadFeatureFlags not available)`);
+      }
+      
+      // Show success toast
+      toast({
+        title: "Erfolg",
+        description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
+        variant: "success",
+      });
     } catch (e) {
       console.error('Failed to toggle early access', e)
+      
+      // Show error toast
+      toast({
+        title: "Fehler",
+        description: `Feature konnte nicht ${enable ? 'aktiviert' : 'deaktiviert'} werden.`,
+        variant: "destructive",
+      });
+      
       // Revert on error for all feature states
       const revertFeatureState = (prev: EarlyAccessFeature[]) => 
         prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
