@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, MutableRefObject } from "react"
+import { useState, useEffect, useMemo, useCallback, MutableRefObject } from "react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { ApartmentContextMenu } from "@/components/apartment-context-menu"
@@ -17,6 +17,9 @@ import {
 import { toast } from "@/hooks/use-toast"
 import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
 import { formatNumber } from "@/utils/format"
+import { MobileFilterButton, FilterOption } from "@/components/mobile/mobile-filter-button"
+import { MobileSearchBar } from "@/components/mobile/mobile-search-bar"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export interface Apartment {
   id: string
@@ -46,12 +49,44 @@ interface ApartmentTableProps {
   onTableRefresh?: () => Promise<void> // New prop for requesting data refresh from parent
   // optional initial apartments loaded server-side
   initialApartments?: Apartment[]
+  onFilterChange?: (filter: string) => void
+  onSearchChange?: (search: string) => void
 }
 
-export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments }: ApartmentTableProps) {
+export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTableRefresh, initialApartments, onFilterChange, onSearchChange }: ApartmentTableProps) {
   // initialApartments prop will be the direct source of truth for apartments data
   const [sortKey, setSortKey] = useState<ApartmentSortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const isMobile = useIsMobile()
+
+  // Mobile filter options
+  const filterOptions: FilterOption[] = useMemo(() => {
+    const totalApartments = initialApartments?.length ?? 0
+    const rentedApartments = initialApartments?.filter(apt => apt.status === 'vermietet').length ?? 0
+    const freeApartments = initialApartments?.filter(apt => apt.status === 'frei').length ?? 0
+
+    return [
+      { id: 'all', label: 'Alle', count: totalApartments },
+      { id: 'rented', label: 'Vermietet', count: rentedApartments },
+      { id: 'free', label: 'Frei', count: freeApartments }
+    ]
+  }, [initialApartments])
+
+  // Mobile filter handlers
+  const handleMobileFilterChange = useCallback((filters: string[]) => {
+    // For apartment filters, we only allow one filter at a time
+    const newFilter = filters.length > 0 ? filters[filters.length - 1] : 'all'
+    onFilterChange?.(newFilter)
+  }, [onFilterChange])
+
+  const handleMobileSearchChange = useCallback((search: string) => {
+    onSearchChange?.(search)
+  }, [onSearchChange])
+
+  // Get active filters for mobile filter button
+  const activeFilters = useMemo(() => {
+    return filter === 'all' ? [] : [filter]
+  }, [filter])
 
   // Removed internal fetchApartments. Refresh is handled by onTableRefresh prop.
 
@@ -149,6 +184,25 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
 
   return (
     <div className="rounded-md border">
+      {/* Mobile Filter and Search Bar */}
+      {isMobile && (onFilterChange || onSearchChange) && (
+        <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-gray-50/50">
+          {onFilterChange && (
+            <MobileFilterButton
+              filters={filterOptions}
+              activeFilters={activeFilters}
+              onFilterChange={handleMobileFilterChange}
+            />
+          )}
+          {onSearchChange && (
+            <MobileSearchBar
+              value={searchQuery}
+              onChange={handleMobileSearchChange}
+              placeholder="Wohnung suchen..."
+            />
+          )}
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>

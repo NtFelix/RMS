@@ -203,6 +203,8 @@ export default function WohnungenClientView({
             onEdit={handleEditWohnung}
             onTableRefresh={refreshTable}
             reloadRef={reloadRef}
+            onFilterChange={setFilter}
+            onSearchChange={setSearchQuery}
           />
         </CardContent>
       </Card>
