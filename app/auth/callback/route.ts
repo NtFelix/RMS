@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { NextResponse } from "next/server"
-import { getPostHogServer } from "../../posthog-server.mjs"
+
+export const runtime = 'edge'
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -21,35 +22,15 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`)
     }
     
-    // If we have a user, identify them in PostHog server-side
+    // Successful authentication, redirect to home with user info for client-side PostHog tracking
+    const redirectUrl = new URL(origin)
     if (data?.user) {
-      const posthog = getPostHogServer()
-      
-      try {
-        // Track the login event and set user properties in a single call
-        posthog.capture({
-          distinctId: data.user.id,
-          event: 'user_logged_in',
-          properties: {
-            provider: data.user.app_metadata?.provider || 'email',
-            $set: {
-              email: data.user.email,
-              name: data.user.user_metadata?.name || '',
-              last_sign_in: new Date().toISOString(),
-            },
-          },
-        });
-
-        // Flush the queue to ensure the event is sent without shutting down the client
-        await posthog.flush()
-      } catch (error) {
-        console.error('Error tracking login in PostHog:', error)
-        // Don't fail the auth flow if PostHog tracking fails
-      }
+      // Pass user info as URL params for client-side PostHog tracking
+      redirectUrl.searchParams.set('login_success', 'true')
+      redirectUrl.searchParams.set('provider', data.user.app_metadata?.provider || 'email')
     }
-
-    // Successful authentication, redirect to home
-    return NextResponse.redirect(origin)
+    
+    return NextResponse.redirect(redirectUrl.toString())
   } catch (error) {
     console.error('Unexpected error during authentication:', error)
     return NextResponse.redirect(`${origin}/auth/login?error=unexpected_error`)

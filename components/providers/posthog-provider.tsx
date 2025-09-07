@@ -3,7 +3,7 @@
 import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 
 // Only initialize PostHog in the browser and if the API key is available
 if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
@@ -30,7 +30,7 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY) {
   console.warn('PostHog is not initialized. Make sure to set NEXT_PUBLIC_POSTHOG_KEY in your environment variables.');
 }
 
-export function PostHogProvider({ children }: { children: React.ReactNode }) {
+function PostHogTracking({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -47,5 +47,48 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, searchParams])
 
-  return <PHProvider client={posthog}>{children}</PHProvider>
+  // Handle login tracking from auth callback
+  useEffect(() => {
+    const loginSuccess = searchParams.get('login_success')
+    const provider = searchParams.get('provider')
+    
+    if (loginSuccess === 'true' && posthog.has_opted_in_capturing?.()) {
+      // Get user info from Supabase client
+      import('@/utils/supabase/client').then(({ createClient }) => {
+        const supabase = createClient()
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (user) {
+            // Identify user and track login event
+            posthog.identify(user.id, {
+              email: user.email,
+              name: user.user_metadata?.name || '',
+            })
+            
+            posthog.capture('user_logged_in', {
+              provider: provider || 'email',
+              last_sign_in: new Date().toISOString(),
+            })
+          }
+        })
+      })
+      
+      // Clean up URL params
+      const newUrl = new URL(window.location.href)
+      newUrl.searchParams.delete('login_success')
+      newUrl.searchParams.delete('provider')
+      window.history.replaceState({}, '', newUrl.toString())
+    }
+  }, [searchParams])
+
+  return <>{children}</>
+}
+
+export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <PHProvider client={posthog}>
+      <Suspense fallback={children}>
+        <PostHogTracking>{children}</PostHogTracking>
+      </Suspense>
+    </PHProvider>
+  )
 }
