@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
+import { getLocalFeatureFlags, setLocalFeatureFlag, type FeatureFlag as LocalFeatureFlag } from "@/lib/feature-flags";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -94,6 +95,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
   const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
+  const [useLocalFeatures, setUseLocalFeatures] = useState<boolean>(false)
+  const [localFeatures, setLocalFeatures] = useState<LocalFeatureFlag[]>([])
   
   // Helper to get display name for each stage
   const getStageDisplayName = (stage: string) => {
@@ -290,12 +293,17 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   useEffect(() => {
     if (!posthog || !posthog.__loaded) {
       console.log('PostHog not ready for early access features', { posthog: !!posthog, loaded: posthog?.__loaded });
+      // Load local features as fallback
+      setLocalFeatures(getLocalFeatureFlags());
+      setUseLocalFeatures(true);
       return;
     }
     
     // Check if user has opted in to capturing
     if (posthog.has_opted_out_capturing?.()) {
-      console.log('PostHog tracking is opted out, early access features not available');
+      console.log('PostHog tracking is opted out, using local features');
+      setLocalFeatures(getLocalFeatureFlags());
+      setUseLocalFeatures(true);
       setIsLoadingFeatures(false);
       return;
     }
@@ -306,14 +314,25 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     try {
       // Check if the method exists
       if (typeof posthog.getEarlyAccessFeatures !== 'function') {
-        console.warn('getEarlyAccessFeatures method not available on PostHog instance');
+        console.warn('getEarlyAccessFeatures method not available on PostHog instance, using local features');
+        setLocalFeatures(getLocalFeatureFlags());
+        setUseLocalFeatures(true);
         setIsLoadingFeatures(false);
         return;
       }
       
+      // Set a timeout to handle blocked requests
+      const timeoutId = setTimeout(() => {
+        console.warn('Early access features loading timed out (likely blocked by ad blocker), using local features');
+        setLocalFeatures(getLocalFeatureFlags());
+        setUseLocalFeatures(true);
+        setIsLoadingFeatures(false);
+      }, 5000); // 5 second timeout
+      
       // force_reload = true to avoid cached list; include all stages
       // @ts-ignore: method is available on Web SDK, types may lag
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
+        clearTimeout(timeoutId);
         console.log('Received early access features:', features);
         const active = activeFlags || []
         
@@ -335,11 +354,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setConceptFeatures(featuresByStage['concept'] || [])
         setAlphaFeatures(featuresByStage['alpha'] || [])
         setOtherFeatures(featuresByStage['other'] || [])
+        setUseLocalFeatures(false);
         setIsLoadingFeatures(false)
         console.log('Early access features loaded and categorized');
       }, true, ['alpha', 'beta', 'concept'])
     } catch (e) {
-      console.error('Failed to load early access features', e)
+      console.error('Failed to load early access features, using local features', e)
+      setLocalFeatures(getLocalFeatureFlags());
+      setUseLocalFeatures(true);
       setIsLoadingFeatures(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -347,12 +369,27 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // Toggle early access enrollment
   const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
-    if (!posthog || !posthog.__loaded) {
-      console.warn('PostHog not ready for toggling early access');
+    console.log(`Toggling early access for ${flagKey}: ${enable}`);
+
+    if (useLocalFeatures) {
+      // Use local feature flag system
+      setLocalFeatureFlag(flagKey, enable);
+      setLocalFeatures(getLocalFeatureFlags());
+      
+      toast({
+        title: "Erfolg",
+        description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
+        variant: "success",
+      });
       return;
     }
 
-    console.log(`Toggling early access for ${flagKey}: ${enable}`);
+    if (!posthog || !posthog.__loaded) {
+      console.warn('PostHog not ready for toggling early access, using local storage');
+      setLocalFeatureFlag(flagKey, enable);
+      setLocalFeatures(getLocalFeatureFlags());
+      return;
+    }
 
     // Helper to update the enabled state for a feature in any state array
     const updateFeatureState = (prev: EarlyAccessFeature[]) => 
@@ -879,50 +916,107 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               </div>
             ) : (
               <div className="space-y-8">
-                {/* Dynamic feature sections */}
-                {[
-                  { stage: 'alpha', features: alphaFeatures },
-                  { stage: 'beta', features: betaFeatures },
-                  { stage: 'concept', features: conceptFeatures },
-                  { stage: 'other', features: otherFeatures }
-                ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
-                  <div key={stage} className="space-y-3">
-                    <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
-                    <div className="space-y-3">
-                      {features.map((f) => (
-                        <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
-                          <div className="pr-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{f.name}</span>
-                              {f.documentationUrl && (
-                                <a 
-                                  className="text-xs text-muted-foreground underline hover:text-primary" 
-                                  href={f.documentationUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  Dokumentation
-                                </a>
-                              )}
-                            </div>
-                            {f.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
-                            )}
+                {useLocalFeatures ? (
+                  // Show local features when PostHog is blocked
+                  <>
+                    {localFeatures.length > 0 && (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200 mb-6">
+                        <div className="flex items-start">
+                          <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                          <div>
+                            <p className="font-medium">Lokaler Modus</p>
+                            <p>PostHog ist nicht verfügbar (möglicherweise durch Werbeblocker blockiert). Features werden lokal gespeichert.</p>
                           </div>
-                          <Switch
-                            checked={!!f.enabled}
-                            onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
-                            className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-                            disabled={isLoadingFeatures}
-                          />
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                      </div>
+                    )}
+                    {['alpha', 'beta', 'concept', 'other'].map(stage => {
+                      const stageFeatures = localFeatures.filter(f => f.stage === stage);
+                      if (stageFeatures.length === 0) return null;
+                      
+                      return (
+                        <div key={stage} className="space-y-3">
+                          <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
+                          <div className="space-y-3">
+                            {stageFeatures.map((f) => (
+                              <div key={f.key} className="flex items-center justify-between p-4 rounded-lg border">
+                                <div className="pr-4">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{f.name}</span>
+                                  </div>
+                                  {f.description && (
+                                    <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+                                  )}
+                                </div>
+                                <Switch
+                                  checked={f.enabled}
+                                  onCheckedChange={(checked) => toggleEarlyAccess(f.key, checked)}
+                                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  // Show PostHog features when available
+                  <>
+                    {[
+                      { stage: 'alpha', features: alphaFeatures },
+                      { stage: 'beta', features: betaFeatures },
+                      { stage: 'concept', features: conceptFeatures },
+                      { stage: 'other', features: otherFeatures }
+                    ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
+                      <div key={stage} className="space-y-3">
+                        <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
+                        <div className="space-y-3">
+                          {features.map((f) => (
+                            <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
+                              <div className="pr-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{f.name}</span>
+                                  {f.documentationUrl && (
+                                    <a 
+                                      className="text-xs text-muted-foreground underline hover:text-primary" 
+                                      href={f.documentationUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Dokumentation
+                                    </a>
+                                  )}
+                                </div>
+                                {f.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+                                )}
+                              </div>
+                              <Switch
+                                checked={!!f.enabled}
+                                onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
+                                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                                disabled={isLoadingFeatures}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
 
-                {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && (
+                {/* Show message when no features are available */}
+                {!useLocalFeatures && [alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Derzeit sind keine Early-Access-Funktionen verfügbar.
+                    </p>
+                  </div>
+                )}
+                
+                {useLocalFeatures && localFeatures.length === 0 && (
                   <p className="text-sm text-muted-foreground">
                     Derzeit sind keine Early-Access-Funktionen verfügbar.
                   </p>
