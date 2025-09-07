@@ -94,6 +94,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
   const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
+  const [useLocalFeatures, setUseLocalFeatures] = useState<boolean>(false)
   
   // Helper to get display name for each stage
   const getStageDisplayName = (stage: string) => {
@@ -288,12 +289,45 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   // Load early access features using PostHog JS SDK per docs
   useEffect(() => {
-    if (!posthog) return
+    if (!posthog || !posthog.__loaded) {
+      console.log('PostHog not ready for early access features', { posthog: !!posthog, loaded: posthog?.__loaded });
+      setUseLocalFeatures(true);
+      setIsLoadingFeatures(false);
+      return;
+    }
+    
+    // Check if user has opted in to capturing
+    if (posthog.has_opted_out_capturing?.()) {
+      console.log('PostHog tracking is opted out, early access features not available');
+      setUseLocalFeatures(true);
+      setIsLoadingFeatures(false);
+      return;
+    }
+    
     setIsLoadingFeatures(true)
+    console.log('Loading early access features...');
+    
     try {
+      // Check if the method exists
+      if (typeof posthog.getEarlyAccessFeatures !== 'function') {
+        console.warn('getEarlyAccessFeatures method not available on PostHog instance');
+        setUseLocalFeatures(true);
+        setIsLoadingFeatures(false);
+        return;
+      }
+      
+      // Set a timeout to handle blocked requests
+      const timeoutId = setTimeout(() => {
+        console.warn('Early access features loading timed out (likely blocked by ad blocker)');
+        setUseLocalFeatures(true);
+        setIsLoadingFeatures(false);
+      }, 5000); // 5 second timeout
+      
       // force_reload = true to avoid cached list; include all stages
       // @ts-ignore: method is available on Web SDK, types may lag
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
+        clearTimeout(timeoutId);
+        console.log('Received early access features:', features);
         const active = activeFlags || []
         
         // Group features by their stage and add enabled status
@@ -314,18 +348,41 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setConceptFeatures(featuresByStage['concept'] || [])
         setAlphaFeatures(featuresByStage['alpha'] || [])
         setOtherFeatures(featuresByStage['other'] || [])
+        setUseLocalFeatures(false);
         setIsLoadingFeatures(false)
+        console.log('Early access features loaded and categorized');
       }, true, ['alpha', 'beta', 'concept'])
     } catch (e) {
       console.error('Failed to load early access features', e)
+      setUseLocalFeatures(true);
       setIsLoadingFeatures(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [posthog, JSON.stringify(activeFlags)])
+  }, [posthog, posthog?.__loaded, JSON.stringify(activeFlags)])
 
   // Toggle early access enrollment
   const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
-    if (!posthog) return
+    console.log(`Toggling early access for ${flagKey}: ${enable}`);
+
+    if (useLocalFeatures) {
+      // Show error message when trying to toggle in blocked mode
+      toast({
+        title: "Fehler",
+        description: "Early-Access-Funktionen sind nicht verfügbar. Bitte überprüfen Sie Ihre Browser-Einstellungen.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!posthog || !posthog.__loaded) {
+      console.warn('PostHog not ready for toggling early access');
+      toast({
+        title: "Fehler",
+        description: "PostHog ist nicht bereit. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     // Helper to update the enabled state for a feature in any state array
     const updateFeatureState = (prev: EarlyAccessFeature[]) => 
@@ -338,12 +395,38 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     setOtherFeatures(updateFeatureState)
 
     try {
+      // Check if the method exists
+      if (typeof posthog.updateEarlyAccessFeatureEnrollment !== 'function') {
+        throw new Error('updateEarlyAccessFeatureEnrollment method not available');
+      }
+      
       // @ts-ignore: available on Web SDK
       posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
+      
       // @ts-ignore: optional method to refresh flags
-      await posthog.reloadFeatureFlags?.()
+      if (typeof posthog.reloadFeatureFlags === 'function') {
+        await posthog.reloadFeatureFlags();
+        console.log(`Successfully toggled ${flagKey} and reloaded feature flags`);
+      } else {
+        console.log(`Successfully toggled ${flagKey} (reloadFeatureFlags not available)`);
+      }
+      
+      // Show success toast
+      toast({
+        title: "Erfolg",
+        description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
+        variant: "success",
+      });
     } catch (e) {
       console.error('Failed to toggle early access', e)
+      
+      // Show error toast
+      toast({
+        title: "Fehler",
+        description: `Feature konnte nicht ${enable ? 'aktiviert' : 'deaktiviert'} werden.`,
+        variant: "destructive",
+      });
+      
       // Revert on error for all feature states
       const revertFeatureState = (prev: EarlyAccessFeature[]) => 
         prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
@@ -826,54 +909,105 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               </div>
             ) : (
               <div className="space-y-8">
-                {/* Dynamic feature sections */}
-                {[
-                  { stage: 'alpha', features: alphaFeatures },
-                  { stage: 'beta', features: betaFeatures },
-                  { stage: 'concept', features: conceptFeatures },
-                  { stage: 'other', features: otherFeatures }
-                ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
-                  <div key={stage} className="space-y-3">
-                    <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
-                    <div className="space-y-3">
-                      {features.map((f) => (
-                        <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
-                          <div className="pr-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{f.name}</span>
-                              {f.documentationUrl && (
-                                <a 
-                                  className="text-xs text-muted-foreground underline hover:text-primary" 
-                                  href={f.documentationUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                >
-                                  Dokumentation
-                                </a>
-                              )}
-                            </div>
-                            {f.description && (
-                              <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
-                            )}
-                          </div>
-                          <Switch
-                            checked={!!f.enabled}
-                            onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
-                            className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-                            disabled={isLoadingFeatures}
-                          />
+                {useLocalFeatures ? (
+                  // Show error message when PostHog is blocked instead of local features
+                  <div className="space-y-4">
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
+                      <div className="flex items-start">
+                        <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="font-medium">Early-Access-Funktionen können nicht geladen werden</p>
+                          <p>Die Verbindung zu unserem Feature-System konnte nicht hergestellt werden. Dies kann folgende Ursachen haben:</p>
+                          <ul className="list-disc list-inside space-y-1 ml-2">
+                            <li>Werbeblocker oder Datenschutz-Erweiterungen blockieren die Anfragen</li>
+                            <li>Cookies sind deaktiviert oder wurden nicht akzeptiert</li>
+                            <li>Netzwerkverbindung ist eingeschränkt</li>
+                          </ul>
                         </div>
-                      ))}
+                      </div>
+                    </div>
+                    
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
+                      <div className="flex items-start">
+                        <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="font-medium">So können Sie das Problem beheben:</p>
+                          <ol className="list-decimal list-inside space-y-1 ml-2">
+                            <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
+                            <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
+                            <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">eu.i.posthog.com</code> in Ihren Browser-Einstellungen</li>
+                            <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <Button 
+                        onClick={() => window.location.reload()} 
+                        variant="outline"
+                        className="mt-2"
+                      >
+                        Seite neu laden
+                      </Button>
                     </div>
                   </div>
-                ))}
-
-                {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && (
-                  <p className="text-sm text-muted-foreground">
-                    Derzeit sind keine Early-Access-Funktionen verfügbar.
-                  </p>
+                ) : (
+                  // Show PostHog features when available
+                  <>
+                    {[
+                      { stage: 'alpha', features: alphaFeatures },
+                      { stage: 'beta', features: betaFeatures },
+                      { stage: 'concept', features: conceptFeatures },
+                      { stage: 'other', features: otherFeatures }
+                    ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
+                      <div key={stage} className="space-y-3">
+                        <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
+                        <div className="space-y-3">
+                          {features.map((f) => (
+                            <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
+                              <div className="pr-4">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{f.name}</span>
+                                  {f.documentationUrl && (
+                                    <a 
+                                      className="text-xs text-muted-foreground underline hover:text-primary" 
+                                      href={f.documentationUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      Dokumentation
+                                    </a>
+                                  )}
+                                </div>
+                                {f.description && (
+                                  <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+                                )}
+                              </div>
+                              <Switch
+                                checked={!!f.enabled}
+                                onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
+                                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                                disabled={isLoadingFeatures}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </>
                 )}
+
+                {/* Show message when no features are available */}
+                {!useLocalFeatures && [alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Derzeit sind keine Early-Access-Funktionen verfügbar.
+                    </p>
+                  </div>
+                )}
+
 
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-md text-sm text-amber-800 dark:text-amber-200">
                   <div className="flex items-start">
