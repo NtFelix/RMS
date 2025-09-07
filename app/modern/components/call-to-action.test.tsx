@@ -107,18 +107,20 @@ describe('CallToAction - Jetzt loslegen Feature', () => {
       expect(screen.getByText('Jetzt loslegen')).toBeInTheDocument();
     });
 
-    it('renders "Mehr erfahren" link instead of demo button', () => {
+    it('renders "Beispiel-Abrechnung" link instead of demo button', () => {
       render(<CallToAction variant="hero" onGetStarted={mockOnGetStarted} />);
 
-      expect(screen.getByText('Mehr erfahren')).toBeInTheDocument();
+      expect(screen.getByText('Beispiel-Abrechnung')).toBeInTheDocument();
       expect(screen.queryByText('Demo anfordern')).not.toBeInTheDocument();
     });
 
-    it('links to documentation page', () => {
+    it('links to example PDF', () => {
       render(<CallToAction variant="hero" onGetStarted={mockOnGetStarted} />);
 
-      const moreInfoLink = screen.getByRole('link');
-      expect(moreInfoLink).toHaveAttribute('href', '/modern/documentation');
+      const pdfLink = screen.getByRole('link');
+      expect(pdfLink).toHaveAttribute('href', 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf');
+      expect(pdfLink).toHaveAttribute('target', '_blank');
+      expect(pdfLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
 
     it('calls onGetStarted when "Jetzt loslegen" button is clicked', async () => {
@@ -170,10 +172,10 @@ describe('CallToAction - Jetzt loslegen Feature', () => {
       expect(screen.getByText('Demo anfordern')).toBeInTheDocument();
     });
 
-    it('renders zap icon in "Mehr erfahren" link for hero variant', () => {
+    it('renders download icon in "Beispiel-Abrechnung" link for hero variant', () => {
       render(<CallToAction variant="hero" onGetStarted={mockOnGetStarted} />);
 
-      expect(screen.getByText('Mehr erfahren')).toBeInTheDocument();
+      expect(screen.getByText('Beispiel-Abrechnung')).toBeInTheDocument();
     });
   });
 
@@ -208,8 +210,8 @@ describe('CallToAction - Jetzt loslegen Feature', () => {
     it('has proper link role for hero variant', () => {
       render(<CallToAction variant="hero" onGetStarted={mockOnGetStarted} />);
 
-      const moreInfoLink = screen.getByRole('link', { name: /mehr erfahren/i });
-      expect(moreInfoLink).toBeInTheDocument();
+      const pdfLink = screen.getByRole('link', { name: /beispiel-abrechnung/i });
+      expect(pdfLink).toBeInTheDocument();
     });
 
     it('provides proper dialog labels', async () => {

@@ -312,7 +312,7 @@ const handleGetStarted = () => {
 ```
 
 #### Variant Behaviors
-- **Hero Variant**: "Jetzt loslegen" + "Mehr erfahren" (documentation link)
+- **Hero Variant**: "Jetzt loslegen" + "Beispiel-Abrechnung" (PDF download link)
 - **CTA Variant**: "Jetzt loslegen" + "Demo anfordern" (booking dialog)
 - **Default Variant**: "Jetzt loslegen" + "Demo anfordern" (booking dialog)
 
