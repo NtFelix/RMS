@@ -16,6 +16,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "@/hooks/use-toast"
 import { ChevronsUpDown, ArrowUp, ArrowDown } from "lucide-react"
+import { MobileFilterButton, FilterOption } from "@/components/mobile/mobile-filter-button"
+import { MobileSearchBar } from "@/components/mobile/mobile-search-bar"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 export interface House {
   id: string
@@ -40,15 +43,18 @@ interface HouseTableProps {
   reloadRef?: MutableRefObject<(() => void) | null>
   onEdit: (house: House) => void
   initialHouses?: House[]
+  onFilterChange?: (filter: string) => void
+  onSearchChange?: (search: string) => void
 }
 
-export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses }: HouseTableProps) {
+export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHouses, onFilterChange, onSearchChange }: HouseTableProps) {
   const [houses, setHouses] = useState<House[]>(initialHouses ?? [])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [houseToDelete, setHouseToDelete] = useState<House | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [sortKey, setSortKey] = useState<SortKey>("name")
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc")
+  const isMobile = useIsMobile()
 
   const fetchHouses = useCallback(async () => {
     try {
@@ -64,6 +70,35 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
       return []
     }
   }, [])
+
+  // Mobile filter options
+  const filterOptions: FilterOption[] = useMemo(() => {
+    const totalHouses = houses.length
+    const fullHouses = houses.filter(house => house.freeApartments === 0).length
+    const vacantHouses = houses.filter(house => (house.freeApartments ?? 0) > 0).length
+
+    return [
+      { id: 'all', label: 'Alle', count: totalHouses },
+      { id: 'full', label: 'Voll', count: fullHouses },
+      { id: 'vacant', label: 'Platz', count: vacantHouses }
+    ]
+  }, [houses])
+
+  // Mobile filter handlers
+  const handleMobileFilterChange = useCallback((filters: string[]) => {
+    // For house filters, we only allow one filter at a time
+    const newFilter = filters.length > 0 ? filters[filters.length - 1] : 'all'
+    onFilterChange?.(newFilter)
+  }, [onFilterChange])
+
+  const handleMobileSearchChange = useCallback((search: string) => {
+    onSearchChange?.(search)
+  }, [onSearchChange])
+
+  // Get active filters for mobile filter button
+  const activeFilters = useMemo(() => {
+    return filter === 'all' ? [] : [filter]
+  }, [filter])
 
   useEffect(() => {
     if (reloadRef) {
@@ -207,6 +242,25 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
 
   return (
     <div className="rounded-md border">
+      {/* Mobile Filter and Search Bar */}
+      {isMobile && (onFilterChange || onSearchChange) && (
+        <div className="flex items-center gap-3 p-4 border-b border-gray-200 bg-gray-50/50">
+          {onFilterChange && (
+            <MobileFilterButton
+              filters={filterOptions}
+              activeFilters={activeFilters}
+              onFilterChange={handleMobileFilterChange}
+            />
+          )}
+          {onSearchChange && (
+            <MobileSearchBar
+              value={searchQuery}
+              onChange={handleMobileSearchChange}
+              placeholder="Haus suchen..."
+            />
+          )}
+        </div>
+      )}
       <Table>
         <TableHeader>
           <TableRow>

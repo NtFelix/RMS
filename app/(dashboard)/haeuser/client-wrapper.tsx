@@ -55,6 +55,8 @@ function HaeuserMainContentComponent({ // Renamed for clarity within this scope
           reloadRef={tableReloadRef}
           onEdit={onEdit}
           initialHouses={haeuser}
+          onFilterChange={setFilter}
+          onSearchChange={setSearchQuery}
         />
       </CardContent>
     </Card>
