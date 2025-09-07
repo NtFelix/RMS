@@ -3,31 +3,66 @@
 import posthog from 'posthog-js'
 import { PostHogProvider as PHProvider } from 'posthog-js/react'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { useEffect, Suspense } from 'react'
+import { useEffect, Suspense, useState } from 'react'
 
-// Only initialize PostHog in the browser and if the API key is available
-if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NEXT_PUBLIC_POSTHOG_KEY !== 'phc_placeholder_key') {
-  // Check if PostHog is already initialized to avoid conflicts
-  if (!posthog.__loaded) {
-    console.log('Initializing PostHog with key:', process.env.NEXT_PUBLIC_POSTHOG_KEY.substring(0, 10) + '...');
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com',
-      capture_pageview: false, // We'll handle this manually
-      persistence: 'localStorage',
-      enable_recording_console_log: true,
-      // Respect consent: start opted-out and rely on explicit opt-in
-      opt_out_capturing_by_default: true,
-      // Enable early access features
-      bootstrap: {
-        distinctID: undefined, // Will be set when user is identified
-      },
-      // Ensure feature flags are loaded
-      loaded: function(posthog) {
-        console.log('PostHog loaded successfully, reloading feature flags...');
-        posthog.reloadFeatureFlags?.();
-      }
-    });
+// Initialize PostHog with configuration
+async function initializePostHog() {
+  if (typeof window === 'undefined' || posthog.__loaded) {
+    return;
   }
+
+  let config = {
+    key: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://eu.i.posthog.com'
+  };
+
+  // If client-side env vars are not available, try to fetch from API
+  if (!config.key || config.key === 'phc_placeholder_key') {
+    console.log('Client-side PostHog config not found, fetching from API...');
+    try {
+      const response = await fetch('/api/posthog-config');
+      if (response.ok) {
+        const apiConfig = await response.json();
+        config = apiConfig;
+        console.log('PostHog config fetched from API');
+      } else {
+        console.warn('Failed to fetch PostHog config from API');
+        return;
+      }
+    } catch (error) {
+      console.error('Error fetching PostHog config:', error);
+      return;
+    }
+  }
+
+  if (!config.key || config.key === 'phc_placeholder_key') {
+    console.warn('PostHog is not initialized. Environment check:', {
+      hasWindow: typeof window !== 'undefined',
+      posthogKey: config.key ? config.key.substring(0, 10) + '...' : 'undefined',
+      posthogHost: config.host,
+      nodeEnv: process.env.NODE_ENV
+    });
+    return;
+  }
+
+  console.log('Initializing PostHog with key:', config.key.substring(0, 10) + '...');
+  posthog.init(config.key, {
+    api_host: config.host,
+    capture_pageview: false, // We'll handle this manually
+    persistence: 'localStorage',
+    enable_recording_console_log: true,
+    // Respect consent: start opted-out and rely on explicit opt-in
+    opt_out_capturing_by_default: true,
+    // Enable early access features
+    bootstrap: {
+      distinctID: undefined, // Will be set when user is identified
+    },
+    // Ensure feature flags are loaded
+    loaded: function(posthog) {
+      console.log('PostHog loaded successfully, reloading feature flags...');
+      posthog.reloadFeatureFlags?.();
+    }
+  });
 
   // Apply stored consent on load
   const consent = localStorage.getItem('cookieConsent');
@@ -41,14 +76,11 @@ if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_POSTHOG_KEY && proc
     // Ensure we're opted-out if consent wasn't granted
     posthog.opt_out_capturing();
   }
-} else if (typeof window !== 'undefined') {
-  // Only log warning on client side
-  console.warn('PostHog is not initialized. Environment check:', {
-    hasWindow: typeof window !== 'undefined',
-    posthogKey: process.env.NEXT_PUBLIC_POSTHOG_KEY ? process.env.NEXT_PUBLIC_POSTHOG_KEY.substring(0, 10) + '...' : 'undefined',
-    posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    nodeEnv: process.env.NODE_ENV
-  });
+}
+
+// Initialize PostHog when the module loads (client-side only)
+if (typeof window !== 'undefined') {
+  initializePostHog();
 }
 
 function PostHogTracking({ children }: { children: React.ReactNode }) {
@@ -105,6 +137,35 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
 }
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  const [isPostHogReady, setIsPostHogReady] = useState(false);
+
+  useEffect(() => {
+    // Check if PostHog is ready, and if not, try to initialize it
+    const checkPostHogReady = async () => {
+      if (posthog.__loaded) {
+        setIsPostHogReady(true);
+        return;
+      }
+
+      // Try to initialize if not already done
+      await initializePostHog();
+      
+      // Check again after initialization attempt
+      if (posthog.__loaded) {
+        setIsPostHogReady(true);
+      } else {
+        // If still not ready, set a timeout to check again
+        setTimeout(() => {
+          if (posthog.__loaded) {
+            setIsPostHogReady(true);
+          }
+        }, 1000);
+      }
+    };
+
+    checkPostHogReady();
+  }, []);
+
   return (
     <PHProvider client={posthog}>
       <Suspense fallback={children}>
