@@ -26,11 +26,10 @@ export function CookieConsentBanner() {
       // Opt-in PostHog capturing and ensure feature flags are available immediately
       if (posthog?.opt_in_capturing) {
         posthog.opt_in_capturing();
-        // Force reload feature flags and record consent after they're loaded
-        posthog.reloadFeatureFlags?.(() => {
-          posthog.capture('consent_accepted', { level: 'all' });
-          console.log('PostHog consent accepted and feature flags reloaded');
-        });
+        // Force reload feature flags and record consent
+        posthog.reloadFeatureFlags?.();
+        posthog.capture('consent_accepted', { level: 'all' });
+        console.log('PostHog consent accepted and feature flags reloaded');
       }
     } else {
       // Ensure analytics are disabled when only necessary cookies are accepted
