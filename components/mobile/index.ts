@@ -6,3 +6,6 @@ export type { MobileAddMenuProps, AddMenuItem, AddItemType } from './mobile-add-
 
 export { MobileMoreMenu } from './mobile-more-menu'
 export type { MobileMoreMenuProps, MoreMenuItem } from './mobile-more-menu'
+
+export { MobileFilterButton } from './mobile-filter-button'
+export type { MobileFilterButtonProps, FilterOption } from './mobile-filter-button'
