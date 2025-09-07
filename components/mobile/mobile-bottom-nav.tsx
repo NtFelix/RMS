@@ -7,6 +7,7 @@ import { Home, Building2, Plus, Building, MoreHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { MobileAddMenu } from './mobile-add-menu'
+import { MobileMoreMenu } from './mobile-more-menu'
 
 // TypeScript interfaces for navigation props
 export interface NavItem {
@@ -62,6 +63,7 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
   const pathname = usePathname()
   const isMobile = useIsMobile()
   const [isAddMenuOpen, setIsAddMenuOpen] = useState(false)
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
 
   // Don't render on desktop
   if (!isMobile) {
@@ -84,8 +86,7 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
         setIsAddMenuOpen(true)
         break
       case 'dropdown':
-        // TODO: Open more menu dropdown
-        console.log('Open more menu')
+        setIsMoreMenuOpen(true)
         break
       case 'navigation':
       default:
@@ -168,6 +169,13 @@ export function MobileBottomNav({ currentPath }: MobileBottomNavProps) {
       <MobileAddMenu 
         isOpen={isAddMenuOpen} 
         onClose={() => setIsAddMenuOpen(false)} 
+      />
+
+      {/* Mobile More Menu */}
+      <MobileMoreMenu 
+        isOpen={isMoreMenuOpen} 
+        onClose={() => setIsMoreMenuOpen(false)}
+        currentPath={currentPath || pathname}
       />
     </>
   )
