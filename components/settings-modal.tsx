@@ -21,7 +21,6 @@ import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
-import { getLocalFeatureFlags, setLocalFeatureFlag, type FeatureFlag as LocalFeatureFlag } from "@/lib/feature-flags";
 
 // Define a more specific type for the profile state in this component
 interface UserProfileWithSubscription extends SupabaseProfile {
@@ -96,7 +95,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
   const [useLocalFeatures, setUseLocalFeatures] = useState<boolean>(false)
-  const [localFeatures, setLocalFeatures] = useState<LocalFeatureFlag[]>([])
   
   // Helper to get display name for each stage
   const getStageDisplayName = (stage: string) => {
@@ -293,16 +291,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   useEffect(() => {
     if (!posthog || !posthog.__loaded) {
       console.log('PostHog not ready for early access features', { posthog: !!posthog, loaded: posthog?.__loaded });
-      // Load local features as fallback
-      setLocalFeatures(getLocalFeatureFlags());
       setUseLocalFeatures(true);
+      setIsLoadingFeatures(false);
       return;
     }
     
     // Check if user has opted in to capturing
     if (posthog.has_opted_out_capturing?.()) {
-      console.log('PostHog tracking is opted out, using local features');
-      setLocalFeatures(getLocalFeatureFlags());
+      console.log('PostHog tracking is opted out, early access features not available');
       setUseLocalFeatures(true);
       setIsLoadingFeatures(false);
       return;
@@ -314,8 +310,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     try {
       // Check if the method exists
       if (typeof posthog.getEarlyAccessFeatures !== 'function') {
-        console.warn('getEarlyAccessFeatures method not available on PostHog instance, using local features');
-        setLocalFeatures(getLocalFeatureFlags());
+        console.warn('getEarlyAccessFeatures method not available on PostHog instance');
         setUseLocalFeatures(true);
         setIsLoadingFeatures(false);
         return;
@@ -323,8 +318,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       
       // Set a timeout to handle blocked requests
       const timeoutId = setTimeout(() => {
-        console.warn('Early access features loading timed out (likely blocked by ad blocker), using local features');
-        setLocalFeatures(getLocalFeatureFlags());
+        console.warn('Early access features loading timed out (likely blocked by ad blocker)');
         setUseLocalFeatures(true);
         setIsLoadingFeatures(false);
       }, 5000); // 5 second timeout
@@ -359,8 +353,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         console.log('Early access features loaded and categorized');
       }, true, ['alpha', 'beta', 'concept'])
     } catch (e) {
-      console.error('Failed to load early access features, using local features', e)
-      setLocalFeatures(getLocalFeatureFlags());
+      console.error('Failed to load early access features', e)
       setUseLocalFeatures(true);
       setIsLoadingFeatures(false)
     }
@@ -372,22 +365,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     console.log(`Toggling early access for ${flagKey}: ${enable}`);
 
     if (useLocalFeatures) {
-      // Use local feature flag system
-      setLocalFeatureFlag(flagKey, enable);
-      setLocalFeatures(getLocalFeatureFlags());
-      
+      // Show error message when trying to toggle in blocked mode
       toast({
-        title: "Erfolg",
-        description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
-        variant: "success",
+        title: "Fehler",
+        description: "Early-Access-Funktionen sind nicht verfügbar. Bitte überprüfen Sie Ihre Browser-Einstellungen.",
+        variant: "destructive",
       });
       return;
     }
 
     if (!posthog || !posthog.__loaded) {
-      console.warn('PostHog not ready for toggling early access, using local storage');
-      setLocalFeatureFlag(flagKey, enable);
-      setLocalFeatures(getLocalFeatureFlags());
+      console.warn('PostHog not ready for toggling early access');
+      toast({
+        title: "Fehler",
+        description: "PostHog ist nicht bereit. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -917,49 +910,48 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             ) : (
               <div className="space-y-8">
                 {useLocalFeatures ? (
-                  // Show local features when PostHog is blocked
-                  <>
-                    {localFeatures.length > 0 && (
-                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200 mb-6">
-                        <div className="flex items-start">
-                          <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-                          <div>
-                            <p className="font-medium">Lokaler Modus</p>
-                            <p>PostHog ist nicht verfügbar (möglicherweise durch Werbeblocker blockiert). Features werden lokal gespeichert.</p>
-                          </div>
+                  // Show error message when PostHog is blocked instead of local features
+                  <div className="space-y-4">
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
+                      <div className="flex items-start">
+                        <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="font-medium">Early-Access-Funktionen können nicht geladen werden</p>
+                          <p>Die Verbindung zu unserem Feature-System konnte nicht hergestellt werden. Dies kann folgende Ursachen haben:</p>
+                          <ul className="list-disc list-inside space-y-1 ml-2">
+                            <li>Werbeblocker oder Datenschutz-Erweiterungen blockieren die Anfragen</li>
+                            <li>Cookies sind deaktiviert oder wurden nicht akzeptiert</li>
+                            <li>Netzwerkverbindung ist eingeschränkt</li>
+                          </ul>
                         </div>
                       </div>
-                    )}
-                    {['alpha', 'beta', 'concept', 'other'].map(stage => {
-                      const stageFeatures = localFeatures.filter(f => f.stage === stage);
-                      if (stageFeatures.length === 0) return null;
-                      
-                      return (
-                        <div key={stage} className="space-y-3">
-                          <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
-                          <div className="space-y-3">
-                            {stageFeatures.map((f) => (
-                              <div key={f.key} className="flex items-center justify-between p-4 rounded-lg border">
-                                <div className="pr-4">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium">{f.name}</span>
-                                  </div>
-                                  {f.description && (
-                                    <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
-                                  )}
-                                </div>
-                                <Switch
-                                  checked={f.enabled}
-                                  onCheckedChange={(checked) => toggleEarlyAccess(f.key, checked)}
-                                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-                                />
-                              </div>
-                            ))}
-                          </div>
+                    </div>
+                    
+                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
+                      <div className="flex items-start">
+                        <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
+                        <div className="space-y-2">
+                          <p className="font-medium">So können Sie das Problem beheben:</p>
+                          <ol className="list-decimal list-inside space-y-1 ml-2">
+                            <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
+                            <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
+                            <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">eu.i.posthog.com</code> in Ihren Browser-Einstellungen</li>
+                            <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
+                          </ol>
                         </div>
-                      );
-                    })}
-                  </>
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <Button 
+                        onClick={() => window.location.reload()} 
+                        variant="outline"
+                        className="mt-2"
+                      >
+                        Seite neu laden
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   // Show PostHog features when available
                   <>
@@ -1015,12 +1007,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </p>
                   </div>
                 )}
-                
-                {useLocalFeatures && localFeatures.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    Derzeit sind keine Early-Access-Funktionen verfügbar.
-                  </p>
-                )}
+
 
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-md text-sm text-amber-800 dark:text-amber-200">
                   <div className="flex items-start">
