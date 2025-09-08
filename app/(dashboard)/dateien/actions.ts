@@ -404,7 +404,6 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       // Check if it's a folder - Supabase returns folders as items with null metadata or no size
       // The key indicator is that folders have null metadata, not just size 0
       const isFolder = (item.metadata === null || item.metadata === undefined) && 
-                      !item.name.includes('.') && 
                       item.name !== '.keep'
       
       if (isFolder) {
