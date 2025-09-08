@@ -28,6 +28,14 @@ import { ConfirmationDialog } from "@/components/ui/confirmation-dialog"; // Add
 import { HausOverviewModal } from "@/components/haus-overview-modal"; // Added
 import { WohnungOverviewModal } from "@/components/wohnung-overview-modal"; // Added
 import { ApartmentTenantDetailsModal } from "@/components/apartment-tenant-details-modal"; // Added
+import { FileUploadModal } from "@/components/file-upload-modal"; // Added
+import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
+import { FileRenameModal } from "@/components/file-rename-modal"; // Added
+import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
+import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
+import { FileMoveModal } from "@/components/file-move-modal"; // Added
+import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
+import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -76,12 +84,33 @@ export default function DashboardRootLayout({
     isConfirmationModalOpen,
     confirmationModalConfig,
     closeConfirmationModal,
+    // File Rename Modal state
+    isFileRenameModalOpen,
+    fileRenameData,
+    closeFileRenameModal,
+    // Create Folder Modal state
+    isCreateFolderModalOpen,
+    createFolderModalData,
+    closeCreateFolderModal,
+    // Folder Delete Confirmation Modal state
+    isFolderDeleteConfirmationModalOpen,
+    folderDeleteConfirmationData,
+    closeFolderDeleteConfirmationModal,
+    // File Move Modal state
+    isFileMoveModalOpen,
+    fileMoveData,
+    closeFileMoveModal,
+    // Share Document Modal state
+    isShareDocumentModalOpen,
+    shareDocumentData,
+    closeShareDocumentModal,
   } = useModalStore()
 
   return (
     <AuthProvider>
-      <CommandMenu />
-      <DashboardLayout>{children}</DashboardLayout>
+      {/* <GlobalDragDropProvider> */}
+        <CommandMenu />
+        <DashboardLayout>{children}</DashboardLayout>
 
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
@@ -123,6 +152,67 @@ export default function DashboardRootLayout({
       {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
       <ApartmentTenantDetailsModal />
 
+      {/* FileUploadModal - Global file upload modal */}
+      <FileUploadModal />
+
+      {/* FilePreviewModal - Global file preview modal */}
+      <FilePreviewModal />
+
+      {/* FileRenameModal - Global file rename modal */}
+      {isFileRenameModalOpen && fileRenameData && (
+        <FileRenameModal
+          isOpen={isFileRenameModalOpen}
+          onClose={closeFileRenameModal}
+          fileName={fileRenameData.fileName}
+          onRename={fileRenameData.onRename}
+        />
+      )}
+
+      {/* CreateFolderModal - Global create folder modal */}
+      {isCreateFolderModalOpen && createFolderModalData && (
+        <CreateFolderModal
+          isOpen={isCreateFolderModalOpen}
+          onClose={closeCreateFolderModal}
+          currentPath={createFolderModalData.currentPath}
+          onFolderCreated={createFolderModalData.onFolderCreated}
+        />
+      )}
+
+      {/* FolderDeleteConfirmationModal - Global folder delete confirmation modal */}
+      {isFolderDeleteConfirmationModalOpen && folderDeleteConfirmationData && (
+        <FolderDeleteConfirmationModal
+          isOpen={isFolderDeleteConfirmationModalOpen}
+          onClose={closeFolderDeleteConfirmationModal}
+          folderName={folderDeleteConfirmationData.folderName}
+          folderPath={folderDeleteConfirmationData.folderPath}
+          fileCount={folderDeleteConfirmationData.fileCount}
+          onConfirm={folderDeleteConfirmationData.onConfirm}
+        />
+      )}
+
+      {/* FileMoveModal - Global file/folder move modal */}
+      {isFileMoveModalOpen && fileMoveData && (
+        <FileMoveModal
+          isOpen={isFileMoveModalOpen}
+          onClose={closeFileMoveModal}
+          item={fileMoveData.item}
+          itemType={fileMoveData.itemType}
+          currentPath={fileMoveData.currentPath}
+          userId={fileMoveData.userId}
+          onMove={fileMoveData.onMove}
+        />
+      )}
+
+      {/* ShareDocumentModal - Global document sharing modal */}
+      {isShareDocumentModalOpen && shareDocumentData && (
+        <ShareDocumentModal
+          isOpen={isShareDocumentModalOpen}
+          onClose={closeShareDocumentModal}
+          fileName={shareDocumentData.fileName}
+          filePath={shareDocumentData.filePath}
+        />
+      )}
+
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
         <ConfirmationDialog
@@ -140,6 +230,7 @@ export default function DashboardRootLayout({
           cancelText={confirmationModalConfig.cancelText}
         />
       )}
+      {/* </GlobalDragDropProvider> */}
     </AuthProvider>
   )
 }

@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, Menu, X, CreditCard, Folder } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
+import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
+import { useFeatureFlagEnabled } from "posthog-js/react"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
 const sidebarNavItems = [
@@ -50,12 +52,19 @@ const sidebarNavItems = [
     href: "/todos",
     icon: CheckSquare,
   },
+  {
+    title: "Dokumente",
+    href: "/dateien",
+    icon: Folder,
+  },
 ]
 
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
+  const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
+  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
   return (
     <>
@@ -98,20 +107,30 @@ export function DashboardSidebar() {
           </div>
           <ScrollArea className="flex-1 pt-4 pb-4">
             <nav className="grid gap-1 px-2">
-              {sidebarNavItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                    pathname === item.href ? "bg-accent text-accent-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  <item.icon className="h-4 w-4" />
-                  {item.title}
-                </Link>
-              ))}
+              {sidebarNavItems.map((item) => {
+                const isActive = isRouteActive(item.href)
+                const isDocuments = item.href === '/dateien'
+                const hidden = isDocuments && !documentsEnabled
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+                      getActiveStateClasses(item.href),
+                      hidden && "invisible pointer-events-none",
+                    )}
+                    data-active={isActive}
+                    aria-current={isActive ? "page" : undefined}
+                    aria-hidden={hidden || undefined}
+                    tabIndex={hidden ? -1 : undefined}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    {item.title}
+                  </Link>
+                )
+              })}
             </nav>
           </ScrollArea>
           <div className="mt-auto border-t p-4 pb-6">

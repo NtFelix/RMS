@@ -43,3 +43,6 @@ next-env.d.ts
 # ide
 .vscode
 .kiro
+
+# generated files
+public/js/
