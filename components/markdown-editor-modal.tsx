@@ -38,6 +38,7 @@ export function MarkdownEditorModal({
   const [isLoading, setIsLoading] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit")
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const { toast } = useToast()
 
   // Load file content when modal opens for existing files
@@ -109,6 +110,13 @@ export function MarkdownEditorModal({
     }
 
     setIsSaving(true)
+    
+    // Show initial save toast
+    toast({
+      title: "Speichern...",
+      description: "Die Datei wird gespeichert. Dies kann einen Moment dauern."
+    })
+    
     try {
       const response = await fetch(`/api/dateien/update-file?t=${Date.now()}`, {
         method: 'POST',
@@ -133,19 +141,14 @@ export function MarkdownEditorModal({
 
       toast({
         title: "Gespeichert",
-        description: `Die Datei "${fileName}" wurde erfolgreich gespeichert.`
+        description: `Die Datei "${fileName}" wurde erfolgreich gespeichert. Änderungen können einige Sekunden brauchen, um vollständig zu erscheinen.`
       })
 
       setIsDirty(false)
+      setLastSaved(new Date())
       if (onSave) {
         onSave(content)
       }
-      
-      // Reload the file content after saving to ensure we have the latest version
-      // Add a longer delay to ensure the save operation has fully completed and propagated through Supabase Storage
-      setTimeout(() => {
-        loadFileContent()
-      }, 1000)
     } catch (error) {
       console.error('Error saving file:', error)
       toast({
@@ -169,6 +172,7 @@ export function MarkdownEditorModal({
     setContent("")
     setIsDirty(false)
     setActiveTab("edit")
+    setLastSaved(null)
     onClose()
   }, [isDirty, onClose])
 
@@ -256,7 +260,7 @@ export function MarkdownEditorModal({
                   size="sm"
                   onClick={loadFileContent}
                   disabled={isLoading}
-                  title="Datei neu laden"
+                  title="Datei neu laden - Lädt die aktuelle Version vom Server"
                 >
                   <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                   Neu laden
@@ -284,13 +288,14 @@ export function MarkdownEditorModal({
                 onClick={handleSave}
                 disabled={isSaving || !isDirty}
                 size="sm"
+                title={isDirty ? "Änderungen speichern (Strg+S)" : "Keine Änderungen zum Speichern"}
               >
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
-                Speichern
+                {isSaving ? "Speichert..." : "Speichern"}
               </Button>
               <Button
                 variant="outline"
@@ -362,9 +367,16 @@ export function MarkdownEditorModal({
           <div className="flex justify-between items-center">
             <span>
               {content.length} Zeichen • {content.split('\n').length} Zeilen
+              {isDirty && <span className="ml-2 text-orange-500">• Ungespeicherte Änderungen</span>}
+              {lastSaved && !isDirty && (
+                <span className="ml-2 text-green-600">
+                  • Gespeichert um {lastSaved.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
             </span>
             <span>
               Strg+S zum Speichern • Strg+W zum Schließen
+              {!isNewFile && <span className="ml-2">• "Neu laden" für aktuelle Version</span>}
             </span>
           </div>
         </div>
