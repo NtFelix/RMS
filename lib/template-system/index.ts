@@ -1,6 +1,6 @@
 /**
  * Template System - Main Export File
- * Exports all placeholder engine and validation functionality
+ * Exports all placeholder engine, validation, and processing functionality
  */
 
 // Core engine exports
@@ -24,9 +24,25 @@ export {
   type TemplateValidationOptions
 } from './placeholder-validation';
 
+// Template processing exports
+export {
+  TemplateProcessor,
+  templateProcessor
+} from './template-processor';
+
+// Context fetching exports
+export {
+  ContextFetcher,
+  contextFetcher,
+  fetchTemplateContext,
+  fetchAvailableEntities,
+  fetchRelatedEntities
+} from './context-fetcher';
+
 // Convenience exports for common use cases
 export const createPlaceholderEngine = () => new PlaceholderEngine();
 export const createTemplateValidator = (engine?: PlaceholderEngine) => 
   createValidator(engine || placeholderEngine);
 export const createTemplateRealTimeValidator = (engine?: PlaceholderEngine) => 
   createRealTimeValidator(engine || placeholderEngine);
+export const createTemplateProcessor = () => new TemplateProcessor();
