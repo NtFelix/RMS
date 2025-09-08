@@ -14,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useModalStore } from "@/hooks/use-modal-store"
 
 interface CreateFileModalProps {
   isOpen: boolean
@@ -31,6 +32,7 @@ export function CreateFileModal({
   const [fileName, setFileName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const { toast } = useToast()
+  const { openMarkdownEditorModal } = useModalStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,7 +73,7 @@ export function CreateFileModal({
         body: JSON.stringify({
           filePath: currentPath,
           fileName: finalFileName,
-          content: `# ${finalFileName.replace('.md', '')}\n\n`
+          content: `# ${finalFileName.replace('.md', '')}\n\n## Beschreibung\n\n\n\n## Inhalt\n\n\n\n---\n\n*Erstellt am: ${new Date().toLocaleDateString('de-DE')}*`
         })
       })
 
@@ -88,6 +90,16 @@ export function CreateFileModal({
 
       onFileCreated(finalFileName)
       handleClose()
+
+      // Open the markdown editor for the newly created file
+      const initialContent = `# ${finalFileName.replace('.md', '')}\n\n## Beschreibung\n\n\n\n## Inhalt\n\n\n\n---\n\n*Erstellt am: ${new Date().toLocaleDateString('de-DE')}*`
+      
+      openMarkdownEditorModal({
+        filePath: currentPath,
+        fileName: finalFileName,
+        initialContent: initialContent,
+        isNewFile: false
+      })
 
     } catch (error) {
       console.error('Error creating file:', error)

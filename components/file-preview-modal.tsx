@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Download, ExternalLink, ZoomIn, ZoomOut, RotateCw, RotateCcw } from "lucide-react"
+import { Download, ExternalLink, ZoomIn, ZoomOut, RotateCw, RotateCcw, Edit3 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,8 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
   const {
     isFilePreviewModalOpen,
     filePreviewData,
-    closeFilePreviewModal
+    closeFilePreviewModal,
+    openMarkdownEditorModal
   } = useModalStore()
 
   const [fileUrl, setFileUrl] = useState<string | null>(null)
@@ -33,6 +34,7 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
     filePreviewData.name.split('.').pop()?.toLowerCase() || ''
   ) : false
   const isPdf = filePreviewData ? filePreviewData.name.split('.').pop()?.toLowerCase() === 'pdf' : false
+  const isMarkdown = filePreviewData ? filePreviewData.name.split('.').pop()?.toLowerCase() === 'md' : false
 
   const loadFileUrl = async () => {
     if (!filePreviewData) return
@@ -107,6 +109,17 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
   const handleFitToScreen = () => {
     setZoom(100)
     setRotation(0)
+  }
+
+  const handleEditMarkdown = () => {
+    if (!filePreviewData) return
+    
+    closeFilePreviewModal()
+    openMarkdownEditorModal({
+      filePath: filePreviewData.path.split('/').slice(0, -1).join('/'),
+      fileName: filePreviewData.name,
+      isNewFile: false
+    })
   }
 
   // Get file URL when modal opens
@@ -268,6 +281,24 @@ export function FilePreviewModal({ className }: FilePreviewModalProps) {
                   </>
                 )}
                 
+                {/* Markdown-specific controls */}
+                {isMarkdown && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleEditMarkdown}
+                      title="In Markdown-Editor bearbeiten"
+                      className="mr-2"
+                    >
+                      <Edit3 className="h-4 w-4 mr-2" />
+                      Bearbeiten
+                    </Button>
+                    
+                    <Separator orientation="vertical" className="h-6 mr-2" />
+                  </>
+                )}
+
                 {/* Universal controls */}
                 <Button
                   variant="outline"

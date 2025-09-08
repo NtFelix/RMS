@@ -36,6 +36,7 @@ import { CreateFileModal } from "@/components/create-file-modal"; // Added
 import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
+import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -109,6 +110,10 @@ export default function DashboardRootLayout({
     isShareDocumentModalOpen,
     shareDocumentData,
     closeShareDocumentModal,
+    // Markdown Editor Modal state
+    isMarkdownEditorModalOpen,
+    markdownEditorData,
+    closeMarkdownEditorModal,
   } = useModalStore()
 
   return (
@@ -225,6 +230,19 @@ export default function DashboardRootLayout({
           onClose={closeShareDocumentModal}
           fileName={shareDocumentData.fileName}
           filePath={shareDocumentData.filePath}
+        />
+      )}
+
+      {/* MarkdownEditorModal - Global markdown editor modal */}
+      {isMarkdownEditorModalOpen && markdownEditorData && (
+        <MarkdownEditorModal
+          isOpen={isMarkdownEditorModalOpen}
+          onClose={closeMarkdownEditorModal}
+          filePath={markdownEditorData.filePath}
+          fileName={markdownEditorData.fileName}
+          initialContent={markdownEditorData.initialContent}
+          isNewFile={markdownEditorData.isNewFile}
+          onSave={markdownEditorData.onSave}
         />
       )}
 

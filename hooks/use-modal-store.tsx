@@ -140,6 +140,14 @@ interface ShareDocumentData {
   filePath: string;
 }
 
+interface MarkdownEditorData {
+  filePath?: string;
+  fileName?: string;
+  initialContent?: string;
+  isNewFile?: boolean;
+  onSave?: (content: string) => void;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -340,6 +348,12 @@ export interface ModalState {
   shareDocumentData?: ShareDocumentData;
   openShareDocumentModal: (data: ShareDocumentData) => void;
   closeShareDocumentModal: () => void;
+
+  // Markdown Editor Modal State
+  isMarkdownEditorModalOpen: boolean;
+  markdownEditorData?: MarkdownEditorData;
+  openMarkdownEditorModal: (data: MarkdownEditorData) => void;
+  closeMarkdownEditorModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -476,6 +490,11 @@ const initialShareDocumentModalState = {
   shareDocumentData: undefined,
 };
 
+const initialMarkdownEditorModalState = {
+  isMarkdownEditorModalOpen: false,
+  markdownEditorData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -496,6 +515,7 @@ const createInitialModalState = () => ({
   ...initialFolderDeleteConfirmationModalState,
   ...initialFileMoveModalState,
   ...initialShareDocumentModalState,
+  ...initialMarkdownEditorModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -931,5 +951,12 @@ export const useModalStore = create<ModalState>((set, get) => {
       shareDocumentData: data,
     }),
     closeShareDocumentModal: () => set(initialShareDocumentModalState),
+
+    // Markdown Editor Modal
+    openMarkdownEditorModal: (data: MarkdownEditorData) => set({
+      isMarkdownEditorModalOpen: true,
+      markdownEditorData: data,
+    }),
+    closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
   };
 });
