@@ -142,20 +142,76 @@ export async function POST(request: NextRequest) {
       to: actualNewPath
     })
     
-    // Use Supabase's move operation to rename the file
+    // First, try to verify the file exists by downloading it
+    console.log('Verifying file exists by attempting download...')
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('documents')
+      .download(actualFilePath)
+    
+    if (downloadError) {
+      console.error('File verification failed - cannot download:', downloadError)
+      return NextResponse.json(
+        { error: `Datei kann nicht gelesen werden: ${downloadError.message}` },
+        { status: 404 }
+      )
+    }
+    
+    console.log('File verification successful, file size:', fileData?.size)
+    
+    // Try Supabase's move operation first
+    console.log('Attempting move operation...')
     const { error: moveError } = await supabase.storage
       .from('documents')
       .move(actualFilePath, actualNewPath)
     
     if (moveError) {
-      console.error('Move operation failed:', moveError)
-      return NextResponse.json(
-        { error: `Datei kann nicht umbenannt werden: ${moveError.message}` },
-        { status: 500 }
-      )
+      console.warn('Move operation failed, trying copy + delete approach:', moveError)
+      
+      // Fallback: Use copy + delete approach
+      try {
+        // Upload the file with the new name
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(actualNewPath, fileData, {
+            upsert: false // Don't overwrite if exists
+          })
+        
+        if (uploadError) {
+          console.error('Copy operation failed:', uploadError)
+          return NextResponse.json(
+            { error: `Datei kann nicht kopiert werden: ${uploadError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        console.log('File copied successfully, now deleting original...')
+        
+        // Delete the original file
+        const { error: deleteError } = await supabase.storage
+          .from('documents')
+          .remove([actualFilePath])
+        
+        if (deleteError) {
+          console.error('Delete operation failed:', deleteError)
+          // Try to clean up the new file
+          await supabase.storage.from('documents').remove([actualNewPath])
+          return NextResponse.json(
+            { error: `Originaldatei kann nicht gelöscht werden: ${deleteError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        console.log('Copy + delete approach completed successfully!')
+      } catch (fallbackError) {
+        console.error('Fallback approach failed:', fallbackError)
+        return NextResponse.json(
+          { error: `Umbenennung fehlgeschlagen: ${fallbackError instanceof Error ? fallbackError.message : 'Unbekannter Fehler'}` },
+          { status: 500 }
+        )
+      }
+    } else {
+      console.log('Move operation completed successfully!')
     }
-    
-    console.log('Rename operation completed successfully!')
     return NextResponse.json({ 
       success: true,
       message: 'Datei erfolgreich umbenannt'
