@@ -354,6 +354,17 @@ export interface ModalState {
   markdownEditorData?: MarkdownEditorData;
   openMarkdownEditorModal: (data: MarkdownEditorData) => void;
   closeMarkdownEditorModal: () => void;
+
+  // Template Creation Modal State
+  isTemplateCreateModalOpen: boolean;
+  templateCreateModalData?: {
+    currentPath?: string;
+    onSuccess?: (template: any) => void;
+  };
+  isTemplateCreateModalDirty: boolean;
+  openTemplateCreateModal: (currentPath?: string, onSuccess?: (template: any) => void) => void;
+  closeTemplateCreateModal: (options?: CloseModalOptions) => void;
+  setTemplateCreateModalDirty: (isDirty: boolean) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -495,6 +506,12 @@ const initialMarkdownEditorModalState = {
   markdownEditorData: undefined,
 };
 
+const initialTemplateCreateModalState = {
+  isTemplateCreateModalOpen: false,
+  templateCreateModalData: undefined,
+  isTemplateCreateModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -516,6 +533,7 @@ const createInitialModalState = () => ({
   ...initialFileMoveModalState,
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
+  ...initialTemplateCreateModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -958,5 +976,17 @@ export const useModalStore = create<ModalState>((set, get) => {
       markdownEditorData: data,
     }),
     closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
+
+    // Template Creation Modal
+    openTemplateCreateModal: (currentPath?: string, onSuccess?: (template: any) => void) => set({
+      isTemplateCreateModalOpen: true,
+      templateCreateModalData: {
+        currentPath,
+        onSuccess,
+      },
+      isTemplateCreateModalDirty: false,
+    }),
+    closeTemplateCreateModal: createCloseHandler('isTemplateCreateModalDirty', initialTemplateCreateModalState),
+    setTemplateCreateModalDirty: (isDirty: boolean) => set({ isTemplateCreateModalDirty: isDirty }),
   };
 });

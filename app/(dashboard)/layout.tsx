@@ -38,6 +38,7 @@ import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
+import { TemplateCreateModal } from "@/components/template-create-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -114,6 +115,10 @@ export default function DashboardRootLayout({
     isMarkdownEditorModalOpen,
     markdownEditorData,
     closeMarkdownEditorModal,
+    // Template Creation Modal state
+    isTemplateCreateModalOpen,
+    templateCreateModalData,
+    closeTemplateCreateModal,
   } = useModalStore()
 
   return (
@@ -245,6 +250,9 @@ export default function DashboardRootLayout({
           onSave={markdownEditorData.onSave}
         />
       )}
+
+      {/* TemplateCreateModal - Global template creation modal */}
+      <TemplateCreateModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
