@@ -113,13 +113,8 @@ export function ArchiveFileContextMenu({ file, children }: ArchiveFileContextMen
     if (canPreview(file.name)) {
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       
-      // For .md files, we need to handle them differently since they're archived
-      if (fileExtension === 'md') {
-        // For archived files, we can't edit them directly, so show preview instead
-        openPreview(file)
-      } else {
-        openPreview(file)
-      }
+      // For archived files, we can't edit them directly, so show preview instead
+      openPreview(file)
     } else {
       toast({
         title: "Vorschau nicht verfügbar",
