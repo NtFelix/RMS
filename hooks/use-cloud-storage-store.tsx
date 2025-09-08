@@ -500,6 +500,16 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           currentPath = currentPath.slice(0, -1);
         }
         
+        // Ensure the path includes the user prefix if it doesn't already
+        if (!currentPath.startsWith('user_')) {
+          // Get user ID from Supabase client
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            currentPath = `user_${user.id}${currentPath.startsWith('/') ? '' : '/'}${currentPath}`;
+          }
+        }
+        
         // Construct the full path to the file without double encoding
         // The file.name should already be the correct name from Supabase
         const filePath = `${currentPath}/${file.name}`;
@@ -508,7 +518,8 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           currentPath,
           fileName: file.name,
           newName,
-          fullPath: filePath
+          fullPath: filePath,
+          fileObject: file
         });
         
         // Call the rename API endpoint
@@ -523,10 +534,20 @@ export const useCloudStorageStore = create<CloudStorageState>()(
           }),
         });
         
+        console.log('API Response:', {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+        
         if (!response.ok) {
           const errorData = await response.json();
+          console.error('API Error Response:', errorData);
           throw new Error(errorData.error || 'Rename failed');
         }
+        
+        const successData = await response.json();
+        console.log('API Success Response:', successData);
         
         // Update file in current files list
         set((state) => {
