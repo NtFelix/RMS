@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/context-menu"
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { useCloudStorageOperations, useCloudStoragePreview, useCloudStorageArchive } from "@/hooks/use-cloud-storage-store"
+import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { reconstructOriginalPath } from "@/lib/path-utils"
 import type { StorageObject } from "@/hooks/use-cloud-storage-store"
@@ -36,6 +37,7 @@ export function ArchiveFileContextMenu({ file, children }: ArchiveFileContextMen
   const { downloadFile, isOperationInProgress } = useCloudStorageOperations()
   const { openPreview } = useCloudStoragePreview()
   const { restoreFile, permanentlyDeleteFile } = useCloudStorageArchive()
+  const { openMarkdownEditorModal } = useModalStore()
 
   // Get file type for icon display
   const getFileIcon = (fileName: string) => {
@@ -55,7 +57,7 @@ export function ArchiveFileContextMenu({ file, children }: ArchiveFileContextMen
   // Check if file can be previewed
   const canPreview = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase()
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(extension || '')
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'md'].includes(extension || '')
   }
 
   const handleDownload = async () => {
@@ -109,7 +111,15 @@ export function ArchiveFileContextMenu({ file, children }: ArchiveFileContextMen
 
   const handlePreview = () => {
     if (canPreview(file.name)) {
-      openPreview(file)
+      const fileExtension = file.name.split('.').pop()?.toLowerCase()
+      
+      // For .md files, we need to handle them differently since they're archived
+      if (fileExtension === 'md') {
+        // For archived files, we can't edit them directly, so show preview instead
+        openPreview(file)
+      } else {
+        openPreview(file)
+      }
     } else {
       toast({
         title: "Vorschau nicht verfügbar",

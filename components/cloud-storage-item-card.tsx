@@ -122,7 +122,7 @@ export function CloudStorageItemCard({
     if (type !== 'file') return false
     const file = item as StorageObject
     const extension = file.name.split('.').pop()?.toLowerCase()
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf'].includes(extension || '')
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md'].includes(extension || '')
   }
 
   // Handle preview action
