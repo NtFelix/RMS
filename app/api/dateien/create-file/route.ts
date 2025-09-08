@@ -45,12 +45,15 @@ export async function POST(request: NextRequest) {
     // Create the full path for the new file
     const newFilePath = `${filePath}/${fileName}`
     
-    // Check if file already exists
-    const { data: existingFile } = await supabase.storage
+    // Check if file already exists using efficient list method
+    const { data: existingFiles } = await supabase.storage
       .from('documents')
-      .download(newFilePath)
+      .list(filePath, {
+        limit: 1,
+        search: fileName,
+      })
     
-    if (existingFile) {
+    if (existingFiles && existingFiles.length > 0) {
       return NextResponse.json(
         { error: 'File already exists' },
         { status: 409 }
