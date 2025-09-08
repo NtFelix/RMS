@@ -513,6 +513,7 @@ export function CloudStorageSimple({
             onUpload={handleUpload}
             onCreateFolder={handleCreateFolder}
             onCreateFile={handleCreateFile}
+            onCreateTemplate={handleCreateTemplate}
             onSearch={setSearchQuery}
             onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
             onViewMode={setViewMode}

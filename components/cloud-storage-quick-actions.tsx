@@ -36,6 +36,7 @@ interface QuickActionsProps {
   onUpload: () => void
   onCreateFolder: () => void
   onCreateFile: () => void
+  onCreateTemplate?: () => void
   onSearch: (query: string) => void
   onSort: (sortBy: string) => void
   onViewMode: (mode: 'grid' | 'list') => void
@@ -52,6 +53,7 @@ export function CloudStorageQuickActions({
   onUpload,
   onCreateFolder,
   onCreateFile,
+  onCreateTemplate,
   onSearch,
   onSort,
   onViewMode,
@@ -202,6 +204,12 @@ export function CloudStorageQuickActions({
                 <DropdownMenuItem onClick={onCreateFile}>
                   <FileText className="h-4 w-4 mr-2" />
                   Datei erstellen
+                </DropdownMenuItem>
+              )}
+              {onCreateTemplate && (
+                <DropdownMenuItem onClick={onCreateTemplate}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Vorlage erstellen
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
