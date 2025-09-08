@@ -326,7 +326,7 @@ export function MarkdownEditorModal({
               {fileName || "Neue Markdown-Datei"}
               {isDirty && <span className="ml-2 text-orange-500">•</span>}
             </DialogTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mr-8">
               {!isNewFile && (
                 <Button
                   variant="outline"
