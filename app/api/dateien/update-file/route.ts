@@ -54,20 +54,36 @@ export async function POST(request: NextRequest) {
         console.log('Delete error (might be expected):', deleteError)
       }
 
-      // Wait a moment for the delete to propagate
-      await new Promise(resolve => setTimeout(resolve, 200))
+      // Retry upload with exponential backoff to handle propagation delays
+      let uploadSuccess = false
+      let lastError = null
+      const maxRetries = 3
+      
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        // Wait with exponential backoff: 100ms, 200ms, 400ms
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, attempt - 1)))
+        }
+        
+        const { error: newUploadError } = await supabase.storage
+          .from('documents')
+          .upload(fullPath, blob, {
+            upsert: false,
+            contentType: 'text/markdown',
+            cacheControl: '0'
+          })
 
-      // Upload as new file
-      const { error: newUploadError } = await supabase.storage
-        .from('documents')
-        .upload(fullPath, blob, {
-          upsert: false,
-          contentType: 'text/markdown',
-          cacheControl: '0'
-        })
+        if (!newUploadError) {
+          uploadSuccess = true
+          break
+        }
+        
+        lastError = newUploadError
+        console.log(`Upload attempt ${attempt + 1} failed:`, newUploadError)
+      }
 
-      if (newUploadError) {
-        console.error('Error uploading file after delete:', newUploadError)
+      if (!uploadSuccess) {
+        console.error('Error uploading file after delete (all retries failed):', lastError)
         return NextResponse.json({ error: 'Failed to save file' }, { status: 500 })
       }
     }
