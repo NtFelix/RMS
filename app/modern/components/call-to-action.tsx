@@ -4,6 +4,7 @@ import { useState } from "react"
 import { ArrowRight, Download, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { EXAMPLE_BILL_PDF_URL } from "@/lib/constants"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +47,7 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
           asChild
         >
           <Link 
-            href="https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf"
+            href={EXAMPLE_BILL_PDF_URL}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CallToAction } from './call-to-action';
+import { EXAMPLE_BILL_PDF_URL } from '@/lib/constants';
 
 // Mock dependencies
 jest.mock('next/link', () => {
@@ -118,7 +119,7 @@ describe('CallToAction - Jetzt loslegen Feature', () => {
       render(<CallToAction variant="hero" onGetStarted={mockOnGetStarted} />);
 
       const pdfLink = screen.getByRole('link');
-      expect(pdfLink).toHaveAttribute('href', 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf');
+      expect(pdfLink).toHaveAttribute('href', EXAMPLE_BILL_PDF_URL);
       expect(pdfLink).toHaveAttribute('target', '_blank');
       expect(pdfLink).toHaveAttribute('rel', 'noopener noreferrer');
     });
