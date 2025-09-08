@@ -4,10 +4,28 @@ import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard } from "lucide-react"
 import Image from "next/image"
-import { LOGO_URL } from "@/lib/constants"
-import { Button } from '@/components/ui/button' // Corrected import path
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { LOGO_URL } from "@/lib/constants"
+import { Button } from '@/components/ui/button' // Corrected import path
+
+interface DashboardMenuItemProps {
+  onClick?: () => void;
+}
+
+const DashboardMenuItem = ({ onClick }: DashboardMenuItemProps) => (
+  <DropdownMenuItem asChild>
+    <Link 
+      href="/home" 
+      className="flex items-center cursor-pointer relative overflow-hidden group" 
+      onClick={onClick}
+    >
+      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
+      <LayoutDashboard className="w-4 h-4 mr-2 relative z-10" />
+      <span className="relative z-10">Dashboard</span>
+    </Link>
+  </DropdownMenuItem>
+);
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/client";
 import AuthModal from "@/components/auth-modal";
@@ -189,13 +207,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                   </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground">
-                  <DropdownMenuItem asChild>
-                    <Link href="/home" className="flex items-center cursor-pointer relative overflow-hidden group">
-                      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-                      <LayoutDashboard className="w-4 h-4 mr-2 relative z-10" />
-                      <span className="relative z-10">Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  <DashboardMenuItem />
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onSelect={handleLogout}
@@ -299,13 +311,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           </div>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56 bg-background/95 backdrop-blur-lg border-border/50 shadow-xl">
-                          <DropdownMenuItem asChild>
-                            <Link href="/home" className="flex items-center cursor-pointer relative overflow-hidden group" onClick={() => setIsOpen(false)}>
-                              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-full transition-transform duration-1000 ease-in-out" />
-                              <LayoutDashboard className="w-4 h-4 mr-2 relative z-10" />
-                              <span className="relative z-10">Dashboard</span>
-                            </Link>
-                          </DropdownMenuItem>
+                          <DashboardMenuItem onClick={() => setIsOpen(false)} />
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onSelect={handleLogout}
