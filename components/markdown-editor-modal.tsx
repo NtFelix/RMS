@@ -223,24 +223,97 @@ export function MarkdownEditorModal({
     }
   }
 
-  // Simple markdown to HTML converter for preview
+  // Improved markdown to HTML converter for preview
   const markdownToHtml = (markdown: string) => {
-    return markdown
-      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-      .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
-      .replace(/^##### (.*$)/gim, '<h5>$1</h5>')
-      .replace(/^###### (.*$)/gim, '<h6>$1</h6>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em>$1</em>')
-      .replace(/!\[([^\]]*)\]\(([^\)]*)\)/gim, '<img alt="$1" src="$2" />')
-      .replace(/\[([^\]]*)\]\(([^\)]*)\)/gim, '<a href="$2">$1</a>')
-      .replace(/`([^`]*)`/gim, '<code>$1</code>')
-      .replace(/^- (.*$)/gim, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-      .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-      .replace(/\n/gim, '<br>')
+    if (!markdown.trim()) return ''
+    
+    // Split into lines for proper processing
+    const lines = markdown.split('\n')
+    const result: string[] = []
+    let inUnorderedList = false
+    let inOrderedList = false
+    let listItems: string[] = []
+    
+    const flushList = () => {
+      if (listItems.length > 0) {
+        if (inUnorderedList) {
+          result.push(`<ul>${listItems.join('')}</ul>`)
+        } else if (inOrderedList) {
+          result.push(`<ol>${listItems.join('')}</ol>`)
+        }
+        listItems = []
+        inUnorderedList = false
+        inOrderedList = false
+      }
+    }
+    
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i]
+      
+      // Handle unordered lists
+      if (line.match(/^- (.+)/)) {
+        if (!inUnorderedList) {
+          flushList()
+          inUnorderedList = true
+        }
+        const content = line.replace(/^- (.+)/, '$1')
+        listItems.push(`<li>${processInlineMarkdown(content)}</li>`)
+        continue
+      }
+      
+      // Handle ordered lists
+      if (line.match(/^\d+\. (.+)/)) {
+        if (!inOrderedList) {
+          flushList()
+          inOrderedList = true
+        }
+        const content = line.replace(/^\d+\. (.+)/, '$1')
+        listItems.push(`<li>${processInlineMarkdown(content)}</li>`)
+        continue
+      }
+      
+      // If we were in a list but this line isn't a list item, flush the list
+      if (inUnorderedList || inOrderedList) {
+        flushList()
+      }
+      
+      // Handle headers
+      if (line.match(/^#{1,6} /)) {
+        const level = line.match(/^(#{1,6})/)?.[1].length || 1
+        const content = line.replace(/^#{1,6} (.+)/, '$1')
+        result.push(`<h${level}>${processInlineMarkdown(content)}</h${level}>`)
+        continue
+      }
+      
+      // Handle empty lines
+      if (line.trim() === '') {
+        result.push('<br>')
+        continue
+      }
+      
+      // Handle regular paragraphs
+      result.push(`<p>${processInlineMarkdown(line)}</p>`)
+    }
+    
+    // Flush any remaining list
+    flushList()
+    
+    return result.join('')
+  }
+  
+  // Process inline markdown (bold, italic, links, code, images)
+  const processInlineMarkdown = (text: string): string => {
+    return text
+      // Images (must come before links)
+      .replace(/!\[([^\]]*)\]\(([^\)]*)\)/g, '<img alt="$1" src="$2" style="max-width: 100%; height: auto;" />')
+      // Links
+      .replace(/\[([^\]]*)\]\(([^\)]*)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+      // Bold
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      // Italic
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      // Inline code
+      .replace(/`([^`]+)`/g, '<code style="background-color: #f1f5f9; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
   }
 
   return (
