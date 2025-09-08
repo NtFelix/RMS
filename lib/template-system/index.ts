@@ -1,33 +1,32 @@
-// Template System - Main Export File
-// Centralized exports for the template system
+/**
+ * Template System - Main Export File
+ * Exports all placeholder engine and validation functionality
+ */
 
-// Core types
-export type {
-  Template,
-  PlaceholderDefinition,
-  TemplateContext,
-  AutocompleteSuggestion,
-  TemplateCreateData,
-  TemplateUsageData,
-  TemplateProcessingResult,
-  TemplateValidationResult,
-  TemplateError,
-  ContextType
-} from '@/types/template-system';
-
-// Placeholder definitions and utilities
+// Core engine exports
 export {
+  PlaceholderEngine,
+  placeholderEngine,
   PLACEHOLDER_DEFINITIONS,
-  CATEGORY_DISPLAY_NAMES,
-  getPlaceholdersByCategory,
-  getPlaceholdersByContext,
-  searchPlaceholders,
-  getPlaceholderByKey,
-  getContextFreePlaceholders,
-  isValidPlaceholder,
-  getRequiredContextTypes,
-  getPlaceholdersGroupedByCategory
-} from './placeholder-definitions';
+  type PlaceholderDefinition,
+  type AutocompleteSuggestion,
+  type ValidationError,
+  type ContextType
+} from './placeholder-engine';
 
-// Context mappings
-export { CONTEXT_MAPPINGS } from '@/types/template-system';
+// Validation exports
+export {
+  TemplateValidator,
+  RealTimeValidator,
+  createValidator,
+  createRealTimeValidator,
+  type ValidationResult,
+  type TemplateValidationOptions
+} from './placeholder-validation';
+
+// Convenience exports for common use cases
+export const createPlaceholderEngine = () => new PlaceholderEngine();
+export const createTemplateValidator = (engine?: PlaceholderEngine) => 
+  createValidator(engine || placeholderEngine);
+export const createTemplateRealTimeValidator = (engine?: PlaceholderEngine) => 
+  createRealTimeValidator(engine || placeholderEngine);
