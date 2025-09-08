@@ -5,7 +5,7 @@ export const runtime = 'edge'
 
 export async function POST(request: NextRequest) {
   try {
-    const { filePath, fileName } = await request.json()
+    const { filePath, fileName, timestamp } = await request.json()
 
     if (!filePath || !fileName) {
       return NextResponse.json({ error: 'File path and name are required' }, { status: 400 })
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // Construct the full file path
     const fullPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '')
 
-    console.log(`Reading file: ${fullPath}`)
+    console.log(`Reading file: ${fullPath} (timestamp: ${timestamp || 'none'})`)
 
     // Download the file from Supabase Storage
     const { data, error } = await supabase.storage
@@ -43,7 +43,16 @@ export async function POST(request: NextRequest) {
     const content = await data.text()
 
     console.log(`File read successfully: ${fullPath}, content length: ${content.length}`)
-    return NextResponse.json({ content })
+    
+    // Return with cache-busting headers
+    return NextResponse.json({ content }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+        'ETag': `"${Date.now()}-${content.length}"` // Unique ETag based on timestamp and content
+      }
+    })
   } catch (error) {
     console.error('Error reading file:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

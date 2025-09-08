@@ -73,7 +73,15 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`File updated successfully: ${fullPath}`)
-    return NextResponse.json({ success: true })
+    
+    // Return with cache-busting headers
+    return NextResponse.json({ success: true }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    })
   } catch (error) {
     console.error('Error updating file:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

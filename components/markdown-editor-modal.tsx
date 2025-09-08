@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { FileText, Save, X, Eye, Edit3, Loader2, Download, Copy } from "lucide-react"
+import { FileText, Save, X, Eye, Edit3, Loader2, Download, Copy, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -43,7 +43,10 @@ export function MarkdownEditorModal({
   // Load file content when modal opens for existing files
   useEffect(() => {
     if (isOpen && !isNewFile && filePath && fileName) {
-      loadFileContent()
+      // Add a small delay to ensure any previous operations have completed
+      setTimeout(() => {
+        loadFileContent()
+      }, 100)
     } else if (isOpen && isNewFile) {
       setContent(initialContent)
       setIsDirty(false)
@@ -60,14 +63,19 @@ export function MarkdownEditorModal({
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/dateien/read-file`, {
+      const response = await fetch(`/api/dateien/read-file?t=${Date.now()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
+        cache: 'no-store', // Disable fetch cache
         body: JSON.stringify({
           filePath: filePath,
-          fileName: fileName
+          fileName: fileName,
+          timestamp: Date.now(), // Add timestamp to request body for extra cache busting
+          random: Math.random() // Add random number for additional cache busting
         })
       })
 
@@ -102,15 +110,20 @@ export function MarkdownEditorModal({
 
     setIsSaving(true)
     try {
-      const response = await fetch('/api/dateien/update-file', {
+      const response = await fetch(`/api/dateien/update-file?t=${Date.now()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
         },
+        cache: 'no-store', // Disable fetch cache
         body: JSON.stringify({
           filePath: filePath,
           fileName: fileName,
-          content: content
+          content: content,
+          timestamp: Date.now(), // Add timestamp for cache busting
+          random: Math.random() // Add random number for additional cache busting
         })
       })
 
@@ -127,6 +140,12 @@ export function MarkdownEditorModal({
       if (onSave) {
         onSave(content)
       }
+      
+      // Reload the file content after saving to ensure we have the latest version
+      // Add a longer delay to ensure the save operation has fully completed and propagated through Supabase Storage
+      setTimeout(() => {
+        loadFileContent()
+      }, 1000)
     } catch (error) {
       console.error('Error saving file:', error)
       toast({
@@ -231,6 +250,18 @@ export function MarkdownEditorModal({
               {isDirty && <span className="ml-2 text-orange-500">•</span>}
             </DialogTitle>
             <div className="flex items-center gap-2">
+              {!isNewFile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadFileContent}
+                  disabled={isLoading}
+                  title="Datei neu laden"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                  Neu laden
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
