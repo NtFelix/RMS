@@ -54,118 +54,164 @@ export async function POST(request: NextRequest) {
       newName
     })
 
-    // Let's find the file by searching recursively
-    console.log('Searching for file recursively...')
+    // Debug: Log the paths being used
+    console.log('Rename operation details:', {
+      originalFilePath: filePath,
+      cleanFilePath,
+      directory,
+      currentFileName,
+      newName,
+      newPath,
+      userId: user.id
+    })
     
-    async function findFileRecursively(searchPath: string, targetFileName: string): Promise<string | null> {
-      try {
-        const { data: items, error } = await supabase.storage
-          .from('documents')
-          .list(searchPath, { limit: 1000 })
-        
-        if (error) {
-          console.log(`Could not list ${searchPath}:`, error.message)
-          return null
+    // First, try to find the actual file by searching the directory
+    console.log('Searching for file in directory:', directory)
+    
+    const { data: directoryContents, error: listError } = await supabase.storage
+      .from('documents')
+      .list(directory, { limit: 1000 })
+    
+    if (listError) {
+      console.error('Error listing directory:', listError)
+      return NextResponse.json(
+        { error: `Verzeichnis kann nicht gelesen werden: ${listError.message}` },
+        { status: 500 }
+      )
+    }
+    
+    console.log('Directory contents:', {
+      directory,
+      fileCount: directoryContents?.length || 0,
+      files: directoryContents?.map(f => ({
+        name: f.name,
+        size: f.metadata?.size,
+        hasMetadata: !!f.metadata
+      })) || []
+    })
+    
+    // Find the file in the directory listing
+    let actualFileName = currentFileName
+    let fileFound = false
+    
+    // Try exact match first
+    const exactMatch = directoryContents?.find(f => f.name === currentFileName && f.metadata?.size)
+    if (exactMatch) {
+      fileFound = true
+      console.log('Found file with exact match')
+    } else {
+      // Try case-insensitive match
+      const caseInsensitiveMatch = directoryContents?.find(f => 
+        f.name.toLowerCase() === currentFileName.toLowerCase() && f.metadata?.size
+      )
+      if (caseInsensitiveMatch) {
+        actualFileName = caseInsensitiveMatch.name
+        fileFound = true
+        console.log('Found file with case-insensitive match:', { searched: currentFileName, found: actualFileName })
+      } else {
+        // Try partial match
+        const partialMatch = directoryContents?.find(f => 
+          (f.name.includes(currentFileName) || currentFileName.includes(f.name)) && f.metadata?.size
+        )
+        if (partialMatch) {
+          actualFileName = partialMatch.name
+          fileFound = true
+          console.log('Found file with partial match:', { searched: currentFileName, found: actualFileName })
         }
-        
-        // Check if the file is directly in this directory
-        const directFile = items?.find(item => item.name === targetFileName && item.metadata?.size)
-        if (directFile) {
-          return `${searchPath}/${targetFileName}`
-        }
-        
-        // Check subdirectories (folders don't have metadata.size)
-        const folders = items?.filter(item => !item.metadata?.size && !item.name.includes('.') && item.name !== '.keep') || []
-        
-        for (const folder of folders) {
-          const subPath = `${searchPath}/${folder.name}`
-          const found = await findFileRecursively(subPath, targetFileName)
-          if (found) {
-            return found
-          }
-        }
-        
-        return null
-      } catch (error) {
-        console.log(`Error searching in ${searchPath}:`, error)
-        return null
       }
     }
     
-    // Search for the file starting from the user's root directory
-    const actualFilePath = await findFileRecursively(`user_${user.id}`, currentFileName)
-    
-    if (!actualFilePath) {
+    if (!fileFound) {
+      console.error('File not found in directory listing:', {
+        searchedFor: currentFileName,
+        directory,
+        availableFiles: directoryContents?.filter(f => f.metadata?.size).map(f => f.name) || []
+      })
       return NextResponse.json(
-        { error: `Datei "${currentFileName}" nicht gefunden` },
+        { error: `Datei "${currentFileName}" nicht im Verzeichnis "${directory}" gefunden` },
         { status: 404 }
       )
     }
     
-    console.log('Found file at actual path:', actualFilePath)
+    // Update paths with the actual filename found
+    const actualFilePath = `${directory}/${actualFileName}`
+    const actualNewPath = `${directory}/${newName}`
     
-    // Construct the new path in the same directory as the found file
-    const actualDirectory = actualFilePath.substring(0, actualFilePath.lastIndexOf('/'))
-    const actualNewPath = `${actualDirectory}/${newName}`
-    
-    console.log('Moving file:', {
+    console.log('Using actual file paths:', {
       from: actualFilePath,
       to: actualNewPath
     })
     
-    // Let's try a different approach: copy and delete instead of move
-    console.log('Trying copy and delete approach...')
-    
-    // First, download the file
+    // First, try to verify the file exists by downloading it
+    console.log('Verifying file exists by attempting download...')
     const { data: fileData, error: downloadError } = await supabase.storage
       .from('documents')
       .download(actualFilePath)
     
     if (downloadError) {
-      console.error('Could not download file for copy:', downloadError.message)
+      console.error('File verification failed - cannot download:', downloadError)
       return NextResponse.json(
         { error: `Datei kann nicht gelesen werden: ${downloadError.message}` },
-        { status: 500 }
+        { status: 404 }
       )
     }
     
-    console.log('File downloaded successfully, uploading with new name...')
+    console.log('File verification successful, file size:', fileData?.size)
     
-    // Upload the file with the new name
-    const { error: uploadError } = await supabase.storage
+    // Try Supabase's move operation first
+    console.log('Attempting move operation...')
+    const { error: moveError } = await supabase.storage
       .from('documents')
-      .upload(actualNewPath, fileData, {
-        upsert: false // Don't overwrite if exists
-      })
+      .move(actualFilePath, actualNewPath)
     
-    if (uploadError) {
-      console.error('Could not upload file with new name:', uploadError.message)
-      return NextResponse.json(
-        { error: `Datei kann nicht mit neuem Namen erstellt werden: ${uploadError.message}` },
-        { status: 500 }
-      )
+    if (moveError) {
+      console.warn('Move operation failed, trying copy + delete approach:', moveError)
+      
+      // Fallback: Use copy + delete approach
+      try {
+        // Upload the file with the new name
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(actualNewPath, fileData, {
+            upsert: false // Don't overwrite if exists
+          })
+        
+        if (uploadError) {
+          console.error('Copy operation failed:', uploadError)
+          return NextResponse.json(
+            { error: `Datei kann nicht kopiert werden: ${uploadError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        console.log('File copied successfully, now deleting original...')
+        
+        // Delete the original file
+        const { error: deleteError } = await supabase.storage
+          .from('documents')
+          .remove([actualFilePath])
+        
+        if (deleteError) {
+          console.error('Delete operation failed:', deleteError)
+          // Try to clean up the new file
+          await supabase.storage.from('documents').remove([actualNewPath])
+          return NextResponse.json(
+            { error: `Originaldatei kann nicht gelöscht werden: ${deleteError.message}` },
+            { status: 500 }
+          )
+        }
+        
+        console.log('Copy + delete approach completed successfully!')
+      } catch (fallbackError) {
+        console.error('Fallback approach failed:', fallbackError)
+        return NextResponse.json(
+          { error: `Umbenennung fehlgeschlagen: ${fallbackError instanceof Error ? fallbackError.message : 'Unbekannter Fehler'}` },
+          { status: 500 }
+        )
+      }
+    } else {
+      console.log('Move operation completed successfully!')
     }
-    
-    console.log('File uploaded with new name, deleting original...')
-    
-    // Delete the original file
-    const { error: deleteError } = await supabase.storage
-      .from('documents')
-      .remove([actualFilePath])
-    
-    if (deleteError) {
-      console.error('Could not delete original file:', deleteError.message)
-      // Try to clean up the new file
-      await supabase.storage.from('documents').remove([actualNewPath])
-      return NextResponse.json(
-        { error: `Originaldatei kann nicht gelöscht werden: ${deleteError.message}` },
-        { status: 500 }
-      )
-    }
-
-    console.log('Rename completed successfully using copy and delete!')
-
-    console.log('Move succeeded!')
     return NextResponse.json({ 
       success: true,
       message: 'Datei erfolgreich umbenannt'

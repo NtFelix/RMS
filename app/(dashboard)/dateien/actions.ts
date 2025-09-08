@@ -404,7 +404,6 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       // Check if it's a folder - Supabase returns folders as items with null metadata or no size
       // The key indicator is that folders have null metadata, not just size 0
       const isFolder = (item.metadata === null || item.metadata === undefined) && 
-                      !item.name.includes('.') && 
                       item.name !== '.keep'
       
       if (isFolder) {
@@ -1017,10 +1016,10 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
             try {
               const { data: tenant } = await supabase
                 .from('Mieter')
-                .select('name, vorname')
+                .select('name')
                 .eq('id', segment)
                 .single()
-              const tenantName = tenant ? `${tenant.vorname ?? ''} ${tenant.name ?? ''}`.trim() : null
+              const tenantName = tenant ? tenant.name : null
               crumbs.push({ name: tenantName || segment, path: currentPath, type: 'tenant' })
             } catch {
               // Not a valid tenant, treat as custom folder

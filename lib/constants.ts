@@ -24,3 +24,6 @@ export const FEATURE_FLAGS = {
 
 // Video URLs
 export const HERO_VIDEO_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/nebenkosten-overview.mp4';
+
+// Document URLs
+export const EXAMPLE_BILL_PDF_URL = 'https://ocubnwzybybcbrhsnqqs.supabase.co/storage/v1/object/public/pwa-images/Beispielabrechnung.pdf';
