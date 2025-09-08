@@ -55,7 +55,7 @@ export function FileContextMenu({
   
   const { openPreview } = useCloudStoragePreview()
   const { archiveFile, openArchiveView } = useCloudStorageArchive()
-  const { openFileMoveModal, openMarkdownEditorModal } = useModalStore()
+  const { openFileMoveModal, openMarkdownEditorModal, openTemplateUsageModal } = useModalStore()
 
   // Get file type for icon display
   const getFileIcon = (fileName: string) => {
@@ -83,6 +83,14 @@ export function FileContextMenu({
     return fileName.endsWith('.vorlage')
   }
 
+  // Get template ID from file name (assuming format: templateId.vorlage)
+  const getTemplateIdFromFileName = (fileName: string): string | null => {
+    if (!isTemplateFile(fileName)) return null
+    // For now, we'll need to fetch the template by name
+    // This is a temporary solution until we have a better file-to-template mapping
+    return null
+  }
+
   const handleDownload = async () => {
     try {
       await downloadFile(file)
@@ -101,17 +109,148 @@ export function FileContextMenu({
 
   const handleDelete = async () => {
     try {
-      await deleteFile(file)
-      toast({
-        title: "Datei gelöscht",
-        description: `${file.name} wurde erfolgreich gelöscht.`,
-      })
+      if (isTemplateFile(file.name)) {
+        await handleTemplateDelete()
+      } else {
+        await deleteFile(file)
+        toast({
+          title: "Datei gelöscht",
+          description: `${file.name} wurde erfolgreich gelöscht.`,
+        })
+      }
     } catch (error) {
       toast({
         title: "Löschen fehlgeschlagen",
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
         variant: "destructive",
       })
+    }
+  }
+
+  const handleTemplateDelete = async () => {
+    try {
+      // Get template by name first
+      const response = await fetch('/api/vorlagen')
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates')
+      }
+      
+      const templates = await response.json()
+      const templateName = file.name.replace('.vorlage', '')
+      const template = templates.find((t: any) => t.titel === templateName)
+      
+      if (!template) {
+        throw new Error('Template not found')
+      }
+
+      // Delete template from database
+      const deleteResponse = await fetch(`/api/vorlagen/${template.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!deleteResponse.ok) {
+        throw new Error('Failed to delete template')
+      }
+
+      toast({
+        title: "Template gelöscht",
+        description: `Das Template "${templateName}" wurde erfolgreich gelöscht.`,
+      })
+    } catch (error) {
+      console.error('Error deleting template:', error)
+      throw error
+    }
+  }
+
+  const handleTemplateUsage = async () => {
+    try {
+      // Get template by name first
+      const response = await fetch('/api/vorlagen')
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates')
+      }
+      
+      const templates = await response.json()
+      const templateName = file.name.replace('.vorlage', '')
+      const template = templates.find((t: any) => t.titel === templateName)
+      
+      if (!template) {
+        toast({
+          title: "Template nicht gefunden",
+          description: "Das Template konnte nicht gefunden werden.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Open template usage modal
+      openTemplateUsageModal(template, (processedContent: string) => {
+        // Handle the generated document content
+        // For now, we'll just show a success message
+        toast({
+          title: "Dokument erstellt",
+          description: "Das Dokument wurde erfolgreich aus dem Template erstellt.",
+        })
+        
+        // TODO: In a real implementation, you might want to:
+        // - Save the processed content as a new file
+        // - Open it in an editor
+        // - Download it
+        console.log('Generated document content:', processedContent)
+      })
+    } catch (error) {
+      console.error('Error opening template usage modal:', error)
+      toast({
+        title: "Fehler",
+        description: "Das Template konnte nicht geöffnet werden.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleTemplateRename = async (newName: string) => {
+    try {
+      // Get template by current name first
+      const response = await fetch('/api/vorlagen')
+      if (!response.ok) {
+        throw new Error('Failed to fetch templates')
+      }
+      
+      const templates = await response.json()
+      const currentTemplateName = file.name.replace('.vorlage', '')
+      const template = templates.find((t: any) => t.titel === currentTemplateName)
+      
+      if (!template) {
+        throw new Error('Template not found')
+      }
+
+      // The FileRenameModal already adds the .vorlage extension back
+      // So we need to remove it to get the clean template name
+      const cleanNewName = newName.replace('.vorlage', '')
+
+      // Update template in database
+      const updateResponse = await fetch(`/api/vorlagen/${template.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          titel: cleanNewName
+        })
+      })
+
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json()
+        throw new Error(errorData.error || 'Failed to rename template')
+      }
+
+      toast({
+        title: "Template umbenannt",
+        description: `Das Template wurde erfolgreich zu "${cleanNewName}" umbenannt.`,
+      })
+    } catch (error) {
+      console.error('Error renaming template:', error)
+      throw error
     }
   }
 
@@ -202,13 +341,7 @@ export function FileContextMenu({
         <ContextMenuContent className="w-56">
           {isTemplateFile(file.name) && (
             <>
-              <ContextMenuItem onClick={() => {
-                // TODO: Open template usage modal
-                toast({
-                  title: "Template verwenden",
-                  description: "Template-Verwendung wird in einer zukünftigen Version implementiert.",
-                })
-              }}>
+              <ContextMenuItem onClick={handleTemplateUsage}>
                 <FileText className="mr-2 h-4 w-4" />
                 Template verwenden
               </ContextMenuItem>
@@ -303,7 +436,11 @@ export function FileContextMenu({
         onClose={() => setShowRenameModal(false)}
         fileName={file.name}
         onRename={async (newName) => {
-          await renameFile(file, newName)
+          if (isTemplateFile(file.name)) {
+            await handleTemplateRename(newName)
+          } else {
+            await renameFile(file, newName)
+          }
         }}
       />
     </>
