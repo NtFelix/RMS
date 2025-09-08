@@ -34,6 +34,82 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if this is a template file in the Vorlagen folder
+    const pathSegments = filePath.split('/')
+    const isVorlagenFolder = pathSegments.length >= 3 && pathSegments[1] === 'Vorlagen'
+    const currentFileName = pathSegments[pathSegments.length - 1]
+    const isTemplateFile = currentFileName.endsWith('.vorlage')
+
+    if (isVorlagenFolder && isTemplateFile) {
+      // Handle template file renaming
+      const currentTemplateName = currentFileName.replace('.vorlage', '')
+      const newTemplateName = newName.replace('.vorlage', '')
+
+      // Get current template
+      const { data: template, error: templateError } = await supabase
+        .from('Vorlagen')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('titel', currentTemplateName)
+        .single()
+
+      if (templateError || !template) {
+        return NextResponse.json(
+          { error: 'Template nicht gefunden' },
+          { status: 404 }
+        )
+      }
+
+      // Check if new name already exists
+      const { data: existingTemplate, error: checkError } = await supabase
+        .from('Vorlagen')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('titel', newTemplateName)
+        .neq('id', template.id)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('Error checking existing template:', checkError)
+        return NextResponse.json(
+          { error: 'Datenbankfehler beim Prüfen des Template-Namens' },
+          { status: 500 }
+        )
+      }
+
+      if (existingTemplate) {
+        return NextResponse.json(
+          { error: 'Ein Template mit diesem Namen existiert bereits' },
+          { status: 409 }
+        )
+      }
+
+      // Update template name
+      const { error: updateError } = await supabase
+        .from('Vorlagen')
+        .update({ 
+          titel: newTemplateName,
+          aktualisiert_am: new Date().toISOString()
+        })
+        .eq('id', template.id)
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        console.error('Error renaming template:', updateError)
+        return NextResponse.json(
+          { error: 'Fehler beim Umbenennen des Templates' },
+          { status: 500 }
+        )
+      }
+
+      console.log(`Template renamed successfully: ${currentTemplateName} -> ${newTemplateName}`)
+
+      return NextResponse.json({ 
+        success: true,
+        message: 'Template erfolgreich umbenannt'
+      })
+    }
+
     // Clean the file path
     let cleanFilePath = filePath
     if (cleanFilePath.startsWith('/')) {

@@ -24,7 +24,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid path' }, { status: 403 })
     }
 
-    // Construct the full file path
+    // Check if this is a template file in the Vorlagen folder
+    const pathSegments = filePath.split('/')
+    const isVorlagenFolder = pathSegments.length >= 2 && pathSegments[1] === 'Vorlagen'
+    const isTemplateFile = fileName.endsWith('.vorlage')
+
+    if (isVorlagenFolder && isTemplateFile) {
+      // Handle template file reading
+      const templateName = fileName.replace('.vorlage', '')
+      
+      const { data: template, error: templateError } = await supabase
+        .from('Vorlagen')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('titel', templateName)
+        .single()
+
+      if (templateError || !template) {
+        return NextResponse.json({ error: 'Template not found' }, { status: 404 })
+      }
+
+      console.log(`Template read successfully: ${templateName}, content length: ${template.inhalt?.length || 0}`)
+
+      return NextResponse.json({ 
+        content: template.inhalt || '',
+        template: template
+      }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+          'ETag': `"template-${template.id}-${template.aktualisiert_am}"` 
+        }
+      })
+    }
+
+    // Handle regular file reading
     const fullPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '')
 
     console.log(`Reading file: ${fullPath} (timestamp: ${timestamp || 'none'})`)

@@ -164,6 +164,36 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
 
     const folders: VirtualFolder[] = []
     
+    // Add Vorlagen folder first
+    try {
+      const { data: templateCount } = await supabase
+        .from('Vorlagen')
+        .select('id', { count: 'exact' })
+        .eq('user_id', userId)
+      
+      const vorlagenFileCount = templateCount?.length || 0
+      folders.push({
+        name: 'Vorlagen',
+        path: `${targetPath}/Vorlagen`,
+        type: 'category',
+        isEmpty: vorlagenFileCount === 0,
+        children: [],
+        fileCount: vorlagenFileCount,
+        displayName: 'Vorlagen'
+      })
+    } catch (error) {
+      // If template loading fails, still add empty Vorlagen folder
+      folders.push({
+        name: 'Vorlagen',
+        path: `${targetPath}/Vorlagen`,
+        type: 'category',
+        isEmpty: true,
+        children: [],
+        fileCount: 0,
+        displayName: 'Vorlagen'
+      })
+    }
+    
     // Add house folders
     if (houses && houses.length > 0) {
       for (const house of houses) {
@@ -319,6 +349,15 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
   error?: string
 }> {
   try {
+    // Check if this is the Vorlagen folder
+    const pathSegments = targetPath.split('/')
+    const userId = pathSegments[0].replace('user_', '')
+    const isVorlagenFolder = pathSegments.length === 2 && pathSegments[1] === 'Vorlagen'
+    
+    if (isVorlagenFolder) {
+      return await getVorlagenFolderContents(supabase, userId)
+    }
+    
     // List files from Supabase Storage for the specific directory
     const { data, error } = await supabase.storage
       .from('documents')
@@ -339,11 +378,7 @@ async function getStorageContents(supabase: any, targetPath: string): Promise<{
       }
     }
 
-
-
     // Check if this is a house or apartment folder - only if they exist in the database
-    const pathSegments = targetPath.split('/')
-    const userId = pathSegments[0].replace('user_', '')
     
     // Check if this could be a house folder (depth 2, not Miscellaneous)
     const couldBeHouseFolder = pathSegments.length === 2 && pathSegments[1] !== 'Miscellaneous'
@@ -623,6 +658,53 @@ async function getHouseFolderContents(supabase: any, userId: string, houseId: st
       files: [],
       folders: [],
       error: 'Fehler beim Laden der Wohnungsordner'
+    }
+  }
+}
+
+// Handle Vorlagen folder contents
+async function getVorlagenFolderContents(supabase: any, userId: string): Promise<{
+  files: StorageFile[]
+  folders: VirtualFolder[]
+  error?: string
+}> {
+  try {
+    // Import the integration functions
+    const { loadVorlagenFiles } = await import('@/lib/template-system/vorlagen-folder-integration')
+    
+    // Load templates as virtual files
+    const { files: vorlagenFiles, error } = await loadVorlagenFiles(userId)
+    
+    if (error) {
+      return {
+        files: [],
+        folders: [],
+        error
+      }
+    }
+    
+    // Convert VorlagenFile[] to StorageFile[] for compatibility
+    const files: StorageFile[] = vorlagenFiles.map(file => ({
+      name: file.name,
+      id: file.id,
+      updated_at: file.updated_at,
+      created_at: file.created_at,
+      last_accessed_at: file.last_accessed_at,
+      metadata: file.metadata,
+      size: file.size
+    }))
+    
+    return {
+      files,
+      folders: [], // Vorlagen folder doesn't have subfolders
+      error: undefined
+    }
+  } catch (error) {
+    console.error('Error in getVorlagenFolderContents:', error)
+    return {
+      files: [],
+      folders: [],
+      error: 'Fehler beim Laden der Vorlagen'
     }
   }
 }

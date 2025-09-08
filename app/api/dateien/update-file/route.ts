@@ -24,7 +24,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid path' }, { status: 403 })
     }
 
-    // Construct the full file path
+    // Check if this is a template file in the Vorlagen folder
+    const pathSegments = filePath.split('/')
+    const isVorlagenFolder = pathSegments.length >= 2 && pathSegments[1] === 'Vorlagen'
+    const isTemplateFile = fileName.endsWith('.vorlage')
+
+    if (isVorlagenFolder && isTemplateFile) {
+      // Handle template file updating
+      const templateName = fileName.replace('.vorlage', '')
+      
+      // Get template by name to get the ID
+      const { data: template, error: templateError } = await supabase
+        .from('Vorlagen')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('titel', templateName)
+        .single()
+
+      if (templateError || !template) {
+        return NextResponse.json({ error: 'Template not found' }, { status: 404 })
+      }
+
+      // Update template content
+      const { error: updateError } = await supabase
+        .from('Vorlagen')
+        .update({ 
+          inhalt: content,
+          aktualisiert_am: new Date().toISOString()
+        })
+        .eq('id', template.id)
+        .eq('user_id', user.id)
+
+      if (updateError) {
+        console.error('Error updating template:', updateError)
+        return NextResponse.json({ error: 'Failed to update template' }, { status: 500 })
+      }
+
+      console.log(`Template updated successfully: ${templateName}, content length: ${content.length}`)
+
+      return NextResponse.json({ success: true }, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
+    }
+
+    // Handle regular file updating
     const fullPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '')
 
     console.log(`Updating file: ${fullPath}, content length: ${content.length}`)

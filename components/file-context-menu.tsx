@@ -75,7 +75,12 @@ export function FileContextMenu({
   // Check if file can be previewed
   const canPreview = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase()
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'md'].includes(extension || '')
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'md', 'vorlage'].includes(extension || '')
+  }
+
+  // Check if this is a template file
+  const isTemplateFile = (fileName: string) => {
+    return fileName.endsWith('.vorlage')
   }
 
   const handleDownload = async () => {
@@ -114,8 +119,17 @@ export function FileContextMenu({
     if (canPreview(file.name)) {
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       
+      // Open enhanced file editor for .vorlage files (templates)
+      if (fileExtension === 'vorlage' && currentPath) {
+        openMarkdownEditorModal({
+          filePath: currentPath,
+          fileName: file.name,
+          isNewFile: false,
+          enableAutocomplete: true // Enable autocomplete for template files
+        })
+      }
       // Open markdown editor for .md files
-      if (fileExtension === 'md' && currentPath) {
+      else if (fileExtension === 'md' && currentPath) {
         openMarkdownEditorModal({
           filePath: currentPath,
           fileName: file.name,
@@ -186,11 +200,27 @@ export function FileContextMenu({
           {children}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
+          {isTemplateFile(file.name) && (
+            <>
+              <ContextMenuItem onClick={() => {
+                // TODO: Open template usage modal
+                toast({
+                  title: "Template verwenden",
+                  description: "Template-Verwendung wird in einer zukünftigen Version implementiert.",
+                })
+              }}>
+                <FileText className="mr-2 h-4 w-4" />
+                Template verwenden
+              </ContextMenuItem>
+              <ContextMenuSeparator />
+            </>
+          )}
+          
           {canPreview(file.name) && (
             <>
               <ContextMenuItem onClick={handlePreview}>
                 <Eye className="mr-2 h-4 w-4" />
-                Vorschau anzeigen
+                {isTemplateFile(file.name) ? 'Template bearbeiten' : 'Vorschau anzeigen'}
               </ContextMenuItem>
               <ContextMenuSeparator />
             </>

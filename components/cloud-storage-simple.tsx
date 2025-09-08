@@ -7,9 +7,17 @@ import {
   FolderOpen,
   Zap,
   Plus,
-  ArrowUp
+  ArrowUp,
+  FileText,
+  ChevronDown
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { useSimpleCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-simple-cloud-storage-store"
 import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
@@ -47,7 +55,7 @@ export function CloudStorageSimple({
 }: CloudStorageSimpleProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { openUploadModal, openCreateFolderModal, openCreateFileModal } = useModalStore()
+  const { openUploadModal, openCreateFolderModal, openCreateFileModal, openTemplateCreateModal } = useModalStore()
   
   // Local navigation state
   const [currentNavPath, setCurrentNavPath] = useState(initialPath)
@@ -459,6 +467,22 @@ export function CloudStorageSimple({
   }, [currentNavPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
 
   /**
+   * Handle create template
+   */
+  const handleCreateTemplate = useCallback(() => {
+    openTemplateCreateModal({
+      onSuccess: (template) => {
+        // Refresh to show the new template in the Vorlagen folder
+        handleRefresh()
+        toast({
+          title: "Template erstellt",
+          description: `Das Template "${template.titel}" wurde erfolgreich erstellt.`,
+        })
+      }
+    })
+  }, [openTemplateCreateModal, handleRefresh, toast])
+
+  /**
    * Handle create file
    */
   const handleCreateFile = useCallback(() => {
@@ -622,10 +646,25 @@ export function CloudStorageSimple({
                     <Upload className="h-4 w-4 mr-2" />
                     Dateien hochladen
                   </Button>
-                  <Button variant="outline" onClick={handleCreateFolder}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ordner erstellen
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Erstellen
+                        <ChevronDown className="h-4 w-4 ml-2" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleCreateFolder}>
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Ordner erstellen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleCreateTemplate}>
+                        <FileText className="h-4 w-4 mr-2" />
+                        Vorlage erstellen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
             </div>
