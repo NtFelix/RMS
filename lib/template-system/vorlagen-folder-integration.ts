@@ -61,7 +61,7 @@ export async function loadVorlagenFiles(userId: string): Promise<{
   error?: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Fetch templates for the user
     const { data: templates, error } = await supabase
@@ -115,7 +115,7 @@ export async function getTemplateContent(templateId: string, userId: string): Pr
   error?: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { data: template, error } = await supabase
       .from('Vorlagen')
@@ -159,7 +159,7 @@ export async function updateTemplateContent(
   error?: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { error } = await supabase
       .from('Vorlagen')
@@ -203,7 +203,7 @@ export async function renameTemplate(
     // Remove .vorlage extension if present
     const cleanName = newName.replace(/\.vorlage$/, '')
     
-    const supabase = createClient()
+    const supabase = await createClient()
     
     // Check if name already exists
     const { data: existingTemplate, error: checkError } = await supabase
@@ -268,7 +268,7 @@ export async function deleteTemplate(
   error?: string
 }> {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
     
     const { error } = await supabase
       .from('Vorlagen')

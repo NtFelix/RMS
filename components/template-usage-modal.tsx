@@ -235,6 +235,11 @@ export function TemplateUsageModal() {
     const formValues = form.getValues()
     const missingContext: string[] = []
 
+    // Safety check: ensure template exists and has kontext_anforderungen
+    if (!template || !template.kontext_anforderungen) {
+      return { isValid: true, missingContext: [] }
+    }
+
     // Check each required context type
     for (const contextType of template.kontext_anforderungen) {
       switch (contextType) {
@@ -373,12 +378,12 @@ export function TemplateUsageModal() {
 
 
 
-  const contextValidation = validateContextRequirements()
-  const canGenerate = contextValidation.isValid && validationResult?.isValid
-
   if (!template) {
     return null
   }
+
+  const contextValidation = validateContextRequirements()
+  const canGenerate = contextValidation.isValid && validationResult?.isValid
 
   return (
     <Dialog open={isTemplateUsageModalOpen} onOpenChange={closeTemplateUsageModal}>
