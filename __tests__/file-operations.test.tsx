@@ -274,12 +274,22 @@ describe('File Operations Performance', () => {
   })
 
   it('should timeout downloads that take longer than 2 seconds', async () => {
-    // This test verifies that the timeout logic exists in the downloadFile function
-    // The actual timeout is implemented in the storage service
-    const timeoutError = new Error('Download timeout: File download took longer than 2 seconds')
+    // Mock the storage service to simulate a slow download
+    const { triggerFileDownload } = require('@/lib/storage-service')
     
-    // Verify that timeout errors contain the expected message
-    expect(timeoutError.message).toContain('timeout')
-    expect(timeoutError.message).toContain('2 seconds')
+    // Mock the downloadFile function to simulate a timeout
+    jest.doMock('@/lib/storage-service', () => ({
+      ...jest.requireActual('@/lib/storage-service'),
+      downloadFile: jest.fn().mockImplementation(() => 
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Download timeout: File download took longer than 2 seconds')), 100)
+        })
+      )
+    }))
+    
+    // Test that the timeout error is properly thrown
+    await expect(triggerFileDownload('test/slow-file.pdf', 'slow-file.pdf'))
+      .rejects
+      .toThrow('Download timeout: File download took longer than 2 seconds')
   })
 })
