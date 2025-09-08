@@ -22,6 +22,9 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { TemplateContextSelector } from "@/components/template-context-selector"
 import { TemplatePreview } from "@/components/template-preview"
 import { templateProcessor } from "@/lib/template-system/template-processor"
+import { templateValidator } from "@/lib/template-system/template-validation"
+import { withTemplateErrorHandling } from "@/lib/template-system/template-error-handler"
+import { templateErrorFeedback, templateErrorRecoveryManager } from "@/lib/template-system/template-error-recovery"
 import type { 
   Template, 
   TemplateContext, 
@@ -268,33 +271,72 @@ export function TemplateUsageModal() {
   }
 
   const handleGenerate = async () => {
-    const validation = validateContextRequirements()
-    
-    if (!validation.isValid) {
-      toast({
-        title: "Fehlende Auswahl",
-        description: `Bitte wählen Sie folgende Entitäten aus: ${validation.missingContext.join(', ')}`,
-        variant: "destructive"
-      })
-      return
-    }
-
-    if (!validationResult?.isValid) {
-      toast({
-        title: "Template-Fehler",
-        description: "Das Template konnte nicht verarbeitet werden. Bitte überprüfen Sie die Vorschau.",
-        variant: "destructive"
-      })
-      return
-    }
-
     setIsLoading(true)
-    try {
-      // Process template one final time to get the content
-      const result = templateProcessor.processTemplate(template.inhalt, templateContext)
-      
+    
+    // Comprehensive validation before generation
+    const usageValidation = await templateValidator.validateForUsage(template, templateContext)
+    
+    if (!usageValidation.isValid) {
+      templateErrorFeedback.showValidationFeedback(usageValidation, {
+        showWarnings: true,
+        onFix: (error) => {
+          // Try to suggest context fixes
+          templateErrorRecoveryManager.attemptRecovery(
+            {
+              type: 'context',
+              message: error,
+              errorId: 'context_validation',
+              timestamp: new Date(),
+              recoveryActions: [],
+              retryable: false,
+              severity: 'medium'
+            } as any,
+            {
+              onContextSuggestion: (contexts: string[]) => {
+                toast({
+                  title: "Kontext-Vorschlag",
+                  description: `Bitte wählen Sie folgende Kontexte aus: ${contexts.join(', ')}`
+                })
+              }
+            }
+          )
+        }
+      })
+      setIsLoading(false)
+      return
+    }
+
+    const result = await withTemplateErrorHandling(
+      async () => {
+        // Process template to get the final content
+        const processingResult = templateProcessor.processTemplate(template.inhalt, templateContext)
+        
+        if (!processingResult.success) {
+          throw new Error(`Template processing failed: ${processingResult.errors?.join(', ')}`)
+        }
+        
+        return processingResult.processedContent
+      },
+      {
+        operation: 'Template-Verarbeitung',
+        templateId: template.id,
+        userId: 'current-user', // This would come from auth context
+        timestamp: new Date(),
+        additionalData: { 
+          templateName: template.titel,
+          contextTypes: Object.keys(templateContext).filter(key => key !== 'datum' && key !== 'vermieter')
+        }
+      },
+      {
+        retryCount: 2,
+        retryDelay: 1000,
+        showToUser: true
+      }
+    )
+    
+    if (result.success && result.data) {
       if (onGenerate) {
-        onGenerate(result.processedContent)
+        onGenerate(result.data)
       }
       
       toast({
@@ -303,16 +345,30 @@ export function TemplateUsageModal() {
       })
       
       closeTemplateUsageModal()
-    } catch (error) {
-      console.error('Error generating document:', error)
-      toast({
-        title: "Fehler beim Erstellen",
-        description: "Das Dokument konnte nicht erstellt werden.",
-        variant: "destructive"
-      })
-    } finally {
-      setIsLoading(false)
+    } else if (result.error) {
+      // Try error recovery
+      const recoveryResult = await templateErrorRecoveryManager.attemptRecovery(
+        result.error,
+        {
+          content: template.inhalt,
+          onContentChange: (content: string) => {
+            // This would update the template content if auto-correction is possible
+            console.log('Auto-corrected content:', content)
+          },
+          retryOperation: () => handleGenerate()
+        }
+      )
+      
+      if (!recoveryResult.recovered) {
+        templateErrorFeedback.showErrorFeedback(result.error, {
+          showRecoveryActions: true,
+          allowRetry: result.error.retryable,
+          onRetry: () => handleGenerate()
+        })
+      }
     }
+    
+    setIsLoading(false)
   }
 
 

@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { z } from 'zod'
+import { templateValidator, templateCreateSchema } from '@/lib/template-system/template-validation'
+import { withTemplateErrorHandling } from '@/lib/template-system/template-error-handler'
 
-// Validation schema for template creation
-const createTemplateSchema = z.object({
-  titel: z.string()
-    .min(1, 'Template name is required')
-    .max(100, 'Template name must be 100 characters or less'),
-  inhalt: z.string()
-    .min(1, 'Template content is required'),
-  kategorie: z.string()
-    .min(1, 'Category is required'),
-  kontext_anforderungen: z.array(z.string()).default([])
-})
+// Use the comprehensive validation schema from template-validation.ts
 
 // GET - Fetch all templates for the current user
 export async function GET(request: NextRequest) {
@@ -54,87 +46,165 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new template
+// POST - Create a new template with comprehensive validation and error handling
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
+  const result = await withTemplateErrorHandling(
+    async () => {
+      const body = await request.json()
+      
+      // Comprehensive validation using the template validator
+      const validationResult = await templateValidator.validateForCreation(body)
+      
+      if (!validationResult.isValid) {
+        const error = new Error('TEMPLATE_VALIDATION_FAILED');
+        (error as any).validationErrors = validationResult.errors;
+        (error as any).validationWarnings = validationResult.warnings;
+        throw error;
+      }
+
+      // Basic schema validation as fallback
+      const schemaResult = templateCreateSchema.safeParse(body)
+      if (!schemaResult.success) {
+        const error = new Error('SCHEMA_VALIDATION_FAILED');
+        (error as any).schemaErrors = schemaResult.error.errors;
+        throw error;
+      }
+
+      const { titel, inhalt, kategorie, kontext_anforderungen } = schemaResult.data
+
+      const supabase = createClient()
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) {
+        const error = new Error('UNAUTHORIZED');
+        (error as any).code = 'AUTH_ERROR';
+        throw error;
+      }
+
+      // Check if template name already exists for this user
+      const { data: existingTemplate, error: checkError } = await supabase
+        .from('Vorlagen')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('titel', titel)
+        .single()
+
+      if (checkError && checkError.code !== 'PGRST116') {
+        const error = new Error('DATABASE_CHECK_FAILED');
+        (error as any).code = checkError.code;
+        (error as any).originalError = checkError;
+        throw error;
+      }
+
+      if (existingTemplate) {
+        const error = new Error('TEMPLATE_NAME_EXISTS');
+        (error as any).code = 'DUPLICATE_NAME';
+        throw error;
+      }
+
+      // Create the template
+      const { data: template, error: createError } = await supabase
+        .from('Vorlagen')
+        .insert({
+          user_id: user.id,
+          titel,
+          inhalt,
+          kategorie,
+          kontext_anforderungen: kontext_anforderungen || []
+        })
+        .select()
+        .single()
+
+      if (createError) {
+        const error = new Error('TEMPLATE_CREATE_FAILED');
+        (error as any).code = createError.code;
+        (error as any).originalError = createError;
+        throw error;
+      }
+
+      return {
+        success: true,
+        template,
+        validation: validationResult
+      };
+    },
+    {
+      operation: 'Template-Erstellung (API)',
+      userId: 'api-user', // This would come from auth
+      timestamp: new Date(),
+      additionalData: { endpoint: '/api/vorlagen', method: 'POST' }
+    },
+    {
+      retryCount: 1,
+      retryDelay: 500,
+      showToUser: false // API errors shouldn't show toasts
+    }
+  );
+
+  if (result.success && result.data) {
+    return NextResponse.json(result.data.template, { status: 201 });
+  } else if (result.error) {
+    // Handle specific error types
+    const error = result.error;
     
-    // Validate request body
-    const validationResult = createTemplateSchema.safeParse(body)
-    if (!validationResult.success) {
+    if (error.message.includes('TEMPLATE_VALIDATION_FAILED')) {
       return NextResponse.json(
         { 
-          error: 'Validation failed',
-          details: validationResult.error.errors
+          error: 'Template validation failed',
+          details: (error as any).validationErrors || [],
+          warnings: (error as any).validationWarnings || [],
+          errorId: error.errorId
         },
         { status: 400 }
-      )
+      );
     }
-
-    const { titel, inhalt, kategorie, kontext_anforderungen } = validationResult.data
-
-    const supabase = createClient()
-
-    // Get current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
-    if (userError || !user) {
+    
+    if (error.message.includes('SCHEMA_VALIDATION_FAILED')) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { 
+          error: 'Schema validation failed',
+          details: (error as any).schemaErrors || [],
+          errorId: error.errorId
+        },
+        { status: 400 }
+      );
+    }
+    
+    if (error.message.includes('UNAUTHORIZED')) {
+      return NextResponse.json(
+        { 
+          error: 'Unauthorized',
+          errorId: error.errorId
+        },
         { status: 401 }
-      )
+      );
     }
-
-    // Check if template name already exists for this user
-    const { data: existingTemplate, error: checkError } = await supabase
-      .from('Vorlagen')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('titel', titel)
-      .single()
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      console.error('Error checking existing template:', checkError)
+    
+    if (error.message.includes('TEMPLATE_NAME_EXISTS')) {
       return NextResponse.json(
-        { error: 'Database error' },
-        { status: 500 }
-      )
-    }
-
-    if (existingTemplate) {
-      return NextResponse.json(
-        { error: 'A template with this name already exists' },
+        { 
+          error: 'A template with this name already exists',
+          errorId: error.errorId
+        },
         { status: 409 }
-      )
+      );
     }
-
-    // Create the template
-    const { data: template, error: createError } = await supabase
-      .from('Vorlagen')
-      .insert({
-        user_id: user.id,
-        titel,
-        inhalt,
-        kategorie,
-        kontext_anforderungen: kontext_anforderungen || []
-      })
-      .select()
-      .single()
-
-    if (createError) {
-      console.error('Error creating template:', createError)
-      return NextResponse.json(
-        { error: 'Failed to create template' },
-        { status: 500 }
-      )
-    }
-
-    return NextResponse.json(template, { status: 201 })
-
-  } catch (error) {
-    console.error('Error in POST /api/vorlagen:', error)
+    
+    // Generic error response
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: error.message || 'Failed to create template',
+        errorId: error.errorId,
+        recoveryActions: error.recoveryActions
+      },
       { status: 500 }
-    )
+    );
   }
+
+  // Fallback error response
+  return NextResponse.json(
+    { error: 'Internal server error' },
+    { status: 500 }
+  );
 }

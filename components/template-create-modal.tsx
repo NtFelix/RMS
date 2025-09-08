@@ -28,6 +28,9 @@ import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { EnhancedFileEditor } from "@/components/enhanced-file-editor"
 import { CONTEXT_MAPPINGS, type ContextType, type Template } from "@/types/template-system"
+import { templateValidator } from "@/lib/template-system/template-validation"
+import { templateErrorHandler, withTemplateErrorHandling } from "@/lib/template-system/template-error-handler"
+import { templateErrorFeedback, templateErrorRecoveryManager } from "@/lib/template-system/template-error-recovery"
 
 // Form validation schema
 const templateCreateSchema = z.object({
@@ -159,38 +162,73 @@ export function TemplateCreateModal() {
   const onSubmit = async (data: TemplateCreateFormData) => {
     setIsSubmitting(true)
     
-    try {
-      // Check template name uniqueness
-      const isUnique = await checkTemplateNameUniqueness(data.titel)
-      if (!isUnique) {
-        form.setError("titel", {
-          type: "manual",
-          message: "Ein Template mit diesem Namen existiert bereits"
-        })
-        setIsSubmitting(false)
-        return
-      }
-
-      // Create template
-      const response = await fetch('/api/vorlagen', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          titel: data.titel,
-          inhalt: data.inhalt,
-          kategorie: data.kategorie,
-          kontext_anforderungen: data.kontext_anforderungen
-        })
+    // Comprehensive validation before submission
+    const validationResult = await templateValidator.validateForCreation(data)
+    
+    if (!validationResult.isValid) {
+      templateErrorFeedback.showValidationFeedback(validationResult, {
+        showWarnings: true,
+        onFix: (error) => {
+          // Try to auto-fix common validation errors
+          console.log('Attempting to fix error:', error)
+        }
       })
+      setIsSubmitting(false)
+      return
+    }
+    
+    // Show warnings if any
+    if (validationResult.warnings.length > 0) {
+      templateErrorFeedback.showValidationFeedback(validationResult, {
+        showWarnings: true
+      })
+    }
+    
+    const result = await withTemplateErrorHandling(
+      async () => {
+        // Check template name uniqueness
+        const isUnique = await checkTemplateNameUniqueness(data.titel)
+        if (!isUnique) {
+          throw new Error('TEMPLATE_NAME_EXISTS')
+        }
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create template')
+        // Create template
+        const response = await fetch('/api/vorlagen', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            titel: data.titel,
+            inhalt: data.inhalt,
+            kategorie: data.kategorie,
+            kontext_anforderungen: data.kontext_anforderungen
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Failed to create template')
+        }
+
+        return await response.json()
+      },
+      {
+        operation: 'Template-Erstellung',
+        templateId: undefined,
+        userId: 'current-user', // This would come from auth context
+        timestamp: new Date(),
+        additionalData: { templateName: data.titel, category: data.kategorie }
+      },
+      {
+        retryCount: 2,
+        retryDelay: 1000,
+        showToUser: true
       }
-
-      const template: Template = await response.json()
+    )
+    
+    if (result.success && result.data) {
+      const template: Template = result.data
 
       toast({
         title: "Template erstellt",
@@ -204,17 +242,33 @@ export function TemplateCreateModal() {
 
       // Close modal
       handleClose()
-
-    } catch (error) {
-      console.error('Error creating template:', error)
-      toast({
-        title: "Fehler beim Erstellen",
-        description: error instanceof Error ? error.message : "Das Template konnte nicht erstellt werden.",
-        variant: "destructive"
-      })
-    } finally {
-      setIsSubmitting(false)
+    } else if (result.error) {
+      // Handle specific error cases
+      if (result.error.message.includes('TEMPLATE_NAME_EXISTS')) {
+        form.setError("titel", {
+          type: "manual",
+          message: "Ein Template mit diesem Namen existiert bereits"
+        })
+      } else {
+        // Try error recovery
+        const recoveryResult = await templateErrorRecoveryManager.attemptRecovery(
+          result.error,
+          {
+            retryOperation: () => onSubmit(data)
+          }
+        )
+        
+        if (!recoveryResult.recovered) {
+          templateErrorFeedback.showErrorFeedback(result.error, {
+            showRecoveryActions: true,
+            allowRetry: result.error.retryable,
+            onRetry: () => onSubmit(data)
+          })
+        }
+      }
     }
+    
+    setIsSubmitting(false)
   }
 
   const selectedCategory = form.watch("kategorie")
