@@ -54,118 +54,25 @@ export async function POST(request: NextRequest) {
       newName
     })
 
-    // Let's find the file by searching recursively
-    console.log('Searching for file recursively...')
-    
-    async function findFileRecursively(searchPath: string, targetFileName: string): Promise<string | null> {
-      try {
-        const { data: items, error } = await supabase.storage
-          .from('documents')
-          .list(searchPath, { limit: 1000 })
-        
-        if (error) {
-          console.log(`Could not list ${searchPath}:`, error.message)
-          return null
-        }
-        
-        // Check if the file is directly in this directory
-        const directFile = items?.find(item => item.name === targetFileName && item.metadata?.size)
-        if (directFile) {
-          return `${searchPath}/${targetFileName}`
-        }
-        
-        // Check subdirectories (folders don't have metadata.size)
-        const folders = items?.filter(item => !item.metadata?.size && !item.name.includes('.') && item.name !== '.keep') || []
-        
-        for (const folder of folders) {
-          const subPath = `${searchPath}/${folder.name}`
-          const found = await findFileRecursively(subPath, targetFileName)
-          if (found) {
-            return found
-          }
-        }
-        
-        return null
-      } catch (error) {
-        console.log(`Error searching in ${searchPath}:`, error)
-        return null
-      }
-    }
-    
-    // Search for the file starting from the user's root directory
-    const actualFilePath = await findFileRecursively(`user_${user.id}`, currentFileName)
-    
-    if (!actualFilePath) {
-      return NextResponse.json(
-        { error: `Datei "${currentFileName}" nicht gefunden` },
-        { status: 404 }
-      )
-    }
-    
-    console.log('Found file at actual path:', actualFilePath)
-    
-    // Construct the new path in the same directory as the found file
-    const actualDirectory = actualFilePath.substring(0, actualFilePath.lastIndexOf('/'))
-    const actualNewPath = `${actualDirectory}/${newName}`
-    
-    console.log('Moving file:', {
-      from: actualFilePath,
-      to: actualNewPath
+    // Use atomic move operation for efficient and reliable renaming
+    console.log('Attempting atomic move operation:', {
+      from: cleanFilePath,
+      to: newPath
     })
     
-    // Let's try a different approach: copy and delete instead of move
-    console.log('Trying copy and delete approach...')
-    
-    // First, download the file
-    const { data: fileData, error: downloadError } = await supabase.storage
+    const { error: moveError } = await supabase.storage
       .from('documents')
-      .download(actualFilePath)
+      .move(cleanFilePath, newPath)
     
-    if (downloadError) {
-      console.error('Could not download file for copy:', downloadError.message)
+    if (moveError) {
+      console.error('Move operation failed:', moveError.message)
       return NextResponse.json(
-        { error: `Datei kann nicht gelesen werden: ${downloadError.message}` },
-        { status: 500 }
-      )
-    }
-    
-    console.log('File downloaded successfully, uploading with new name...')
-    
-    // Upload the file with the new name
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(actualNewPath, fileData, {
-        upsert: false // Don't overwrite if exists
-      })
-    
-    if (uploadError) {
-      console.error('Could not upload file with new name:', uploadError.message)
-      return NextResponse.json(
-        { error: `Datei kann nicht mit neuem Namen erstellt werden: ${uploadError.message}` },
-        { status: 500 }
-      )
-    }
-    
-    console.log('File uploaded with new name, deleting original...')
-    
-    // Delete the original file
-    const { error: deleteError } = await supabase.storage
-      .from('documents')
-      .remove([actualFilePath])
-    
-    if (deleteError) {
-      console.error('Could not delete original file:', deleteError.message)
-      // Try to clean up the new file
-      await supabase.storage.from('documents').remove([actualNewPath])
-      return NextResponse.json(
-        { error: `Originaldatei kann nicht gelöscht werden: ${deleteError.message}` },
+        { error: `Datei kann nicht umbenannt werden: ${moveError.message}` },
         { status: 500 }
       )
     }
 
-    console.log('Rename completed successfully using copy and delete!')
-
-    console.log('Move succeeded!')
+    console.log('Move operation completed successfully!')
     return NextResponse.json({ 
       success: true,
       message: 'Datei erfolgreich umbenannt'
