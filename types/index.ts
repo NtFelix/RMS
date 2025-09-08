@@ -39,6 +39,26 @@ export type {
   OptimizedWasserzaehlerFormData
 } from './optimized-betriebskosten';
 
+// Re-export template system types
+export type {
+  Template,
+  PlaceholderDefinition,
+  TemplateContext,
+  AutocompleteSuggestion,
+  TemplateCreateData,
+  TemplateUsageData,
+  TemplateProcessingResult,
+  TemplateValidationResult,
+  TemplateError,
+  TemplateCreateModalProps,
+  TemplateUsageModalProps,
+  TemplateContextSelectorProps,
+  TemplatePreviewProps,
+  ContextType
+} from './template-system';
+
+export { CONTEXT_MAPPINGS } from './template-system';
+
 // Re-export type guards
 export {
   isOptimizedNebenkosten,
