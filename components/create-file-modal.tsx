@@ -65,6 +65,9 @@ export function CreateFileModal({
     setIsCreating(true)
 
     try {
+      // Generate initial content once to avoid duplication
+      const initialContent = `# ${finalFileName.replace('.md', '')}\n\n## Beschreibung\n\n\n\n## Inhalt\n\n\n\n---\n\n*Erstellt am: ${new Date().toLocaleDateString('de-DE')}*`
+      
       const response = await fetch('/api/dateien/create-file', {
         method: 'POST',
         headers: {
@@ -73,7 +76,7 @@ export function CreateFileModal({
         body: JSON.stringify({
           filePath: currentPath,
           fileName: finalFileName,
-          content: `# ${finalFileName.replace('.md', '')}\n\n## Beschreibung\n\n\n\n## Inhalt\n\n\n\n---\n\n*Erstellt am: ${new Date().toLocaleDateString('de-DE')}*`
+          content: initialContent
         })
       })
 
@@ -92,7 +95,6 @@ export function CreateFileModal({
       handleClose()
 
       // Open the markdown editor for the newly created file
-      const initialContent = `# ${finalFileName.replace('.md', '')}\n\n## Beschreibung\n\n\n\n## Inhalt\n\n\n\n---\n\n*Erstellt am: ${new Date().toLocaleDateString('de-DE')}*`
       
       openMarkdownEditorModal({
         filePath: currentPath,
