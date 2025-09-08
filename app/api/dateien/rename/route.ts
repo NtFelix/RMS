@@ -54,24 +54,39 @@ export async function POST(request: NextRequest) {
       newName
     })
 
-    // Use the storage service's renameFile function which handles path validation and file existence
-    console.log('Using storage service renameFile:', {
-      filePath: cleanFilePath,
-      newName
+    // Perform the rename operation using the authenticated server-side client
+    console.log('Performing rename operation:', {
+      from: cleanFilePath,
+      to: newPath
     })
     
-    try {
-      const { renameFile } = await import('@/lib/storage-service')
-      await renameFile(cleanFilePath, newName)
-      console.log('Rename operation completed successfully!')
-    } catch (storageError) {
-      console.error('Storage service rename failed:', storageError)
-      const errorMessage = storageError instanceof Error ? storageError.message : 'Unknown error'
+    // First, check if the source file exists
+    const { data: sourceFile, error: downloadError } = await supabase.storage
+      .from('documents')
+      .download(cleanFilePath)
+    
+    if (downloadError) {
+      console.error('Source file not found:', downloadError)
       return NextResponse.json(
-        { error: `Datei kann nicht umbenannt werden: ${errorMessage}` },
+        { error: `Quelldatei nicht gefunden: ${downloadError.message}` },
+        { status: 404 }
+      )
+    }
+    
+    // Use Supabase's move operation to rename the file
+    const { error: moveError } = await supabase.storage
+      .from('documents')
+      .move(cleanFilePath, newPath)
+    
+    if (moveError) {
+      console.error('Move operation failed:', moveError)
+      return NextResponse.json(
+        { error: `Datei kann nicht umbenannt werden: ${moveError.message}` },
         { status: 500 }
       )
     }
+    
+    console.log('Rename operation completed successfully!')
     return NextResponse.json({ 
       success: true,
       message: 'Datei erfolgreich umbenannt'
