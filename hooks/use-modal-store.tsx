@@ -365,6 +365,15 @@ export interface ModalState {
   openTemplateCreateModal: (currentPath?: string, onSuccess?: (template: any) => void) => void;
   closeTemplateCreateModal: (options?: CloseModalOptions) => void;
   setTemplateCreateModalDirty: (isDirty: boolean) => void;
+
+  // Template Usage Modal State
+  isTemplateUsageModalOpen: boolean;
+  templateUsageModalData?: {
+    template: any;
+    onGenerate?: (processedContent: string) => void;
+  };
+  openTemplateUsageModal: (template: any, onGenerate?: (processedContent: string) => void) => void;
+  closeTemplateUsageModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -512,6 +521,11 @@ const initialTemplateCreateModalState = {
   isTemplateCreateModalDirty: false,
 };
 
+const initialTemplateUsageModalState = {
+  isTemplateUsageModalOpen: false,
+  templateUsageModalData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -534,6 +548,7 @@ const createInitialModalState = () => ({
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
   ...initialTemplateCreateModalState,
+  ...initialTemplateUsageModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -988,5 +1003,15 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeTemplateCreateModal: createCloseHandler('isTemplateCreateModalDirty', initialTemplateCreateModalState),
     setTemplateCreateModalDirty: (isDirty: boolean) => set({ isTemplateCreateModalDirty: isDirty }),
+
+    // Template Usage Modal
+    openTemplateUsageModal: (template: any, onGenerate?: (processedContent: string) => void) => set({
+      isTemplateUsageModalOpen: true,
+      templateUsageModalData: {
+        template,
+        onGenerate,
+      },
+    }),
+    closeTemplateUsageModal: () => set(initialTemplateUsageModalState),
   };
 });

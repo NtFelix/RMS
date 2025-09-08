@@ -39,6 +39,7 @@ import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { TemplateCreateModal } from "@/components/template-create-modal"; // Added
+import { TemplateUsageModal } from "@/components/template-usage-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -119,6 +120,10 @@ export default function DashboardRootLayout({
     isTemplateCreateModalOpen,
     templateCreateModalData,
     closeTemplateCreateModal,
+    // Template Usage Modal state
+    isTemplateUsageModalOpen,
+    templateUsageModalData,
+    closeTemplateUsageModal,
   } = useModalStore()
 
   return (
@@ -253,6 +258,9 @@ export default function DashboardRootLayout({
 
       {/* TemplateCreateModal - Global template creation modal */}
       <TemplateCreateModal />
+
+      {/* TemplateUsageModal - Global template usage modal */}
+      <TemplateUsageModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
