@@ -83,6 +83,7 @@ export interface LazyMobileBottomNavProps {
 export const LazyMobileBottomNavigation = memo<LazyMobileBottomNavProps>(({ currentPath }) => {
   const isMobile = useIsMobile()
 
+  // Don't render anything on desktop - moved after hooks
   if (!isMobile) {
     return null
   }

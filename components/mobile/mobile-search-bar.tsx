@@ -28,11 +28,6 @@ export const MobileSearchBar = memo<MobileSearchBarProps>(({
   const inputRef = useRef<HTMLInputElement>(null)
   const { duration, shouldReduceMotion } = useOptimizedAnimations()
 
-  // Don't render on desktop
-  if (!isMobile) {
-    return null
-  }
-
   // Debounced onChange for better performance
   const debouncedOnChange = useMobileDebounce(onChange, 150)
 
@@ -117,6 +112,11 @@ export const MobileSearchBar = memo<MobileSearchBarProps>(({
       inputRef.current?.blur()
     }
   }, [])
+
+  // Don't render on desktop - moved after all hooks
+  if (!isMobile) {
+    return null
+  }
 
   return (
     <div className={cn(

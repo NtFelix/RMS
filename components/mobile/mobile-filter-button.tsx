@@ -29,11 +29,6 @@ export const MobileFilterButton = memo<MobileFilterButtonProps>(({
   const isMobile = useIsMobile()
   const { duration, shouldReduceMotion } = useOptimizedAnimations()
 
-  // Don't render on desktop
-  if (!isMobile) {
-    return null
-  }
-
   // Debounced filter change for better performance
   const debouncedFilterChange = useMobileDebounce(onFilterChange, 150)
 
@@ -97,6 +92,11 @@ export const MobileFilterButton = memo<MobileFilterButtonProps>(({
 
   // Memoized active filter count
   const activeFilterCount = useMemo(() => activeFilters.length, [activeFilters])
+
+  // Don't render on desktop - moved after all hooks
+  if (!isMobile) {
+    return null
+  }
 
   return (
     <>

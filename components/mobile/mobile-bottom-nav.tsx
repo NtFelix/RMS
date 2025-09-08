@@ -72,16 +72,6 @@ export const MobileBottomNav = memo<MobileBottomNavProps>(({ currentPath }) => {
   } = useMobileNavigation()
   const { duration, shouldReduceMotion } = useOptimizedAnimations()
 
-  // Don't render on desktop
-  if (!isMobile) {
-    return null
-  }
-
-  // Add orientation-specific classes with performance optimizations
-  const orientationClasses = orientation === 'landscape' 
-    ? 'px-8 py-1' // More horizontal padding in landscape
-    : 'px-1 py-2' // Standard padding in portrait
-
   // Memoized active state checker
   const isActive = useCallback((href?: string) => {
     if (!href) return false
@@ -108,6 +98,16 @@ export const MobileBottomNav = memo<MobileBottomNavProps>(({ currentPath }) => {
         break
     }
   }, [openAddMenu, openMoreMenu])
+
+  // Don't render on desktop - moved after all hooks
+  if (!isMobile) {
+    return null
+  }
+
+  // Add orientation-specific classes with performance optimizations
+  const orientationClasses = orientation === 'landscape' 
+    ? 'px-8 py-1' // More horizontal padding in landscape
+    : 'px-1 py-2' // Standard padding in portrait
 
   return (
     <>
