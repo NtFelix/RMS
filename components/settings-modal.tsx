@@ -77,7 +77,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // PostHog early access features
   const posthog = usePostHog()
   const activeFlags = useActiveFeatureFlags()
-  
+
   type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
   interface EarlyAccessFeature {
     flagKey: string
@@ -87,14 +87,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     stage: EarlyAccessStage
     enabled?: boolean
   }
-  
+
   // State for each feature stage
   const [alphaFeatures, setAlphaFeatures] = useState<EarlyAccessFeature[]>([])
   const [betaFeatures, setBetaFeatures] = useState<EarlyAccessFeature[]>([])
   const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
   const [otherFeatures, setOtherFeatures] = useState<EarlyAccessFeature[]>([])
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
-  
+
   // Helper to get display name for each stage
   const getStageDisplayName = (stage: string) => {
     switch (stage) {
@@ -295,10 +295,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       // @ts-ignore: method is available on Web SDK, types may lag
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
         const active = activeFlags || []
-        
+
         // Group features by their stage and add enabled status
         const featuresByStage: Record<string, EarlyAccessFeature[]> = {}
-        
+
         features.forEach((f) => {
           const stage = f.stage || 'other'
           if (!featuresByStage[stage]) {
@@ -309,7 +309,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             enabled: active.includes(f.flagKey)
           })
         })
-        
+
         setBetaFeatures(featuresByStage['beta'] || [])
         setConceptFeatures(featuresByStage['concept'] || [])
         setAlphaFeatures(featuresByStage['alpha'] || [])
@@ -328,7 +328,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     if (!posthog) return
 
     // Helper to update the enabled state for a feature in any state array
-    const updateFeatureState = (prev: EarlyAccessFeature[]) => 
+    const updateFeatureState = (prev: EarlyAccessFeature[]) =>
       prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f))
 
     // Optimistic UI update for all feature states
@@ -345,9 +345,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     } catch (e) {
       console.error('Failed to toggle early access', e)
       // Revert on error for all feature states
-      const revertFeatureState = (prev: EarlyAccessFeature[]) => 
+      const revertFeatureState = (prev: EarlyAccessFeature[]) =>
         prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
-      
+
       setAlphaFeatures(revertFeatureState)
       setBetaFeatures(revertFeatureState)
       setConceptFeatures(revertFeatureState)
@@ -696,7 +696,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <p className="text-sm">Nächste Verlängerung am: <Skeleton className="h-4 w-24 inline-block" /></p>
               </div>
               <div className="space-y-1">
-                 <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
+                <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
               </div>
               {/* Skeleton for Manage Subscription Button section */}
               <div className="mt-6 pt-4 border-t">
@@ -732,10 +732,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 )}
 
                 {/* Message for truly non-active states */}
-                { (!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
-                  ! (profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
-                  <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
-                )}
+                {(!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
+                  !(profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
+                    <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
+                  )}
 
                 {/* Display Wohnungen usage - keep if still relevant */}
                 {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
@@ -842,10 +842,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{f.name}</span>
                               {f.documentationUrl && (
-                                <a 
-                                  className="text-xs text-muted-foreground underline hover:text-primary" 
-                                  href={f.documentationUrl} 
-                                  target="_blank" 
+                                <a
+                                  className="text-xs text-muted-foreground underline hover:text-primary"
+                                  href={f.documentationUrl}
+                                  target="_blank"
                                   rel="noopener noreferrer"
                                   onClick={(e) => e.stopPropagation()}
                                 >
@@ -917,32 +917,32 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
-            <DialogHeader className="sr-only"> {/* Wrap Title and Description, make Header sr-only if Title is already sr-only */}
-              <DialogTitle>Einstellungen</DialogTitle>
-              <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
-            </DialogHeader>
+          <DialogHeader className="sr-only"> {/* Wrap Title and Description, make Header sr-only if Title is already sr-only */}
+            <DialogTitle>Einstellungen</DialogTitle>
+            <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
+          </DialogHeader>
           <div className="flex h-full overflow-hidden">
             <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
-            {tabs.map(tab => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-md transition-colors outline-none',
-                  activeTab === tab.value
-                    ? 'bg-accent text-accent-foreground shadow-sm font-medium'
-                    : 'text-muted-foreground hover:bg-muted focus:bg-accent/60 focus:text-accent-foreground',
-                )}
-              >
-                <tab.icon className="h-4 w-4" />
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
-          <div className="flex-1 flex flex-col">
-            <section className="flex-1 overflow-y-auto p-3">
-              {tabs.find(tab => tab.value === activeTab)?.content}
-            </section>
+              {tabs.map(tab => (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-md transition-colors outline-none',
+                    activeTab === tab.value
+                      ? 'bg-accent text-accent-foreground shadow-sm font-medium'
+                      : 'text-muted-foreground hover:bg-muted focus:bg-accent/60 focus:text-accent-foreground',
+                  )}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </nav>
+            <div className="flex-1 flex flex-col">
+              <section className="flex-1 overflow-y-auto p-3">
+                {tabs.find(tab => tab.value === activeTab)?.content}
+              </section>
             </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
           </div>
         </DialogContent>

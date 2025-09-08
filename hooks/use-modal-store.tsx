@@ -102,6 +102,11 @@ interface CreateFolderModalData {
   onFolderCreated: (folderName: string) => void;
 }
 
+interface CreateFileModalData {
+  currentPath: string;
+  onFileCreated: (fileName: string) => void;
+}
+
 interface FilePreviewData {
   name: string;
   path: string;
@@ -306,6 +311,12 @@ export interface ModalState {
   openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => void;
   closeCreateFolderModal: () => void;
 
+  // Create File Modal State
+  isCreateFileModalOpen: boolean;
+  createFileModalData?: CreateFileModalData;
+  openCreateFileModal: (currentPath: string, onFileCreated: (fileName: string) => void) => void;
+  closeCreateFileModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -445,6 +456,11 @@ const initialCreateFolderModalState = {
   createFolderModalData: undefined,
 };
 
+const initialCreateFileModalState = {
+  isCreateFileModalOpen: false,
+  createFileModalData: undefined,
+};
+
 const initialFolderDeleteConfirmationModalState = {
   isFolderDeleteConfirmationModalOpen: false,
   folderDeleteConfirmationData: undefined,
@@ -476,6 +492,7 @@ const createInitialModalState = () => ({
   ...initialFilePreviewModalState,
   ...initialFileRenameModalState,
   ...initialCreateFolderModalState,
+  ...initialCreateFileModalState,
   ...initialFolderDeleteConfirmationModalState,
   ...initialFileMoveModalState,
   ...initialShareDocumentModalState,
@@ -861,6 +878,16 @@ export const useModalStore = create<ModalState>((set, get) => {
       },
     }),
     closeCreateFolderModal: () => set(initialCreateFolderModalState),
+
+    // Create File Modal
+    openCreateFileModal: (currentPath: string, onFileCreated: (fileName: string) => void) => set({
+      isCreateFileModalOpen: true,
+      createFileModalData: {
+        currentPath,
+        onFileCreated,
+      },
+    }),
+    closeCreateFileModal: () => set(initialCreateFileModalState),
 
     // Confirmation Modal
     isConfirmationModalOpen: false,

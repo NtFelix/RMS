@@ -32,6 +32,7 @@ import { FileUploadModal } from "@/components/file-upload-modal"; // Added
 import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
+import { CreateFileModal } from "@/components/create-file-modal"; // Added
 import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
@@ -92,6 +93,10 @@ export default function DashboardRootLayout({
     isCreateFolderModalOpen,
     createFolderModalData,
     closeCreateFolderModal,
+    // Create File Modal state
+    isCreateFileModalOpen,
+    createFileModalData,
+    closeCreateFileModal,
     // Folder Delete Confirmation Modal state
     isFolderDeleteConfirmationModalOpen,
     folderDeleteConfirmationData,
@@ -175,6 +180,16 @@ export default function DashboardRootLayout({
           onClose={closeCreateFolderModal}
           currentPath={createFolderModalData.currentPath}
           onFolderCreated={createFolderModalData.onFolderCreated}
+        />
+      )}
+
+      {/* CreateFileModal - Global create file modal */}
+      {isCreateFileModalOpen && createFileModalData && (
+        <CreateFileModal
+          isOpen={isCreateFileModalOpen}
+          onClose={closeCreateFileModal}
+          currentPath={createFileModalData.currentPath}
+          onFileCreated={createFileModalData.onFileCreated}
         />
       )}
 

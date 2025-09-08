@@ -34,6 +34,7 @@ import { Separator } from "@/components/ui/separator"
 interface QuickActionsProps {
   onUpload: () => void
   onCreateFolder: () => void
+  onCreateFile: () => void
   onSearch: (query: string) => void
   onSort: (sortBy: string) => void
   onViewMode: (mode: 'grid' | 'list') => void
@@ -49,6 +50,7 @@ interface QuickActionsProps {
 export function CloudStorageQuickActions({
   onUpload,
   onCreateFolder,
+  onCreateFile,
   onSearch,
   onSort,
   onViewMode,
@@ -193,6 +195,10 @@ export function CloudStorageQuickActions({
               <DropdownMenuItem onClick={onCreateFolder}>
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Ordner erstellen
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onCreateFile}>
+                <FileText className="h-4 w-4 mr-2" />
+                Datei erstellen
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
