@@ -253,6 +253,7 @@ export default function DashboardRootLayout({
           initialContent={markdownEditorData.initialContent}
           isNewFile={markdownEditorData.isNewFile}
           onSave={markdownEditorData.onSave}
+          enableAutocomplete={markdownEditorData.enableAutocomplete}
         />
       )}
 

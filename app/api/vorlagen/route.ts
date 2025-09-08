@@ -9,7 +9,7 @@ import { withTemplateErrorHandling } from '@/lib/template-system/template-error-
 // GET - Fetch all templates for the current user
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
       const { titel, inhalt, kategorie, kontext_anforderungen } = schemaResult.data
 
-      const supabase = createClient()
+      const supabase = await createClient()
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser()

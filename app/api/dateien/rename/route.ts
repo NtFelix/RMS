@@ -117,16 +117,16 @@ export async function POST(request: NextRequest) {
     }
     
     // Get directory and filename
-    const pathSegments = cleanFilePath.split('/')
-    const directory = pathSegments.slice(0, -1).join('/')
-    const currentFileName = pathSegments[pathSegments.length - 1]
+    const filePathSegments = cleanFilePath.split('/')
+    const directory = filePathSegments.slice(0, -1).join('/')
+    const originalFileName = filePathSegments[filePathSegments.length - 1]
     const newPath = `${directory}/${newName}`
     
     console.log('Simple rename attempt:', {
       from: cleanFilePath,
       to: newPath,
       directory,
-      currentFileName,
+      originalFileName,
       newName
     })
 

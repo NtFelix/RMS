@@ -106,7 +106,7 @@ export function TemplateCreateModal() {
     const kategorie = form.watch("kategorie")
     if (kategorie && CONTEXT_MAPPINGS[kategorie as keyof typeof CONTEXT_MAPPINGS]) {
       const suggestedContexts = CONTEXT_MAPPINGS[kategorie as keyof typeof CONTEXT_MAPPINGS]
-      form.setValue("kontext_anforderungen", suggestedContexts)
+      form.setValue("kontext_anforderungen", [...suggestedContexts])
     }
   }, [form.watch("kategorie")])
 

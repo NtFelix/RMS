@@ -20,6 +20,10 @@ export class ContextFetcher {
     this.supabase = createClient();
   }
   
+  private async getSupabase() {
+    return await this.supabase;
+  }
+  
   /**
    * Fetch complete context data for template processing
    */
@@ -36,11 +40,24 @@ export class ContextFetcher {
     try {
       // Fetch tenant data if ID provided
       if (mieterId) {
-        context.mieter = await this.fetchTenant(mieterId);
-        
-        // If tenant has a wohnung_id and no wohnungId was provided, use it
-        if (!wohnungId && context.mieter?.wohnung_id) {
-          wohnungId = context.mieter.wohnung_id;
+        const tenant = await this.fetchTenant(mieterId);
+        if (tenant) {
+          context.mieter = {
+            id: tenant.id,
+            name: tenant.name,
+            email: tenant.email,
+            telefonnummer: tenant.telefonnummer,
+            einzug: tenant.einzug,
+            auszug: tenant.auszug,
+            notiz: tenant.notiz,
+            nebenkosten: Array.isArray(tenant.nebenkosten) ? tenant.nebenkosten.length : undefined,
+            wohnung_id: tenant.wohnung_id
+          };
+          
+          // If tenant has a wohnung_id and no wohnungId was provided, use it
+          if (!wohnungId && context.mieter.wohnung_id) {
+            wohnungId = context.mieter.wohnung_id;
+          }
         }
       }
       
@@ -76,7 +93,8 @@ export class ContextFetcher {
    */
   async fetchTenant(mieterId: string): Promise<Tenant | undefined> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('Mieter')
         .select('*')
         .eq('id', mieterId)
@@ -99,7 +117,8 @@ export class ContextFetcher {
    */
   async fetchApartment(wohnungId: string): Promise<Apartment | undefined> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('Wohnungen')
         .select(`
           *,
@@ -150,7 +169,8 @@ export class ContextFetcher {
    */
   async fetchHouse(hausId: string): Promise<House | undefined> {
     try {
-      const { data, error } = await this.supabase
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase
         .from('Haeuser')
         .select('*')
         .eq('id', hausId)
@@ -185,7 +205,8 @@ export class ContextFetcher {
    */
   async fetchLandlord(userId: string): Promise<{ id: string; name?: string; email?: string } | undefined> {
     try {
-      const { data, error } = await this.supabase.auth.getUser();
+      const supabase = await this.getSupabase();
+      const { data, error } = await supabase.auth.getUser();
       
       if (error || !data.user) {
         console.error('Error fetching user:', error);
@@ -208,20 +229,21 @@ export class ContextFetcher {
    */
   async fetchAvailableEntities(userId: string) {
     try {
+      const supabase = await this.getSupabase();
       const [mieterResult, wohnungenResult, haeuserResult] = await Promise.all([
-        this.supabase
+        supabase
           .from('Mieter')
           .select('id, name, wohnung_id')
           .eq('user_id', userId)
           .order('name'),
         
-        this.supabase
+        supabase
           .from('Wohnungen')
           .select('id, name, haus_id')
           .eq('user_id', userId)
           .order('name'),
         
-        this.supabase
+        supabase
           .from('Haeuser')
           .select('id, name')
           .eq('user_id', userId)
@@ -263,16 +285,18 @@ export class ContextFetcher {
     } = {};
     
     try {
+      const supabase = await this.getSupabase();
+      
       // If tenant is selected, fetch their apartment
       if (mieterId) {
-        const { data: mieter } = await this.supabase
+        const { data: mieter } = await supabase
           .from('Mieter')
           .select('wohnung_id')
           .eq('id', mieterId)
           .single();
         
         if (mieter?.wohnung_id) {
-          const { data: wohnung } = await this.supabase
+          const { data: wohnung } = await supabase
             .from('Wohnungen')
             .select('id, name, haus_id')
             .eq('id', mieter.wohnung_id)
@@ -288,13 +312,13 @@ export class ContextFetcher {
       // If apartment is selected, fetch its house and tenants
       if (wohnungId) {
         const [wohnungResult, mieterResult] = await Promise.all([
-          this.supabase
+          supabase
             .from('Wohnungen')
             .select('haus_id')
             .eq('id', wohnungId)
             .single(),
           
-          this.supabase
+          supabase
             .from('Mieter')
             .select('id, name, wohnung_id')
             .eq('wohnung_id', wohnungId)
@@ -311,7 +335,7 @@ export class ContextFetcher {
       
       // If house is selected or determined, fetch house data
       if (hausId) {
-        const { data: haus } = await this.supabase
+        const { data: haus } = await supabase
           .from('Haeuser')
           .select('id, name')
           .eq('id', hausId)

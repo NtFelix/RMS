@@ -380,7 +380,7 @@ export class TemplateErrorHandler {
     context: ErrorContext,
     includeStackTrace: boolean
   ): void {
-    const logData = {
+    const logData: Record<string, any> = {
       errorId: error.errorId,
       errorType: error.type,
       operation: context.operation,
@@ -394,11 +394,11 @@ export class TemplateErrorHandler {
     
     switch (error.severity) {
       case 'critical':
-        logger.error(`Critical template error: ${error.message}`, logData);
+        logger.error(`Critical template error: ${error.message}`, undefined, logData);
         break;
         
       case 'high':
-        logger.error(`High severity template error: ${error.message}`, logData);
+        logger.error(`High severity template error: ${error.message}`, undefined, logData);
         break;
         
       case 'medium':

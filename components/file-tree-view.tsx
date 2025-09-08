@@ -65,6 +65,17 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
       // Add category folders
       const categories = [
         {
+          id: 'vorlagen',
+          name: 'Vorlagen',
+          path: buildUserPath(userId, 'Vorlagen'),
+          type: 'category' as const,
+          icon: FileText,
+          children: [] as TreeNode[],
+          isExpanded: expandedNodes.has('vorlagen'),
+          fileCount: getFileCountFromStore(buildUserPath(userId, 'Vorlagen')),
+          isEmpty: getFileCountFromStore(buildUserPath(userId, 'Vorlagen')) === 0
+        },
+        {
           id: 'haeuser',
           name: 'Häuser',
           path: buildUserPath(userId, 'haeuser'),
@@ -291,6 +302,12 @@ export function FileTreeView({ userId, className }: FileTreeViewProps) {
             }
           }
         }
+      } else if (segments[0] === 'Vorlagen') {
+        breadcrumbs.push({
+          name: 'Vorlagen',
+          path: buildUserPath(userId, 'Vorlagen'),
+          type: 'category'
+        })
       } else if (segments[0] === 'miscellaneous') {
         breadcrumbs.push({
           name: 'Sonstiges',

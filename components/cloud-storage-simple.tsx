@@ -470,17 +470,15 @@ export function CloudStorageSimple({
    * Handle create template
    */
   const handleCreateTemplate = useCallback(() => {
-    openTemplateCreateModal({
-      onSuccess: (template) => {
-        // Refresh to show the new template in the Vorlagen folder
-        handleRefresh()
-        toast({
-          title: "Template erstellt",
-          description: `Das Template "${template.titel}" wurde erfolgreich erstellt.`,
-        })
-      }
+    openTemplateCreateModal(currentNavPath, (template) => {
+      // Refresh to show the new template in the Vorlagen folder
+      handleRefresh()
+      toast({
+        title: "Template erstellt",
+        description: `Das Template "${template.titel}" wurde erfolgreich erstellt.`,
+      })
     })
-  }, [openTemplateCreateModal, handleRefresh, toast])
+  }, [openTemplateCreateModal, currentNavPath, handleRefresh, toast])
 
   /**
    * Handle create file

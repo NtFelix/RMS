@@ -22,6 +22,7 @@ interface MarkdownEditorModalProps {
   initialContent?: string
   isNewFile?: boolean
   onSave?: (content: string) => void
+  enableAutocomplete?: boolean
 }
 
 export function MarkdownEditorModal({
@@ -31,7 +32,8 @@ export function MarkdownEditorModal({
   fileName,
   initialContent = "",
   isNewFile = false,
-  onSave
+  onSave,
+  enableAutocomplete = false
 }: MarkdownEditorModalProps) {
   const [content, setContent] = useState(initialContent)
   const [isSaving, setIsSaving] = useState(false)

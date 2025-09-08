@@ -39,6 +39,11 @@ export {
   fetchRelatedEntities
 } from './context-fetcher';
 
+// Import classes for convenience functions
+import { PlaceholderEngine, placeholderEngine } from './placeholder-engine';
+import { TemplateProcessor } from './template-processor';
+import { createValidator, createRealTimeValidator } from './placeholder-validation';
+
 // Convenience exports for common use cases
 export const createPlaceholderEngine = () => new PlaceholderEngine();
 export const createTemplateValidator = (engine?: PlaceholderEngine) => 

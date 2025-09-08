@@ -165,7 +165,7 @@ export function TemplateContextSelector({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {getFilteredEntities('mieter').map((mieter) => (
+                    {(getFilteredEntities('mieter') as MieterEntity[]).map((mieter) => (
                       <SelectItem key={mieter.id} value={mieter.id}>
                         <div className="flex flex-col">
                           <span>{mieter.name}</span>
@@ -211,7 +211,7 @@ export function TemplateContextSelector({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {getFilteredEntities('wohnungen').map((wohnung) => (
+                    {(getFilteredEntities('wohnungen') as WohnungEntity[]).map((wohnung) => (
                       <SelectItem key={wohnung.id} value={wohnung.id}>
                         <div className="flex items-center justify-between w-full">
                           <span>{wohnung.name}</span>
@@ -257,7 +257,7 @@ export function TemplateContextSelector({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {getFilteredEntities('haeuser').map((haus) => (
+                    {(getFilteredEntities('haeuser') as HausEntity[]).map((haus) => (
                       <SelectItem key={haus.id} value={haus.id}>
                         <div className="flex items-center justify-between w-full">
                           <span>{haus.name}</span>

@@ -223,7 +223,7 @@ export function TemplateUsageModal() {
           name: haus.name,
           ort: haus.ort,
           strasse: haus.strasse,
-          groesse: haus.groesse
+          groesse: haus.groesse ? parseFloat(haus.groesse) : undefined
         }
       }
     }
@@ -404,7 +404,7 @@ export function TemplateUsageModal() {
               <div>
                 <p className="text-sm font-medium mb-2">Erforderliche Kontexte:</p>
                 <div className="flex flex-wrap gap-2">
-                  {template.kontext_anforderungen.map((context) => (
+                  {template.kontext_anforderungen.map((context: string) => (
                     <Badge key={context} variant="secondary">
                       {context}
                     </Badge>

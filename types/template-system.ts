@@ -2,7 +2,7 @@
 // Core interfaces for the template system functionality
 
 // Context types that templates can require
-export type ContextType = 'mieter' | 'wohnung' | 'haus' | 'mail' | 'vertrag' | 'kuendigung';
+export type ContextType = 'mieter' | 'wohnung' | 'haus' | 'vermieter' | 'mail' | 'vertrag' | 'kuendigung';
 
 // Template data structure matching the Vorlagen database table
 export interface Template {

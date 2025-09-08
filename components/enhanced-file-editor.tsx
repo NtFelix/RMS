@@ -138,7 +138,11 @@ export function EnhancedFileEditor({
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/dateien/read-file?t=${Date.now()}`, {
+      // Use different API endpoint for template files
+      const isTemplateFile = fileName.endsWith('.vorlage')
+      const apiEndpoint = isTemplateFile ? '/api/dateien/read-template' : '/api/dateien/read-file'
+      
+      const response = await fetch(`${apiEndpoint}?t=${Date.now()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -191,7 +195,11 @@ export function EnhancedFileEditor({
     })
     
     try {
-      const response = await fetch(`/api/dateien/update-file?t=${Date.now()}`, {
+      // Use different API endpoint for template files
+      const isTemplateFile = fileName.endsWith('.vorlage')
+      const apiEndpoint = isTemplateFile ? '/api/dateien/update-template' : '/api/dateien/update-file'
+      
+      const response = await fetch(`${apiEndpoint}?t=${Date.now()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

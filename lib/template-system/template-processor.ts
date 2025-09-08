@@ -155,7 +155,17 @@ export class TemplateProcessor {
   /**
    * Resolve tenant placeholders
    */
-  private resolveTenantPlaceholder(placeholder: string, mieter?: Tenant): string | null {
+  private resolveTenantPlaceholder(placeholder: string, mieter?: {
+    id: string;
+    name: string;
+    email?: string;
+    telefonnummer?: string;
+    einzug?: string;
+    auszug?: string;
+    notiz?: string;
+    nebenkosten?: number;
+    wohnung_id?: string;
+  }): string | null {
     if (!mieter) return null;
     
     switch (placeholder) {
@@ -175,13 +185,9 @@ export class TemplateProcessor {
         return mieter.auszug ? this.formatDate(mieter.auszug) : null;
         
       case '@mieter.nebenkosten':
-        // Calculate total from nebenkosten array
-        if (mieter.nebenkosten && mieter.nebenkosten.length > 0) {
-          const total = mieter.nebenkosten.reduce((sum, entry) => {
-            const amount = parseFloat(entry.amount) || 0;
-            return sum + amount;
-          }, 0);
-          return this.formatCurrency(total);
+        // Return nebenkosten as currency if available
+        if (mieter.nebenkosten !== undefined) {
+          return this.formatCurrency(mieter.nebenkosten);
         }
         return null;
         
@@ -193,7 +199,13 @@ export class TemplateProcessor {
   /**
    * Resolve apartment placeholders
    */
-  private resolveApartmentPlaceholder(placeholder: string, wohnung?: Apartment): string | null {
+  private resolveApartmentPlaceholder(placeholder: string, wohnung?: {
+    id: string;
+    name: string;
+    groesse?: number;
+    miete?: number;
+    haus_id?: string;
+  }): string | null {
     if (!wohnung) return null;
     
     switch (placeholder) {
@@ -201,10 +213,7 @@ export class TemplateProcessor {
         return wohnung.name || null;
         
       case '@wohnung.adresse':
-        // Combine house address if available
-        if (wohnung.Haeuser?.name) {
-          return `${wohnung.name}, ${wohnung.Haeuser.name}`;
-        }
+        // Return apartment name (address would need to be fetched separately)
         return wohnung.name || null;
         
       case '@wohnung.nummer':
@@ -224,7 +233,13 @@ export class TemplateProcessor {
   /**
    * Resolve house placeholders
    */
-  private resolveHousePlaceholder(placeholder: string, haus?: House): string | null {
+  private resolveHousePlaceholder(placeholder: string, haus?: {
+    id: string;
+    name: string;
+    ort?: string;
+    groesse?: number;
+    strasse?: string;
+  }): string | null {
     if (!haus) return null;
     
     switch (placeholder) {
@@ -238,7 +253,7 @@ export class TemplateProcessor {
         return haus.strasse || null;
         
       case '@haus.groesse':
-        return haus.size || null;
+        return haus.groesse !== undefined ? `${haus.groesse} m²` : null;
         
       default:
         return null;

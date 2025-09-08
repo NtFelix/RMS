@@ -122,7 +122,7 @@ export function CloudStorageItemCard({
     if (type !== 'file') return false
     const file = item as StorageObject
     const extension = file.name.split('.').pop()?.toLowerCase()
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md'].includes(extension || '')
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md', 'vorlage'].includes(extension || '')
   }
 
   // Handle preview action
@@ -133,8 +133,15 @@ export function CloudStorageItemCard({
       const filePath = `${currentPath}/${file.name}`
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
       
-      // Open markdown editor directly for .md files
-      if (fileExtension === 'md') {
+      // Open enhanced file editor for .vorlage files (templates) and .md files
+      if (fileExtension === 'vorlage') {
+        openMarkdownEditorModal({
+          filePath: currentPath,
+          fileName: file.name,
+          isNewFile: false,
+          enableAutocomplete: true // Enable autocomplete for template files
+        })
+      } else if (fileExtension === 'md') {
         openMarkdownEditorModal({
           filePath: currentPath,
           fileName: file.name,
@@ -191,6 +198,9 @@ export function CloudStorageItemCard({
       }
       if (['pdf'].includes(extension || '')) {
         return { icon: FileText, color: 'text-red-500', bgColor: 'bg-red-50' }
+      }
+      if (['vorlage'].includes(extension || '')) {
+        return { icon: FileText, color: 'text-purple-500', bgColor: 'bg-purple-50' }
       }
       if (['doc', 'docx', 'txt', 'rtf'].includes(extension || '')) {
         return { icon: FileText, color: 'text-blue-500', bgColor: 'bg-blue-50' }

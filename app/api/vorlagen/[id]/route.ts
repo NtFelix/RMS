@@ -20,10 +20,11 @@ const updateTemplateSchema = z.object({
 // GET - Fetch a specific template by ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient()
+    const { id } = await params
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -38,7 +39,7 @@ export async function GET(
     const { data: template, error } = await supabase
       .from('Vorlagen')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .single()
 
@@ -70,9 +71,10 @@ export async function GET(
 // PUT - Update a template
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     // Validate request body
@@ -89,7 +91,7 @@ export async function PUT(
 
     const updateData = validationResult.data
 
-    const supabase = createClient()
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -107,7 +109,7 @@ export async function PUT(
         .select('id')
         .eq('user_id', user.id)
         .eq('titel', updateData.titel)
-        .neq('id', params.id)
+        .neq('id', id)
         .single()
 
       if (checkError && checkError.code !== 'PGRST116') {
@@ -133,7 +135,7 @@ export async function PUT(
         ...updateData,
         aktualisiert_am: new Date().toISOString()
       })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
       .select()
       .single()
@@ -166,10 +168,11 @@ export async function PUT(
 // DELETE - Delete a template
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = createClient()
+    const { id } = await params
+    const supabase = await createClient()
 
     // Get current user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
@@ -184,7 +187,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from('Vorlagen')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('user_id', user.id)
 
     if (deleteError) {

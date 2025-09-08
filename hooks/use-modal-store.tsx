@@ -146,6 +146,7 @@ interface MarkdownEditorData {
   initialContent?: string;
   isNewFile?: boolean;
   onSave?: (content: string) => void;
+  enableAutocomplete?: boolean;
 }
 
 interface CloseModalOptions {
