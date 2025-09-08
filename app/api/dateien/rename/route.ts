@@ -54,29 +54,98 @@ export async function POST(request: NextRequest) {
       newName
     })
 
-    // Perform the rename operation using the authenticated server-side client
-    console.log('Performing rename operation:', {
-      from: cleanFilePath,
-      to: newPath
+    // Debug: Log the paths being used
+    console.log('Rename operation details:', {
+      originalFilePath: filePath,
+      cleanFilePath,
+      directory,
+      currentFileName,
+      newName,
+      newPath,
+      userId: user.id
     })
     
-    // First, check if the source file exists
-    const { data: sourceFile, error: downloadError } = await supabase.storage
-      .from('documents')
-      .download(cleanFilePath)
+    // First, try to find the actual file by searching the directory
+    console.log('Searching for file in directory:', directory)
     
-    if (downloadError) {
-      console.error('Source file not found:', downloadError)
+    const { data: directoryContents, error: listError } = await supabase.storage
+      .from('documents')
+      .list(directory, { limit: 1000 })
+    
+    if (listError) {
+      console.error('Error listing directory:', listError)
       return NextResponse.json(
-        { error: `Quelldatei nicht gefunden: ${downloadError.message}` },
+        { error: `Verzeichnis kann nicht gelesen werden: ${listError.message}` },
+        { status: 500 }
+      )
+    }
+    
+    console.log('Directory contents:', {
+      directory,
+      fileCount: directoryContents?.length || 0,
+      files: directoryContents?.map(f => ({
+        name: f.name,
+        size: f.metadata?.size,
+        hasMetadata: !!f.metadata
+      })) || []
+    })
+    
+    // Find the file in the directory listing
+    let actualFileName = currentFileName
+    let fileFound = false
+    
+    // Try exact match first
+    const exactMatch = directoryContents?.find(f => f.name === currentFileName && f.metadata?.size)
+    if (exactMatch) {
+      fileFound = true
+      console.log('Found file with exact match')
+    } else {
+      // Try case-insensitive match
+      const caseInsensitiveMatch = directoryContents?.find(f => 
+        f.name.toLowerCase() === currentFileName.toLowerCase() && f.metadata?.size
+      )
+      if (caseInsensitiveMatch) {
+        actualFileName = caseInsensitiveMatch.name
+        fileFound = true
+        console.log('Found file with case-insensitive match:', { searched: currentFileName, found: actualFileName })
+      } else {
+        // Try partial match
+        const partialMatch = directoryContents?.find(f => 
+          (f.name.includes(currentFileName) || currentFileName.includes(f.name)) && f.metadata?.size
+        )
+        if (partialMatch) {
+          actualFileName = partialMatch.name
+          fileFound = true
+          console.log('Found file with partial match:', { searched: currentFileName, found: actualFileName })
+        }
+      }
+    }
+    
+    if (!fileFound) {
+      console.error('File not found in directory listing:', {
+        searchedFor: currentFileName,
+        directory,
+        availableFiles: directoryContents?.filter(f => f.metadata?.size).map(f => f.name) || []
+      })
+      return NextResponse.json(
+        { error: `Datei "${currentFileName}" nicht im Verzeichnis "${directory}" gefunden` },
         { status: 404 }
       )
     }
     
+    // Update paths with the actual filename found
+    const actualFilePath = `${directory}/${actualFileName}`
+    const actualNewPath = `${directory}/${newName}`
+    
+    console.log('Using actual file paths:', {
+      from: actualFilePath,
+      to: actualNewPath
+    })
+    
     // Use Supabase's move operation to rename the file
     const { error: moveError } = await supabase.storage
       .from('documents')
-      .move(cleanFilePath, newPath)
+      .move(actualFilePath, actualNewPath)
     
     if (moveError) {
       console.error('Move operation failed:', moveError)
