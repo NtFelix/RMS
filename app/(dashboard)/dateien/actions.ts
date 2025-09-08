@@ -1017,10 +1017,10 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
             try {
               const { data: tenant } = await supabase
                 .from('Mieter')
-                .select('name, vorname')
+                .select('name')
                 .eq('id', segment)
                 .single()
-              const tenantName = tenant ? `${tenant.vorname ?? ''} ${tenant.name ?? ''}`.trim() : null
+              const tenantName = tenant ? tenant.name : null
               crumbs.push({ name: tenantName || segment, path: currentPath, type: 'tenant' })
             } catch {
               // Not a valid tenant, treat as custom folder
