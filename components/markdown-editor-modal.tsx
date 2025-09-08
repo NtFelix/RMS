@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { FileText, Save, X, Eye, Edit3, Loader2, Download, Copy, RefreshCw } from "lucide-react"
+import { FileText, Save, Eye, Edit3, Loader2, Download, Copy, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -369,13 +369,6 @@ export function MarkdownEditorModal({
                   <Save className="h-4 w-4 mr-2" />
                 )}
                 {isSaving ? "Speichert..." : "Speichern"}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleClose}
-              >
-                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
