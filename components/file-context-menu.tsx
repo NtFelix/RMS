@@ -48,6 +48,7 @@ export function FileContextMenu({
   const {
     downloadFile,
     deleteFile,
+    renameFile,
     moveFile,
     isOperationInProgress,
   } = useCloudStorageOperations()
@@ -261,21 +262,7 @@ export function FileContextMenu({
         onClose={() => setShowRenameModal(false)}
         fileName={file.name}
         onRename={async (newName) => {
-          try {
-            const { renameFile } = useCloudStorageOperations()
-            await renameFile(file, newName)
-            toast({
-              title: "Erfolg",
-              description: `Datei wurde erfolgreich in "${newName}" umbenannt.`,
-            })
-          } catch (error) {
-            toast({
-              title: "Fehler beim Umbenennen",
-              description: error instanceof Error ? error.message : "Die Datei konnte nicht umbenannt werden.",
-              variant: "destructive"
-            })
-            throw error // Re-throw to let the modal handle the error state
-          }
+          await renameFile(file, newName)
         }}
       />
     </>

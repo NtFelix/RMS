@@ -54,25 +54,24 @@ export async function POST(request: NextRequest) {
       newName
     })
 
-    // Use atomic move operation for efficient and reliable renaming
-    console.log('Attempting atomic move operation:', {
-      from: cleanFilePath,
-      to: newPath
+    // Use the storage service's renameFile function which handles path validation and file existence
+    console.log('Using storage service renameFile:', {
+      filePath: cleanFilePath,
+      newName
     })
     
-    const { error: moveError } = await supabase.storage
-      .from('documents')
-      .move(cleanFilePath, newPath)
-    
-    if (moveError) {
-      console.error('Move operation failed:', moveError.message)
+    try {
+      const { renameFile } = await import('@/lib/storage-service')
+      await renameFile(cleanFilePath, newName)
+      console.log('Rename operation completed successfully!')
+    } catch (storageError) {
+      console.error('Storage service rename failed:', storageError)
+      const errorMessage = storageError instanceof Error ? storageError.message : 'Unknown error'
       return NextResponse.json(
-        { error: `Datei kann nicht umbenannt werden: ${moveError.message}` },
+        { error: `Datei kann nicht umbenannt werden: ${errorMessage}` },
         { status: 500 }
       )
     }
-
-    console.log('Move operation completed successfully!')
     return NextResponse.json({ 
       success: true,
       message: 'Datei erfolgreich umbenannt'
