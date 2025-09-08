@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
     // Construct the full file path
     const fullPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '')
 
+    console.log(`Reading file: ${fullPath}`)
+
     // Download the file from Supabase Storage
     const { data, error } = await supabase.storage
       .from('documents')
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
     // Convert blob to text
     const content = await data.text()
 
+    console.log(`File read successfully: ${fullPath}, content length: ${content.length}`)
     return NextResponse.json({ content })
   } catch (error) {
     console.error('Error reading file:', error)

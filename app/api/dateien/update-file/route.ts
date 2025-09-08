@@ -27,30 +27,52 @@ export async function POST(request: NextRequest) {
     // Construct the full file path
     const fullPath = `${filePath}/${fileName}`.replace(/\/+/g, '/').replace(/^\//, '')
 
-    // First, try to delete the existing file if it exists
-    const { error: deleteError } = await supabase.storage
-      .from('documents')
-      .remove([fullPath])
-
-    // Note: We don't check for deleteError because the file might not exist yet
+    console.log(`Updating file: ${fullPath}, content length: ${content.length}`)
 
     // Create a blob from the content
     const blob = new Blob([content], { type: 'text/markdown' })
 
-    // Upload the file (now it's a fresh upload)
-    const { error } = await supabase.storage
+    // Try to upload with upsert first
+    const { error: uploadError } = await supabase.storage
       .from('documents')
       .upload(fullPath, blob, {
-        upsert: false, // Since we deleted it first, this should be a new upload
+        upsert: true,
         contentType: 'text/markdown',
-        cacheControl: '3600'
+        cacheControl: '0' // Disable caching to ensure fresh content
       })
 
-    if (error) {
-      console.error('Error uploading file:', error)
-      return NextResponse.json({ error: 'Failed to save file' }, { status: 500 })
+    // If upsert fails due to RLS, try delete-then-upload approach
+    if (uploadError) {
+      console.log('Upsert failed, trying delete-then-upload approach:', uploadError)
+      
+      // Delete the existing file
+      const { error: deleteError } = await supabase.storage
+        .from('documents')
+        .remove([fullPath])
+
+      if (deleteError) {
+        console.log('Delete error (might be expected):', deleteError)
+      }
+
+      // Wait a moment for the delete to propagate
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      // Upload as new file
+      const { error: newUploadError } = await supabase.storage
+        .from('documents')
+        .upload(fullPath, blob, {
+          upsert: false,
+          contentType: 'text/markdown',
+          cacheControl: '0'
+        })
+
+      if (newUploadError) {
+        console.error('Error uploading file after delete:', newUploadError)
+        return NextResponse.json({ error: 'Failed to save file' }, { status: 500 })
+      }
     }
 
+    console.log(`File updated successfully: ${fullPath}`)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error updating file:', error)
