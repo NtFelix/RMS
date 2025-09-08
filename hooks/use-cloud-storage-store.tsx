@@ -494,8 +494,6 @@ export const useCloudStorageStore = create<CloudStorageState>()(
       });
       
       try {
-        const { renameFile } = await import('@/lib/storage-service');
-        
         // Get the current path and ensure it doesn't have a trailing slash
         let currentPath = get().currentPath;
         if (currentPath.endsWith('/')) {
@@ -506,15 +504,29 @@ export const useCloudStorageStore = create<CloudStorageState>()(
         // The file.name should already be the correct name from Supabase
         const filePath = `${currentPath}/${file.name}`;
         
-        console.log('Renaming file via storage service:', {
+        console.log('Renaming file via API:', {
           currentPath,
           fileName: file.name,
           newName,
           fullPath: filePath
         });
         
-        // Call the rename function
-        await renameFile(filePath, newName);
+        // Call the rename API endpoint
+        const response = await fetch('/api/dateien/rename', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            filePath,
+            newName,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Rename failed');
+        }
         
         // Update file in current files list
         set((state) => {
