@@ -102,6 +102,11 @@ interface CreateFolderModalData {
   onFolderCreated: (folderName: string) => void;
 }
 
+interface CreateFileModalData {
+  currentPath: string;
+  onFileCreated: (fileName: string) => void;
+}
+
 interface FilePreviewData {
   name: string;
   path: string;
@@ -133,6 +138,14 @@ interface FileMoveData {
 interface ShareDocumentData {
   fileName: string;
   filePath: string;
+}
+
+interface MarkdownEditorData {
+  filePath?: string;
+  fileName?: string;
+  initialContent?: string;
+  isNewFile?: boolean;
+  onSave?: (content: string) => void;
 }
 
 interface CloseModalOptions {
@@ -306,6 +319,12 @@ export interface ModalState {
   openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => void;
   closeCreateFolderModal: () => void;
 
+  // Create File Modal State
+  isCreateFileModalOpen: boolean;
+  createFileModalData?: CreateFileModalData;
+  openCreateFileModal: (currentPath: string, onFileCreated: (fileName: string) => void) => void;
+  closeCreateFileModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
@@ -329,6 +348,12 @@ export interface ModalState {
   shareDocumentData?: ShareDocumentData;
   openShareDocumentModal: (data: ShareDocumentData) => void;
   closeShareDocumentModal: () => void;
+
+  // Markdown Editor Modal State
+  isMarkdownEditorModalOpen: boolean;
+  markdownEditorData?: MarkdownEditorData;
+  openMarkdownEditorModal: (data: MarkdownEditorData) => void;
+  closeMarkdownEditorModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -445,6 +470,11 @@ const initialCreateFolderModalState = {
   createFolderModalData: undefined,
 };
 
+const initialCreateFileModalState = {
+  isCreateFileModalOpen: false,
+  createFileModalData: undefined,
+};
+
 const initialFolderDeleteConfirmationModalState = {
   isFolderDeleteConfirmationModalOpen: false,
   folderDeleteConfirmationData: undefined,
@@ -458,6 +488,11 @@ const initialFileMoveModalState = {
 const initialShareDocumentModalState = {
   isShareDocumentModalOpen: false,
   shareDocumentData: undefined,
+};
+
+const initialMarkdownEditorModalState = {
+  isMarkdownEditorModalOpen: false,
+  markdownEditorData: undefined,
 };
 
 const createInitialModalState = () => ({
@@ -476,9 +511,11 @@ const createInitialModalState = () => ({
   ...initialFilePreviewModalState,
   ...initialFileRenameModalState,
   ...initialCreateFolderModalState,
+  ...initialCreateFileModalState,
   ...initialFolderDeleteConfirmationModalState,
   ...initialFileMoveModalState,
   ...initialShareDocumentModalState,
+  ...initialMarkdownEditorModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -862,6 +899,16 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeCreateFolderModal: () => set(initialCreateFolderModalState),
 
+    // Create File Modal
+    openCreateFileModal: (currentPath: string, onFileCreated: (fileName: string) => void) => set({
+      isCreateFileModalOpen: true,
+      createFileModalData: {
+        currentPath,
+        onFileCreated,
+      },
+    }),
+    closeCreateFileModal: () => set(initialCreateFileModalState),
+
     // Confirmation Modal
     isConfirmationModalOpen: false,
     confirmationModalConfig: null,
@@ -904,5 +951,12 @@ export const useModalStore = create<ModalState>((set, get) => {
       shareDocumentData: data,
     }),
     closeShareDocumentModal: () => set(initialShareDocumentModalState),
+
+    // Markdown Editor Modal
+    openMarkdownEditorModal: (data: MarkdownEditorData) => set({
+      isMarkdownEditorModalOpen: true,
+      markdownEditorData: data,
+    }),
+    closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
   };
 });

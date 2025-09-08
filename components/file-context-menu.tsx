@@ -55,7 +55,7 @@ export function FileContextMenu({
   
   const { openPreview } = useCloudStoragePreview()
   const { archiveFile, openArchiveView } = useCloudStorageArchive()
-  const { openFileMoveModal } = useModalStore()
+  const { openFileMoveModal, openMarkdownEditorModal } = useModalStore()
 
   // Get file type for icon display
   const getFileIcon = (fileName: string) => {
@@ -75,7 +75,7 @@ export function FileContextMenu({
   // Check if file can be previewed
   const canPreview = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase()
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf'].includes(extension || '')
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'md'].includes(extension || '')
   }
 
   const handleDownload = async () => {
@@ -112,7 +112,18 @@ export function FileContextMenu({
 
   const handlePreview = () => {
     if (canPreview(file.name)) {
-      openPreview(file)
+      const fileExtension = file.name.split('.').pop()?.toLowerCase()
+      
+      // Open markdown editor for .md files
+      if (fileExtension === 'md' && currentPath) {
+        openMarkdownEditorModal({
+          filePath: currentPath,
+          fileName: file.name,
+          isNewFile: false
+        })
+      } else {
+        openPreview(file)
+      }
     } else {
       toast({
         title: "Vorschau nicht verfügbar",

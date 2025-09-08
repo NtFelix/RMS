@@ -96,7 +96,7 @@ export function CloudStorageItemCard({
 }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const { openFilePreviewModal, openFileRenameModal } = useModalStore()
+  const { openFilePreviewModal, openFileRenameModal, openMarkdownEditorModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
 
   // Create a unique close callback for this dropdown
@@ -122,7 +122,7 @@ export function CloudStorageItemCard({
     if (type !== 'file') return false
     const file = item as StorageObject
     const extension = file.name.split('.').pop()?.toLowerCase()
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf'].includes(extension || '')
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md'].includes(extension || '')
   }
 
   // Handle preview action
@@ -131,13 +131,23 @@ export function CloudStorageItemCard({
       const file = item as StorageObject
       // Construct the file path from current path and file name
       const filePath = `${currentPath}/${file.name}`
+      const fileExtension = file.name.split('.').pop()?.toLowerCase()
       
-      openFilePreviewModal({
-        name: file.name,
-        path: filePath,
-        size: file.size,
-        type: file.name.split('.').pop()?.toLowerCase()
-      })
+      // Open markdown editor directly for .md files
+      if (fileExtension === 'md') {
+        openMarkdownEditorModal({
+          filePath: currentPath,
+          fileName: file.name,
+          isNewFile: false
+        })
+      } else {
+        openFilePreviewModal({
+          name: file.name,
+          path: filePath,
+          size: file.size,
+          type: fileExtension
+        })
+      }
     }
   }
 

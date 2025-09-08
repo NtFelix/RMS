@@ -19,6 +19,7 @@ import {
   FileText,
   Plus
 } from "lucide-react"
+import { useFeatureFlagEnabled } from "posthog-js/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { 
@@ -34,6 +35,7 @@ import { Separator } from "@/components/ui/separator"
 interface QuickActionsProps {
   onUpload: () => void
   onCreateFolder: () => void
+  onCreateFile: () => void
   onSearch: (query: string) => void
   onSort: (sortBy: string) => void
   onViewMode: (mode: 'grid' | 'list') => void
@@ -49,6 +51,7 @@ interface QuickActionsProps {
 export function CloudStorageQuickActions({
   onUpload,
   onCreateFolder,
+  onCreateFile,
   onSearch,
   onSort,
   onViewMode,
@@ -61,6 +64,7 @@ export function CloudStorageQuickActions({
   onBulkArchive
 }: QuickActionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
+  const createFileEnabled = useFeatureFlagEnabled('create-file-option')
 
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter)
@@ -194,6 +198,12 @@ export function CloudStorageQuickActions({
                 <FolderPlus className="h-4 w-4 mr-2" />
                 Ordner erstellen
               </DropdownMenuItem>
+              {createFileEnabled && (
+                <DropdownMenuItem onClick={onCreateFile}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Datei erstellen
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

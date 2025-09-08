@@ -47,7 +47,7 @@ export function CloudStorageSimple({
 }: CloudStorageSimpleProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { openUploadModal, openCreateFolderModal } = useModalStore()
+  const { openUploadModal, openCreateFolderModal, openCreateFileModal } = useModalStore()
   
   // Local navigation state
   const [currentNavPath, setCurrentNavPath] = useState(initialPath)
@@ -457,6 +457,23 @@ export function CloudStorageSimple({
       })
     }
   }, [currentNavPath, initialPath, openCreateFolderModal, folders, setFolders, handleRefresh, toast])
+
+  /**
+   * Handle create file
+   */
+  const handleCreateFile = useCallback(() => {
+    const targetPath = currentNavPath || initialPath
+    if (targetPath) {
+      openCreateFileModal(targetPath, (fileName: string) => {
+        // Refresh to get the latest data from server
+        handleRefresh()
+        
+        toast({
+          description: `Datei "${fileName}" wurde erfolgreich erstellt.`
+        })
+      })
+    }
+  }, [currentNavPath, initialPath, openCreateFileModal, handleRefresh, toast])
   
   // Determine loading and error states
   const showLoading = isLoading || isNavigating
@@ -471,6 +488,7 @@ export function CloudStorageSimple({
           <CloudStorageQuickActions
             onUpload={handleUpload}
             onCreateFolder={handleCreateFolder}
+            onCreateFile={handleCreateFile}
             onSearch={setSearchQuery}
             onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
             onViewMode={setViewMode}

@@ -32,9 +32,11 @@ import { FileUploadModal } from "@/components/file-upload-modal"; // Added
 import { FilePreviewModal } from "@/components/file-preview-modal"; // Added
 import { FileRenameModal } from "@/components/file-rename-modal"; // Added
 import { CreateFolderModal } from "@/components/create-folder-modal"; // Added
+import { CreateFileModal } from "@/components/create-file-modal"; // Added
 import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confirmation-modal"; // Added
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
+import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -92,6 +94,10 @@ export default function DashboardRootLayout({
     isCreateFolderModalOpen,
     createFolderModalData,
     closeCreateFolderModal,
+    // Create File Modal state
+    isCreateFileModalOpen,
+    createFileModalData,
+    closeCreateFileModal,
     // Folder Delete Confirmation Modal state
     isFolderDeleteConfirmationModalOpen,
     folderDeleteConfirmationData,
@@ -104,6 +110,10 @@ export default function DashboardRootLayout({
     isShareDocumentModalOpen,
     shareDocumentData,
     closeShareDocumentModal,
+    // Markdown Editor Modal state
+    isMarkdownEditorModalOpen,
+    markdownEditorData,
+    closeMarkdownEditorModal,
   } = useModalStore()
 
   return (
@@ -178,6 +188,16 @@ export default function DashboardRootLayout({
         />
       )}
 
+      {/* CreateFileModal - Global create file modal */}
+      {isCreateFileModalOpen && createFileModalData && (
+        <CreateFileModal
+          isOpen={isCreateFileModalOpen}
+          onClose={closeCreateFileModal}
+          currentPath={createFileModalData.currentPath}
+          onFileCreated={createFileModalData.onFileCreated}
+        />
+      )}
+
       {/* FolderDeleteConfirmationModal - Global folder delete confirmation modal */}
       {isFolderDeleteConfirmationModalOpen && folderDeleteConfirmationData && (
         <FolderDeleteConfirmationModal
@@ -210,6 +230,19 @@ export default function DashboardRootLayout({
           onClose={closeShareDocumentModal}
           fileName={shareDocumentData.fileName}
           filePath={shareDocumentData.filePath}
+        />
+      )}
+
+      {/* MarkdownEditorModal - Global markdown editor modal */}
+      {isMarkdownEditorModalOpen && markdownEditorData && (
+        <MarkdownEditorModal
+          isOpen={isMarkdownEditorModalOpen}
+          onClose={closeMarkdownEditorModal}
+          filePath={markdownEditorData.filePath}
+          fileName={markdownEditorData.fileName}
+          initialContent={markdownEditorData.initialContent}
+          isNewFile={markdownEditorData.isNewFile}
+          onSave={markdownEditorData.onSave}
         />
       )}
 
