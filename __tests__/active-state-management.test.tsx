@@ -216,19 +216,19 @@ describe('Active State Management', () => {
   })
 
   describe('State Timestamps', () => {
-    it('should update lastUpdated timestamp on state changes', () => {
+    it('should update lastUpdated timestamp on state changes', async () => {
       const { result } = renderHook(() => useActiveStateManager())
       
       const initialTimestamp = result.current.activeState.lastUpdated
       
-      // Wait a bit to ensure timestamp difference
-      setTimeout(() => {
-        act(() => {
-          result.current.updateActiveRoute('/dateien/house1')
-        })
-        
-        expect(result.current.activeState.lastUpdated).toBeGreaterThan(initialTimestamp)
-      }, 10)
+      // Wait for a moment to ensure a different timestamp
+      await new Promise(resolve => setTimeout(resolve, 10))
+      
+      act(() => {
+        result.current.updateActiveRoute('/dateien/house1')
+      })
+      
+      expect(result.current.activeState.lastUpdated).toBeGreaterThan(initialTimestamp)
     })
   })
 })
