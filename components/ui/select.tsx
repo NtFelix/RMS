@@ -19,10 +19,9 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      // Mobile-first: larger touch targets
-      "flex min-h-[44px] w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-      // Desktop: smaller sizing
-      "sm:h-10 sm:text-sm",
+      "flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+      // Mobile: larger touch targets
+      "min-h-[44px] text-base sm:min-h-0 sm:text-sm",
       className
     )}
     {...props}
@@ -121,10 +120,9 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      // Mobile-first: larger touch targets and text
-      "relative flex w-full cursor-default select-none items-center rounded-sm py-3 pl-8 pr-2 text-base outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
-      // Desktop: smaller sizing
-      "sm:py-1.5 sm:text-sm",
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      // Mobile: larger touch targets and text
+      "py-3 text-base sm:py-1.5 sm:text-sm",
       className
     )}
     {...props}
