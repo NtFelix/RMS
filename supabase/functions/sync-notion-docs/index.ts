@@ -296,16 +296,28 @@ class NotionSyncService {
                         // Transform to Supabase format
                         const transformedPage = this.transformNotionPageToSupabase(page, content);
 
-                        // Upsert to Supabase (update if exists, insert if new)
-                        const { error } = await this.supabase
+                        // Check if page already exists
+                        const { data: existingRecord } = await this.supabase
                             .from('Dokumentation')
-                            .upsert(
-                                transformedPage,
-                                {
-                                    onConflict: 'meta->notion_id',
-                                    ignoreDuplicates: false
-                                }
-                            );
+                            .select('id')
+                            .eq('meta->>notion_id', page.id)
+                            .single();
+
+                        let error;
+                        if (existingRecord) {
+                            // Update existing record
+                            const { error: updateError } = await this.supabase
+                                .from('Dokumentation')
+                                .update(transformedPage)
+                                .eq('id', existingRecord.id);
+                            error = updateError;
+                        } else {
+                            // Insert new record
+                            const { error: insertError } = await this.supabase
+                                .from('Dokumentation')
+                                .insert(transformedPage);
+                            error = insertError;
+                        }
 
                         if (error) {
                             console.error(`Error upserting page ${page.id}:`, error);
