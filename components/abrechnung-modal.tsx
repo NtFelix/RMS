@@ -805,7 +805,7 @@ export function AbrechnungModal({
 
         {tenants && tenants.length > 0 && (
           <div className="mt-4 mb-4"> {/* Adjusted margin for consistency */}
-            <label htmlFor="tenant-combobox-trigger" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="tenant-combobox-trigger" className="block text-sm font-medium text-foreground mb-1">
               Mieter auswählen
             </label>
             <div className="flex items-center space-x-2">
@@ -847,16 +847,16 @@ export function AbrechnungModal({
 
           {calculatedTenantData.map((tenantData) => (
             <div key={tenantData.tenantId} className="mb-6 p-4 border rounded-lg shadow-sm">
-              <h3 className="text-xl font-semibold mb-3 text-gray-800">
+              <h3 className="text-xl font-semibold mb-3 text-foreground">
                 Mieter: <span className="font-bold">{tenantData.tenantName}</span>
               </h3>
-              <p className="text-sm text-gray-600 mb-1">Wohnung: {tenantData.apartmentName}</p>
-              <p className="text-sm text-gray-600 mb-3">Fläche: {tenantData.apartmentSize} qm</p>
+              <p className="text-sm text-muted-foreground mb-1">Wohnung: {tenantData.apartmentName}</p>
+              <p className="text-sm text-muted-foreground mb-3">Fläche: {tenantData.apartmentSize} qm</p>
 
               {/* WG Roommates Info */}
               {!loadAllRelevantTenants && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-md border border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Wohngemeinschaft (WG) Aufteilung</h4>
+                <div className="mb-4 p-3 bg-muted/50 rounded-md border border-border">
+                  <h4 className="text-sm font-medium text-foreground mb-2">Wohngemeinschaft (WG) Aufteilung</h4>
                   <div className="space-y-2">
                     {(() => {
                       // Get all roommates in this apartment
@@ -864,7 +864,7 @@ export function AbrechnungModal({
                       
                       if (roommates.length <= 1) {
                         return (
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Keine Mitbewohner in dieser Wohnung gefunden.
                           </p>
                         );
@@ -874,14 +874,14 @@ export function AbrechnungModal({
                       
                       return (
                         <>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Diese Wohnung wird von {roommates.length} Personen bewohnt. 
                             Die Flächenkosten werden entsprechend der Anwesenheit aufgeteilt:
                           </p>
                           <div className="mt-2 space-y-1">
                             {roommates.map(rm => (
                               <div key={rm.id} className="flex justify-between items-center text-sm">
-                                <span className={rm.id === tenantData.tenantId ? "font-medium text-blue-700" : "text-gray-600"}>
+                                <span className={rm.id === tenantData.tenantId ? "font-medium text-primary" : "text-muted-foreground"}>
                                   {rm.name} {rm.id === tenantData.tenantId && "(Sie)"}
                                 </span>
                                 <span className="font-mono">
@@ -890,7 +890,7 @@ export function AbrechnungModal({
                               </div>
                             ))}
                           </div>
-                          <p className="text-xs text-gray-500 mt-2">
+                          <p className="text-xs text-muted-foreground mt-2">
                             <span className="font-medium">Hinweis:</span> Die Prozentsätze ergeben zusammen 100% der Wohnungskosten.
                             Die Aufteilung basiert auf der Anwesenheit im Abrechnungszeitraum.
                           </p>
@@ -904,17 +904,17 @@ export function AbrechnungModal({
               {/* Occupancy Progress Bar and Text */}
               <div className="my-3">
                 <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-foreground">
                     Anwesenheit im Abrechnungszeitraum ({tenantData.daysOccupied} / {tenantData.daysInBillingPeriod} Tage)
                   </span>
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-foreground">
                     {formatNumber(tenantData.occupancyPercentage)}%
                   </span>
                 </div>
                 <Progress value={tenantData.occupancyPercentage} className="w-full h-2" />
               </div>
 
-              <hr className="my-3 border-gray-200" />
+              <hr className="my-3 border-border" />
               {/* Container for Info Cards */}
               <div className="flex flex-wrap justify-start gap-4 my-4">
                 {/* Wasserkosten Info Card */}
@@ -926,7 +926,7 @@ export function AbrechnungModal({
                         <Droplet className="h-5 w-5 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-semibold text-gray-800">
+                        <div className="text-2xl font-semibold text-foreground">
                           {formatCurrency(tenantData.waterCost.tenantShare)}
                         </div>
                       </CardContent>
@@ -960,7 +960,7 @@ export function AbrechnungModal({
                         <Landmark className="h-5 w-5 text-muted-foreground" />
                       </CardHeader>
                       <CardContent>
-                        <div className="text-2xl font-semibold text-gray-800">
+                        <div className="text-2xl font-semibold text-foreground">
                           {formatCurrency(tenantData.vorauszahlungen)}
                         </div>
                       </CardContent>
@@ -1024,7 +1024,7 @@ export function AbrechnungModal({
                             <span>Geleistete Vorauszahlungen:</span>
                             <span>{formatCurrency(tenantData.vorauszahlungen)}</span>
                           </div>
-                          <div className="h-px bg-gray-200 my-2"></div>
+                          <div className="h-px bg-border my-2"></div>
                           <div className="flex justify-between font-semibold">
                             <span>{isNachzahlung ? "Nachzahlung" : "Guthaben"}:</span>
                             <span className={amountColor}>{formatCurrency(tenantData.finalSettlement)}</span>
@@ -1032,18 +1032,18 @@ export function AbrechnungModal({
                           
                           {tenantData.recommendedPrepayment !== undefined && (
                             <>
-                              <div className="h-px bg-gray-200 my-2"></div>
+                              <div className="h-px bg-border my-2"></div>
                               <h4 className="font-semibold mt-3 mb-2">Empfehlung für nächsten Zeitraum</h4>
                               <div className="space-y-1">
                                 <div className="flex justify-between">
                                   <span>Empfohlene Vorauszahlung:</span>
                                   <span className="font-semibold">{formatCurrency(tenantData.recommendedPrepayment)}</span>
                                 </div>
-                                <div className="flex justify-between text-sm text-gray-600">
+                                <div className="flex justify-between text-sm text-muted-foreground">
                                   <span>Monatliche Rate:</span>
                                   <span>{formatCurrency(tenantData.recommendedPrepayment / 12)}</span>
                                 </div>
-                                <div className="text-xs text-gray-500 mt-1">
+                                <div className="text-xs text-muted-foreground mt-1">
                                   (basierend auf {formatCurrency(tenantData.totalTenantCost)} + {Math.round((PREPAYMENT_BUFFER_MULTIPLIER - 1) * 100)}% Puffer)
                                 </div>
                               </div>
@@ -1058,15 +1058,15 @@ export function AbrechnungModal({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-gray-700">Kostenart</TableHead>
-                    <TableHead className="text-gray-700">Abrechnungsart</TableHead>
-                    <TableHead className="text-gray-700">Preis/qm</TableHead> {/* New Header */}
-                    <TableHead className="text-right text-gray-700">Anteil Mieter</TableHead>
+                    <TableHead className="text-foreground">Kostenart</TableHead>
+                    <TableHead className="text-foreground">Abrechnungsart</TableHead>
+                    <TableHead className="text-foreground">Preis/qm</TableHead> {/* New Header */}
+                    <TableHead className="text-right text-foreground">Anteil Mieter</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {tenantData.costItems.map((item, index) => (
-                    <TableRow key={index} className={index % 2 === 0 ? "bg-gray-50" : ""}>
+                    <TableRow key={index} className={index % 2 === 0 ? "bg-muted/30" : ""}>
                       <TableCell className="py-2 px-3 align-top">{item.costName}</TableCell>
                       <TableCell className="py-2 px-3 align-top">{item.calculationType}</TableCell>
                       <TableCell className="py-2 px-3 align-top">{item.pricePerSqm ? formatCurrency(item.pricePerSqm) : '-'}</TableCell> {/* New Cell */}
@@ -1074,11 +1074,11 @@ export function AbrechnungModal({
                     </TableRow>
                   ))}
                   {/* Wasserkosten row removed from here */}
-                  <TableRow className="font-semibold bg-blue-50 border-t-2 border-gray-200">
-                    <TableCell className="py-3 px-3 text-blue-700">Gesamtkosten Mieter</TableCell>
-                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* For Abrechnungsart */}
-                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
-                    <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
+                  <TableRow className="font-semibold bg-primary/10 border-t-2 border-border">
+                    <TableCell className="py-3 px-3 text-primary">Gesamtkosten Mieter</TableCell>
+                    <TableCell className="py-3 px-3 text-primary"></TableCell> {/* For Abrechnungsart */}
+                    <TableCell className="py-3 px-3 text-primary"></TableCell> {/* New empty cell for Preis/qm */}
+                    <TableCell className="text-right py-3 px-3 text-primary">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>

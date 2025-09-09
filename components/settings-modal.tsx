@@ -1,94 +1,86 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { usePostHog, useActiveFeatureFlags } from 'posthog-js/react'
+import { usePostHog, useActiveFeatureFlags, useFeatureFlagEnabled } from 'posthog-js/react'
 import { useRouter } from 'next/navigation'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // DialogOverlay removed, DialogDescription added
+import { useTheme } from "next-themes"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog";
+import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
-// Consolidated lucide-react import to include all used icons
-import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
-import { loadStripe } from '@stripe/stripe-js';
-import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import and alias Profile type
-import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
-import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
-import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
-import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
-import { Switch } from "@/components/ui/switch";
-import { getCookie, setCookie } from "@/utils/cookies";
-import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
+import { User as UserIcon, Mail, Lock, CreditCard, Trash2, DownloadCloud, Info, Monitor, FlaskConical } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { loadStripe } from '@stripe/stripe-js'
+import type { Profile as SupabaseProfile } from '@/types/supabase'
+import { getUserProfileForSettings } from '@/app/user-profile-actions'
+import { useDataExport } from '@/hooks/useDataExport'
+import { useToast } from "@/hooks/use-toast"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getCookie, setCookie } from "@/utils/cookies"
+import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide"
 
-// Define a more specific type for the profile state in this component
+// ------- Types & Stripe Promise ----------
 interface UserProfileWithSubscription extends SupabaseProfile {
-  currentWohnungenCount?: number;
+  currentWohnungenCount?: number
   activePlan?: {
-    priceId: string;
-    name: string;
-    price: number | null;
-    currency: string;
-    features: string[];
-    limitWohnungen: number | null;
-  } | null;
-  stripe_customer_id?: string | null;
-  stripe_subscription_id?: string | null;
-  stripe_cancel_at_period_end?: boolean | null; // Added for UI clarity
+    priceId: string
+    name: string
+    price: number | null
+    currency: string
+    features: string[]
+    limitWohnungen: number | null
+  } | null
+  stripe_customer_id?: string | null
+  stripe_subscription_id?: string | null
+  stripe_cancel_at_period_end?: boolean | null
+  stripe_subscription_status?: string
+  stripe_current_period_end?: string
 }
 
-// Define the Plan type
-interface Plan {
-  id: string;
-  name: string;
-  price: number | null;
-  currency: string;
-  features: string[];
-  limitWohnungen: number | null;
-  priceId: string; // priceId is the lookup key for Stripe
-}
-
-// Make sure to call `loadStripe` outside of a component’s render to avoid
-// recreating the `Stripe` object on every render.
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
-
-// No separate import for lucide-react here as it's handled above
+)
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
+
+type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
+interface EarlyAccessFeature {
+  flagKey: string
+  name: string
+  description?: string
+  documentationUrl?: string | null
+  stage: EarlyAccessStage
+  enabled?: boolean
+}
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
   const { toast } = useToast()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
-  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0"); // Initialize with updated hardcoded version
+  const [packageJsonVersion, setPackageJsonVersion] = useState<string>("v2.0.0")
   const [email, setEmail] = useState<string>("")
   const [confirmEmail, setConfirmEmail] = useState<string>("")
   const [password, setPassword] = useState<string>("")
   const [confirmPassword, setConfirmPassword] = useState<string>("")
   const [loading, setLoading] = useState<boolean>(false)
 
-  // PostHog early access features
   const posthog = usePostHog()
   const activeFlags = useActiveFeatureFlags()
-
-  type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
-  interface EarlyAccessFeature {
-    flagKey: string
-    name: string
-    description?: string
-    documentationUrl?: string | null
-    stage: EarlyAccessStage
-    enabled?: boolean
+  const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
+  const themeLabels = {
+    light: 'Heller Modus',
+    dark: 'Dunkler Modus',
+    system: 'System-Modus'
   }
 
-  // State for each feature stage
   const [alphaFeatures, setAlphaFeatures] = useState<EarlyAccessFeature[]>([])
   const [betaFeatures, setBetaFeatures] = useState<EarlyAccessFeature[]>([])
   const [conceptFeatures, setConceptFeatures] = useState<EarlyAccessFeature[]>([])
@@ -96,13 +88,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [isLoadingFeatures, setIsLoadingFeatures] = useState<boolean>(false)
   const [useLocalFeatures, setUseLocalFeatures] = useState<boolean>(false)
 
-  // Helper to get display name for each stage
   const getStageDisplayName = (stage: string) => {
     switch (stage) {
-      case 'alpha': return 'Alpha';
-      case 'beta': return 'Beta';
-      case 'concept': return 'Geplant';
-      default: return stage.charAt(0).toUpperCase() + stage.slice(1);
+      case 'alpha': return 'Alpha'
+      case 'beta': return 'Beta'
+      case 'concept': return 'Geplant'
+      default: return stage.charAt(0).toUpperCase() + stage.slice(1)
     }
   }
 
@@ -110,17 +101,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
   const [reauthCode, setReauthCode] = useState<string>("")
   const [isDeleting, setIsDeleting] = useState<boolean>(false)
-  const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false);
+  const [showDeleteAccountConfirmModal, setShowDeleteAccountConfirmModal] = useState(false)
 
-  // State for subscription tab
-  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null); // Use the new extended type
-  // isLoadingSub removed as Pricing component is removed
-  const [isFetchingStatus, setIsFetchingStatus] = useState(true); // For initial profile load
-  // isCancellingSubscription removed
-  const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false);
-  const { isExporting, handleDataExport: performDataExport } = useDataExport(); // Use the custom hook
-  // Settings: Betriebskosten Guide visibility
-  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
+  // Subscription
+  const [profile, setProfile] = useState<UserProfileWithSubscription | null>(null)
+  const [isFetchingStatus, setIsFetchingStatus] = useState(true)
+  const [isManagingSubscription, setIsManagingSubscription] = useState<boolean>(false)
+  const { isExporting, handleDataExport: performDataExport } = useDataExport()
+  const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true)
+
+  // ----------- Effects & Data Setup ------------------
 
   useEffect(() => {
     supabase.auth.getUser().then(res => {
@@ -131,208 +121,96 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setEmail(user.email || "")
         setConfirmEmail(user.email || "")
       }
-    });
-    // Fetch package.json version
-    // In a real app, you might fetch this from a server endpoint or build-time variable
-    // For this example, simulating a fetch or direct import if possible (not directly in client component for package.json)
-    // For now, we'll use a placeholder and update it in the next step if a package.json read is feasible.
-    // As per user instruction, it will be hardcoded in the next step.
-    // For now, just setting a loading state.
-    // setPackageJsonVersion("0.1.0"); // Placeholder, will be properly set in the "Informationen" tab content step
-  }, [supabase]);
+    })
+  }, [supabase])
 
   const refreshUserProfile = async () => {
-    setIsFetchingStatus(true);
+    setIsFetchingStatus(true)
     try {
-      const userProfileData = await getUserProfileForSettings();
+      const userProfileData = await getUserProfileForSettings()
       if ('error' in userProfileData && userProfileData.error) {
-        console.error("Failed to fetch profile via server action:", userProfileData.error, userProfileData.details);
         toast({
           title: "Fehler",
           description: `Abo-Details konnten nicht geladen werden: ${userProfileData.error}`,
           variant: "destructive",
-        });
-        const currentEmail = profile?.email || '';
+        })
+        const currentEmail = profile?.email || ''
         setProfile({
           id: profile?.id || '',
           email: currentEmail,
           stripe_subscription_status: 'error',
           currentWohnungenCount: 0,
           activePlan: null,
-        } as UserProfileWithSubscription);
+        } as UserProfileWithSubscription)
       } else {
-        setProfile(userProfileData as UserProfileWithSubscription);
+        setProfile(userProfileData as UserProfileWithSubscription)
       }
     } catch (error) {
-      console.error("Exception when calling getUserProfileForSettings:", error);
       toast({
         title: "Fehler",
         description: `Ein unerwarteter Fehler ist aufgetreten (Profil): ${(error as Error).message}`,
         variant: "destructive",
-      });
-      const currentEmail = profile?.email || '';
+      })
+      const currentEmail = profile?.email || ''
       setProfile({
         id: profile?.id || '',
         email: currentEmail,
         stripe_subscription_status: 'error',
         currentWohnungenCount: 0,
         activePlan: null,
-      } as UserProfileWithSubscription);
+      } as UserProfileWithSubscription)
     } finally {
-      setIsFetchingStatus(false);
+      setIsFetchingStatus(false)
     }
-  };
-
-  const handleConfirmDeleteAccount = async () => {
-    if (!reauthCode) {
-      toast({
-        title: "Fehler",
-        description: "Bestätigungscode ist erforderlich.",
-        variant: "destructive",
-      });
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      const localSupabase = createClient(); // Create a new client instance if needed or use the existing one
-      const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {});
-
-      if (functionError) {
-        toast({
-          title: "Fehler",
-          description: `Fehler beim Löschen des Kontos: ${functionError.message}`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Erfolg",
-          description: "Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.",
-          variant: "success",
-        });
-        const { error: signOutError } = await localSupabase.auth.signOut();
-        if (signOutError) {
-          // Log the error, but proceed with redirect as the account is deleted.
-          // The redirect to login should resolve any client-side session inconsistencies.
-          console.error("Error signing out after account deletion:", signOutError);
-        }
-        router.push("/auth/login"); // Redirect to login page
-        if (onOpenChange) onOpenChange(false); // Close modal
-      }
-    } catch (error) {
-      console.error("Delete account exception:", error);
-      toast({
-        title: "Fehler",
-        description: "Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleDeleteAccountInitiation = async () => {
-    setIsDeleting(true);
-    setShowDeleteConfirmation(false); // Reset confirmation visibility
-    try {
-      // This call might trigger a CAPTCHA if enabled, or other checks.
-      // For sensitive operations, Supabase might send a confirmation email even without explicit MFA.
-      const { error } = await supabase.auth.reauthenticate();
-      if (error) {
-        toast({
-          title: "Fehler",
-          description: `Fehler bei der erneuten Authentifizierung: ${error.message}`,
-          variant: "destructive",
-        });
-        setShowDeleteConfirmation(false);
-      } else {
-        setShowDeleteConfirmation(true);
-        toast({
-          title: "Erfolg",
-          description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
-          variant: "success",
-        });
-        setShowDeleteAccountConfirmModal(false); // Close the confirmation modal on success
-        // The UI for code input is already part of showDeleteConfirmation logic
-      }
-    } catch (error) {
-      console.error("Reauthentication exception:", error);
-      toast({
-        title: "Fehler",
-        description: "Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.",
-        variant: "destructive",
-      });
-      setShowDeleteConfirmation(false);
-      setShowDeleteAccountConfirmModal(false); // Close the confirmation modal on error
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  }
 
   useEffect(() => {
     const fetchInitialData = async () => {
       if (open && activeTab === 'subscription') {
-        await refreshUserProfile(); // Fetch profile
-        // Plan fetching removed from here. Pricing component will fetch its own plans.
+        await refreshUserProfile()
       }
-    };
+    }
+    fetchInitialData()
+  }, [open, activeTab])
 
-    fetchInitialData();
-  }, [open, activeTab]);
-
-  // When modal opens, initialize guide setting from cookie
   useEffect(() => {
     if (open) {
-      const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE);
-      setBetriebskostenGuideEnabled(hidden !== 'true');
+      const hidden = getCookie(BETRIEBSKOSTEN_GUIDE_COOKIE)
+      setBetriebskostenGuideEnabled(hidden !== 'true')
     }
-  }, [open]);
+  }, [open])
 
-  // Load early access features using PostHog JS SDK per docs
+  // Feature preview (Early Access)
   useEffect(() => {
     if (!posthog || !posthog.__loaded) {
-      console.log('PostHog not ready for early access features', { posthog: !!posthog, loaded: posthog?.__loaded });
-      setUseLocalFeatures(true);
-      setIsLoadingFeatures(false);
-      return;
+      setUseLocalFeatures(true)
+      setIsLoadingFeatures(false)
+      return
     }
-
-    // Check if user has opted in to capturing
     if (posthog.has_opted_out_capturing?.()) {
-      console.log('PostHog tracking is opted out, early access features not available');
-      setUseLocalFeatures(true);
-      setIsLoadingFeatures(false);
-      return;
+      setUseLocalFeatures(true)
+      setIsLoadingFeatures(false)
+      return
     }
 
     setIsLoadingFeatures(true)
-    console.log('Loading early access features...');
-
     try {
-      // Check if the method exists
       if (typeof posthog.getEarlyAccessFeatures !== 'function') {
-        console.warn('getEarlyAccessFeatures method not available on PostHog instance');
-        setUseLocalFeatures(true);
-        setIsLoadingFeatures(false);
-        return;
+        setUseLocalFeatures(true)
+        setIsLoadingFeatures(false)
+        return
       }
-
-      // Set a timeout to handle blocked requests
       const timeoutId = setTimeout(() => {
-        console.warn('Early access features loading timed out (likely blocked by ad blocker)');
-        setUseLocalFeatures(true);
-        setIsLoadingFeatures(false);
-      }, 5000); // 5 second timeout
+        setUseLocalFeatures(true)
+        setIsLoadingFeatures(false)
+      }, 5000)
 
-      // force_reload = true to avoid cached list; include all stages
-      // @ts-ignore: method is available on Web SDK, types may lag
+      // @ts-ignore
       posthog.getEarlyAccessFeatures((features: EarlyAccessFeature[]) => {
-        clearTimeout(timeoutId);
-        console.log('Received early access features:', features);
+        clearTimeout(timeoutId)
         const active = activeFlags || []
 
-        // Group features by their stage and add enabled status
         const featuresByStage: Record<string, EarlyAccessFeature[]> = {}
-
         features.forEach((f) => {
           const stage = f.stage || 'other'
           if (!featuresByStage[stage]) {
@@ -348,95 +226,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         setConceptFeatures(featuresByStage['concept'] || [])
         setAlphaFeatures(featuresByStage['alpha'] || [])
         setOtherFeatures(featuresByStage['other'] || [])
-        setUseLocalFeatures(false);
+        setUseLocalFeatures(false)
         setIsLoadingFeatures(false)
-        console.log('Early access features loaded and categorized');
       }, true, ['alpha', 'beta', 'concept'])
-    } catch (e) {
-      console.error('Failed to load early access features', e)
-      setUseLocalFeatures(true);
+    } catch {
+      setUseLocalFeatures(true)
       setIsLoadingFeatures(false)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posthog, posthog?.__loaded, JSON.stringify(activeFlags)])
 
-  // Toggle early access enrollment
-  const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
-    console.log(`Toggling early access for ${flagKey}: ${enable}`);
-
-    if (useLocalFeatures) {
-      // Show error message when trying to toggle in blocked mode
-      toast({
-        title: "Fehler",
-        description: "Early-Access-Funktionen sind nicht verfügbar. Bitte überprüfen Sie Ihre Browser-Einstellungen.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!posthog || !posthog.__loaded) {
-      console.warn('PostHog not ready for toggling early access');
-      toast({
-        title: "Fehler",
-        description: "PostHog ist nicht bereit. Bitte versuchen Sie es später erneut.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Helper to update the enabled state for a feature in any state array
-    const updateFeatureState = (prev: EarlyAccessFeature[]) =>
-      prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f))
-
-    // Optimistic UI update for all feature states
-    setAlphaFeatures(updateFeatureState)
-    setBetaFeatures(updateFeatureState)
-    setConceptFeatures(updateFeatureState)
-    setOtherFeatures(updateFeatureState)
-
-    try {
-      // Check if the method exists
-      if (typeof posthog.updateEarlyAccessFeatureEnrollment !== 'function') {
-        throw new Error('updateEarlyAccessFeatureEnrollment method not available');
-      }
-
-      // @ts-ignore: available on Web SDK
-      posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
-
-      // @ts-ignore: optional method to refresh flags
-      if (typeof posthog.reloadFeatureFlags === 'function') {
-        await posthog.reloadFeatureFlags();
-        console.log(`Successfully toggled ${flagKey} and reloaded feature flags`);
-      } else {
-        console.log(`Successfully toggled ${flagKey} (reloadFeatureFlags not available)`);
-      }
-
-      // Show success toast
-      toast({
-        title: "Erfolg",
-        description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
-        variant: "success",
-      });
-    } catch (e) {
-      console.error('Failed to toggle early access', e)
-
-      // Show error toast
-      toast({
-        title: "Fehler",
-        description: `Feature konnte nicht ${enable ? 'aktiviert' : 'deaktiviert'} werden.`,
-        variant: "destructive",
-      });
-
-      // Revert on error for all feature states
-      const revertFeatureState = (prev: EarlyAccessFeature[]) =>
-        prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
-
-      setAlphaFeatures(revertFeatureState)
-      setBetaFeatures(revertFeatureState)
-      setConceptFeatures(revertFeatureState)
-      setOtherFeatures(revertFeatureState)
-    }
-  }
+  // ----------- Account Actions ------------------
 
   const handleProfileSave = async () => {
     setLoading(true)
@@ -449,15 +248,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
         variant: "destructive",
       })
     } else if (data.user) {
-      const savedFirstName = data.user.user_metadata.first_name ?? '';
-      const savedLastName = data.user.user_metadata.last_name ?? '';
+      const savedFirstName = data.user.user_metadata.first_name ?? ''
+      const savedLastName = data.user.user_metadata.last_name ?? ''
       toast({
         title: "Erfolg",
         description: `Hallo ${savedFirstName} ${savedLastName}, Ihr Profil wurde erfolgreich gespeichert.`,
         variant: "success",
       })
     } else {
-      // Fallback for when user data is not returned but no error occurred
       toast({
         title: "Erfolg",
         description: "Profil gespeichert",
@@ -465,6 +263,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       })
     }
   }
+
   const handleEmailSave = async () => {
     if (email !== confirmEmail) {
       toast({
@@ -491,6 +290,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       })
     }
   }
+
   const handlePasswordSave = async () => {
     if (password !== confirmPassword) {
       toast({
@@ -518,85 +318,190 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   }
 
-  // handlePlanSelected removed as Pricing component is removed
-  // handleCancelSubscription removed
+  // Delete Account (OTP, confirmation etc)
+  const handleDeleteAccountInitiation = async () => {
+    setIsDeleting(true)
+    setShowDeleteConfirmation(false)
+    try {
+      const { error } = await supabase.auth.reauthenticate()
+      if (error) {
+        toast({
+          title: "Fehler",
+          description: `Fehler bei der erneuten Authentifizierung: ${error.message}`,
+          variant: "destructive",
+        })
+        setShowDeleteConfirmation(false)
+      } else {
+        setShowDeleteConfirmation(true)
+        toast({
+          title: "Erfolg",
+          description: "Bestätigungscode wurde an Ihre E-Mail gesendet. Bitte Code unten eingeben.",
+          variant: "success",
+        })
+        setShowDeleteAccountConfirmModal(false)
+      }
+    } catch {
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist bei der erneuten Authentifizierung aufgetreten.",
+        variant: "destructive",
+      })
+      setShowDeleteConfirmation(false)
+      setShowDeleteAccountConfirmModal(false)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
+  const handleConfirmDeleteAccount = async () => {
+    if (!reauthCode) {
+      toast({
+        title: "Fehler",
+        description: "Bestätigungscode ist erforderlich.",
+        variant: "destructive",
+      })
+      return
+    }
+    setIsDeleting(true)
+    try {
+      const localSupabase = createClient()
+      const { error: functionError } = await localSupabase.functions.invoke("delete-user-account", {})
+      if (functionError) {
+        toast({
+          title: "Fehler",
+          description: `Fehler beim Löschen des Kontos: ${functionError.message}`,
+          variant: "destructive",
+        })
+      } else {
+        toast({
+          title: "Erfolg",
+          description: "Ihr Konto wurde erfolgreich gelöscht. Sie werden abgemeldet.",
+          variant: "success",
+        })
+        await localSupabase.auth.signOut()
+        router.push("/auth/login")
+        if (onOpenChange) onOpenChange(false)
+      }
+    } catch {
+      toast({
+        title: "Fehler",
+        description: "Ein unerwarteter Fehler ist beim Löschen des Kontos aufgetreten.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Manage subscription
   const handleManageSubscription = async () => {
     if (!profile || !profile.stripe_customer_id) {
       toast({
         title: "Fehler",
         description: "Kunden-ID nicht gefunden. Verwaltung nicht möglich.",
         variant: "destructive",
-      });
-      return;
+      })
+      return
     }
-    setIsManagingSubscription(true);
+    setIsManagingSubscription(true)
     try {
       const response = await fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stripeCustomerId: profile.stripe_customer_id }),
-      });
+      })
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Kundenportal konnte nicht geöffnet werden.");
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Kundenportal konnte nicht geöffnet werden.")
       }
 
-      const { url } = await response.json();
+      const { url } = await response.json()
       if (url) {
-        window.location.href = url;
+        window.location.href = url
       } else {
-        throw new Error("URL für Kundenportal nicht erhalten.");
+        throw new Error("URL für Kundenportal nicht erhalten.")
       }
     } catch (error) {
-      console.error("Manage subscription error:", error);
       toast({
         title: "Fehler",
         description: (error as Error).message || "Kundenportal konnte nicht geöffnet werden.",
         variant: "destructive",
-      });
+      })
     } finally {
-      setIsManagingSubscription(false);
+      setIsManagingSubscription(false)
     }
-  };
+  }
 
-  // const handleDataExport = async () => { // Original function removed, now using hook
-  //   setIsExporting(true);
-  //   toast.info("Datenexport wird vorbereitet...");
-  //   try {
-  //     const response = await fetch('/api/export', {
-  //       method: 'GET',
-  //     });
+  // Early Access toggle
+  const toggleEarlyAccess = async (flagKey: string, enable: boolean) => {
+    if (useLocalFeatures) {
+      toast({
+        title: "Fehler",
+        description: "Early-Access-Funktionen sind nicht verfügbar. Bitte überprüfen Sie Ihre Browser-Einstellungen.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (!posthog || !posthog.__loaded) {
+      toast({
+        title: "Fehler",
+        description: "PostHog ist nicht bereit. Bitte versuchen Sie es später erneut.",
+        variant: "destructive",
+      })
+      return
+    }
 
-  //     if (!response.ok) {
-  //       const errorData = await response.json();
-  //       throw new Error(errorData.error || "Datenexport fehlgeschlagen.");
-  //     }
+    const updateFeatureState = (prev: EarlyAccessFeature[]) =>
+      prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: enable } : f))
 
-  //     const blob = await response.blob();
-  //     const url = window.URL.createObjectURL(blob);
-  //     const a = document.createElement('a');
-  //     a.href = url;
-  //     a.download = "datenexport.zip";
-  //     document.body.appendChild(a);
-  //     a.click();
-  //     a.remove();
-  //     window.URL.revokeObjectURL(url);
-  //     toast.success("Daten erfolgreich exportiert und heruntergeladen.");
+    setAlphaFeatures(updateFeatureState)
+    setBetaFeatures(updateFeatureState)
+    setConceptFeatures(updateFeatureState)
+    setOtherFeatures(updateFeatureState)
 
-  //   } catch (error) {
-  //     console.error("Data export error:", error);
-  //     toast.error((error as Error).message || "Datenexport fehlgeschlagen.");
-  //   } finally {
-  //     setIsExporting(false);
-  //   }
-  // };
+    try {
+      if (typeof posthog.updateEarlyAccessFeatureEnrollment !== 'function') {
+        throw new Error('updateEarlyAccessFeatureEnrollment method not available')
+      }
+      // @ts-ignore
+      posthog.updateEarlyAccessFeatureEnrollment(flagKey, enable)
+      // @ts-ignore
+      if (typeof posthog.reloadFeatureFlags === 'function') {
+        await posthog.reloadFeatureFlags()
+      }
+      toast({
+        title: "Erfolg",
+        description: `Feature "${flagKey}" wurde ${enable ? 'aktiviert' : 'deaktiviert'}.`,
+        variant: "success",
+      })
+    } catch {
+      toast({
+        title: "Fehler",
+        description: `Feature konnte nicht ${enable ? 'aktiviert' : 'deaktiviert'} werden.`,
+        variant: "destructive",
+      })
+      const revertFeatureState = (prev: EarlyAccessFeature[]) =>
+        prev.map((f) => (f.flagKey === flagKey ? { ...f, enabled: !enable } : f))
+      setAlphaFeatures(revertFeatureState)
+      setBetaFeatures(revertFeatureState)
+      setConceptFeatures(revertFeatureState)
+      setOtherFeatures(revertFeatureState)
+    }
+  }
 
-  const subscriptionStatus = profile?.stripe_subscription_status;
+  // Ensure version is set when info tab is clicked
+  useEffect(() => {
+    if (activeTab === 'information') {
+      setPackageJsonVersion("v2.0.0")
+    }
+  }, [activeTab])
+
+  // ------- Tabs ----------
+  const subscriptionStatus = profile?.stripe_subscription_status
   const currentPeriodEnd = profile?.stripe_current_period_end
-    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE') // Apply de-DE locale for DD.MM.YYYY
-    : null;
+    ? new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')
+    : null
 
   const tabs: Tab[] = [
     {
@@ -635,12 +540,11 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <Button
               variant="destructive"
               onClick={() => setShowDeleteAccountConfirmModal(true)}
-              disabled={isDeleting} // Keep this disabled if any part of delete is in progress
+              disabled={isDeleting}
               className="w-full"
             >
               {isDeleting ? "Wird vorbereitet..." : <><Trash2 className="mr-2 h-4 w-4" />Konto löschen</>}
             </Button>
-
             {showDeleteConfirmation && (
               <div className="mt-4 p-4 border border-destructive/50 rounded-md bg-destructive/5 space-y-3">
                 <p className="text-sm text-destructive font-medium">
@@ -652,7 +556,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </label>
                   <Input
                     id="reauthCode"
-                    type="text" // Using text, but could be 'otp' if a dedicated component existed
+                    type="text"
                     value={reauthCode}
                     onChange={e => setReauthCode(e.target.value)}
                     placeholder="Code aus E-Mail eingeben"
@@ -683,6 +587,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <p className="text-sm text-muted-foreground">
             Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
           </p>
+          {darkModeEnabled && (
+            <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 flex-1">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Design-Modus
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
+                  </p>
+                </div>
+                <div className="flex-shrink-0 w-32">
+                  <Select
+                    value={theme}
+                    onValueChange={(value) => {
+                      setTheme(value)
+                      toast({
+                        title: "Design geändert",
+                        description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
+                        variant: "success",
+                      })
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Wählen Sie ein Design" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Hell</SelectItem>
+                      <SelectItem value="dark">Dunkel</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
@@ -697,11 +637,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 <Switch
                   checked={betriebskostenGuideEnabled}
                   onCheckedChange={(checked) => {
-                    setBetriebskostenGuideEnabled(checked);
-                    // Persist in cookie and notify listeners
-                    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
+                    setBetriebskostenGuideEnabled(checked)
+                    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365)
                     if (typeof window !== 'undefined') {
-                      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
+                      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }))
                     }
                   }}
                   className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
@@ -773,7 +712,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <div className="space-y-3">
               <div className="space-y-1">
                 <div className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></div>
-                <Skeleton className="h-4 w-48" /> {/* For status message */}
+                <Skeleton className="h-4 w-48" />
               </div>
               <div className="space-y-1">
                 <p className="text-sm">Nächste Verlängerung am: <Skeleton className="h-4 w-24 inline-block" /></p>
@@ -781,23 +720,21 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <div className="space-y-1">
                 <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
               </div>
-              {/* Skeleton for Manage Subscription Button section */}
               <div className="mt-6 pt-4 border-t">
-                <Skeleton className="h-4 w-3/4 mb-2" /> {/* For description paragraph */}
-                <Skeleton className="h-10 w-full" /> {/* For button */}
+                <Skeleton className="h-4 w-3/4 mb-2" />
+                <Skeleton className="h-10 w-full" />
               </div>
             </div>
           ) : subscriptionStatus === 'error' || !profile ? (
             <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
           ) : (
             <>
-              {/* Simplified Subscription Info Display */}
               <div className="space-y-2 mb-4">
                 {profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
                   <>
                     <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan?.name || 'Unbekannt'}</strong></p>
                     <p className="text-sm text-orange-500">
-                      Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
+                      Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end!).toLocaleDateString('de-DE')}</strong> gekündigt.
                     </p>
                   </>
                 ) : profile.stripe_subscription_status === 'active' && profile.activePlan ? (
@@ -813,24 +750,16 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     Dein aktueller Abo-Status: <strong>{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</strong>.
                   </p>
                 )}
-
-                {/* Message for truly non-active states */}
                 {(!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
                   !(profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
                     <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
                   )}
-
-                {/* Display Wohnungen usage - keep if still relevant */}
                 {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
                   <p className="text-sm mt-2">
                     Genutzte Wohnungen: {profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}
                   </p>
                 )}
               </div>
-
-              {/* REMOVED: Pricing component for plan overview */}
-
-              {/* Manage Subscription Button - visible if user has a stripe_customer_id */}
               {profile.stripe_customer_id && (
                 <div className="mt-6 pt-4 border-t">
                   <p className="text-sm mb-2 text-gray-600">
@@ -838,7 +767,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </p>
                   <Button
                     onClick={handleManageSubscription}
-                    disabled={isManagingSubscription} // Only disable if this specific action is loading
+                    disabled={isManagingSubscription}
                     className="w-full"
                     variant="outline"
                   >
@@ -846,7 +775,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </Button>
                 </div>
               )}
-              {/* REMOVED: Cancel Subscription button and logic */}
             </>
           )}
         </div>
@@ -899,7 +827,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             <p className="text-sm text-muted-foreground mb-6">
               Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto.
             </p>
-
             {isLoadingFeatures ? (
               <div className="space-y-3">
                 <Skeleton className="h-6 w-40" />
@@ -910,7 +837,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             ) : (
               <div className="space-y-8">
                 {useLocalFeatures ? (
-                  // Show error message when PostHog is blocked instead of local features
                   <div className="space-y-4">
                     <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
                       <div className="flex items-start">
@@ -926,7 +852,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                       </div>
                     </div>
-
                     <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
                       <div className="flex items-start">
                         <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
@@ -941,7 +866,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                       </div>
                     </div>
-
                     <div className="text-center">
                       <Button
                         onClick={() => window.location.reload()}
@@ -953,7 +877,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </div>
                   </div>
                 ) : (
-                  // Show PostHog features when available
                   <>
                     {[
                       { stage: 'alpha', features: alphaFeatures },
@@ -996,19 +919,15 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         </div>
                       </div>
                     ))}
+                    {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Derzeit sind keine Early-Access-Funktionen verfügbar.
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
-
-                {/* Show message when no features are available */}
-                {!useLocalFeatures && [alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Derzeit sind keine Early-Access-Funktionen verfügbar.
-                    </p>
-                  </div>
-                )}
-
-
                 <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-md text-sm text-amber-800 dark:text-amber-200">
                   <div className="flex items-start">
                     <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
@@ -1022,7 +941,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             )}
           </div>
         </div>
-      )
+      ),
     },
     {
       value: "information",
@@ -1040,18 +959,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   ]
 
-  // Effect to set the version number when the information tab is selected
-  useEffect(() => {
-    if (activeTab === 'information') {
-      setPackageJsonVersion("v2.0.0");
-    }
-  }, [activeTab]);
-
+  // ------ Render Modal Component ----------
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[700px] h-[672px] max-w-[95vw] max-h-[95vh] overflow-hidden sm:h-[672px] sm:max-w-[700px] sm:w-[700px]">
-          <DialogHeader className="sr-only"> {/* Wrap Title and Description, make Header sr-only if Title is already sr-only */}
+          <DialogHeader className="sr-only">
             <DialogTitle>Einstellungen</DialogTitle>
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
           </DialogHeader>
@@ -1077,7 +990,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               <section className="flex-1 overflow-y-auto p-3 min-h-0">
                 {tabs.find(tab => tab.value === activeTab)?.content}
               </section>
-            </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

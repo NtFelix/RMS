@@ -97,6 +97,57 @@ interface ConfirmationModalConfig {
   cancelText?: string;
 }
 
+interface CreateFolderModalData {
+  currentPath: string;
+  onFolderCreated: (folderName: string) => void;
+}
+
+interface CreateFileModalData {
+  currentPath: string;
+  onFileCreated: (fileName: string) => void;
+}
+
+interface FilePreviewData {
+  name: string;
+  path: string;
+  size?: number;
+  type?: string;
+}
+
+interface FileRenameData {
+  fileName: string;
+  filePath: string;
+  onRename: (newName: string) => Promise<void>;
+}
+
+interface FolderDeleteConfirmationData {
+  folderName: string;
+  folderPath: string;
+  fileCount: number;
+  onConfirm: () => Promise<void>;
+}
+
+interface FileMoveData {
+  item: any; // StorageObject | VirtualFolder
+  itemType: 'file' | 'folder';
+  currentPath: string;
+  userId: string;
+  onMove: (targetPath: string) => Promise<void>;
+}
+
+interface ShareDocumentData {
+  fileName: string;
+  filePath: string;
+}
+
+interface MarkdownEditorData {
+  filePath?: string;
+  fileName?: string;
+  initialContent?: string;
+  isNewFile?: boolean;
+  onSave?: (content: string) => void;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -242,11 +293,67 @@ export interface ModalState {
   setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => void;
   refreshApartmentTenantDetailsData: () => Promise<void>;
 
+  // Upload Modal State
+  isUploadModalOpen: boolean;
+  uploadModalTargetPath?: string;
+  uploadModalOnComplete?: () => void;
+  uploadModalFiles?: File[];
+  openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => void;
+  closeUploadModal: () => void;
+
+  // File Preview Modal State
+  isFilePreviewModalOpen: boolean;
+  filePreviewData?: FilePreviewData;
+  openFilePreviewModal: (fileData: FilePreviewData) => void;
+  closeFilePreviewModal: () => void;
+
+  // File Rename Modal State
+  isFileRenameModalOpen: boolean;
+  fileRenameData?: FileRenameData;
+  openFileRenameModal: (fileData: FileRenameData) => void;
+  closeFileRenameModal: () => void;
+
+  // Create Folder Modal State
+  isCreateFolderModalOpen: boolean;
+  createFolderModalData?: CreateFolderModalData;
+  openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => void;
+  closeCreateFolderModal: () => void;
+
+  // Create File Modal State
+  isCreateFileModalOpen: boolean;
+  createFileModalData?: CreateFileModalData;
+  openCreateFileModal: (currentPath: string, onFileCreated: (fileName: string) => void) => void;
+  closeCreateFileModal: () => void;
+
   // Confirmation Modal State
   isConfirmationModalOpen: boolean;
   confirmationModalConfig: ConfirmationModalConfig | null;
   openConfirmationModal: (config: ConfirmationModalConfig) => void;
   closeConfirmationModal: () => void;
+
+  // Folder Delete Confirmation Modal State
+  isFolderDeleteConfirmationModalOpen: boolean;
+  folderDeleteConfirmationData?: FolderDeleteConfirmationData;
+  openFolderDeleteConfirmationModal: (data: FolderDeleteConfirmationData) => void;
+  closeFolderDeleteConfirmationModal: () => void;
+
+  // File Move Modal State
+  isFileMoveModalOpen: boolean;
+  fileMoveData?: FileMoveData;
+  openFileMoveModal: (data: FileMoveData) => void;
+  closeFileMoveModal: () => void;
+
+  // Share Document Modal State
+  isShareDocumentModalOpen: boolean;
+  shareDocumentData?: ShareDocumentData;
+  openShareDocumentModal: (data: ShareDocumentData) => void;
+  closeShareDocumentModal: () => void;
+
+  // Markdown Editor Modal State
+  isMarkdownEditorModalOpen: boolean;
+  markdownEditorData?: MarkdownEditorData;
+  openMarkdownEditorModal: (data: MarkdownEditorData) => void;
+  closeMarkdownEditorModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -341,6 +448,53 @@ const initialApartmentTenantDetailsModalState = {
   apartmentTenantDetailsError: undefined,
 };
 
+const initialUploadModalState = {
+  isUploadModalOpen: false,
+  uploadModalTargetPath: undefined,
+  uploadModalOnComplete: undefined,
+  uploadModalFiles: undefined,
+};
+
+const initialFilePreviewModalState = {
+  isFilePreviewModalOpen: false,
+  filePreviewData: undefined,
+};
+
+const initialFileRenameModalState = {
+  isFileRenameModalOpen: false,
+  fileRenameData: undefined,
+};
+
+const initialCreateFolderModalState = {
+  isCreateFolderModalOpen: false,
+  createFolderModalData: undefined,
+};
+
+const initialCreateFileModalState = {
+  isCreateFileModalOpen: false,
+  createFileModalData: undefined,
+};
+
+const initialFolderDeleteConfirmationModalState = {
+  isFolderDeleteConfirmationModalOpen: false,
+  folderDeleteConfirmationData: undefined,
+};
+
+const initialFileMoveModalState = {
+  isFileMoveModalOpen: false,
+  fileMoveData: undefined,
+};
+
+const initialShareDocumentModalState = {
+  isShareDocumentModalOpen: false,
+  shareDocumentData: undefined,
+};
+
+const initialMarkdownEditorModalState = {
+  isMarkdownEditorModalOpen: false,
+  markdownEditorData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -353,6 +507,15 @@ const createInitialModalState = () => ({
   ...initialHausOverviewModalState,
   ...initialWohnungOverviewModalState,
   ...initialApartmentTenantDetailsModalState,
+  ...initialUploadModalState,
+  ...initialFilePreviewModalState,
+  ...initialFileRenameModalState,
+  ...initialCreateFolderModalState,
+  ...initialCreateFileModalState,
+  ...initialFolderDeleteConfirmationModalState,
+  ...initialFileMoveModalState,
+  ...initialShareDocumentModalState,
+  ...initialMarkdownEditorModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -703,6 +866,49 @@ export const useModalStore = create<ModalState>((set, get) => {
     setApartmentTenantDetailsError: (error?: string) => set({ apartmentTenantDetailsError: error }),
     setApartmentTenantDetailsData: (data?: ApartmentTenantDetailsData) => set({ apartmentTenantDetailsData: data }),
 
+    // Upload Modal
+    openUploadModal: (targetPath: string, onComplete?: () => void, files?: File[]) => set({
+      isUploadModalOpen: true,
+      uploadModalTargetPath: targetPath,
+      uploadModalOnComplete: onComplete,
+      uploadModalFiles: files,
+    }),
+    closeUploadModal: () => set(initialUploadModalState),
+
+    // File Preview Modal
+    openFilePreviewModal: (fileData: FilePreviewData) => set({
+      isFilePreviewModalOpen: true,
+      filePreviewData: fileData,
+    }),
+    closeFilePreviewModal: () => set(initialFilePreviewModalState),
+
+    // File Rename Modal
+    openFileRenameModal: (fileData: FileRenameData) => set({
+      isFileRenameModalOpen: true,
+      fileRenameData: fileData,
+    }),
+    closeFileRenameModal: () => set(initialFileRenameModalState),
+
+    // Create Folder Modal
+    openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => set({
+      isCreateFolderModalOpen: true,
+      createFolderModalData: {
+        currentPath,
+        onFolderCreated,
+      },
+    }),
+    closeCreateFolderModal: () => set(initialCreateFolderModalState),
+
+    // Create File Modal
+    openCreateFileModal: (currentPath: string, onFileCreated: (fileName: string) => void) => set({
+      isCreateFileModalOpen: true,
+      createFileModalData: {
+        currentPath,
+        onFileCreated,
+      },
+    }),
+    closeCreateFileModal: () => set(initialCreateFileModalState),
+
     // Confirmation Modal
     isConfirmationModalOpen: false,
     confirmationModalConfig: null,
@@ -724,5 +930,33 @@ export const useModalStore = create<ModalState>((set, get) => {
         confirmationModalTimeoutId = null;
       }, MODAL_ANIMATION_DURATION); 
     },
+
+    // Folder Delete Confirmation Modal
+    openFolderDeleteConfirmationModal: (data: FolderDeleteConfirmationData) => set({
+      isFolderDeleteConfirmationModalOpen: true,
+      folderDeleteConfirmationData: data,
+    }),
+    closeFolderDeleteConfirmationModal: () => set(initialFolderDeleteConfirmationModalState),
+
+    // File Move Modal
+    openFileMoveModal: (data: FileMoveData) => set({
+      isFileMoveModalOpen: true,
+      fileMoveData: data,
+    }),
+    closeFileMoveModal: () => set(initialFileMoveModalState),
+
+    // Share Document Modal
+    openShareDocumentModal: (data: ShareDocumentData) => set({
+      isShareDocumentModalOpen: true,
+      shareDocumentData: data,
+    }),
+    closeShareDocumentModal: () => set(initialShareDocumentModalState),
+
+    // Markdown Editor Modal
+    openMarkdownEditorModal: (data: MarkdownEditorData) => set({
+      isMarkdownEditorModalOpen: true,
+      markdownEditorData: data,
+    }),
+    closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
   };
 });

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 import { SearchIcon } from "lucide-react"
@@ -29,11 +28,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop sidebar - hidden on mobile */}
       {!isMobile && <DashboardSidebar />}
-      
+
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Desktop header - hidden on mobile */}
         {!isMobile && (
-          <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
+          <header className="flex h-14 items-center gap-4 border-b bg-background dark:header-container px-6">
             <div className="mx-auto w-full max-w-3xl">
               <Button
                 variant="outline"
@@ -49,23 +48,25 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </header>
         )}
-        
-        {/* Main content area with mobile-specific padding */}
-        <main className={cn(
-          "flex flex-1 flex-col min-h-0 transition-all duration-300",
-          isMobile 
-            ? orientation === 'landscape' 
-              ? 'p-2 pb-16' // Less padding in landscape mode
-              : 'p-4 pb-20' // Standard mobile padding in portrait
-            : 'p-6', // Desktop padding
-          isChanging && "opacity-95" // Slight opacity change during orientation transition
-        )}>
-          <div className="flex-1 overflow-y-auto rounded-xl bg-white border shadow-sm">
+
+        {/* Main content area with mobile-specific padding and dark mode support */}
+        <main
+          className={cn(
+            "flex flex-1 flex-col min-h-0 transition-all duration-300",
+            isMobile
+              ? orientation === 'landscape'
+                ? 'p-2 pb-16' // Less padding in landscape mode
+                : 'p-4 pb-20' // Standard mobile padding in portrait
+              : 'p-6', // Desktop padding
+            isChanging && "opacity-95" // Slight opacity change during orientation transition
+          )}
+        >
+          <div className="flex-1 overflow-y-auto rounded-xl bg-white dark:main-container border shadow-sm">
             {children}
           </div>
         </main>
       </div>
-      
+
       {/* Mobile bottom navigation - lazy loaded and performance optimized */}
       <LazyMobileBottomNavigation />
     </div>

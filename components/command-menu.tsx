@@ -12,7 +12,7 @@ import {
   CommandList,
   CommandShortcut,
 } from "@/components/ui/command"
-import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard, CreditCard, Search, Loader2, AlertCircle } from "lucide-react"
+import { BarChart3, Building2, Home, Users, Wallet, FileSpreadsheet, CheckSquare, LayoutDashboard, CreditCard, Search, Loader2, AlertCircle, Folder } from "lucide-react"
 import { useCommandMenu } from "@/hooks/use-command-menu"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSearch } from "@/hooks/use-search"
@@ -78,6 +78,11 @@ const navigationItems = [
     title: "Aufgaben",
     href: "/todos",
     icon: CheckSquare,
+  },
+  {
+    title: "Cloud Storage",
+    href: "/dateien",
+    icon: Folder,
   },
 ]
 

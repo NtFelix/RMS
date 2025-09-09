@@ -3,17 +3,9 @@
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 
-const Dialog = DialogPrimitive.Root
-
-const DialogTrigger = DialogPrimitive.Trigger
-
-const DialogPortal = DialogPrimitive.Portal
-
-const DialogClose = DialogPrimitive.Close
-
+// --- DIALOG OVERLAY ---
 const DialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>
@@ -21,7 +13,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm transition-opacity data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
@@ -29,127 +21,64 @@ const DialogOverlay = React.forwardRef<
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
-interface DialogContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
-  isDirty?: boolean
-  onAttemptClose?: () => void // Changed: no event argument needed
-  hideCloseButton?: boolean
-}
-
+// --- DIALOG CONTENT ---
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  DialogContentProps
->(({ className, children, isDirty, onAttemptClose, hideCloseButton, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <DialogPrimitive.Portal>
+    <DialogOverlay />
 
-  const handleInteraction = (
-    event: Parameters<NonNullable<React.ComponentProps<typeof DialogPrimitive.Content>['onInteractOutside']>>[0]
-  ) => {
-    if (!event) return;
-
-    if (isDirty && onAttemptClose) {
-      event.preventDefault();
-      onAttemptClose();
-    } else if (props.onInteractOutside) {
-      // Now 'event' is correctly typed as PointerDownOutsideEvent | FocusOutsideEvent (or whatever Radix uses)
-      props.onInteractOutside(event);
-    }
-  };
-
-  const handleCloseButtonClick = (
-    event: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    if (isDirty && onAttemptClose) {
-      event.preventDefault();
-      onAttemptClose();
-    }
-    // If not dirty, or no onAttemptClose is provided, Radix's DialogPrimitive.Close will handle the close.
-  }
-
-  return (
-    <DialogPortal>
-      <DialogOverlay />
-      <DialogPrimitive.Content
-        ref={ref}
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        // Responsive centering on mobile and desktop
+        "fixed left-1/2 top-1/2 z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        // Mobile friendly adjustments
+        "sm:max-w-[95vw] sm:max-h-[95vh] sm:w-full sm:left-1/2 sm:top-1/2",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <DialogPrimitive.Close
         className={cn(
-          // Mobile-first responsive design
-          "fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]",
-          // Mobile styles (default)
-          "h-full max-h-screen p-4 overflow-y-auto",
-          // Desktop styles (sm and up)
-          "sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:p-6 sm:rounded-lg",
-          className
+          "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+          "disabled:pointer-events-none"
         )}
-        onInteractOutside={handleInteraction} // Assign the correctly typed handler
-        {...props}
+        aria-label="Schließen"
       >
-        {children}
-        {!hideCloseButton && (
-          <DialogPrimitive.Close
-            onClick={handleCloseButtonClick}
-            className={cn(
-              "absolute right-4 top-4 rounded-full opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground",
-              // Touch-friendly sizing on mobile
-              "p-3 min-h-[44px] min-w-[44px] flex items-center justify-center",
-              // Smaller on desktop
-              "sm:p-2 sm:min-h-auto sm:min-w-auto"
-            )}
-          >
-            <X className="h-4 w-4" />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-        )}
-      </DialogPrimitive.Content>
-    </DialogPortal>
-  )
-})
+        <X className="h-5 w-5" />
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPrimitive.Portal>
+))
 DialogContent.displayName = DialogPrimitive.Content.displayName
 
+// --- DIALOG HEADER ---
 const DialogHeader = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "flex flex-col space-y-1.5 text-center sm:text-left",
-      className
-    )}
-    {...props}
-  />
+  <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />
 )
 DialogHeader.displayName = "DialogHeader"
 
-const DialogFooter = ({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      // Mobile-first: stacked buttons with full width and proper spacing
-      "flex flex-col gap-3 pt-4",
-      // Desktop: horizontal layout
-      "sm:flex-row sm:justify-end sm:space-x-2 sm:gap-0 sm:pt-0",
-      className
-    )}
-    {...props}
-  />
-)
-DialogFooter.displayName = "DialogFooter"
-
+// --- DIALOG TITLE ---
 const DialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
-      className
-    )}
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
     {...props}
   />
 ))
 DialogTitle.displayName = DialogPrimitive.Title.displayName
 
+// --- DIALOG DESCRIPTION ---
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
@@ -162,15 +91,17 @@ const DialogDescription = React.forwardRef<
 ))
 DialogDescription.displayName = DialogPrimitive.Description.displayName
 
+// --- DIALOG ROOT ---
+const Dialog = DialogPrimitive.Root
+const DialogTrigger = DialogPrimitive.Trigger
+const DialogClose = DialogPrimitive.Close
+
 export {
   Dialog,
-  DialogPortal,
-  DialogOverlay,
-  DialogClose,
   DialogTrigger,
   DialogContent,
   DialogHeader,
-  DialogFooter,
   DialogTitle,
   DialogDescription,
+  DialogClose,
 }

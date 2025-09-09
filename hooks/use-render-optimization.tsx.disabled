@@ -1,0 +1,323 @@
+'use client'
+
+import { useCallback, useRef, useMemo, useEffect } from 'react'
+import { useCloudStorageNavigationStore } from './use-cloud-storage-navigation'
+
+interface RenderOptimizationOptions {
+  enableMemoization?: boolean
+  enableVirtualization?: boolean
+  debounceMs?: number
+  maxRenderFrequency?: number // Max renders per second
+}
+
+const DEFAULT_OPTIONS: Required<RenderOptimizationOptions> = {
+  enableMemoization: true,
+  enableVirtualization: false,
+  debounceMs: 16, // ~60fps
+  maxRenderFrequency: 60
+}
+
+/**
+ * Hook for optimizing component re-renders during navigation
+ * 
+ * Features:
+ * - Debounced updates to prevent excessive re-renders
+ * - Memoization of expensive computations
+ * - Render frequency limiting
+ * - Static UI element preservation
+ * - Smart update batching
+ */
+export function useRenderOptimization(options: RenderOptimizationOptions = {}) {
+  const opts = { ...DEFAULT_OPTIONS, ...options }
+  
+  const renderCountRef = useRef(0)
+  const lastRenderTimeRef = useRef(0)
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const updateQueueRef = useRef<(() => void)[]>([])
+  
+  // Track render frequency
+  const trackRender = useCallback(() => {
+    renderCountRef.current++
+    const now = performance.now()
+    
+    // Reset counter every second
+    if (now - lastRenderTimeRef.current > 1000) {
+      renderCountRef.current = 1
+      lastRenderTimeRef.current = now
+    }
+    
+    // Warn if rendering too frequently
+    if (renderCountRef.current > opts.maxRenderFrequency) {
+      console.warn(`High render frequency detected: ${renderCountRef.current} renders/sec`)
+    }
+  }, [opts.maxRenderFrequency])
+  
+  // Debounced update function
+  const debouncedUpdate = useCallback((updateFn: () => void) => {
+    updateQueueRef.current.push(updateFn)
+    
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current)
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      // Batch all queued updates
+      const updates = updateQueueRef.current.splice(0)
+      updates.forEach(update => update())
+      trackRender()
+    }, opts.debounceMs)
+  }, [opts.debounceMs, trackRender])
+  
+  // Memoized computation wrapper
+  const memoizedCompute = useCallback(<T>(
+    computeFn: () => T,
+    deps: React.DependencyList,
+    key?: string
+  ): T => {
+    if (!opts.enableMemoization) {
+      return computeFn()
+    }
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return useMemo(computeFn, deps)
+  }, [opts.enableMemoization])
+  
+  // Static UI wrapper that prevents unnecessary re-renders
+  const createStaticWrapper = useCallback(<T extends Record<string, any>>(
+    component: React.ComponentType<T>,
+    staticProps: (keyof T)[] = []
+  ) => {
+    return React.memo(component, (prevProps, nextProps) => {
+      // Only re-render if non-static props changed
+      const dynamicProps = Object.keys(nextProps).filter(key => !staticProps.includes(key as keyof T))
+      
+      return dynamicProps.every(key => {
+        const prevValue = prevProps[key as keyof T]
+        const nextValue = nextProps[key as keyof T]
+        
+        // Deep comparison for objects/arrays
+        if (typeof prevValue === 'object' && typeof nextValue === 'object') {
+          return JSON.stringify(prevValue) === JSON.stringify(nextValue)
+        }
+        
+        return prevValue === nextValue
+      })
+    })
+  }, [])
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [])
+  
+  return {
+    debouncedUpdate,
+    memoizedCompute,
+    createStaticWrapper,
+    renderCount: renderCountRef.current,
+    isHighFrequency: renderCountRef.current > opts.maxRenderFrequency * 0.8
+  }
+}
+
+/**
+ * Hook for optimizing file list rendering
+ */
+export function useFileListOptimization(
+  files: any[],
+  folders: any[],
+  options: RenderOptimizationOptions = {}
+) {
+  const { memoizedCompute, debouncedUpdate } = useRenderOptimization(options)
+  
+  // Memoized sorting
+  const sortedItems = memoizedCompute(() => {
+    return {
+      files: [...files].sort((a, b) => a.name.localeCompare(b.name)),
+      folders: [...folders].sort((a, b) => a.name.localeCompare(b.name))
+    }
+  }, [files, folders], 'sortedItems')
+  
+  // Memoized filtering
+  const createFilteredItems = useCallback((searchQuery: string, filter: string) => {
+    return memoizedCompute(() => {
+      let filteredFiles = sortedItems.files
+      let filteredFolders = sortedItems.folders
+      
+      // Apply search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase()
+        filteredFiles = filteredFiles.filter(file => 
+          file.name.toLowerCase().includes(query)
+        )
+        filteredFolders = filteredFolders.filter(folder => 
+          folder.name.toLowerCase().includes(query) ||
+          folder.displayName?.toLowerCase().includes(query)
+        )
+      }
+      
+      // Apply type filter
+      switch (filter) {
+        case 'folders':
+          filteredFiles = []
+          break
+        case 'images':
+          filteredFolders = []
+          filteredFiles = filteredFiles.filter(file => {
+            const ext = file.name.split('.').pop()?.toLowerCase()
+            return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')
+          })
+          break
+        case 'documents':
+          filteredFolders = []
+          filteredFiles = filteredFiles.filter(file => {
+            const ext = file.name.split('.').pop()?.toLowerCase()
+            return ['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext || '')
+          })
+          break
+      }
+      
+      return { files: filteredFiles, folders: filteredFolders }
+    }, [searchQuery, filter, sortedItems], `filteredItems-${searchQuery}-${filter}`)
+  }, [memoizedCompute, sortedItems])
+  
+  // Virtualization helpers (for large lists)
+  const createVirtualizedList = useCallback((
+    items: any[],
+    itemHeight: number,
+    containerHeight: number
+  ) => {
+    return memoizedCompute(() => {
+      const visibleCount = Math.ceil(containerHeight / itemHeight) + 2 // Buffer
+      const totalHeight = items.length * itemHeight
+      
+      return {
+        totalHeight,
+        visibleCount,
+        getVisibleItems: (scrollTop: number) => {
+          const startIndex = Math.floor(scrollTop / itemHeight)
+          const endIndex = Math.min(startIndex + visibleCount, items.length)
+          
+          return {
+            startIndex,
+            endIndex,
+            items: items.slice(startIndex, endIndex),
+            offsetY: startIndex * itemHeight
+          }
+        }
+      }
+    }, [items, itemHeight, containerHeight], `virtualList-${items.length}`)
+  }, [memoizedCompute])
+  
+  return {
+    sortedItems,
+    createFilteredItems,
+    createVirtualizedList,
+    debouncedUpdate,
+    itemCount: files.length + folders.length
+  }
+}
+
+/**
+ * Hook for optimizing navigation state updates
+ */
+export function useNavigationOptimization() {
+  const { debouncedUpdate, memoizedCompute } = useRenderOptimization({
+    debounceMs: 50, // Slightly higher for navigation
+    maxRenderFrequency: 30 // Lower frequency for navigation
+  })
+  
+  const navigationStore = useCloudStorageNavigationStore()
+  
+  // Memoized navigation state
+  const navigationState = memoizedCompute(() => ({
+    currentPath: navigationStore.currentPath,
+    isNavigating: navigationStore.isNavigating,
+    canGoBack: navigationStore.historyIndex > 0,
+    canGoForward: navigationStore.historyIndex < navigationStore.navigationHistory.length - 1
+  }), [
+    navigationStore.currentPath,
+    navigationStore.isNavigating,
+    navigationStore.historyIndex,
+    navigationStore.navigationHistory.length
+  ], 'navigationState')
+  
+  // Debounced navigation actions
+  const debouncedNavigate = useCallback((path: string, options?: any) => {
+    debouncedUpdate(() => {
+      navigationStore.navigateToPath(path, options)
+    })
+  }, [debouncedUpdate, navigationStore])
+  
+  const debouncedGoBack = useCallback(() => {
+    debouncedUpdate(() => {
+      navigationStore.goBack()
+    })
+  }, [debouncedUpdate, navigationStore])
+  
+  const debouncedGoForward = useCallback(() => {
+    debouncedUpdate(() => {
+      navigationStore.goForward()
+    })
+  }, [debouncedUpdate, navigationStore])
+  
+  return {
+    navigationState,
+    debouncedNavigate,
+    debouncedGoBack,
+    debouncedGoForward
+  }
+}
+
+/**
+ * Hook for creating optimized event handlers
+ */
+export function useOptimizedHandlers() {
+  const { debouncedUpdate } = useRenderOptimization()
+  
+  // Debounced search handler
+  const createSearchHandler = useCallback((onSearch: (query: string) => void) => {
+    return (query: string) => {
+      debouncedUpdate(() => onSearch(query))
+    }
+  }, [debouncedUpdate])
+  
+  // Throttled scroll handler
+  const createScrollHandler = useCallback((onScroll: (scrollTop: number) => void) => {
+    let lastScrollTime = 0
+    const throttleMs = 16 // ~60fps
+    
+    return (event: React.UIEvent<HTMLElement>) => {
+      const now = performance.now()
+      if (now - lastScrollTime >= throttleMs) {
+        lastScrollTime = now
+        const scrollTop = event.currentTarget.scrollTop
+        onScroll(scrollTop)
+      }
+    }
+  }, [])
+  
+  // Debounced selection handler
+  const createSelectionHandler = useCallback((onSelectionChange: (selected: Set<string>) => void) => {
+    return (itemId: string, selected: boolean, currentSelection: Set<string>) => {
+      debouncedUpdate(() => {
+        const newSelection = new Set(currentSelection)
+        if (selected) {
+          newSelection.add(itemId)
+        } else {
+          newSelection.delete(itemId)
+        }
+        onSelectionChange(newSelection)
+      })
+    }
+  }, [debouncedUpdate])
+  
+  return {
+    createSearchHandler,
+    createScrollHandler,
+    createSelectionHandler
+  }
+}

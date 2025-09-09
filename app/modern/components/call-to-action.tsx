@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowRight, Zap, ExternalLink } from "lucide-react"
+import { ArrowRight, Download, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { EXAMPLE_BILL_PDF_URL } from "@/lib/constants"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,10 +46,14 @@ export function CallToAction({ variant = 'default', onGetStarted }: CallToAction
           className="px-12 py-6 text-xl font-semibold group text-foreground hover:bg-muted hover:text-foreground transition-colors duration-300"
           asChild
         >
-          <Link href="/modern/documentation">
+          <Link 
+            href={EXAMPLE_BILL_PDF_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <span className="flex items-center">
-              <Zap className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
-              Mehr erfahren
+              <Download className="mr-2 w-5 h-5 group-hover:scale-110 transition-transform" />
+              Beispiel-Abrechnung
             </span>
           </Link>
         </Button>
