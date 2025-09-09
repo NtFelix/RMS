@@ -41,6 +41,11 @@ foreground: "hsl(var(--destructive-foreground))",
           DEFAULT: "#22c55e", // green-500
           foreground: "#ffffff", // white
         },
+        // Custom dark mode colors
+        "btn-bg": "hsl(var(--btn-bg))",
+        "btn-hover": "hsl(var(--btn-hover))",
+        "text-disabled": "hsl(var(--text-disabled))",
+        "input-placeholder": "hsl(var(--input-placeholder))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
