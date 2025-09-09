@@ -384,6 +384,8 @@ serve(async (req) => {
         return new Response('ok', { headers: corsHeaders })
     }
 
+    console.log('🔄 Notion sync function called');
+
     try {
         // Get environment variables
         const notionToken = Deno.env.get('NOTION_TOKEN');
@@ -391,9 +393,7 @@ serve(async (req) => {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-        // Log the request for debugging
-        console.log('Sync request received:', {
-            method: req.method,
+        console.log('Environment check:', {
             hasNotionToken: !!notionToken,
             hasNotionDatabaseId: !!notionDatabaseId,
             hasSupabaseUrl: !!supabaseUrl,
@@ -406,8 +406,22 @@ serve(async (req) => {
             if (!notionDatabaseId) missingVars.push('NOTION_DATABASE_ID');
             if (!supabaseUrl) missingVars.push('SUPABASE_URL');
             if (!supabaseServiceKey) missingVars.push('SUPABASE_SERVICE_ROLE_KEY');
+
+            const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
+            console.error(errorMsg);
             
-            throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    processed: 0,
+                    errors: [errorMsg],
+                    message: errorMsg,
+                }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 500,
+                }
+            );
         }
 
         // Initialize sync service
