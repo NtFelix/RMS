@@ -1,0 +1,49 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/utils/supabase/server';
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { articleId: string } }
+) {
+  try {
+    const { articleId } = params;
+
+    if (!articleId) {
+      return NextResponse.json(
+        { error: 'Article ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createClient();
+
+    const { data: article, error } = await supabase
+      .from('Dokumentation')
+      .select('id, titel, kategorie, seiteninhalt, meta')
+      .eq('id', articleId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return NextResponse.json(
+          { error: 'Article not found' },
+          { status: 404 }
+        );
+      }
+      
+      console.error('Database error:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch article' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(article);
+  } catch (error) {
+    console.error('API error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}

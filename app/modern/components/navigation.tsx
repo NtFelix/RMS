@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard } from "lucide-react"
+import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -43,7 +43,10 @@ const navItems = [
   { name: "Startseite", href: "#hero", icon: Home },
   { name: "Funktionen", href: "#features", icon: Check },
   { name: "Preise", href: "#pricing", icon: DollarSign },
-  
+]
+
+const staticNavItems = [
+  { name: "Dokumentation", href: "/documentation", icon: BookOpen },
 ]
 
 interface NavigationProps {
@@ -181,12 +184,39 @@ export default function Navigation({ onLogin }: NavigationProps) {
                     <span>{item.name}</span>
                   </button>
                 ))}
+                {/* Static navigation items */}
+                {staticNavItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300 flex items-center space-x-2"
+                  >
+                    {item.icon && <item.icon className="w-4 h-4" />}
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
               </>
             ) : (
               // Other pages navigation
-            <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
-                Startseite
-              </Link>
+              <>
+                <Link href="/" className="px-4 py-2 rounded-full text-sm font-medium text-foreground hover:bg-gray-200 transition-all duration-300">
+                  Startseite
+                </Link>
+                {staticNavItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center space-x-2 ${
+                      pathname === item.href 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'text-foreground hover:bg-gray-200'
+                    }`}
+                  >
+                    {item.icon && <item.icon className="w-4 h-4" />}
+                    <span>{item.name}</span>
+                  </Link>
+                ))}
+              </>
             )}
           </PillContainer>
         </div>
@@ -281,16 +311,45 @@ export default function Navigation({ onLogin }: NavigationProps) {
                           <span className="text-base">{item.name}</span>
                         </button>
                       ))}
+                      {/* Static navigation items */}
+                      {staticNavItems.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                        >
+                          {item.icon && <item.icon className="w-5 h-5 mr-3 text-muted-foreground" />}
+                          <span className="text-base">{item.name}</span>
+                        </Link>
+                      ))}
                     </>
                   ) : (
-                    <Link
-                      href="/"
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
-                    >
-                      <Home className="w-5 h-5 mr-3 text-muted-foreground" />
-                      <span className="text-base">Startseite</span>
-                    </Link>
+                    <>
+                      <Link
+                        href="/"
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center w-full text-left px-4 py-3 rounded-lg text-foreground hover:bg-muted/50 transition-colors duration-200"
+                      >
+                        <Home className="w-5 h-5 mr-3 text-muted-foreground" />
+                        <span className="text-base">Startseite</span>
+                      </Link>
+                      {staticNavItems.map((item) => (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors duration-200 ${
+                            pathname === item.href 
+                              ? 'bg-primary text-primary-foreground' 
+                              : 'text-foreground hover:bg-muted/50'
+                          }`}
+                        >
+                          {item.icon && <item.icon className="w-5 h-5 mr-3" />}
+                          <span className="text-base">{item.name}</span>
+                        </Link>
+                      ))}
+                    </>
                   )}
 
                   <div className="pt-2 mt-2 border-t border-border/50">
