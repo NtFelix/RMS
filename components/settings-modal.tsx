@@ -20,6 +20,7 @@ import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pric
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 
@@ -689,27 +690,40 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           {darkModeEnabled && (
             <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
               <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
+                <div className="space-y-1 flex-1">
                   <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Dunkler Modus
+                    Design-Modus
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    Wechseln Sie zwischen hellem und dunklem Design für bessere Sichtbarkeit.
+                    Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
                   </p>
                 </div>
-                <div className="flex-shrink-0">
-                  <Switch
-                    checked={theme === 'dark'}
-                    onCheckedChange={(checked) => {
-                      setTheme(checked ? 'dark' : 'light');
+                <div className="flex-shrink-0 w-32">
+                  <Select
+                    value={theme}
+                    onValueChange={(value) => {
+                      setTheme(value);
+                      const themeLabels = {
+                        light: 'Heller Modus',
+                        dark: 'Dunkler Modus',
+                        system: 'System-Modus'
+                      };
                       toast({
                         title: "Design geändert",
-                        description: `${checked ? 'Dunkler' : 'Heller'} Modus aktiviert.`,
+                        description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
                         variant: "success",
                       });
                     }}
-                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-                  />
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Wählen Sie ein Design" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Hell</SelectItem>
+                      <SelectItem value="dark">Dunkel</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
