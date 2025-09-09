@@ -1,10 +1,12 @@
 'use client';
 
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, AlertTriangle } from 'lucide-react';
+import { VirtualArticleList } from '@/components/virtual-article-list';
 
 export interface Article {
   id: string;
@@ -63,6 +65,88 @@ export function DocumentationArticleList({
   isLoading = false,
   className = ""
 }: ArticleListProps) {
+  const [error, setError] = useState<Error | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+
+  // Error handling for article selection
+  const handleArticleSelect = useCallback((article: Article) => {
+    try {
+      onArticleSelect(article);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to select article');
+      setError(error);
+      console.error('Error selecting article:', error);
+    }
+  }, [onArticleSelect]);
+
+  // Retry mechanism
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setRetryCount(prev => prev + 1);
+  }, []);
+
+  // Memoize article rendering for performance
+  const renderedArticles = useMemo(() => {
+    return articles.map((article) => {
+      const previewText = getPreviewText(article.seiteninhalt);
+      
+      return (
+        <Card 
+          key={article.id} 
+          className="cursor-pointer transition-colors hover:bg-muted/50 focus-within:ring-2 focus-within:ring-ring"
+          onClick={() => handleArticleSelect(article)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleArticleSelect(article);
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-label={`Artikel öffnen: ${article.titel}`}
+        >
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="text-lg font-semibold leading-tight">
+                {highlightText(article.titel, searchQuery)}
+              </h3>
+              <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+            </div>
+            {article.kategorie && (
+              <Badge variant="outline" className="w-fit">
+                {article.kategorie}
+              </Badge>
+            )}
+          </CardHeader>
+          {previewText && (
+            <CardContent className="pt-0">
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                {highlightText(previewText, searchQuery)}
+              </p>
+            </CardContent>
+          )}
+        </Card>
+      );
+    });
+  }, [articles, searchQuery, handleArticleSelect]);
+
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardContent className="p-8 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Fehler beim Laden der Artikel</h3>
+          <p className="text-muted-foreground mb-4">
+            {error.message}
+          </p>
+          <Button onClick={handleRetry} variant="outline">
+            Erneut versuchen
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className={`space-y-4 ${className}`}>
@@ -108,40 +192,24 @@ export function DocumentationArticleList({
     );
   }
 
+  // Use virtual scrolling for large lists
+  if (articles.length > 50) {
+    return (
+      <div className={className}>
+        <VirtualArticleList
+          articles={articles}
+          searchQuery={searchQuery}
+          onArticleSelect={handleArticleSelect}
+          containerHeight={600}
+          itemHeight={120}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`space-y-4 ${className}`}>
-      {articles.map((article) => {
-        const previewText = getPreviewText(article.seiteninhalt);
-        
-        return (
-          <Card 
-            key={article.id} 
-            className="cursor-pointer transition-colors hover:bg-muted/50"
-            onClick={() => onArticleSelect(article)}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-4">
-                <h3 className="text-lg font-semibold leading-tight">
-                  {highlightText(article.titel, searchQuery)}
-                </h3>
-                <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-              </div>
-              {article.kategorie && (
-                <Badge variant="outline" className="w-fit">
-                  {article.kategorie}
-                </Badge>
-              )}
-            </CardHeader>
-            {previewText && (
-              <CardContent className="pt-0">
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {highlightText(previewText, searchQuery)}
-                </p>
-              </CardContent>
-            )}
-          </Card>
-        );
-      })}
+    <div className={`space-y-4 ${className}`} role="list">
+      {renderedArticles}
     </div>
   );
 }

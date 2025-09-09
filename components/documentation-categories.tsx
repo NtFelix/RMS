@@ -1,10 +1,11 @@
 'use client';
 
+import { useState, useCallback, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { FolderOpen, Folder } from 'lucide-react';
+import { FolderOpen, Folder, AlertTriangle } from 'lucide-react';
 
 export interface Category {
   name: string;
@@ -26,6 +27,46 @@ export function DocumentationCategories({
   isLoading = false,
   className = ""
 }: CategoryListProps) {
+  const [error, setError] = useState<Error | null>(null);
+
+  // Error handling for category selection
+  const handleCategorySelect = useCallback((category: string | null) => {
+    try {
+      onCategorySelect(category);
+      setError(null);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to select category');
+      setError(error);
+      console.error('Error selecting category:', error);
+    }
+  }, [onCategorySelect]);
+
+  // Retry mechanism
+  const handleRetry = useCallback(() => {
+    setError(null);
+  }, []);
+
+  // Memoize total article count for performance
+  const totalArticleCount = useMemo(() => {
+    return categories.reduce((sum, cat) => sum + cat.articleCount, 0);
+  }, [categories]);
+
+  if (error) {
+    return (
+      <Card className={className}>
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="mx-auto h-12 w-12 text-destructive mb-4" />
+          <p className="text-muted-foreground mb-4">
+            Fehler beim Laden der Kategorien: {error.message}
+          </p>
+          <Button onClick={handleRetry} variant="outline" size="sm">
+            Erneut versuchen
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className={`space-y-2 ${className}`}>
@@ -59,15 +100,17 @@ export function DocumentationCategories({
       {/* All Articles Button */}
       <Button
         variant={selectedCategory === null ? "default" : "ghost"}
-        onClick={() => onCategorySelect(null)}
-        className="w-full justify-between h-auto p-3"
+        onClick={() => handleCategorySelect(null)}
+        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring"
+        aria-pressed={selectedCategory === null}
+        aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
         <div className="flex items-center gap-2">
           <FolderOpen className="h-4 w-4" />
           <span>Alle Artikel</span>
         </div>
         <Badge variant="secondary">
-          {categories.reduce((sum, cat) => sum + cat.articleCount, 0)}
+          {totalArticleCount}
         </Badge>
       </Button>
 
@@ -76,9 +119,11 @@ export function DocumentationCategories({
         <Button
           key={category.name}
           variant={selectedCategory === category.name ? "default" : "ghost"}
-          onClick={() => onCategorySelect(category.name)}
-          className="w-full justify-between h-auto p-3"
+          onClick={() => handleCategorySelect(category.name)}
+          className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring"
           disabled={category.articleCount === 0}
+          aria-pressed={selectedCategory === category.name}
+          aria-label={`Kategorie ${category.name || 'Ohne Kategorie'} (${category.articleCount} Artikel)`}
         >
           <div className="flex items-center gap-2">
             <Folder className="h-4 w-4" />
