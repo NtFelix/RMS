@@ -47,6 +47,10 @@ foreground: "hsl(var(--destructive-foreground))",
         "text-disabled": "hsl(var(--text-disabled))",
         "input-placeholder": "hsl(var(--input-placeholder))",
         "main-container": "hsl(var(--main-container))",
+        // Sidebar styling
+        "sidebar-container": "hsl(var(--secondary))",
+        "sidebar-header": "hsl(var(--secondary))",
+        "sidebar-footer": "hsl(var(--secondary))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

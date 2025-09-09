@@ -263,6 +263,19 @@
     border-color: hsl(var(--border));
   }
 
+  /* Sidebar border styling for dark mode - hide borders by matching background */
+  .dark .sidebar-container {
+    border-right-color: hsl(var(--secondary)); /* Match sidebar background */
+  }
+
+  .dark .sidebar-header {
+    border-bottom-color: hsl(var(--secondary)); /* Match sidebar background */
+  }
+
+  .dark .sidebar-footer {
+    border-top-color: hsl(var(--secondary)); /* Match sidebar background */
+  }
+
   /* Shimmer animation for loading states */
   @keyframes shimmer {
     0% {
