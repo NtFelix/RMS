@@ -162,37 +162,37 @@
   }
 
   .dark {
-    /* Custom Dark Mode Palette */
+    /* Custom Dark Mode Palette - Original colors with darker blue primary/accent */
     --background: 0 0% 9.4%; /* #181818 - bg-primary */
     --foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
     --card: 210 11% 13.7%; /* #22272e - bg-elevated */
     --card-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
     --popover: 210 11% 13.7%; /* #22272e - bg-elevated */
     --popover-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --primary: 221 100% 63%; /* #4D88FF - accent-blue */
+    --primary: 220 39% 25%; /* #2D4A6B - darker blue primary for hover states */
     --primary-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --secondary: 215 14% 16%; /* #23272a - bg-secondary */
+    --secondary: 215 14% 16%; /* #23272a - bg-secondary (original) */
     --secondary-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */
-    --muted: 215 14% 16%; /* #23272a - bg-secondary */
+    --muted: 215 14% 16%; /* #23272a - bg-secondary (original) */
     --muted-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */
-    --accent: 221 100% 63%; /* #4D88FF - accent-blue */
+    --accent: 220 39% 25%; /* #2D4A6B - darker blue accent for hover states */
     --accent-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
     --destructive: 0 100% 67%; /* #FF5757 - error */
     --destructive-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
-    --border: 215 15% 26%; /* #3C4251 - border-color */
-    --input: 220 11% 13%; /* #22252b - input-bg */
-    --ring: 221 100% 63%; /* #4D88FF - accent-blue */
+    --border: 215 15% 26%; /* #3C4251 - border-color (original) */
+    --input: 220 11% 13%; /* #22252b - input-bg (original) */
+    --ring: 220 39% 25%; /* #2D4A6B - darker blue ring */
 
     /* Custom variables for specific use cases */
-    --btn-bg: 215 25% 19%; /* #232f3e - btn-bg */
-    --btn-hover: 215 30% 22%; /* #25344a - btn-hover */
+    --btn-bg: 215 25% 19%; /* #232f3e - btn-bg (original) */
+    --btn-hover: 215 30% 22%; /* #25344a - btn-hover (original) */
     --success: 162 100% 50%; /* #00ffa3 - success */
     --warning: 50 100% 73%; /* #ffe176 - warning */
     --input-placeholder: 0 0% 57%; /* #919191 - input-placeholder */
     --text-disabled: 215 8% 61%; /* #9399a2 - text-disabled */
 
     /* Chart Farben */
-    --chart-1: 221 100% 63%; /* #4D88FF - accent-blue */
+    --chart-1: 220 39% 25%; /* #2D4A6B - darker blue */
     --chart-2: 0 100% 67%; /* #FF5757 - error */
     --chart-3: 162 100% 50%; /* #00ffa3 - success */
     --chart-4: 50 100% 73%; /* #ffe176 - warning */
@@ -237,6 +237,8 @@
   .dark .btn-custom:hover {
     background-color: hsl(var(--btn-hover));
   }
+
+
 
   /* Custom input placeholder styling */
   .dark input::placeholder {
