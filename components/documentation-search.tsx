@@ -69,7 +69,7 @@ export function DocumentationSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="h-16 pl-16 pr-16 text-lg rounded-2xl border-2 border-border/50 bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-background placeholder:text-muted-foreground/70"
+          className="h-16 pl-16 pr-16 text-lg rounded-full border-2 border-border/50 bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-background placeholder:text-muted-foreground/70"
           disabled={isLoading}
           aria-label="Dokumentation durchsuchen"
           aria-describedby={error ? "search-error" : undefined}
@@ -79,7 +79,7 @@ export function DocumentationSearch({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 p-0 hover:bg-muted/80 rounded-xl transition-colors"
+            className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 p-0 hover:bg-muted/80 rounded-full transition-colors"
             disabled={isLoading}
             aria-label="Suche löschen"
           >
@@ -88,7 +88,7 @@ export function DocumentationSearch({
         )}
         
         {/* Subtle glow effect */}
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/10 via-transparent to-primary/10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-primary/10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
 
       {/* Error display */}
