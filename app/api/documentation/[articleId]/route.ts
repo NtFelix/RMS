@@ -3,10 +3,10 @@ import { createClient } from '@/utils/supabase/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { articleId: string } }
+  { params }: { params: Promise<{ articleId: string }> }
 ) {
   try {
-    const { articleId } = params;
+    const { articleId } = await params;
 
     if (!articleId) {
       return NextResponse.json(
@@ -15,7 +15,20 @@ export async function GET(
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createClient();
+
+    // First check if the table exists and has data
+    const { data: tableCheck, error: tableError } = await supabase
+      .from('Dokumentation')
+      .select('count', { count: 'exact', head: true });
+
+    if (tableError) {
+      console.error('Table access error:', tableError);
+      return NextResponse.json(
+        { error: 'Documentation system is not available' },
+        { status: 503 }
+      );
+    }
 
     const { data: article, error } = await supabase
       .from('Dokumentation')

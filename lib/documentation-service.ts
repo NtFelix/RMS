@@ -39,7 +39,8 @@ export class DocumentationService {
       const { data, error } = await queryBuilder.getCategories();
       
       if (error) {
-        throw new Error(`Failed to fetch categories: ${error.message}`);
+        console.error('Database error in getCategories:', error);
+        return [];
       }
 
       if (!data) {
@@ -61,7 +62,7 @@ export class DocumentationService {
       })).sort((a, b) => a.name.localeCompare(b.name));
     } catch (error) {
       console.error('Error fetching categories:', error);
-      throw error;
+      return [];
     }
   }
 
@@ -152,15 +153,26 @@ export class DocumentationService {
       const { data, error } = await query;
       
       if (error) {
-        throw new Error(`Failed to fetch articles: ${error.message}`);
+        console.error('Database error in getAllArticles:', error);
+        // Return empty array instead of throwing to prevent UI crashes
+        return [];
       }
 
       let articles = this.transformRecordsToArticles(data || []);
 
       // Apply search filter if provided
       if (filters.searchQuery) {
-        const searchResults = await this.searchArticles(filters.searchQuery);
-        articles = searchResults;
+        try {
+          const searchResults = await this.searchArticles(filters.searchQuery);
+          articles = searchResults;
+        } catch (searchError) {
+          console.error('Search error, falling back to basic filter:', searchError);
+          // Fallback to basic text filtering
+          articles = articles.filter(article => 
+            article.titel.toLowerCase().includes(filters.searchQuery!.toLowerCase()) ||
+            article.seiteninhalt.toLowerCase().includes(filters.searchQuery!.toLowerCase())
+          );
+        }
       }
 
       // Apply pagination
@@ -173,7 +185,8 @@ export class DocumentationService {
       return articles;
     } catch (error) {
       console.error('Error fetching all articles:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent UI crashes
+      return [];
     }
   }
 
