@@ -277,6 +277,11 @@
     border-top-color: hsl(var(--background)); /* Match main background */
   }
 
+  /* Header border styling for dark mode - hide border by matching background */
+  .dark .header-container {
+    border-bottom-color: hsl(var(--background)); /* Match main background */
+  }
+
   /* Shimmer animation for loading states */
   @keyframes shimmer {
     0% {

@@ -51,6 +51,8 @@ foreground: "hsl(var(--destructive-foreground))",
         "sidebar-container": "hsl(var(--background))",
         "sidebar-header": "hsl(var(--background))",
         "sidebar-footer": "hsl(var(--background))",
+        // Header styling
+        "header-container": "hsl(var(--background))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
