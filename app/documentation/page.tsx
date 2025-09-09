@@ -6,6 +6,7 @@ import { DocumentationSearch } from '@/components/documentation-search';
 import { DocumentationCategories, Category } from '@/components/documentation-categories';
 import { DocumentationArticleList, Article } from '@/components/documentation-article-list';
 import { DocumentationArticleViewer } from '@/components/documentation-article-viewer';
+import { DocumentationCategoryCards } from '@/components/documentation-category-cards';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -315,42 +316,52 @@ function DocumentationContent() {
             </Card>
           </div>
 
-          {/* Main Content - Articles */}
+          {/* Main Content - Articles or Category Cards */}
           <div className="lg:col-span-4">
-            <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl font-semibold">
-                    {state.searchQuery ? (
-                      <>
-                        Suchergebnisse für{' '}
-                        <span className="text-primary">"{state.searchQuery}"</span>
-                      </>
-                    ) : state.selectedCategory ? (
-                      <>
-                        Artikel in{' '}
-                        <span className="text-primary">"{state.selectedCategory}"</span>
-                      </>
-                    ) : (
-                      'Alle Artikel'
+            {!state.selectedCategory && !state.searchQuery ? (
+              /* Category Cards View */
+              <DocumentationCategoryCards
+                categories={state.categories}
+                onCategorySelect={handleCategorySelect}
+                isLoading={state.isLoadingCategories}
+              />
+            ) : (
+              /* Articles List View */
+              <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-xl font-semibold">
+                      {state.searchQuery ? (
+                        <>
+                          Suchergebnisse für{' '}
+                          <span className="text-primary">"{state.searchQuery}"</span>
+                        </>
+                      ) : state.selectedCategory ? (
+                        <>
+                          Artikel in{' '}
+                          <span className="text-primary">"{state.selectedCategory}"</span>
+                        </>
+                      ) : (
+                        'Alle Artikel'
+                      )}
+                    </CardTitle>
+                    {state.articles.length > 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        {state.articles.length} {state.articles.length === 1 ? 'Artikel' : 'Artikel'}
+                      </div>
                     )}
-                  </CardTitle>
-                  {state.articles.length > 0 && (
-                    <div className="text-sm text-muted-foreground">
-                      {state.articles.length} {state.articles.length === 1 ? 'Artikel' : 'Artikel'}
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <DocumentationArticleList
-                  articles={state.articles}
-                  searchQuery={state.searchQuery}
-                  onArticleSelect={handleArticleSelect}
-                  isLoading={state.isLoadingArticles}
-                />
-              </CardContent>
-            </Card>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <DocumentationArticleList
+                    articles={state.articles}
+                    searchQuery={state.searchQuery}
+                    onArticleSelect={handleArticleSelect}
+                    isLoading={state.isLoadingArticles}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
@@ -401,27 +412,11 @@ function DocumentationLoading() {
           </div>
           
           <div className="lg:col-span-4">
-            <Card className="shadow-lg border-0 bg-card/50">
-              <CardHeader>
-                <Skeleton className="h-7 w-48" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Card key={i} className="border-0 bg-muted/30">
-                      <CardHeader>
-                        <Skeleton className="h-6 w-3/4" />
-                        <Skeleton className="h-4 w-20" />
-                      </CardHeader>
-                      <CardContent>
-                        <Skeleton className="h-4 w-full mb-2" />
-                        <Skeleton className="h-4 w-2/3" />
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <DocumentationCategoryCards
+              categories={[]}
+              onCategorySelect={() => {}}
+              isLoading={true}
+            />
           </div>
         </div>
       </div>
