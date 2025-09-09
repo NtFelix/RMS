@@ -124,7 +124,7 @@ function DocumentationContent() {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
       
       const url = category 
-        ? `/api/documentation?category=${encodeURIComponent(category)}`
+        ? `/api/documentation?kategorie=${encodeURIComponent(category)}`
         : '/api/documentation';
       
       const response = await fetch(url);
