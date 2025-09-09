@@ -190,6 +190,9 @@
     --warning: 50 100% 73%; /* #ffe176 - warning */
     --input-placeholder: 0 0% 57%; /* #919191 - input-placeholder */
     --text-disabled: 215 8% 61%; /* #9399a2 - text-disabled */
+    
+    /* Main container color - slightly lighter than background */
+    --main-container: 0 0% 12%; /* #1F1F1F - slightly lighter than #181818 background */
 
     /* Chart Farben */
     --chart-1: 220 39% 25%; /* #2D4A6B - darker blue */
@@ -252,6 +255,12 @@
   /* Custom shadow for dark mode */
   .dark .shadow-custom {
     box-shadow: 0 2px 12px rgba(36, 56, 99, 0.4);
+  }
+
+  /* Main container styling for dark mode */
+  .dark .main-container {
+    background-color: hsl(var(--main-container));
+    border-color: hsl(var(--border));
   }
 
   /* Shimmer animation for loading states */

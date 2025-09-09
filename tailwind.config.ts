@@ -46,6 +46,7 @@ foreground: "hsl(var(--destructive-foreground))",
         "btn-hover": "hsl(var(--btn-hover))",
         "text-disabled": "hsl(var(--text-disabled))",
         "input-placeholder": "hsl(var(--input-placeholder))",
+        "main-container": "hsl(var(--main-container))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
