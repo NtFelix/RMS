@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "supabase": "https://esm.sh/@supabase/supabase-js@2",
+    "std/": "https://deno.land/std@0.168.0/"
+  },
+  "tasks": {
+    "test": "deno test --allow-all test.ts",
+    "dev": "deno run --allow-all --watch index.ts",
+    "deploy": "supabase functions deploy sync-notion-docs"
+  },
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  }
+}
