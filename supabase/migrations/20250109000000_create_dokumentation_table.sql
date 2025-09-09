@@ -37,3 +37,34 @@ COMMENT ON COLUMN public."Dokumentation".titel IS 'Article title (mapped from No
 COMMENT ON COLUMN public."Dokumentation".kategorie IS 'Article category (mapped from Notion Kategorie property)';
 COMMENT ON COLUMN public."Dokumentation".seiteninhalt IS 'Article content in markdown format (extracted from Notion page blocks)';
 COMMENT ON COLUMN public."Dokumentation".meta IS 'Additional metadata from Notion including notion_id, timestamps, and other properties';
+
+-- Create a sync log table to track sync operations
+CREATE TABLE IF NOT EXISTS public."NotionSyncLog" (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
+    sync_type text NOT NULL CHECK (sync_type IN ('manual', 'scheduled')),
+    started_at timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+    completed_at timestamp with time zone NULL,
+    success boolean NULL,
+    pages_processed integer DEFAULT 0,
+    errors text[] DEFAULT '{}',
+    message text NULL,
+    CONSTRAINT "NotionSyncLog_pkey" PRIMARY KEY (id)
+);
+
+-- Add RLS for sync log
+ALTER TABLE public."NotionSyncLog" ENABLE ROW LEVEL SECURITY;
+
+-- Allow service role full access to sync log
+CREATE POLICY "Allow service role full access to sync log" ON public."NotionSyncLog"
+FOR ALL USING (auth.role() = 'service_role');
+
+-- Allow authenticated users to read sync log
+CREATE POLICY "Allow authenticated read access to sync log" ON public."NotionSyncLog"
+FOR SELECT TO authenticated USING (true);
+
+-- Grant permissions on sync log
+GRANT SELECT ON public."NotionSyncLog" TO authenticated;
+GRANT ALL ON public."NotionSyncLog" TO service_role;
+
+-- Add comment
+COMMENT ON TABLE public."NotionSyncLog" IS 'Tracks Notion documentation sync operations for monitoring and debugging';
