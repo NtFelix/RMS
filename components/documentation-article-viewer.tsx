@@ -163,7 +163,7 @@ export function DocumentationArticleViewer({
       </div>
 
       {/* Article Content */}
-      <Card>
+      <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm">
         <CardHeader className="pb-4">
           <div className="space-y-4">
             <h1 className="text-2xl font-bold leading-tight">
@@ -227,7 +227,7 @@ export function DocumentationArticleViewer({
 
       {/* Additional Metadata */}
       {article.meta && Object.keys(article.meta).length > 0 && (
-        <Card className="mt-6">
+        <Card className="mt-6 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
           <CardHeader>
             <h3 className="text-lg font-semibold">Zusätzliche Informationen</h3>
           </CardHeader>

@@ -239,13 +239,62 @@ function DocumentationContent() {
   if (state.selectedArticle) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="container mx-auto px-4 py-8 max-w-5xl">
-          <DocumentationArticleViewer
-            article={state.selectedArticle}
-            onBack={handleBackToList}
-            selectedCategory={state.selectedCategory}
-            searchQuery={state.searchQuery}
-          />
+        <div className="container mx-auto px-4 py-8">
+          {/* Header with Search */}
+          <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-4 mb-6">
+              <BookOpen className="h-10 w-10 text-primary" />
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                Dokumentation
+              </h1>
+            </div>
+            
+            {/* Compact Search Bar */}
+            <div className="max-w-2xl mx-auto mb-6">
+              <DocumentationSearch
+                onSearch={handleSearch}
+                placeholder="Dokumentation durchsuchen..."
+              />
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {state.error && (
+            <Alert variant="destructive" className="mb-8 max-w-4xl mx-auto">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{state.error}</AlertDescription>
+            </Alert>
+          )}
+
+          {/* Main Content with Sidebar */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
+            {/* Sidebar - Categories */}
+            <div className="lg:col-span-1">
+              <Card className="sticky top-24 shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden">
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-lg font-semibold">Navigation</CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-hidden">
+                  <DocumentationCategories
+                    categories={state.categories}
+                    selectedCategory={state.selectedCategory}
+                    onCategorySelect={handleCategorySelect}
+                    isLoading={state.isLoadingCategories}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Article Content */}
+            <div className="lg:col-span-4">
+              <DocumentationArticleViewer
+                article={state.selectedArticle}
+                onBack={handleBackToList}
+                selectedCategory={state.selectedCategory}
+                searchQuery={state.searchQuery}
+              />
+            </div>
+          </div>
         </div>
       </div>
     );
