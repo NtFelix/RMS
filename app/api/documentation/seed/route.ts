@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
+export const runtime = 'edge';
+
 const sampleArticles = [
   {
     titel: 'Erste Schritte mit Mietfluss',

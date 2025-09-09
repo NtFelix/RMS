@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { createClient } from '@/utils/supabase/server';
 import ArticlePageClient from './article-page-client';
 
+export const runtime = 'edge';
+
 interface ArticlePageProps {
   params: Promise<{ articleId: string }>;
 }
