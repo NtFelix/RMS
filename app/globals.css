@@ -298,6 +298,21 @@
     background-color: hsl(var(--primary) / 0.12); /* Darker blue for ghost buttons */
   }
 
+  /* Context menu hover enhancements for dark mode */
+  .dark .context-menu-item:focus {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for context menu items */
+  }
+
+  .dark .context-menu-subtrigger:focus,
+  .dark .context-menu-subtrigger[data-state="open"] {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for submenu triggers */
+  }
+
+  .dark .context-menu-checkbox:focus,
+  .dark .context-menu-radio:focus {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for checkbox/radio items */
+  }
+
   /* Modal close button hover enhancement */
   .dark .modal-close-hover:hover {
     background-color: hsl(var(--primary) / 0.15); /* Darker blue for modal close button */

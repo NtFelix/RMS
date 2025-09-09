@@ -57,6 +57,11 @@ foreground: "hsl(var(--destructive-foreground))",
         "table-row-hover": "hsl(var(--primary) / 0.1)",
         "btn-outline-hover": "hsl(var(--primary) / 0.15)",
         "btn-ghost-hover": "hsl(var(--primary) / 0.12)",
+        // Context menu styles
+        "context-menu-item": "hsl(var(--primary) / 0.15)",
+        "context-menu-subtrigger": "hsl(var(--primary) / 0.15)",
+        "context-menu-checkbox": "hsl(var(--primary) / 0.15)",
+        "context-menu-radio": "hsl(var(--primary) / 0.15)",
         "modal-close-hover": "hsl(var(--primary) / 0.15)",
         muted: {
           DEFAULT: "hsl(var(--muted))",
