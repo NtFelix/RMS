@@ -25,7 +25,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       <DashboardSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-14 items-center gap-4 border-b bg-background px-6">
+        <header className="flex h-14 items-center gap-4 border-b bg-background px-6 dark:header-container">
           <div className="mx-auto w-full max-w-3xl">
             <Button
               variant="outline"
@@ -41,7 +41,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex flex-1 flex-col min-h-0 p-6">
-          <div className="flex-1 overflow-y-auto rounded-xl bg-white border shadow-sm">
+          <div className="flex-1 overflow-y-auto rounded-xl bg-white dark:main-container border shadow-sm">
             {children}
           </div>
         </main>

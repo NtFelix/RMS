@@ -90,8 +90,8 @@ export function DashboardSidebar() {
           isOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
-        <div className="h-full w-full flex flex-col bg-background border-r border-border">
-          <div className="border-b px-6 py-4">
+        <div className="h-full w-full flex flex-col bg-background border-r border-border dark:sidebar-container">
+          <div className="border-b px-6 py-4 dark:sidebar-header">
             <Link href="/" className="flex items-center gap-2 font-semibold">
               <div className="relative w-8 h-8 rounded-full overflow-hidden">
                 <Image
@@ -133,7 +133,7 @@ export function DashboardSidebar() {
               })}
             </nav>
           </ScrollArea>
-          <div className="mt-auto border-t p-4 pb-6">
+          <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />
           </div>

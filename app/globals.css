@@ -162,31 +162,43 @@
   }
 
   .dark {
-    --background: 210 29% 24%;
-    --foreground: 210 40% 98%;
-    --card: 210 29% 24%;
-    --card-foreground: 210 40% 98%;
-    --popover: 210 29% 24%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 29% 29%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    /* Custom Dark Mode Palette - Original colors with darker blue primary/accent */
+    --background: 0 0% 9.4%; /* #181818 - bg-primary */
+    --foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
+    --card: 210 11% 13.7%; /* #22272e - bg-elevated */
+    --card-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
+    --popover: 210 11% 13.7%; /* #22272e - bg-elevated */
+    --popover-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
+    --primary: 220 39% 25%; /* #2D4A6B - darker blue primary for hover states */
+    --primary-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
+    --secondary: 215 14% 16%; /* #23272a - bg-secondary (original) */
+    --secondary-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */
+    --muted: 215 14% 16%; /* #23272a - bg-secondary (original) */
+    --muted-foreground: 214 15% 76%; /* #BFC8D9 - text-secondary */
+    --accent: 220 39% 25%; /* #2D4A6B - darker blue accent for hover states */
+    --accent-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
+    --destructive: 0 100% 67%; /* #FF5757 - error */
+    --destructive-foreground: 220 9% 95%; /* #F3F4F6 - text-primary */
+    --border: 215 15% 26%; /* #3C4251 - border-color (original) */
+    --input: 220 11% 13%; /* #22252b - input-bg (original) */
+    --ring: 220 39% 25%; /* #2D4A6B - darker blue ring */
+
+    /* Custom variables for specific use cases */
+    --btn-bg: 215 25% 19%; /* #232f3e - btn-bg (original) */
+    --btn-hover: 215 30% 22%; /* #25344a - btn-hover (original) */
+    --success: 162 100% 50%; /* #00ffa3 - success */
+    --warning: 50 100% 73%; /* #ffe176 - warning */
+    --input-placeholder: 0 0% 57%; /* #919191 - input-placeholder */
+    --text-disabled: 215 8% 61%; /* #9399a2 - text-disabled */
+    
+    /* Main container color - slightly lighter than background */
+    --main-container: 0 0% 12%; /* #1F1F1F - slightly lighter than #181818 background */
 
     /* Chart Farben */
-    --chart-1: 210 29% 29%;
-    --chart-2: 0 62.8% 30.6%;
-    --chart-3: 142.1 70.6% 45.3%;
-    --chart-4: 43.3 89.4% 66.3%;
+    --chart-1: 220 39% 25%; /* #2D4A6B - darker blue */
+    --chart-2: 0 100% 67%; /* #FF5757 - error */
+    --chart-3: 162 100% 50%; /* #00ffa3 - success */
+    --chart-4: 50 100% 73%; /* #ffe176 - warning */
     --chart-5: 262.1 83.3% 67.8%;
   }
 }
@@ -217,6 +229,88 @@
 @layer utilities {
   .summary-card {
     @apply border-2 border-border;
+  }
+
+  /* Custom dark mode button styles */
+  .dark .btn-custom {
+    background-color: hsl(var(--btn-bg));
+    border-color: hsl(var(--border));
+  }
+
+  .dark .btn-custom:hover {
+    background-color: hsl(var(--btn-hover));
+  }
+
+  /* Custom input placeholder styling */
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: hsl(var(--input-placeholder));
+  }
+
+  /* Custom shadow for dark mode */
+  .dark .shadow-custom {
+    box-shadow: 0 2px 12px rgba(36, 56, 99, 0.4);
+  }
+
+  /* Main container styling for dark mode */
+  .dark .main-container {
+    background-color: hsl(var(--main-container));
+    border-color: hsl(var(--border));
+  }
+
+  /* Sidebar styling for dark mode - use same background as main to hide borders */
+  .dark .sidebar-container {
+    background-color: hsl(var(--background)); /* Use main background color */
+    border-right-color: hsl(var(--background)); /* Match main background */
+  }
+
+  .dark .sidebar-header {
+    border-bottom-color: hsl(var(--background)); /* Match main background */
+  }
+
+  .dark .sidebar-footer {
+    border-top-color: hsl(var(--background)); /* Match main background */
+  }
+
+  /* Header border styling for dark mode - hide border by matching background */
+  .dark .header-container {
+    border-bottom-color: hsl(var(--background)); /* Match main background */
+  }
+
+  /* Enhanced hover styles for dark mode */
+  /* Table row hover - use darker blue instead of muted */
+  .dark .table-row-hover:hover {
+    background-color: hsl(var(--primary) / 0.1); /* Subtle darker blue hover */
+  }
+
+  /* Button hover enhancements for dark mode */
+  .dark .btn-outline-hover:hover {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for outline buttons */
+    border-color: hsl(var(--primary) / 0.3);
+  }
+
+  .dark .btn-ghost-hover:hover {
+    background-color: hsl(var(--primary) / 0.12); /* Darker blue for ghost buttons */
+  }
+
+  /* Context menu hover enhancements for dark mode */
+  .dark .context-menu-item:focus {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for context menu items */
+  }
+
+  .dark .context-menu-subtrigger:focus,
+  .dark .context-menu-subtrigger[data-state="open"] {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for submenu triggers */
+  }
+
+  .dark .context-menu-checkbox:focus,
+  .dark .context-menu-radio:focus {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for checkbox/radio items */
+  }
+
+  /* Modal close button hover enhancement */
+  .dark .modal-close-hover:hover {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for modal close button */
   }
 
   /* Shimmer animation for loading states */

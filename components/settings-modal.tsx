@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { usePostHog, useActiveFeatureFlags } from 'posthog-js/react'
+import { usePostHog, useActiveFeatureFlags, useFeatureFlagEnabled } from 'posthog-js/react'
 import { useRouter } from 'next/navigation'
+import { useTheme } from "next-themes"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // DialogOverlay removed, DialogDescription added
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pric
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getCookie, setCookie } from "@/utils/cookies";
 import { BETRIEBSKOSTEN_GUIDE_COOKIE, BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED } from "@/constants/guide";
 
@@ -64,6 +66,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
   const { toast } = useToast()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
@@ -77,6 +80,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // PostHog early access features
   const posthog = usePostHog()
   const activeFlags = useActiveFeatureFlags()
+  const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
+
+  // Theme labels for toast messages
+  const themeLabels = {
+    light: 'Heller Modus',
+    dark: 'Dunkler Modus',
+    system: 'System-Modus'
+  };
 
   type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
   interface EarlyAccessFeature {
@@ -683,6 +694,42 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <p className="text-sm text-muted-foreground">
             Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
           </p>
+          {darkModeEnabled && (
+            <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1 flex-1">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Design-Modus
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
+                  </p>
+                </div>
+                <div className="flex-shrink-0 w-32">
+                  <Select
+                    value={theme}
+                    onValueChange={(value) => {
+                      setTheme(value);
+                      toast({
+                        title: "Design geändert",
+                        description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
+                        variant: "success",
+                      });
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Wählen Sie ein Design" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="light">Hell</SelectItem>
+                      <SelectItem value="dark">Dunkel</SelectItem>
+                      <SelectItem value="system">System</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">

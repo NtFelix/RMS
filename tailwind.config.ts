@@ -41,6 +41,28 @@ foreground: "hsl(var(--destructive-foreground))",
           DEFAULT: "#22c55e", // green-500
           foreground: "#ffffff", // white
         },
+        // Custom dark mode colors
+        "btn-bg": "hsl(var(--btn-bg))",
+        "btn-hover": "hsl(var(--btn-hover))",
+        "text-disabled": "hsl(var(--text-disabled))",
+        "input-placeholder": "hsl(var(--input-placeholder))",
+        "main-container": "hsl(var(--main-container))",
+        // Sidebar styling
+        "sidebar-container": "hsl(var(--background))",
+        "sidebar-header": "hsl(var(--background))",
+        "sidebar-footer": "hsl(var(--background))",
+        // Header styling
+        "header-container": "hsl(var(--background))",
+        // Enhanced hover styles
+        "table-row-hover": "hsl(var(--primary) / 0.1)",
+        "btn-outline-hover": "hsl(var(--primary) / 0.15)",
+        "btn-ghost-hover": "hsl(var(--primary) / 0.12)",
+        // Context menu styles
+        "context-menu-item": "hsl(var(--primary) / 0.15)",
+        "context-menu-subtrigger": "hsl(var(--primary) / 0.15)",
+        "context-menu-checkbox": "hsl(var(--primary) / 0.15)",
+        "context-menu-radio": "hsl(var(--primary) / 0.15)",
+        "modal-close-hover": "hsl(var(--primary) / 0.15)",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
