@@ -1,7 +1,9 @@
 /**
- * Placeholder Engine for Template System
- * Handles parsing, validation, and autocomplete for template placeholders
+ * Optimized Placeholder Engine for Template System
+ * Handles parsing, validation, and autocomplete for template placeholders with caching
  */
+
+import { templateCacheManager } from './cache-manager';
 
 export interface PlaceholderDefinition {
   key: string;
@@ -26,6 +28,12 @@ export interface ValidationError {
   position: number;
   length: number;
   placeholder?: string;
+}
+
+export interface PerformanceMetrics {
+  suggestionTime: number;
+  validationTime: number;
+  cacheHitRate: number;
 }
 
 // Comprehensive placeholder definitions registry
@@ -189,14 +197,45 @@ export const PLACEHOLDER_DEFINITIONS: PlaceholderDefinition[] = [
 ];
 
 /**
- * Placeholder Engine Class
- * Main class for handling placeholder operations
+ * Optimized Placeholder Engine Class
+ * Main class for handling placeholder operations with caching and performance optimizations
  */
 export class PlaceholderEngine {
   private placeholderMap: Map<string, PlaceholderDefinition>;
+  private categoryIndex: Map<string, PlaceholderDefinition[]>;
+  private keyIndex: Set<string>;
+  private performanceMetrics: PerformanceMetrics = {
+    suggestionTime: 0,
+    validationTime: 0,
+    cacheHitRate: 0
+  };
   
   constructor(definitions: PlaceholderDefinition[] = PLACEHOLDER_DEFINITIONS) {
     this.placeholderMap = new Map(definitions.map(def => [def.key, def]));
+    this.buildIndexes(definitions);
+  }
+
+  /**
+   * Build optimized indexes for faster lookups
+   */
+  private buildIndexes(definitions: PlaceholderDefinition[]): void {
+    // Category index for faster category-based queries
+    this.categoryIndex = new Map();
+    this.keyIndex = new Set();
+
+    for (const def of definitions) {
+      // Add to key index
+      this.keyIndex.add(def.key);
+
+      // Add to category index
+      if (!this.categoryIndex.has(def.category)) {
+        this.categoryIndex.set(def.category, []);
+      }
+      this.categoryIndex.get(def.category)!.push(def);
+    }
+
+    // Cache the placeholder definitions
+    templateCacheManager.placeholderCache.set('definitions', definitions, 60 * 60 * 1000); // 1 hour
   }
   
   /**
@@ -209,9 +248,20 @@ export class PlaceholderEngine {
   }
   
   /**
-   * Validate placeholder syntax and existence
+   * Validate placeholder syntax and existence with caching
    */
   validatePlaceholders(content: string): ValidationError[] {
+    const startTime = performance.now();
+
+    // Check cache first
+    const cacheKey = templateCacheManager.generateValidationKey(content);
+    const cached = templateCacheManager.validationCache.get(cacheKey);
+    
+    if (cached) {
+      this.updatePerformanceMetrics('validation', startTime, true);
+      return cached;
+    }
+
     const errors: ValidationError[] = [];
     const placeholderRegex = /@[a-zA-Z][a-zA-Z0-9._]*\b/g;
     let match;
@@ -220,8 +270,8 @@ export class PlaceholderEngine {
       const placeholder = match[0];
       const position = match.index;
       
-      // Check if placeholder exists in definitions
-      if (!this.placeholderMap.has(placeholder)) {
+      // Optimized lookup using Set for O(1) complexity
+      if (!this.keyIndex.has(placeholder)) {
         errors.push({
           type: 'unknown_placeholder',
           message: `Unbekannter Platzhalter: ${placeholder}`,
@@ -250,20 +300,36 @@ export class PlaceholderEngine {
       }
     }
     
+    // Cache the result
+    templateCacheManager.validationCache.set(cacheKey, errors);
+    
+    this.updatePerformanceMetrics('validation', startTime, false);
     return errors;
   }
   
   /**
-   * Generate autocomplete suggestions with fuzzy search
+   * Generate autocomplete suggestions with fuzzy search and caching
    */
   generateSuggestions(query: string, maxResults: number = 10): AutocompleteSuggestion[] {
+    const startTime = performance.now();
+
     if (!query.startsWith('@')) {
       return [];
+    }
+
+    // Check cache first
+    const cacheKey = templateCacheManager.generateSuggestionKey(query, maxResults);
+    const cached = templateCacheManager.suggestionCache.get(cacheKey);
+    
+    if (cached) {
+      this.updatePerformanceMetrics('suggestion', startTime, true);
+      return cached;
     }
     
     const searchTerm = query.toLowerCase();
     const suggestions: AutocompleteSuggestion[] = [];
     
+    // Optimized search using indexes
     for (const definition of this.placeholderMap.values()) {
       const score = this.calculateFuzzyScore(searchTerm, definition);
       
@@ -278,9 +344,15 @@ export class PlaceholderEngine {
     }
     
     // Sort by score (descending) and limit results
-    return suggestions
+    const result = suggestions
       .sort((a, b) => b.score - a.score)
       .slice(0, maxResults);
+
+    // Cache the result
+    templateCacheManager.suggestionCache.set(cacheKey, result);
+    
+    this.updatePerformanceMetrics('suggestion', startTime, false);
+    return result;
   }
   
   /**
@@ -334,11 +406,57 @@ export class PlaceholderEngine {
   }
   
   /**
-   * Get all placeholders by category
+   * Get all placeholders by category (optimized with index)
    */
   getPlaceholdersByCategory(category: PlaceholderDefinition['category']): PlaceholderDefinition[] {
-    return Array.from(this.placeholderMap.values())
-      .filter(def => def.category === category);
+    return this.categoryIndex.get(category) || [];
+  }
+
+  /**
+   * Update performance metrics
+   */
+  private updatePerformanceMetrics(operation: 'suggestion' | 'validation', startTime: number, cacheHit: boolean): void {
+    const duration = performance.now() - startTime;
+    
+    if (operation === 'suggestion') {
+      this.performanceMetrics.suggestionTime = duration;
+    } else {
+      this.performanceMetrics.validationTime = duration;
+    }
+
+    // Update cache hit rate
+    const stats = templateCacheManager.getAllStats();
+    const totalHits = Object.values(stats).reduce((sum, stat) => sum + stat.hits, 0);
+    const totalRequests = Object.values(stats).reduce((sum, stat) => sum + stat.hits + stat.misses, 0);
+    this.performanceMetrics.cacheHitRate = totalRequests > 0 ? totalHits / totalRequests : 0;
+  }
+
+  /**
+   * Get performance metrics
+   */
+  getPerformanceMetrics(): PerformanceMetrics {
+    return { ...this.performanceMetrics };
+  }
+
+  /**
+   * Preload frequently used data into cache
+   */
+  preloadCache(): void {
+    // Preload common suggestions
+    const commonQueries = ['@datum', '@mieter', '@wohnung', '@haus', '@vermieter'];
+    
+    for (const query of commonQueries) {
+      this.generateSuggestions(query, 10);
+    }
+
+    // Preload category data
+    for (const category of this.categoryIndex.keys()) {
+      templateCacheManager.placeholderCache.set(
+        `category:${category}`, 
+        this.categoryIndex.get(category), 
+        60 * 60 * 1000 // 1 hour
+      );
+    }
   }
   
   /**

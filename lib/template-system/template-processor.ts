@@ -1,6 +1,6 @@
 /**
- * Template Processor for Context Resolution
- * Handles replacing placeholders with actual data from context entities
+ * Optimized Template Processor for Context Resolution
+ * Handles replacing placeholders with actual data from context entities with caching
  */
 
 import type { 
@@ -12,23 +12,36 @@ import type { Tenant } from '@/types/Tenant';
 import type { Apartment } from '@/components/apartment-table';
 import type { House } from '@/components/house-table';
 import { PLACEHOLDER_DEFINITIONS } from './placeholder-definitions';
+import { templateCacheManager } from './cache-manager';
 
 /**
- * Template Processor Class
- * Main class for processing templates with context data
+ * Optimized Template Processor Class
+ * Main class for processing templates with context data with caching and performance optimizations
  */
 export class TemplateProcessor {
   private placeholderMap: Map<string, PlaceholderDefinition>;
+  private placeholderRegex: RegExp;
   
   constructor(definitions: PlaceholderDefinition[] = PLACEHOLDER_DEFINITIONS) {
     this.placeholderMap = new Map(definitions.map(def => [def.key, def]));
+    this.placeholderRegex = /@[a-zA-Z][a-zA-Z0-9._]*\b/g;
   }
   
   /**
-   * Process template content by replacing placeholders with actual data
+   * Process template content by replacing placeholders with actual data (with caching)
    */
   processTemplate(content: string, context: TemplateContext): TemplateProcessingResult {
     try {
+      // Generate context hash for caching
+      const contextHash = this.generateContextHash(context);
+      const cacheKey = templateCacheManager.generateTemplateKey(content, contextHash);
+      
+      // Check cache first
+      const cached = templateCacheManager.templateCache.get(cacheKey);
+      if (cached) {
+        return JSON.parse(cached);
+      }
+
       const placeholders = this.extractPlaceholders(content);
       const unresolvedPlaceholders: string[] = [];
       let processedContent = content;
@@ -36,9 +49,9 @@ export class TemplateProcessor {
       // Sort placeholders by length (longest first) to avoid partial replacements
       const sortedPlaceholders = placeholders.sort((a, b) => b.length - a.length);
       
-      // Process each placeholder
+      // Process each placeholder with caching
       for (const placeholder of sortedPlaceholders) {
-        const resolvedValue = this.resolvePlaceholder(placeholder, context);
+        const resolvedValue = this.resolvePlaceholderCached(placeholder, context);
         
         if (resolvedValue !== null) {
           // Replace all occurrences of this placeholder
@@ -55,11 +68,16 @@ export class TemplateProcessor {
         }
       }
       
-      return {
+      const result: TemplateProcessingResult = {
         processedContent,
         unresolvedPlaceholders,
         success: true
       };
+
+      // Cache the result
+      templateCacheManager.templateCache.set(cacheKey, JSON.stringify(result));
+      
+      return result;
     } catch (error) {
       return {
         processedContent: content,
@@ -71,12 +89,66 @@ export class TemplateProcessor {
   }
   
   /**
-   * Extract all placeholders from template content
+   * Extract all placeholders from template content (optimized)
    */
   private extractPlaceholders(content: string): string[] {
-    const placeholderRegex = /@[a-zA-Z][a-zA-Z0-9._]*\b/g;
-    const matches = content.match(placeholderRegex) || [];
+    // Reset regex state
+    this.placeholderRegex.lastIndex = 0;
+    const matches = content.match(this.placeholderRegex) || [];
     return [...new Set(matches)]; // Remove duplicates
+  }
+
+  /**
+   * Resolve placeholder with caching
+   */
+  private resolvePlaceholderCached(placeholder: string, context: TemplateContext): string | null {
+    // Generate cache key for this specific placeholder + context combination
+    const contextKey = this.generatePlaceholderContextKey(placeholder, context);
+    const cached = templateCacheManager.entityCache.get(contextKey);
+    
+    if (cached !== null) {
+      return cached;
+    }
+
+    const resolved = this.resolvePlaceholder(placeholder, context);
+    
+    // Cache the resolved value (including null results)
+    templateCacheManager.entityCache.set(contextKey, resolved);
+    
+    return resolved;
+  }
+
+  /**
+   * Generate context hash for caching
+   */
+  private generateContextHash(context: TemplateContext): string {
+    const hashParts: string[] = [];
+    
+    if (context.mieter) {
+      hashParts.push(`m:${context.mieter.id}`);
+    }
+    if (context.wohnung) {
+      hashParts.push(`w:${context.wohnung.id}`);
+    }
+    if (context.haus) {
+      hashParts.push(`h:${context.haus.id}`);
+    }
+    if (context.vermieter) {
+      hashParts.push(`v:${context.vermieter.id}`);
+    }
+    if (context.datum) {
+      hashParts.push(`d:${context.datum.getTime()}`);
+    }
+    
+    return hashParts.join('|');
+  }
+
+  /**
+   * Generate cache key for placeholder + context combination
+   */
+  private generatePlaceholderContextKey(placeholder: string, context: TemplateContext): string {
+    const contextHash = this.generateContextHash(context);
+    return `placeholder:${placeholder}:${contextHash}`;
   }
   
   /**

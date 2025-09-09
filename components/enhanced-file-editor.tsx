@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
-import { FileText, Save, Eye, Edit3, Loader2, Download, Copy, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react"
+import { FileText, Save, Eye, Edit3, Loader2, Download, Copy, RefreshCw, AlertTriangle, CheckCircle, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { useDebounce } from "@/hooks/use-debounce"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -19,8 +20,10 @@ import {
   placeholderEngine, 
   type PlaceholderDefinition, 
   type AutocompleteSuggestion,
-  type ValidationError 
+  type ValidationError,
+  type PerformanceMetrics
 } from "@/lib/template-system/placeholder-engine"
+import { templateCacheManager } from "@/lib/template-system/cache-manager"
 
 interface EnhancedFileEditorProps {
   isOpen: boolean
@@ -60,6 +63,11 @@ export function EnhancedFileEditor({
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit")
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([])
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
+    suggestionTime: 0,
+    validationTime: 0,
+    cacheHitRate: 0
+  })
   
   // Autocomplete state
   const [autocomplete, setAutocomplete] = useState<AutocompleteState>({
@@ -70,8 +78,12 @@ export function EnhancedFileEditor({
     query: ""
   })
   
+  // Debounced content for performance optimization
+  const debouncedContent = useDebounce(content, 300)
+  
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const autocompleteRef = useRef<HTMLDivElement>(null)
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout>()
   const { toast } = useToast()
 
   // Initialize placeholder engine with custom definitions if provided
@@ -94,16 +106,29 @@ export function EnhancedFileEditor({
     }
   }, [isOpen, filePath, fileName, isNewFile, initialContent])
 
-  // Track content changes and validate placeholders
+  // Track content changes and validate placeholders (debounced for performance)
   useEffect(() => {
     setIsDirty(content !== initialContent)
-    
-    // Validate placeholders if autocomplete is enabled
-    if (enableAutocomplete) {
-      const errors = engine.validatePlaceholders(content)
+  }, [content, initialContent])
+
+  // Debounced validation for better performance
+  useEffect(() => {
+    if (enableAutocomplete && debouncedContent) {
+      const startTime = performance.now()
+      const errors = engine.validatePlaceholders(debouncedContent)
+      const metrics = engine.getPerformanceMetrics()
+      
       setValidationErrors(errors)
+      setPerformanceMetrics(metrics)
     }
-  }, [content, initialContent, enableAutocomplete, engine])
+  }, [debouncedContent, enableAutocomplete, engine])
+
+  // Preload cache when component mounts
+  useEffect(() => {
+    if (enableAutocomplete && isOpen) {
+      engine.preloadCache()
+    }
+  }, [enableAutocomplete, isOpen, engine])
 
   // Handle autocomplete visibility and positioning
   useEffect(() => {
@@ -277,41 +302,62 @@ export function EnhancedFileEditor({
     }
   }
 
-  // Handle autocomplete logic
-  const handleAutocomplete = (text: string, cursorPosition: number) => {
-    const textBeforeCursor = text.substring(0, cursorPosition)
-    const atIndex = textBeforeCursor.lastIndexOf('@')
-    
-    if (atIndex === -1) {
-      // No @ found, hide autocomplete
-      setAutocomplete(prev => ({ ...prev, isVisible: false }))
-      return
+  // Handle autocomplete logic with debouncing
+  const handleAutocomplete = useCallback((text: string, cursorPosition: number) => {
+    // Clear existing timeout
+    if (autocompleteTimeoutRef.current) {
+      clearTimeout(autocompleteTimeoutRef.current)
     }
-    
-    // Check if there's a space between @ and cursor (which would break the placeholder)
-    const textAfterAt = textBeforeCursor.substring(atIndex)
-    if (textAfterAt.includes(' ') && textAfterAt.length > 1) {
-      setAutocomplete(prev => ({ ...prev, isVisible: false }))
-      return
-    }
-    
-    // Extract the query after @
-    const query = textAfterAt
-    
-    if (query.length > 0) {
-      const suggestions = engine.generateSuggestions(query, 10)
+
+    // Debounce autocomplete for 300ms
+    autocompleteTimeoutRef.current = setTimeout(() => {
+      const textBeforeCursor = text.substring(0, cursorPosition)
+      const atIndex = textBeforeCursor.lastIndexOf('@')
       
-      setAutocomplete({
-        isVisible: suggestions.length > 0,
-        suggestions,
-        selectedIndex: 0,
-        triggerPosition: atIndex,
-        query
-      })
-    } else {
-      setAutocomplete(prev => ({ ...prev, isVisible: false }))
+      if (atIndex === -1) {
+        // No @ found, hide autocomplete
+        setAutocomplete(prev => ({ ...prev, isVisible: false }))
+        return
+      }
+      
+      // Check if there's a space between @ and cursor (which would break the placeholder)
+      const textAfterAt = textBeforeCursor.substring(atIndex)
+      if (textAfterAt.includes(' ') && textAfterAt.length > 1) {
+        setAutocomplete(prev => ({ ...prev, isVisible: false }))
+        return
+      }
+      
+      // Extract the query after @
+      const query = textAfterAt
+      
+      if (query.length > 0) {
+        const startTime = performance.now()
+        const suggestions = engine.generateSuggestions(query, 10)
+        const metrics = engine.getPerformanceMetrics()
+        
+        setAutocomplete({
+          isVisible: suggestions.length > 0,
+          suggestions,
+          selectedIndex: 0,
+          triggerPosition: atIndex,
+          query
+        })
+        
+        setPerformanceMetrics(metrics)
+      } else {
+        setAutocomplete(prev => ({ ...prev, isVisible: false }))
+      }
+    }, 300) // 300ms debounce delay
+  }, [engine])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autocompleteTimeoutRef.current) {
+        clearTimeout(autocompleteTimeoutRef.current)
+      }
     }
-  }
+  }, [])
 
   // Handle autocomplete selection
   const insertSuggestion = (suggestion: AutocompleteSuggestion) => {
@@ -542,6 +588,12 @@ export function EnhancedFileEditor({
                   Template Editor
                 </Badge>
               )}
+              {enableAutocomplete && performanceMetrics.cacheHitRate > 0 && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Cache: {Math.round(performanceMetrics.cacheHitRate * 100)}%
+                </Badge>
+              )}
             </DialogTitle>
             <div className="flex items-center gap-2 mr-8">
               {!isNewFile && (
@@ -719,6 +771,11 @@ export function EnhancedFileEditor({
                 <span className="ml-2 text-green-600 flex items-center gap-1">
                   <CheckCircle className="h-3 w-3" />
                   Platzhalter validiert
+                </span>
+              )}
+              {enableAutocomplete && performanceMetrics.suggestionTime > 0 && (
+                <span className="ml-2 text-blue-600">
+                  • Autocomplete: {performanceMetrics.suggestionTime.toFixed(1)}ms
                 </span>
               )}
             </span>
