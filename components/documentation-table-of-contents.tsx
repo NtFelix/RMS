@@ -81,7 +81,11 @@ export function DocumentationTableOfContents({
     return Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [categories, articles, expandedCategories, selectedCategory]);
 
-  const toggleCategory = (categoryName: string) => {
+  const toggleCategory = (categoryName: string, event: React.MouseEvent) => {
+    // Prevent all event propagation and default behavior
+    event.preventDefault();
+    event.stopPropagation();
+    
     const newExpanded = new Set(expandedCategories);
     if (newExpanded.has(categoryName)) {
       newExpanded.delete(categoryName);
@@ -90,22 +94,28 @@ export function DocumentationTableOfContents({
     }
     setExpandedCategories(newExpanded);
     
-    // Only select the category if it's being expanded and not already selected
-    if (!expandedCategories.has(categoryName) && selectedCategory !== categoryName) {
+    // NEVER trigger category selection when just toggling
+  };
+
+  const handleCategorySelect = (categoryName: string, event: React.MouseEvent) => {
+    // Prevent all event propagation and default behavior
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Only select the category if it's different from current
+    if (selectedCategory !== categoryName) {
+      // Expand the category if not already expanded
+      if (!expandedCategories.has(categoryName)) {
+        setExpandedCategories(prev => new Set([...prev, categoryName]));
+      }
       onCategorySelect(categoryName);
     }
   };
 
-  const handleCategorySelect = (categoryName: string) => {
-    // Expand the category if not already expanded
-    if (!expandedCategories.has(categoryName)) {
-      setExpandedCategories(prev => new Set([...prev, categoryName]));
-    }
-    // Select the category
-    onCategorySelect(categoryName);
-  };
-
-  const handleArticleClick = (article: Article) => {
+  const handleArticleClick = (article: Article, event: React.MouseEvent) => {
+    // Prevent all event propagation and default behavior
+    event.preventDefault();
+    event.stopPropagation();
     onArticleSelect(article);
   };
 
@@ -133,68 +143,76 @@ export function DocumentationTableOfContents({
   }
 
   return (
-    <Card className={`shadow-lg border-0 bg-card/50 backdrop-blur-sm ${className}`}>
+    <Card className={`shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden ${className}`}>
       <CardHeader className="pb-4">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <FolderOpen className="h-5 w-5" />
           Inhaltsverzeichnis
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-1">
+      <CardContent className="pt-0 overflow-hidden">
+        <div className="space-y-1 overflow-hidden">
           {/* All Articles Button */}
           <Button
             variant={selectedCategory === null ? "default" : "ghost"}
-            onClick={() => onCategorySelect(null)}
-            className="w-full justify-start h-auto p-3 text-left"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onCategorySelect(null);
+            }}
+            className="w-full justify-start h-8 p-2 text-left hover:bg-muted/50 transition-colors duration-200 overflow-hidden"
           >
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <FileText className="h-4 w-4 flex-shrink-0" />
-              <span className="text-sm font-medium">Alle Artikel</span>
+            <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
+              <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="text-sm font-medium truncate">Alle Artikel</span>
+              </div>
+              <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
+                {articles.length}
+              </Badge>
             </div>
-            <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
-              {articles.length}
-            </Badge>
           </Button>
 
           {/* Categories with Articles */}
           {categoriesWithArticles.map((category) => (
             <div key={category.name} className="space-y-1">
               {/* Category Header */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center w-full overflow-hidden">
                 {/* Expand/Collapse Button */}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => toggleCategory(category.name)}
-                  className="p-1 h-8 w-8 hover:bg-muted/50 transition-colors duration-200"
+                  onClick={(e) => toggleCategory(category.name, e)}
+                  className="p-1.5 h-8 w-8 hover:bg-muted/50 transition-colors duration-200 flex-shrink-0"
                 >
                   <motion.div
                     animate={{ rotate: category.isExpanded ? 90 : 0 }}
                     transition={{ duration: 0.2, ease: "easeInOut" }}
                   >
-                    <ChevronRight className="h-4 w-4" />
+                    <ChevronRight className="h-3 w-3" />
                   </motion.div>
                 </Button>
                 
                 {/* Category Selection Button */}
                 <Button
                   variant={selectedCategory === category.name ? "secondary" : "ghost"}
-                  onClick={() => handleCategorySelect(category.name)}
-                  className="flex-1 justify-start h-auto p-2 text-left hover:bg-muted/50 transition-colors duration-200"
+                  onClick={(e) => handleCategorySelect(category.name, e)}
+                  className="flex-1 justify-start h-8 p-2 text-left hover:bg-muted/50 transition-colors duration-200 min-w-0 overflow-hidden"
                 >
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <Folder className="h-4 w-4 flex-shrink-0" />
-                    <span 
-                      className="text-sm font-medium truncate"
-                      title={category.name}
-                    >
-                      {category.name}
-                    </span>
+                  <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
+                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+                      <Folder className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span 
+                        className="text-sm font-medium truncate"
+                        title={category.name}
+                      >
+                        {category.name}
+                      </span>
+                    </div>
+                    <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
+                      {category.articles.length}
+                    </Badge>
                   </div>
-                  <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
-                    {category.articles.length}
-                  </Badge>
                 </Button>
               </div>
 
@@ -226,10 +244,10 @@ export function DocumentationTableOfContents({
                         >
                           <Button
                             variant={selectedArticle?.id === article.id ? "default" : "ghost"}
-                            onClick={() => handleArticleClick(article)}
-                            className="w-full justify-start h-auto p-2 text-left text-xs hover:bg-muted/30 transition-colors duration-150"
+                            onClick={(e) => handleArticleClick(article, e)}
+                            className="w-full justify-start h-7 p-2 text-left text-xs hover:bg-muted/30 transition-colors duration-150 overflow-hidden"
                           >
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                               <FileText className="h-3 w-3 flex-shrink-0 opacity-60" />
                               <span 
                                 className="truncate"
