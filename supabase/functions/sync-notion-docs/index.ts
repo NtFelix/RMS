@@ -421,7 +421,7 @@ serve(async (req) => {
 
             const errorMsg = `Missing required environment variables: ${missingVars.join(', ')}`;
             console.error(errorMsg);
-            
+
             return new Response(
                 JSON.stringify({
                     success: false,

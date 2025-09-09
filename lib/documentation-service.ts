@@ -15,11 +15,19 @@ import type {
  * Service class for documentation operations
  */
 export class DocumentationService {
-  private queryBuilder: ReturnType<typeof createDocumentationQueryBuilder>;
+  private queryBuilder: ReturnType<typeof createDocumentationQueryBuilder> | null = null;
+  private isServer: boolean;
 
   constructor(isServer = false) {
-    const client = isServer ? getDocumentationServerClient() : getDocumentationClient();
-    this.queryBuilder = createDocumentationQueryBuilder(client);
+    this.isServer = isServer;
+  }
+
+  private async getQueryBuilder() {
+    if (!this.queryBuilder) {
+      const client = this.isServer ? await getDocumentationServerClient() : getDocumentationClient();
+      this.queryBuilder = createDocumentationQueryBuilder(client);
+    }
+    return this.queryBuilder;
   }
 
   /**
@@ -27,7 +35,8 @@ export class DocumentationService {
    */
   async getCategories(): Promise<Category[]> {
     try {
-      const { data, error } = await this.queryBuilder.getCategories();
+      const queryBuilder = await this.getQueryBuilder();
+      const { data, error } = await queryBuilder.getCategories();
       
       if (error) {
         throw new Error(`Failed to fetch categories: ${error.message}`);
@@ -61,7 +70,8 @@ export class DocumentationService {
    */
   async getArticlesByCategory(kategorie: string): Promise<Article[]> {
     try {
-      const { data, error } = await this.queryBuilder.getByCategory(kategorie);
+      const queryBuilder = await this.getQueryBuilder();
+      const { data, error } = await queryBuilder.getByCategory(kategorie);
       
       if (error) {
         throw new Error(`Failed to fetch articles for category ${kategorie}: ${error.message}`);
@@ -83,8 +93,9 @@ export class DocumentationService {
     }
 
     try {
+      const queryBuilder = await this.getQueryBuilder();
       // Use the custom search function for better ranking
-      const { data, error } = await this.queryBuilder.searchWithRanking(query.trim());
+      const { data, error } = await queryBuilder.searchWithRanking(query.trim());
       
       if (error) {
         throw new Error(`Failed to search articles: ${error.message}`);
@@ -111,7 +122,8 @@ export class DocumentationService {
    */
   async getArticleById(id: string): Promise<Article | null> {
     try {
-      const { data, error } = await this.queryBuilder.getById(id);
+      const queryBuilder = await this.getQueryBuilder();
+      const { data, error } = await queryBuilder.getById(id);
       
       if (error) {
         throw new Error(`Failed to fetch article ${id}: ${error.message}`);
@@ -129,11 +141,12 @@ export class DocumentationService {
    */
   async getAllArticles(filters: DocumentationFilters = {}): Promise<Article[]> {
     try {
-      let query = this.queryBuilder.getAll();
+      const queryBuilder = await this.getQueryBuilder();
+      let query = queryBuilder.getAll();
 
       // Apply category filter
       if (filters.kategorie) {
-        query = this.queryBuilder.getByCategory(filters.kategorie);
+        query = queryBuilder.getByCategory(filters.kategorie);
       }
 
       const { data, error } = await query;
@@ -208,7 +221,8 @@ export class DocumentationService {
    */
   private async fallbackSearch(query: string): Promise<SearchResult[]> {
     try {
-      const { data, error } = await this.queryBuilder.search(query);
+      const queryBuilder = await this.getQueryBuilder();
+      const { data, error } = await queryBuilder.search(query);
       
       if (error) {
         throw error;

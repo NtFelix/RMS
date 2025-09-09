@@ -1,5 +1,5 @@
 import { createClient } from '@/utils/supabase/client';
-import { createServerClient } from '@/utils/supabase/server';
+import { createClient as createServerClient } from '@/utils/supabase/server';
 import type { DokumentationRecord } from '@/types/documentation';
 
 /**
@@ -12,8 +12,8 @@ export function getDocumentationClient() {
 /**
  * Server-side Supabase client for documentation queries
  */
-export function getDocumentationServerClient() {
-  return createServerClient();
+export async function getDocumentationServerClient() {
+  return await createServerClient();
 }
 
 /**
