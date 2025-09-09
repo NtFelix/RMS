@@ -82,6 +82,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const activeFlags = useActiveFeatureFlags()
   const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
 
+  // Theme labels for toast messages
+  const themeLabels = {
+    light: 'Heller Modus',
+    dark: 'Dunkler Modus',
+    system: 'System-Modus'
+  };
+
   type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
   interface EarlyAccessFeature {
     flagKey: string
@@ -703,11 +710,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     value={theme}
                     onValueChange={(value) => {
                       setTheme(value);
-                      const themeLabels = {
-                        light: 'Heller Modus',
-                        dark: 'Dunkler Modus',
-                        system: 'System-Modus'
-                      };
                       toast({
                         title: "Design geändert",
                         description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
