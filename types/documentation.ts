@@ -18,9 +18,9 @@ export interface Category {
 export interface Article {
   id: string;
   titel: string;
-  kategorie: string;
-  seiteninhalt: string;
-  meta: Record<string, any>;
+  kategorie: string | null;
+  seiteninhalt: string | null;
+  meta: Record<string, any> | null;
 }
 
 export interface SearchResult extends Article {

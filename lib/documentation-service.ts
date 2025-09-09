@@ -102,7 +102,13 @@ export class DocumentationService {
         throw new Error(`Failed to search articles: ${error.message}`);
       }
 
-      return (data || []).map(record => ({
+      // Ensure data is an array before mapping
+      if (!Array.isArray(data)) {
+        console.error('Search returned non-array data:', data);
+        return [];
+      }
+
+      return data.map(record => ({
         ...this.transformRecordToArticle(record),
         relevanceScore: record.relevance_score,
         highlightedTitle: this.highlightText(record.titel, query),
@@ -130,7 +136,13 @@ export class DocumentationService {
         throw new Error(`Failed to fetch article ${id}: ${error.message}`);
       }
 
-      return data ? this.transformRecordToArticle(data) : null;
+      // Ensure data is a valid record before transforming
+      if (!data || typeof data !== 'object' || 'Error' in data) {
+        console.error('Article not found or invalid data:', data);
+        return null;
+      }
+
+      return this.transformRecordToArticle(data);
     } catch (error) {
       console.error(`Error fetching article ${id}:`, error);
       throw error;
@@ -170,7 +182,7 @@ export class DocumentationService {
           // Fallback to basic text filtering
           articles = articles.filter(article => 
             article.titel.toLowerCase().includes(filters.searchQuery!.toLowerCase()) ||
-            article.seiteninhalt.toLowerCase().includes(filters.searchQuery!.toLowerCase())
+            (article.seiteninhalt && article.seiteninhalt.toLowerCase().includes(filters.searchQuery!.toLowerCase()))
           );
         }
       }
