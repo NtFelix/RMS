@@ -3,15 +3,15 @@ import { createClient } from '@/utils/supabase/server';
 import ArticlePageClient from './article-page-client';
 
 interface ArticlePageProps {
-  params: { articleId: string };
+  params: Promise<{ articleId: string }>;
 }
 
 // Generate dynamic metadata for SEO and social sharing
 export async function generateMetadata({ params }: ArticlePageProps): Promise<Metadata> {
-  const { articleId } = params;
+  const { articleId } = await params;
   
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data: article } = await supabase
       .from('Dokumentation')
       .select('id, titel, kategorie, seiteninhalt, meta')
@@ -78,138 +78,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
   }
 }
 
-export default function ArticlePage({ params }: ArticlePageProps) {
-  return <ArticlePageClient articleId={params.articleId} />;
-}
-
-interface ArticlePageState {
-  article: Article | null;
-  isLoading: boolean;
-  error: string | null;
-}
-
-export default function ArticlePage() {
-  const router = useRouter();
-  const params = useParams();
-  const { toast } = useToast();
-  const articleId = params.articleId as string;
-
-  const [state, setState] = useState<ArticlePageState>({
-    article: null,
-    isLoading: true,
-    error: null,
-  });
-
-  useEffect(() => {
-    if (articleId) {
-      loadArticle(articleId);
-    }
-  }, [articleId]);
-
-  const loadArticle = async (id: string) => {
-    try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-      
-      const response = await fetch(`/api/documentation/${id}`);
-      
-      if (response.status === 404) {
-        setState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: 'Artikel nicht gefunden' 
-        }));
-        return;
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Failed to load article: ${response.statusText}`);
-      }
-      
-      const article = await response.json();
-      setState(prev => ({ ...prev, article, isLoading: false }));
-    } catch (error) {
-      console.error('Error loading article:', error);
-      setState(prev => ({ 
-        ...prev, 
-        isLoading: false, 
-        error: 'Fehler beim Laden des Artikels' 
-      }));
-      toast({
-        title: 'Fehler',
-        description: 'Artikel konnte nicht geladen werden.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleBackToDocumentation = () => {
-    router.push('/documentation');
-  };
-
-  if (state.isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Navigation Skeleton */}
-        <div className="mb-6">
-          <Skeleton className="h-10 w-48" />
-        </div>
-
-        {/* Article Content Skeleton */}
-        <Card>
-          <div className="p-6 space-y-4">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-6 w-32" />
-            <div className="space-y-2 pt-4">
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-4 w-2/3" />
-            </div>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  if (state.error || !state.article) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Navigation */}
-        <div className="mb-6">
-          <Button 
-            variant="ghost" 
-            onClick={handleBackToDocumentation}
-            className="gap-2 px-0 hover:bg-transparent"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Zurück zur Dokumentation
-          </Button>
-        </div>
-
-        {/* Error Display */}
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {state.error || 'Artikel konnte nicht gefunden werden.'}
-          </AlertDescription>
-        </Alert>
-
-        <div className="mt-6 text-center">
-          <Button onClick={handleBackToDocumentation}>
-            Zur Dokumentation zurückkehren
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <DocumentationArticleViewer
-        article={state.article}
-        onBack={handleBackToDocumentation}
-      />
-    </div>
-  );
+export default async function ArticlePage({ params }: ArticlePageProps) {
+  const { articleId } = await params;
+  return <ArticlePageClient articleId={articleId} />;
 }

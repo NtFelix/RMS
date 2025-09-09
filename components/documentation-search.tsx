@@ -57,10 +57,10 @@ export function DocumentationSearch({
   }, [onRetry]);
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <div className="relative">
-        <Search className={`absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground ${
-          isLoading ? 'animate-pulse' : ''
+    <div className={`space-y-3 ${className}`}>
+      <div className="relative group">
+        <Search className={`absolute left-6 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground transition-colors ${
+          isLoading ? 'animate-pulse' : 'group-focus-within:text-primary'
         }`} />
         <Input
           ref={inputRef}
@@ -69,7 +69,7 @@ export function DocumentationSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="pl-10 pr-10"
+          className="h-16 pl-16 pr-16 text-lg rounded-2xl border-2 border-border/50 bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-background placeholder:text-muted-foreground/70"
           disabled={isLoading}
           aria-label="Dokumentation durchsuchen"
           aria-describedby={error ? "search-error" : undefined}
@@ -79,13 +79,16 @@ export function DocumentationSearch({
             variant="ghost"
             size="sm"
             onClick={handleClear}
-            className="absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 p-0 hover:bg-muted"
+            className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 p-0 hover:bg-muted/80 rounded-xl transition-colors"
             disabled={isLoading}
             aria-label="Suche löschen"
           >
-            <X className="h-3 w-3" />
+            <X className="h-5 w-5" />
           </Button>
         )}
+        
+        {/* Subtle glow effect */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-primary/10 via-transparent to-primary/10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
 
       {/* Error display */}
@@ -110,8 +113,35 @@ export function DocumentationSearch({
 
       {/* Search tips */}
       {query.length > 0 && query.length < 3 && !isLoading && (
-        <div className="text-sm text-muted-foreground">
+        <div className="text-center text-sm text-muted-foreground bg-muted/30 rounded-lg py-2 px-4">
           Geben Sie mindestens 3 Zeichen ein für bessere Suchergebnisse.
+        </div>
+      )}
+      
+      {/* Search suggestions when empty */}
+      {query.length === 0 && !isLoading && (
+        <div className="text-center text-sm text-muted-foreground">
+          <div className="flex flex-wrap justify-center gap-2 mt-2">
+            <span className="text-xs">Beliebte Suchbegriffe:</span>
+            <button 
+              onClick={() => setQuery('Mieter')}
+              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+            >
+              Mieter
+            </button>
+            <button 
+              onClick={() => setQuery('Betriebskosten')}
+              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+            >
+              Betriebskosten
+            </button>
+            <button 
+              onClick={() => setQuery('Wohnung')}
+              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+            >
+              Wohnung
+            </button>
+          </div>
         </div>
       )}
     </div>

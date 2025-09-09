@@ -237,88 +237,121 @@ function DocumentationContent() {
 
   if (state.selectedArticle) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <DocumentationArticleViewer
-          article={state.selectedArticle}
-          onBack={handleBackToList}
-          selectedCategory={state.selectedCategory}
-          searchQuery={state.searchQuery}
-        />
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+        <div className="container mx-auto px-4 py-8 max-w-5xl">
+          <DocumentationArticleViewer
+            article={state.selectedArticle}
+            onBack={handleBackToList}
+            selectedCategory={state.selectedCategory}
+            searchQuery={state.searchQuery}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <div className="flex items-center justify-center gap-3 mb-4">
-          <BookOpen className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Dokumentation</h1>
-        </div>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
-          Finden Sie Antworten auf Ihre Fragen und lernen Sie, wie Sie Mietfluss optimal nutzen können.
-        </p>
-      </div>
-
-      {/* Search */}
-      <div className="mb-8 max-w-2xl mx-auto">
-        <DocumentationSearch
-          onSearch={handleSearch}
-          placeholder="Dokumentation durchsuchen..."
-        />
-      </div>
-
-      {/* Error Display */}
-      {state.error && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{state.error}</AlertDescription>
-        </Alert>
-      )}
-
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Sidebar - Categories */}
-        <div className="lg:col-span-1">
-          <Card className="sticky top-24">
-            <CardHeader>
-              <CardTitle className="text-lg">Navigation</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DocumentationCategories
-                categories={state.categories}
-                selectedCategory={state.selectedCategory}
-                onCategorySelect={handleCategorySelect}
-                isLoading={state.isLoadingCategories}
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto px-4 py-12">
+        {/* Hero Section with Large Search */}
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <BookOpen className="h-12 w-12 text-primary" />
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+              Dokumentation
+            </h1>
+          </div>
+          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-12 leading-relaxed">
+            Finden Sie Antworten auf Ihre Fragen und lernen Sie, wie Sie Mietfluss optimal nutzen können.
+          </p>
+          
+          {/* Large Prominent Search Bar */}
+          <div className="max-w-4xl mx-auto mb-8">
+            <div className="relative">
+              <DocumentationSearch
+                onSearch={handleSearch}
+                placeholder="Durchsuchen Sie die gesamte Dokumentation..."
               />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          {/* Quick Stats */}
+          <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span>{state.articles.length} Artikel verfügbar</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span>{state.categories.length} Kategorien</span>
+            </div>
+          </div>
         </div>
 
-        {/* Main Content - Articles */}
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {state.searchQuery ? (
-                  `Suchergebnisse für "${state.searchQuery}"`
-                ) : state.selectedCategory ? (
-                  `Artikel in "${state.selectedCategory}"`
-                ) : (
-                  'Alle Artikel'
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <DocumentationArticleList
-                articles={state.articles}
-                searchQuery={state.searchQuery}
-                onArticleSelect={handleArticleSelect}
-                isLoading={state.isLoadingArticles}
-              />
-            </CardContent>
-          </Card>
+        {/* Error Display */}
+        {state.error && (
+          <Alert variant="destructive" className="mb-8 max-w-4xl mx-auto">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{state.error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
+          {/* Sidebar - Categories */}
+          <div className="lg:col-span-1">
+            <Card className="sticky top-24 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg font-semibold">Navigation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DocumentationCategories
+                  categories={state.categories}
+                  selectedCategory={state.selectedCategory}
+                  onCategorySelect={handleCategorySelect}
+                  isLoading={state.isLoadingCategories}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Main Content - Articles */}
+          <div className="lg:col-span-4">
+            <Card className="shadow-lg border-0 bg-card/50 backdrop-blur-sm">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl font-semibold">
+                    {state.searchQuery ? (
+                      <>
+                        Suchergebnisse für{' '}
+                        <span className="text-primary">"{state.searchQuery}"</span>
+                      </>
+                    ) : state.selectedCategory ? (
+                      <>
+                        Artikel in{' '}
+                        <span className="text-primary">"{state.selectedCategory}"</span>
+                      </>
+                    ) : (
+                      'Alle Artikel'
+                    )}
+                  </CardTitle>
+                  {state.articles.length > 0 && (
+                    <div className="text-sm text-muted-foreground">
+                      {state.articles.length} {state.articles.length === 1 ? 'Artikel' : 'Artikel'}
+                    </div>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <DocumentationArticleList
+                  articles={state.articles}
+                  searchQuery={state.searchQuery}
+                  onArticleSelect={handleArticleSelect}
+                  isLoading={state.isLoadingArticles}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>
@@ -328,54 +361,68 @@ function DocumentationContent() {
 // Loading component for Suspense
 function DocumentationLoading() {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8 text-center">
-        <Skeleton className="h-8 w-64 mx-auto mb-4" />
-        <Skeleton className="h-4 w-96 mx-auto" />
-      </div>
-      
-      <div className="mb-8 max-w-2xl mx-auto">
-        <Skeleton className="h-10 w-full" />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      <div className="container mx-auto px-4 py-12">
+        {/* Hero Section Loading */}
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-4 mb-6">
+            <Skeleton className="h-12 w-12 rounded-lg" />
+            <Skeleton className="h-12 w-64" />
+          </div>
+          <Skeleton className="h-6 w-96 mx-auto mb-12" />
+          
+          {/* Large Search Bar Loading */}
+          <div className="max-w-4xl mx-auto mb-8">
+            <Skeleton className="h-16 w-full rounded-2xl" />
+          </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-24" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Quick Stats Loading */}
+          <div className="flex items-center justify-center gap-8">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-24" />
+          </div>
         </div>
-        
-        <div className="lg:col-span-3">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-48" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Card key={i}>
-                    <CardHeader>
-                      <Skeleton className="h-6 w-3/4" />
-                      <Skeleton className="h-4 w-20" />
-                    </CardHeader>
-                    <CardContent>
-                      <Skeleton className="h-4 w-full mb-2" />
-                      <Skeleton className="h-4 w-2/3" />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+
+        {/* Main Content Loading */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
+          <div className="lg:col-span-1">
+            <Card className="shadow-lg border-0 bg-card/50">
+              <CardHeader>
+                <Skeleton className="h-6 w-24" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="lg:col-span-4">
+            <Card className="shadow-lg border-0 bg-card/50">
+              <CardHeader>
+                <Skeleton className="h-7 w-48" />
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-6">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <Card key={i} className="border-0 bg-muted/30">
+                      <CardHeader>
+                        <Skeleton className="h-6 w-3/4" />
+                        <Skeleton className="h-4 w-20" />
+                      </CardHeader>
+                      <CardContent>
+                        <Skeleton className="h-4 w-full mb-2" />
+                        <Skeleton className="h-4 w-2/3" />
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

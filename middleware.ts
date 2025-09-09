@@ -22,6 +22,8 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = [
     '/',
     '/landing',
+    '/documentation',
+    '/documentation/.*', // Allow all sub-routes under documentation
     '/modern/documentation',
     '/modern/documentation/.*', // Allow all sub-routes under documentation
     '/auth/.*', // Allow all auth routes
