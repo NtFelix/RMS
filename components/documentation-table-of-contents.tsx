@@ -57,7 +57,7 @@ export function DocumentationTableOfContents({
       categoryMap.set(category.name, {
         ...category,
         articles: [],
-        isExpanded: expandedCategories.has(category.name) || selectedCategory === category.name
+        isExpanded: expandedCategories.has(category.name)
       });
     });
 
@@ -73,13 +73,13 @@ export function DocumentationTableOfContents({
           name: categoryName,
           articleCount: 1,
           articles: [article],
-          isExpanded: expandedCategories.has(categoryName) || selectedCategory === categoryName
+          isExpanded: expandedCategories.has(categoryName)
         });
       }
     });
 
     return Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, articles, expandedCategories, selectedCategory]);
+  }, [categories, articles, expandedCategories]);
 
   const toggleCategory = (categoryName: string, event: React.MouseEvent) => {
     // Prevent all event propagation and default behavior
