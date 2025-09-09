@@ -300,11 +300,11 @@ function DocumentationContent() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
           {/* Sidebar - Categories */}
           <div className="lg:col-span-1">
-            <Card className="sticky top-24 shadow-lg border-0 bg-card/50 backdrop-blur-sm">
+            <Card className="sticky top-24 shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden">
               <CardHeader className="pb-4">
                 <CardTitle className="text-lg font-semibold">Navigation</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-hidden">
                 <DocumentationCategories
                   categories={state.categories}
                   selectedCategory={state.selectedCategory}

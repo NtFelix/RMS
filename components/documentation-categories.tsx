@@ -69,12 +69,13 @@ export function DocumentationCategories({
 
   if (isLoading) {
     return (
-      <div className={`space-y-2 ${className}`}>
-        <div className="mb-4">
-          <Skeleton className="h-6 w-32" />
+      <div className={`space-y-3 ${className} overflow-hidden`}>
+        <div className="mb-4 pb-2 border-b border-border/50">
+          <Skeleton className="h-6 w-32 mb-2" />
+          <Skeleton className="h-3 w-20" />
         </div>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-12 w-full" />
+          <Skeleton key={i} className="h-12 w-full rounded-lg" />
         ))}
       </div>
     );
@@ -92,24 +93,30 @@ export function DocumentationCategories({
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold">Kategorien</h3>
+    <div className={`space-y-3 ${className} overflow-hidden`}>
+      <div className="mb-4 pb-2 border-b border-border/50">
+        <h3 className="text-lg font-semibold text-foreground">Kategorien</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          {categories.length} {categories.length === 1 ? 'Kategorie' : 'Kategorien'}
+        </p>
       </div>
       
       {/* All Articles Button */}
       <Button
         variant={selectedCategory === null ? "default" : "ghost"}
         onClick={() => handleCategorySelect(null)}
-        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring"
+        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group"
         aria-pressed={selectedCategory === null}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
-        <div className="flex items-center gap-2">
-          <FolderOpen className="h-4 w-4" />
-          <span>Alle Artikel</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <FolderOpen className="h-4 w-4 flex-shrink-0" />
+          <span className="text-left text-sm font-medium">Alle Artikel</span>
         </div>
-        <Badge variant="secondary">
+        <Badge 
+          variant="secondary" 
+          className="ml-2 flex-shrink-0 text-xs"
+        >
           {totalArticleCount}
         </Badge>
       </Button>
@@ -120,16 +127,24 @@ export function DocumentationCategories({
           key={category.name}
           variant={selectedCategory === category.name ? "default" : "ghost"}
           onClick={() => handleCategorySelect(category.name)}
-          className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring"
+          className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group"
           disabled={category.articleCount === 0}
           aria-pressed={selectedCategory === category.name}
           aria-label={`Kategorie ${category.name || 'Ohne Kategorie'} (${category.articleCount} Artikel)`}
         >
-          <div className="flex items-center gap-2">
-            <Folder className="h-4 w-4" />
-            <span className="truncate">{category.name || 'Ohne Kategorie'}</span>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Folder className="h-4 w-4 flex-shrink-0" />
+            <span 
+              className="truncate text-left text-sm font-medium"
+              title={category.name || 'Ohne Kategorie'}
+            >
+              {category.name || 'Ohne Kategorie'}
+            </span>
           </div>
-          <Badge variant="secondary">
+          <Badge 
+            variant="secondary" 
+            className="ml-2 flex-shrink-0 text-xs"
+          >
             {category.articleCount}
           </Badge>
         </Button>
