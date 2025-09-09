@@ -1077,8 +1077,8 @@ export function AbrechnungModal({
                   <TableRow className="font-semibold bg-primary/10 border-t-2 border-border">
                     <TableCell className="py-3 px-3 text-primary">Gesamtkosten Mieter</TableCell>
                     <TableCell className="py-3 px-3 text-primary"></TableCell> {/* For Abrechnungsart */}
-                    <TableCell className="py-3 px-3 text-blue-700"></TableCell> {/* New empty cell for Preis/qm */}
-                    <TableCell className="text-right py-3 px-3 text-blue-700">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
+                    <TableCell className="py-3 px-3 text-primary"></TableCell> {/* New empty cell for Preis/qm */}
+                    <TableCell className="text-right py-3 px-3 text-primary">{formatCurrency(tenantData.totalTenantCost)}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
