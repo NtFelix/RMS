@@ -7,6 +7,7 @@ import { DocumentationCategories, Category } from '@/components/documentation-ca
 import { DocumentationArticleList, Article } from '@/components/documentation-article-list';
 import { DocumentationArticleViewer } from '@/components/documentation-article-viewer';
 import { DocumentationCategoryCards } from '@/components/documentation-category-cards';
+import { DocumentationTableOfContents } from '@/components/documentation-table-of-contents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -236,69 +237,7 @@ function DocumentationContent() {
     });
   }, [updateURL, state.selectedCategory, state.searchQuery]);
 
-  if (state.selectedArticle) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-        <div className="container mx-auto px-4 py-8">
-          {/* Header with Search */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center gap-4 mb-6">
-              <BookOpen className="h-10 w-10 text-primary" />
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-                Dokumentation
-              </h1>
-            </div>
-            
-            {/* Compact Search Bar */}
-            <div className="max-w-2xl mx-auto mb-6">
-              <DocumentationSearch
-                onSearch={handleSearch}
-                placeholder="Dokumentation durchsuchen..."
-              />
-            </div>
-          </div>
 
-          {/* Error Display */}
-          {state.error && (
-            <Alert variant="destructive" className="mb-8 max-w-4xl mx-auto">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{state.error}</AlertDescription>
-            </Alert>
-          )}
-
-          {/* Main Content with Sidebar */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
-            {/* Sidebar - Categories */}
-            <div className="lg:col-span-1">
-              <Card className="sticky top-24 shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-lg font-semibold">Navigation</CardTitle>
-                </CardHeader>
-                <CardContent className="overflow-hidden">
-                  <DocumentationCategories
-                    categories={state.categories}
-                    selectedCategory={state.selectedCategory}
-                    onCategorySelect={handleCategorySelect}
-                    isLoading={state.isLoadingCategories}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Article Content */}
-            <div className="lg:col-span-4">
-              <DocumentationArticleViewer
-                article={state.selectedArticle}
-                onBack={handleBackToList}
-                selectedCategory={state.selectedCategory}
-                searchQuery={state.searchQuery}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -347,27 +286,33 @@ function DocumentationContent() {
         )}
 
         {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
-          {/* Sidebar - Categories */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-24 shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg font-semibold">Navigation</CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-hidden">
-                <DocumentationCategories
-                  categories={state.categories}
-                  selectedCategory={state.selectedCategory}
-                  onCategorySelect={handleCategorySelect}
-                  isLoading={state.isLoadingCategories}
-                />
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
+          {/* Table of Contents - Left Sidebar */}
+          <div className="lg:col-span-3">
+            <div className="sticky top-24">
+              <DocumentationTableOfContents
+                categories={state.categories}
+                articles={state.articles}
+                selectedCategory={state.selectedCategory}
+                selectedArticle={state.selectedArticle}
+                onCategorySelect={handleCategorySelect}
+                onArticleSelect={handleArticleSelect}
+                isLoading={state.isLoadingCategories || state.isLoadingArticles}
+              />
+            </div>
           </div>
 
-          {/* Main Content - Articles or Category Cards */}
-          <div className="lg:col-span-4">
-            {!state.selectedCategory && !state.searchQuery ? (
+          {/* Main Content - Articles */}
+          <div className="lg:col-span-9">
+            {state.selectedArticle ? (
+              /* Article View */
+              <DocumentationArticleViewer
+                article={state.selectedArticle}
+                onBack={handleBackToList}
+                selectedCategory={state.selectedCategory}
+                searchQuery={state.searchQuery}
+              />
+            ) : !state.selectedCategory && !state.searchQuery ? (
               /* Category Cards View */
               <DocumentationCategoryCards
                 categories={state.categories}
@@ -444,23 +389,20 @@ function DocumentationLoading() {
         </div>
 
         {/* Main Content Loading */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 max-w-7xl mx-auto">
-          <div className="lg:col-span-1">
-            <Card className="shadow-lg border-0 bg-card/50">
-              <CardHeader>
-                <Skeleton className="h-6 w-24" />
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full rounded-lg" />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-7xl mx-auto">
+          <div className="lg:col-span-3">
+            <DocumentationTableOfContents
+              categories={[]}
+              articles={[]}
+              selectedCategory={null}
+              selectedArticle={null}
+              onCategorySelect={() => {}}
+              onArticleSelect={() => {}}
+              isLoading={true}
+            />
           </div>
           
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-9">
             <DocumentationCategoryCards
               categories={[]}
               onCategorySelect={() => {}}
