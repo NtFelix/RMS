@@ -241,13 +241,8 @@
     background-color: hsl(var(--btn-hover));
   }
 
-
-
   /* Custom input placeholder styling */
-  .dark input::placeholder {
-    color: hsl(var(--input-placeholder));
-  }
-
+  .dark input::placeholder,
   .dark textarea::placeholder {
     color: hsl(var(--input-placeholder));
   }
