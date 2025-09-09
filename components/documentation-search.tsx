@@ -59,9 +59,15 @@ export function DocumentationSearch({
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="relative group">
-        <Search className={`absolute left-6 top-1/2 h-6 w-6 -translate-y-1/2 text-muted-foreground transition-colors ${
-          isLoading ? 'animate-pulse' : 'group-focus-within:text-primary'
-        }`} />
+        <div className="absolute left-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center transition-all duration-200 group-focus-within:bg-primary/20 group-hover:bg-primary/15">
+          <Search className={`h-5 w-5 transition-colors ${
+            isLoading 
+              ? 'text-primary animate-pulse' 
+              : query 
+                ? 'text-primary' 
+                : 'text-primary/70 group-focus-within:text-primary group-hover:text-primary/90'
+          }`} />
+        </div>
         <Input
           ref={inputRef}
           type="text"
@@ -69,7 +75,7 @@ export function DocumentationSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="h-16 pl-16 pr-16 text-lg rounded-full border-2 border-border/50 bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-background placeholder:text-muted-foreground/70"
+          className="h-16 pl-20 pr-16 text-lg rounded-full border-2 border-border/50 bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-background placeholder:text-muted-foreground/70"
           disabled={isLoading}
           aria-label="Dokumentation durchsuchen"
           aria-describedby={error ? "search-error" : undefined}
