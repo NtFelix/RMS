@@ -52,34 +52,48 @@ export function DocumentationTableOfContents({
   const categoriesWithArticles = useMemo(() => {
     const categoryMap = new Map<string, CategoryWithArticles>();
     
-    // Initialize categories
-    categories.forEach(category => {
-      categoryMap.set(category.name, {
-        ...category,
-        articles: [],
-        isExpanded: expandedCategories.has(category.name)
-      });
-    });
-
-    // Group articles by category
-    articles.forEach(article => {
-      const categoryName = article.kategorie || 'Uncategorized';
-      const category = categoryMap.get(categoryName);
-      if (category) {
-        category.articles.push(article);
-      } else {
-        // Create category if it doesn't exist
-        categoryMap.set(categoryName, {
-          name: categoryName,
-          articleCount: 1,
-          articles: [article],
-          isExpanded: expandedCategories.has(categoryName)
+    // If a specific category is selected, only show that category
+    if (selectedCategory) {
+      // Find the selected category
+      const selectedCat = categories.find(cat => cat.name === selectedCategory);
+      if (selectedCat) {
+        categoryMap.set(selectedCategory, {
+          ...selectedCat,
+          articles: articles.filter(article => article.kategorie === selectedCategory),
+          isExpanded: expandedCategories.has(selectedCategory)
         });
       }
-    });
+    } else {
+      // Show all categories when no specific category is selected
+      // Initialize categories
+      categories.forEach(category => {
+        categoryMap.set(category.name, {
+          ...category,
+          articles: [],
+          isExpanded: expandedCategories.has(category.name)
+        });
+      });
+
+      // Group articles by category
+      articles.forEach(article => {
+        const categoryName = article.kategorie || 'Uncategorized';
+        const category = categoryMap.get(categoryName);
+        if (category) {
+          category.articles.push(article);
+        } else {
+          // Create category if it doesn't exist
+          categoryMap.set(categoryName, {
+            name: categoryName,
+            articleCount: 1,
+            articles: [article],
+            isExpanded: expandedCategories.has(categoryName)
+          });
+        }
+      });
+    }
 
     return Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [categories, articles, expandedCategories]);
+  }, [categories, articles, expandedCategories, selectedCategory]);
 
   const toggleCategory = (categoryName: string, event: React.MouseEvent) => {
     // Prevent all event propagation and default behavior
