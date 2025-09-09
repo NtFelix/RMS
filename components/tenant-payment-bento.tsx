@@ -184,10 +184,10 @@ export function TenantPaymentBento() {
               data.map((tenant) => (
                 <div
                   key={tenant.id}
-                  className={`w-full flex items-center justify-between p-4 rounded-lg shadow-md bg-white border transition-colors duration-200 ${
+                  className={`w-full flex items-center justify-between p-4 rounded-lg shadow-md bg-card border transition-colors duration-200 ${
                     tenant.paid
-                      ? 'border-green-200 hover:bg-green-50/50'
-                      : 'border-red-200 hover:bg-red-50/50'
+                      ? 'border-green-200 dark:border-green-800 hover:bg-green-50/50 dark:hover:bg-green-900/20'
+                      : 'border-red-200 dark:border-red-800 hover:bg-red-50/50 dark:hover:bg-red-900/20'
                   }`}
                 >
                   {/* Left side: Tenant name and apartment */}
@@ -205,7 +205,7 @@ export function TenantPaymentBento() {
                   {/* Right side: Price and payment button */}
                   <div className="flex flex-col items-end gap-2">
                     <div className={`flex items-center gap-1 font-medium ${
-                      tenant.paid ? 'text-green-600' : 'text-red-600'
+                      tenant.paid ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                     }`}>
                       <Tag className="h-3 w-3" />
                       <span>{new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(tenant.mieteRaw)}</span>
@@ -215,8 +215,8 @@ export function TenantPaymentBento() {
                       className={
                         `px-3 py-1 rounded-full text-xs font-medium border transition-colors duration-150 ${
                           tenant.paid
-                            ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                            : 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                            ? 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-900/50'
+                            : 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/50'
                         }`
                       }
                       disabled={updatingStatus === tenant.id}
