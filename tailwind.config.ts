@@ -48,9 +48,9 @@ foreground: "hsl(var(--destructive-foreground))",
         "input-placeholder": "hsl(var(--input-placeholder))",
         "main-container": "hsl(var(--main-container))",
         // Sidebar styling
-        "sidebar-container": "hsl(var(--secondary))",
-        "sidebar-header": "hsl(var(--secondary))",
-        "sidebar-footer": "hsl(var(--secondary))",
+        "sidebar-container": "hsl(var(--background))",
+        "sidebar-header": "hsl(var(--background))",
+        "sidebar-footer": "hsl(var(--background))",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
