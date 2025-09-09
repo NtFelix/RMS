@@ -241,6 +241,8 @@ function DocumentationContent() {
         <DocumentationArticleViewer
           article={state.selectedArticle}
           onBack={handleBackToList}
+          selectedCategory={state.selectedCategory}
+          searchQuery={state.searchQuery}
         />
       </div>
     );

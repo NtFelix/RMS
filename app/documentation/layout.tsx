@@ -10,6 +10,21 @@ export const metadata: Metadata = {
     title: 'Dokumentation | Mietfluss',
     description: 'Umfassende Dokumentation und Hilfe für die Mietfluss Plattform',
     type: 'website',
+    url: 'https://mietfluss.de/documentation',
+    siteName: 'Mietfluss',
+    locale: 'de_DE',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Dokumentation | Mietfluss',
+    description: 'Umfassende Dokumentation und Hilfe für die Mietfluss Plattform',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: 'https://mietfluss.de/documentation',
   },
 };
 

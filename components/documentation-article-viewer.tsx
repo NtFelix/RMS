@@ -4,12 +4,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ArrowLeft, Calendar, User } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Share2, ExternalLink } from 'lucide-react';
 import { Article } from './documentation-article-list';
+import { DocumentationBreadcrumb } from './documentation-breadcrumb';
+import { useToast } from '@/hooks/use-toast';
 
 interface ArticleViewerProps {
   article: Article;
   onBack: () => void;
+  selectedCategory?: string | null;
+  searchQuery?: string | null;
   className?: string;
 }
 
@@ -51,17 +55,82 @@ function formatContent(content: string | null): React.ReactNode {
 export function DocumentationArticleViewer({
   article,
   onBack,
+  selectedCategory,
+  searchQuery,
   className = ""
 }: ArticleViewerProps) {
+  const { toast } = useToast();
   const createdDate = article.meta?.created_time;
   const lastEditedDate = article.meta?.last_edited_time;
   const createdBy = article.meta?.created_by?.name || article.meta?.created_by?.object;
   const lastEditedBy = article.meta?.last_edited_by?.name || article.meta?.last_edited_by?.object;
 
+  // Build breadcrumb items
+  const breadcrumbItems = [];
+  
+  if (searchQuery) {
+    breadcrumbItems.push({
+      label: `Suchergebnisse für "${searchQuery}"`,
+      onClick: onBack
+    });
+  } else if (selectedCategory) {
+    breadcrumbItems.push({
+      label: selectedCategory,
+      onClick: onBack
+    });
+  } else {
+    breadcrumbItems.push({
+      label: 'Alle Artikel',
+      onClick: onBack
+    });
+  }
+  
+  breadcrumbItems.push({
+    label: article.titel
+  });
+
+  // Share functionality
+  const handleShare = async () => {
+    const shareData = {
+      title: `${article.titel} - Mietfluss Dokumentation`,
+      text: `Lesen Sie mehr über "${article.titel}" in der Mietfluss Dokumentation.`,
+      url: `${window.location.origin}/documentation/${article.id}`
+    };
+
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(shareData.url);
+        toast({
+          title: 'Link kopiert',
+          description: 'Der Link wurde in die Zwischenablage kopiert.',
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: 'Fehler beim Teilen',
+        description: 'Der Link konnte nicht geteilt werden.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOpenInNewTab = () => {
+    window.open(`/documentation/${article.id}`, '_blank');
+  };
+
   return (
     <div className={className}>
-      {/* Back Navigation */}
+      {/* Breadcrumb Navigation */}
       <div className="mb-6">
+        <DocumentationBreadcrumb items={breadcrumbItems} />
+      </div>
+
+      {/* Back Navigation and Actions */}
+      <div className="mb-6 flex items-center justify-between">
         <Button 
           variant="ghost" 
           onClick={onBack}
@@ -70,6 +139,27 @@ export function DocumentationArticleViewer({
           <ArrowLeft className="h-4 w-4" />
           Zurück zur Übersicht
         </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleShare}
+            className="gap-2"
+          >
+            <Share2 className="h-4 w-4" />
+            Teilen
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleOpenInNewTab}
+            className="gap-2"
+          >
+            <ExternalLink className="h-4 w-4" />
+            In neuem Tab öffnen
+          </Button>
+        </div>
       </div>
 
       {/* Article Content */}
