@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,7 +36,17 @@ export function DocumentationTableOfContents({
   isLoading = false,
   className = ""
 }: TableOfContentsProps) {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => {
+    // Initialize with selected category expanded
+    return selectedCategory ? new Set([selectedCategory]) : new Set();
+  });
+
+  // Auto-expand selected category
+  useEffect(() => {
+    if (selectedCategory && !expandedCategories.has(selectedCategory)) {
+      setExpandedCategories(prev => new Set([...prev, selectedCategory]));
+    }
+  }, [selectedCategory, expandedCategories]);
 
   // Group articles by category and create expanded state
   const categoriesWithArticles = useMemo(() => {
@@ -79,7 +90,18 @@ export function DocumentationTableOfContents({
     }
     setExpandedCategories(newExpanded);
     
-    // Also select the category
+    // Only select the category if it's being expanded and not already selected
+    if (!expandedCategories.has(categoryName) && selectedCategory !== categoryName) {
+      onCategorySelect(categoryName);
+    }
+  };
+
+  const handleCategorySelect = (categoryName: string) => {
+    // Expand the category if not already expanded
+    if (!expandedCategories.has(categoryName)) {
+      setExpandedCategories(prev => new Set([...prev, categoryName]));
+    }
+    // Select the category
     onCategorySelect(categoryName);
   };
 
@@ -139,53 +161,90 @@ export function DocumentationTableOfContents({
           {categoriesWithArticles.map((category) => (
             <div key={category.name} className="space-y-1">
               {/* Category Header */}
-              <Button
-                variant="ghost"
-                onClick={() => toggleCategory(category.name)}
-                className="w-full justify-start h-auto p-3 text-left hover:bg-muted/50"
-              >
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  {category.isExpanded ? (
-                    <ChevronDown className="h-4 w-4 flex-shrink-0" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                  )}
-                  <Folder className="h-4 w-4 flex-shrink-0" />
-                  <span 
-                    className="text-sm font-medium truncate"
-                    title={category.name}
+              <div className="flex items-center gap-1">
+                {/* Expand/Collapse Button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleCategory(category.name)}
+                  className="p-1 h-8 w-8 hover:bg-muted/50 transition-colors duration-200"
+                >
+                  <motion.div
+                    animate={{ rotate: category.isExpanded ? 90 : 0 }}
+                    transition={{ duration: 0.2, ease: "easeInOut" }}
                   >
-                    {category.name}
-                  </span>
-                </div>
-                <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
-                  {category.articles.length}
-                </Badge>
-              </Button>
-
-              {/* Articles in Category */}
-              {category.isExpanded && (
-                <div className="ml-6 space-y-1">
-                  {category.articles.map((article) => (
-                    <Button
-                      key={article.id}
-                      variant={selectedArticle?.id === article.id ? "default" : "ghost"}
-                      onClick={() => handleArticleClick(article)}
-                      className="w-full justify-start h-auto p-2 text-left text-xs hover:bg-muted/30"
+                    <ChevronRight className="h-4 w-4" />
+                  </motion.div>
+                </Button>
+                
+                {/* Category Selection Button */}
+                <Button
+                  variant={selectedCategory === category.name ? "secondary" : "ghost"}
+                  onClick={() => handleCategorySelect(category.name)}
+                  className="flex-1 justify-start h-auto p-2 text-left hover:bg-muted/50 transition-colors duration-200"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <Folder className="h-4 w-4 flex-shrink-0" />
+                    <span 
+                      className="text-sm font-medium truncate"
+                      title={category.name}
                     >
-                      <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <FileText className="h-3 w-3 flex-shrink-0 opacity-60" />
-                        <span 
-                          className="truncate"
-                          title={article.titel}
+                      {category.name}
+                    </span>
+                  </div>
+                  <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
+                    {category.articles.length}
+                  </Badge>
+                </Button>
+              </div>
+
+              {/* Articles in Category with Animation */}
+              <AnimatePresence>
+                {category.isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ 
+                      duration: 0.3, 
+                      ease: "easeInOut",
+                      opacity: { duration: 0.2 }
+                    }}
+                    className="overflow-hidden"
+                  >
+                    <div className="ml-6 space-y-1 pb-1">
+                      {category.articles.map((article, index) => (
+                        <motion.div
+                          key={article.id}
+                          initial={{ x: -10, opacity: 0 }}
+                          animate={{ x: 0, opacity: 1 }}
+                          transition={{ 
+                            delay: index * 0.05,
+                            duration: 0.2,
+                            ease: "easeOut"
+                          }}
                         >
-                          {article.titel}
-                        </span>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              )}
+                          <Button
+                            variant={selectedArticle?.id === article.id ? "default" : "ghost"}
+                            onClick={() => handleArticleClick(article)}
+                            className="w-full justify-start h-auto p-2 text-left text-xs hover:bg-muted/30 transition-colors duration-150"
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <FileText className="h-3 w-3 flex-shrink-0 opacity-60" />
+                              <span 
+                                className="truncate"
+                                title={article.titel}
+                              >
+                                {article.titel}
+                              </span>
+                            </div>
+                          </Button>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ))}
         </div>
