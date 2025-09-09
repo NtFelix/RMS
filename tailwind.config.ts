@@ -57,6 +57,7 @@ foreground: "hsl(var(--destructive-foreground))",
         "table-row-hover": "hsl(var(--primary) / 0.1)",
         "btn-outline-hover": "hsl(var(--primary) / 0.15)",
         "btn-ghost-hover": "hsl(var(--primary) / 0.12)",
+        "modal-close-hover": "hsl(var(--primary) / 0.15)",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

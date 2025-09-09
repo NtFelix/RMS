@@ -298,6 +298,11 @@
     background-color: hsl(var(--primary) / 0.12); /* Darker blue for ghost buttons */
   }
 
+  /* Modal close button hover enhancement */
+  .dark .modal-close-hover:hover {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for modal close button */
+  }
+
   /* Shimmer animation for loading states */
   @keyframes shimmer {
     0% {
