@@ -53,6 +53,10 @@ foreground: "hsl(var(--destructive-foreground))",
         "sidebar-footer": "hsl(var(--background))",
         // Header styling
         "header-container": "hsl(var(--background))",
+        // Enhanced hover styles
+        "table-row-hover": "hsl(var(--primary) / 0.1)",
+        "btn-outline-hover": "hsl(var(--primary) / 0.15)",
+        "btn-ghost-hover": "hsl(var(--primary) / 0.12)",
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",

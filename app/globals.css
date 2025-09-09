@@ -282,6 +282,22 @@
     border-bottom-color: hsl(var(--background)); /* Match main background */
   }
 
+  /* Enhanced hover styles for dark mode */
+  /* Table row hover - use darker blue instead of muted */
+  .dark .table-row-hover:hover {
+    background-color: hsl(var(--primary) / 0.1); /* Subtle darker blue hover */
+  }
+
+  /* Button hover enhancements for dark mode */
+  .dark .btn-outline-hover:hover {
+    background-color: hsl(var(--primary) / 0.15); /* Darker blue for outline buttons */
+    border-color: hsl(var(--primary) / 0.3);
+  }
+
+  .dark .btn-ghost-hover:hover {
+    background-color: hsl(var(--primary) / 0.12); /* Darker blue for ghost buttons */
+  }
+
   /* Shimmer animation for loading states */
   @keyframes shimmer {
     0% {
