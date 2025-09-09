@@ -4,7 +4,7 @@
  */
 
 import { templateCacheManager } from './cache-manager';
-import { createClient } from '@/utils/supabase/server';
+import { createClient } from '@/utils/supabase/client';
 
 export interface PaginationOptions {
   page?: number;
@@ -30,7 +30,11 @@ export interface PaginatedResult<T> {
  * Optimized data fetcher with caching and lazy loading
  */
 export class OptimizedDataFetcher {
-  private supabase = createClient();
+  private supabase;
+
+  constructor() {
+    this.supabase = createClient();
+  }
 
   /**
    * Fetch templates with pagination and caching

@@ -83,7 +83,7 @@ export function EnhancedFileEditor({
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const autocompleteRef = useRef<HTMLDivElement>(null)
-  const autocompleteTimeoutRef = useRef<NodeJS.Timeout>()
+  const autocompleteTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const { toast } = useToast()
 
   // Initialize placeholder engine with custom definitions if provided

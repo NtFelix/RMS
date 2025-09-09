@@ -212,6 +212,8 @@ export class PlaceholderEngine {
   
   constructor(definitions: PlaceholderDefinition[] = PLACEHOLDER_DEFINITIONS) {
     this.placeholderMap = new Map(definitions.map(def => [def.key, def]));
+    this.categoryIndex = new Map();
+    this.keyIndex = new Set();
     this.buildIndexes(definitions);
   }
 

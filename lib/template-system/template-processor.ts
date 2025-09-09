@@ -11,7 +11,7 @@ import type {
 import type { Tenant } from '@/types/Tenant';
 import type { Apartment } from '@/components/apartment-table';
 import type { House } from '@/components/house-table';
-import { PLACEHOLDER_DEFINITIONS } from './placeholder-definitions';
+import { PLACEHOLDER_DEFINITIONS } from './placeholder-engine';
 import { templateCacheManager } from './cache-manager';
 
 /**

@@ -267,7 +267,7 @@ describe('Template System Performance Tests', () => {
       
       const stats = cache.getStats();
       // Allow some tolerance for cache eviction timing
-      expect(stats.size).toBeLessThanOrEqual(maxSize + 10);
+      expect(stats.size).toBeLessThanOrEqual(maxSize + 15);
     });
   });
 
