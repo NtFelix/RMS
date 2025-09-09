@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { usePostHog, useActiveFeatureFlags } from 'posthog-js/react'
+import { usePostHog, useActiveFeatureFlags, useFeatureFlagEnabled } from 'posthog-js/react'
 import { useRouter } from 'next/navigation'
+import { useTheme } from "next-themes"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog" // DialogOverlay removed, DialogDescription added
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -64,6 +65,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
   const { toast } = useToast()
   const router = useRouter()
+  const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<string>("profile")
   const [firstName, setFirstName] = useState<string>("")
   const [lastName, setLastName] = useState<string>("")
@@ -77,6 +79,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   // PostHog early access features
   const posthog = usePostHog()
   const activeFlags = useActiveFeatureFlags()
+  const darkModeEnabled = useFeatureFlagEnabled('dark-mode')
 
   type EarlyAccessStage = 'concept' | 'beta' | 'alpha' | 'other'
   interface EarlyAccessFeature {
@@ -683,6 +686,34 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <p className="text-sm text-muted-foreground">
             Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
           </p>
+          {darkModeEnabled && (
+            <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Dunkler Modus
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Wechseln Sie zwischen hellem und dunklem Design für bessere Sichtbarkeit.
+                  </p>
+                </div>
+                <div className="flex-shrink-0">
+                  <Switch
+                    checked={theme === 'dark'}
+                    onCheckedChange={(checked) => {
+                      setTheme(checked ? 'dark' : 'light');
+                      toast({
+                        title: "Design geändert",
+                        description: `${checked ? 'Dunkler' : 'Heller'} Modus aktiviert.`,
+                        variant: "success",
+                      });
+                    }}
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
           <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
