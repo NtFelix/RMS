@@ -54,13 +54,7 @@ export function DocumentationCategoryCards({
 
   return (
     <div className={className}>
-      {/* Header */}
-      <div className="mb-8 text-center">
-        <h2 className="text-2xl font-bold mb-2">Dokumentation nach Kategorien</h2>
-        <p className="text-muted-foreground">
-          Wählen Sie eine Kategorie aus, um die entsprechenden Artikel zu durchsuchen
-        </p>
-      </div>
+
 
       {/* Category Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
