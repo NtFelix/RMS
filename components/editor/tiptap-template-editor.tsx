@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { SlashCommandExtension } from './slash-command-extension'
 import { MentionExtension, MentionItem, PREDEFINED_VARIABLES } from './mention-extension'
+import { BubbleMenu } from './bubble-menu'
 import { cn } from '@/lib/utils'
 import { useDebouncedSave, SaveIndicator } from '@/hooks/use-debounced-save'
 import { useDebounce } from '@/hooks/use-debounce'
@@ -41,6 +42,9 @@ interface TiptapTemplateEditorProps {
   // Performance optimization options
   variableExtractionDelay?: number
   contentChangeDelay?: number
+  // Bubble menu options
+  showBubbleMenu?: boolean
+  bubbleMenuClassName?: string
 }
 
 export function TiptapTemplateEditor({
@@ -58,7 +62,9 @@ export function TiptapTemplateEditor({
   autoSaveFunction,
   showSaveIndicator = false,
   variableExtractionDelay = 300,
-  contentChangeDelay = 150
+  contentChangeDelay = 150,
+  showBubbleMenu = true,
+  bubbleMenuClassName
 }: TiptapTemplateEditorProps) {
   const { toast } = useToast()
   
@@ -513,6 +519,18 @@ export function TiptapTemplateEditor({
         )}
       />
       
+      {/* Floating Bubble Menu */}
+      {showBubbleMenu && (
+        <BubbleMenu 
+          editor={editor}
+          className={bubbleMenuClassName}
+          onVariableInsert={() => {
+            // Trigger variable mention system
+            onVariableInsert?.(PREDEFINED_VARIABLES[0])
+          }}
+        />
+      )}
+      
       {/* Placeholder styling */}
       <style jsx global>{`
         .ProseMirror p.is-editor-empty:first-child::before {
@@ -688,6 +706,29 @@ export function TiptapTemplateEditor({
         
         .dark .ProseMirror hr {
           border-top-color: #4b5563;
+        }
+        
+        /* Bubble menu responsive styles */
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        
+        /* Mobile bubble menu adjustments */
+        @media (max-width: 640px) {
+          .bubble-menu-mobile {
+            gap: 0.25rem;
+            padding: 0.5rem;
+          }
+          
+          .bubble-menu-mobile button {
+            min-width: 2rem;
+            min-height: 2rem;
+          }
         }
       `}</style>
     </div>
