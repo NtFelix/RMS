@@ -18,7 +18,7 @@ describe('TiptapTemplateEditor', () => {
   it('renders loading state when editor is not ready', () => {
     render(<TiptapTemplateEditor />)
     
-    expect(screen.getByText('Editor wird geladen...')).toBeInTheDocument()
+    expect(screen.getByText('Inhalt wird geladen...')).toBeInTheDocument()
   })
 
   it('accepts initial content prop', () => {
@@ -35,7 +35,7 @@ describe('TiptapTemplateEditor', () => {
     render(<TiptapTemplateEditor initialContent={initialContent} />)
     
     // Component should render without errors
-    expect(screen.getByText('Editor wird geladen...')).toBeInTheDocument()
+    expect(screen.getByText('Inhalt wird geladen...')).toBeInTheDocument()
   })
 
   it('accepts placeholder prop', () => {
@@ -44,7 +44,7 @@ describe('TiptapTemplateEditor', () => {
     render(<TiptapTemplateEditor placeholder={placeholder} />)
     
     // Component should render without errors
-    expect(screen.getByText('Editor wird geladen...')).toBeInTheDocument()
+    expect(screen.getByText('Inhalt wird geladen...')).toBeInTheDocument()
   })
 
   it('accepts className prop', () => {
@@ -53,7 +53,7 @@ describe('TiptapTemplateEditor', () => {
     render(<TiptapTemplateEditor className={customClass} />)
     
     // Component should render with custom class
-    const container = screen.getByText('Editor wird geladen...').parentElement
+    const container = screen.getByText('Inhalt wird geladen...').parentElement
     expect(container).toHaveClass(customClass)
   })
 
@@ -71,6 +71,6 @@ describe('TiptapTemplateEditor', () => {
     )
     
     // Component should render without errors
-    expect(screen.getByText('Editor wird geladen...')).toBeInTheDocument()
+    expect(screen.getByText('Inhalt wird geladen...')).toBeInTheDocument()
   })
 })

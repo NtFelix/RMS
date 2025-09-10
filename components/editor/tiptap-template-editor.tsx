@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useMemo, useCallback } from 'react'
+import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -15,6 +15,12 @@ import {
   useMemoizedEditorExtensions,
   usePerformanceMonitor 
 } from '@/hooks/use-editor-performance'
+import { 
+  parseTemplateContent, 
+  type TiptapContent, 
+  type ParseResult 
+} from '@/lib/template-content-parser'
+import { useToast } from '@/hooks/use-toast'
 import './mention-popup.css'
 
 interface TiptapTemplateEditorProps {
@@ -54,16 +60,186 @@ export function TiptapTemplateEditor({
   variableExtractionDelay = 300,
   contentChangeDelay = 150
 }: TiptapTemplateEditorProps) {
-  const [currentContent, setCurrentContent] = React.useState(initialContent || {
+  const { toast } = useToast()
+  
+  // State for parsed content and error handling
+  const [parsedContent, setParsedContent] = useState<TiptapContent | null>(null)
+  const [contentError, setContentError] = useState<string | null>(null)
+  const [isContentLoading, setIsContentLoading] = useState(true)
+  const [currentContent, setCurrentContent] = useState<TiptapContent>({
     type: 'doc',
     content: [{ type: 'paragraph', content: [] }]
   })
   
-  // Ref to prevent infinite loops when updating content
-  const isUpdatingContentRef = React.useRef(false)
+  // Refs to prevent infinite loops and track content updates
+  const isUpdatingContentRef = useRef(false)
+  const lastInitialContentRef = useRef<string | null>(null)
+  const editorInitializedRef = useRef(false)
 
   // Performance monitoring (only in development)
   usePerformanceMonitor('TiptapTemplateEditor', process.env.NODE_ENV === 'development')
+
+  // Retry function for failed parsing
+  const retryParsing = useCallback(() => {
+    lastInitialContentRef.current = null
+    setContentError(null)
+    setIsContentLoading(true)
+    
+    setTimeout(() => {
+      try {
+        const parseResult: ParseResult = parseTemplateContent(initialContent)
+        
+        if (parseResult.success) {
+          setParsedContent(parseResult.content)
+          setCurrentContent(parseResult.content)
+          
+          if (parseResult.warnings.length > 0) {
+            console.warn('Content parsing warnings:', parseResult.warnings)
+            toast({
+              title: "Inhalt teilweise wiederhergestellt",
+              description: `${parseResult.warnings.length} Warnung(en) beim Laden des Inhalts.`,
+              variant: "default"
+            })
+          }
+          
+          if (parseResult.wasRecovered) {
+            toast({
+              title: "Inhalt wiederhergestellt",
+              description: "Der Inhalt wurde automatisch repariert und kann möglicherweise von der ursprünglichen Version abweichen.",
+              variant: "default"
+            })
+            setContentError("recovered")
+          }
+        } else {
+          const errorMessage = parseResult.errors.join(', ')
+          setContentError(errorMessage)
+          setParsedContent(parseResult.content)
+          setCurrentContent(parseResult.content)
+          
+          console.error('Content parsing failed:', parseResult.errors)
+          toast({
+            title: "Fehler beim Laden des Inhalts",
+            description: "Der Inhalt konnte nicht vollständig geladen werden. Ein leeres Dokument wurde erstellt.",
+            variant: "destructive",
+            action: {
+              label: "Erneut versuchen",
+              onClick: retryParsing
+            }
+          })
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+        setContentError(errorMessage)
+        console.error('Unexpected error during content parsing:', error)
+        
+        const fallbackContent: TiptapContent = {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [] }]
+        }
+        setParsedContent(fallbackContent)
+        setCurrentContent(fallbackContent)
+        
+        toast({
+          title: "Unerwarteter Fehler",
+          description: "Ein unerwarteter Fehler ist beim Laden des Inhalts aufgetreten.",
+          variant: "destructive"
+        })
+      } finally {
+        setIsContentLoading(false)
+      }
+    }, 0)
+  }, [initialContent, toast])
+
+  // Parse initial content when it changes
+  useEffect(() => {
+    const parseInitialContent = () => {
+      setIsContentLoading(true)
+      setContentError(null)
+      
+      // Use setTimeout to make parsing async for better UX and testing
+      setTimeout(() => {
+        try {
+          // Convert initialContent to string for comparison
+          const initialContentString = JSON.stringify(initialContent)
+          
+          // Skip parsing if content hasn't changed
+          if (lastInitialContentRef.current === initialContentString) {
+            setIsContentLoading(false)
+            return
+          }
+          
+          lastInitialContentRef.current = initialContentString
+          
+          // Parse the content using RobustContentParser
+          const parseResult: ParseResult = parseTemplateContent(initialContent)
+          
+          if (parseResult.success) {
+            setParsedContent(parseResult.content)
+            setCurrentContent(parseResult.content)
+            
+            // Show warnings if any
+            if (parseResult.warnings.length > 0) {
+              console.warn('Content parsing warnings:', parseResult.warnings)
+              toast({
+                title: "Inhalt teilweise wiederhergestellt",
+                description: `${parseResult.warnings.length} Warnung(en) beim Laden des Inhalts.`,
+                variant: "default"
+              })
+            }
+            
+            // Show recovery message if content was recovered
+            if (parseResult.wasRecovered) {
+              toast({
+                title: "Inhalt wiederhergestellt",
+                description: "Der Inhalt wurde automatisch repariert und kann möglicherweise von der ursprünglichen Version abweichen.",
+                variant: "default"
+              })
+              setContentError("recovered") // Set a flag for warning display
+            }
+          } else {
+            // Handle parsing failure
+            const errorMessage = parseResult.errors.join(', ')
+            setContentError(errorMessage)
+            setParsedContent(parseResult.content) // Use fallback content
+            setCurrentContent(parseResult.content)
+            
+            console.error('Content parsing failed:', parseResult.errors)
+            toast({
+              title: "Fehler beim Laden des Inhalts",
+              description: "Der Inhalt konnte nicht vollständig geladen werden. Ein leeres Dokument wurde erstellt.",
+              variant: "destructive",
+              action: {
+                label: "Erneut versuchen",
+                onClick: retryParsing
+              }
+            })
+          }
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+          setContentError(errorMessage)
+          console.error('Unexpected error during content parsing:', error)
+          
+          // Use empty document as fallback
+          const fallbackContent: TiptapContent = {
+            type: 'doc',
+            content: [{ type: 'paragraph', content: [] }]
+          }
+          setParsedContent(fallbackContent)
+          setCurrentContent(fallbackContent)
+          
+          toast({
+            title: "Unerwarteter Fehler",
+            description: "Ein unerwarteter Fehler ist beim Laden des Inhalts aufgetreten.",
+            variant: "destructive"
+          })
+        } finally {
+          setIsContentLoading(false)
+        }
+      }, 0)
+    }
+    
+    parseInitialContent()
+  }, [initialContent, toast, retryParsing])
 
   // Debounce content changes to reduce excessive re-renders
   const debouncedContent = useDebounce(currentContent, contentChangeDelay)
@@ -164,7 +340,7 @@ export function TiptapTemplateEditor({
   const editorConfig = useMemo(() => ({
     immediatelyRender: false, // Fix SSR hydration mismatch
     extensions: editorExtensions,
-    content: initialContent || {
+    content: parsedContent || {
       type: 'doc',
       content: [
         {
@@ -176,32 +352,87 @@ export function TiptapTemplateEditor({
     editable,
     onUpdate: handleContentChange,
     editorProps: editorProps,
-  }), [editorExtensions, initialContent, editable, handleContentChange, editorProps])
+  }), [editorExtensions, parsedContent, editable, handleContentChange, editorProps])
 
   const editor = useEditor(editorConfig)
 
-  // Update editor content when initialContent changes (optimized)
-  React.useEffect(() => {
-    if (editor && initialContent && !isUpdatingContentRef.current && typeof editor.getJSON === 'function') {
-      try {
-        const currentContent = editor.getJSON()
-        const currentString = JSON.stringify(currentContent)
-        const initialString = JSON.stringify(initialContent)
-        
-        if (currentString !== initialString) {
-          isUpdatingContentRef.current = true
-          editor.commands.setContent(initialContent)
-          // Reset the flag after a short delay
-          setTimeout(() => {
-            isUpdatingContentRef.current = false
-          }, 100)
+  // Update editor content when parsedContent changes (optimized with error handling)
+  useEffect(() => {
+    if (!editor || !parsedContent || isUpdatingContentRef.current) {
+      return
+    }
+    
+    // Wait for editor to be fully initialized
+    if (!editorInitializedRef.current) {
+      const checkInitialized = () => {
+        if (editor && typeof editor.getJSON === 'function') {
+          editorInitializedRef.current = true
         }
-      } catch (error) {
-        console.error('Error updating editor content:', error)
-        isUpdatingContentRef.current = false
+      }
+      checkInitialized()
+      if (!editorInitializedRef.current) {
+        return
       }
     }
-  }, [editor, initialContent])
+    
+    try {
+      const currentEditorContent = editor.getJSON()
+      const currentContentString = JSON.stringify(currentEditorContent)
+      const parsedContentString = JSON.stringify(parsedContent)
+      
+      // Only update if content is actually different
+      if (currentContentString !== parsedContentString) {
+        console.log('Updating editor content with parsed content')
+        isUpdatingContentRef.current = true
+        
+        // Use setContent with error handling
+        try {
+          const success = editor.commands.setContent(parsedContent)
+          
+          if (!success) {
+            console.error('Failed to set editor content')
+            toast({
+              title: "Fehler beim Aktualisieren",
+              description: "Der Editor-Inhalt konnte nicht aktualisiert werden.",
+              variant: "destructive"
+            })
+          }
+        } catch (setContentError) {
+          console.error('Error in setContent:', setContentError)
+          toast({
+            title: "Fehler beim Aktualisieren",
+            description: "Der Editor-Inhalt konnte nicht aktualisiert werden.",
+            variant: "destructive"
+          })
+        }
+        
+        // Reset the flag after a short delay
+        setTimeout(() => {
+          isUpdatingContentRef.current = false
+        }, 100)
+      }
+    } catch (error) {
+      console.error('Error updating editor content:', error)
+      isUpdatingContentRef.current = false
+      
+      toast({
+        title: "Fehler beim Aktualisieren",
+        description: "Ein Fehler ist beim Aktualisieren des Editor-Inhalts aufgetreten.",
+        variant: "destructive"
+      })
+    }
+  }, [editor, parsedContent, toast])
+  
+  // Track when editor is initialized
+  useEffect(() => {
+    if (editor) {
+      editorInitializedRef.current = true
+    }
+    
+    return () => {
+      editorInitializedRef.current = false
+    }
+  }, [editor])
 
   // Memoized keyboard shortcut handler
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
@@ -222,10 +453,31 @@ export function TiptapTemplateEditor({
     }
   }, [editor, onSave, onCancel])
 
-  if (!editor) {
+  // Show loading state while content is being parsed or editor is initializing
+  if (!editor || isContentLoading) {
     return (
       <div className={cn('min-h-[200px] flex items-center justify-center', className)}>
-        <div className="text-gray-500 dark:text-gray-400">Editor wird geladen...</div>
+        <div className="text-gray-500 dark:text-gray-400">
+          {isContentLoading ? 'Inhalt wird geladen...' : 'Editor wird geladen...'}
+        </div>
+      </div>
+    )
+  }
+  
+  // Show error state if content parsing failed
+  if (contentError && !parsedContent) {
+    return (
+      <div className={cn('min-h-[200px] flex flex-col items-center justify-center p-4', className)}>
+        <div className="text-red-500 dark:text-red-400 text-center mb-4">
+          <div className="font-semibold mb-2">Fehler beim Laden des Inhalts</div>
+          <div className="text-sm">{contentError}</div>
+        </div>
+        <button
+          onClick={retryParsing}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+        >
+          Erneut versuchen
+        </button>
       </div>
     )
   }
@@ -235,6 +487,15 @@ export function TiptapTemplateEditor({
       className={cn('relative', className)}
       onKeyDown={handleKeyDown}
     >
+      {/* Content error/warning indicator */}
+      {contentError === "recovered" && (
+        <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+          <div className="text-sm text-yellow-800 dark:text-yellow-200">
+            <strong>Warnung:</strong> Der Inhalt wurde automatisch repariert und kann von der ursprünglichen Version abweichen.
+          </div>
+        </div>
+      )}
+      
       {/* Save indicator */}
       {showSaveIndicator && enableAutoSave && (
         <div className="absolute top-2 right-2 z-10">
@@ -247,7 +508,8 @@ export function TiptapTemplateEditor({
         className={cn(
           'w-full min-h-[200px] border border-gray-200 dark:border-gray-700 rounded-lg',
           'focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500',
-          'bg-white dark:bg-gray-900'
+          'bg-white dark:bg-gray-900',
+          contentError === "recovered" && 'border-yellow-300 dark:border-yellow-600'
         )}
       />
       
