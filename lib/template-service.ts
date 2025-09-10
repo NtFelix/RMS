@@ -16,6 +16,7 @@ import {
 } from './template-error-handler'
 import { TemplateErrorReporter } from './template-error-logger'
 import { TemplateValidator } from './template-validation'
+import { templateValidationService } from './template-validation-service'
 import type {
   Template,
   CreateTemplateRequest,
@@ -41,9 +42,16 @@ export class TemplateService {
    */
   async createTemplate(data: CreateTemplateRequest): Promise<Template> {
     try {
-      // Validate template data
-      const validator = new TemplateValidator()
-      const validation = validator.validate(data)
+      // Get existing titles and categories for validation context
+      const existingTitles = await this.getUserTemplateTitles(data.user_id)
+      const existingCategories = await this.getUserCategories(data.user_id)
+      
+      // Enhanced validation with context
+      const validation = await templateValidationService.validateCreateTemplate(data, {
+        userId: data.user_id,
+        existingTitles,
+        existingCategories
+      })
       
       if (!validation.isValid) {
         const templateError = TemplateErrorHandler.createError(
@@ -102,21 +110,36 @@ export class TemplateService {
    */
   async updateTemplate(id: string, data: UpdateTemplateRequest): Promise<Template> {
     try {
-      // Validate template data if provided
-      if (data.titel || data.kategorie || data.inhalt) {
-        const validator = new TemplateValidator()
-        const validation = validator.validate(data)
-        
-        if (!validation.isValid) {
-          const templateError = TemplateErrorHandler.createError(
-            TemplateErrorType.INVALID_TEMPLATE_DATA,
-            'Template validation failed',
-            validation.errors,
-            { templateId: id, operation: 'update' }
-          )
-          TemplateErrorReporter.reportError(templateError)
-          throw templateError
-        }
+      // Get existing template to determine user_id
+      const existingTemplate = await this.getTemplate(id)
+      
+      // Get existing titles and categories for validation context
+      const existingTitles = await this.getUserTemplateTitles(existingTemplate.user_id)
+      const existingCategories = await this.getUserCategories(existingTemplate.user_id)
+      
+      // Filter out current template title from duplicates check
+      const filteredTitles = data.titel ? 
+        existingTitles.filter(title => title !== existingTemplate.titel) : 
+        existingTitles
+      
+      // Enhanced validation with context
+      const validation = await templateValidationService.validateUpdateTemplate(data, {
+        userId: existingTemplate.user_id,
+        existingTitles: filteredTitles,
+        existingCategories,
+        isUpdate: true,
+        templateId: id
+      })
+      
+      if (!validation.isValid) {
+        const templateError = TemplateErrorHandler.createError(
+          TemplateErrorType.INVALID_TEMPLATE_DATA,
+          'Template validation failed',
+          validation.errors,
+          { templateId: id, operation: 'update' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
       }
 
       const updateData: any = {
@@ -333,6 +356,22 @@ export class TemplateService {
     )]
 
     return uniqueCategories
+  }
+  
+  /**
+   * Get all template titles for a user (for duplicate checking)
+   */
+  async getUserTemplateTitles(userId: string): Promise<string[]> {
+    const { data: templates, error } = await this.supabase
+      .from('Vorlagen')
+      .select('titel')
+      .eq('user_id', userId)
+
+    if (error) {
+      throw new Error(`Failed to get user template titles: ${error.message}`)
+    }
+
+    return templates?.map(item => item.titel).filter(Boolean) || []
   }
 
   /**

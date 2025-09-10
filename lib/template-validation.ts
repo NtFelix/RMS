@@ -2,9 +2,29 @@
  * Template Validation System
  * 
  * Provides comprehensive validation for template data with detailed error reporting
+ * Enhanced with Zod schema validation and improved error handling
  */
 
+import { z } from 'zod'
 import { TemplateErrorHandler, TemplateErrorType } from './template-error-handler'
+import {
+  CreateTemplateRequestSchema,
+  UpdateTemplateRequestSchema,
+  TemplateFormDataSchema,
+  TemplateTitleSchema,
+  TemplateCategorySchema,
+  TemplateContentSchema,
+  ContextRequirementsSchema,
+  VariableIdSchema,
+  VALIDATION_LIMITS,
+  VALIDATION_PATTERNS,
+  validateTemplateTitle,
+  validateTemplateCategory,
+  validateTemplateContent,
+  validateCreateTemplateRequest,
+  validateUpdateTemplateRequest
+} from './template-validation-schemas'
+import { validateTemplateContent as validateVariableContent } from './template-variable-validation'
 
 // Validation Result Types
 export interface ValidationResult {
@@ -72,42 +92,59 @@ const DEFAULT_VALIDATION_RULES: ValidationRules = {
 }
 
 /**
- * Template Validator Class
+ * Enhanced Template Validator Class with Zod integration
  */
 export class TemplateValidator {
   private rules: ValidationRules
+  private useZodValidation: boolean
   
-  constructor(customRules?: Partial<ValidationRules>) {
+  constructor(customRules?: Partial<ValidationRules>, useZodValidation: boolean = true) {
     this.rules = { ...DEFAULT_VALIDATION_RULES, ...customRules }
+    this.useZodValidation = useZodValidation
   }
   
   /**
-   * Validate complete template data
+   * Validate complete template data with enhanced Zod validation
    */
   validate(data: TemplateValidationData): ValidationResult {
     const errors: ValidationError[] = []
     const warnings: ValidationWarning[] = []
     
     try {
-      // Validate title
-      const titleValidation = this.validateTitle(data.titel)
-      errors.push(...titleValidation.errors)
-      warnings.push(...titleValidation.warnings)
+      // Use Zod validation if enabled
+      if (this.useZodValidation) {
+        const zodValidation = this.validateWithZod(data)
+        errors.push(...zodValidation.errors)
+        warnings.push(...zodValidation.warnings)
+        
+        // If Zod validation fails, still run legacy validation for additional checks
+        if (!zodValidation.isValid) {
+          const legacyValidation = this.validateLegacy(data)
+          // Only add legacy warnings that aren't already covered by Zod
+          legacyValidation.warnings.forEach(warning => {
+            if (!warnings.some(w => w.code === warning.code)) {
+              warnings.push(warning)
+            }
+          })
+        }
+      } else {
+        // Use legacy validation
+        const legacyValidation = this.validateLegacy(data)
+        errors.push(...legacyValidation.errors)
+        warnings.push(...legacyValidation.warnings)
+      }
       
-      // Validate category
-      const categoryValidation = this.validateCategory(data.kategorie)
-      errors.push(...categoryValidation.errors)
-      warnings.push(...categoryValidation.warnings)
+      // Additional variable validation
+      if (data.inhalt) {
+        const variableValidation = validateVariableContent(data.inhalt)
+        errors.push(...variableValidation.errors)
+        warnings.push(...variableValidation.warnings)
+      }
       
-      // Validate content
-      const contentValidation = this.validateContent(data.inhalt)
-      errors.push(...contentValidation.errors)
-      warnings.push(...contentValidation.warnings)
-      
-      // Validate context requirements
-      const contextValidation = this.validateContextRequirements(data.kontext_anforderungen)
-      errors.push(...contextValidation.errors)
-      warnings.push(...contextValidation.warnings)
+      // Cross-field validation
+      const crossFieldValidation = this.validateCrossFields(data)
+      errors.push(...crossFieldValidation.errors)
+      warnings.push(...crossFieldValidation.warnings)
       
       return {
         isValid: errors.length === 0,
@@ -133,6 +170,236 @@ export class TemplateValidator {
         warnings: []
       }
     }
+  }
+  
+  /**
+   * Validate using Zod schemas
+   */
+  private validateWithZod(data: TemplateValidationData): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+    
+    // Validate title with Zod
+    if (data.titel !== undefined) {
+      const titleResult = validateTemplateTitle(data.titel)
+      if (!titleResult.success) {
+        titleResult.errors.forEach(error => {
+          errors.push({
+            field: 'titel',
+            message: error.message,
+            code: 'ZOD_TITLE_VALIDATION',
+            value: data.titel
+          })
+        })
+      }
+    }
+    
+    // Validate category with Zod
+    if (data.kategorie !== undefined) {
+      const categoryResult = validateTemplateCategory(data.kategorie)
+      if (!categoryResult.success) {
+        categoryResult.errors.forEach(error => {
+          errors.push({
+            field: 'kategorie',
+            message: error.message,
+            code: 'ZOD_CATEGORY_VALIDATION',
+            value: data.kategorie
+          })
+        })
+      }
+    }
+    
+    // Validate content with Zod
+    if (data.inhalt !== undefined) {
+      const contentResult = validateTemplateContent(data.inhalt)
+      if (!contentResult.success) {
+        contentResult.errors.forEach(error => {
+          errors.push({
+            field: 'inhalt',
+            message: error.message,
+            code: 'ZOD_CONTENT_VALIDATION',
+            value: data.inhalt
+          })
+        })
+      }
+    }
+    
+    // Validate context requirements with Zod
+    if (data.kontext_anforderungen !== undefined) {
+      try {
+        ContextRequirementsSchema.parse(data.kontext_anforderungen)
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          error.errors.forEach(zodError => {
+            errors.push({
+              field: 'kontext_anforderungen',
+              message: zodError.message,
+              code: 'ZOD_CONTEXT_VALIDATION',
+              value: data.kontext_anforderungen
+            })
+          })
+        }
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+  
+  /**
+   * Legacy validation method (existing implementation)
+   */
+  private validateLegacy(data: TemplateValidationData): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+    
+    // Validate title
+    const titleValidation = this.validateTitle(data.titel)
+    errors.push(...titleValidation.errors)
+    warnings.push(...titleValidation.warnings)
+    
+    // Validate category
+    const categoryValidation = this.validateCategory(data.kategorie)
+    errors.push(...categoryValidation.errors)
+    warnings.push(...categoryValidation.warnings)
+    
+    // Validate content
+    const contentValidation = this.validateContent(data.inhalt)
+    errors.push(...contentValidation.errors)
+    warnings.push(...contentValidation.warnings)
+    
+    // Validate context requirements
+    const contextValidation = this.validateContextRequirements(data.kontext_anforderungen)
+    errors.push(...contextValidation.errors)
+    warnings.push(...contextValidation.warnings)
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+  
+  /**
+   * Cross-field validation for complex business rules
+   */
+  private validateCrossFields(data: TemplateValidationData): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+    
+    // Check if title matches category naming conventions
+    if (data.titel && data.kategorie) {
+      const titleLower = data.titel.toLowerCase()
+      const categoryLower = data.kategorie.toLowerCase()
+      
+      // Warn if title doesn't seem to match category
+      if (!titleLower.includes(categoryLower) && !categoryLower.includes(titleLower)) {
+        warnings.push({
+          field: 'titel',
+          message: `Titel "${data.titel}" scheint nicht zur Kategorie "${data.kategorie}" zu passen`,
+          code: 'TITLE_CATEGORY_MISMATCH',
+          value: { titel: data.titel, kategorie: data.kategorie }
+        })
+      }
+    }
+    
+    // Check if content has variables but no context requirements
+    if (data.inhalt && data.kontext_anforderungen) {
+      const hasVariables = this.contentHasVariables(data.inhalt)
+      const hasContextRequirements = data.kontext_anforderungen.length > 0
+      
+      if (hasVariables && !hasContextRequirements) {
+        warnings.push({
+          field: 'kontext_anforderungen',
+          message: 'Vorlage enthält Variablen, aber keine Kontext-Anforderungen sind definiert',
+          code: 'MISSING_CONTEXT_REQUIREMENTS'
+        })
+      } else if (!hasVariables && hasContextRequirements) {
+        warnings.push({
+          field: 'kontext_anforderungen',
+          message: 'Kontext-Anforderungen definiert, aber keine Variablen im Inhalt gefunden',
+          code: 'UNUSED_CONTEXT_REQUIREMENTS'
+        })
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+  
+  /**
+   * Calculate string similarity using Levenshtein distance
+   */
+  private calculateStringSimilarity(str1: string, str2: string): number {
+    const matrix: number[][] = []
+    const len1 = str1.length
+    const len2 = str2.length
+
+    if (len1 === 0) return len2 === 0 ? 1 : 0
+    if (len2 === 0) return 0
+
+    // Initialize matrix
+    for (let i = 0; i <= len1; i++) {
+      matrix[i] = [i]
+    }
+    for (let j = 0; j <= len2; j++) {
+      matrix[0][j] = j
+    }
+
+    // Fill matrix
+    for (let i = 1; i <= len1; i++) {
+      for (let j = 1; j <= len2; j++) {
+        const cost = str1[i - 1] === str2[j - 1] ? 0 : 1
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,     // deletion
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j - 1] + cost // substitution
+        )
+      }
+    }
+
+    const distance = matrix[len1][len2]
+    const maxLength = Math.max(len1, len2)
+    return 1 - distance / maxLength
+  }
+  
+  /**
+   * Check if content contains variables
+   */
+  private contentHasVariables(content: any): boolean {
+    if (!content || typeof content !== 'object') return false
+    
+    const checkNode = (node: any): boolean => {
+      if (!node || typeof node !== 'object') return false
+      
+      if (node.type === 'mention' && node.attrs?.id) {
+        return true
+      }
+      
+      if (Array.isArray(node.content)) {
+        return node.content.some(checkNode)
+      }
+      
+      if (Array.isArray(node.marks)) {
+        return node.marks.some((mark: any) => 
+          mark.type === 'mention' && mark.attrs?.id
+        )
+      }
+      
+      return false
+    }
+    
+    if (Array.isArray(content)) {
+      return content.some(checkNode)
+    }
+    
+    return checkNode(content)
   }
   
   /**
@@ -428,23 +695,336 @@ export class TemplateValidator {
   }
   
   /**
-   * Quick validation for specific fields
+   * Validate template for creation (all required fields)
+   */
+  validateForCreation(data: any): ValidationResult {
+    const result = validateCreateTemplateRequest(data)
+    
+    if (!result.success) {
+      return {
+        isValid: false,
+        errors: result.errors.map(error => ({
+          field: error.path?.join('.') || 'unknown',
+          message: error.message,
+          code: 'ZOD_CREATION_VALIDATION',
+          value: error.received
+        })),
+        warnings: []
+      }
+    }
+    
+    // Additional business logic validation
+    return this.validate(data)
+  }
+  
+  /**
+   * Validate template for update (partial fields allowed)
+   */
+  validateForUpdate(data: any): ValidationResult {
+    const result = validateUpdateTemplateRequest(data)
+    
+    if (!result.success) {
+      return {
+        isValid: false,
+        errors: result.errors.map(error => ({
+          field: error.path?.join('.') || 'unknown',
+          message: error.message,
+          code: 'ZOD_UPDATE_VALIDATION',
+          value: error.received
+        })),
+        warnings: []
+      }
+    }
+    
+    // Additional business logic validation
+    return this.validate(data)
+  }
+  
+  /**
+   * Validate template title with enhanced checks
+   */
+  validateTitleEnhanced(title: string, existingTitles: string[] = []): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+    
+    // Basic Zod validation
+    const zodResult = validateTemplateTitle(title)
+    if (!zodResult.success) {
+      zodResult.errors.forEach(error => {
+        errors.push({
+          field: 'titel',
+          message: error.message,
+          code: 'TITLE_VALIDATION_ERROR',
+          value: title
+        })
+      })
+    }
+    
+    if (errors.length === 0) {
+      // Check for duplicates
+      if (existingTitles.includes(title.trim())) {
+        errors.push({
+          field: 'titel',
+          message: 'Ein Template mit diesem Titel existiert bereits',
+          code: 'TITLE_DUPLICATE',
+          value: title
+        })
+      }
+      
+      // Check for potentially problematic titles
+      const trimmedTitle = title.trim()
+      if (trimmedTitle.toLowerCase().includes('test') || trimmedTitle.toLowerCase().includes('temp')) {
+        warnings.push({
+          field: 'titel',
+          message: 'Titel scheint ein Test- oder temporärer Name zu sein',
+          code: 'TITLE_TEMPORARY',
+          value: title
+        })
+      }
+      
+      // Check for very generic titles
+      const genericTitles = ['vorlage', 'template', 'dokument', 'document', 'neu', 'new']
+      if (genericTitles.some(generic => trimmedTitle.toLowerCase() === generic)) {
+        warnings.push({
+          field: 'titel',
+          message: 'Titel ist sehr generisch - erwägen Sie einen spezifischeren Namen',
+          code: 'TITLE_GENERIC',
+          value: title
+        })
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+  
+  /**
+   * Validate category with enhanced checks
+   */
+  validateCategoryEnhanced(category: string, existingCategories: string[] = []): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+    
+    // Basic Zod validation
+    const zodResult = validateTemplateCategory(category)
+    if (!zodResult.success) {
+      zodResult.errors.forEach(error => {
+        errors.push({
+          field: 'kategorie',
+          message: error.message,
+          code: 'CATEGORY_VALIDATION_ERROR',
+          value: category
+        })
+      })
+    }
+    
+    if (errors.length === 0) {
+      const trimmedCategory = category.trim()
+      
+      // Check if it's a new category
+      if (!existingCategories.includes(trimmedCategory)) {
+        warnings.push({
+          field: 'kategorie',
+          message: 'Neue Kategorie wird erstellt',
+          code: 'CATEGORY_NEW',
+          value: category
+        })
+      }
+      
+      // Suggest similar existing categories
+      const similarCategories = existingCategories.filter(existing => {
+        const existingLower = existing.toLowerCase()
+        const categoryLower = trimmedCategory.toLowerCase()
+        return existingLower.includes(categoryLower) ||
+               categoryLower.includes(existingLower) ||
+               this.calculateStringSimilarity(existingLower, categoryLower) > 0.6
+      })
+      
+      if (similarCategories.length > 0 && !existingCategories.includes(trimmedCategory)) {
+        warnings.push({
+          field: 'kategorie',
+          message: `Ähnliche Kategorien existieren bereits: ${similarCategories.join(', ')}`,
+          code: 'CATEGORY_SIMILAR_EXISTS',
+          value: { category, similar: similarCategories }
+        })
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+  
+  /**
+   * Validate content with enhanced structure checks
+   */
+  validateContentEnhanced(content: any): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+    
+    // Basic Zod validation
+    const zodResult = validateTemplateContent(content)
+    if (!zodResult.success) {
+      zodResult.errors.forEach(error => {
+        errors.push({
+          field: 'inhalt',
+          message: error.message,
+          code: 'CONTENT_VALIDATION_ERROR',
+          value: content
+        })
+      })
+    }
+    
+    if (errors.length === 0 && content) {
+      // Check content complexity
+      const complexity = this.calculateContentComplexity(content)
+      if (complexity.nodeCount > 100) {
+        warnings.push({
+          field: 'inhalt',
+          message: `Sehr komplexer Inhalt (${complexity.nodeCount} Knoten) - könnte Performance-Probleme verursachen`,
+          code: 'CONTENT_COMPLEX',
+          value: complexity
+        })
+      }
+      
+      // Check for empty paragraphs
+      if (complexity.emptyParagraphs > 0) {
+        warnings.push({
+          field: 'inhalt',
+          message: `${complexity.emptyParagraphs} leere Absätze gefunden`,
+          code: 'CONTENT_EMPTY_PARAGRAPHS',
+          value: complexity.emptyParagraphs
+        })
+      }
+      
+      // Check for missing structure
+      if (complexity.headingCount === 0 && complexity.nodeCount > 10) {
+        warnings.push({
+          field: 'inhalt',
+          message: 'Längerer Inhalt ohne Überschriften - erwägen Sie die Strukturierung mit Überschriften',
+          code: 'CONTENT_NO_HEADINGS'
+        })
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+  
+  /**
+   * Calculate content complexity metrics
+   */
+  private calculateContentComplexity(content: any): {
+    nodeCount: number
+    textLength: number
+    variableCount: number
+    headingCount: number
+    emptyParagraphs: number
+  } {
+    let nodeCount = 0
+    let textLength = 0
+    let variableCount = 0
+    let headingCount = 0
+    let emptyParagraphs = 0
+    
+    const analyzeNode = (node: any): void => {
+      if (!node || typeof node !== 'object') return
+      
+      nodeCount++
+      
+      if (node.type === 'text' && node.text) {
+        textLength += node.text.length
+      }
+      
+      if (node.type === 'mention') {
+        variableCount++
+      }
+      
+      if (node.type === 'heading') {
+        headingCount++
+      }
+      
+      if (node.type === 'paragraph') {
+        const hasContent = node.content && node.content.some((child: any) => 
+          child.type === 'text' && child.text && child.text.trim().length > 0
+        )
+        if (!hasContent) {
+          emptyParagraphs++
+        }
+      }
+      
+      if (Array.isArray(node.content)) {
+        node.content.forEach(analyzeNode)
+      }
+      
+      if (Array.isArray(node.marks)) {
+        node.marks.forEach(analyzeNode)
+      }
+    }
+    
+    if (Array.isArray(content)) {
+      content.forEach(analyzeNode)
+    } else {
+      analyzeNode(content)
+    }
+    
+    return {
+      nodeCount,
+      textLength,
+      variableCount,
+      headingCount,
+      emptyParagraphs
+    }
+  }
+  
+  /**
+   * Quick validation for specific fields (enhanced)
    */
   static validateTitle(title: string): boolean {
-    if (!title || typeof title !== 'string') return false
-    const trimmed = title.trim()
-    return trimmed.length > 0 && trimmed.length <= 255
+    const result = validateTemplateTitle(title)
+    return result.success
   }
   
   static validateCategory(category: string): boolean {
-    if (!category || typeof category !== 'string') return false
-    const trimmed = category.trim()
-    return trimmed.length > 0 && trimmed.length <= 100
+    const result = validateTemplateCategory(category)
+    return result.success
   }
   
   static validateContent(content: any): boolean {
-    if (!content || typeof content !== 'object') return false
-    return content.type === 'doc' && Array.isArray(content.content)
+    const result = validateTemplateContent(content)
+    return result.success
+  }
+  
+  /**
+   * Sanitize input data
+   */
+  static sanitizeTemplateData(data: any): any {
+    const sanitized = { ...data }
+    
+    if (sanitized.titel && typeof sanitized.titel === 'string') {
+      sanitized.titel = sanitized.titel.trim().substring(0, VALIDATION_LIMITS.TITLE_MAX_LENGTH)
+    }
+    
+    if (sanitized.kategorie && typeof sanitized.kategorie === 'string') {
+      sanitized.kategorie = sanitized.kategorie.trim().substring(0, VALIDATION_LIMITS.CATEGORY_MAX_LENGTH)
+    }
+    
+    if (sanitized.kontext_anforderungen && Array.isArray(sanitized.kontext_anforderungen)) {
+      sanitized.kontext_anforderungen = sanitized.kontext_anforderungen
+        .filter(req => typeof req === 'string' && req.trim().length > 0)
+        .map(req => req.trim())
+        .slice(0, VALIDATION_LIMITS.MAX_CONTEXT_REQUIREMENTS)
+    }
+    
+    return sanitized
   }
 }
 
