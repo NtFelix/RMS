@@ -854,5 +854,37 @@ export class TemplateService {
   }
 }
 
-// Export a singleton instance
-export const templateService = new TemplateService()
+// Export a lazy-loaded singleton instance to avoid cookies() calls during build
+let _templateService: TemplateService | null = null
+
+export function getTemplateService(): TemplateService {
+  if (!_templateService) {
+    _templateService = new TemplateService()
+  }
+  return _templateService
+}
+
+// Export singleton for backward compatibility
+export const templateService = {
+  // Async methods
+  get createTemplate() { return getTemplateService().createTemplate.bind(getTemplateService()) },
+  get getTemplate() { return getTemplateService().getTemplate.bind(getTemplateService()) },
+  get updateTemplate() { return getTemplateService().updateTemplate.bind(getTemplateService()) },
+  get deleteTemplate() { return getTemplateService().deleteTemplate.bind(getTemplateService()) },
+  get getUserTemplates() { return getTemplateService().getUserTemplates.bind(getTemplateService()) },
+  get getUserCategories() { return getTemplateService().getUserCategories.bind(getTemplateService()) },
+  get getTemplatesByCategory() { return getTemplateService().getTemplatesByCategory.bind(getTemplateService()) },
+  get getCategoryTemplateCount() { return getTemplateService().getCategoryTemplateCount.bind(getTemplateService()) },
+  get getUserTemplateTitles() { return getTemplateService().getUserTemplateTitles.bind(getTemplateService()) },
+  get getUserTemplateCount() { return getTemplateService().getUserTemplateCount.bind(getTemplateService()) },
+  get getUserTemplatesPaginated() { return getTemplateService().getUserTemplatesPaginated.bind(getTemplateService()) },
+  
+  // Sync methods
+  get extractVariablesFromContent() { return getTemplateService().extractVariablesFromContent.bind(getTemplateService()) },
+  get validateTemplateVariables() { return getTemplateService().validateTemplateVariables.bind(getTemplateService()) },
+  get getAvailableVariables() { return getTemplateService().getAvailableVariables.bind(getTemplateService()) },
+  get getVariablesByCategory() { return getTemplateService().getVariablesByCategory.bind(getTemplateService()) },
+  get searchVariables() { return getTemplateService().searchVariables.bind(getTemplateService()) },
+  get getVariableById() { return getTemplateService().getVariableById.bind(getTemplateService()) },
+  get getContextRequirements() { return getTemplateService().getContextRequirements.bind(getTemplateService()) }
+}

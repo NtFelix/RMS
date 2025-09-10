@@ -9,7 +9,9 @@ import type { VirtualFolder, StorageFile } from '../app/(dashboard)/dateien/acti
  * Provides virtual folder structure for templates in the documents interface
  */
 export class TemplateVirtualFolderProvider {
-  private supabase = createSupabaseServerClient()
+  private getSupabaseClient() {
+    return createSupabaseServerClient()
+  }
 
   /**
    * Get the template root folder with category subfolders
@@ -132,7 +134,7 @@ export class TemplateVirtualFolderProvider {
    */
   private async getTotalTemplateCount(userId: string): Promise<number> {
     try {
-      const { count, error } = await this.supabase
+      const { count, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -154,7 +156,7 @@ export class TemplateVirtualFolderProvider {
    */
   private async getUncategorizedTemplateCount(userId: string): Promise<number> {
     try {
-      const { count, error } = await this.supabase
+      const { count, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -177,7 +179,7 @@ export class TemplateVirtualFolderProvider {
    */
   private async getUncategorizedTemplates(userId: string): Promise<Template[]> {
     try {
-      const { data: templates, error } = await this.supabase
+      const { data: templates, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .select('*')
         .eq('user_id', userId)
@@ -231,5 +233,20 @@ export class TemplateVirtualFolderProvider {
   }
 }
 
-// Export singleton instance
-export const templateVirtualFolderProvider = new TemplateVirtualFolderProvider()
+// Export a lazy-loaded singleton instance to avoid cookies() calls during build
+let _templateVirtualFolderProvider: TemplateVirtualFolderProvider | null = null
+
+export function getTemplateVirtualFolderProvider(): TemplateVirtualFolderProvider {
+  if (!_templateVirtualFolderProvider) {
+    _templateVirtualFolderProvider = new TemplateVirtualFolderProvider()
+  }
+  return _templateVirtualFolderProvider
+}
+
+// Export singleton for backward compatibility
+export const templateVirtualFolderProvider = {
+  get getTemplateRootFolder() { return getTemplateVirtualFolderProvider().getTemplateRootFolder.bind(getTemplateVirtualFolderProvider()) },
+  get getTemplateCategoryFolders() { return getTemplateVirtualFolderProvider().getTemplateCategoryFolders.bind(getTemplateVirtualFolderProvider()) },
+  get getTemplatesForCategory() { return getTemplateVirtualFolderProvider().getTemplatesForCategory.bind(getTemplateVirtualFolderProvider()) },
+  get getAllTemplatesAsItems() { return getTemplateVirtualFolderProvider().getAllTemplatesAsItems.bind(getTemplateVirtualFolderProvider()) }
+}
