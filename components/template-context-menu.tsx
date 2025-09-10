@@ -40,10 +40,29 @@ export function TemplateContextMenu({
   const { openTemplateEditorModal } = useModalStore()
 
   const handleEdit = () => {
+    // Handle both string and object content
+    let parsedContent
+    try {
+      parsedContent = typeof template.content === 'string' 
+        ? JSON.parse(template.content) 
+        : template.content
+    } catch (error) {
+      console.error('Error parsing template content:', error)
+      parsedContent = {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [],
+          },
+        ],
+      }
+    }
+
     openTemplateEditorModal({
       templateId: template.id,
       initialTitle: template.name,
-      initialContent: JSON.parse(template.content),
+      initialContent: parsedContent,
       initialCategory: template.category || '',
       isNewTemplate: false,
       onSave: async (templateData) => {
@@ -83,9 +102,28 @@ export function TemplateContextMenu({
       // Create duplicate with "(Copy)" suffix
       const duplicateTitle = `${template.name} (Copy)`
       
+      // Handle both string and object content
+      let parsedContent
+      try {
+        parsedContent = typeof template.content === 'string' 
+          ? JSON.parse(template.content) 
+          : template.content
+      } catch (error) {
+        console.error('Error parsing template content for duplication:', error)
+        parsedContent = {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [],
+            },
+          ],
+        }
+      }
+
       await templateClientService.createTemplate({
         titel: duplicateTitle,
-        inhalt: JSON.parse(template.content),
+        inhalt: parsedContent,
         kategorie: template.category || '',
         kontext_anforderungen: template.variables || []
       })

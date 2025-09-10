@@ -1,5 +1,6 @@
 "use client"
 
+import React from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -113,6 +114,20 @@ export function TiptapTemplateEditor({
       },
     },
   })
+
+  // Update editor content when initialContent changes
+  React.useEffect(() => {
+    if (editor && initialContent) {
+      // Only update if the content is different to avoid unnecessary re-renders
+      const currentContent = editor.getJSON()
+      const contentString = JSON.stringify(currentContent)
+      const initialContentString = JSON.stringify(initialContent)
+      
+      if (contentString !== initialContentString) {
+        editor.commands.setContent(initialContent)
+      }
+    }
+  }, [editor, initialContent])
 
   // Handle keyboard shortcuts
   const handleKeyDown = (event: React.KeyboardEvent) => {

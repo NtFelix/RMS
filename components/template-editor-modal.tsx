@@ -73,7 +73,9 @@ export function TemplateEditorModal() {
   useEffect(() => {
     if (isTemplateEditorModalOpen && templateEditorData) {
       setTitle(templateEditorData.initialTitle || "")
-      setContent(templateEditorData.initialContent || {
+      
+      // Handle initial content properly
+      const initialContent = templateEditorData.initialContent || {
         type: 'doc',
         content: [
           {
@@ -81,8 +83,14 @@ export function TemplateEditorModal() {
             content: [],
           },
         ],
-      })
-      setVariables([])
+      }
+      
+      setContent(initialContent)
+      
+      // Extract variables from initial content
+      const initialVariables = extractVariablesFromContent(initialContent)
+      setVariables(initialVariables)
+      
       setIsSaving(false)
       setValidationErrors([])
       setValidationWarnings([])
