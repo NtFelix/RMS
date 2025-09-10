@@ -17,6 +17,7 @@ import {
 import { TemplateErrorReporter } from './template-error-logger'
 import { TemplateValidator } from './template-validation'
 import { templateValidationService } from './template-validation-service'
+import { templateCacheService } from './template-cache'
 import type {
   Template,
   CreateTemplateRequest,
@@ -83,6 +84,9 @@ export class TemplateService {
       if (!template) {
         throw new Error('No template returned from database')
       }
+
+      // Invalidate related caches
+      templateCacheService.invalidateUserCaches(data.user_id)
 
       return template
     } catch (error) {
@@ -172,6 +176,17 @@ export class TemplateService {
         throw templateError
       }
 
+      // Invalidate related caches
+      templateCacheService.invalidateTemplateCache(id)
+      templateCacheService.invalidateUserCaches(existingTemplate.user_id)
+      
+      // If category changed, invalidate old category cache
+      if (data.kategorie !== undefined && data.kategorie !== existingTemplate.kategorie) {
+        if (existingTemplate.kategorie) {
+          templateCacheService.invalidateCategoryCache(existingTemplate.user_id, existingTemplate.kategorie)
+        }
+      }
+
       return template
     } catch (error) {
       if (error instanceof Error && error.message.includes('template_error')) {
@@ -192,6 +207,9 @@ export class TemplateService {
    */
   async deleteTemplate(id: string): Promise<void> {
     try {
+      // Get template info before deletion for cache invalidation
+      const existingTemplate = await this.getTemplate(id)
+      
       const { error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .delete()
@@ -215,6 +233,13 @@ export class TemplateService {
         TemplateErrorReporter.reportError(templateError)
         throw templateError
       }
+
+      // Invalidate related caches
+      templateCacheService.deleteTemplate(id)
+      templateCacheService.invalidateUserCaches(existingTemplate.user_id)
+      if (existingTemplate.kategorie) {
+        templateCacheService.invalidateCategoryCache(existingTemplate.user_id, existingTemplate.kategorie)
+      }
     } catch (error) {
       if (error instanceof Error && error.message.includes('template_error')) {
         throw error // Re-throw template errors
@@ -234,6 +259,12 @@ export class TemplateService {
    */
   async getTemplate(id: string): Promise<Template> {
     try {
+      // Check cache first
+      const cached = templateCacheService.getTemplate(id)
+      if (cached) {
+        return cached
+      }
+
       const { data: template, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .select('*')
@@ -259,6 +290,9 @@ export class TemplateService {
         throw templateError
       }
 
+      // Cache the result
+      templateCacheService.setTemplate(template)
+
       return template
     } catch (error) {
       if (error instanceof Error && error.message.includes('template_error')) {
@@ -278,6 +312,12 @@ export class TemplateService {
    * Get all templates for a user
    */
   async getUserTemplates(userId: string): Promise<Template[]> {
+    // Check cache first
+    const cached = templateCacheService.getUserTemplates(userId)
+    if (cached) {
+      return cached
+    }
+
     const result = await TemplateErrorRecovery.safeOperation(
       async () => {
         const { data: templates, error } = await this.getSupabaseClient()
@@ -297,7 +337,12 @@ export class TemplateService {
           throw templateError
         }
 
-        return templates || []
+        const templates = templates || []
+        
+        // Cache the result
+        templateCacheService.setUserTemplates(userId, templates)
+
+        return templates
       },
       [], // fallback to empty array
       { userId, operation: 'getUserTemplates' }
@@ -310,6 +355,12 @@ export class TemplateService {
    * Get templates by category for a user
    */
   async getTemplatesByCategory(userId: string, category: string): Promise<Template[]> {
+    // Check cache first
+    const cached = templateCacheService.getCategoryTemplates(userId, category)
+    if (cached) {
+      return cached
+    }
+
     const { data: templates, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('*')
@@ -321,13 +372,24 @@ export class TemplateService {
       throw new Error(`Failed to get templates by category: ${error.message}`)
     }
 
-    return templates || []
+    const result = templates || []
+    
+    // Cache the result
+    templateCacheService.setCategoryTemplates(userId, category, result)
+
+    return result
   }
 
   /**
    * Get all categories for a user
    */
   async getUserCategories(userId: string): Promise<string[]> {
+    // Check cache first
+    const cached = templateCacheService.getUserCategories(userId)
+    if (cached) {
+      return cached
+    }
+
     const { data: categories, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('kategorie')
@@ -356,6 +418,9 @@ export class TemplateService {
     // Combine existing and default categories, removing duplicates
     const allCategories = [...new Set([...existingCategories, ...defaultCategories])]
 
+    // Cache the result
+    templateCacheService.setUserCategories(userId, allCategories)
+
     return allCategories
   }
   
@@ -379,6 +444,12 @@ export class TemplateService {
    * Get template count for a specific category
    */
   async getCategoryTemplateCount(userId: string, category: string): Promise<number> {
+    // Check cache first
+    const cached = templateCacheService.getTemplateCount(userId, category)
+    if (cached !== null) {
+      return cached
+    }
+
     const { count, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('*', { count: 'exact', head: true })
@@ -389,7 +460,12 @@ export class TemplateService {
       throw new Error(`Failed to get category template count: ${error.message}`)
     }
 
-    return count || 0
+    const result = count || 0
+    
+    // Cache the result
+    templateCacheService.setTemplateCount(userId, result, category)
+
+    return result
   }
 
   /**
@@ -702,6 +778,79 @@ export class TemplateService {
    */
   getAvailableVariables(): MentionItem[] {
     return PREDEFINED_VARIABLES
+  }
+
+  /**
+   * Get paginated templates for a user
+   */
+  async getUserTemplatesPaginated(
+    userId: string,
+    options: {
+      limit?: number
+      offset?: number
+      category?: string
+      search?: string
+    } = {}
+  ): Promise<{ templates: Template[]; totalCount: number }> {
+    const { limit = 20, offset = 0, category, search } = options
+
+    let query = this.getSupabaseClient()
+      .from('Vorlagen')
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+
+    // Add category filter
+    if (category) {
+      query = query.eq('kategorie', category)
+    }
+
+    // Add search filter
+    if (search) {
+      query = query.or(`titel.ilike.%${search}%,kategorie.ilike.%${search}%`)
+    }
+
+    // Add pagination and ordering
+    query = query
+      .order('erstellungsdatum', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    const { data: templates, error, count } = await query
+
+    if (error) {
+      throw new Error(`Failed to get paginated templates: ${error.message}`)
+    }
+
+    return {
+      templates: templates || [],
+      totalCount: count || 0
+    }
+  }
+
+  /**
+   * Get total template count for a user
+   */
+  async getUserTemplateCount(userId: string): Promise<number> {
+    // Check cache first
+    const cached = templateCacheService.getTemplateCount(userId)
+    if (cached !== null) {
+      return cached
+    }
+
+    const { count, error } = await this.getSupabaseClient()
+      .from('Vorlagen')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+
+    if (error) {
+      throw new Error(`Failed to get user template count: ${error.message}`)
+    }
+
+    const result = count || 0
+    
+    // Cache the result
+    templateCacheService.setTemplateCount(userId, result)
+
+    return result
   }
 }
 

@@ -155,6 +155,35 @@ export class TemplateClientService {
   }
 
   /**
+   * Get paginated templates for the current user
+   */
+  async getUserTemplatesPaginated(options: {
+    limit?: number
+    offset?: number
+    category?: string
+    search?: string
+  } = {}): Promise<{ templates: Template[]; totalCount: number }> {
+    const params = new URLSearchParams()
+    
+    if (options.limit) params.append('limit', options.limit.toString())
+    if (options.offset) params.append('offset', options.offset.toString())
+    if (options.category) params.append('category', options.category)
+    if (options.search) params.append('search', options.search)
+
+    const response = await fetch(`${this.baseUrl}?${params}`)
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to fetch paginated templates')
+    }
+
+    return {
+      templates: result.templates || [],
+      totalCount: result.totalCount || 0
+    }
+  }
+
+  /**
    * Get templates by category
    */
   async getTemplatesByCategory(category: string): Promise<Template[]> {

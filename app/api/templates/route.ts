@@ -5,7 +5,7 @@ import { CreateTemplateRequest } from '@/types/template'
 
 /**
  * GET /api/templates
- * Get all templates for the current user
+ * Get templates for the current user with optional pagination
  */
 export async function GET(request: NextRequest) {
   try {
@@ -24,13 +24,40 @@ export async function GET(request: NextRequest) {
     // Get query parameters
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
+    const limitParam = searchParams.get('limit')
+    const offsetParam = searchParams.get('offset')
+    const search = searchParams.get('search')
 
-    // Get templates
-    const templates = category 
-      ? await templateService.getTemplatesByCategory(user.id, category)
-      : await templateService.getUserTemplates(user.id)
-    
-    return NextResponse.json({ templates })
+    // Check if pagination is requested
+    const isPaginated = limitParam !== null || offsetParam !== null
+
+    if (isPaginated) {
+      // Use paginated endpoint
+      const limit = limitParam ? parseInt(limitParam, 10) : 20
+      const offset = offsetParam ? parseInt(offsetParam, 10) : 0
+
+      const result = await templateService.getUserTemplatesPaginated(user.id, {
+        limit,
+        offset,
+        category: category || undefined,
+        search: search || undefined
+      })
+
+      return NextResponse.json({
+        templates: result.templates,
+        totalCount: result.totalCount,
+        limit,
+        offset,
+        hasMore: (offset + limit) < result.totalCount
+      })
+    } else {
+      // Use non-paginated endpoint for backward compatibility
+      const templates = category 
+        ? await templateService.getTemplatesByCategory(user.id, category)
+        : await templateService.getUserTemplates(user.id)
+      
+      return NextResponse.json({ templates })
+    }
   } catch (error) {
     console.error('Error fetching templates:', error)
     return NextResponse.json(

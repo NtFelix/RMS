@@ -7,6 +7,7 @@ import Underline from '@tiptap/extension-underline'
 import { SlashCommandExtension } from './slash-command-extension'
 import { MentionExtension, MentionItem, PREDEFINED_VARIABLES } from './mention-extension'
 import { cn } from '@/lib/utils'
+import { useDebouncedSave, SaveIndicator } from '@/hooks/use-debounced-save'
 import './mention-popup.css'
 
 interface TiptapTemplateEditorProps {
@@ -20,6 +21,10 @@ interface TiptapTemplateEditorProps {
   variables?: MentionItem[]
   onVariableInsert?: (variable: MentionItem) => void
   onVariableRemove?: (variableId: string) => void
+  // Debounced saving options
+  enableAutoSave?: boolean
+  autoSaveFunction?: (content: object) => Promise<void>
+  showSaveIndicator?: boolean
 }
 
 // Function to extract variables from Tiptap content
@@ -54,8 +59,27 @@ export function TiptapTemplateEditor({
   editable = true,
   variables = PREDEFINED_VARIABLES,
   onVariableInsert,
-  onVariableRemove
+  onVariableRemove,
+  enableAutoSave = false,
+  autoSaveFunction,
+  showSaveIndicator = false
 }: TiptapTemplateEditorProps) {
+  const [currentContent, setCurrentContent] = React.useState(initialContent || {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [] }]
+  })
+
+  // Set up debounced saving if enabled
+  const debouncedSave = useDebouncedSave(
+    currentContent,
+    autoSaveFunction || (async () => {}),
+    {
+      delay: 3000, // 3 seconds
+      maxDelay: 15000, // 15 seconds max
+      saveOnUnmount: true,
+      showSaveIndicator: showSaveIndicator && enableAutoSave
+    }
+  )
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration mismatch
     extensions: [
@@ -95,7 +119,17 @@ export function TiptapTemplateEditor({
     onUpdate: ({ editor }) => {
       const content = editor.getJSON()
       const extractedVariables = extractVariablesFromContent(content)
+      
+      // Update local state for debounced saving
+      setCurrentContent(content)
+      
+      // Call the original change handler
       onContentChange?.(content, extractedVariables)
+      
+      // Mark as dirty for auto-save if enabled
+      if (enableAutoSave && autoSaveFunction) {
+        debouncedSave.markDirty()
+      }
     },
     editorProps: {
       attributes: {
@@ -161,6 +195,13 @@ export function TiptapTemplateEditor({
       className={cn('relative', className)}
       onKeyDown={handleKeyDown}
     >
+      {/* Save indicator */}
+      {showSaveIndicator && enableAutoSave && (
+        <div className="absolute top-2 right-2 z-10">
+          <SaveIndicator saveState={debouncedSave} />
+        </div>
+      )}
+      
       <EditorContent 
         editor={editor}
         className={cn(
