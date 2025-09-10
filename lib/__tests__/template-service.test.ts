@@ -244,7 +244,7 @@ describe('TemplateService', () => {
           expect.objectContaining({
             id: 'apartment_rent',
             label: 'Kaltmiete',
-            category: 'Wohnung'
+            category: 'Finanzen'
           })
         ])
       )

@@ -229,17 +229,20 @@ export const MentionExtension = (options: MentionExtensionOptions = {}) => {
       allowSpaces: false,
       startOfLine: false,
       items: ({ query }: { query: string }) => {
+        // Ensure variables is an array
+        const variableArray = Array.isArray(variables) ? variables : []
+        
         // Early return for empty query to avoid unnecessary filtering
         if (!query.trim()) {
-          return variables.slice(0, 10)
+          return variableArray.slice(0, 10)
         }
 
         const lowerQuery = query.toLowerCase()
         
         // Optimized filtering with early termination
         const filtered = []
-        for (let i = 0; i < variables.length && filtered.length < 10; i++) {
-          const item = variables[i]
+        for (let i = 0; i < variableArray.length && filtered.length < 10; i++) {
+          const item = variableArray[i]
           if (
             item.label.toLowerCase().includes(lowerQuery) ||
             item.category.toLowerCase().includes(lowerQuery) ||

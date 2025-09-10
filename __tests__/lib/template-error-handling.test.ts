@@ -181,7 +181,7 @@ describe('TemplateValidator', () => {
   let validator: TemplateValidator
 
   beforeEach(() => {
-    validator = new TemplateValidator()
+    validator = new TemplateValidator(undefined, false) // Use legacy validation for tests
   })
 
   describe('validate', () => {

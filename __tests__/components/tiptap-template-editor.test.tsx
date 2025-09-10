@@ -1,6 +1,7 @@
 import React from 'react'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import '@testing-library/jest-dom'
+import { render } from '../test-utils'
 import { TiptapTemplateEditor } from '@/components/editor/tiptap-template-editor'
 
 // Mock the Tiptap editor to avoid complex DOM manipulation in tests

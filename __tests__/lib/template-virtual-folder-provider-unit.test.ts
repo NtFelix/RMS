@@ -50,11 +50,12 @@ describe('TemplateVirtualFolderProvider Unit Tests', () => {
       mockTemplateService.getUserCategories.mockResolvedValue(['Category 1', 'Category 2'])
       
       // Mock total template count
+      const mockEq = jest.fn().mockResolvedValue({
+        count: 5,
+        error: null
+      })
       const mockSelect = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({
-          count: 5,
-          error: null
-        })
+        eq: mockEq
       })
       mockSupabaseClient.from.mockReturnValue({
         select: mockSelect
@@ -76,11 +77,12 @@ describe('TemplateVirtualFolderProvider Unit Tests', () => {
     it('should handle empty template collection', async () => {
       mockTemplateService.getUserCategories.mockResolvedValue([])
       
+      const mockEq = jest.fn().mockResolvedValue({
+        count: 0,
+        error: null
+      })
       const mockSelect = jest.fn().mockReturnValue({
-        eq: jest.fn().mockResolvedValue({
-          count: 0,
-          error: null
-        })
+        eq: mockEq
       })
       mockSupabaseClient.from.mockReturnValue({
         select: mockSelect

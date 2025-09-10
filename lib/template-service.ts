@@ -337,12 +337,12 @@ export class TemplateService {
           throw templateError
         }
 
-        const templates = templates || []
+        const templateList = templates || []
         
         // Cache the result
-        templateCacheService.setUserTemplates(userId, templates)
+        templateCacheService.setUserTemplates(userId, templateList)
 
-        return templates
+        return templateList
       },
       [], // fallback to empty array
       { userId, operation: 'getUserTemplates' }

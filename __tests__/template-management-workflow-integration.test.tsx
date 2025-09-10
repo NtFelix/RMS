@@ -177,7 +177,7 @@ describe('Template Management Workflow Integration Tests', () => {
       const categoryBadge = screen.getByText('Mietverträge')
       await user.click(categoryBadge)
 
-      const continueButton = screen.getByRole('button', { name: /weiter/i })
+      const continueButton = screen.getByRole('button', { name: /fortfahren/i })
       await user.click(continueButton)
 
       // Phase 2: Template Editor for Creation
