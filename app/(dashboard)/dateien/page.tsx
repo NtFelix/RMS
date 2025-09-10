@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getPathContents } from "./actions"
 
 export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
 
 function CloudStorageLoading() {
   return (

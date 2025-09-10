@@ -50,16 +50,16 @@ function URLParamHandler() {
   const { openAuthModal } = useAuthModal();
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchUser = async () => {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUser(user);
       setIsLoadingUser(false);
     };
     fetchUser();
-  }, [supabase]);
+  }, []);
 
   // Handle URL parameter for "get started" flow
   useEffect(() => {
@@ -85,7 +85,6 @@ function URLParamHandler() {
 function LandingPageContent() {
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
   const { openAuthModal } = useAuthModal();
 
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
@@ -93,6 +92,7 @@ function LandingPageContent() {
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   useEffect(() => {
     const fetchInitialUserAndProfile = async () => {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       setSessionUser(user);
       if (user) {
@@ -104,6 +104,7 @@ function LandingPageContent() {
 
     fetchInitialUserAndProfile();
 
+    const supabase = createClient();
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSessionUser(session?.user ?? null);
       if (event === 'SIGNED_IN' && session?.user) {
@@ -116,10 +117,11 @@ function LandingPageContent() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabase, router]);
+  }, [router]);
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      const supabase = createClient();
       const { data, error } = await supabase
         .from('profiles')
         .select('id, stripe_customer_id, stripe_subscription_id, stripe_subscription_status, stripe_price_id')

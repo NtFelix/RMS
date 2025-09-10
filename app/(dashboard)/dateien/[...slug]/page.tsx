@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { getPathContents } from "../actions"
 
 export const runtime = 'edge'
+export const dynamic = 'force-dynamic'
 
 export default async function DateienPathPage({ params }: { params: Promise<{ slug: string[] }> }) {
   const supabase = await createClient()

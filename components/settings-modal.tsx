@@ -63,7 +63,6 @@ type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
-  const supabase = createClient()
   const { toast } = useToast()
   const router = useRouter()
   const { theme, setTheme } = useTheme()
@@ -134,6 +133,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const [betriebskostenGuideEnabled, setBetriebskostenGuideEnabled] = useState<boolean>(true);
 
   useEffect(() => {
+    const supabase = createClient()
     supabase.auth.getUser().then(res => {
       const user = res.data.user
       if (user) {
@@ -150,7 +150,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     // As per user instruction, it will be hardcoded in the next step.
     // For now, just setting a loading state.
     // setPackageJsonVersion("0.1.0"); // Placeholder, will be properly set in the "Informationen" tab content step
-  }, [supabase]);
+  }, []);
 
   const refreshUserProfile = async () => {
     setIsFetchingStatus(true);
@@ -247,6 +247,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     try {
       // This call might trigger a CAPTCHA if enabled, or other checks.
       // For sensitive operations, Supabase might send a confirmation email even without explicit MFA.
+      const supabase = createClient()
       const { error } = await supabase.auth.reauthenticate();
       if (error) {
         toast({
@@ -451,6 +452,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
   const handleProfileSave = async () => {
     setLoading(true)
+    const supabase = createClient()
     const { data, error } = await supabase.auth.updateUser({ data: { first_name: firstName, last_name: lastName } })
     setLoading(false)
     if (error) {
@@ -486,6 +488,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       return
     }
     setLoading(true)
+    const supabase = createClient()
     const { error } = await supabase.auth.updateUser({ email })
     setLoading(false)
     if (error) {
@@ -512,6 +515,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       return
     }
     setLoading(true)
+    const supabase = createClient()
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
     if (error) {

@@ -25,11 +25,11 @@ export function UserSettings() {
   const [userName, setUserName] = useState("Lade...");
   const [userEmail, setUserEmail] = useState("");
   const [userInitials, setUserInitials] = useState("");
-  const supabase = createClient();
 
   useEffect(() => {
     const fetchUser = async () => {
       setIsLoadingUser(true);
+      const supabase = createClient();
       const { data: { user }, error: authError } = await supabase.auth.getUser();
 
       if (authError || !user) {
@@ -64,12 +64,13 @@ export function UserSettings() {
     };
 
     fetchUser();
-  }, [supabase]);
+  }, []);
 
 
   const handleLogout = async () => {
     setIsLoadingLogout(true);
     try {
+      const supabase = createClient();
       const { error } = await supabase.auth.signOut();
       if (error) {
         throw error;

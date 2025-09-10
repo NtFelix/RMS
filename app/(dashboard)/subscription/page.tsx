@@ -1,5 +1,6 @@
 // app/(dashboard)/subscription/page.tsx
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 import { createClient } from '@/utils/supabase/server';
 import { getPlanDetails } from '@/lib/stripe-server';
 import SubscriptionClientPage from './client-page';

@@ -1,6 +1,7 @@
 // "use client" directive removed. This file is now a pure Server Component.
 
 export const runtime = 'edge';
+export const dynamic = 'force-dynamic';
 import { createClient } from "@/utils/supabase/server"; // For server-side data fetching
 import HaeuserClientView from "./client-wrapper"; // Import the default export client view
 import { formatNumber } from "@/utils/format";
