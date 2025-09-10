@@ -352,12 +352,25 @@ export class TemplateService {
       throw new Error(`Failed to get user categories: ${error.message}`)
     }
 
-    // Extract unique categories
-    const uniqueCategories = [...new Set(
+    // Extract unique categories from existing templates
+    const existingCategories = [...new Set(
       categories?.map(item => item.kategorie).filter(Boolean) || []
     )]
 
-    return uniqueCategories
+    // Define default categories for property management
+    const defaultCategories = [
+      'Mietverträge',
+      'Kündigungen', 
+      'Nebenkostenabrechnungen',
+      'Mängelanzeigen',
+      'Schriftverkehr',
+      'Sonstiges'
+    ]
+
+    // Combine existing and default categories, removing duplicates
+    const allCategories = [...new Set([...existingCategories, ...defaultCategories])]
+
+    return allCategories
   }
   
   /**

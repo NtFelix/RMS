@@ -9,15 +9,31 @@ export function createSupabaseServerClient() {
     {
       cookies: {
         async get(name: string) {
-          const cookieStore = await cookies()
-          const cookie = cookieStore.get(name)
-          return cookie?.value
+          try {
+            const cookieStore = await cookies()
+            const cookie = cookieStore.get(name)
+            return cookie?.value
+          } catch (error) {
+            // Handle case when cookies() is called outside request scope (e.g., during static generation)
+            console.warn('Cookies not available outside request scope:', error)
+            return undefined
+          }
         },
         set(name, value, options: CookieOptions) {
-          // Server components können keine Cookies setzen
+          try {
+            // Server components können keine Cookies setzen
+            // This is intentionally empty for server components
+          } catch (error) {
+            console.warn('Cannot set cookies in server component:', error)
+          }
         },
         remove(name, options: CookieOptions) {
-          // Server components können keine Cookies entfernen
+          try {
+            // Server components können keine Cookies entfernen
+            // This is intentionally empty for server components
+          } catch (error) {
+            console.warn('Cannot remove cookies in server component:', error)
+          }
         }
       }
     }

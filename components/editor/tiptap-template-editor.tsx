@@ -56,6 +56,7 @@ export function TiptapTemplateEditor({
   onVariableRemove
 }: TiptapTemplateEditorProps) {
   const editor = useEditor({
+    immediatelyRender: false, // Fix SSR hydration mismatch
     extensions: [
       StarterKit.configure({
         // Configure the starter kit extensions

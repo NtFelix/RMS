@@ -154,6 +154,7 @@ interface CategorySelectionData {
   onCancel: () => void;
   isLoading?: boolean;
   error?: string;
+  allowNewCategory?: boolean; // New property to control if new categories can be created
 }
 
 interface TemplateFormData {

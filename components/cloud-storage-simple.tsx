@@ -15,6 +15,7 @@ import { useSimpleCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbIte
 import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
+import { useTemplateOperations } from "@/hooks/use-template-operations"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { cn } from "@/lib/utils"
@@ -50,6 +51,7 @@ export function CloudStorageSimple({
   const router = useRouter()
   const { toast } = useToast()
   const { openUploadModal, openCreateFolderModal, openCreateFileModal, openCategorySelectionModal } = useModalStore()
+  const { openCreateTemplateEditor } = useTemplateOperations()
   
   // Local navigation state
   const [currentNavPath, setCurrentNavPath] = useState(initialPath)
@@ -542,38 +544,19 @@ export function CloudStorageSimple({
     const { TemplateErrorRecovery, TemplateErrorHandler, TemplateErrorType } = await import('@/lib/template-error-handler')
     
     await TemplateErrorRecovery.safeOperation(async () => {
-      // Fetch existing categories from the API
-      const response = await fetch('/api/templates/categories')
-      
-      if (!response.ok) {
-        const error = TemplateErrorHandler.createError(
-          TemplateErrorType.CATEGORY_LOAD_FAILED,
-          `Failed to load categories: ${response.status} ${response.statusText}`,
-          { status: response.status, statusText: response.statusText },
-          { operation: 'fetch_categories', component: 'cloud-storage-simple' }
-        )
-        TemplateErrorHandler.handleError(error)
-        return
-      }
-      
-      const { categories } = await response.json()
-      
-      // Open category selection modal with fetched categories
+      // Open category selection modal with improved flow
       await openCategorySelectionModal({
         onCategorySelected: (category: string) => {
-          // Navigate to template editor (will be implemented in future tasks)
-          console.log('Selected category:', category)
-          toast({
-            title: "Vorlage erstellen",
-            description: `Kategorie "${category}" ausgewählt. Template-Editor wird in zukünftigen Tasks implementiert.`,
-          })
+          // Immediately open template editor with selected category
+          openCreateTemplateEditor(category)
         },
         onCancel: () => {
           // Modal will close automatically
-        }
+        },
+        allowNewCategory: false // Prevent new category creation during template creation
       }, userId)
     }, undefined, { operation: 'create_template', component: 'cloud-storage-simple' })
-  }, [openCategorySelectionModal, toast, userId])
+  }, [openCategorySelectionModal, openCreateTemplateEditor, userId])
   
   // Determine loading and error states
   const showLoading = isLoading || isNavigating

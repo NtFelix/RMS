@@ -13,7 +13,7 @@ import { Template, TemplateFormData, TemplateEditorData } from '@/types/template
 export function useTemplateOperations() {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  const { openTemplateEditorModal, closeTemplateEditorModal } = useModalStore()
+  const { openTemplateEditorModal, closeTemplateEditorModal, closeCategorySelectionModal } = useModalStore()
 
   /**
    * Create a new template
@@ -109,6 +109,9 @@ export function useTemplateOperations() {
    * Open template editor for creating a new template
    */
   const openCreateTemplateEditor = useCallback((category: string) => {
+    // Close category selection modal first
+    closeCategorySelectionModal()
+    
     const editorData: TemplateEditorData = {
       isNewTemplate: true,
       initialCategory: category,
@@ -126,7 +129,7 @@ export function useTemplateOperations() {
     }
     
     openTemplateEditorModal(editorData)
-  }, [createTemplate, openTemplateEditorModal, closeTemplateEditorModal])
+  }, [createTemplate, openTemplateEditorModal, closeTemplateEditorModal, closeCategorySelectionModal])
 
   /**
    * Open template editor for editing an existing template

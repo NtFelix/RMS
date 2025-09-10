@@ -45,6 +45,7 @@ export function CategorySelectionModal() {
   const existingCategories = categorySelectionData?.existingCategories || []
   const isLoadingCategories = categorySelectionData?.isLoading || false
   const categoryError = categorySelectionData?.error
+  const allowNewCategory = categorySelectionData?.allowNewCategory ?? true // Default to true for backward compatibility
 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category)
@@ -114,7 +115,7 @@ export function CategorySelectionModal() {
 
     let finalCategory = ""
 
-    if (isCreatingNew) {
+    if (isCreatingNew && allowNewCategory) {
       const validationError = validateCategoryName(newCategoryName)
       if (validationError) {
         toast({
@@ -127,9 +128,12 @@ export function CategorySelectionModal() {
       finalCategory = newCategoryName.trim()
     } else {
       if (!selectedCategory) {
+        const errorMessage = allowNewCategory 
+          ? "Bitte wählen Sie eine Kategorie aus oder erstellen Sie eine neue."
+          : "Bitte wählen Sie eine Kategorie aus."
         toast({
           title: "Keine Kategorie ausgewählt",
-          description: "Bitte wählen Sie eine Kategorie aus oder erstellen Sie eine neue.",
+          description: errorMessage,
           variant: "destructive"
         })
         return
@@ -193,7 +197,10 @@ export function CategorySelectionModal() {
             Kategorie auswählen
           </DialogTitle>
           <DialogDescription>
-            Wählen Sie eine bestehende Kategorie aus oder erstellen Sie eine neue für Ihre Vorlage.
+            {allowNewCategory 
+              ? "Wählen Sie eine bestehende Kategorie aus oder erstellen Sie eine neue für Ihre Vorlage."
+              : "Wählen Sie eine bestehende Kategorie für Ihre Vorlage aus. Nach der Auswahl werden Sie direkt zum Vorlagen-Editor weitergeleitet."
+            }
           </DialogDescription>
         </DialogHeader>
         
@@ -276,48 +283,56 @@ export function CategorySelectionModal() {
               <p className="text-sm text-muted-foreground">
                 Noch keine Kategorien vorhanden
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Erstellen Sie Ihre erste Kategorie unten
-              </p>
+              {allowNewCategory ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Erstellen Sie Ihre erste Kategorie unten
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Sie müssen zuerst Kategorien erstellen, bevor Sie Vorlagen erstellen können.
+                </p>
+              )}
             </div>
           )}
 
-          {/* New Category Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">
-                Neue Kategorie erstellen
-              </Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleNewCategoryToggle}
-                disabled={isProcessing}
-                className="h-8"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {isCreatingNew ? "Abbrechen" : "Neu"}
-              </Button>
-            </div>
-            
-            {isCreatingNew && (
-              <div className="space-y-2">
-                <Input
-                  id="new-category"
-                  value={newCategoryName}
-                  onChange={(e) => setNewCategoryName(e.target.value)}
-                  placeholder="Kategoriename eingeben..."
+          {/* New Category Section - Only show if allowed */}
+          {allowNewCategory && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Neue Kategorie erstellen
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNewCategoryToggle}
                   disabled={isProcessing}
-                  autoFocus
-                  maxLength={50}
-                />
-                <p className="text-xs text-muted-foreground">
-                  2-50 Zeichen, nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche
-                </p>
+                  className="h-8"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {isCreatingNew ? "Abbrechen" : "Neu"}
+                </Button>
               </div>
-            )}
-          </div>
+              
+              {isCreatingNew && (
+                <div className="space-y-2">
+                  <Input
+                    id="new-category"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    placeholder="Kategoriename eingeben..."
+                    disabled={isProcessing}
+                    autoFocus
+                    maxLength={50}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    2-50 Zeichen, nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Selection Summary */}
           {(selectedCategory || (isCreatingNew && newCategoryName.trim())) && (
@@ -354,11 +369,12 @@ export function CategorySelectionModal() {
             disabled={
               isProcessing || 
               isLoadingCategories ||
-              (!selectedCategory && (!isCreatingNew || !newCategoryName.trim()))
+              (!selectedCategory && (!allowNewCategory || !isCreatingNew || !newCategoryName.trim())) ||
+              (!allowNewCategory && existingCategories.length === 0) // Disable if no categories exist and can't create new ones
             }
           >
             {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {isCreatingNew ? "Erstellen & Fortfahren" : "Fortfahren"}
+            {isCreatingNew && allowNewCategory ? "Erstellen & Fortfahren" : "Fortfahren"}
           </Button>
         </DialogFooter>
       </DialogContent>

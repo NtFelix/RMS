@@ -37,6 +37,8 @@ interface TemplateEditorData {
 }
 
 export function TemplateEditorModal() {
+  const [isMounted, setIsMounted] = useState(false)
+  
   const {
     isTemplateEditorModalOpen,
     templateEditorData,
@@ -61,6 +63,11 @@ export function TemplateEditorModal() {
   const [validationWarnings, setValidationWarnings] = useState<string[]>([])
 
   const { toast } = useToast()
+
+  // Handle client-side mounting
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -256,6 +263,8 @@ export function TemplateEditorModal() {
     }
   }
 
+  // Prevent SSR issues
+  if (!isMounted) return null
   if (!templateEditorData) return null
 
   return (
