@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import { useState, useEffect, forwardRef, useImperativeHandle, useMemo, useCallback } from 'react'
 import { 
   Heading1, 
   Heading2, 
@@ -18,6 +18,8 @@ import {
   Minus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useDebounce } from '@/hooks/use-debounce'
+import { useOptimizedFiltering, usePerformanceMonitor } from '@/hooks/use-editor-performance'
 import type { SlashCommandItem } from './slash-command-extension'
 
 interface SlashCommandListProps {
@@ -32,8 +34,11 @@ export const SlashCommandList = forwardRef<
 >((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  // Default slash commands for formatting
-  const defaultCommands: SlashCommandItem[] = [
+  // Performance monitoring
+  usePerformanceMonitor('SlashCommandList', process.env.NODE_ENV === 'development')
+
+  // Memoized default slash commands for formatting
+  const defaultCommands: SlashCommandItem[] = useMemo(() => [
     {
       title: 'Überschrift 1',
       description: 'Große Überschrift',
@@ -178,25 +183,33 @@ export const SlashCommandList = forwardRef<
         editor.chain().focus().setHorizontalRule().run()
       },
     },
-  ]
+  ], [])
 
-  // Filter commands based on query
-  const filteredCommands = defaultCommands.filter((command) => {
-    const query = props.query.toLowerCase()
-    return (
-      command.title.toLowerCase().includes(query) ||
-      command.description.toLowerCase().includes(query) ||
-      command.searchTerms.some((term) => term.toLowerCase().includes(query))
-    )
-  })
+  // Optimized filtering with caching and debouncing
+  const filteredCommands = useOptimizedFiltering(
+    defaultCommands,
+    props.query,
+    (commands, query) => {
+      const lowerQuery = query.toLowerCase()
+      return commands.filter((command) => {
+        return (
+          command.title.toLowerCase().includes(lowerQuery) ||
+          command.description.toLowerCase().includes(lowerQuery) ||
+          command.searchTerms.some((term) => term.toLowerCase().includes(lowerQuery))
+        )
+      })
+    },
+    100, // debounce delay
+    16   // max results
+  )
 
   // Reset selected index when filtered commands change
   useEffect(() => {
     setSelectedIndex(0)
   }, [filteredCommands.length])
 
-  // Handle keyboard navigation
-  const onKeyDown = ({ event }: { event: KeyboardEvent }) => {
+  // Memoized keyboard navigation handler
+  const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
     if (event.key === 'ArrowUp') {
       setSelectedIndex((selectedIndex + filteredCommands.length - 1) % filteredCommands.length)
       return true
@@ -213,18 +226,24 @@ export const SlashCommandList = forwardRef<
     }
 
     return false
-  }
+  }, [selectedIndex, filteredCommands.length])
 
   useImperativeHandle(ref, () => ({
     onKeyDown,
-  }))
+  }), [onKeyDown])
 
-  const selectItem = (index: number) => {
+  // Memoized item selection handler
+  const selectItem = useCallback((index: number) => {
     const item = filteredCommands[index]
     if (item) {
       props.command(item)
     }
-  }
+  }, [filteredCommands, props.command])
+
+  // Memoized mouse enter handler to prevent recreation on every render
+  const handleMouseEnter = useCallback((index: number) => {
+    setSelectedIndex(index)
+  }, [])
 
   if (filteredCommands.length === 0) {
     return (
@@ -247,7 +266,7 @@ export const SlashCommandList = forwardRef<
             index === selectedIndex && 'bg-gray-100 dark:bg-gray-700'
           )}
           onClick={() => selectItem(index)}
-          onMouseEnter={() => setSelectedIndex(index)}
+          onMouseEnter={() => handleMouseEnter(index)}
         >
           <div className="flex-shrink-0">
             <item.icon className="h-4 w-4 text-gray-600 dark:text-gray-300" />

@@ -3,7 +3,7 @@
  * Provides automatic saving with debouncing to prevent excessive API calls
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from './use-toast'
 
 export interface DebouncedSaveOptions {

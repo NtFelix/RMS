@@ -1,7 +1,9 @@
 "use client"
 
-import React, { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useMemo, useCallback } from 'react'
 import { cn } from '@/lib/utils'
+import { useDebounce } from '@/hooks/use-debounce'
+import { usePerformanceMonitor } from '@/hooks/use-editor-performance'
 import { MentionItem } from './mention-extension'
 
 interface MentionListProps {
@@ -19,42 +21,62 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
   ({ items, command, onVariableInsert }, ref) => {
     const [selectedIndex, setSelectedIndex] = useState(0)
 
-    // Group items by category
-    const groupedItems = items.reduce((groups, item) => {
-      const category = item.category || 'Sonstiges'
-      if (!groups[category]) {
-        groups[category] = []
-      }
-      groups[category].push(item)
-      return groups
-    }, {} as Record<string, MentionItem[]>)
+    // Performance monitoring
+    usePerformanceMonitor('MentionList', process.env.NODE_ENV === 'development')
 
-    const categories = Object.keys(groupedItems).sort()
-    const flatItems = items // Keep flat list for keyboard navigation
+    // Debounce items to reduce expensive grouping operations
+    const debouncedItems = useDebounce(items, 50)
+
+    // Memoized grouping of items by category for better performance
+    const { groupedItems, categories, flatItems } = useMemo(() => {
+      const grouped = debouncedItems.reduce((groups, item) => {
+        const category = item.category || 'Sonstiges'
+        if (!groups[category]) {
+          groups[category] = []
+        }
+        groups[category].push(item)
+        return groups
+      }, {} as Record<string, MentionItem[]>)
+
+      const sortedCategories = Object.keys(grouped).sort()
+      
+      return {
+        groupedItems: grouped,
+        categories: sortedCategories,
+        flatItems: debouncedItems // Keep flat list for keyboard navigation
+      }
+    }, [debouncedItems])
 
     useEffect(() => {
       setSelectedIndex(0)
-    }, [items])
+    }, [flatItems.length])
 
-    const selectItem = (index: number) => {
+    // Memoized item selection handler
+    const selectItem = useCallback((index: number) => {
       const item = flatItems[index]
       if (item) {
         command(item)
         onVariableInsert?.(item)
       }
-    }
+    }, [flatItems, command, onVariableInsert])
 
-    const upHandler = () => {
+    // Memoized navigation handlers
+    const upHandler = useCallback(() => {
       setSelectedIndex((selectedIndex + flatItems.length - 1) % flatItems.length)
-    }
+    }, [selectedIndex, flatItems.length])
 
-    const downHandler = () => {
+    const downHandler = useCallback(() => {
       setSelectedIndex((selectedIndex + 1) % flatItems.length)
-    }
+    }, [selectedIndex, flatItems.length])
 
-    const enterHandler = () => {
+    const enterHandler = useCallback(() => {
       selectItem(selectedIndex)
-    }
+    }, [selectItem, selectedIndex])
+
+    // Memoized mouse enter handler
+    const handleMouseEnter = useCallback((index: number) => {
+      setSelectedIndex(index)
+    }, [])
 
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }: { event: KeyboardEvent }) => {
@@ -114,7 +136,7 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
                       isSelected && 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
                     )}
                     onClick={() => selectItem(itemIndex)}
-                    onMouseEnter={() => setSelectedIndex(itemIndex)}
+                    onMouseEnter={() => handleMouseEnter(itemIndex)}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">

@@ -229,13 +229,27 @@ export const MentionExtension = (options: MentionExtensionOptions = {}) => {
       allowSpaces: false,
       startOfLine: false,
       items: ({ query }: { query: string }) => {
-        return variables
-          .filter(item => 
-            item.label.toLowerCase().includes(query.toLowerCase()) ||
-            item.category.toLowerCase().includes(query.toLowerCase()) ||
-            item.id.toLowerCase().includes(query.toLowerCase())
-          )
-          .slice(0, 10) // Limit to 10 results
+        // Early return for empty query to avoid unnecessary filtering
+        if (!query.trim()) {
+          return variables.slice(0, 10)
+        }
+
+        const lowerQuery = query.toLowerCase()
+        
+        // Optimized filtering with early termination
+        const filtered = []
+        for (let i = 0; i < variables.length && filtered.length < 10; i++) {
+          const item = variables[i]
+          if (
+            item.label.toLowerCase().includes(lowerQuery) ||
+            item.category.toLowerCase().includes(lowerQuery) ||
+            item.id.toLowerCase().includes(lowerQuery)
+          ) {
+            filtered.push(item)
+          }
+        }
+        
+        return filtered
       },
       render: () => {
         let component: ReactRenderer<any>

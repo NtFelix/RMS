@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -8,6 +8,13 @@ import { SlashCommandExtension } from './slash-command-extension'
 import { MentionExtension, MentionItem, PREDEFINED_VARIABLES } from './mention-extension'
 import { cn } from '@/lib/utils'
 import { useDebouncedSave, SaveIndicator } from '@/hooks/use-debounced-save'
+import { useDebounce } from '@/hooks/use-debounce'
+import { extractVariablesFromContent } from '@/lib/template-variable-extraction'
+import { 
+  useOptimizedVariableExtraction, 
+  useMemoizedEditorExtensions,
+  usePerformanceMonitor 
+} from '@/hooks/use-editor-performance'
 import './mention-popup.css'
 
 interface TiptapTemplateEditorProps {
@@ -25,28 +32,9 @@ interface TiptapTemplateEditorProps {
   enableAutoSave?: boolean
   autoSaveFunction?: (content: object) => Promise<void>
   showSaveIndicator?: boolean
-}
-
-// Function to extract variables from Tiptap content
-const extractVariablesFromContent = (content: any): string[] => {
-  const variables: string[] = []
-  
-  const traverse = (node: any) => {
-    if (node.type === 'mention' && node.attrs?.id) {
-      variables.push(node.attrs.id)
-    }
-    
-    if (node.content && Array.isArray(node.content)) {
-      node.content.forEach(traverse)
-    }
-  }
-  
-  if (content) {
-    traverse(content)
-  }
-  
-  // Return unique variables
-  return [...new Set(variables)]
+  // Performance optimization options
+  variableExtractionDelay?: number
+  contentChangeDelay?: number
 }
 
 export function TiptapTemplateEditor({
@@ -62,12 +50,20 @@ export function TiptapTemplateEditor({
   onVariableRemove,
   enableAutoSave = false,
   autoSaveFunction,
-  showSaveIndicator = false
+  showSaveIndicator = false,
+  variableExtractionDelay = 300,
+  contentChangeDelay = 150
 }: TiptapTemplateEditorProps) {
   const [currentContent, setCurrentContent] = React.useState(initialContent || {
     type: 'doc',
     content: [{ type: 'paragraph', content: [] }]
   })
+
+  // Performance monitoring (only in development)
+  usePerformanceMonitor('TiptapTemplateEditor', process.env.NODE_ENV === 'development')
+
+  // Debounce content changes to reduce excessive re-renders
+  const debouncedContent = useDebounce(currentContent, contentChangeDelay)
 
   // Set up debounced saving if enabled
   const debouncedSave = useDebouncedSave(
@@ -80,32 +76,80 @@ export function TiptapTemplateEditor({
       showSaveIndicator: showSaveIndicator && enableAutoSave
     }
   )
+
+  // Optimized variable extraction with caching and debouncing
+  const extractedVariables = useOptimizedVariableExtraction(
+    debouncedContent,
+    extractVariablesFromContent,
+    variableExtractionDelay
+  )
+
+  // Optimized editor extensions with proper memoization
+  const editorExtensions = useMemoizedEditorExtensions([
+    () => StarterKit.configure({
+      // Configure the starter kit extensions
+      heading: {
+        levels: [1, 2, 3, 4, 5, 6],
+      },
+      bulletList: {
+        keepMarks: true,
+        keepAttributes: false,
+      },
+      orderedList: {
+        keepMarks: true,
+        keepAttributes: false,
+      },
+      // Additional formatting options are enabled by default in StarterKit
+    }),
+    () => Underline,
+    () => SlashCommandExtension,
+    () => MentionExtension({
+      variables,
+      onVariableInsert,
+      onVariableRemove,
+    }),
+  ], [variables, onVariableInsert, onVariableRemove])
+
+  // Memoized editor props to prevent recreation
+  const editorProps = useMemo(() => ({
+    attributes: {
+      class: cn(
+        'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none',
+        'dark:prose-invert prose-headings:font-semibold prose-headings:text-gray-900 dark:prose-headings:text-gray-100',
+        'prose-p:text-gray-700 dark:prose-p:text-gray-300',
+        'prose-li:text-gray-700 dark:prose-li:text-gray-300',
+        'prose-strong:text-gray-900 dark:prose-strong:text-gray-100',
+        'prose-em:text-gray-700 dark:prose-em:text-gray-300',
+        'prose-blockquote:text-gray-600 dark:prose-blockquote:text-gray-400',
+        'prose-blockquote:border-l-gray-300 dark:prose-blockquote:border-l-gray-600',
+        'min-h-[200px] p-4'
+      ),
+      'data-placeholder': placeholder,
+    },
+  }), [placeholder])
+
+  // Optimized content change handler with memoization
+  const handleContentChange = useCallback((editor: any) => {
+    const content = editor.getJSON()
+    
+    // Update local state for debounced saving
+    setCurrentContent(content)
+    
+    // Mark as dirty for auto-save if enabled
+    if (enableAutoSave && autoSaveFunction) {
+      debouncedSave.markDirty()
+    }
+  }, [enableAutoSave, autoSaveFunction, debouncedSave])
+
+  // Effect to call onContentChange with optimized variables
+  React.useEffect(() => {
+    if (onContentChange) {
+      onContentChange(debouncedContent, extractedVariables)
+    }
+  }, [debouncedContent, extractedVariables, onContentChange])
   const editor = useEditor({
     immediatelyRender: false, // Fix SSR hydration mismatch
-    extensions: [
-      StarterKit.configure({
-        // Configure the starter kit extensions
-        heading: {
-          levels: [1, 2, 3, 4, 5, 6],
-        },
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        // Additional formatting options are enabled by default in StarterKit
-      }),
-      Underline,
-      SlashCommandExtension,
-      MentionExtension({
-        variables,
-        onVariableInsert,
-        onVariableRemove,
-      }),
-    ],
+    extensions: editorExtensions,
     content: initialContent || {
       type: 'doc',
       content: [
@@ -116,55 +160,34 @@ export function TiptapTemplateEditor({
       ],
     },
     editable,
-    onUpdate: ({ editor }) => {
-      const content = editor.getJSON()
-      const extractedVariables = extractVariablesFromContent(content)
-      
-      // Update local state for debounced saving
-      setCurrentContent(content)
-      
-      // Call the original change handler
-      onContentChange?.(content, extractedVariables)
-      
-      // Mark as dirty for auto-save if enabled
-      if (enableAutoSave && autoSaveFunction) {
-        debouncedSave.markDirty()
-      }
-    },
-    editorProps: {
-      attributes: {
-        class: cn(
-          'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none',
-          'dark:prose-invert prose-headings:font-semibold prose-headings:text-gray-900 dark:prose-headings:text-gray-100',
-          'prose-p:text-gray-700 dark:prose-p:text-gray-300',
-          'prose-li:text-gray-700 dark:prose-li:text-gray-300',
-          'prose-strong:text-gray-900 dark:prose-strong:text-gray-100',
-          'prose-em:text-gray-700 dark:prose-em:text-gray-300',
-          'prose-blockquote:text-gray-600 dark:prose-blockquote:text-gray-400',
-          'prose-blockquote:border-l-gray-300 dark:prose-blockquote:border-l-gray-600',
-          'min-h-[200px] p-4'
-        ),
-        'data-placeholder': placeholder,
-      },
-    },
-  })
+    onUpdate: handleContentChange,
+    editorProps: editorProps,
+  }, [editorExtensions, initialContent, editable, handleContentChange, editorProps])
 
-  // Update editor content when initialContent changes
-  React.useEffect(() => {
-    if (editor && initialContent) {
-      // Only update if the content is different to avoid unnecessary re-renders
-      const currentContent = editor.getJSON()
-      const contentString = JSON.stringify(currentContent)
-      const initialContentString = JSON.stringify(initialContent)
-      
-      if (contentString !== initialContentString) {
-        editor.commands.setContent(initialContent)
-      }
+  // Optimized content comparison using memoization
+  const contentComparison = useMemo(() => {
+    if (!editor || !initialContent) return null
+    
+    const currentContent = editor.getJSON()
+    const currentString = JSON.stringify(currentContent)
+    const initialString = JSON.stringify(initialContent)
+    
+    return {
+      isDifferent: currentString !== initialString,
+      currentContent,
+      initialContent
     }
   }, [editor, initialContent])
 
-  // Handle keyboard shortcuts
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  // Update editor content when initialContent changes (optimized)
+  React.useEffect(() => {
+    if (editor && contentComparison?.isDifferent) {
+      editor.commands.setContent(initialContent)
+    }
+  }, [editor, contentComparison, initialContent])
+
+  // Memoized keyboard shortcut handler
+  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     if (!editor) return
 
     // Save shortcut (Ctrl/Cmd + S)
@@ -180,7 +203,7 @@ export function TiptapTemplateEditor({
       onCancel?.()
       return
     }
-  }
+  }, [editor, onSave, onCancel])
 
   if (!editor) {
     return (
