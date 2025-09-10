@@ -293,16 +293,14 @@ export function TemplateEditorModal() {
                 <DialogTitle className="text-lg">
                   {templateEditorData.isNewTemplate ? "Neue Vorlage erstellen" : "Vorlage bearbeiten"}
                 </DialogTitle>
-                <DialogDescription className="text-sm">
-                  {templateEditorData.initialCategory && (
-                    <span className="flex items-center gap-2">
-                      Kategorie: 
-                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
-                        {templateEditorData.initialCategory}
-                      </span>
+                {templateEditorData.initialCategory && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    Kategorie: 
+                    <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
+                      {templateEditorData.initialCategory}
                     </span>
-                  )}
-                </DialogDescription>
+                  </div>
+                )}
               </div>
             </div>
             

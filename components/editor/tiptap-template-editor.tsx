@@ -133,24 +133,35 @@ export function TiptapTemplateEditor({
 
   // Optimized content change handler with memoization
   const handleContentChange = useCallback((editor: any) => {
-    const content = editor.getJSON()
+    // Check if editor is properly initialized and has getJSON method
+    if (!editor || typeof editor.getJSON !== 'function') {
+      console.warn('Editor not properly initialized or missing getJSON method')
+      return
+    }
     
-    // Update local state for debounced saving
-    setCurrentContent(content)
-    
-    // Mark as dirty for auto-save if enabled
-    if (enableAutoSave && autoSaveFunction) {
-      debouncedSave.markDirty()
+    try {
+      const content = editor.getJSON()
+      
+      // Update local state for debounced saving
+      setCurrentContent(content)
+      
+      // Mark as dirty for auto-save if enabled
+      if (enableAutoSave && autoSaveFunction) {
+        debouncedSave.markDirty()
+      }
+    } catch (error) {
+      console.error('Error getting editor content:', error)
     }
   }, [enableAutoSave, autoSaveFunction, debouncedSave])
 
   // Effect to call onContentChange with optimized variables
   React.useEffect(() => {
-    if (onContentChange) {
+    if (onContentChange && !isUpdatingContentRef.current) {
       onContentChange(debouncedContent, extractedVariables)
     }
   }, [debouncedContent, extractedVariables, onContentChange])
-  const editor = useEditor({
+  // Memoize the editor configuration to prevent recreation
+  const editorConfig = useMemo(() => ({
     immediatelyRender: false, // Fix SSR hydration mismatch
     extensions: editorExtensions,
     content: initialContent || {
@@ -165,22 +176,29 @@ export function TiptapTemplateEditor({
     editable,
     onUpdate: handleContentChange,
     editorProps: editorProps,
-  })
+  }), [editorExtensions, initialContent, editable, handleContentChange, editorProps])
+
+  const editor = useEditor(editorConfig)
 
   // Update editor content when initialContent changes (optimized)
   React.useEffect(() => {
-    if (editor && initialContent && !isUpdatingContentRef.current) {
-      const currentContent = editor.getJSON()
-      const currentString = JSON.stringify(currentContent)
-      const initialString = JSON.stringify(initialContent)
-      
-      if (currentString !== initialString) {
-        isUpdatingContentRef.current = true
-        editor.commands.setContent(initialContent)
-        // Reset the flag after a short delay
-        setTimeout(() => {
-          isUpdatingContentRef.current = false
-        }, 100)
+    if (editor && initialContent && !isUpdatingContentRef.current && typeof editor.getJSON === 'function') {
+      try {
+        const currentContent = editor.getJSON()
+        const currentString = JSON.stringify(currentContent)
+        const initialString = JSON.stringify(initialContent)
+        
+        if (currentString !== initialString) {
+          isUpdatingContentRef.current = true
+          editor.commands.setContent(initialContent)
+          // Reset the flag after a short delay
+          setTimeout(() => {
+            isUpdatingContentRef.current = false
+          }, 100)
+        }
+      } catch (error) {
+        console.error('Error updating editor content:', error)
+        isUpdatingContentRef.current = false
       }
     }
   }, [editor, initialContent])
