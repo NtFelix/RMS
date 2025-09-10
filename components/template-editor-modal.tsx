@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Save, X, FileText, Loader2, AlertTriangle } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { Save, X, FileText, Loader2, AlertTriangle, Clock, CheckCircle, XCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { TiptapTemplateEditor } from "@/components/editor/tiptap-template-editor"
 import { extractVariablesFromContent, hasContentMeaning } from "@/lib/template-variable-extraction"
+import { useDebouncedSave, SaveIndicator } from "@/hooks/use-debounced-save"
 import { cn } from "@/lib/utils"
 
 interface TemplateFormData {
@@ -61,6 +62,16 @@ export function TemplateEditorModal() {
   const [isSaving, setIsSaving] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [validationWarnings, setValidationWarnings] = useState<string[]>([])
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [lastSaveAttempt, setLastSaveAttempt] = useState<Date | null>(null)
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+
+  // Refs for managing auto-save
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const maxAutoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const firstChangeTimeRef = useRef<Date | null>(null)
+  const lastSuccessfulSaveRef = useRef<Date | null>(null)
+  const saveInProgressRef = useRef(false)
 
   const { toast } = useToast()
 
@@ -69,58 +80,26 @@ export function TemplateEditorModal() {
     setIsMounted(true)
   }, [])
 
-  // Reset state when modal opens/closes
-  useEffect(() => {
-    if (isTemplateEditorModalOpen && templateEditorData) {
-      setTitle(templateEditorData.initialTitle || "")
-      
-      // Handle initial content properly
-      const initialContent = templateEditorData.initialContent || {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [],
-          },
-        ],
-      }
-      
-      setContent(initialContent)
-      
-      // Extract variables from initial content
-      const initialVariables = extractVariablesFromContent(initialContent)
-      setVariables(initialVariables)
-      
-      setIsSaving(false)
-      setValidationErrors([])
-      setValidationWarnings([])
-      setTemplateEditorModalDirty(false)
+  // Auto-save configuration
+  const AUTO_SAVE_DELAY = 3000 // 3 seconds
+  const MAX_AUTO_SAVE_DELAY = 15000 // 15 seconds max delay
+
+  /**
+   * Clear all auto-save timers
+   */
+  const clearAutoSaveTimers = useCallback(() => {
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current)
+      autoSaveTimeoutRef.current = null
     }
-  }, [isTemplateEditorModalOpen, templateEditorData, setTemplateEditorModalDirty])
-
-  // Handle content changes from the editor
-  const handleContentChange = useCallback((newContent: object, extractedVariables?: string[]) => {
-    setContent(newContent)
-    
-    // Extract variables from content if not provided by the editor
-    const variables = extractedVariables || extractVariablesFromContent(newContent)
-    setVariables(variables)
-    
-    setTemplateEditorModalDirty(true)
-    
-    // Clear previous validation errors when content changes
-    setValidationErrors([])
-    setValidationWarnings([])
-  }, [setTemplateEditorModalDirty])
-
-  // Handle title changes
-  const handleTitleChange = (newTitle: string) => {
-    setTitle(newTitle)
-    setTemplateEditorModalDirty(true)
-  }
+    if (maxAutoSaveTimeoutRef.current) {
+      clearTimeout(maxAutoSaveTimeoutRef.current)
+      maxAutoSaveTimeoutRef.current = null
+    }
+  }, [])
 
   // Validate template data
-  const validateTemplate = (): boolean => {
+  const validateTemplate = useCallback((): boolean => {
     const errors: string[] = []
     const warnings: string[] = []
 
@@ -168,13 +147,97 @@ export function TemplateEditorModal() {
     setValidationWarnings(warnings)
 
     return errors.length === 0
-  }
+  }, [title, templateEditorData?.initialCategory, content, variables])
 
+  /**
+   * Perform auto-save operation
+   */
+  const performAutoSave = useCallback(async () => {
+    if (!templateEditorData || saveInProgressRef.current || !autoSaveEnabled) {
+      return
+    }
 
+    // Don't auto-save if there are validation errors
+    if (validationErrors.length > 0) {
+      return
+    }
 
-  // Handle save action
-  const handleSave = async () => {
-    if (!templateEditorData) return
+    // Don't auto-save if title is empty
+    if (!title.trim()) {
+      return
+    }
+
+    saveInProgressRef.current = true
+    
+    try {
+      const templateData: TemplateFormData = {
+        titel: title.trim(),
+        inhalt: content,
+        kategorie: templateEditorData.initialCategory || "Sonstiges",
+        kontext_anforderungen: variables
+      }
+
+      await templateEditorData.onSave(templateData)
+      
+      lastSuccessfulSaveRef.current = new Date()
+      setSaveError(null)
+      setTemplateEditorModalDirty(false)
+      firstChangeTimeRef.current = null
+      
+      // Show subtle auto-save success indicator
+      toast({
+        title: "Automatisch gespeichert",
+        description: "Ihre Änderungen wurden automatisch gespeichert.",
+        duration: 2000,
+      })
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler beim automatischen Speichern'
+      setSaveError(errorMessage)
+      
+      // Show auto-save error but don't interrupt user
+      toast({
+        title: "Automatisches Speichern fehlgeschlagen",
+        description: "Ihre Änderungen sind lokal gesichert. Versuchen Sie manuell zu speichern.",
+        variant: "destructive",
+        duration: 5000,
+      })
+    } finally {
+      saveInProgressRef.current = false
+    }
+  }, [templateEditorData, title, content, variables, validationErrors, autoSaveEnabled, setTemplateEditorModalDirty, toast])
+
+  /**
+   * Schedule auto-save with debouncing
+   */
+  const scheduleAutoSave = useCallback(() => {
+    if (!autoSaveEnabled || !templateEditorData?.templateId) {
+      return // Only auto-save for existing templates
+    }
+
+    clearAutoSaveTimers()
+
+    // Set up regular debounced auto-save
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      performAutoSave()
+    }, AUTO_SAVE_DELAY)
+
+    // Set up max delay auto-save if this is the first change
+    if (!firstChangeTimeRef.current) {
+      firstChangeTimeRef.current = new Date()
+      maxAutoSaveTimeoutRef.current = setTimeout(() => {
+        performAutoSave()
+      }, MAX_AUTO_SAVE_DELAY)
+    }
+  }, [autoSaveEnabled, templateEditorData?.templateId, performAutoSave, clearAutoSaveTimers])
+
+  /**
+   * Enhanced save operation with better error handling and retry logic
+   */
+  const performManualSave = useCallback(async (retryCount = 0): Promise<boolean> => {
+    if (!templateEditorData || saveInProgressRef.current) {
+      return false
+    }
 
     // Validate before saving
     if (!validateTemplate()) {
@@ -183,10 +246,13 @@ export function TemplateEditorModal() {
         description: "Bitte korrigieren Sie die Fehler vor dem Speichern.",
         variant: "destructive"
       })
-      return
+      return false
     }
 
+    saveInProgressRef.current = true
     setIsSaving(true)
+    setSaveError(null)
+    setLastSaveAttempt(new Date())
 
     try {
       const templateData: TemplateFormData = {
@@ -196,66 +262,238 @@ export function TemplateEditorModal() {
         kontext_anforderungen: variables
       }
 
-      // Call the save handler provided by the parent component
       await templateEditorData.onSave(templateData)
 
-      // Success feedback is handled by the parent component (useTemplateOperations)
-      // Reset dirty state and close modal
+      // Success
+      lastSuccessfulSaveRef.current = new Date()
       setTemplateEditorModalDirty(false)
-      handleClose()
-    } catch (error) {
-      console.error('Error saving template:', error)
+      firstChangeTimeRef.current = null
+      clearAutoSaveTimers()
       
-      // Enhanced error handling with specific error types
-      let errorMessage = "Die Vorlage konnte nicht gespeichert werden."
+      toast({
+        title: templateEditorData.isNewTemplate ? "Vorlage erstellt" : "Vorlage gespeichert",
+        description: `Die Vorlage "${title.trim()}" wurde erfolgreich ${templateEditorData.isNewTemplate ? 'erstellt' : 'gespeichert'}.`,
+      })
+      
+      return true
+    } catch (error) {
+      console.error('Manual save failed:', error)
+      
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+      setSaveError(errorMessage)
+      
+      // Enhanced error handling with specific error types and retry options
       let errorTitle = "Fehler beim Speichern"
+      let errorDescription = errorMessage
+      let shouldRetry = false
       
       if (error instanceof Error) {
-        if (error.message.includes('Validation failed')) {
+        if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorTitle = "Netzwerkfehler"
+          errorDescription = "Überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
+          shouldRetry = true
+        } else if (error.message.includes('validation') || error.message.includes('Validation')) {
           errorTitle = "Validierungsfehler"
-          errorMessage = error.message
-        } else if (error.message.includes('title')) {
-          errorTitle = "Ungültiger Titel"
-          errorMessage = "Der Titel der Vorlage ist ungültig oder bereits vorhanden."
-        } else if (error.message.includes('category')) {
-          errorTitle = "Ungültige Kategorie"
-          errorMessage = "Die Kategorie der Vorlage ist ungültig."
-        } else if (error.message.includes('content')) {
-          errorTitle = "Ungültiger Inhalt"
-          errorMessage = "Der Inhalt der Vorlage ist ungültig oder enthält Fehler."
+          errorDescription = error.message
+        } else if (error.message.includes('permission') || error.message.includes('unauthorized')) {
+          errorTitle = "Berechtigung verweigert"
+          errorDescription = "Sie haben keine Berechtigung, diese Vorlage zu speichern."
+        } else if (error.message.includes('title') && error.message.includes('exists')) {
+          errorTitle = "Titel bereits vorhanden"
+          errorDescription = "Eine Vorlage mit diesem Titel existiert bereits. Bitte wählen Sie einen anderen Titel."
         } else {
-          errorMessage = error.message
+          shouldRetry = retryCount < 2 // Allow up to 2 retries for unknown errors
         }
       }
       
+      // Show error with retry option if applicable
       toast({
         title: errorTitle,
-        description: errorMessage,
-        variant: "destructive"
+        description: errorDescription,
+        variant: "destructive",
+        action: shouldRetry ? {
+          label: "Erneut versuchen",
+          onClick: () => performManualSave(retryCount + 1)
+        } : undefined
       })
+      
+      return false
     } finally {
       setIsSaving(false)
+      saveInProgressRef.current = false
     }
-  }
+  }, [templateEditorData, title, content, variables, validateTemplate, setTemplateEditorModalDirty, clearAutoSaveTimers, toast])
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (isTemplateEditorModalOpen && templateEditorData) {
+      setTitle(templateEditorData.initialTitle || "")
+      
+      // Handle initial content properly
+      const initialContent = templateEditorData.initialContent || {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [],
+          },
+        ],
+      }
+      
+      setContent(initialContent)
+      
+      // Extract variables from initial content
+      const initialVariables = extractVariablesFromContent(initialContent)
+      setVariables(initialVariables)
+      
+      // Reset all state
+      setIsSaving(false)
+      setValidationErrors([])
+      setValidationWarnings([])
+      setSaveError(null)
+      setLastSaveAttempt(null)
+      setTemplateEditorModalDirty(false)
+      
+      // Reset refs
+      firstChangeTimeRef.current = null
+      lastSuccessfulSaveRef.current = null
+      saveInProgressRef.current = false
+      
+      // Enable auto-save for existing templates
+      setAutoSaveEnabled(!!templateEditorData.templateId)
+    } else if (!isTemplateEditorModalOpen) {
+      // Clear timers when modal closes
+      clearAutoSaveTimers()
+    }
+  }, [isTemplateEditorModalOpen, templateEditorData, setTemplateEditorModalDirty, clearAutoSaveTimers])
+
+  // Cleanup effect for component unmount
+  useEffect(() => {
+    return () => {
+      clearAutoSaveTimers()
+    }
+  }, [clearAutoSaveTimers])
+
+  // Save on unmount if there are unsaved changes (for existing templates only)
+  useEffect(() => {
+    return () => {
+      if (isTemplateEditorModalDirty && templateEditorData?.templateId && autoSaveEnabled) {
+        // Fire and forget save on unmount
+        performAutoSave().catch(error => {
+          console.error('Failed to save on unmount:', error)
+        })
+      }
+    }
+  }, [isTemplateEditorModalDirty, templateEditorData?.templateId, autoSaveEnabled, performAutoSave])
+
+  // Handle content changes from the editor
+  const handleContentChange = useCallback((newContent: object, extractedVariables?: string[]) => {
+    setContent(newContent)
+    
+    // Extract variables from content if not provided by the editor
+    const variables = extractedVariables || extractVariablesFromContent(newContent)
+    setVariables(variables)
+    
+    setTemplateEditorModalDirty(true)
+    
+    // Clear previous validation errors when content changes
+    setValidationErrors([])
+    setValidationWarnings([])
+    setSaveError(null)
+    
+    // Schedule auto-save for content changes
+    scheduleAutoSave()
+  }, [setTemplateEditorModalDirty, scheduleAutoSave])
+
+  // Handle title changes
+  const handleTitleChange = useCallback((newTitle: string) => {
+    setTitle(newTitle)
+    setTemplateEditorModalDirty(true)
+    setSaveError(null)
+    
+    // Clear validation errors when title changes
+    setValidationErrors([])
+    setValidationWarnings([])
+    
+    // Schedule auto-save for title changes
+    scheduleAutoSave()
+  }, [setTemplateEditorModalDirty, scheduleAutoSave])
+
+
+
+
+
+  // Handle save action
+  const handleSave = useCallback(async () => {
+    if (!templateEditorData) return
+
+    const success = await performManualSave()
+    if (success) {
+      // Clear auto-save timers
+      clearAutoSaveTimers()
+      
+      // Reset all state
+      setTitle("")
+      setContent({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [] }]
+      })
+      setVariables([])
+      setValidationErrors([])
+      setValidationWarnings([])
+      setSaveError(null)
+      setLastSaveAttempt(null)
+      firstChangeTimeRef.current = null
+      lastSuccessfulSaveRef.current = null
+      
+      // Close the modal
+      closeTemplateEditorModal()
+    }
+  }, [templateEditorData, performManualSave, clearAutoSaveTimers, closeTemplateEditorModal])
 
   // Handle cancel action
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     if (templateEditorData?.onCancel) {
       templateEditorData.onCancel()
     }
-    handleClose()
-  }
-
-  // Handle close with dirty state check
-  const handleClose = () => {
-    if (isSaving) return
     
-    // The modal store will handle dirty state confirmation
+    // Clear auto-save timers
+    clearAutoSaveTimers()
+    
+    // Check for unsaved changes
+    if (isTemplateEditorModalDirty) {
+      // Show confirmation dialog for unsaved changes
+      const confirmClose = window.confirm(
+        "Sie haben ungespeicherte Änderungen. Möchten Sie diese verwerfen und das Fenster schließen?"
+      )
+      
+      if (!confirmClose) {
+        return
+      }
+    }
+    
+    // Reset all state
+    setTitle("")
+    setContent({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [] }]
+    })
+    setVariables([])
+    setValidationErrors([])
+    setValidationWarnings([])
+    setSaveError(null)
+    setLastSaveAttempt(null)
+    firstChangeTimeRef.current = null
+    lastSuccessfulSaveRef.current = null
+    
+    // Close the modal
     closeTemplateEditorModal()
-  }
+  }, [templateEditorData, clearAutoSaveTimers, isTemplateEditorModalDirty, closeTemplateEditorModal])
+
+
 
   // Handle keyboard shortcuts
-  const handleKeyDown = (event: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     // Save shortcut (Ctrl/Cmd + S)
     if ((event.ctrlKey || event.metaKey) && event.key === 's') {
       event.preventDefault()
@@ -266,10 +504,27 @@ export function TemplateEditorModal() {
     // Cancel shortcut (Escape)
     if (event.key === 'Escape') {
       event.preventDefault()
-      handleClose()
+      handleCancel()
       return
     }
-  }
+
+    // Auto-save toggle (Ctrl/Cmd + Shift + A)
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'A') {
+      event.preventDefault()
+      setAutoSaveEnabled(prev => {
+        const newValue = !prev
+        toast({
+          title: `Automatisches Speichern ${newValue ? 'aktiviert' : 'deaktiviert'}`,
+          description: newValue 
+            ? "Ihre Änderungen werden automatisch gespeichert."
+            : "Automatisches Speichern wurde deaktiviert.",
+          duration: 3000,
+        })
+        return newValue
+      })
+      return
+    }
+  }, [handleSave, handleCancel, toast])
 
   // Prevent SSR issues
   if (!isMounted) return null
@@ -278,7 +533,11 @@ export function TemplateEditorModal() {
   return (
     <Dialog 
       open={isTemplateEditorModalOpen} 
-      onOpenChange={handleClose}
+      onOpenChange={(open) => {
+        if (!open) {
+          handleCancel()
+        }
+      }}
     >
       <DialogContent 
         className="max-w-6xl w-full h-[90vh] flex flex-col p-0"
@@ -293,14 +552,55 @@ export function TemplateEditorModal() {
                 <DialogTitle className="text-lg">
                   {templateEditorData.isNewTemplate ? "Neue Vorlage erstellen" : "Vorlage bearbeiten"}
                 </DialogTitle>
-                {templateEditorData.initialCategory && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    Kategorie: 
-                    <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
-                      {templateEditorData.initialCategory}
-                    </span>
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  {templateEditorData.initialCategory && (
+                    <div className="flex items-center gap-2">
+                      Kategorie: 
+                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
+                        {templateEditorData.initialCategory}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Save Status Indicator */}
+                  <div className="flex items-center gap-2">
+                    {saveError && (
+                      <div className="flex items-center text-red-600 text-xs">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Speichern fehlgeschlagen
+                      </div>
+                    )}
+                    
+                    {isSaving && (
+                      <div className="flex items-center text-blue-600 text-xs">
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Speichert...
+                      </div>
+                    )}
+                    
+                    {isTemplateEditorModalDirty && !isSaving && !saveError && (
+                      <div className="flex items-center text-orange-600 text-xs">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Ungespeicherte Änderungen
+                      </div>
+                    )}
+                    
+                    {!isTemplateEditorModalDirty && !isSaving && !saveError && lastSuccessfulSaveRef.current && (
+                      <div className="flex items-center text-green-600 text-xs">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Gespeichert
+                      </div>
+                    )}
+                    
+                    {/* Auto-save indicator */}
+                    {autoSaveEnabled && templateEditorData.templateId && (
+                      <div className="flex items-center text-xs text-muted-foreground">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
+                        Auto-Save
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
             </div>
             
@@ -310,7 +610,7 @@ export function TemplateEditorModal() {
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
-                disabled={isSaving}
+                disabled={isSaving || saveInProgressRef.current}
                 className="h-9"
               >
                 <X className="h-4 w-4 mr-2" />
@@ -319,10 +619,10 @@ export function TemplateEditorModal() {
               <Button
                 type="button"
                 onClick={handleSave}
-                disabled={isSaving || !title.trim()}
+                disabled={isSaving || saveInProgressRef.current || !title.trim()}
                 className="h-9"
               >
-                {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {(isSaving || saveInProgressRef.current) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 <Save className="h-4 w-4 mr-2" />
                 Speichern
               </Button>
@@ -354,11 +654,23 @@ export function TemplateEditorModal() {
                 <span>
                   {title.length}/100 Zeichen
                 </span>
-                {isTemplateEditorModalDirty && (
-                  <span className="text-amber-600 dark:text-amber-400">
-                    • Ungespeicherte Änderungen
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {lastSaveAttempt && (
+                    <span className="text-xs">
+                      Letzter Speicherversuch: {lastSaveAttempt.toLocaleTimeString()}
+                    </span>
+                  )}
+                  {isTemplateEditorModalDirty && (
+                    <span className="text-amber-600 dark:text-amber-400">
+                      • Ungespeicherte Änderungen
+                    </span>
+                  )}
+                  {autoSaveEnabled && templateEditorData.templateId && isTemplateEditorModalDirty && (
+                    <span className="text-blue-600 dark:text-blue-400 text-xs">
+                      • Auto-Save aktiv
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -409,37 +721,75 @@ export function TemplateEditorModal() {
               onCancel={handleCancel}
               placeholder="Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle und '@' für Variablen..."
               className="h-full"
-              editable={!isSaving}
+              editable={!isSaving && !saveInProgressRef.current}
             />
           </div>
 
-          {/* Footer with Variable Summary */}
-          {variables.length > 0 && (
-            <div className="px-6 py-3 border-t bg-muted/30">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-muted-foreground">
-                  Verwendete Variablen ({variables.length}):
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {variables.slice(0, 5).map((variable) => (
-                    <Badge 
-                      key={variable} 
-                      variant="outline" 
-                      className="text-xs"
-                      title={variable}
+          {/* Footer with Variable Summary and Save Status */}
+          <div className="px-6 py-3 border-t bg-muted/30">
+            <div className="flex items-center justify-between">
+              {/* Variable Summary */}
+              {variables.length > 0 ? (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Verwendete Variablen ({variables.length}):
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {variables.slice(0, 5).map((variable) => (
+                      <Badge 
+                        key={variable} 
+                        variant="outline" 
+                        className="text-xs"
+                        title={variable}
+                      >
+                        @{variable}
+                      </Badge>
+                    ))}
+                    {variables.length > 5 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{variables.length - 5} weitere
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  Keine Variablen verwendet. Verwenden Sie '@' um Variablen hinzuzufügen.
+                </div>
+              )}
+
+              {/* Save Status and Controls */}
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                {lastSuccessfulSaveRef.current && (
+                  <span>
+                    Zuletzt gespeichert: {lastSuccessfulSaveRef.current.toLocaleTimeString()}
+                  </span>
+                )}
+                
+                {templateEditorData.templateId && (
+                  <div className="flex items-center gap-2">
+                    <span>Auto-Save:</span>
+                    <button
+                      type="button"
+                      onClick={() => setAutoSaveEnabled(prev => !prev)}
+                      className={cn(
+                        "px-2 py-1 rounded text-xs font-medium transition-colors",
+                        autoSaveEnabled 
+                          ? "bg-green-100 text-green-700 hover:bg-green-200" 
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      )}
                     >
-                      @{variable}
-                    </Badge>
-                  ))}
-                  {variables.length > 5 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{variables.length - 5} weitere
-                    </Badge>
-                  )}
+                      {autoSaveEnabled ? "Ein" : "Aus"}
+                    </button>
+                  </div>
+                )}
+                
+                <div className="text-xs">
+                  Strg+S zum Speichern
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
