@@ -38,9 +38,62 @@ export class TemplateService {
   }
 
   /**
-   * Create a new template
+   * Create a new template with enhanced saving logic
    */
   async createTemplate(data: CreateTemplateRequest): Promise<Template> {
+    return this.createTemplateWithRetry(data, 3)
+  }
+
+  /**
+   * Create template with retry logic for failed save operations
+   */
+  private async createTemplateWithRetry(
+    data: CreateTemplateRequest, 
+    maxRetries: number = 3
+  ): Promise<Template> {
+    let lastError: Error | null = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.performTemplateCreation(data)
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error')
+        
+        // Don't retry for certain error types
+        if (error instanceof Error && (
+          error.message.includes('PERMISSION_DENIED') ||
+          error.message.includes('INVALID_TEMPLATE_DATA')
+        )) {
+          throw error
+        }
+        
+        // Log retry attempt
+        console.warn(`Template creation attempt ${attempt} failed:`, error)
+        
+        if (attempt === maxRetries) {
+          break
+        }
+        
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+      }
+    }
+    
+    // All retries failed
+    const templateError = TemplateErrorHandler.createError(
+      TemplateErrorType.TEMPLATE_SAVE_FAILED,
+      `Failed to create template after ${maxRetries} attempts: ${lastError?.message}`,
+      lastError,
+      { operation: 'create', attempts: maxRetries }
+    )
+    TemplateErrorReporter.reportError(templateError)
+    throw templateError
+  }
+
+  /**
+   * Perform the actual template creation with enhanced validation and serialization
+   */
+  private async performTemplateCreation(data: CreateTemplateRequest): Promise<Template> {
     try {
       // Basic validation
       if (!data.titel || !data.titel.trim()) {
@@ -55,34 +108,49 @@ export class TemplateService {
         throw new Error('User ID is required')
       }
 
-      // Extract variables from content before saving
-      let variables: string[] = []
-      try {
-        variables = this.extractVariablesFromContent(data.inhalt)
-      } catch (error) {
-        console.warn('Failed to extract variables from content:', error)
-        // Continue without variables if extraction fails
+      // Prepare creation data with proper serialization
+      const creationData = await this.prepareCreationData(data)
+
+      // Validate prepared data before saving to prevent corruption
+      const preValidation = this.validateCreationDataIntegrity(creationData)
+      if (!preValidation.isValid) {
+        const templateError = TemplateErrorHandler.createError(
+          TemplateErrorType.INVALID_TEMPLATE_DATA,
+          'Data integrity validation failed before save',
+          preValidation.errors,
+          { operation: 'create' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
       }
-      
+
       const { data: template, error } = await this.getSupabaseClient()
         .from('Vorlagen')
-        .insert({
-          titel: data.titel,
-          inhalt: data.inhalt,
-          kategorie: data.kategorie,
-          user_id: data.user_id,
-          kontext_anforderungen: variables
-        })
+        .insert(creationData)
         .select()
         .single()
 
       if (error) {
         console.error('Supabase error creating template:', error)
-        throw new Error(`Failed to create template: ${error.message}`)
+        const templateError = TemplateErrorHandler.createError(
+          TemplateErrorType.TEMPLATE_SAVE_FAILED,
+          `Failed to create template: ${error.message}`,
+          error,
+          { operation: 'create' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
       }
 
       if (!template) {
         throw new Error('No template returned from database')
+      }
+
+      // Verify the saved template
+      const verificationResult = this.verifyTemplateCreation(template, creationData)
+      if (!verificationResult.isValid) {
+        console.warn('Template creation verification failed:', verificationResult.warnings)
+        // Log warnings but don't fail the operation
       }
 
       // Invalidate related caches
@@ -90,15 +158,283 @@ export class TemplateService {
 
       return template
     } catch (error) {
-      console.error('Error in createTemplate:', error)
+      console.error('Error in performTemplateCreation:', error)
       throw error instanceof Error ? error : new Error('Failed to create template')
     }
   }
 
   /**
-   * Update an existing template
+   * Prepare creation data with proper serialization
+   */
+  private async prepareCreationData(data: CreateTemplateRequest): Promise<any> {
+    // Serialize TipTap content to proper JSONB format
+    const serializedContent = this.serializeTiptapContentToJsonb(data.inhalt)
+    
+    // Extract variables from the serialized content
+    const extractedVariables = this.extractVariablesFromContent(serializedContent)
+    
+    return {
+      titel: data.titel.trim(),
+      inhalt: serializedContent,
+      kategorie: data.kategorie.trim(),
+      user_id: data.user_id,
+      kontext_anforderungen: extractedVariables
+    }
+  }
+
+  /**
+   * Validate creation data integrity before saving
+   */
+  private validateCreationDataIntegrity(creationData: any): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+
+    try {
+      // Validate required fields
+      if (!creationData.titel || typeof creationData.titel !== 'string' || creationData.titel.trim().length === 0) {
+        errors.push({
+          field: 'titel',
+          message: 'Title is required and cannot be empty',
+          code: 'TITLE_REQUIRED'
+        })
+      }
+
+      if (!creationData.kategorie || typeof creationData.kategorie !== 'string' || creationData.kategorie.trim().length === 0) {
+        errors.push({
+          field: 'kategorie',
+          message: 'Category is required and cannot be empty',
+          code: 'CATEGORY_REQUIRED'
+        })
+      }
+
+      if (!creationData.user_id || typeof creationData.user_id !== 'string') {
+        errors.push({
+          field: 'user_id',
+          message: 'User ID is required',
+          code: 'USER_ID_REQUIRED'
+        })
+      }
+
+      // Validate field lengths
+      if (creationData.titel && creationData.titel.length > 255) {
+        errors.push({
+          field: 'titel',
+          message: 'Title is too long (max 255 characters)',
+          code: 'TITLE_TOO_LONG'
+        })
+      }
+
+      if (creationData.kategorie && creationData.kategorie.length > 100) {
+        errors.push({
+          field: 'kategorie',
+          message: 'Category is too long (max 100 characters)',
+          code: 'CATEGORY_TOO_LONG'
+        })
+      }
+
+      // Validate content
+      if (!creationData.inhalt || typeof creationData.inhalt !== 'object') {
+        errors.push({
+          field: 'inhalt',
+          message: 'Content must be a valid object',
+          code: 'CONTENT_INVALID_TYPE'
+        })
+      } else {
+        // Check content size (approximate)
+        const contentSize = JSON.stringify(creationData.inhalt).length
+        if (contentSize > 50000) { // 50KB limit
+          warnings.push({
+            field: 'inhalt',
+            message: 'Content is very large and may cause performance issues',
+            code: 'CONTENT_LARGE_SIZE'
+          })
+        }
+        
+        // Validate content structure
+        if (!creationData.inhalt.type || creationData.inhalt.type !== 'doc') {
+          errors.push({
+            field: 'inhalt',
+            message: 'Content must be a valid TipTap document',
+            code: 'CONTENT_INVALID_STRUCTURE'
+          })
+        }
+      }
+
+      // Validate variables array
+      if (creationData.kontext_anforderungen !== undefined) {
+        if (!Array.isArray(creationData.kontext_anforderungen)) {
+          errors.push({
+            field: 'kontext_anforderungen',
+            message: 'Context requirements must be an array',
+            code: 'VARIABLES_INVALID_TYPE'
+          })
+        } else {
+          // Check for invalid variable IDs
+          const invalidVariables = creationData.kontext_anforderungen.filter((variable: any) => 
+            !variable || typeof variable !== 'string' || variable.trim().length === 0
+          )
+          
+          if (invalidVariables.length > 0) {
+            warnings.push({
+              field: 'kontext_anforderungen',
+              message: `Found ${invalidVariables.length} invalid variable IDs`,
+              code: 'VARIABLES_INVALID_IDS'
+            })
+          }
+          
+          // Check for too many variables
+          if (creationData.kontext_anforderungen.length > 50) {
+            warnings.push({
+              field: 'kontext_anforderungen',
+              message: 'Template has many variables, consider simplifying',
+              code: 'VARIABLES_TOO_MANY'
+            })
+          }
+        }
+      }
+
+    } catch (error) {
+      errors.push({
+        field: 'system',
+        message: `Data integrity validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        code: 'VALIDATION_SYSTEM_ERROR'
+      })
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+
+  /**
+   * Verify that the template was created correctly
+   */
+  private verifyTemplateCreation(savedTemplate: Template, creationData: any): ValidationResult {
+    const warnings: ValidationWarning[] = []
+
+    try {
+      // Check that all required fields were saved
+      if (savedTemplate.titel !== creationData.titel) {
+        warnings.push({
+          field: 'titel',
+          message: 'Title mismatch after creation',
+          code: 'TITLE_MISMATCH'
+        })
+      }
+
+      if (savedTemplate.kategorie !== creationData.kategorie) {
+        warnings.push({
+          field: 'kategorie',
+          message: 'Category mismatch after creation',
+          code: 'CATEGORY_MISMATCH'
+        })
+      }
+
+      if (savedTemplate.user_id !== creationData.user_id) {
+        warnings.push({
+          field: 'user_id',
+          message: 'User ID mismatch after creation',
+          code: 'USER_ID_MISMATCH'
+        })
+      }
+
+      // Check that variables were saved correctly
+      const savedVariables = savedTemplate.kontext_anforderungen || []
+      const expectedVariables = creationData.kontext_anforderungen || []
+      
+      if (JSON.stringify(savedVariables.sort()) !== JSON.stringify(expectedVariables.sort())) {
+        warnings.push({
+          field: 'kontext_anforderungen',
+          message: 'Variables mismatch after creation',
+          code: 'VARIABLES_MISMATCH'
+        })
+      }
+
+      // Check that timestamps were set
+      if (!savedTemplate.erstellungsdatum) {
+        warnings.push({
+          field: 'erstellungsdatum',
+          message: 'Creation timestamp not set',
+          code: 'CREATION_TIMESTAMP_MISSING'
+        })
+      }
+
+    } catch (error) {
+      warnings.push({
+        field: 'system',
+        message: `Creation verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        code: 'VERIFICATION_ERROR'
+      })
+    }
+
+    return {
+      isValid: true, // Warnings don't make it invalid
+      errors: [],
+      warnings
+    }
+  }
+
+  /**
+   * Update an existing template with enhanced saving logic
    */
   async updateTemplate(id: string, data: UpdateTemplateRequest): Promise<Template> {
+    return this.updateTemplateWithRetry(id, data, 3)
+  }
+
+  /**
+   * Update template with retry logic for failed save operations
+   */
+  private async updateTemplateWithRetry(
+    id: string, 
+    data: UpdateTemplateRequest, 
+    maxRetries: number = 3
+  ): Promise<Template> {
+    let lastError: Error | null = null
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.performTemplateUpdate(id, data)
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error('Unknown error')
+        
+        // Don't retry for certain error types
+        if (error instanceof Error && (
+          error.message.includes('TEMPLATE_NOT_FOUND') ||
+          error.message.includes('PERMISSION_DENIED') ||
+          error.message.includes('INVALID_TEMPLATE_DATA')
+        )) {
+          throw error
+        }
+        
+        // Log retry attempt
+        console.warn(`Template update attempt ${attempt} failed:`, error)
+        
+        if (attempt === maxRetries) {
+          break
+        }
+        
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+      }
+    }
+    
+    // All retries failed
+    const templateError = TemplateErrorHandler.createError(
+      TemplateErrorType.TEMPLATE_SAVE_FAILED,
+      `Failed to update template after ${maxRetries} attempts: ${lastError?.message}`,
+      lastError,
+      { templateId: id, operation: 'update', attempts: maxRetries }
+    )
+    TemplateErrorReporter.reportError(templateError)
+    throw templateError
+  }
+
+  /**
+   * Perform the actual template update with enhanced validation and serialization
+   */
+  private async performTemplateUpdate(id: string, data: UpdateTemplateRequest): Promise<Template> {
     try {
       // Get existing template to determine user_id
       const existingTemplate = await this.getTemplate(id)
@@ -132,22 +468,20 @@ export class TemplateService {
         throw templateError
       }
 
-      const updateData: any = {
-        aktualisiert_am: new Date().toISOString()
-      }
+      // Prepare update data with proper serialization
+      const updateData = await this.prepareUpdateData(data, existingTemplate)
 
-      if (data.titel !== undefined) {
-        updateData.titel = data.titel
-      }
-
-      if (data.kategorie !== undefined) {
-        updateData.kategorie = data.kategorie
-      }
-
-      if (data.inhalt !== undefined) {
-        updateData.inhalt = data.inhalt
-        // Re-extract variables when content changes
-        updateData.kontext_anforderungen = this.extractVariablesFromContent(data.inhalt)
+      // Validate prepared data before saving to prevent corruption
+      const preValidation = this.validateUpdateDataIntegrity(updateData, existingTemplate)
+      if (!preValidation.isValid) {
+        const templateError = TemplateErrorHandler.createError(
+          TemplateErrorType.INVALID_TEMPLATE_DATA,
+          'Data integrity validation failed before save',
+          preValidation.errors,
+          { templateId: id, operation: 'update' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
       }
 
       const { data: template, error } = await this.getSupabaseClient()
@@ -174,6 +508,13 @@ export class TemplateService {
         )
         TemplateErrorReporter.reportError(templateError)
         throw templateError
+      }
+
+      // Verify the saved template
+      const verificationResult = this.verifyTemplateSave(template, updateData)
+      if (!verificationResult.isValid) {
+        console.warn('Template save verification failed:', verificationResult.warnings)
+        // Log warnings but don't fail the operation
       }
 
       // Invalidate related caches
@@ -469,11 +810,310 @@ export class TemplateService {
   }
 
   /**
-   * Extract variables from Tiptap JSON content
+   * Prepare update data with proper serialization and validation
+   */
+  private async prepareUpdateData(data: UpdateTemplateRequest, existingTemplate: Template): Promise<any> {
+    const updateData: any = {
+      aktualisiert_am: new Date().toISOString()
+    }
+
+    // Handle title update
+    if (data.titel !== undefined) {
+      updateData.titel = data.titel.trim()
+    }
+
+    // Handle category update
+    if (data.kategorie !== undefined) {
+      updateData.kategorie = data.kategorie.trim()
+    }
+
+    // Handle content update with proper serialization
+    if (data.inhalt !== undefined) {
+      // Serialize TipTap content to proper JSONB format
+      const serializedContent = this.serializeTiptapContentToJsonb(data.inhalt)
+      updateData.inhalt = serializedContent
+
+      // Extract and update variables from the serialized content
+      const extractedVariables = this.extractVariablesFromContent(serializedContent)
+      updateData.kontext_anforderungen = extractedVariables
+    }
+
+    return updateData
+  }
+
+  /**
+   * Serialize TipTap content to proper JSONB format
+   */
+  private serializeTiptapContentToJsonb(content: object): object {
+    try {
+      // Import the robust content parser
+      const { robustContentParser } = require('./template-content-parser')
+      
+      // Parse the content to ensure it's in proper TipTap format
+      const parseResult = robustContentParser.parseTemplateContent(content)
+      
+      if (!parseResult.success) {
+        console.warn('Content parsing issues during serialization:', parseResult.errors)
+        // Use the recovered content even if there were issues
+      }
+      
+      // Serialize back to clean JSONB format
+      const serializeResult = robustContentParser.serializeContent(parseResult.content)
+      
+      if (!serializeResult.success) {
+        console.error('Content serialization failed:', serializeResult.errors)
+        // Fallback to original content if serialization fails
+        return content
+      }
+      
+      return serializeResult.content
+    } catch (error) {
+      console.error('Error during content serialization:', error)
+      // Fallback to original content
+      return content
+    }
+  }
+
+  /**
+   * Validate update data integrity before saving
+   */
+  private validateUpdateDataIntegrity(updateData: any, existingTemplate: Template): ValidationResult {
+    const errors: ValidationError[] = []
+    const warnings: ValidationWarning[] = []
+
+    try {
+      // Validate title if being updated
+      if (updateData.titel !== undefined) {
+        if (!updateData.titel || typeof updateData.titel !== 'string' || updateData.titel.trim().length === 0) {
+          errors.push({
+            field: 'titel',
+            message: 'Title cannot be empty',
+            code: 'TITLE_EMPTY'
+          })
+        }
+        
+        if (updateData.titel.length > 255) {
+          errors.push({
+            field: 'titel',
+            message: 'Title is too long (max 255 characters)',
+            code: 'TITLE_TOO_LONG'
+          })
+        }
+      }
+
+      // Validate category if being updated
+      if (updateData.kategorie !== undefined) {
+        if (!updateData.kategorie || typeof updateData.kategorie !== 'string' || updateData.kategorie.trim().length === 0) {
+          errors.push({
+            field: 'kategorie',
+            message: 'Category cannot be empty',
+            code: 'CATEGORY_EMPTY'
+          })
+        }
+        
+        if (updateData.kategorie.length > 100) {
+          errors.push({
+            field: 'kategorie',
+            message: 'Category is too long (max 100 characters)',
+            code: 'CATEGORY_TOO_LONG'
+          })
+        }
+      }
+
+      // Validate content if being updated
+      if (updateData.inhalt !== undefined) {
+        if (!updateData.inhalt || typeof updateData.inhalt !== 'object') {
+          errors.push({
+            field: 'inhalt',
+            message: 'Content must be a valid object',
+            code: 'CONTENT_INVALID_TYPE'
+          })
+        } else {
+          // Check content size (approximate)
+          const contentSize = JSON.stringify(updateData.inhalt).length
+          if (contentSize > 50000) { // 50KB limit
+            warnings.push({
+              field: 'inhalt',
+              message: 'Content is very large and may cause performance issues',
+              code: 'CONTENT_LARGE_SIZE'
+            })
+          }
+          
+          // Validate content structure
+          if (!updateData.inhalt.type || updateData.inhalt.type !== 'doc') {
+            errors.push({
+              field: 'inhalt',
+              message: 'Content must be a valid TipTap document',
+              code: 'CONTENT_INVALID_STRUCTURE'
+            })
+          }
+        }
+      }
+
+      // Validate variables array if being updated
+      if (updateData.kontext_anforderungen !== undefined) {
+        if (!Array.isArray(updateData.kontext_anforderungen)) {
+          errors.push({
+            field: 'kontext_anforderungen',
+            message: 'Context requirements must be an array',
+            code: 'VARIABLES_INVALID_TYPE'
+          })
+        } else {
+          // Check for invalid variable IDs
+          const invalidVariables = updateData.kontext_anforderungen.filter((variable: any) => 
+            !variable || typeof variable !== 'string' || variable.trim().length === 0
+          )
+          
+          if (invalidVariables.length > 0) {
+            warnings.push({
+              field: 'kontext_anforderungen',
+              message: `Found ${invalidVariables.length} invalid variable IDs`,
+              code: 'VARIABLES_INVALID_IDS'
+            })
+          }
+          
+          // Check for too many variables
+          if (updateData.kontext_anforderungen.length > 50) {
+            warnings.push({
+              field: 'kontext_anforderungen',
+              message: 'Template has many variables, consider simplifying',
+              code: 'VARIABLES_TOO_MANY'
+            })
+          }
+        }
+      }
+
+      // Validate timestamp
+      if (updateData.aktualisiert_am) {
+        const timestamp = new Date(updateData.aktualisiert_am)
+        if (isNaN(timestamp.getTime())) {
+          errors.push({
+            field: 'aktualisiert_am',
+            message: 'Invalid timestamp format',
+            code: 'TIMESTAMP_INVALID'
+          })
+        }
+      }
+
+    } catch (error) {
+      errors.push({
+        field: 'system',
+        message: `Data integrity validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        code: 'VALIDATION_SYSTEM_ERROR'
+      })
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      warnings
+    }
+  }
+
+  /**
+   * Verify that the template was saved correctly
+   */
+  private verifyTemplateSave(savedTemplate: Template, updateData: any): ValidationResult {
+    const warnings: ValidationWarning[] = []
+
+    try {
+      // Check that timestamp was updated
+      if (updateData.aktualisiert_am && savedTemplate.aktualisiert_am !== updateData.aktualisiert_am) {
+        warnings.push({
+          field: 'aktualisiert_am',
+          message: 'Timestamp mismatch after save',
+          code: 'TIMESTAMP_MISMATCH'
+        })
+      }
+
+      // Check that title was updated if provided
+      if (updateData.titel !== undefined && savedTemplate.titel !== updateData.titel) {
+        warnings.push({
+          field: 'titel',
+          message: 'Title mismatch after save',
+          code: 'TITLE_MISMATCH'
+        })
+      }
+
+      // Check that category was updated if provided
+      if (updateData.kategorie !== undefined && savedTemplate.kategorie !== updateData.kategorie) {
+        warnings.push({
+          field: 'kategorie',
+          message: 'Category mismatch after save',
+          code: 'CATEGORY_MISMATCH'
+        })
+      }
+
+      // Check that variables were updated if content was provided
+      if (updateData.kontext_anforderungen !== undefined) {
+        const savedVariables = savedTemplate.kontext_anforderungen || []
+        const expectedVariables = updateData.kontext_anforderungen || []
+        
+        if (JSON.stringify(savedVariables.sort()) !== JSON.stringify(expectedVariables.sort())) {
+          warnings.push({
+            field: 'kontext_anforderungen',
+            message: 'Variables mismatch after save',
+            code: 'VARIABLES_MISMATCH'
+          })
+        }
+      }
+
+    } catch (error) {
+      warnings.push({
+        field: 'system',
+        message: `Save verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        code: 'VERIFICATION_ERROR'
+      })
+    }
+
+    return {
+      isValid: true, // Warnings don't make it invalid
+      errors: [],
+      warnings
+    }
+  }
+
+  /**
+   * Extract variables from Tiptap JSON content with enhanced error handling
    * Recursively searches for mention nodes with variable IDs
    * Handles complex nested structures and different content formats
    */
   extractVariablesFromContent(content: object): string[] {
+    try {
+      // Use the robust content parser for variable extraction
+      const { robustContentParser } = require('./template-content-parser')
+      
+      // Parse content first to ensure it's in proper format
+      const parseResult = robustContentParser.parseTemplateContent(content)
+      
+      if (!parseResult.success) {
+        console.warn('Content parsing issues during variable extraction:', parseResult.errors)
+      }
+      
+      // Extract variables from the parsed content
+      const extractionResult = robustContentParser.extractVariables(parseResult.content)
+      
+      if (extractionResult.errors.length > 0) {
+        console.warn('Variable extraction errors:', extractionResult.errors)
+      }
+      
+      if (extractionResult.warnings.length > 0) {
+        console.warn('Variable extraction warnings:', extractionResult.warnings)
+      }
+      
+      return extractionResult.variables
+    } catch (error) {
+      console.error('Error in enhanced variable extraction:', error)
+      
+      // Fallback to original extraction method
+      return this.extractVariablesFromContentFallback(content)
+    }
+  }
+
+  /**
+   * Fallback variable extraction method (original implementation)
+   */
+  private extractVariablesFromContentFallback(content: object): string[] {
     const variables = new Set<string>()
 
     const extractFromNode = (node: any): void => {
