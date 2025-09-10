@@ -22,7 +22,8 @@ export const suggestion = (placeholderDefinitions?: PlaceholderDefinition[]): Om
       label: suggestion.placeholder.key,
       description: suggestion.placeholder.description,
       category: suggestion.placeholder.category,
-      insertText: suggestion.insertText
+      // Remove the @ from insertText since Tiptap's Mention extension will add it
+      insertText: suggestion.insertText.startsWith('@') ? suggestion.insertText.slice(1) : suggestion.insertText
     }))
   },
 
