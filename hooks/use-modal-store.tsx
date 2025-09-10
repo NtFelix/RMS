@@ -156,6 +156,23 @@ interface CategorySelectionData {
   error?: string;
 }
 
+interface TemplateFormData {
+  titel: string;
+  inhalt: object;
+  kategorie: string;
+  kontext_anforderungen: string[];
+}
+
+interface TemplateEditorData {
+  templateId?: string; // For editing existing templates
+  initialTitle?: string;
+  initialContent?: object;
+  initialCategory?: string;
+  isNewTemplate: boolean;
+  onSave: (template: TemplateFormData) => Promise<void>;
+  onCancel: () => void;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -372,6 +389,14 @@ export interface ModalState {
   closeCategorySelectionModal: () => void;
   loadUserCategories: (userId: string, forceRefresh?: boolean) => Promise<string[]>;
   clearCategoryCache: (userId?: string) => void;
+
+  // Template Editor Modal State
+  isTemplateEditorModalOpen: boolean;
+  templateEditorData?: TemplateEditorData;
+  isTemplateEditorModalDirty: boolean;
+  openTemplateEditorModal: (data: TemplateEditorData) => void;
+  closeTemplateEditorModal: (options?: CloseModalOptions) => void;
+  setTemplateEditorModalDirty: (isDirty: boolean) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -520,6 +545,12 @@ const initialCategorySelectionModalState = {
   categoryLoadingState: new Map(),
 };
 
+const initialTemplateEditorModalState = {
+  isTemplateEditorModalOpen: false,
+  templateEditorData: undefined,
+  isTemplateEditorModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -542,6 +573,7 @@ const createInitialModalState = () => ({
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
   ...initialCategorySelectionModalState,
+  ...initialTemplateEditorModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1026,6 +1058,15 @@ export const useModalStore = create<ModalState>((set, get) => {
     },
     
     closeCategorySelectionModal: () => set(initialCategorySelectionModalState),
+
+    // Template Editor Modal
+    openTemplateEditorModal: (data: TemplateEditorData) => set({
+      isTemplateEditorModalOpen: true,
+      templateEditorData: data,
+      isTemplateEditorModalDirty: false
+    }),
+    closeTemplateEditorModal: createCloseHandler('isTemplateEditorModalDirty', initialTemplateEditorModalState),
+    setTemplateEditorModalDirty: (isDirty: boolean) => set({ isTemplateEditorModalDirty: isDirty }),
 
     // Category data loading and caching
     loadUserCategories: async (userId: string, forceRefresh = false): Promise<string[]> => {

@@ -70,13 +70,7 @@ export function TiptapTemplateEditor({
           keepMarks: true,
           keepAttributes: false,
         },
-        // Enable additional formatting options
-        bold: true,
-        italic: true,
-        strike: true,
-        code: true,
-        blockquote: true,
-        horizontalRule: true,
+        // Additional formatting options are enabled by default in StarterKit
       }),
       Underline,
       SlashCommandExtension,

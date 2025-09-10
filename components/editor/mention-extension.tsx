@@ -301,7 +301,7 @@ export const MentionExtension = (options: MentionExtensionOptions = {}) => {
           },
         }
       },
-    } as SuggestionOptions,
+    },
   })
 }
 
