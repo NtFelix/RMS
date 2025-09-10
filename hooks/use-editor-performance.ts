@@ -76,7 +76,9 @@ export function useOptimizedVariableExtraction(
     // Limit cache size to prevent memory leaks
     if (cacheRef.current.size > 50) {
       const firstKey = cacheRef.current.keys().next().value
-      cacheRef.current.delete(firstKey)
+      if (firstKey !== undefined) {
+        cacheRef.current.delete(firstKey)
+      }
     }
     
     cacheRef.current.set(contentKey, variables)
@@ -118,7 +120,9 @@ export function useOptimizedFiltering<T>(
     // Limit cache size
     if (cacheRef.current.size > 20) {
       const firstKey = cacheRef.current.keys().next().value
-      cacheRef.current.delete(firstKey)
+      if (firstKey !== undefined) {
+        cacheRef.current.delete(firstKey)
+      }
     }
     
     cacheRef.current.set(cacheKey, filtered)

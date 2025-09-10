@@ -181,7 +181,7 @@ export function TiptapTemplateEditor({
 
   // Update editor content when initialContent changes (optimized)
   React.useEffect(() => {
-    if (editor && contentComparison?.isDifferent) {
+    if (editor && contentComparison?.isDifferent && initialContent) {
       editor.commands.setContent(initialContent)
     }
   }, [editor, contentComparison, initialContent])
