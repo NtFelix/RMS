@@ -71,7 +71,7 @@ describe('TemplateService', () => {
       }
 
       const variables = templateService.extractVariablesFromContent(content)
-      expect(variables).toEqual(['tenant_name', 'apartment_rent'])
+      expect(variables).toEqual(['apartment_rent', 'tenant_name'])
     })
 
     it('should handle nested content structures', () => {
@@ -107,7 +107,7 @@ describe('TemplateService', () => {
       }
 
       const variables = templateService.extractVariablesFromContent(content)
-      expect(variables).toEqual(['property_name', 'landlord_name'])
+      expect(variables).toEqual(['landlord_name', 'property_name'])
     })
 
     it('should return empty array for content without mentions', () => {

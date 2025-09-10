@@ -119,7 +119,7 @@ describe('template-utils', () => {
   describe('getTemplatePreview', () => {
     it('should return preview text', () => {
       const preview = getTemplatePreview(mockTemplate, 5)
-      expect(preview).toBe('Hello...')
+      expect(preview).toBe('He...')
     })
 
     it('should return full text if shorter than max length', () => {

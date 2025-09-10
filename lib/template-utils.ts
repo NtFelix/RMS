@@ -2,7 +2,7 @@
  * Template utility functions for variable management and content processing
  */
 
-import type { MentionItem } from '../types/template'
+import type { MentionItem, Template, TemplateItem } from '../types/template'
 
 /**
  * Variable categories for organizing mentions in the editor
@@ -315,4 +315,252 @@ export function getVariableUsageStats(content: any): Record<string, number> {
   }
   
   return usage
+}
+
+/**
+ * Convert Template database record to TemplateItem for UI display
+ */
+export function templateToTemplateItem(template: Template): TemplateItem {
+  const contentString = JSON.stringify(template.inhalt)
+  
+  return {
+    id: template.id,
+    name: template.titel,
+    category: template.kategorie,
+    content: contentString,
+    variables: template.kontext_anforderungen || [],
+    createdAt: new Date(template.erstellungsdatum),
+    updatedAt: template.aktualisiert_am ? new Date(template.aktualisiert_am) : null,
+    size: calculateContentSize(template.inhalt),
+    type: 'template'
+  }
+}
+
+/**
+ * Convert array of Template database records to TemplateItems
+ */
+export function templatesToTemplateItems(templates: Template[]): TemplateItem[] {
+  return templates.map(templateToTemplateItem)
+}
+
+/**
+ * Calculate the size of template content in bytes
+ */
+export function calculateContentSize(content: any): number {
+  if (!content || typeof content !== 'object') return 0
+  
+  // Check if it's an empty object
+  if (Object.keys(content).length === 0) return 0
+  
+  try {
+    return JSON.stringify(content).length
+  } catch (error) {
+    console.error('Error calculating content size:', error)
+    return 0
+  }
+}
+
+/**
+ * Extract plain text from Tiptap JSON content
+ */
+export function extractPlainTextFromContent(content: any): string {
+  if (!content || typeof content !== 'object') return ''
+  
+  const extractFromNode = (node: any): string => {
+    if (!node || typeof node !== 'object') return ''
+    
+    // Handle text nodes
+    if (node.type === 'text') {
+      return node.text || ''
+    }
+    
+    // Handle mention nodes - extract the label
+    if (node.type === 'mention' && node.attrs?.label) {
+      return node.attrs.label
+    }
+    
+    // Handle nodes with content
+    if (Array.isArray(node.content)) {
+      return node.content.map(extractFromNode).join('')
+    }
+    
+    return ''
+  }
+  
+  if (Array.isArray(content)) {
+    return content.map(extractFromNode).join('')
+  }
+  
+  if (content.content && Array.isArray(content.content)) {
+    return content.content.map(extractFromNode).join('')
+  }
+  
+  return extractFromNode(content)
+}
+
+/**
+ * Get a preview of template content (first N characters)
+ */
+export function getTemplatePreview(template: Template, maxLength: number = 100): string {
+  const plainText = extractPlainTextFromContent(template.inhalt)
+  
+  if (plainText.length <= maxLength) {
+    return plainText
+  }
+  
+  // For very short maxLength, ensure we don't go negative
+  const truncateLength = Math.max(0, maxLength - 3)
+  return plainText.substring(0, truncateLength) + '...'
+}
+
+/**
+ * Format template name as a file name with .template extension
+ */
+export function formatTemplateFileName(template: Template): string {
+  return `${template.titel}.template`
+}
+
+/**
+ * Validate template title
+ */
+export function validateTemplateTitle(title: string): { isValid: boolean; error?: string } {
+  if (!title || title.trim().length === 0) {
+    return { isValid: false, error: 'Titel ist erforderlich' }
+  }
+  
+  if (title.length > 255) {
+    return { isValid: false, error: 'Titel ist zu lang (maximal 255 Zeichen)' }
+  }
+  
+  // Check for invalid characters
+  const invalidChars = /[<>:"/\\|?*]/
+  if (invalidChars.test(title)) {
+    return { isValid: false, error: 'Titel enthält ungültige Zeichen' }
+  }
+  
+  return { isValid: true }
+}
+
+/**
+ * Validate template category
+ */
+export function validateTemplateCategory(category: string): { isValid: boolean; error?: string } {
+  if (!category || category.trim().length === 0) {
+    return { isValid: false, error: 'Kategorie ist erforderlich' }
+  }
+  
+  if (category.length > 100) {
+    return { isValid: false, error: 'Kategorie ist zu lang (maximal 100 Zeichen)' }
+  }
+  
+  return { isValid: true }
+}
+
+/**
+ * Sanitize template title by removing invalid characters
+ */
+export function sanitizeTemplateTitle(title: string): string {
+  return title
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, '')
+    .substring(0, 255)
+}
+
+/**
+ * Sanitize template category by removing invalid characters
+ */
+export function sanitizeTemplateCategory(category: string): string {
+  return category
+    .trim()
+    .replace(/[<>:"/\\|?*]/g, '')
+    .substring(0, 100)
+}
+
+/**
+ * Generate a unique duplicate title
+ */
+export function generateDuplicateTitle(originalTitle: string, existingTitles: string[]): string {
+  let counter = 1
+  let newTitle = `${originalTitle} (Copy)`
+  
+  while (existingTitles.includes(newTitle)) {
+    counter++
+    newTitle = `${originalTitle} (Copy ${counter})`
+  }
+  
+  return newTitle
+}
+
+/**
+ * Sort templates by different criteria
+ */
+export function sortTemplates(
+  templates: Template[], 
+  sortBy: 'title' | 'created' | 'updated' | 'category', 
+  order: 'asc' | 'desc' = 'asc'
+): Template[] {
+  const sorted = [...templates].sort((a, b) => {
+    let comparison = 0
+    
+    switch (sortBy) {
+      case 'title':
+        comparison = a.titel.localeCompare(b.titel)
+        break
+      case 'created':
+        comparison = new Date(a.erstellungsdatum).getTime() - new Date(b.erstellungsdatum).getTime()
+        break
+      case 'updated':
+        const aUpdated = a.aktualisiert_am ? new Date(a.aktualisiert_am).getTime() : 0
+        const bUpdated = b.aktualisiert_am ? new Date(b.aktualisiert_am).getTime() : 0
+        comparison = aUpdated - bUpdated
+        break
+      case 'category':
+        const aCat = a.kategorie || ''
+        const bCat = b.kategorie || ''
+        comparison = aCat.localeCompare(bCat)
+        break
+    }
+    
+    return order === 'desc' ? -comparison : comparison
+  })
+  
+  return sorted
+}
+
+/**
+ * Filter templates by search query
+ */
+export function filterTemplatesBySearch(templates: Template[], searchQuery: string): Template[] {
+  if (!searchQuery || searchQuery.trim().length === 0) {
+    return templates
+  }
+  
+  const query = searchQuery.toLowerCase().trim()
+  
+  return templates.filter(template => {
+    // Search in title
+    if (template.titel.toLowerCase().includes(query)) {
+      return true
+    }
+    
+    // Search in category
+    if (template.kategorie && template.kategorie.toLowerCase().includes(query)) {
+      return true
+    }
+    
+    // Search in content
+    const plainText = extractPlainTextFromContent(template.inhalt)
+    if (plainText.toLowerCase().includes(query)) {
+      return true
+    }
+    
+    // Search in variables
+    if (template.kontext_anforderungen && template.kontext_anforderungen.some(variable => 
+      variable.toLowerCase().includes(query)
+    )) {
+      return true
+    }
+    
+    return false
+  })
 }

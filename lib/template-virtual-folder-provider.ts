@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from './supabase-server'
 import { templateService } from './template-service'
+import { templateToTemplateItem, templatesToTemplateItems } from './template-utils'
 import type { Template, TemplateItem } from '../types/template'
 import type { VirtualFolder, StorageFile } from '../app/(dashboard)/dateien/actions'
 
@@ -99,7 +100,7 @@ export class TemplateVirtualFolderProvider {
         templates = await templateService.getTemplatesByCategory(userId, category)
       }
 
-      return templates.map(template => this.convertTemplateToItem(template))
+      return templatesToTemplateItems(templates)
     } catch (error) {
       console.error('Error getting templates for category:', error)
       return []
@@ -112,31 +113,14 @@ export class TemplateVirtualFolderProvider {
   async getAllTemplatesAsItems(userId: string): Promise<TemplateItem[]> {
     try {
       const templates = await templateService.getUserTemplates(userId)
-      return templates.map(template => this.convertTemplateToItem(template))
+      return templatesToTemplateItems(templates)
     } catch (error) {
       console.error('Error getting all templates:', error)
       return []
     }
   }
 
-  /**
-   * Convert Template database record to TemplateItem for UI
-   */
-  private convertTemplateToItem(template: Template): TemplateItem {
-    const contentString = JSON.stringify(template.inhalt)
-    
-    return {
-      id: template.id,
-      name: template.titel,
-      category: template.kategorie,
-      content: contentString,
-      variables: template.kontext_anforderungen || [],
-      createdAt: new Date(template.erstellungsdatum),
-      updatedAt: template.aktualisiert_am ? new Date(template.aktualisiert_am) : null,
-      size: contentString.length,
-      type: 'template'
-    }
-  }
+
 
   /**
    * Get total template count for a user
