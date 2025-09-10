@@ -21,7 +21,9 @@ export function CategorySelectionModal() {
   const {
     isCategorySelectionModalOpen,
     categorySelectionData,
-    closeCategorySelectionModal
+    closeCategorySelectionModal,
+    loadUserCategories,
+    clearCategoryCache
   } = useModalStore()
 
   const [selectedCategory, setSelectedCategory] = useState<string>("")
@@ -41,6 +43,8 @@ export function CategorySelectionModal() {
   }, [isCategorySelectionModalOpen])
 
   const existingCategories = categorySelectionData?.existingCategories || []
+  const isLoadingCategories = categorySelectionData?.isLoading || false
+  const categoryError = categorySelectionData?.error
 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category)
@@ -84,6 +88,27 @@ export function CategorySelectionModal() {
     return null
   }
 
+  const handleRefreshCategories = async () => {
+    if (!categorySelectionData) return
+    
+    try {
+      // Clear cache and reload categories
+      clearCategoryCache()
+      // The modal will automatically reload categories when opened
+      toast({
+        title: "Kategorien aktualisiert",
+        description: "Die Kategorien wurden erfolgreich neu geladen."
+      })
+    } catch (error) {
+      console.error('Error refreshing categories:', error)
+      toast({
+        title: "Fehler beim Aktualisieren",
+        description: "Die Kategorien konnten nicht neu geladen werden.",
+        variant: "destructive"
+      })
+    }
+  }
+
   const handleConfirm = async () => {
     if (!categorySelectionData) return
 
@@ -124,6 +149,9 @@ export function CategorySelectionModal() {
           title: "Kategorie erstellt",
           description: `Die Kategorie "${finalCategory}" wurde erfolgreich erstellt.`
         })
+        
+        // Clear cache so new category appears in future loads
+        clearCategoryCache()
       }
 
       handleClose()
@@ -170,12 +198,58 @@ export function CategorySelectionModal() {
         </DialogHeader>
         
         <div className="grid gap-6 py-4">
+          {/* Loading State */}
+          {isLoadingCategories && (
+            <div className="flex items-center justify-center py-8">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm text-muted-foreground">
+                  Kategorien werden geladen...
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {categoryError && !isLoadingCategories && (
+            <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-destructive font-medium">
+                  Fehler beim Laden der Kategorien
+                </span>
+              </div>
+              <p className="text-xs text-destructive/80 mt-1">
+                {categoryError}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshCategories}
+                className="mt-2 h-7"
+              >
+                Erneut versuchen
+              </Button>
+            </div>
+          )}
+
           {/* Existing Categories Section */}
-          {existingCategories.length > 0 && (
+          {!isLoadingCategories && !categoryError && existingCategories.length > 0 && (
             <div className="space-y-3">
-              <Label className="text-sm font-medium">
-                Bestehende Kategorien ({existingCategories.length})
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">
+                  Bestehende Kategorien ({existingCategories.length})
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefreshCategories}
+                  className="h-7 px-2"
+                >
+                  <Loader2 className="h-3 w-3" />
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
                 {existingCategories.map((category) => (
                   <Badge
@@ -192,6 +266,19 @@ export function CategorySelectionModal() {
                   </Badge>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoadingCategories && !categoryError && existingCategories.length === 0 && (
+            <div className="text-center py-6">
+              <FolderPlus className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground">
+                Noch keine Kategorien vorhanden
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Erstellen Sie Ihre erste Kategorie unten
+              </p>
             </div>
           )}
 
@@ -266,6 +353,7 @@ export function CategorySelectionModal() {
             onClick={handleConfirm}
             disabled={
               isProcessing || 
+              isLoadingCategories ||
               (!selectedCategory && (!isCreatingNew || !newCategoryName.trim()))
             }
           >

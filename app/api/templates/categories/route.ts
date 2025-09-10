@@ -4,13 +4,13 @@ import { templateService } from '@/lib/template-service'
 
 /**
  * GET /api/templates/categories
- * Get all categories for the current user
+ * Get all categories for the authenticated user
  */
 export async function GET(request: NextRequest) {
   try {
     const supabase = createSupabaseServerClient()
     
-    // Get the current user
+    // Get authenticated user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
@@ -20,14 +20,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get user categories
+    // Get categories from template service
     const categories = await templateService.getUserCategories(user.id)
     
-    return NextResponse.json({ categories })
+    return NextResponse.json({
+      categories,
+      count: categories.length
+    })
   } catch (error) {
     console.error('Error fetching template categories:', error)
+    
     return NextResponse.json(
-      { error: 'Failed to fetch categories' },
+      { 
+        error: 'Failed to fetch categories',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

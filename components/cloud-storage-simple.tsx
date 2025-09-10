@@ -495,7 +495,6 @@ export function CloudStorageSimple({
       
       // Open category selection modal with fetched categories
       openCategorySelectionModal({
-        existingCategories: categories || [],
         onCategorySelected: (category: string) => {
           // Navigate to template editor (will be implemented in future tasks)
           console.log('Selected category:', category)
@@ -507,7 +506,7 @@ export function CloudStorageSimple({
         onCancel: () => {
           // Modal will close automatically
         }
-      })
+      }, userId)
     }, 'Fetching template categories')
   }, [openCategorySelectionModal, toast])
   

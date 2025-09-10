@@ -152,6 +152,8 @@ interface CategorySelectionData {
   existingCategories: string[];
   onCategorySelected: (category: string) => void;
   onCancel: () => void;
+  isLoading?: boolean;
+  error?: string;
 }
 
 interface CloseModalOptions {
@@ -364,8 +366,12 @@ export interface ModalState {
   // Category Selection Modal State
   isCategorySelectionModalOpen: boolean;
   categorySelectionData?: CategorySelectionData;
-  openCategorySelectionModal: (data: CategorySelectionData) => void;
+  categoryCache: Map<string, { categories: string[]; timestamp: number }>;
+  categoryLoadingState: Map<string, boolean>;
+  openCategorySelectionModal: (data: Omit<CategorySelectionData, 'existingCategories' | 'isLoading' | 'error'>, userId: string) => Promise<void>;
   closeCategorySelectionModal: () => void;
+  loadUserCategories: (userId: string, forceRefresh?: boolean) => Promise<string[]>;
+  clearCategoryCache: (userId?: string) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -510,6 +516,8 @@ const initialMarkdownEditorModalState = {
 const initialCategorySelectionModalState = {
   isCategorySelectionModalOpen: false,
   categorySelectionData: undefined,
+  categoryCache: new Map(),
+  categoryLoadingState: new Map(),
 };
 
 const createInitialModalState = () => ({
@@ -978,10 +986,134 @@ export const useModalStore = create<ModalState>((set, get) => {
     closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
 
     // Category Selection Modal
-    openCategorySelectionModal: (data: CategorySelectionData) => set({
-      isCategorySelectionModalOpen: true,
-      categorySelectionData: data,
-    }),
+    openCategorySelectionModal: async (data: Omit<CategorySelectionData, 'existingCategories' | 'isLoading' | 'error'>, userId: string) => {
+      const state = get();
+      
+      // Set initial modal state with loading
+      set({
+        isCategorySelectionModalOpen: true,
+        categorySelectionData: {
+          ...data,
+          existingCategories: [],
+          isLoading: true,
+          error: undefined
+        }
+      });
+
+      try {
+        const categories = await state.loadUserCategories(userId);
+        
+        // Update modal data with loaded categories
+        set({
+          categorySelectionData: {
+            ...data,
+            existingCategories: categories,
+            isLoading: false,
+            error: undefined
+          }
+        });
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        set({
+          categorySelectionData: {
+            ...data,
+            existingCategories: [],
+            isLoading: false,
+            error: error instanceof Error ? error.message : 'Failed to load categories'
+          }
+        });
+      }
+    },
+    
     closeCategorySelectionModal: () => set(initialCategorySelectionModalState),
+
+    // Category data loading and caching
+    loadUserCategories: async (userId: string, forceRefresh = false): Promise<string[]> => {
+      const state = get();
+      const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+      const now = Date.now();
+      
+      // Check if already loading
+      if (state.categoryLoadingState.get(userId)) {
+        // Wait for existing load to complete
+        return new Promise((resolve) => {
+          const checkInterval = setInterval(() => {
+            const currentState = get();
+            if (!currentState.categoryLoadingState.get(userId)) {
+              clearInterval(checkInterval);
+              const cached = currentState.categoryCache.get(userId);
+              resolve(cached?.categories || []);
+            }
+          }, 100);
+        });
+      }
+
+      // Check cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = state.categoryCache.get(userId);
+        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+          return cached.categories;
+        }
+      }
+
+      // Set loading state
+      const newLoadingState = new Map(state.categoryLoadingState);
+      newLoadingState.set(userId, true);
+      set({ categoryLoadingState: newLoadingState });
+
+      try {
+        // Make API call to load categories
+        const response = await fetch(`/api/templates/categories?userId=${userId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch categories: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        const categories = Array.isArray(data.categories) ? data.categories : [];
+
+        // Update cache
+        const newCache = new Map(state.categoryCache);
+        newCache.set(userId, {
+          categories,
+          timestamp: now
+        });
+
+        // Clear loading state
+        const updatedLoadingState = new Map(state.categoryLoadingState);
+        updatedLoadingState.delete(userId);
+
+        set({ 
+          categoryCache: newCache,
+          categoryLoadingState: updatedLoadingState
+        });
+
+        return categories;
+      } catch (error) {
+        console.error('Error loading user categories:', error);
+        
+        // Clear loading state
+        const updatedLoadingState = new Map(state.categoryLoadingState);
+        updatedLoadingState.delete(userId);
+        set({ categoryLoadingState: updatedLoadingState });
+        
+        // Return cached data if available, otherwise empty array
+        const cached = state.categoryCache.get(userId);
+        return cached?.categories || [];
+      }
+    },
+
+    clearCategoryCache: (userId?: string) => {
+      const state = get();
+      if (userId) {
+        // Clear cache for specific user
+        const newCache = new Map(state.categoryCache);
+        newCache.delete(userId);
+        set({ categoryCache: newCache });
+      } else {
+        // Clear all cache
+        set({ categoryCache: new Map() });
+      }
+    },
   };
 });
