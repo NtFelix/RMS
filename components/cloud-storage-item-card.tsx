@@ -14,7 +14,11 @@ import {
   MoreHorizontal,
   Share2,
   Edit3,
-  Move
+  Move,
+  FileType,
+  Hash,
+  Calendar,
+  Tag
 } from "lucide-react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -130,6 +134,10 @@ export function CloudStorageItemCard({
   const canPreview = () => {
     if (type !== 'file') return false
     const file = item as StorageObject
+    
+    // Templates can always be previewed
+    if (isTemplate()) return true
+    
     const extension = file.name.split('.').pop()?.toLowerCase()
     return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'md'].includes(extension || '')
   }
@@ -138,6 +146,30 @@ export function CloudStorageItemCard({
   const handlePreview = () => {
     if (type === 'file' && canPreview()) {
       const file = item as StorageObject
+      
+      // Handle template preview
+      if (isTemplate() && templateItem) {
+        // For templates, open the template editor in preview/edit mode
+        const { openTemplateEditorModal } = useModalStore.getState()
+        openTemplateEditorModal({
+          templateId: templateItem.id,
+          initialTitle: templateItem.name,
+          initialContent: JSON.parse(templateItem.content),
+          initialCategory: templateItem.category || '',
+          isNewTemplate: false,
+          onSave: async (templateData) => {
+            // Handle template save if needed
+            if (onTemplateUpdated) {
+              onTemplateUpdated()
+            }
+          },
+          onCancel: () => {
+            // Template editor modal will handle the cancel logic
+          }
+        })
+        return
+      }
+      
       // Construct the file path from current path and file name
       const filePath = `${currentPath}/${file.name}`
       const fileExtension = file.name.split('.').pop()?.toLowerCase()
@@ -178,7 +210,7 @@ export function CloudStorageItemCard({
   const isTemplate = () => {
     if (type !== 'file') return false
     const file = item as StorageObject
-    return file.metadata?.type === 'template' || file.name.endsWith('.template')
+    return file.metadata?.type === 'template' || file.name.endsWith('.template') || templateItem !== undefined
   }
 
   // Get icon and color based on item type
@@ -209,8 +241,8 @@ export function CloudStorageItemCard({
       const extension = file.name.split('.').pop()?.toLowerCase()
       
       // Check if this is a template file
-      if (extension === 'template' || file.metadata?.type === 'template') {
-        return { icon: FileText, color: 'text-indigo-500', bgColor: 'bg-indigo-50' }
+      if (extension === 'template' || file.metadata?.type === 'template' || templateItem) {
+        return { icon: FileType, color: 'text-indigo-600', bgColor: 'bg-indigo-50' }
       }
       
       if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
@@ -259,11 +291,20 @@ export function CloudStorageItemCard({
       const file = item as StorageObject
       
       // Check if this is a template file
-      if (file.metadata?.type === 'template') {
-        const variables = file.metadata?.variables as string[] || []
+      if (file.metadata?.type === 'template' || templateItem) {
+        const variables = templateItem?.variables || (file.metadata?.variables as string[] || [])
         const variableCount = variables.length
-        const dateStr = new Date(file.updated_at).toLocaleDateString('de-DE')
-        return variableCount > 0 ? `${variableCount} Variablen • ${dateStr}` : dateStr
+        const category = templateItem?.category || file.metadata?.category
+        const dateStr = templateItem?.updatedAt 
+          ? templateItem.updatedAt.toLocaleDateString('de-DE')
+          : new Date(file.updated_at).toLocaleDateString('de-DE')
+        
+        const parts = []
+        if (category) parts.push(category)
+        if (variableCount > 0) parts.push(`${variableCount} Variable${variableCount !== 1 ? 'n' : ''}`)
+        parts.push(dateStr)
+        
+        return parts.join(' • ')
       }
       
       return `${formatFileSize(file.size)} • ${new Date(file.updated_at).toLocaleDateString('de-DE')}`
@@ -293,7 +334,7 @@ export function CloudStorageItemCard({
       const extension = file.name.split('.').pop()?.toLowerCase()
       
       // Check if this is a template file
-      if (extension === 'template' || file.metadata?.type === 'template') {
+      if (extension === 'template' || file.metadata?.type === 'template' || templateItem) {
         return { label: 'Vorlage', variant: 'default' as const }
       }
       
@@ -424,6 +465,12 @@ export function CloudStorageItemCard({
               if (isDropdownOpen) {
                 e.preventDefault()
                 e.stopPropagation()
+                return
+              }
+              
+              // Handle template clicks
+              if (isTemplate() && templateItem) {
+                handlePreview() // This will open the template editor
                 return
               }
               
@@ -595,11 +642,20 @@ export function CloudStorageItemCard({
               <div className="flex flex-col items-center text-center space-y-3">
                 {/* Icon */}
                 <div className={cn(
-                  "p-3 rounded-xl transition-colors",
+                  "relative p-3 rounded-xl transition-colors",
                   bgColor,
-                  "group-hover:scale-105 transition-transform"
+                  "group-hover:scale-105 transition-transform",
+                  // Add special styling for templates
+                  isTemplate() && templateItem && "ring-2 ring-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50"
                 )}>
                   <Icon className={cn("h-8 w-8", color)} />
+                  
+                  {/* Template indicator badge */}
+                  {isTemplate() && templateItem && templateItem.variables.length > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                      {templateItem.variables.length}
+                    </div>
+                  )}
                 </div>
 
                 {/* Content */}
@@ -613,6 +669,25 @@ export function CloudStorageItemCard({
                   <p className="text-xs text-muted-foreground truncate">
                     {subtitle}
                   </p>
+                  
+                  {/* Template-specific metadata */}
+                  {(isTemplate() && templateItem) && (
+                    <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                      {templateItem.variables.length > 0 && (
+                        <div className="flex items-center gap-1" title={`Variablen: ${templateItem.variables.join(', ')}`}>
+                          <Hash className="h-3 w-3" />
+                          <span>{templateItem.variables.length}</span>
+                        </div>
+                      )}
+                      {templateItem.category && (
+                        <div className="flex items-center gap-1" title={`Kategorie: ${templateItem.category}`}>
+                          <Tag className="h-3 w-3" />
+                          <span className="truncate max-w-16">{templateItem.category}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
                   <Badge variant={typeBadge.variant} className="text-xs">
                     {typeBadge.label}
                   </Badge>
@@ -657,7 +732,18 @@ export function CloudStorageItemCard({
           )}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          onClick={onOpen}
+          onClick={() => {
+            // Handle template clicks
+            if (isTemplate() && templateItem) {
+              handlePreview() // This will open the template editor
+              return
+            }
+            
+            // Normal click behavior
+            if (onOpen) {
+              onOpen()
+            }
+          }}
         >
           {/* Selection checkbox */}
           {onSelect && (
@@ -671,8 +757,20 @@ export function CloudStorageItemCard({
           )}
 
           {/* Icon */}
-          <div className={cn("mr-3 p-2 rounded-lg", bgColor)}>
+          <div className={cn(
+            "relative mr-3 p-2 rounded-lg", 
+            bgColor,
+            // Add special styling for templates
+            isTemplate() && templateItem && "ring-1 ring-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50"
+          )}>
             <Icon className={cn("h-5 w-5", color)} />
+            
+            {/* Template indicator badge for list view */}
+            {isTemplate() && templateItem && templateItem.variables.length > 0 && (
+              <div className="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                {templateItem.variables.length > 9 ? '9+' : templateItem.variables.length}
+              </div>
+            )}
           </div>
 
           {/* Content */}
@@ -682,6 +780,24 @@ export function CloudStorageItemCard({
               <Badge variant={typeBadge.variant} className="text-xs">
                 {typeBadge.label}
               </Badge>
+              
+              {/* Template-specific badges in list view */}
+              {(isTemplate() && templateItem) && (
+                <>
+                  {templateItem.variables.length > 0 && (
+                    <Badge variant="outline" className="text-xs" title={`Variablen: ${templateItem.variables.join(', ')}`}>
+                      <Hash className="h-3 w-3 mr-1" />
+                      {templateItem.variables.length}
+                    </Badge>
+                  )}
+                  {templateItem.category && (
+                    <Badge variant="secondary" className="text-xs" title={`Kategorie: ${templateItem.category}`}>
+                      <Tag className="h-3 w-3 mr-1" />
+                      {templateItem.category}
+                    </Badge>
+                  )}
+                </>
+              )}
             </div>
             <p className="text-sm text-muted-foreground truncate">
               {subtitle}

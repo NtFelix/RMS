@@ -208,7 +208,6 @@ export function TemplateContextMenu({
         confirmButtonText="Endgültig löschen"
         confirmButtonVariant="destructive"
         cancelButtonText="Abbrechen"
-        isLoading={isDeleting}
       />
     </>
   )

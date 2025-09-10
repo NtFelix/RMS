@@ -126,7 +126,7 @@ export function getContentStats(content: any): {
       const text = node.text.trim()
       characterCount += text.length
       if (text.length > 0) {
-        wordCount += text.split(/\s+/).filter(word => word.length > 0).length
+        wordCount += text.split(/\s+/).filter((word: string) => word.length > 0).length
       }
     }
 

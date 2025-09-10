@@ -9,8 +9,9 @@ import { UpdateTemplateRequest } from '@/types/template'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = createSupabaseServerClient()
     
@@ -25,7 +26,7 @@ export async function GET(
     }
 
     // Get the template
-    const template = await templateService.getTemplate(params.id)
+    const template = await templateService.getTemplate(id)
     
     // Verify ownership
     if (template.user_id !== user.id) {
@@ -51,8 +52,9 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = createSupabaseServerClient()
     
@@ -87,7 +89,7 @@ export async function PUT(
 
     // Verify template exists and user owns it
     try {
-      const existingTemplate = await templateService.getTemplate(params.id)
+      const existingTemplate = await templateService.getTemplate(id)
       if (existingTemplate.user_id !== user.id) {
         return NextResponse.json(
           { error: 'Template not found' },
@@ -132,7 +134,7 @@ export async function PUT(
     }
 
     // Update the template
-    const template = await templateService.updateTemplate(params.id, updateRequest)
+    const template = await templateService.updateTemplate(id, updateRequest)
     
     return NextResponse.json({ template })
   } catch (error) {
@@ -150,8 +152,9 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   try {
     const supabase = createSupabaseServerClient()
     
@@ -167,7 +170,7 @@ export async function DELETE(
 
     // Verify template exists and user owns it
     try {
-      const existingTemplate = await templateService.getTemplate(params.id)
+      const existingTemplate = await templateService.getTemplate(id)
       if (existingTemplate.user_id !== user.id) {
         return NextResponse.json(
           { error: 'Template not found' },
@@ -182,7 +185,7 @@ export async function DELETE(
     }
 
     // Delete the template
-    await templateService.deleteTemplate(params.id)
+    await templateService.deleteTemplate(id)
     
     return NextResponse.json({ success: true })
   } catch (error) {

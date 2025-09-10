@@ -1,4 +1,4 @@
-import { createSupabaseServerClient } from './supabase-server'
+import { createClient } from '@supabase/supabase-js'
 import {
   PREDEFINED_VARIABLES,
   VALIDATION_ERROR_CODES,
@@ -24,7 +24,10 @@ import type {
  * Provides CRUD operations, category management, and variable extraction
  */
 export class TemplateService {
-  private supabase = createSupabaseServerClient()
+  private supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   /**
    * Create a new template

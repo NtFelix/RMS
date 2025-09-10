@@ -104,8 +104,8 @@ export function CloudStorageSimple({
   /**
    * Convert StorageObject to TemplateItem if it's a template
    */
-  const storageObjectToTemplateItem = useCallback((file: StorageObject): TemplateItem | null => {
-    if (file.metadata?.type !== 'template') return null
+  const storageObjectToTemplateItem = useCallback((file: StorageObject): TemplateItem | undefined => {
+    if (file.metadata?.type !== 'template') return undefined
     
     return {
       id: file.metadata?.template_id || file.id,
@@ -514,7 +514,7 @@ export function CloudStorageSimple({
       const { categories } = await response.json()
       
       // Open category selection modal with fetched categories
-      openCategorySelectionModal({
+      await openCategorySelectionModal({
         onCategorySelected: (category: string) => {
           // Navigate to template editor (will be implemented in future tasks)
           console.log('Selected category:', category)
@@ -528,7 +528,7 @@ export function CloudStorageSimple({
         }
       }, userId)
     }, 'Fetching template categories')
-  }, [openCategorySelectionModal, toast])
+  }, [openCategorySelectionModal, toast, userId])
   
   // Determine loading and error states
   const showLoading = isLoading || isNavigating
@@ -806,8 +806,7 @@ export function CloudStorageSimple({
                     onTemplateUpdated={handleRefresh}
                   />
                 )
-              }
-              ))}
+              })}
             </div>
           )}
         </div>

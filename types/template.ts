@@ -85,7 +85,7 @@ export interface CategorySelectionData {
 export interface TemplateEditorData {
   templateId?: string // For editing existing templates
   initialTitle?: string
-  initialContent?: string
+  initialContent?: object
   initialCategory?: string
   isNewTemplate: boolean
   onSave: (template: TemplateFormData) => Promise<void>
