@@ -478,23 +478,37 @@ export function CloudStorageSimple({
   /**
    * Handle create template action
    */
-  const handleCreateTemplate = useCallback(() => {
-    // For now, we'll open the category selection modal
-    // In future tasks, this will be implemented with actual category fetching
-    openCategorySelectionModal({
-      existingCategories: [], // Will be populated in future tasks
-      onCategorySelected: (category: string) => {
-        // This will be implemented in future tasks to open the template editor
-        console.log('Selected category:', category)
-        toast({
-          title: "Vorlage erstellen",
-          description: `Kategorie "${category}" ausgewählt. Template-Editor wird in zukünftigen Tasks implementiert.`,
-        })
-      },
-      onCancel: () => {
-        // Modal will close automatically
+  const handleCreateTemplate = useCallback(async () => {
+    const { withErrorHandling } = await import('@/lib/template-error-handler')
+    
+    await withErrorHandling(async () => {
+      // Fetch existing categories from the API
+      const response = await fetch('/api/templates/categories')
+      
+      if (!response.ok) {
+        const { handleApiError } = await import('@/lib/template-error-handler')
+        await handleApiError(response)
+        return
       }
-    })
+      
+      const { categories } = await response.json()
+      
+      // Open category selection modal with fetched categories
+      openCategorySelectionModal({
+        existingCategories: categories || [],
+        onCategorySelected: (category: string) => {
+          // Navigate to template editor (will be implemented in future tasks)
+          console.log('Selected category:', category)
+          toast({
+            title: "Vorlage erstellen",
+            description: `Kategorie "${category}" ausgewählt. Template-Editor wird in zukünftigen Tasks implementiert.`,
+          })
+        },
+        onCancel: () => {
+          // Modal will close automatically
+        }
+      })
+    }, 'Fetching template categories')
   }, [openCategorySelectionModal, toast])
   
   // Determine loading and error states
