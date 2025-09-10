@@ -297,9 +297,9 @@ export function TemplateEditorModal() {
                   {templateEditorData.initialCategory && (
                     <span className="flex items-center gap-2">
                       Kategorie: 
-                      <Badge variant="secondary" className="text-xs">
+                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
                         {templateEditorData.initialCategory}
-                      </Badge>
+                      </span>
                     </span>
                   )}
                 </DialogDescription>

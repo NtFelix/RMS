@@ -58,6 +58,9 @@ export function TiptapTemplateEditor({
     type: 'doc',
     content: [{ type: 'paragraph', content: [] }]
   })
+  
+  // Ref to prevent infinite loops when updating content
+  const isUpdatingContentRef = React.useRef(false)
 
   // Performance monitoring (only in development)
   usePerformanceMonitor('TiptapTemplateEditor', process.env.NODE_ENV === 'development')
@@ -85,8 +88,8 @@ export function TiptapTemplateEditor({
   )
 
   // Optimized editor extensions with proper memoization
-  const editorExtensions = useMemoizedEditorExtensions([
-    () => StarterKit.configure({
+  const editorExtensions = useMemo(() => [
+    StarterKit.configure({
       // Configure the starter kit extensions
       heading: {
         levels: [1, 2, 3, 4, 5, 6],
@@ -101,9 +104,9 @@ export function TiptapTemplateEditor({
       },
       // Additional formatting options are enabled by default in StarterKit
     }),
-    () => Underline,
-    () => SlashCommandExtension,
-    () => MentionExtension({
+    Underline,
+    SlashCommandExtension,
+    MentionExtension({
       variables,
       onVariableInsert,
       onVariableRemove,
@@ -162,29 +165,25 @@ export function TiptapTemplateEditor({
     editable,
     onUpdate: handleContentChange,
     editorProps: editorProps,
-  }, [editorExtensions, initialContent, editable, handleContentChange, editorProps])
-
-  // Optimized content comparison using memoization
-  const contentComparison = useMemo(() => {
-    if (!editor || !initialContent) return null
-    
-    const currentContent = editor.getJSON()
-    const currentString = JSON.stringify(currentContent)
-    const initialString = JSON.stringify(initialContent)
-    
-    return {
-      isDifferent: currentString !== initialString,
-      currentContent,
-      initialContent
-    }
-  }, [editor, initialContent])
+  })
 
   // Update editor content when initialContent changes (optimized)
   React.useEffect(() => {
-    if (editor && contentComparison?.isDifferent && initialContent) {
-      editor.commands.setContent(initialContent)
+    if (editor && initialContent && !isUpdatingContentRef.current) {
+      const currentContent = editor.getJSON()
+      const currentString = JSON.stringify(currentContent)
+      const initialString = JSON.stringify(initialContent)
+      
+      if (currentString !== initialString) {
+        isUpdatingContentRef.current = true
+        editor.commands.setContent(initialContent)
+        // Reset the flag after a short delay
+        setTimeout(() => {
+          isUpdatingContentRef.current = false
+        }, 100)
+      }
     }
-  }, [editor, contentComparison, initialContent])
+  }, [editor, initialContent])
 
   // Memoized keyboard shortcut handler
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
