@@ -37,6 +37,7 @@ import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confir
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
+import { CategorySelectionModal } from "@/components/category-selection-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
 export default function DashboardRootLayout({
@@ -114,6 +115,8 @@ export default function DashboardRootLayout({
     isMarkdownEditorModalOpen,
     markdownEditorData,
     closeMarkdownEditorModal,
+    // Category Selection Modal state
+    isCategorySelectionModalOpen,
   } = useModalStore()
 
   return (
@@ -245,6 +248,9 @@ export default function DashboardRootLayout({
           onSave={markdownEditorData.onSave}
         />
       )}
+
+      {/* CategorySelectionModal - Template category selection modal */}
+      <CategorySelectionModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

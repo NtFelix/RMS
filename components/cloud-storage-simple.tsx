@@ -47,7 +47,7 @@ export function CloudStorageSimple({
 }: CloudStorageSimpleProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const { openUploadModal, openCreateFolderModal, openCreateFileModal } = useModalStore()
+  const { openUploadModal, openCreateFolderModal, openCreateFileModal, openCategorySelectionModal } = useModalStore()
   
   // Local navigation state
   const [currentNavPath, setCurrentNavPath] = useState(initialPath)
@@ -474,6 +474,28 @@ export function CloudStorageSimple({
       })
     }
   }, [currentNavPath, initialPath, openCreateFileModal, handleRefresh, toast])
+
+  /**
+   * Handle create template action
+   */
+  const handleCreateTemplate = useCallback(() => {
+    // For now, we'll open the category selection modal
+    // In future tasks, this will be implemented with actual category fetching
+    openCategorySelectionModal({
+      existingCategories: [], // Will be populated in future tasks
+      onCategorySelected: (category: string) => {
+        // This will be implemented in future tasks to open the template editor
+        console.log('Selected category:', category)
+        toast({
+          title: "Vorlage erstellen",
+          description: `Kategorie "${category}" ausgewählt. Template-Editor wird in zukünftigen Tasks implementiert.`,
+        })
+      },
+      onCancel: () => {
+        // Modal will close automatically
+      }
+    })
+  }, [openCategorySelectionModal, toast])
   
   // Determine loading and error states
   const showLoading = isLoading || isNavigating
@@ -489,6 +511,7 @@ export function CloudStorageSimple({
             onUpload={handleUpload}
             onCreateFolder={handleCreateFolder}
             onCreateFile={handleCreateFile}
+            onCreateTemplate={handleCreateTemplate}
             onSearch={setSearchQuery}
             onSort={(sortBy: string) => setSortBy(sortBy as SortBy)}
             onViewMode={setViewMode}
@@ -498,6 +521,7 @@ export function CloudStorageSimple({
             selectedCount={selectedItems.size}
             onBulkDownload={selectedItems.size > 0 ? handleBulkDownload : undefined}
             onBulkDelete={selectedItems.size > 0 ? handleBulkDelete : undefined}
+            currentPath={currentNavPath}
           />
 
 {/* Breadcrumb Navigation */}

@@ -148,6 +148,12 @@ interface MarkdownEditorData {
   onSave?: (content: string) => void;
 }
 
+interface CategorySelectionData {
+  existingCategories: string[];
+  onCategorySelected: (category: string) => void;
+  onCancel: () => void;
+}
+
 interface CloseModalOptions {
   force?: boolean;
 }
@@ -354,6 +360,12 @@ export interface ModalState {
   markdownEditorData?: MarkdownEditorData;
   openMarkdownEditorModal: (data: MarkdownEditorData) => void;
   closeMarkdownEditorModal: () => void;
+
+  // Category Selection Modal State
+  isCategorySelectionModalOpen: boolean;
+  categorySelectionData?: CategorySelectionData;
+  openCategorySelectionModal: (data: CategorySelectionData) => void;
+  closeCategorySelectionModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -495,6 +507,11 @@ const initialMarkdownEditorModalState = {
   markdownEditorData: undefined,
 };
 
+const initialCategorySelectionModalState = {
+  isCategorySelectionModalOpen: false,
+  categorySelectionData: undefined,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -516,6 +533,7 @@ const createInitialModalState = () => ({
   ...initialFileMoveModalState,
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
+  ...initialCategorySelectionModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -958,5 +976,12 @@ export const useModalStore = create<ModalState>((set, get) => {
       markdownEditorData: data,
     }),
     closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
+
+    // Category Selection Modal
+    openCategorySelectionModal: (data: CategorySelectionData) => set({
+      isCategorySelectionModalOpen: true,
+      categorySelectionData: data,
+    }),
+    closeCategorySelectionModal: () => set(initialCategorySelectionModalState),
   };
 });

@@ -36,6 +36,7 @@ interface QuickActionsProps {
   onUpload: () => void
   onCreateFolder: () => void
   onCreateFile: () => void
+  onCreateTemplate?: () => void
   onSearch: (query: string) => void
   onSort: (sortBy: string) => void
   onViewMode: (mode: 'grid' | 'list') => void
@@ -46,12 +47,14 @@ interface QuickActionsProps {
   onBulkDownload?: () => void
   onBulkDelete?: () => void
   onBulkArchive?: () => void
+  currentPath?: string
 }
 
 export function CloudStorageQuickActions({
   onUpload,
   onCreateFolder,
   onCreateFile,
+  onCreateTemplate,
   onSearch,
   onSort,
   onViewMode,
@@ -61,10 +64,17 @@ export function CloudStorageQuickActions({
   selectedCount = 0,
   onBulkDownload,
   onBulkDelete,
-  onBulkArchive
+  onBulkArchive,
+  currentPath
 }: QuickActionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
   const createFileEnabled = useFeatureFlagEnabled('create-file-option')
+  
+  // Check if we're in the templates folder or root to show template creation option
+  const showTemplateCreation = currentPath && (
+    currentPath.includes('/Vorlagen') || 
+    currentPath.match(/^user_\w+$/) // Root level where Vorlagen folder is visible
+  )
 
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter)
@@ -202,6 +212,12 @@ export function CloudStorageQuickActions({
                 <DropdownMenuItem onClick={onCreateFile}>
                   <FileText className="h-4 w-4 mr-2" />
                   Datei erstellen
+                </DropdownMenuItem>
+              )}
+              {showTemplateCreation && onCreateTemplate && (
+                <DropdownMenuItem onClick={onCreateTemplate}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Vorlage erstellen
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
