@@ -83,7 +83,7 @@ describe('SlashCommandList', () => {
       />
     )
 
-    expect(screen.getByText('Text')).toBeInTheDocument()
+    expect(screen.getByText('Absatz')).toBeInTheDocument()
     expect(screen.getByText('Zitat')).toBeInTheDocument()
     expect(screen.getByText('Trennlinie')).toBeInTheDocument()
   })
@@ -143,20 +143,20 @@ describe('SlashCommandList', () => {
       <SlashCommandList
         items={[]}
         command={mockCommand}
-        query=""
+        query="fett"
       />
     )
 
+    // Filter to only show the Fett command to avoid confusion
     const boldButton = screen.getByText('Fett')
     await user.click(boldButton)
 
-    expect(mockCommand).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: 'Fett',
-        description: 'Fetten Text erstellen',
-        searchTerms: ['bold', 'fett', 'strong'],
-      })
-    )
+    // Check that the command was called with the correct item
+    expect(mockCommand).toHaveBeenCalledTimes(1)
+    const calledCommand = mockCommand.mock.calls[0][0]
+    expect(calledCommand.title).toBe('Fett')
+    expect(calledCommand.category).toBe('formatting')
+    expect(calledCommand.description).toBe('Markiere Text als fett gedruckt')
   })
 
   it('should handle keyboard navigation', () => {
