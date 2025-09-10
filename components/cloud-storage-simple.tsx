@@ -30,7 +30,7 @@ interface CloudStorageSimpleProps {
 
 type ViewMode = 'grid' | 'list'
 type SortBy = 'name' | 'date' | 'size' | 'type'
-type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent'
+type FilterType = 'all' | 'folders' | 'images' | 'documents' | 'recent' | 'templates'
 
 /**
  * Simple Cloud Storage Component without circular dependencies
