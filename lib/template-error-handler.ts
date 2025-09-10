@@ -10,7 +10,7 @@ export class TemplateErrorHandler {
    * Handle template operation errors with user-friendly messages
    */
   static handleTemplateError(error: TemplateError | Error | unknown): void {
-    if (error instanceof Error && 'type' in error) {
+    if (error instanceof Error && 'type' in error && 'recoverable' in error) {
       const templateError = error as TemplateError
       this.handleTypedError(templateError)
     } else if (error instanceof Error) {

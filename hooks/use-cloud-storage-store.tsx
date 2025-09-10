@@ -19,7 +19,7 @@ export interface StorageObject {
 export interface VirtualFolder {
   name: string
   path: string
-  type: 'house' | 'apartment' | 'tenant' | 'category' | 'archive' | 'storage'
+  type: 'house' | 'apartment' | 'tenant' | 'category' | 'archive' | 'storage' | 'template_root' | 'template_category'
   isEmpty: boolean
   children: VirtualFolder[]
   fileCount: number
