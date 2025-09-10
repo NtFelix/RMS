@@ -165,6 +165,18 @@ export function CloudStorageQuickActions({
                   {activeFilter === 'recent' && <span className="ml-2 text-xs">✓</span>}
                 </span>
               </DropdownMenuItem>
+              {showTemplateCreation && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleFilterChange('templates')}>
+                    <span className="flex items-center">
+                      <FileText className="h-3 w-3 mr-2" />
+                      Vorlagen
+                      {activeFilter === 'templates' && <span className="ml-2 text-xs">✓</span>}
+                    </span>
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

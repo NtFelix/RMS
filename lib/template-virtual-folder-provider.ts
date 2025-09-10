@@ -22,7 +22,7 @@ export class TemplateVirtualFolderProvider {
       return {
         name: 'Vorlagen',
         path: `user_${userId}/Vorlagen`,
-        type: 'category',
+        type: 'template_root',
         isEmpty: totalTemplates === 0,
         children: [],
         fileCount: totalTemplates,
@@ -33,7 +33,7 @@ export class TemplateVirtualFolderProvider {
       return {
         name: 'Vorlagen',
         path: `user_${userId}/Vorlagen`,
-        type: 'category',
+        type: 'template_root',
         isEmpty: true,
         children: [],
         fileCount: 0,
@@ -57,7 +57,7 @@ export class TemplateVirtualFolderProvider {
         folders.push({
           name: category,
           path: `user_${userId}/Vorlagen/${category}`,
-          type: 'category',
+          type: 'template_category',
           isEmpty: templateCount === 0,
           children: [],
           fileCount: templateCount,
@@ -71,7 +71,7 @@ export class TemplateVirtualFolderProvider {
         folders.push({
           name: 'Sonstiges',
           path: `user_${userId}/Vorlagen/Sonstiges`,
-          type: 'category',
+          type: 'template_category',
           isEmpty: false,
           children: [],
           fileCount: uncategorizedCount,
@@ -79,7 +79,12 @@ export class TemplateVirtualFolderProvider {
         })
       }
 
-      return folders.sort((a, b) => a.displayName!.localeCompare(b.displayName!))
+      // Sort categories alphabetically, but put 'Sonstiges' at the end
+      return folders.sort((a, b) => {
+        if (a.name === 'Sonstiges') return 1
+        if (b.name === 'Sonstiges') return -1
+        return a.displayName!.localeCompare(b.displayName!)
+      })
     } catch (error) {
       console.error('Error getting template category folders:', error)
       return []

@@ -218,7 +218,7 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       folders.push({
         name: 'Vorlagen',
         path: `${targetPath}/Vorlagen`,
-        type: 'category',
+        type: 'template_root',
         isEmpty: true,
         children: [],
         fileCount: 0,

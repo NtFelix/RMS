@@ -7,7 +7,8 @@ import {
   FolderOpen,
   Zap,
   Plus,
-  ArrowUp
+  ArrowUp,
+  FileText
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useSimpleCloudStorageStore, StorageObject, VirtualFolder, BreadcrumbItem, isFolderDeletable } from "@/hooks/use-simple-cloud-storage-store"
@@ -119,6 +120,37 @@ export function CloudStorageSimple({
       type: 'template'
     }
   }, [])
+
+  /**
+   * Check if current path is template-related
+   */
+  const isTemplatePath = useCallback(() => {
+    return currentNavPath.includes('/Vorlagen')
+  }, [currentNavPath])
+
+  /**
+   * Check if current path is template root
+   */
+  const isTemplateRoot = useCallback(() => {
+    return currentNavPath.endsWith('/Vorlagen')
+  }, [currentNavPath])
+
+  /**
+   * Check if current path is a template category
+   */
+  const isTemplateCategory = useCallback(() => {
+    const segments = currentNavPath.split('/')
+    return segments.length >= 3 && segments[segments.length - 2] === 'Vorlagen'
+  }, [currentNavPath])
+
+  /**
+   * Get current template category name
+   */
+  const getCurrentTemplateCategory = useCallback(() => {
+    if (!isTemplateCategory()) return null
+    const segments = currentNavPath.split('/')
+    return segments[segments.length - 1]
+  }, [currentNavPath, isTemplateCategory])
   
   /**
    * Initialize component with initial data
@@ -285,6 +317,14 @@ export function CloudStorageSimple({
         weekAgo.setDate(weekAgo.getDate() - 7)
         filteredFiles = files.filter(file => 
           new Date(file.updated_at) > weekAgo
+        )
+        break
+      case 'templates':
+        filteredFiles = files.filter(file => 
+          file.metadata?.type === 'template' || file.name.endsWith('.template')
+        )
+        filteredFolders = folders.filter(folder => 
+          folder.type === 'template_root' || folder.type === 'template_category'
         )
         break
     }
@@ -661,28 +701,53 @@ export function CloudStorageSimple({
           {/* Empty State */}
           {!showLoading && !displayError && sortedFolders.length === 0 && sortedFiles.length === 0 && (
             <div className="text-center py-16">
-              <div className="bg-muted/50 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                <FolderOpen className="h-12 w-12 text-muted-foreground" />
+              <div className={cn(
+                "rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center",
+                isTemplatePath() 
+                  ? "bg-indigo-50 border-2 border-indigo-100" 
+                  : "bg-muted/50"
+              )}>
+                {isTemplatePath() ? (
+                  <FileText className="h-12 w-12 text-indigo-500" />
+                ) : (
+                  <FolderOpen className="h-12 w-12 text-muted-foreground" />
+                )}
               </div>
               <h3 className="text-xl font-semibold mb-2">
-                {searchQuery ? 'Keine Ergebnisse gefunden' : 'Noch keine Dateien'}
+                {searchQuery ? 'Keine Ergebnisse gefunden' : 
+                 isTemplateRoot() ? 'Noch keine Vorlagen' :
+                 isTemplateCategory() ? `Keine Vorlagen in "${getCurrentTemplateCategory()}"` :
+                 'Noch keine Dateien'}
               </h3>
               <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                 {searchQuery 
-                  ? `Keine Dateien oder Ordner entsprechen "${searchQuery}"`
-                  : 'Laden Sie Ihre ersten Dateien hoch, um zu beginnen.'
+                  ? `Keine ${isTemplatePath() ? 'Vorlagen' : 'Dateien oder Ordner'} entsprechen "${searchQuery}"`
+                  : isTemplateRoot() 
+                    ? 'Erstellen Sie Ihre erste Vorlage, um dynamische Dokumente zu generieren.'
+                    : isTemplateCategory()
+                      ? `Erstellen Sie Ihre erste Vorlage in der Kategorie "${getCurrentTemplateCategory()}".`
+                      : 'Laden Sie Ihre ersten Dateien hoch, um zu beginnen.'
                 }
               </p>
               {!searchQuery && (
                 <div className="flex items-center justify-center space-x-3">
-                  <Button onClick={handleUpload}>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Dateien hochladen
-                  </Button>
-                  <Button variant="outline" onClick={handleCreateFolder}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ordner erstellen
-                  </Button>
+                  {isTemplatePath() ? (
+                    <Button onClick={handleCreateTemplate}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Vorlage erstellen
+                    </Button>
+                  ) : (
+                    <>
+                      <Button onClick={handleUpload}>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Dateien hochladen
+                      </Button>
+                      <Button variant="outline" onClick={handleCreateFolder}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Ordner erstellen
+                      </Button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
