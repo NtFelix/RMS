@@ -2,58 +2,26 @@
  * Template utility functions for variable management and content processing
  */
 
+import {
+  VARIABLE_CATEGORIES,
+  CONTEXT_TYPES,
+  VALIDATION_ERROR_CODES,
+  VALIDATION_WARNING_CODES,
+  getCategoryColor,
+  getCategoryIcon,
+  getVariableById,
+  searchVariables as searchPredefinedVariables,
+  getVariablesByCategory as getPredefinedVariablesByCategory
+} from './template-variables'
 import type { MentionItem, Template, TemplateItem } from '../types/template'
 
-/**
- * Variable categories for organizing mentions in the editor
- */
-export const VARIABLE_CATEGORIES = {
-  PROPERTY: 'Immobilie',
-  LANDLORD: 'Vermieter', 
-  TENANT: 'Mieter',
-  APARTMENT: 'Wohnung',
-  FINANCIAL: 'Finanzen',
-  CONTRACT: 'Vertrag',
-  DATE: 'Datum',
-  OPERATING_COSTS: 'Betriebskosten',
-  TERMINATION: 'Kündigung'
-} as const
-
-/**
- * Context types that variables may require
- */
-export const CONTEXT_TYPES = {
-  PROPERTY: 'property',
-  LANDLORD: 'landlord',
-  TENANT: 'tenant',
-  APARTMENT: 'apartment',
-  LEASE: 'lease',
-  OPERATING_COSTS: 'operating_costs',
-  WATER_METER: 'water_meter',
-  TERMINATION: 'termination'
-} as const
-
-/**
- * Validation error codes for template content
- */
-export const VALIDATION_ERROR_CODES = {
-  UNKNOWN_VARIABLE: 'UNKNOWN_VARIABLE',
-  INVALID_CONTENT: 'INVALID_CONTENT',
-  INVALID_MENTION_NODE: 'INVALID_MENTION_NODE',
-  INVALID_DOCUMENT_STRUCTURE: 'INVALID_DOCUMENT_STRUCTURE',
-  VALIDATION_ERROR: 'VALIDATION_ERROR'
-} as const
-
-/**
- * Validation warning codes for template content
- */
-export const VALIDATION_WARNING_CODES = {
-  EMPTY_CONTENT: 'EMPTY_CONTENT',
-  NO_VARIABLES: 'NO_VARIABLES',
-  CONTEXT_REQUIRED: 'CONTEXT_REQUIRED',
-  DUPLICATE_VARIABLES: 'DUPLICATE_VARIABLES',
-  MISSING_MENTION_LABEL: 'MISSING_MENTION_LABEL'
-} as const
+// Re-export constants from template-variables for backward compatibility
+export {
+  VARIABLE_CATEGORIES,
+  CONTEXT_TYPES,
+  VALIDATION_ERROR_CODES,
+  VALIDATION_WARNING_CODES
+} from './template-variables'
 
 /**
  * Format a variable ID to a human-readable label
@@ -83,24 +51,8 @@ export function isValidVariableId(id: string): boolean {
   return /^[a-z][a-z0-9_]*[a-z0-9]$/.test(id) || /^[a-z]$/.test(id)
 }
 
-/**
- * Get the category color for UI display
- */
-export function getCategoryColor(category: string): string {
-  const colors: Record<string, string> = {
-    [VARIABLE_CATEGORIES.PROPERTY]: 'bg-blue-100 text-blue-800',
-    [VARIABLE_CATEGORIES.LANDLORD]: 'bg-green-100 text-green-800',
-    [VARIABLE_CATEGORIES.TENANT]: 'bg-purple-100 text-purple-800',
-    [VARIABLE_CATEGORIES.APARTMENT]: 'bg-orange-100 text-orange-800',
-    [VARIABLE_CATEGORIES.FINANCIAL]: 'bg-yellow-100 text-yellow-800',
-    [VARIABLE_CATEGORIES.CONTRACT]: 'bg-red-100 text-red-800',
-    [VARIABLE_CATEGORIES.DATE]: 'bg-gray-100 text-gray-800',
-    [VARIABLE_CATEGORIES.OPERATING_COSTS]: 'bg-indigo-100 text-indigo-800',
-    [VARIABLE_CATEGORIES.TERMINATION]: 'bg-pink-100 text-pink-800'
-  }
-  
-  return colors[category] || 'bg-gray-100 text-gray-800'
-}
+// Re-export utility functions from template-variables
+export { getCategoryColor, getCategoryIcon } from './template-variables'
 
 /**
  * Filter variables by search query

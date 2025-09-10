@@ -4,7 +4,9 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import { SlashCommandExtension } from './slash-command-extension'
+import { MentionExtension, MentionItem, PREDEFINED_VARIABLES } from './mention-extension'
 import { cn } from '@/lib/utils'
+import './mention-popup.css'
 
 interface TiptapTemplateEditorProps {
   initialContent?: object
@@ -14,6 +16,31 @@ interface TiptapTemplateEditorProps {
   placeholder?: string
   className?: string
   editable?: boolean
+  variables?: MentionItem[]
+  onVariableInsert?: (variable: MentionItem) => void
+  onVariableRemove?: (variableId: string) => void
+}
+
+// Function to extract variables from Tiptap content
+const extractVariablesFromContent = (content: any): string[] => {
+  const variables: string[] = []
+  
+  const traverse = (node: any) => {
+    if (node.type === 'mention' && node.attrs?.id) {
+      variables.push(node.attrs.id)
+    }
+    
+    if (node.content && Array.isArray(node.content)) {
+      node.content.forEach(traverse)
+    }
+  }
+  
+  if (content) {
+    traverse(content)
+  }
+  
+  // Return unique variables
+  return [...new Set(variables)]
 }
 
 export function TiptapTemplateEditor({
@@ -21,9 +48,12 @@ export function TiptapTemplateEditor({
   onContentChange,
   onSave,
   onCancel,
-  placeholder = "Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle...",
+  placeholder = "Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle und '@' für Variablen...",
   className,
-  editable = true
+  editable = true,
+  variables = PREDEFINED_VARIABLES,
+  onVariableInsert,
+  onVariableRemove
 }: TiptapTemplateEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -50,6 +80,11 @@ export function TiptapTemplateEditor({
       }),
       Underline,
       SlashCommandExtension,
+      MentionExtension({
+        variables,
+        onVariableInsert,
+        onVariableRemove,
+      }),
     ],
     content: initialContent || {
       type: 'doc',
@@ -63,9 +98,8 @@ export function TiptapTemplateEditor({
     editable,
     onUpdate: ({ editor }) => {
       const content = editor.getJSON()
-      // TODO: Extract variables from content (will be implemented in future tasks)
-      const variables: string[] = []
-      onContentChange?.(content, variables)
+      const extractedVariables = extractVariablesFromContent(content)
+      onContentChange?.(content, extractedVariables)
     },
     editorProps: {
       attributes: {
@@ -143,6 +177,43 @@ export function TiptapTemplateEditor({
         /* Slash command popup styling */
         .slash-command-popup {
           z-index: 1000;
+        }
+        
+        /* Mention popup styling */
+        .mention-popup {
+          z-index: 1000;
+        }
+        
+        /* Variable mention styling */
+        .variable-mention {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.125rem 0.5rem;
+          font-size: 0.75rem;
+          font-weight: 500;
+          background-color: #dbeafe;
+          color: #1e40af;
+          border-radius: 9999px;
+          border: 1px solid #bfdbfe;
+          margin: 0 0.125rem;
+          cursor: default;
+          user-select: none;
+        }
+        
+        .dark .variable-mention {
+          background-color: #1e3a8a;
+          color: #bfdbfe;
+          border-color: #3b82f6;
+        }
+        
+        .variable-mention:hover {
+          background-color: #bfdbfe;
+          border-color: #93c5fd;
+        }
+        
+        .dark .variable-mention:hover {
+          background-color: #1d4ed8;
+          border-color: #60a5fa;
         }
         
         /* Custom heading styles */

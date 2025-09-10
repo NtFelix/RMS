@@ -1,4 +1,7 @@
 export { TiptapTemplateEditor } from './tiptap-template-editor'
 export { SlashCommandExtension } from './slash-command-extension'
 export { SlashCommandList } from './slash-command-list'
+export { MentionExtension, VariableMentionNode, PREDEFINED_VARIABLES } from './mention-extension'
+export { MentionList } from './mention-list'
 export type { SlashCommandItem } from './slash-command-extension'
+export type { MentionItem } from './mention-extension'

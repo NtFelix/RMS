@@ -81,6 +81,7 @@
     "stripe": "^18.2.1",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "tippy.js": "^6.3.7",
     "use-sync-external-store": "latest",
     "vaul": "^0.9.6",
     "ws": "^8.18.2",

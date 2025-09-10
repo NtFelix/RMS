@@ -1,4 +1,14 @@
 import { createSupabaseServerClient } from './supabase-server'
+import {
+  PREDEFINED_VARIABLES,
+  VALIDATION_ERROR_CODES,
+  VALIDATION_WARNING_CODES,
+  getVariableById,
+  searchVariables as searchPredefinedVariables,
+  getVariablesByCategory as getPredefinedVariablesByCategory,
+  getContextRequirements as getPredefinedContextRequirements,
+  isValidVariableId
+} from './template-variables'
 import type {
   Template,
   CreateTemplateRequest,
@@ -267,20 +277,31 @@ export class TemplateService {
         if (!availableVariableIds.includes(variableId)) {
           errors.push({
             field: 'content',
-            message: `Unknown variable: ${variableId}. Available variables: ${availableVariableIds.join(', ')}`,
-            code: 'UNKNOWN_VARIABLE'
+            message: `Unbekannte Variable: "${variableId}". Diese Variable ist nicht definiert.`,
+            code: VALIDATION_ERROR_CODES.UNKNOWN_VARIABLE
           })
         }
       })
 
-      // Check for deprecated or context-dependent variables
+      // Check for invalid variable ID format
+      variables.forEach(variableId => {
+        if (!isValidVariableId(variableId)) {
+          errors.push({
+            field: 'content',
+            message: `Ungültiges Variablen-Format: "${variableId}". Variablen müssen mit einem Buchstaben beginnen und dürfen nur Buchstaben, Zahlen und Unterstriche enthalten.`,
+            code: VALIDATION_ERROR_CODES.INVALID_VARIABLE_ID
+          })
+        }
+      })
+
+      // Check for context-dependent variables
       variables.forEach(variableId => {
         const variable = availableVariableMap.get(variableId)
         if (variable?.context && variable.context.length > 0) {
           warnings.push({
             field: 'content',
-            message: `Variable "${variableId}" requires context: ${variable.context.join(', ')}`,
-            code: 'CONTEXT_REQUIRED'
+            message: `Variable "${variable.label}" (${variableId}) benötigt Kontext: ${variable.context.join(', ')}. Stellen Sie sicher, dass die entsprechenden Daten verfügbar sind.`,
+            code: VALIDATION_WARNING_CODES.CONTEXT_REQUIRED
           })
         }
       })
@@ -294,8 +315,8 @@ export class TemplateService {
       if (!content || (typeof content === 'object' && Object.keys(content).length === 0)) {
         warnings.push({
           field: 'content',
-          message: 'Template content is empty',
-          code: 'EMPTY_CONTENT'
+          message: 'Der Vorlageninhalt ist leer. Fügen Sie Text und Variablen hinzu.',
+          code: VALIDATION_WARNING_CODES.EMPTY_CONTENT
         })
       }
 
@@ -303,26 +324,31 @@ export class TemplateService {
       if (variables.length === 0 && content && Object.keys(content).length > 0) {
         warnings.push({
           field: 'content',
-          message: 'Template contains no variables. Consider adding variables to make it dynamic.',
-          code: 'NO_VARIABLES'
+          message: 'Die Vorlage enthält keine Variablen. Erwägen Sie das Hinzufügen von Variablen mit "@", um die Vorlage dynamisch zu gestalten.',
+          code: VALIDATION_WARNING_CODES.NO_VARIABLES
         })
       }
 
       // Check for duplicate variables (informational)
       const duplicateCheck = this.checkForDuplicateVariables(content)
       if (duplicateCheck.hasDuplicates) {
+        const duplicateLabels = duplicateCheck.duplicates.map(id => {
+          const variable = availableVariableMap.get(id)
+          return variable ? `${variable.label} (${id})` : id
+        })
         warnings.push({
           field: 'content',
-          message: `Some variables are used multiple times: ${duplicateCheck.duplicates.join(', ')}`,
-          code: 'DUPLICATE_VARIABLES'
+          message: `Einige Variablen werden mehrfach verwendet: ${duplicateLabels.join(', ')}. Dies ist erlaubt, aber möglicherweise nicht beabsichtigt.`,
+          code: VALIDATION_WARNING_CODES.DUPLICATE_VARIABLES
         })
       }
 
     } catch (error) {
+      console.error('Template validation error:', error)
       errors.push({
         field: 'content',
-        message: `Content validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        code: 'VALIDATION_ERROR'
+        message: `Validierung des Vorlageninhalts fehlgeschlagen: ${error instanceof Error ? error.message : 'Unbekannter Fehler'}`,
+        code: VALIDATION_ERROR_CODES.VALIDATION_ERROR
       })
     }
 
@@ -347,8 +373,8 @@ export class TemplateService {
       if (node.type === 'doc' && !Array.isArray(node.content)) {
         errors.push({
           field: 'content',
-          message: `Document node at ${path} must have a content array`,
-          code: 'INVALID_DOCUMENT_STRUCTURE'
+          message: `Dokumentknoten bei ${path} muss ein content-Array haben`,
+          code: VALIDATION_ERROR_CODES.INVALID_DOCUMENT_STRUCTURE
         })
       }
 
@@ -357,15 +383,15 @@ export class TemplateService {
         if (!node.attrs || !node.attrs.id) {
           errors.push({
             field: 'content',
-            message: `Mention node at ${path} is missing required id attribute`,
-            code: 'INVALID_MENTION_NODE'
+            message: `Variable bei ${path} fehlt die erforderliche ID`,
+            code: VALIDATION_ERROR_CODES.INVALID_MENTION_NODE
           })
         }
         if (!node.attrs || !node.attrs.label) {
           warnings.push({
             field: 'content',
-            message: `Mention node at ${path} is missing label attribute`,
-            code: 'MISSING_MENTION_LABEL'
+            message: `Variable bei ${path} fehlt die Beschriftung (Label)`,
+            code: VALIDATION_WARNING_CODES.MISSING_MENTION_LABEL
           })
         }
       }
@@ -438,61 +464,28 @@ export class TemplateService {
    * Get variables by category for organized display
    */
   getVariablesByCategory(): Record<string, MentionItem[]> {
-    const variables = this.getAvailableVariables()
-    const categorized: Record<string, MentionItem[]> = {}
-
-    variables.forEach(variable => {
-      if (!categorized[variable.category]) {
-        categorized[variable.category] = []
-      }
-      categorized[variable.category].push(variable)
-    })
-
-    // Sort variables within each category
-    Object.keys(categorized).forEach(category => {
-      categorized[category].sort((a, b) => a.label.localeCompare(b.label))
-    })
-
-    return categorized
+    return getPredefinedVariablesByCategory()
   }
 
   /**
    * Search variables by query string
    */
   searchVariables(query: string): MentionItem[] {
-    const variables = this.getAvailableVariables()
-    const lowercaseQuery = query.toLowerCase()
-
-    return variables.filter(variable => 
-      variable.label.toLowerCase().includes(lowercaseQuery) ||
-      variable.id.toLowerCase().includes(lowercaseQuery) ||
-      variable.category.toLowerCase().includes(lowercaseQuery) ||
-      (variable.description && variable.description.toLowerCase().includes(lowercaseQuery))
-    )
+    return searchPredefinedVariables(query)
   }
 
   /**
    * Get variable by ID
    */
   getVariableById(id: string): MentionItem | undefined {
-    return this.getAvailableVariables().find(variable => variable.id === id)
+    return getVariableById(id)
   }
 
   /**
    * Get context requirements for a list of variables
    */
   getContextRequirements(variableIds: string[]): string[] {
-    const variables = this.getAvailableVariables()
-    const requirements = new Set<string>()
-
-    variableIds.forEach(id => {
-      const variable = variables.find(v => v.id === id)
-      if (variable?.context) {
-        variable.context.forEach(req => requirements.add(req))
-      }
-    })
-
-    return Array.from(requirements).sort()
+    return getPredefinedContextRequirements(variableIds)
   }
 
   /**
@@ -500,337 +493,7 @@ export class TemplateService {
    * Returns predefined variables for property management
    */
   getAvailableVariables(): MentionItem[] {
-    return [
-      // Property variables
-      {
-        id: 'property_name',
-        label: 'Objektname',
-        category: 'Immobilie',
-        description: 'Name der Immobilie/des Hauses',
-        context: ['property']
-      },
-      {
-        id: 'property_address',
-        label: 'Objektadresse',
-        category: 'Immobilie',
-        description: 'Vollständige Adresse der Immobilie',
-        context: ['property']
-      },
-      {
-        id: 'property_street',
-        label: 'Straße',
-        category: 'Immobilie',
-        description: 'Straße der Immobilie',
-        context: ['property']
-      },
-      {
-        id: 'property_city',
-        label: 'Stadt',
-        category: 'Immobilie',
-        description: 'Stadt der Immobilie',
-        context: ['property']
-      },
-      {
-        id: 'property_postal_code',
-        label: 'Postleitzahl',
-        category: 'Immobilie',
-        description: 'Postleitzahl der Immobilie',
-        context: ['property']
-      },
-      {
-        id: 'property_size',
-        label: 'Objektgröße',
-        category: 'Immobilie',
-        description: 'Gesamtgröße der Immobilie in m²',
-        context: ['property']
-      },
-      {
-        id: 'property_type',
-        label: 'Objekttyp',
-        category: 'Immobilie',
-        description: 'Art der Immobilie (Einfamilienhaus, Mehrfamilienhaus, etc.)',
-        context: ['property']
-      },
-
-      // Landlord variables
-      {
-        id: 'landlord_name',
-        label: 'Vermieter Name',
-        category: 'Vermieter',
-        description: 'Vollständiger Name des Vermieters',
-        context: ['landlord']
-      },
-      {
-        id: 'landlord_first_name',
-        label: 'Vermieter Vorname',
-        category: 'Vermieter',
-        description: 'Vorname des Vermieters',
-        context: ['landlord']
-      },
-      {
-        id: 'landlord_last_name',
-        label: 'Vermieter Nachname',
-        category: 'Vermieter',
-        description: 'Nachname des Vermieters',
-        context: ['landlord']
-      },
-      {
-        id: 'landlord_address',
-        label: 'Vermieter Adresse',
-        category: 'Vermieter',
-        description: 'Vollständige Adresse des Vermieters',
-        context: ['landlord']
-      },
-      {
-        id: 'landlord_phone',
-        label: 'Vermieter Telefon',
-        category: 'Vermieter',
-        description: 'Telefonnummer des Vermieters',
-        context: ['landlord']
-      },
-      {
-        id: 'landlord_email',
-        label: 'Vermieter E-Mail',
-        category: 'Vermieter',
-        description: 'E-Mail-Adresse des Vermieters',
-        context: ['landlord']
-      },
-
-      // Tenant variables
-      {
-        id: 'tenant_name',
-        label: 'Mieter Name',
-        category: 'Mieter',
-        description: 'Vollständiger Name des Mieters',
-        context: ['tenant']
-      },
-      {
-        id: 'tenant_first_name',
-        label: 'Mieter Vorname',
-        category: 'Mieter',
-        description: 'Vorname des Mieters',
-        context: ['tenant']
-      },
-      {
-        id: 'tenant_last_name',
-        label: 'Mieter Nachname',
-        category: 'Mieter',
-        description: 'Nachname des Mieters',
-        context: ['tenant']
-      },
-      {
-        id: 'tenant_address',
-        label: 'Mieter Adresse',
-        category: 'Mieter',
-        description: 'Aktuelle Adresse des Mieters',
-        context: ['tenant']
-      },
-      {
-        id: 'tenant_phone',
-        label: 'Mieter Telefon',
-        category: 'Mieter',
-        description: 'Telefonnummer des Mieters',
-        context: ['tenant']
-      },
-      {
-        id: 'tenant_email',
-        label: 'Mieter E-Mail',
-        category: 'Mieter',
-        description: 'E-Mail-Adresse des Mieters',
-        context: ['tenant']
-      },
-      {
-        id: 'tenant_move_in_date',
-        label: 'Einzugsdatum',
-        category: 'Mieter',
-        description: 'Datum des Einzugs des Mieters',
-        context: ['tenant', 'lease']
-      },
-      {
-        id: 'tenant_move_out_date',
-        label: 'Auszugsdatum',
-        category: 'Mieter',
-        description: 'Datum des Auszugs des Mieters',
-        context: ['tenant', 'lease']
-      },
-      {
-        id: 'tenant_birth_date',
-        label: 'Geburtsdatum Mieter',
-        category: 'Mieter',
-        description: 'Geburtsdatum des Mieters',
-        context: ['tenant']
-      },
-
-      // Apartment variables
-      {
-        id: 'apartment_name',
-        label: 'Wohnungsname',
-        category: 'Wohnung',
-        description: 'Bezeichnung/Nummer der Wohnung',
-        context: ['apartment']
-      },
-      {
-        id: 'apartment_size',
-        label: 'Wohnungsgröße',
-        category: 'Wohnung',
-        description: 'Größe der Wohnung in m²',
-        context: ['apartment']
-      },
-      {
-        id: 'apartment_rooms',
-        label: 'Anzahl Zimmer',
-        category: 'Wohnung',
-        description: 'Anzahl der Zimmer in der Wohnung',
-        context: ['apartment']
-      },
-      {
-        id: 'apartment_floor',
-        label: 'Stockwerk',
-        category: 'Wohnung',
-        description: 'Stockwerk der Wohnung',
-        context: ['apartment']
-      },
-      {
-        id: 'apartment_rent',
-        label: 'Kaltmiete',
-        category: 'Wohnung',
-        description: 'Kaltmiete der Wohnung pro Monat',
-        context: ['apartment', 'lease']
-      },
-      {
-        id: 'apartment_additional_costs',
-        label: 'Nebenkosten',
-        category: 'Wohnung',
-        description: 'Nebenkosten der Wohnung pro Monat',
-        context: ['apartment', 'lease']
-      },
-      {
-        id: 'apartment_heating_costs',
-        label: 'Heizkosten',
-        category: 'Wohnung',
-        description: 'Heizkosten der Wohnung pro Monat',
-        context: ['apartment', 'lease']
-      },
-
-      // Financial variables
-      {
-        id: 'total_rent',
-        label: 'Gesamtmiete',
-        category: 'Finanzen',
-        description: 'Gesamtmiete (Kalt + Nebenkosten + Heizkosten)',
-        context: ['apartment', 'lease']
-      },
-      {
-        id: 'deposit_amount',
-        label: 'Kaution',
-        category: 'Finanzen',
-        description: 'Höhe der Kaution',
-        context: ['lease']
-      },
-      {
-        id: 'monthly_payment',
-        label: 'Monatliche Zahlung',
-        category: 'Finanzen',
-        description: 'Gesamte monatliche Zahlung des Mieters',
-        context: ['lease']
-      },
-
-      // Contract/Lease variables
-      {
-        id: 'contract_start_date',
-        label: 'Vertragsbeginn',
-        category: 'Vertrag',
-        description: 'Startdatum des Mietvertrags',
-        context: ['lease']
-      },
-      {
-        id: 'contract_end_date',
-        label: 'Vertragsende',
-        category: 'Vertrag',
-        description: 'Enddatum des Mietvertrags (falls befristet)',
-        context: ['lease']
-      },
-      {
-        id: 'contract_type',
-        label: 'Vertragsart',
-        category: 'Vertrag',
-        description: 'Art des Mietvertrags (unbefristet, befristet)',
-        context: ['lease']
-      },
-      {
-        id: 'notice_period',
-        label: 'Kündigungsfrist',
-        category: 'Vertrag',
-        description: 'Kündigungsfrist in Monaten',
-        context: ['lease']
-      },
-
-      // Date variables (no context required)
-      {
-        id: 'current_date',
-        label: 'Aktuelles Datum',
-        category: 'Datum',
-        description: 'Heutiges Datum (automatisch)'
-      },
-      {
-        id: 'current_month',
-        label: 'Aktueller Monat',
-        category: 'Datum',
-        description: 'Aktueller Monat (automatisch)'
-      },
-      {
-        id: 'current_year',
-        label: 'Aktuelles Jahr',
-        category: 'Datum',
-        description: 'Aktuelles Jahr (automatisch)'
-      },
-
-      // Operating costs variables
-      {
-        id: 'operating_costs_year',
-        label: 'Betriebskostenjahr',
-        category: 'Betriebskosten',
-        description: 'Jahr der Betriebskostenabrechnung',
-        context: ['operating_costs']
-      },
-      {
-        id: 'water_consumption',
-        label: 'Wasserverbrauch',
-        category: 'Betriebskosten',
-        description: 'Wasserverbrauch in m³',
-        context: ['operating_costs', 'water_meter']
-      },
-      {
-        id: 'heating_consumption',
-        label: 'Heizverbrauch',
-        category: 'Betriebskosten',
-        description: 'Heizverbrauch in kWh oder m³',
-        context: ['operating_costs']
-      },
-
-      // Legal/Administrative variables
-      {
-        id: 'termination_date',
-        label: 'Kündigungsdatum',
-        category: 'Kündigung',
-        description: 'Datum der Kündigung',
-        context: ['termination']
-      },
-      {
-        id: 'termination_reason',
-        label: 'Kündigungsgrund',
-        category: 'Kündigung',
-        description: 'Grund für die Kündigung',
-        context: ['termination']
-      },
-      {
-        id: 'move_out_deadline',
-        label: 'Auszugsfrist',
-        category: 'Kündigung',
-        description: 'Frist bis zum Auszug',
-        context: ['termination']
-      }
-    ]
+    return PREDEFINED_VARIABLES
   }
 }
 
