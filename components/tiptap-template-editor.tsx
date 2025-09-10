@@ -392,6 +392,20 @@ export function TiptapTemplateEditor({
         } else if (e.key === 'w') {
           e.preventDefault()
           handleClose()
+        } else if (e.key === 'k') {
+          e.preventDefault()
+          // Focus editor
+          editor?.commands.focus()
+        } else if (e.key === 'p') {
+          e.preventDefault()
+          // Toggle preview
+          setActiveTab(prev => prev === 'edit' ? 'preview' : 'edit')
+        } else if (e.key === 'r') {
+          e.preventDefault()
+          // Reload file
+          if (!isNewFile) {
+            loadFileContent()
+          }
         }
       }
     }
@@ -400,7 +414,7 @@ export function TiptapTemplateEditor({
       document.addEventListener('keydown', handleKeyDown)
       return () => document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [isOpen, handleSave, handleClose])
+  }, [isOpen, handleSave, handleClose, editor, isNewFile, loadFileContent])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -505,12 +519,21 @@ export function TiptapTemplateEditor({
               </TabsList>
 
               <TabsContent value="edit" className="flex-1 m-0 p-6 pt-4 relative">
-                <div className="w-full h-full border rounded-lg overflow-hidden">
-                  <EditorContent 
-                    editor={editor} 
-                    className="h-full overflow-auto"
-                    style={{ minHeight: "calc(100vh - 300px)" }}
-                  />
+                <div className="w-full h-full border rounded-xl overflow-hidden shadow-sm bg-gradient-to-br from-white to-gray-50 dark:from-gray-900 dark:to-gray-800 transition-all duration-300">
+                  {!editor ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span>Editor wird geladen...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <EditorContent 
+                      editor={editor} 
+                      className="h-full overflow-auto prose-editor"
+                      style={{ minHeight: "calc(100vh - 300px)" }}
+                    />
+                  )}
                 </div>
               </TabsContent>
 
@@ -552,7 +575,8 @@ export function TiptapTemplateEditor({
               )}
             </span>
             <span>
-              Strg+S zum Speichern • Strg+W zum Schließen
+              Strg+S Speichern • Strg+W Schließen • Strg+P Vorschau • Strg+K Fokus
+              {!isNewFile && <span className="ml-2">• Strg+R Neu laden</span>}
               {enableAutocomplete && <span className="ml-2">• @ für Platzhalter</span>}
             </span>
           </div>
