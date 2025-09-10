@@ -16,8 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { TiptapTemplateEditor } from "@/components/editor/tiptap-template-editor"
-// Note: templateService is not imported here to avoid server-side dependencies
-// Validation and variable extraction will be handled via props or API calls
+import { extractVariablesFromContent, hasContentMeaning } from "@/lib/template-variable-extraction"
 import { cn } from "@/lib/utils"
 
 interface TemplateFormData {
@@ -85,9 +84,13 @@ export function TemplateEditorModal() {
   }, [isTemplateEditorModalOpen, templateEditorData, setTemplateEditorModalDirty])
 
   // Handle content changes from the editor
-  const handleContentChange = useCallback((newContent: object, extractedVariables: string[]) => {
+  const handleContentChange = useCallback((newContent: object, extractedVariables?: string[]) => {
     setContent(newContent)
-    setVariables(extractedVariables)
+    
+    // Extract variables from content if not provided by the editor
+    const variables = extractedVariables || extractVariablesFromContent(newContent)
+    setVariables(variables)
+    
     setTemplateEditorModalDirty(true)
     
     // Clear previous validation errors when content changes
@@ -116,14 +119,34 @@ export function TemplateEditorModal() {
       errors.push("Der Titel darf maximal 100 Zeichen lang sein.")
     }
 
+    // Validate category
+    const category = templateEditorData?.initialCategory?.trim()
+    if (!category) {
+      errors.push("Bitte wählen Sie eine Kategorie für die Vorlage aus.")
+    }
+
     // Basic content validation (more detailed validation will be done server-side)
     if (!content || (typeof content === 'object' && Object.keys(content).length === 0)) {
       warnings.push("Der Vorlageninhalt ist leer. Fügen Sie Text und Variablen hinzu.")
+    } else {
+      // Check if content has meaningful content (not just empty paragraphs)
+      const hasContent = hasContentMeaning(content)
+      if (!hasContent) {
+        warnings.push("Die Vorlage scheint keinen Inhalt zu haben. Fügen Sie Text oder Variablen hinzu.")
+      }
     }
 
     // Check for content without any variables
     if (variables.length === 0 && content && Object.keys(content).length > 0) {
-      warnings.push("Die Vorlage enthält keine Variablen. Erwägen Sie das Hinzufügen von Variablen mit '@', um die Vorlage dynamisch zu gestalten.")
+      const hasContent = hasContentMeaning(content)
+      if (hasContent) {
+        warnings.push("Die Vorlage enthält keine Variablen. Erwägen Sie das Hinzufügen von Variablen mit '@', um die Vorlage dynamisch zu gestalten.")
+      }
+    }
+
+    // Check for too many variables (performance warning)
+    if (variables.length > 20) {
+      warnings.push(`Die Vorlage enthält ${variables.length} Variablen. Eine große Anzahl von Variablen kann die Performance beeinträchtigen.`)
     }
 
     setValidationErrors(errors)
@@ -131,6 +154,8 @@ export function TemplateEditorModal() {
 
     return errors.length === 0
   }
+
+
 
   // Handle save action
   const handleSave = async () => {
@@ -156,20 +181,41 @@ export function TemplateEditorModal() {
         kontext_anforderungen: variables
       }
 
+      // Call the save handler provided by the parent component
       await templateEditorData.onSave(templateData)
 
-      toast({
-        title: "Vorlage gespeichert",
-        description: `Die Vorlage "${templateData.titel}" wurde erfolgreich gespeichert.`
-      })
-
+      // Success feedback is handled by the parent component (useTemplateOperations)
+      // Reset dirty state and close modal
       setTemplateEditorModalDirty(false)
       handleClose()
     } catch (error) {
       console.error('Error saving template:', error)
+      
+      // Enhanced error handling with specific error types
+      let errorMessage = "Die Vorlage konnte nicht gespeichert werden."
+      let errorTitle = "Fehler beim Speichern"
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Validation failed')) {
+          errorTitle = "Validierungsfehler"
+          errorMessage = error.message
+        } else if (error.message.includes('title')) {
+          errorTitle = "Ungültiger Titel"
+          errorMessage = "Der Titel der Vorlage ist ungültig oder bereits vorhanden."
+        } else if (error.message.includes('category')) {
+          errorTitle = "Ungültige Kategorie"
+          errorMessage = "Die Kategorie der Vorlage ist ungültig."
+        } else if (error.message.includes('content')) {
+          errorTitle = "Ungültiger Inhalt"
+          errorMessage = "Der Inhalt der Vorlage ist ungültig oder enthält Fehler."
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
       toast({
-        title: "Fehler beim Speichern",
-        description: error instanceof Error ? error.message : "Die Vorlage konnte nicht gespeichert werden.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive"
       })
     } finally {
