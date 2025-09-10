@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createSupabaseServerClient } from '@/lib/supabase-server'
 import { templateService } from '@/lib/template-service'
+import { templateValidationService } from '@/lib/template-validation-service'
 import { CreateTemplateRequest } from '@/types/template'
+import { 
+  validateCreateTemplateRequest,
+  VALIDATION_LIMITS 
+} from '@/lib/template-validation-schemas'
 
 /**
  * GET /api/templates
@@ -72,151 +77,242 @@ export async function GET(request: NextRequest) {
  * Create a new template with enhanced validation and error handling
  */
 export async function POST(request: NextRequest) {
+  const startTime = Date.now()
+  let requestId: string | undefined
+  
   try {
+    // Generate request ID for logging
+    requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    console.log(`[${requestId}] POST /api/templates - Starting template creation`)
+    
     const supabase = createSupabaseServerClient()
     
     // Get the current user
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
+      console.warn(`[${requestId}] Authentication failed:`, authError?.message)
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { 
+          error: 'Unauthorized',
+          code: 'AUTH_REQUIRED',
+          requestId
+        },
         { status: 401 }
       )
     }
 
-    // Parse request body with error handling
+    console.log(`[${requestId}] User authenticated: ${user.id}`)
+
+    // Parse request body with enhanced error handling
     let body: any
+    let contentType: string | null = null
+    
     try {
+      contentType = request.headers.get('content-type')
+      
+      if (!contentType || !contentType.includes('application/json')) {
+        console.warn(`[${requestId}] Invalid content type: ${contentType}`)
+        return NextResponse.json(
+          { 
+            error: 'Content-Type must be application/json',
+            code: 'INVALID_CONTENT_TYPE',
+            requestId
+          },
+          { status: 400 }
+        )
+      }
+      
       body = await request.json()
+      
+      // Check if body is empty after parsing
+      if (!body || (typeof body === 'object' && Object.keys(body).length === 0)) {
+        console.warn(`[${requestId}] Empty request body`)
+        return NextResponse.json(
+          { 
+            error: 'Request body cannot be empty',
+            code: 'EMPTY_BODY',
+            requestId
+          },
+          { status: 400 }
+        )
+      }
+      console.log(`[${requestId}] Request body parsed successfully`)
+      
     } catch (parseError) {
+      console.error(`[${requestId}] JSON parsing error:`, parseError)
       return NextResponse.json(
-        { error: 'Invalid JSON in request body' },
+        { 
+          error: 'Invalid JSON in request body',
+          details: parseError instanceof Error ? parseError.message : 'JSON parsing failed',
+          code: 'INVALID_JSON',
+          requestId
+        },
+        { status: 400 }
+      )
+    }
+
+    // Validate request structure
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      console.warn(`[${requestId}] Invalid request body structure`)
+      return NextResponse.json(
+        { 
+          error: 'Request body must be a valid object',
+          code: 'INVALID_BODY_STRUCTURE',
+          requestId
+        },
         { status: 400 }
       )
     }
 
     const { titel, inhalt, kategorie } = body
 
-    // Enhanced validation for required fields
-    if (!titel || typeof titel !== 'string' || !titel.trim()) {
+    // Log request details (without sensitive content)
+    console.log(`[${requestId}] Template creation request:`, {
+      titel: titel ? `"${String(titel).substring(0, 50)}${String(titel).length > 50 ? '...' : ''}"` : 'undefined',
+      kategorie: kategorie ? `"${String(kategorie)}"` : 'undefined',
+      hasContent: !!inhalt,
+      contentType: typeof inhalt
+    })
+
+    // Enhanced validation using Zod schemas
+    const validationResult = validateCreateTemplateRequest({
+      titel,
+      inhalt,
+      kategorie,
+      user_id: user.id
+    })
+
+    if (!validationResult.success) {
+      const errors = validationResult.errors || []
+      console.warn(`[${requestId}] Schema validation failed:`, errors)
+      
+      // Convert Zod errors to user-friendly format
+      const validationErrors = errors.map((error: any) => ({
+        field: error.path?.join('.') || 'unknown',
+        message: error.message,
+        code: `VALIDATION_${error.code?.toUpperCase() || 'ERROR'}`,
+        value: 'received' in error ? error.received : undefined
+      }))
+
       return NextResponse.json(
         { 
-          error: 'Template title is required and cannot be empty',
-          field: 'titel',
-          code: 'TITLE_REQUIRED'
+          error: 'Validation failed',
+          validationErrors,
+          code: 'VALIDATION_FAILED',
+          requestId
         },
         { status: 400 }
       )
     }
 
-    if (titel.trim().length < 2) {
-      return NextResponse.json(
-        { 
-          error: 'Template title must be at least 2 characters long',
-          field: 'titel',
-          code: 'TITLE_TOO_SHORT'
-        },
-        { status: 400 }
-      )
-    }
+    const validatedData = validationResult.data!
+    console.log(`[${requestId}] Schema validation passed`)
 
-    if (titel.trim().length > 255) {
-      return NextResponse.json(
-        { 
-          error: 'Template title cannot exceed 255 characters',
-          field: 'titel',
-          code: 'TITLE_TOO_LONG'
-        },
-        { status: 400 }
-      )
-    }
-
-    if (!kategorie || typeof kategorie !== 'string' || !kategorie.trim()) {
-      return NextResponse.json(
-        { 
-          error: 'Template category is required and cannot be empty',
-          field: 'kategorie',
-          code: 'CATEGORY_REQUIRED'
-        },
-        { status: 400 }
-      )
-    }
-
-    if (kategorie.trim().length > 100) {
-      return NextResponse.json(
-        { 
-          error: 'Template category cannot exceed 100 characters',
-          field: 'kategorie',
-          code: 'CATEGORY_TOO_LONG'
-        },
-        { status: 400 }
-      )
-    }
-
-    if (!inhalt || typeof inhalt !== 'object') {
-      return NextResponse.json(
-        { 
-          error: 'Template content is required and must be a valid object',
-          field: 'inhalt',
-          code: 'CONTENT_REQUIRED'
-        },
-        { status: 400 }
-      )
-    }
-
-    // Enhanced template content validation
-    let validationResult: { isValid: boolean; errors: any[]; warnings: any[] } = { isValid: true, errors: [], warnings: [] }
+    // Enhanced content validation for JSONB compatibility
+    let contentValidationResult: { isValid: boolean; errors: any[]; warnings: any[] }
+    
     try {
-      validationResult = templateService.validateTemplateVariables(inhalt)
+      // Validate JSONB content structure
+      if (!isValidJsonbContent(inhalt)) {
+        console.warn(`[${requestId}] Invalid JSONB content structure`)
+        return NextResponse.json(
+          { 
+            error: 'Template content must be valid JSONB-compatible object',
+            details: 'Content contains non-serializable values or circular references',
+            field: 'inhalt',
+            code: 'INVALID_JSONB_CONTENT',
+            requestId
+          },
+          { status: 400 }
+        )
+      }
+
+      // Validate TipTap content structure
+      if (!isValidTiptapContent(inhalt)) {
+        console.warn(`[${requestId}] Invalid TipTap content structure`)
+        return NextResponse.json(
+          { 
+            error: 'Template content must be valid TipTap document structure',
+            details: 'Content must have type "doc" and valid content array',
+            field: 'inhalt',
+            code: 'INVALID_TIPTAP_STRUCTURE',
+            requestId
+          },
+          { status: 400 }
+        )
+      }
+
+      // Validate template variables
+      contentValidationResult = templateService.validateTemplateVariables(inhalt)
+      console.log(`[${requestId}] Content validation completed:`, {
+        isValid: contentValidationResult.isValid,
+        errorCount: contentValidationResult.errors.length,
+        warningCount: contentValidationResult.warnings.length
+      })
+      
     } catch (validationError) {
-      console.error('Template validation system error:', validationError)
+      console.error(`[${requestId}] Template validation system error:`, validationError)
       return NextResponse.json(
         { 
           error: 'Template validation failed due to system error',
-          code: 'VALIDATION_SYSTEM_ERROR'
+          details: validationError instanceof Error ? validationError.message : 'Unknown validation error',
+          code: 'VALIDATION_SYSTEM_ERROR',
+          requestId
         },
         { status: 500 }
       )
     }
     
-    if (!validationResult.isValid) {
+    if (!contentValidationResult.isValid) {
+      console.warn(`[${requestId}] Content validation failed:`, contentValidationResult.errors)
       return NextResponse.json(
         { 
-          error: 'Template validation failed',
-          validationErrors: validationResult.errors,
-          validationWarnings: validationResult.warnings,
-          code: 'VALIDATION_FAILED'
+          error: 'Template content validation failed',
+          validationErrors: contentValidationResult.errors,
+          validationWarnings: contentValidationResult.warnings,
+          code: 'CONTENT_VALIDATION_FAILED',
+          requestId
         },
         { status: 400 }
       )
     }
 
     // Log warnings if any
-    if (validationResult.warnings.length > 0) {
-      console.warn('Template validation warnings:', validationResult.warnings)
+    if (contentValidationResult.warnings.length > 0) {
+      console.warn(`[${requestId}] Template validation warnings:`, contentValidationResult.warnings)
     }
 
     // Create template request with proper data sanitization
     const createRequest: CreateTemplateRequest = {
-      titel: titel.trim(),
-      inhalt,
-      kategorie: kategorie.trim(),
-      user_id: user.id
+      titel: validatedData.titel,
+      inhalt: sanitizeJsonbContent(validatedData.inhalt),
+      kategorie: validatedData.kategorie,
+      user_id: validatedData.user_id
     }
+
+    console.log(`[${requestId}] Creating template with sanitized data`)
 
     // Create the template with enhanced error handling
     let template
     try {
       template = await templateService.createTemplate(createRequest)
+      console.log(`[${requestId}] Template created successfully:`, template.id)
+      
     } catch (createError) {
-      console.error('Template creation error:', createError)
+      console.error(`[${requestId}] Template creation error:`, createError)
       
       // Handle specific template service errors
       if (createError instanceof Error) {
         if (createError.message.includes('PERMISSION_DENIED')) {
           return NextResponse.json(
-            { error: 'Access denied' },
+            { 
+              error: 'Access denied',
+              details: 'Insufficient permissions to create template',
+              code: 'PERMISSION_DENIED',
+              requestId
+            },
             { status: 403 }
           )
         }
@@ -226,7 +322,8 @@ export async function POST(request: NextRequest) {
             { 
               error: 'Invalid template data',
               details: createError.message,
-              code: 'INVALID_DATA'
+              code: 'INVALID_DATA',
+              requestId
             },
             { status: 400 }
           )
@@ -235,11 +332,25 @@ export async function POST(request: NextRequest) {
         if (createError.message.includes('TEMPLATE_SAVE_FAILED')) {
           return NextResponse.json(
             { 
-              error: 'Failed to save template',
+              error: 'Failed to save template to database',
               details: createError.message,
-              code: 'SAVE_FAILED'
+              code: 'SAVE_FAILED',
+              requestId
             },
             { status: 500 }
+          )
+        }
+
+        if (createError.message.includes('DUPLICATE_TITLE')) {
+          return NextResponse.json(
+            { 
+              error: 'Template with this title already exists',
+              details: createError.message,
+              field: 'titel',
+              code: 'DUPLICATE_TITLE',
+              requestId
+            },
+            { status: 409 }
           )
         }
       }
@@ -248,27 +359,129 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           error: 'Failed to create template',
-          code: 'CREATE_FAILED'
+          details: createError instanceof Error ? createError.message : 'Unknown error',
+          code: 'CREATE_FAILED',
+          requestId
         },
         { status: 500 }
       )
     }
+
+    const duration = Date.now() - startTime
+    console.log(`[${requestId}] Template creation completed successfully in ${duration}ms`)
     
     // Return success response with created template
     return NextResponse.json({ 
       template,
-      validationWarnings: validationResult.warnings,
-      message: 'Template created successfully'
+      validationWarnings: contentValidationResult.warnings,
+      message: 'Template created successfully',
+      requestId,
+      duration
     }, { status: 201 })
     
   } catch (error) {
-    console.error('Unexpected error creating template:', error)
+    const duration = Date.now() - startTime
+    console.error(`[${requestId}] Unexpected error creating template (${duration}ms):`, error)
+    
     return NextResponse.json(
       { 
         error: 'An unexpected error occurred',
-        code: 'UNEXPECTED_ERROR'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        code: 'UNEXPECTED_ERROR',
+        requestId
       },
       { status: 500 }
     )
   }
+}
+
+/**
+ * Validate if content is JSONB-compatible
+ */
+function isValidJsonbContent(content: any): boolean {
+  try {
+    // Check for circular references and non-serializable values
+    JSON.stringify(content)
+    
+    // Check for undefined values (not allowed in JSONB)
+    const hasUndefined = JSON.stringify(content).includes('undefined')
+    if (hasUndefined) return false
+    
+    // Check for functions (not allowed in JSONB)
+    const hasFunctions = containsFunctions(content)
+    if (hasFunctions) return false
+    
+    return true
+  } catch (error) {
+    return false
+  }
+}
+
+/**
+ * Check if object contains functions
+ */
+function containsFunctions(obj: any): boolean {
+  if (typeof obj === 'function') return true
+  
+  if (obj && typeof obj === 'object') {
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        if (containsFunctions(obj[key])) return true
+      }
+    }
+  }
+  
+  return false
+}
+
+/**
+ * Validate if content is valid TipTap structure
+ */
+function isValidTiptapContent(content: any): boolean {
+  if (!content || typeof content !== 'object') return false
+  
+  // Check for TipTap document structure
+  if (content.type === 'doc') {
+    return Array.isArray(content.content) || content.content === undefined
+  }
+  
+  // Check for array format (legacy)
+  if (Array.isArray(content)) {
+    return content.every(node => 
+      node && typeof node === 'object' && typeof node.type === 'string'
+    )
+  }
+  
+  return false
+}
+
+/**
+ * Sanitize content for JSONB storage
+ */
+function sanitizeJsonbContent(content: any): any {
+  if (content === null || content === undefined) {
+    return null
+  }
+  
+  if (typeof content === 'function') {
+    return null
+  }
+  
+  if (Array.isArray(content)) {
+    return content.map(sanitizeJsonbContent).filter(item => item !== null)
+  }
+  
+  if (typeof content === 'object') {
+    const sanitized: any = {}
+    for (const [key, value] of Object.entries(content)) {
+      const sanitizedValue = sanitizeJsonbContent(value)
+      if (sanitizedValue !== null) {
+        sanitized[key] = sanitizedValue
+      }
+    }
+    return sanitized
+  }
+  
+  // Primitive values
+  return content
 }
