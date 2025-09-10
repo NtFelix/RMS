@@ -101,7 +101,7 @@ export const TemplateContentSchema = TiptapContentSchema
     }
     
     // For Tiptap doc format
-    if (content.type === 'doc') {
+    if (typeof content === 'object' && content !== null && !Array.isArray(content) && 'type' in content && content.type === 'doc') {
       return content.content && Array.isArray(content.content) && content.content.length > 0
     }
     

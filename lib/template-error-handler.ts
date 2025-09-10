@@ -133,11 +133,7 @@ export class TemplateErrorHandler {
         toast({
           title: "Speichern fehlgeschlagen",
           description: "Die Vorlage konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-          variant: "destructive",
-          action: recoveryActions?.[0] ? {
-            altText: recoveryActions[0].label,
-            onClick: recoveryActions[0].action
-          } : undefined
+          variant: "destructive"
         })
         break
         

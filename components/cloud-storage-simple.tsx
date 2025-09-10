@@ -539,15 +539,20 @@ export function CloudStorageSimple({
    * Handle create template action
    */
   const handleCreateTemplate = useCallback(async () => {
-    const { withErrorHandling } = await import('@/lib/template-error-handler')
+    const { TemplateErrorRecovery, TemplateErrorHandler, TemplateErrorType } = await import('@/lib/template-error-handler')
     
-    await withErrorHandling(async () => {
+    await TemplateErrorRecovery.safeOperation(async () => {
       // Fetch existing categories from the API
       const response = await fetch('/api/templates/categories')
       
       if (!response.ok) {
-        const { handleApiError } = await import('@/lib/template-error-handler')
-        await handleApiError(response)
+        const error = TemplateErrorHandler.createError(
+          TemplateErrorType.CATEGORY_LOAD_FAILED,
+          `Failed to load categories: ${response.status} ${response.statusText}`,
+          { status: response.status, statusText: response.statusText },
+          { operation: 'fetch_categories', component: 'cloud-storage-simple' }
+        )
+        TemplateErrorHandler.handleError(error)
         return
       }
       
@@ -567,7 +572,7 @@ export function CloudStorageSimple({
           // Modal will close automatically
         }
       }, userId)
-    }, 'Fetching template categories')
+    }, undefined, { operation: 'create_template', component: 'cloud-storage-simple' })
   }, [openCategorySelectionModal, toast, userId])
   
   // Determine loading and error states

@@ -182,7 +182,7 @@ export class TemplateValidator {
     // Validate title with Zod
     if (data.titel !== undefined) {
       const titleResult = validateTemplateTitle(data.titel)
-      if (!titleResult.success) {
+      if (!titleResult.success && titleResult.errors) {
         titleResult.errors.forEach(error => {
           errors.push({
             field: 'titel',
@@ -197,7 +197,7 @@ export class TemplateValidator {
     // Validate category with Zod
     if (data.kategorie !== undefined) {
       const categoryResult = validateTemplateCategory(data.kategorie)
-      if (!categoryResult.success) {
+      if (!categoryResult.success && categoryResult.errors) {
         categoryResult.errors.forEach(error => {
           errors.push({
             field: 'kategorie',
@@ -212,7 +212,7 @@ export class TemplateValidator {
     // Validate content with Zod
     if (data.inhalt !== undefined) {
       const contentResult = validateTemplateContent(data.inhalt)
-      if (!contentResult.success) {
+      if (!contentResult.success && contentResult.errors) {
         contentResult.errors.forEach(error => {
           errors.push({
             field: 'inhalt',
@@ -703,8 +703,8 @@ export class TemplateValidator {
     if (!result.success) {
       return {
         isValid: false,
-        errors: result.errors.map(error => ({
-          field: error.path?.join('.') || 'unknown',
+        errors: (result.errors || []).map((error: any) => ({
+          field: error.path?.join?.('.') || 'unknown',
           message: error.message,
           code: 'ZOD_CREATION_VALIDATION',
           value: error.received
@@ -726,8 +726,8 @@ export class TemplateValidator {
     if (!result.success) {
       return {
         isValid: false,
-        errors: result.errors.map(error => ({
-          field: error.path?.join('.') || 'unknown',
+        errors: (result.errors || []).map((error: any) => ({
+          field: error.path?.join?.('.') || 'unknown',
           message: error.message,
           code: 'ZOD_UPDATE_VALIDATION',
           value: error.received
@@ -749,7 +749,7 @@ export class TemplateValidator {
     
     // Basic Zod validation
     const zodResult = validateTemplateTitle(title)
-    if (!zodResult.success) {
+    if (!zodResult.success && zodResult.errors) {
       zodResult.errors.forEach(error => {
         errors.push({
           field: 'titel',
@@ -810,7 +810,7 @@ export class TemplateValidator {
     
     // Basic Zod validation
     const zodResult = validateTemplateCategory(category)
-    if (!zodResult.success) {
+    if (!zodResult.success && zodResult.errors) {
       zodResult.errors.forEach(error => {
         errors.push({
           field: 'kategorie',
@@ -869,7 +869,7 @@ export class TemplateValidator {
     
     // Basic Zod validation
     const zodResult = validateTemplateContent(content)
-    if (!zodResult.success) {
+    if (!zodResult.success && zodResult.errors) {
       zodResult.errors.forEach(error => {
         errors.push({
           field: 'inhalt',
@@ -1019,8 +1019,8 @@ export class TemplateValidator {
     
     if (sanitized.kontext_anforderungen && Array.isArray(sanitized.kontext_anforderungen)) {
       sanitized.kontext_anforderungen = sanitized.kontext_anforderungen
-        .filter(req => typeof req === 'string' && req.trim().length > 0)
-        .map(req => req.trim())
+        .filter((req: any) => typeof req === 'string' && req.trim().length > 0)
+        .map((req: any) => req.trim())
         .slice(0, VALIDATION_LIMITS.MAX_CONTEXT_REQUIREMENTS)
     }
     

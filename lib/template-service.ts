@@ -292,7 +292,7 @@ export class TemplateService {
    * Get all templates for a user
    */
   async getUserTemplates(userId: string): Promise<Template[]> {
-    return TemplateErrorRecovery.safeOperation(
+    const result = await TemplateErrorRecovery.safeOperation(
       async () => {
         const { data: templates, error } = await this.supabase
           .from('Vorlagen')
@@ -315,7 +315,9 @@ export class TemplateService {
       },
       [], // fallback to empty array
       { userId, operation: 'getUserTemplates' }
-    ) || []
+    )
+    
+    return result || []
   }
 
   /**

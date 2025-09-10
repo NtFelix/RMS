@@ -20,7 +20,9 @@ import {
 import type {
   ValidationResult,
   ValidationError,
-  ValidationWarning,
+  ValidationWarning
+} from './template-validation'
+import type {
   Template,
   CreateTemplateRequest,
   UpdateTemplateRequest,
@@ -83,14 +85,33 @@ export class TemplateValidationService {
       // Schema validation
       const schemaResult = validateCreateTemplateRequest(processedData)
       if (!schemaResult.success) {
+        const errors = schemaResult.errors || []
+        // Handle both ZodIssue[] and custom error format
+        const validationErrors = Array.isArray(errors) && errors.length > 0 && 'code' in errors[0]
+          ? this.convertZodErrorsToValidationErrors(errors as any[], 'CREATE_VALIDATION')
+          : errors.map((err: any) => ({
+              field: 'general',
+              message: err.message || 'Validation error',
+              code: 'VALIDATION_ERROR',
+              value: undefined
+            }))
+        
         return {
           isValid: false,
-          errors: this.convertZodErrorsToValidationErrors(schemaResult.errors, 'CREATE_VALIDATION'),
+          errors: validationErrors,
           warnings: []
         }
       }
       
       const validatedData = schemaResult.data
+      if (!validatedData) {
+        return {
+          isValid: false,
+          errors: [{ field: 'general', message: 'Validation data is missing', code: 'MISSING_DATA', value: undefined }],
+          warnings: []
+        }
+      }
+      
       const errors: ValidationError[] = []
       const warnings: ValidationWarning[] = []
       
@@ -178,14 +199,33 @@ export class TemplateValidationService {
       // Schema validation
       const schemaResult = validateUpdateTemplateRequest(processedData)
       if (!schemaResult.success) {
+        const errors = schemaResult.errors || []
+        // Handle both ZodIssue[] and custom error format
+        const validationErrors = Array.isArray(errors) && errors.length > 0 && 'code' in errors[0]
+          ? this.convertZodErrorsToValidationErrors(errors as any[], 'UPDATE_VALIDATION')
+          : errors.map((err: any) => ({
+              field: 'general',
+              message: err.message || 'Validation error',
+              code: 'VALIDATION_ERROR',
+              value: undefined
+            }))
+        
         return {
           isValid: false,
-          errors: this.convertZodErrorsToValidationErrors(schemaResult.errors, 'UPDATE_VALIDATION'),
+          errors: validationErrors,
           warnings: []
         }
       }
       
       const validatedData = schemaResult.data
+      if (!validatedData) {
+        return {
+          isValid: false,
+          errors: [{ field: 'general', message: 'Validation data is missing', code: 'MISSING_DATA', value: undefined }],
+          warnings: []
+        }
+      }
+      
       const errors: ValidationError[] = []
       const warnings: ValidationWarning[] = []
       
@@ -334,7 +374,7 @@ export class TemplateValidationService {
             errors.push(...result.errors)
             warnings.push(...result.warnings)
           } else {
-            const result = this.validator.validateTitle(value)
+            const result = TemplateValidator.validateTitle(value)
             if (!result) {
               errors.push({
                 field: 'titel',
@@ -352,7 +392,7 @@ export class TemplateValidationService {
             errors.push(...result.errors)
             warnings.push(...result.warnings)
           } else {
-            const result = this.validator.validateCategory(value)
+            const result = TemplateValidator.validateCategory(value)
             if (!result) {
               errors.push({
                 field: 'kategorie',
