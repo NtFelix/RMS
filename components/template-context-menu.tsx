@@ -19,6 +19,7 @@ import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dial
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { templateClientService } from "@/lib/template-client-service"
+import { parseTemplateContent, extractTemplateVariables } from "@/lib/template-content-parser"
 import type { TemplateItem } from "@/types/template"
 
 interface TemplateContextMenuProps {
@@ -40,29 +41,40 @@ export function TemplateContextMenu({
   const { openTemplateEditorModal } = useModalStore()
 
   const handleEdit = () => {
-    // Handle both string and object content
-    let parsedContent
-    try {
-      parsedContent = typeof template.content === 'string' 
-        ? JSON.parse(template.content) 
-        : template.content
-    } catch (error) {
-      console.error('Error parsing template content:', error)
-      parsedContent = {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [],
-          },
-        ],
-      }
+    // Use robust content parser to handle both string and object content
+    const parseResult = parseTemplateContent(template.content)
+    
+    if (!parseResult.success) {
+      console.error('Error parsing template content:', parseResult.errors)
+      toast({
+        title: "Fehler beim Laden der Vorlage",
+        description: "Der Inhalt der Vorlage konnte nicht geladen werden. Die Vorlage wird mit leerem Inhalt geöffnet.",
+        variant: "destructive",
+      })
+    }
+    
+    // Show warnings if content was recovered
+    if (parseResult.wasRecovered && parseResult.warnings.length > 0) {
+      console.warn('Template content was recovered:', parseResult.warnings)
+      toast({
+        title: "Inhalt wiederhergestellt",
+        description: "Der Vorlageninhalt wurde automatisch repariert. Bitte überprüfen Sie den Inhalt.",
+        variant: "default",
+      })
+    }
+
+    // Extract variables from the parsed content for accurate context requirements
+    const variableResult = extractTemplateVariables(parseResult.content)
+    const extractedVariables = variableResult.variables
+
+    if (variableResult.errors.length > 0) {
+      console.error('Error extracting variables:', variableResult.errors)
     }
 
     openTemplateEditorModal({
       templateId: template.id,
       initialTitle: template.name,
-      initialContent: parsedContent,
+      initialContent: parseResult.content,
       initialCategory: template.category || '',
       isNewTemplate: false,
       onSave: async (templateData) => {
@@ -102,30 +114,32 @@ export function TemplateContextMenu({
       // Create duplicate with "(Copy)" suffix
       const duplicateTitle = `${template.name} (Copy)`
       
-      // Handle both string and object content
-      let parsedContent
-      try {
-        parsedContent = typeof template.content === 'string' 
-          ? JSON.parse(template.content) 
-          : template.content
-      } catch (error) {
-        console.error('Error parsing template content for duplication:', error)
-        parsedContent = {
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph',
-              content: [],
-            },
-          ],
-        }
+      // Use robust content parser to handle both string and object content
+      const parseResult = parseTemplateContent(template.content)
+      
+      if (!parseResult.success) {
+        console.error('Error parsing template content for duplication:', parseResult.errors)
+        toast({
+          title: "Fehler beim Duplizieren",
+          description: "Der Inhalt der Vorlage konnte nicht gelesen werden.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Extract variables from the parsed content for accurate context requirements
+      const variableResult = extractTemplateVariables(parseResult.content)
+      const extractedVariables = variableResult.variables
+
+      if (variableResult.errors.length > 0) {
+        console.error('Error extracting variables for duplication:', variableResult.errors)
       }
 
       await templateClientService.createTemplate({
         titel: duplicateTitle,
-        inhalt: parsedContent,
+        inhalt: parseResult.content,
         kategorie: template.category || '',
-        kontext_anforderungen: template.variables || []
+        kontext_anforderungen: extractedVariables
       })
       
       toast({
