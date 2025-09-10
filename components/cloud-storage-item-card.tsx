@@ -175,16 +175,27 @@ export function CloudStorageItemCard({
         case 'apartment':
           return { icon: Home, color: 'text-green-500', bgColor: 'bg-green-50' }
         case 'category':
+          if (folder.name === 'Vorlagen' || folder.name.includes('Vorlagen')) {
+            return { icon: FileText, color: 'text-indigo-500', bgColor: 'bg-indigo-50' }
+          }
           if (folder.name.includes('documents')) {
             return { icon: FileText, color: 'text-purple-500', bgColor: 'bg-purple-50' }
           }
           return { icon: FolderOpen, color: 'text-orange-500', bgColor: 'bg-orange-50' }
+        case 'template_root':
+        case 'template_category':
+          return { icon: FileText, color: 'text-indigo-500', bgColor: 'bg-indigo-50' }
         default:
           return { icon: FolderOpen, color: 'text-blue-500', bgColor: 'bg-blue-50' }
       }
     } else {
       const file = item as StorageObject
       const extension = file.name.split('.').pop()?.toLowerCase()
+      
+      // Check if this is a template file
+      if (extension === 'template' || file.metadata?.type === 'template') {
+        return { icon: FileText, color: 'text-indigo-500', bgColor: 'bg-indigo-50' }
+      }
       
       if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(extension || '')) {
         return { icon: ImageIcon, color: 'text-green-500', bgColor: 'bg-green-50' }
@@ -221,9 +232,24 @@ export function CloudStorageItemCard({
   const getSubtitle = () => {
     if (type === 'folder') {
       const folder = item as VirtualFolder
+      if (folder.type === 'template_root') {
+        return folder.isEmpty ? 'Keine Vorlagen' : `${folder.fileCount} Vorlagen`
+      }
+      if (folder.type === 'template_category') {
+        return folder.isEmpty ? 'Keine Vorlagen' : `${folder.fileCount} Vorlagen`
+      }
       return folder.isEmpty ? 'Leer' : `${folder.fileCount} Dateien`
     } else {
       const file = item as StorageObject
+      
+      // Check if this is a template file
+      if (file.metadata?.type === 'template') {
+        const variables = file.metadata?.variables as string[] || []
+        const variableCount = variables.length
+        const dateStr = new Date(file.updated_at).toLocaleDateString('de-DE')
+        return variableCount > 0 ? `${variableCount} Variablen • ${dateStr}` : dateStr
+      }
+      
       return `${formatFileSize(file.size)} • ${new Date(file.updated_at).toLocaleDateString('de-DE')}`
     }
   }
@@ -237,6 +263,10 @@ export function CloudStorageItemCard({
           return { label: 'Haus', variant: 'default' as const }
         case 'apartment':
           return { label: 'Wohnung', variant: 'secondary' as const }
+        case 'template_root':
+          return { label: 'Vorlagen', variant: 'default' as const }
+        case 'template_category':
+          return { label: 'Kategorie', variant: 'outline' as const }
         case 'category':
           return { label: 'Kategorie', variant: 'outline' as const }
         default:
@@ -244,8 +274,15 @@ export function CloudStorageItemCard({
       }
     } else {
       const file = item as StorageObject
-      const extension = file.name.split('.').pop()?.toUpperCase()
-      return { label: extension || 'Datei', variant: 'secondary' as const }
+      const extension = file.name.split('.').pop()?.toLowerCase()
+      
+      // Check if this is a template file
+      if (extension === 'template' || file.metadata?.type === 'template') {
+        return { label: 'Vorlage', variant: 'default' as const }
+      }
+      
+      const upperExtension = extension?.toUpperCase()
+      return { label: upperExtension || 'Datei', variant: 'secondary' as const }
     }
   }
 

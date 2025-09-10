@@ -16,7 +16,7 @@ export interface StorageObject {
 export interface VirtualFolder {
   name: string
   path: string
-  type: 'house' | 'apartment' | 'tenant' | 'category' | 'archive' | 'storage'
+  type: 'house' | 'apartment' | 'tenant' | 'category' | 'archive' | 'storage' | 'template_root' | 'template_category'
   isEmpty: boolean
   children: VirtualFolder[]
   fileCount: number
@@ -49,7 +49,7 @@ export function isFolderDeletable(folder: VirtualFolder): boolean {
 export interface BreadcrumbItem {
   name: string
   path: string
-  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
+  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category' | 'template_root' | 'template_category'
 }
 
 interface SimpleCloudStorageState {
@@ -176,7 +176,7 @@ export const useSimpleCloudStorageStore = create<SimpleCloudStorageState>((set, 
         folders: folders.map(folder => ({
           name: folder.name,
           path: folder.path,
-          type: folder.type as any,
+          type: folder.type,
           isEmpty: folder.isEmpty,
           children: [],
           fileCount: folder.fileCount,

@@ -2,6 +2,8 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { redirect } from 'next/navigation'
+import { templateVirtualFolderProvider, TemplateVirtualFolderProvider } from '@/lib/template-virtual-folder-provider'
+import type { TemplateItem } from '@/types/template'
 
 export interface StorageFile {
   name: string
@@ -16,7 +18,7 @@ export interface StorageFile {
 export interface VirtualFolder {
   name: string
   path: string
-  type: 'house' | 'apartment' | 'category' | 'storage' | 'tenant' | 'archive'
+  type: 'house' | 'apartment' | 'category' | 'storage' | 'tenant' | 'archive' | 'template_root' | 'template_category'
   isEmpty: boolean
   children: VirtualFolder[]
   fileCount: number
@@ -26,7 +28,7 @@ export interface VirtualFolder {
 export interface BreadcrumbItem {
   name: string
   path: string
-  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category'
+  type: 'root' | 'house' | 'apartment' | 'tenant' | 'category' | 'template_root' | 'template_category'
 }
 
 // Cache for preventing concurrent requests to the same path
@@ -104,6 +106,11 @@ export async function getInitialFiles(userId: string, path?: string): Promise<{
       // If we're at the root level, create virtual folders based on database data
       if (targetPath === `user_${userId}`) {
         return await getRootLevelFolders(supabase, userId, targetPath)
+      }
+      
+      // Check if this is a template path
+      if (TemplateVirtualFolderProvider.isTemplatePath(targetPath)) {
+        return await getTemplateContents(supabase, targetPath)
       }
       
       // For other paths, list actual storage contents
@@ -198,6 +205,26 @@ async function getRootLevelFolders(supabase: any, userId: string, targetPath: st
       fileCount: miscFileCount,
       displayName: 'Sonstiges'
     })
+
+    // Add templates folder
+    try {
+      const templateFolder = await templateVirtualFolderProvider.getTemplateRootFolder(userId)
+      folders.push(templateFolder)
+    } catch (error) {
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('Could not load template folder:', error)
+      }
+      // Add empty template folder as fallback
+      folders.push({
+        name: 'Vorlagen',
+        path: `${targetPath}/Vorlagen`,
+        type: 'category',
+        isEmpty: true,
+        children: [],
+        fileCount: 0,
+        displayName: 'Vorlagen'
+      })
+    }
 
     // Check for any files directly in the root
     const { data: rootFiles } = await supabase.storage
@@ -660,6 +687,68 @@ async function countDirectFiles(supabase: any, path: string): Promise<number> {
   }
 }
 
+async function getTemplateContents(supabase: any, targetPath: string): Promise<{
+  files: StorageFile[]
+  folders: VirtualFolder[]
+  error?: string
+}> {
+  try {
+    const pathInfo = TemplateVirtualFolderProvider.parseTemplatePath(targetPath)
+    
+    if (!pathInfo) {
+      return {
+        files: [],
+        folders: [],
+        error: 'Invalid template path'
+      }
+    }
+
+    const { userId, category } = pathInfo
+
+    // If no category specified, show category folders
+    if (!category) {
+      const categoryFolders = await templateVirtualFolderProvider.getTemplateCategoryFolders(userId)
+      return {
+        files: [],
+        folders: categoryFolders,
+        error: undefined
+      }
+    }
+
+    // If category specified, show templates as files
+    const templates = await templateVirtualFolderProvider.getTemplatesForCategory(userId, category)
+    const templateFiles: StorageFile[] = templates.map(template => ({
+      name: `${template.name}.template`,
+      id: template.id,
+      updated_at: template.updatedAt?.toISOString() || template.createdAt.toISOString(),
+      created_at: template.createdAt.toISOString(),
+      last_accessed_at: template.updatedAt?.toISOString() || template.createdAt.toISOString(),
+      metadata: {
+        template_id: template.id,
+        category: template.category,
+        variables: template.variables,
+        type: 'template'
+      },
+      size: template.size
+    }))
+
+    return {
+      files: templateFiles,
+      folders: [],
+      error: undefined
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Error in getTemplateContents:', error)
+    }
+    return {
+      files: [],
+      folders: [],
+      error: 'Fehler beim Laden der Vorlagen'
+    }
+  }
+}
+
 export async function getFilesForPath(userId: string, path: string): Promise<{
   files: StorageFile[]
   folders: VirtualFolder[]
@@ -932,7 +1021,13 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
       if (segment === 'Miscellaneous') return 'Sonstiges'
       if (segment === 'house_documents') return 'Hausdokumente'
       if (segment === 'apartment_documents') return 'Wohnungsdokumente'
+      if (segment === 'Vorlagen') return 'Vorlagen'
       return segment
+    }
+
+    // Check if this is a template path
+    if (TemplateVirtualFolderProvider.isTemplatePath(path)) {
+      return await getTemplateBreadcrumbs(userId, path, crumbs, mapCategoryName)
     }
 
     let currentPath = rootPath
@@ -1046,6 +1141,36 @@ export async function getBreadcrumbs(userId: string, path: string): Promise<Brea
     // Fallback: only root
     return [{ name: 'Cloud Storage', path: `user_${userId}`, type: 'root' }]
   }
+}
+
+async function getTemplateBreadcrumbs(
+  userId: string, 
+  path: string, 
+  crumbs: BreadcrumbItem[], 
+  mapCategoryName: (segment: string) => string
+): Promise<BreadcrumbItem[]> {
+  const pathSegments = path.split('/').filter(Boolean)
+  
+  // Add Vorlagen breadcrumb
+  const vorlagenPath = `user_${userId}/Vorlagen`
+  crumbs.push({ 
+    name: 'Vorlagen', 
+    path: vorlagenPath, 
+    type: 'category' 
+  })
+
+  // If there's a category, add it
+  if (pathSegments.length > 2) {
+    const category = pathSegments[2]
+    const categoryPath = `${vorlagenPath}/${category}`
+    crumbs.push({ 
+      name: mapCategoryName(category), 
+      path: categoryPath, 
+      type: 'category' 
+    })
+  }
+
+  return crumbs
 }
 
 // Debug function to check tenant data
