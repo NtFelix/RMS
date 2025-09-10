@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { TiptapTemplateEditor } from './tiptap-template-editor'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 export function SlashCommandDemo() {
@@ -15,20 +14,9 @@ export function SlashCommandDemo() {
       },
     ],
   })
-  const [variables, setVariables] = useState<string[]>([])
 
-  const handleContentChange = (newContent: object, newVariables: string[]) => {
+  const handleContentChange = (newContent: object, variables: string[]) => {
     setContent(newContent)
-    setVariables(newVariables)
-  }
-
-  const handleSave = () => {
-    console.log('Saving content:', content)
-    console.log('Variables:', variables)
-  }
-
-  const handleCancel = () => {
-    console.log('Cancelled')
   }
 
   return (
@@ -37,64 +25,67 @@ export function SlashCommandDemo() {
         <CardHeader>
           <CardTitle>Slash Command Demo</CardTitle>
           <CardDescription>
-            Testen Sie die Slash-Befehle, indem Sie "/" eingeben und dann einen Befehl auswählen.
-            Verwenden Sie die Pfeiltasten zur Navigation und Enter zur Auswahl.
+            Testen Sie die Slash-Befehle im Editor. Geben Sie "/" ein, um das Befehlsmenü zu öffnen.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <TiptapTemplateEditor
-              initialContent={content}
-              onContentChange={handleContentChange}
-              onSave={handleSave}
-              onCancel={handleCancel}
-              placeholder="Geben Sie '/' ein, um Formatierungsoptionen zu sehen..."
-              className="min-h-[300px]"
-            />
-            
-            <div className="flex gap-2">
-              <Button onClick={handleSave} size="sm">
-                Speichern (Strg+S)
-              </Button>
-              <Button onClick={handleCancel} variant="outline" size="sm">
-                Abbrechen (Esc)
-              </Button>
+            <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+              <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                Verfügbare Befehle:
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-blue-800 dark:text-blue-200">
+                <div>
+                  <strong>Überschriften:</strong>
+                  <ul className="ml-4 list-disc">
+                    <li>/ + "h1" oder "überschrift" → Überschrift 1-6</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Listen:</strong>
+                  <ul className="ml-4 list-disc">
+                    <li>/ + "list" → Aufzählung</li>
+                    <li>/ + "ol" → Nummerierte Liste</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Formatierung:</strong>
+                  <ul className="ml-4 list-disc">
+                    <li>/ + "bold" → Fett</li>
+                    <li>/ + "italic" → Kursiv</li>
+                    <li>/ + "underline" → Unterstrichen</li>
+                    <li>/ + "strike" → Durchgestrichen</li>
+                    <li>/ + "code" → Inline-Code</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>Blöcke:</strong>
+                  <ul className="ml-4 list-disc">
+                    <li>/ + "quote" → Zitat</li>
+                    <li>/ + "hr" → Trennlinie</li>
+                    <li>/ + "text" → Normaler Text</li>
+                  </ul>
+                </div>
+              </div>
             </div>
             
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              <strong>Verfügbare Befehle:</strong>
-              <ul className="mt-2 space-y-1 list-disc list-inside">
-                <li>/überschrift oder /h1, /h2, /h3 - Überschriften erstellen</li>
-                <li>/aufzählung oder /list - Aufzählung erstellen</li>
-                <li>/nummeriert oder /ol - Nummerierte Liste erstellen</li>
-                <li>/fett oder /bold - Fetten Text erstellen</li>
-                <li>/kursiv oder /italic - Kursiven Text erstellen</li>
-                <li>/text oder /p - Normaler Textabsatz</li>
-                <li>/zitat oder /quote - Zitat-Block erstellen</li>
-              </ul>
+            <div className="border rounded-lg">
+              <TiptapTemplateEditor
+                initialContent={content}
+                onContentChange={handleContentChange}
+                placeholder="Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle..."
+                className="min-h-[300px]"
+              />
             </div>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Debug Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <div>
-              <strong>Content:</strong>
-              <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs overflow-auto">
+            
+            <details className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+              <summary className="cursor-pointer font-semibold text-gray-700 dark:text-gray-300">
+                JSON-Inhalt anzeigen
+              </summary>
+              <pre className="mt-2 text-xs bg-white dark:bg-gray-800 p-3 rounded border overflow-auto">
                 {JSON.stringify(content, null, 2)}
               </pre>
-            </div>
-            <div>
-              <strong>Variables:</strong>
-              <pre className="mt-1 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs">
-                {JSON.stringify(variables, null, 2)}
-              </pre>
-            </div>
+            </details>
           </div>
         </CardContent>
       </Card>

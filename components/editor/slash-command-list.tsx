@@ -5,12 +5,17 @@ import {
   Heading1, 
   Heading2, 
   Heading3, 
+  Hash,
   List, 
   ListOrdered, 
   Bold, 
   Italic,
+  Underline,
+  Strikethrough,
+  Code,
   Type,
-  Quote
+  Quote,
+  Minus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SlashCommandItem } from './slash-command-extension'
@@ -57,6 +62,33 @@ export const SlashCommandList = forwardRef<
       },
     },
     {
+      title: 'Überschrift 4',
+      description: 'Sehr kleine Überschrift',
+      searchTerms: ['h4', 'heading', 'überschrift'],
+      icon: Hash,
+      command: (editor) => {
+        editor.chain().focus().toggleHeading({ level: 4 }).run()
+      },
+    },
+    {
+      title: 'Überschrift 5',
+      description: 'Minimale Überschrift',
+      searchTerms: ['h5', 'heading', 'überschrift'],
+      icon: Hash,
+      command: (editor) => {
+        editor.chain().focus().toggleHeading({ level: 5 }).run()
+      },
+    },
+    {
+      title: 'Überschrift 6',
+      description: 'Kleinste Überschrift',
+      searchTerms: ['h6', 'heading', 'überschrift'],
+      icon: Hash,
+      command: (editor) => {
+        editor.chain().focus().toggleHeading({ level: 6 }).run()
+      },
+    },
+    {
       title: 'Aufzählung',
       description: 'Erstelle eine Aufzählung',
       searchTerms: ['ul', 'list', 'aufzählung', 'bullet'],
@@ -93,6 +125,33 @@ export const SlashCommandList = forwardRef<
       },
     },
     {
+      title: 'Unterstrichen',
+      description: 'Unterstrichenen Text erstellen',
+      searchTerms: ['underline', 'unterstrichen', 'u'],
+      icon: Underline,
+      command: (editor) => {
+        editor.chain().focus().toggleUnderline().run()
+      },
+    },
+    {
+      title: 'Durchgestrichen',
+      description: 'Durchgestrichenen Text erstellen',
+      searchTerms: ['strikethrough', 'durchgestrichen', 'strike'],
+      icon: Strikethrough,
+      command: (editor) => {
+        editor.chain().focus().toggleStrike().run()
+      },
+    },
+    {
+      title: 'Code',
+      description: 'Inline-Code erstellen',
+      searchTerms: ['code', 'inline', 'monospace'],
+      icon: Code,
+      command: (editor) => {
+        editor.chain().focus().toggleCode().run()
+      },
+    },
+    {
       title: 'Text',
       description: 'Normaler Textabsatz',
       searchTerms: ['p', 'paragraph', 'text', 'absatz'],
@@ -108,6 +167,15 @@ export const SlashCommandList = forwardRef<
       icon: Quote,
       command: (editor) => {
         editor.chain().focus().toggleBlockquote().run()
+      },
+    },
+    {
+      title: 'Trennlinie',
+      description: 'Horizontale Trennlinie einfügen',
+      searchTerms: ['hr', 'horizontal', 'rule', 'trennlinie', 'linie'],
+      icon: Minus,
+      command: (editor) => {
+        editor.chain().focus().setHorizontalRule().run()
       },
     },
   ]

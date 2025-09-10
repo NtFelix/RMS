@@ -2,6 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import { SlashCommandExtension } from './slash-command-extension'
 import { cn } from '@/lib/utils'
 
@@ -39,7 +40,15 @@ export function TiptapTemplateEditor({
           keepMarks: true,
           keepAttributes: false,
         },
+        // Enable additional formatting options
+        bold: true,
+        italic: true,
+        strike: true,
+        code: true,
+        blockquote: true,
+        horizontalRule: true,
       }),
+      Underline,
       SlashCommandExtension,
     ],
     content: initialContent || {
@@ -222,6 +231,39 @@ export function TiptapTemplateEditor({
         
         .ProseMirror em {
           font-style: italic;
+        }
+        
+        /* Additional text formatting */
+        .ProseMirror u {
+          text-decoration: underline;
+        }
+        
+        .ProseMirror s {
+          text-decoration: line-through;
+        }
+        
+        .ProseMirror code {
+          background-color: #f3f4f6;
+          padding: 0.125rem 0.25rem;
+          border-radius: 0.25rem;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          font-size: 0.875em;
+        }
+        
+        .dark .ProseMirror code {
+          background-color: #374151;
+          color: #f9fafb;
+        }
+        
+        /* Horizontal rule styles */
+        .ProseMirror hr {
+          border: none;
+          border-top: 2px solid #e5e7eb;
+          margin: 2rem 0;
+        }
+        
+        .dark .ProseMirror hr {
+          border-top-color: #4b5563;
         }
       `}</style>
     </div>
