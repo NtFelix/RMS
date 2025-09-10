@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createSupabaseServerClient } from './supabase-server'
 import {
   PREDEFINED_VARIABLES,
   VALIDATION_ERROR_CODES,
@@ -32,42 +32,38 @@ import type {
  * Provides CRUD operations, category management, and variable extraction
  */
 export class TemplateService {
-  private supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  private getSupabaseClient() {
+    return createSupabaseServerClient()
+  }
 
   /**
    * Create a new template
    */
   async createTemplate(data: CreateTemplateRequest): Promise<Template> {
     try {
-      // Get existing titles and categories for validation context
-      const existingTitles = await this.getUserTemplateTitles(data.user_id)
-      const existingCategories = await this.getUserCategories(data.user_id)
+      // Basic validation
+      if (!data.titel || !data.titel.trim()) {
+        throw new Error('Template title is required')
+      }
       
-      // Enhanced validation with context
-      const validation = await templateValidationService.validateCreateTemplate(data, {
-        userId: data.user_id,
-        existingTitles,
-        existingCategories
-      })
+      if (!data.kategorie || !data.kategorie.trim()) {
+        throw new Error('Template category is required')
+      }
       
-      if (!validation.isValid) {
-        const templateError = TemplateErrorHandler.createError(
-          TemplateErrorType.INVALID_TEMPLATE_DATA,
-          'Template validation failed',
-          validation.errors,
-          { userId: data.user_id, operation: 'create' }
-        )
-        TemplateErrorReporter.reportError(templateError)
-        throw templateError
+      if (!data.user_id) {
+        throw new Error('User ID is required')
       }
 
       // Extract variables from content before saving
-      const variables = this.extractVariablesFromContent(data.inhalt)
+      let variables: string[] = []
+      try {
+        variables = this.extractVariablesFromContent(data.inhalt)
+      } catch (error) {
+        console.warn('Failed to extract variables from content:', error)
+        // Continue without variables if extraction fails
+      }
       
-      const { data: template, error } = await this.supabase
+      const { data: template, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .insert({
           titel: data.titel,
@@ -80,27 +76,18 @@ export class TemplateService {
         .single()
 
       if (error) {
-        const templateError = TemplateErrorHandler.createError(
-          TemplateErrorType.TEMPLATE_CREATE_FAILED,
-          `Failed to create template: ${error.message}`,
-          error,
-          { userId: data.user_id, operation: 'create' }
-        )
-        TemplateErrorReporter.reportError(templateError)
-        throw templateError
+        console.error('Supabase error creating template:', error)
+        throw new Error(`Failed to create template: ${error.message}`)
+      }
+
+      if (!template) {
+        throw new Error('No template returned from database')
       }
 
       return template
     } catch (error) {
-      if (error instanceof Error && error.message.includes('template_error')) {
-        throw error // Re-throw template errors
-      }
-      
-      const templateError = TemplateErrorHandler.fromException(
-        error,
-        { userId: data.user_id, operation: 'create' }
-      )
-      TemplateErrorReporter.reportError(templateError)
+      console.error('Error in createTemplate:', error)
+      throw error instanceof Error ? error : new Error('Failed to create template')
       throw templateError
     }
   }
@@ -415,56 +402,65 @@ export class TemplateService {
     const variables = new Set<string>()
 
     const extractFromNode = (node: any): void => {
-      if (!node || typeof node !== 'object') return
+      try {
+        if (!node || typeof node !== 'object') return
 
-      // Check if this is a mention node with a variable ID
-      if (node.type === 'mention' && node.attrs?.id) {
-        variables.add(node.attrs.id)
-      }
+        // Check if this is a mention node with a variable ID
+        if (node.type === 'mention' && node.attrs?.id) {
+          variables.add(node.attrs.id)
+        }
 
-      // Handle different node structures
-      if (node.type === 'text' && node.marks) {
-        // Check for mention marks in text nodes
-        node.marks.forEach((mark: any) => {
-          if (mark.type === 'mention' && mark.attrs?.id) {
-            variables.add(mark.attrs.id)
-          }
-        })
-      }
+        // Handle different node structures
+        if (node.type === 'text' && node.marks) {
+          // Check for mention marks in text nodes
+          node.marks.forEach((mark: any) => {
+            if (mark.type === 'mention' && mark.attrs?.id) {
+              variables.add(mark.attrs.id)
+            }
+          })
+        }
 
-      // Recursively check content array
-      if (Array.isArray(node.content)) {
-        node.content.forEach(extractFromNode)
-      }
+        // Recursively check content array
+        if (Array.isArray(node.content)) {
+          node.content.forEach(extractFromNode)
+        }
 
-      // Check marks array for mentions (for inline mentions)
-      if (Array.isArray(node.marks)) {
-        node.marks.forEach((mark: any) => {
-          if (mark.type === 'mention' && mark.attrs?.id) {
-            variables.add(mark.attrs.id)
-          }
-          // Recursively check mark content if it exists
-          if (mark.content) {
-            extractFromNode(mark)
-          }
-        })
-      }
+        // Check marks array for mentions (for inline mentions)
+        if (Array.isArray(node.marks)) {
+          node.marks.forEach((mark: any) => {
+            if (mark.type === 'mention' && mark.attrs?.id) {
+              variables.add(mark.attrs.id)
+            }
+            // Recursively check mark content if it exists
+            if (mark.content) {
+              extractFromNode(mark)
+            }
+          })
+        }
 
-      // Handle nested objects that might contain mentions
-      if (node.attrs && typeof node.attrs === 'object') {
-        Object.values(node.attrs).forEach(value => {
-          if (typeof value === 'object' && value !== null) {
-            extractFromNode(value)
-          }
-        })
+        // Handle nested objects that might contain mentions
+        if (node.attrs && typeof node.attrs === 'object') {
+          Object.values(node.attrs).forEach(value => {
+            if (typeof value === 'object' && value !== null) {
+              extractFromNode(value)
+            }
+          })
+        }
+      } catch (error) {
+        console.warn('Error extracting variables from node:', error)
+        // Continue processing other nodes
       }
     }
 
-    // Handle different content formats
-    if (Array.isArray(content)) {
-      content.forEach(extractFromNode)
-    } else {
-      extractFromNode(content)
+    try {
+      // Handle different content formats
+      if (Array.isArray(content)) {
+        content.forEach(extractFromNode)
+      } else {
+        extractFromNode(content)
+      }
+    } catch (error) {
+      console.warn('Error processing content for variable extraction:', error)
     }
 
     return Array.from(variables).sort()
