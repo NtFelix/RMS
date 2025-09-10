@@ -88,7 +88,6 @@ export class TemplateService {
     } catch (error) {
       console.error('Error in createTemplate:', error)
       throw error instanceof Error ? error : new Error('Failed to create template')
-      throw templateError
     }
   }
 
@@ -147,7 +146,7 @@ export class TemplateService {
         updateData.kontext_anforderungen = this.extractVariablesFromContent(data.inhalt)
       }
 
-      const { data: template, error } = await this.supabase
+      const { data: template, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .update(updateData)
         .eq('id', id)
@@ -193,7 +192,7 @@ export class TemplateService {
    */
   async deleteTemplate(id: string): Promise<void> {
     try {
-      const { error } = await this.supabase
+      const { error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .delete()
         .eq('id', id)
@@ -235,7 +234,7 @@ export class TemplateService {
    */
   async getTemplate(id: string): Promise<Template> {
     try {
-      const { data: template, error } = await this.supabase
+      const { data: template, error } = await this.getSupabaseClient()
         .from('Vorlagen')
         .select('*')
         .eq('id', id)
@@ -281,7 +280,7 @@ export class TemplateService {
   async getUserTemplates(userId: string): Promise<Template[]> {
     const result = await TemplateErrorRecovery.safeOperation(
       async () => {
-        const { data: templates, error } = await this.supabase
+        const { data: templates, error } = await this.getSupabaseClient()
           .from('Vorlagen')
           .select('*')
           .eq('user_id', userId)
@@ -311,7 +310,7 @@ export class TemplateService {
    * Get templates by category for a user
    */
   async getTemplatesByCategory(userId: string, category: string): Promise<Template[]> {
-    const { data: templates, error } = await this.supabase
+    const { data: templates, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('*')
       .eq('user_id', userId)
@@ -329,7 +328,7 @@ export class TemplateService {
    * Get all categories for a user
    */
   async getUserCategories(userId: string): Promise<string[]> {
-    const { data: categories, error } = await this.supabase
+    const { data: categories, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('kategorie')
       .eq('user_id', userId)
@@ -364,7 +363,7 @@ export class TemplateService {
    * Get all template titles for a user (for duplicate checking)
    */
   async getUserTemplateTitles(userId: string): Promise<string[]> {
-    const { data: templates, error } = await this.supabase
+    const { data: templates, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('titel')
       .eq('user_id', userId)
@@ -380,7 +379,7 @@ export class TemplateService {
    * Get template count for a specific category
    */
   async getCategoryTemplateCount(userId: string, category: string): Promise<number> {
-    const { count, error } = await this.supabase
+    const { count, error } = await this.getSupabaseClient()
       .from('Vorlagen')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)

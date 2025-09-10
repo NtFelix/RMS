@@ -18,7 +18,7 @@ import {
 import { ConfirmationAlertDialog } from "@/components/ui/confirmation-alert-dialog"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
-import { templateService } from "@/lib/template-service"
+import { templateClientService } from "@/lib/template-client-service"
 import type { TemplateItem } from "@/types/template"
 
 interface TemplateContextMenuProps {
@@ -48,7 +48,7 @@ export function TemplateContextMenu({
       isNewTemplate: false,
       onSave: async (templateData) => {
         try {
-          await templateService.updateTemplate(template.id, {
+          await templateClientService.updateTemplate(template.id, {
             titel: templateData.titel,
             inhalt: templateData.inhalt,
             kategorie: templateData.kategorie
@@ -80,21 +80,14 @@ export function TemplateContextMenu({
 
   const handleDuplicate = async () => {
     try {
-      // Get current user ID from auth
-      const response = await fetch('/api/user/profile')
-      if (!response.ok) {
-        throw new Error('Failed to get user profile')
-      }
-      const userData = await response.json()
-      
       // Create duplicate with "(Copy)" suffix
       const duplicateTitle = `${template.name} (Copy)`
       
-      await templateService.createTemplate({
+      await templateClientService.createTemplate({
         titel: duplicateTitle,
         inhalt: JSON.parse(template.content),
         kategorie: template.category || '',
-        user_id: userData.id
+        kontext_anforderungen: template.variables || []
       })
       
       toast({
@@ -118,7 +111,7 @@ export function TemplateContextMenu({
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      await templateService.deleteTemplate(template.id)
+      await templateClientService.deleteTemplate(template.id)
       
       toast({
         title: "Vorlage gelöscht",

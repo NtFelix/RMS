@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate template content and variables (simplified for now)
-    let validationResult = { isValid: true, errors: [], warnings: [] }
+    let validationResult: { isValid: boolean; errors: any[]; warnings: any[] } = { isValid: true, errors: [], warnings: [] }
     try {
       validationResult = templateService.validateTemplateVariables(inhalt)
     } catch (error) {
