@@ -1,78 +1,194 @@
-import { toast } from '@/hooks/use-toast'
-import { TemplateError, TemplateErrorType } from '@/types/template'
-
 /**
- * Template Error Handler
- * Provides centralized error handling for template operations
+ * Template Error Handling System
+ * 
+ * Provides comprehensive error handling for template operations including
+ * error types, error boundaries, recovery mechanisms, and user feedback.
  */
-export class TemplateErrorHandler {
-  /**
-   * Handle template operation errors with user-friendly messages
-   */
-  static handleTemplateError(error: TemplateError | Error | unknown): void {
-    if (error instanceof Error && 'type' in error && 'recoverable' in error) {
-      const templateError = error as TemplateError
-      this.handleTypedError(templateError)
-    } else if (error instanceof Error) {
-      this.handleGenericError(error)
-    } else {
-      this.handleUnknownError(error)
-    }
-  }
 
+import { toast } from '@/hooks/use-toast'
+
+// Template Error Types
+export enum TemplateErrorType {
+  // Template CRUD Errors
+  TEMPLATE_NOT_FOUND = 'template_not_found',
+  TEMPLATE_LOAD_FAILED = 'template_load_failed',
+  TEMPLATE_SAVE_FAILED = 'template_save_failed',
+  TEMPLATE_DELETE_FAILED = 'template_delete_failed',
+  TEMPLATE_CREATE_FAILED = 'template_create_failed',
+  
+  // Content and Validation Errors
+  INVALID_CONTENT = 'invalid_content',
+  INVALID_TEMPLATE_DATA = 'invalid_template_data',
+  CONTENT_PARSE_ERROR = 'content_parse_error',
+  VARIABLE_EXTRACTION_FAILED = 'variable_extraction_failed',
+  
+  // Category Errors
+  CATEGORY_REQUIRED = 'category_required',
+  INVALID_CATEGORY = 'invalid_category',
+  CATEGORY_LOAD_FAILED = 'category_load_failed',
+  
+  // Title and Metadata Errors
+  TITLE_REQUIRED = 'title_required',
+  TITLE_TOO_LONG = 'title_too_long',
+  DUPLICATE_TITLE = 'duplicate_title',
+  
+  // Permission and Access Errors
+  PERMISSION_DENIED = 'permission_denied',
+  UNAUTHORIZED_ACCESS = 'unauthorized_access',
+  USER_NOT_AUTHENTICATED = 'user_not_authenticated',
+  
+  // Editor Errors
+  EDITOR_INITIALIZATION_FAILED = 'editor_initialization_failed',
+  EDITOR_CONTENT_CORRUPTION = 'editor_content_corruption',
+  EDITOR_EXTENSION_ERROR = 'editor_extension_error',
+  
+  // Network and Database Errors
+  NETWORK_ERROR = 'network_error',
+  DATABASE_ERROR = 'database_error',
+  CONNECTION_TIMEOUT = 'connection_timeout',
+  
+  // System Errors
+  UNKNOWN_ERROR = 'unknown_error',
+  SYSTEM_ERROR = 'system_error'
+}
+
+// Template Error Interface
+export interface TemplateError {
+  type: TemplateErrorType
+  message: string
+  details?: any
+  recoverable: boolean
+  timestamp: Date
+  context?: {
+    templateId?: string
+    userId?: string
+    operation?: string
+    component?: string
+  }
+}
+
+// Error Severity Levels
+export enum ErrorSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical'
+}
+
+// Error Recovery Actions
+export interface ErrorRecoveryAction {
+  label: string
+  action: () => void | Promise<void>
+  primary?: boolean
+}
+
+// Template Error Class
+export class TemplateErrorHandler {
+  private static errorLog: TemplateError[] = []
+  
   /**
-   * Handle typed template errors
+   * Create a new template error
    */
-  private static handleTypedError(error: TemplateError): void {
+  static createError(
+    type: TemplateErrorType,
+    message: string,
+    details?: any,
+    context?: TemplateError['context']
+  ): TemplateError {
+    const error: TemplateError = {
+      type,
+      message,
+      details,
+      recoverable: this.isRecoverable(type),
+      timestamp: new Date(),
+      context
+    }
+    
+    // Log the error
+    this.logError(error)
+    
+    return error
+  }
+  
+  /**
+   * Handle template errors with appropriate user feedback
+   */
+  static handleError(
+    error: TemplateError,
+    recoveryActions?: ErrorRecoveryAction[]
+  ): void {
+    const severity = this.getErrorSeverity(error.type)
+    
+    // Show user feedback based on error type
     switch (error.type) {
       case TemplateErrorType.TEMPLATE_NOT_FOUND:
         toast({
           title: "Vorlage nicht gefunden",
-          description: "Die angeforderte Vorlage existiert nicht mehr.",
+          description: "Die angeforderte Vorlage existiert nicht mehr oder wurde gelöscht.",
           variant: "destructive"
         })
         break
-      
-      case TemplateErrorType.SAVE_FAILED:
+        
+      case TemplateErrorType.TEMPLATE_SAVE_FAILED:
         toast({
           title: "Speichern fehlgeschlagen",
           description: "Die Vorlage konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-          variant: "destructive"
+          variant: "destructive",
+          action: recoveryActions?.[0] ? {
+            altText: recoveryActions[0].label,
+            onClick: recoveryActions[0].action
+          } : undefined
         })
         break
-      
-      case TemplateErrorType.LOAD_FAILED:
+        
+      case TemplateErrorType.TEMPLATE_LOAD_FAILED:
         toast({
           title: "Laden fehlgeschlagen",
-          description: "Die Vorlage konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+          description: "Die Vorlage konnte nicht geladen werden. Bitte aktualisieren Sie die Seite.",
           variant: "destructive"
         })
         break
-      
+        
+      case TemplateErrorType.TEMPLATE_DELETE_FAILED:
+        toast({
+          title: "Löschen fehlgeschlagen",
+          description: "Die Vorlage konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+          variant: "destructive"
+        })
+        break
+        
       case TemplateErrorType.INVALID_CONTENT:
         toast({
           title: "Ungültiger Inhalt",
-          description: "Der Vorlageninhalt ist ungültig. Bitte überprüfen Sie Ihre Eingaben.",
+          description: "Der Vorlageninhalt ist ungültig oder beschädigt.",
           variant: "destructive"
         })
         break
-      
+        
       case TemplateErrorType.CATEGORY_REQUIRED:
         toast({
           title: "Kategorie erforderlich",
-          description: "Bitte wählen Sie eine Kategorie für Ihre Vorlage aus.",
+          description: "Bitte wählen Sie eine Kategorie für die Vorlage aus.",
           variant: "destructive"
         })
         break
-      
+        
       case TemplateErrorType.TITLE_REQUIRED:
         toast({
           title: "Titel erforderlich",
-          description: "Bitte geben Sie einen Titel für Ihre Vorlage ein.",
+          description: "Bitte geben Sie einen Titel für die Vorlage ein.",
           variant: "destructive"
         })
         break
-      
+        
+      case TemplateErrorType.TITLE_TOO_LONG:
+        toast({
+          title: "Titel zu lang",
+          description: "Der Vorlagentitel darf maximal 255 Zeichen lang sein.",
+          variant: "destructive"
+        })
+        break
+        
       case TemplateErrorType.PERMISSION_DENIED:
         toast({
           title: "Zugriff verweigert",
@@ -80,169 +196,224 @@ export class TemplateErrorHandler {
           variant: "destructive"
         })
         break
-      
+        
+      case TemplateErrorType.EDITOR_INITIALIZATION_FAILED:
+        toast({
+          title: "Editor-Fehler",
+          description: "Der Vorlagen-Editor konnte nicht initialisiert werden. Bitte laden Sie die Seite neu.",
+          variant: "destructive"
+        })
+        break
+        
+      case TemplateErrorType.NETWORK_ERROR:
+        toast({
+          title: "Netzwerkfehler",
+          description: "Verbindungsproblem. Bitte überprüfen Sie Ihre Internetverbindung.",
+          variant: "destructive"
+        })
+        break
+        
+      case TemplateErrorType.DATABASE_ERROR:
+        toast({
+          title: "Datenbankfehler",
+          description: "Ein Datenbankfehler ist aufgetreten. Bitte versuchen Sie es später erneut.",
+          variant: "destructive"
+        })
+        break
+        
       default:
-        this.handleGenericError(new Error(error.message))
+        toast({
+          title: "Unbekannter Fehler",
+          description: error.message || "Ein unerwarteter Fehler ist aufgetreten.",
+          variant: "destructive"
+        })
         break
     }
-  }
-
-  /**
-   * Handle generic JavaScript errors
-   */
-  private static handleGenericError(error: Error): void {
-    console.error('Template operation error:', error)
     
-    // Check for common error patterns
-    if (error.message.includes('fetch')) {
-      toast({
-        title: "Verbindungsfehler",
-        description: "Es gab ein Problem bei der Verbindung zum Server. Bitte versuchen Sie es erneut.",
-        variant: "destructive"
-      })
-    } else if (error.message.includes('unauthorized') || error.message.includes('401')) {
-      toast({
-        title: "Anmeldung erforderlich",
-        description: "Bitte melden Sie sich an, um fortzufahren.",
-        variant: "destructive"
-      })
-    } else if (error.message.includes('validation')) {
-      toast({
-        title: "Validierungsfehler",
-        description: "Bitte überprüfen Sie Ihre Eingaben und versuchen Sie es erneut.",
-        variant: "destructive"
-      })
-    } else {
-      toast({
-        title: "Unerwarteter Fehler",
-        description: error.message || "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
-        variant: "destructive"
+    // Report critical errors
+    if (severity === ErrorSeverity.CRITICAL) {
+      this.reportError(error)
+    }
+  }
+  
+  /**
+   * Determine if an error type is recoverable
+   */
+  private static isRecoverable(type: TemplateErrorType): boolean {
+    const recoverableErrors = [
+      TemplateErrorType.TEMPLATE_SAVE_FAILED,
+      TemplateErrorType.TEMPLATE_LOAD_FAILED,
+      TemplateErrorType.NETWORK_ERROR,
+      TemplateErrorType.CONNECTION_TIMEOUT,
+      TemplateErrorType.CATEGORY_REQUIRED,
+      TemplateErrorType.TITLE_REQUIRED,
+      TemplateErrorType.TITLE_TOO_LONG,
+      TemplateErrorType.INVALID_CATEGORY
+    ]
+    
+    return recoverableErrors.includes(type)
+  }
+  
+  /**
+   * Get error severity level
+   */
+  private static getErrorSeverity(type: TemplateErrorType): ErrorSeverity {
+    switch (type) {
+      case TemplateErrorType.SYSTEM_ERROR:
+      case TemplateErrorType.DATABASE_ERROR:
+      case TemplateErrorType.EDITOR_CONTENT_CORRUPTION:
+        return ErrorSeverity.CRITICAL
+        
+      case TemplateErrorType.PERMISSION_DENIED:
+      case TemplateErrorType.UNAUTHORIZED_ACCESS:
+      case TemplateErrorType.TEMPLATE_DELETE_FAILED:
+        return ErrorSeverity.HIGH
+        
+      case TemplateErrorType.TEMPLATE_SAVE_FAILED:
+      case TemplateErrorType.TEMPLATE_LOAD_FAILED:
+      case TemplateErrorType.NETWORK_ERROR:
+      case TemplateErrorType.EDITOR_INITIALIZATION_FAILED:
+        return ErrorSeverity.MEDIUM
+        
+      default:
+        return ErrorSeverity.LOW
+    }
+  }
+  
+  /**
+   * Log error for debugging and monitoring
+   */
+  private static logError(error: TemplateError): void {
+    // Add to in-memory log
+    this.errorLog.push(error)
+    
+    // Keep only last 100 errors
+    if (this.errorLog.length > 100) {
+      this.errorLog = this.errorLog.slice(-100)
+    }
+    
+    // Console logging for development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Template Error:', {
+        type: error.type,
+        message: error.message,
+        details: error.details,
+        context: error.context,
+        timestamp: error.timestamp
       })
     }
   }
-
+  
   /**
-   * Handle unknown errors
+   * Report critical errors to monitoring service
    */
-  private static handleUnknownError(error: unknown): void {
-    console.error('Unknown template error:', error)
+  private static reportError(error: TemplateError): void {
+    // In a real application, this would send to a monitoring service
+    // like Sentry, LogRocket, or similar
+    console.error('CRITICAL Template Error:', error)
     
-    toast({
-      title: "Unbekannter Fehler",
-      description: "Ein unbekannter Fehler ist aufgetreten. Bitte versuchen Sie es erneut.",
-      variant: "destructive"
-    })
+    // Could integrate with PostHog for error tracking
+    if (typeof window !== 'undefined' && (window as any).posthog) {
+      (window as any).posthog.capture('template_error', {
+        error_type: error.type,
+        error_message: error.message,
+        error_context: error.context,
+        error_severity: this.getErrorSeverity(error.type)
+      })
+    }
   }
-
+  
   /**
-   * Create a template error with proper typing
+   * Get error log for debugging
    */
-  static createTemplateError(
-    type: TemplateErrorType,
-    message: string,
-    details?: any,
-    recoverable: boolean = true
+  static getErrorLog(): TemplateError[] {
+    return [...this.errorLog]
+  }
+  
+  /**
+   * Clear error log
+   */
+  static clearErrorLog(): void {
+    this.errorLog = []
+  }
+  
+  /**
+   * Create error from caught exception
+   */
+  static fromException(
+    exception: any,
+    context?: TemplateError['context']
   ): TemplateError {
-    return {
-      type,
-      message,
-      details,
-      recoverable
-    }
-  }
-
-  /**
-   * Handle API response errors
-   */
-  static async handleApiError(response: Response): Promise<never> {
-    let errorMessage = 'API request failed'
+    let type = TemplateErrorType.UNKNOWN_ERROR
+    let message = 'Ein unerwarteter Fehler ist aufgetreten'
     
-    try {
-      const errorData = await response.json()
-      errorMessage = errorData.error || errorMessage
-    } catch {
-      // If we can't parse the error response, use the status text
-      errorMessage = response.statusText || errorMessage
+    // Try to determine error type from exception
+    if (exception?.message) {
+      message = exception.message
+      
+      // Network errors
+      if (exception.message.includes('fetch') || exception.message.includes('network')) {
+        type = TemplateErrorType.NETWORK_ERROR
+      }
+      // Database errors
+      else if (exception.message.includes('database') || exception.message.includes('supabase')) {
+        type = TemplateErrorType.DATABASE_ERROR
+      }
+      // Permission errors
+      else if (exception.message.includes('permission') || exception.message.includes('unauthorized')) {
+        type = TemplateErrorType.PERMISSION_DENIED
+      }
     }
-
-    // Map HTTP status codes to template error types
-    let errorType: TemplateErrorType
     
-    switch (response.status) {
-      case 401:
-        errorType = TemplateErrorType.PERMISSION_DENIED
-        break
-      case 404:
-        errorType = TemplateErrorType.TEMPLATE_NOT_FOUND
-        break
-      case 400:
-        errorType = TemplateErrorType.INVALID_CONTENT
-        break
-      default:
-        errorType = TemplateErrorType.SAVE_FAILED
-        break
-    }
-
-    const templateError = this.createTemplateError(
-      errorType,
-      errorMessage,
-      { status: response.status, statusText: response.statusText }
-    )
-
-    this.handleTemplateError(templateError)
-    throw templateError
-  }
-
-  /**
-   * Wrap async operations with error handling
-   */
-  static async withErrorHandling<T>(
-    operation: () => Promise<T>,
-    context: string = 'Template operation'
-  ): Promise<T | null> {
-    try {
-      return await operation()
-    } catch (error) {
-      console.error(`${context} failed:`, error)
-      this.handleTemplateError(error)
-      return null
-    }
-  }
-
-  /**
-   * Validate template data before operations
-   */
-  static validateTemplateData(data: {
-    titel?: string
-    kategorie?: string
-    inhalt?: object
-  }): void {
-    if (data.titel !== undefined && (!data.titel || !data.titel.trim())) {
-      throw this.createTemplateError(
-        TemplateErrorType.TITLE_REQUIRED,
-        'Template title is required and cannot be empty'
-      )
-    }
-
-    if (data.kategorie !== undefined && (!data.kategorie || !data.kategorie.trim())) {
-      throw this.createTemplateError(
-        TemplateErrorType.CATEGORY_REQUIRED,
-        'Template category is required and cannot be empty'
-      )
-    }
-
-    if (data.inhalt !== undefined && (!data.inhalt || typeof data.inhalt !== 'object')) {
-      throw this.createTemplateError(
-        TemplateErrorType.INVALID_CONTENT,
-        'Template content must be a valid object'
-      )
-    }
+    return this.createError(type, message, exception, context)
   }
 }
 
-// Export convenience functions
-export const handleTemplateError = TemplateErrorHandler.handleTemplateError.bind(TemplateErrorHandler)
-export const createTemplateError = TemplateErrorHandler.createTemplateError.bind(TemplateErrorHandler)
-export const handleApiError = TemplateErrorHandler.handleApiError.bind(TemplateErrorHandler)
-export const withErrorHandling = TemplateErrorHandler.withErrorHandling.bind(TemplateErrorHandler)
-export const validateTemplateData = TemplateErrorHandler.validateTemplateData.bind(TemplateErrorHandler)
+// Error Recovery Utilities
+export class TemplateErrorRecovery {
+  /**
+   * Retry operation with exponential backoff
+   */
+  static async retryOperation<T>(
+    operation: () => Promise<T>,
+    maxRetries: number = 3,
+    baseDelay: number = 1000
+  ): Promise<T> {
+    let lastError: any
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await operation()
+      } catch (error) {
+        lastError = error
+        
+        if (attempt === maxRetries) {
+          throw error
+        }
+        
+        // Exponential backoff
+        const delay = baseDelay * Math.pow(2, attempt)
+        await new Promise(resolve => setTimeout(resolve, delay))
+      }
+    }
+    
+    throw lastError
+  }
+  
+  /**
+   * Safe operation wrapper that handles errors gracefully
+   */
+  static async safeOperation<T>(
+    operation: () => Promise<T>,
+    fallback?: T,
+    context?: TemplateError['context']
+  ): Promise<T | undefined> {
+    try {
+      return await operation()
+    } catch (error) {
+      const templateError = TemplateErrorHandler.fromException(error, context)
+      TemplateErrorHandler.handleError(templateError)
+      return fallback
+    }
+  }
+}

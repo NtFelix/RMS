@@ -9,6 +9,13 @@ import {
   getContextRequirements as getPredefinedContextRequirements,
   isValidVariableId
 } from './template-variables'
+import { 
+  TemplateErrorHandler, 
+  TemplateErrorType, 
+  TemplateErrorRecovery 
+} from './template-error-handler'
+import { TemplateErrorReporter } from './template-error-logger'
+import { TemplateValidator } from './template-validation'
 import type {
   Template,
   CreateTemplateRequest,
@@ -33,75 +40,183 @@ export class TemplateService {
    * Create a new template
    */
   async createTemplate(data: CreateTemplateRequest): Promise<Template> {
-    // Extract variables from content before saving
-    const variables = this.extractVariablesFromContent(data.inhalt)
-    
-    const { data: template, error } = await this.supabase
-      .from('Vorlagen')
-      .insert({
-        titel: data.titel,
-        inhalt: data.inhalt,
-        kategorie: data.kategorie,
-        user_id: data.user_id,
-        kontext_anforderungen: variables
-      })
-      .select()
-      .single()
+    try {
+      // Validate template data
+      const validator = new TemplateValidator()
+      const validation = validator.validate(data)
+      
+      if (!validation.isValid) {
+        const templateError = TemplateErrorHandler.createError(
+          TemplateErrorType.INVALID_TEMPLATE_DATA,
+          'Template validation failed',
+          validation.errors,
+          { userId: data.user_id, operation: 'create' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
+      }
 
-    if (error) {
-      throw new Error(`Failed to create template: ${error.message}`)
+      // Extract variables from content before saving
+      const variables = this.extractVariablesFromContent(data.inhalt)
+      
+      const { data: template, error } = await this.supabase
+        .from('Vorlagen')
+        .insert({
+          titel: data.titel,
+          inhalt: data.inhalt,
+          kategorie: data.kategorie,
+          user_id: data.user_id,
+          kontext_anforderungen: variables
+        })
+        .select()
+        .single()
+
+      if (error) {
+        const templateError = TemplateErrorHandler.createError(
+          TemplateErrorType.TEMPLATE_CREATE_FAILED,
+          `Failed to create template: ${error.message}`,
+          error,
+          { userId: data.user_id, operation: 'create' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
+      }
+
+      return template
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('template_error')) {
+        throw error // Re-throw template errors
+      }
+      
+      const templateError = TemplateErrorHandler.fromException(
+        error,
+        { userId: data.user_id, operation: 'create' }
+      )
+      TemplateErrorReporter.reportError(templateError)
+      throw templateError
     }
-
-    return template
   }
 
   /**
    * Update an existing template
    */
   async updateTemplate(id: string, data: UpdateTemplateRequest): Promise<Template> {
-    const updateData: any = {
-      aktualisiert_am: new Date().toISOString()
+    try {
+      // Validate template data if provided
+      if (data.titel || data.kategorie || data.inhalt) {
+        const validator = new TemplateValidator()
+        const validation = validator.validate(data)
+        
+        if (!validation.isValid) {
+          const templateError = TemplateErrorHandler.createError(
+            TemplateErrorType.INVALID_TEMPLATE_DATA,
+            'Template validation failed',
+            validation.errors,
+            { templateId: id, operation: 'update' }
+          )
+          TemplateErrorReporter.reportError(templateError)
+          throw templateError
+        }
+      }
+
+      const updateData: any = {
+        aktualisiert_am: new Date().toISOString()
+      }
+
+      if (data.titel !== undefined) {
+        updateData.titel = data.titel
+      }
+
+      if (data.kategorie !== undefined) {
+        updateData.kategorie = data.kategorie
+      }
+
+      if (data.inhalt !== undefined) {
+        updateData.inhalt = data.inhalt
+        // Re-extract variables when content changes
+        updateData.kontext_anforderungen = this.extractVariablesFromContent(data.inhalt)
+      }
+
+      const { data: template, error } = await this.supabase
+        .from('Vorlagen')
+        .update(updateData)
+        .eq('id', id)
+        .select()
+        .single()
+
+      if (error) {
+        let errorType = TemplateErrorType.TEMPLATE_SAVE_FAILED
+        
+        if (error.code === 'PGRST116') {
+          errorType = TemplateErrorType.TEMPLATE_NOT_FOUND
+        } else if (error.message.includes('permission') || error.message.includes('RLS')) {
+          errorType = TemplateErrorType.PERMISSION_DENIED
+        }
+        
+        const templateError = TemplateErrorHandler.createError(
+          errorType,
+          `Failed to update template: ${error.message}`,
+          error,
+          { templateId: id, operation: 'update' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
+      }
+
+      return template
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('template_error')) {
+        throw error // Re-throw template errors
+      }
+      
+      const templateError = TemplateErrorHandler.fromException(
+        error,
+        { templateId: id, operation: 'update' }
+      )
+      TemplateErrorReporter.reportError(templateError)
+      throw templateError
     }
-
-    if (data.titel !== undefined) {
-      updateData.titel = data.titel
-    }
-
-    if (data.kategorie !== undefined) {
-      updateData.kategorie = data.kategorie
-    }
-
-    if (data.inhalt !== undefined) {
-      updateData.inhalt = data.inhalt
-      // Re-extract variables when content changes
-      updateData.kontext_anforderungen = this.extractVariablesFromContent(data.inhalt)
-    }
-
-    const { data: template, error } = await this.supabase
-      .from('Vorlagen')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single()
-
-    if (error) {
-      throw new Error(`Failed to update template: ${error.message}`)
-    }
-
-    return template
   }
 
   /**
    * Delete a template
    */
   async deleteTemplate(id: string): Promise<void> {
-    const { error } = await this.supabase
-      .from('Vorlagen')
-      .delete()
-      .eq('id', id)
+    try {
+      const { error } = await this.supabase
+        .from('Vorlagen')
+        .delete()
+        .eq('id', id)
 
-    if (error) {
-      throw new Error(`Failed to delete template: ${error.message}`)
+      if (error) {
+        let errorType = TemplateErrorType.TEMPLATE_DELETE_FAILED
+        
+        if (error.code === 'PGRST116') {
+          errorType = TemplateErrorType.TEMPLATE_NOT_FOUND
+        } else if (error.message.includes('permission') || error.message.includes('RLS')) {
+          errorType = TemplateErrorType.PERMISSION_DENIED
+        }
+        
+        const templateError = TemplateErrorHandler.createError(
+          errorType,
+          `Failed to delete template: ${error.message}`,
+          error,
+          { templateId: id, operation: 'delete' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('template_error')) {
+        throw error // Re-throw template errors
+      }
+      
+      const templateError = TemplateErrorHandler.fromException(
+        error,
+        { templateId: id, operation: 'delete' }
+      )
+      TemplateErrorReporter.reportError(templateError)
+      throw templateError
     }
   }
 
@@ -109,34 +224,75 @@ export class TemplateService {
    * Get a single template by ID
    */
   async getTemplate(id: string): Promise<Template> {
-    const { data: template, error } = await this.supabase
-      .from('Vorlagen')
-      .select('*')
-      .eq('id', id)
-      .single()
+    try {
+      const { data: template, error } = await this.supabase
+        .from('Vorlagen')
+        .select('*')
+        .eq('id', id)
+        .single()
 
-    if (error) {
-      throw new Error(`Failed to get template: ${error.message}`)
+      if (error) {
+        let errorType = TemplateErrorType.TEMPLATE_LOAD_FAILED
+        
+        if (error.code === 'PGRST116') {
+          errorType = TemplateErrorType.TEMPLATE_NOT_FOUND
+        } else if (error.message.includes('permission') || error.message.includes('RLS')) {
+          errorType = TemplateErrorType.PERMISSION_DENIED
+        }
+        
+        const templateError = TemplateErrorHandler.createError(
+          errorType,
+          `Failed to get template: ${error.message}`,
+          error,
+          { templateId: id, operation: 'get' }
+        )
+        TemplateErrorReporter.reportError(templateError)
+        throw templateError
+      }
+
+      return template
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('template_error')) {
+        throw error // Re-throw template errors
+      }
+      
+      const templateError = TemplateErrorHandler.fromException(
+        error,
+        { templateId: id, operation: 'get' }
+      )
+      TemplateErrorReporter.reportError(templateError)
+      throw templateError
     }
-
-    return template
   }
 
   /**
    * Get all templates for a user
    */
   async getUserTemplates(userId: string): Promise<Template[]> {
-    const { data: templates, error } = await this.supabase
-      .from('Vorlagen')
-      .select('*')
-      .eq('user_id', userId)
-      .order('erstellungsdatum', { ascending: false })
+    return TemplateErrorRecovery.safeOperation(
+      async () => {
+        const { data: templates, error } = await this.supabase
+          .from('Vorlagen')
+          .select('*')
+          .eq('user_id', userId)
+          .order('erstellungsdatum', { ascending: false })
 
-    if (error) {
-      throw new Error(`Failed to get user templates: ${error.message}`)
-    }
+        if (error) {
+          const templateError = TemplateErrorHandler.createError(
+            TemplateErrorType.TEMPLATE_LOAD_FAILED,
+            `Failed to get user templates: ${error.message}`,
+            error,
+            { userId, operation: 'getUserTemplates' }
+          )
+          TemplateErrorReporter.reportError(templateError)
+          throw templateError
+        }
 
-    return templates || []
+        return templates || []
+      },
+      [], // fallback to empty array
+      { userId, operation: 'getUserTemplates' }
+    ) || []
   }
 
   /**
