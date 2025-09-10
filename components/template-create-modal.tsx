@@ -26,7 +26,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
-import { EnhancedFileEditor } from "@/components/enhanced-file-editor"
+import { TiptapTemplateEditor } from "@/components/tiptap-template-editor"
 import { CONTEXT_MAPPINGS, type ContextType, type Template } from "@/types/template-system"
 import { templateValidator } from "@/lib/template-system/template-validation"
 import { templateErrorHandler, withTemplateErrorHandling } from "@/lib/template-system/template-error-handler"
@@ -480,8 +480,8 @@ export function TemplateCreateModal() {
         </DialogContent>
       </Dialog>
 
-      {/* Enhanced File Editor for content editing */}
-      <EnhancedFileEditor
+      {/* Tiptap Template Editor for content editing */}
+      <TiptapTemplateEditor
         isOpen={showEditor}
         onClose={handleEditorClose}
         initialContent={editorContent}

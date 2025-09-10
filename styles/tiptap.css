@@ -1,0 +1,123 @@
+/* Tiptap Editor Styles */
+.ProseMirror {
+  outline: none;
+  padding: 1rem;
+  min-height: 400px;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  line-height: 1.6;
+}
+
+.ProseMirror p {
+  margin: 0.5rem 0;
+}
+
+.ProseMirror p:first-child {
+  margin-top: 0;
+}
+
+.ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+/* Placeholder styles */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror .is-editor-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Mention styles */
+.ProseMirror .mention {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  border-radius: 0.375rem;
+  padding: 0.125rem 0.375rem;
+  color: rgb(59, 130, 246);
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+  margin: 0 0.125rem;
+}
+
+.ProseMirror .mention:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Mention suggestion decoration */
+.ProseMirror .mention-suggestion {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+  color: rgb(59, 130, 246);
+}
+
+/* Dark mode styles */
+.dark .ProseMirror .mention {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: rgb(147, 197, 253);
+}
+
+.dark .ProseMirror .mention:hover {
+  background-color: rgba(59, 130, 246, 0.25);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.dark .ProseMirror .mention-suggestion {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: rgb(147, 197, 253);
+}
+
+/* Focus styles */
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Selection styles */
+.ProseMirror ::selection {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.dark .ProseMirror ::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Tippy.js theme for mentions */
+.tippy-box[data-theme~='light-border'] {
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.tippy-box[data-theme~='light-border'] .tippy-arrow {
+  color: white;
+}
+
+.tippy-box[data-theme~='light-border'] .tippy-arrow:before {
+  border-color: #e5e7eb;
+}
+
+/* Dark mode tippy */
+.dark .tippy-box[data-theme~='light-border'] {
+  background-color: #1f2937;
+  border-color: #374151;
+}
+
+.dark .tippy-box[data-theme~='light-border'] .tippy-arrow {
+  color: #1f2937;
+}
+
+.dark .tippy-box[data-theme~='light-border'] .tippy-arrow:before {
+  border-color: #374151;
+}
