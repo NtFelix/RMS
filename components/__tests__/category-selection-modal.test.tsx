@@ -1,17 +1,23 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { CategorySelectionModal } from '@/components/category-selection-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
+import { useToast } from '@/hooks/use-toast'
 
-// Mock the modal store
+// Mock the hooks
 jest.mock('@/hooks/use-modal-store')
+jest.mock('@/hooks/use-toast')
+
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
+const mockUseToast = useToast as jest.MockedFunction<typeof useToast>
 
 describe('CategorySelectionModal', () => {
-  const mockCloseCategorySelectionModal = jest.fn()
+  const mockToast = jest.fn()
   const mockOnCategorySelected = jest.fn()
   const mockOnCancel = jest.fn()
+  const mockCloseCategorySelectionModal = jest.fn()
 
-  const defaultStoreState = {
+  const defaultModalState = {
     isCategorySelectionModalOpen: false,
     categorySelectionData: undefined,
     closeCategorySelectionModal: mockCloseCategorySelectionModal,
@@ -19,19 +25,25 @@ describe('CategorySelectionModal', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    mockUseModalStore.mockReturnValue(defaultStoreState as any)
+    
+    mockUseToast.mockReturnValue({
+      toast: mockToast,
+    })
+
+    mockUseModalStore.mockReturnValue({
+      ...defaultModalState,
+    } as any)
   })
 
   it('should not render when modal is closed', () => {
     render(<CategorySelectionModal />)
     
-    // Modal should not be visible
     expect(screen.queryByText('Kategorie auswählen')).not.toBeInTheDocument()
   })
 
-  it('should render when modal is open with existing categories', () => {
+  it('should render when modal is open', () => {
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
         existingCategories: ['Mietverträge', 'Kündigungen'],
@@ -42,21 +54,40 @@ describe('CategorySelectionModal', () => {
 
     render(<CategorySelectionModal />)
     
-    // Modal should be visible
     expect(screen.getByText('Kategorie auswählen')).toBeInTheDocument()
-    expect(screen.getByText('Wählen Sie eine Kategorie für Ihre neue Vorlage aus oder erstellen Sie eine neue.')).toBeInTheDocument()
-    
-    // Existing categories should be shown
-    expect(screen.getByText('Mietverträge')).toBeInTheDocument()
-    expect(screen.getByText('Kündigungen')).toBeInTheDocument()
+    expect(screen.getByText('Wählen Sie eine bestehende Kategorie aus oder erstellen Sie eine neue für Ihre Vorlage.')).toBeInTheDocument()
   })
 
-  it('should handle category selection', async () => {
+  it('should display existing categories', () => {
+    const existingCategories = ['Mietverträge', 'Kündigungen', 'Sonstiges']
+    
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
-        existingCategories: ['Mietverträge', 'Kündigungen'],
+        existingCategories,
+        onCategorySelected: mockOnCategorySelected,
+        onCancel: mockOnCancel,
+      },
+    } as any)
+
+    render(<CategorySelectionModal />)
+    
+    expect(screen.getByText('Bestehende Kategorien (3)')).toBeInTheDocument()
+    existingCategories.forEach(category => {
+      expect(screen.getByText(category)).toBeInTheDocument()
+    })
+  })
+
+  it('should allow selecting an existing category', async () => {
+    const user = userEvent.setup()
+    const existingCategories = ['Mietverträge', 'Kündigungen']
+    
+    mockUseModalStore.mockReturnValue({
+      ...defaultModalState,
+      isCategorySelectionModalOpen: true,
+      categorySelectionData: {
+        existingCategories,
         onCategorySelected: mockOnCategorySelected,
         onCancel: mockOnCancel,
       },
@@ -65,27 +96,29 @@ describe('CategorySelectionModal', () => {
     render(<CategorySelectionModal />)
     
     // Click on a category
-    const categoryBadge = screen.getByText('Mietverträge')
-    fireEvent.click(categoryBadge)
+    await user.click(screen.getByText('Mietverträge'))
     
-    // Category should be selected (badge should change appearance)
-    expect(categoryBadge.closest('.bg-primary')).toBeTruthy()
+    // Should show selection summary
+    expect(screen.getByText('Ausgewählte Kategorie:')).toBeInTheDocument()
+    // Check for the selected category in the summary section specifically
+    const summarySection = screen.getByText('Ausgewählte Kategorie:').closest('div')
+    expect(summarySection).toHaveTextContent('Mietverträge')
     
-    // Click confirm button
-    const confirmButton = screen.getByText('Weiter')
-    expect(confirmButton).not.toBeDisabled()
-    fireEvent.click(confirmButton)
+    // Should enable the continue button
+    const continueButton = screen.getByText('Fortfahren')
+    expect(continueButton).not.toBeDisabled()
     
-    // Should call the callback and close modal
-    await waitFor(() => {
-      expect(mockOnCategorySelected).toHaveBeenCalledWith('Mietverträge')
-      expect(mockCloseCategorySelectionModal).toHaveBeenCalled()
-    })
+    // Click continue
+    await user.click(continueButton)
+    
+    expect(mockOnCategorySelected).toHaveBeenCalledWith('Mietverträge')
   })
 
-  it('should handle new category creation', async () => {
+  it('should allow creating a new category', async () => {
+    const user = userEvent.setup()
+    
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
         existingCategories: ['Mietverträge'],
@@ -96,34 +129,82 @@ describe('CategorySelectionModal', () => {
 
     render(<CategorySelectionModal />)
     
-    // Click "Neue Kategorie erstellen" button
-    const createNewButton = screen.getByRole('button', { name: /neue kategorie erstellen/i })
-    fireEvent.click(createNewButton)
+    // Click "Neu" button
+    await user.click(screen.getByText('Neu'))
     
-    // Input field should appear
+    // Should show input field
     const input = screen.getByPlaceholderText('Kategoriename eingeben...')
     expect(input).toBeInTheDocument()
     
     // Type new category name
-    fireEvent.change(input, { target: { value: 'Neue Kategorie' } })
+    await user.type(input, 'Neue Kategorie')
     
-    // Confirm button should be enabled
-    const confirmButton = screen.getByText('Weiter')
-    expect(confirmButton).not.toBeDisabled()
+    // Should show selection summary with "Neu" badge
+    expect(screen.getByText('Ausgewählte Kategorie:')).toBeInTheDocument()
+    const summarySection = screen.getByText('Ausgewählte Kategorie:').closest('div')
+    expect(summarySection).toHaveTextContent('Neue Kategorie')
+    expect(summarySection).toHaveTextContent('Neu')
     
-    // Click confirm
-    fireEvent.click(confirmButton)
+    // Should enable the create button
+    const createButton = screen.getByText('Erstellen & Fortfahren')
+    expect(createButton).not.toBeDisabled()
     
-    // Should call callback with new category name
-    await waitFor(() => {
-      expect(mockOnCategorySelected).toHaveBeenCalledWith('Neue Kategorie')
-      expect(mockCloseCategorySelectionModal).toHaveBeenCalled()
+    // Click create
+    await user.click(createButton)
+    
+    expect(mockOnCategorySelected).toHaveBeenCalledWith('Neue Kategorie')
+  })
+
+  it('should validate new category name', async () => {
+    const user = userEvent.setup()
+    
+    mockUseModalStore.mockReturnValue({
+      ...defaultModalState,
+      isCategorySelectionModalOpen: true,
+      categorySelectionData: {
+        existingCategories: ['Mietverträge'],
+        onCategorySelected: mockOnCategorySelected,
+        onCancel: mockOnCancel,
+      },
+    } as any)
+
+    render(<CategorySelectionModal />)
+    
+    // Click "Neu" button
+    await user.click(screen.getByText('Neu'))
+    
+    const input = screen.getByPlaceholderText('Kategoriename eingeben...')
+    
+    // Test empty name - button should be disabled
+    const createButton = screen.getByText('Erstellen & Fortfahren')
+    expect(createButton).toBeDisabled()
+    
+    // Test too short name
+    await user.clear(input)
+    await user.type(input, 'A')
+    await user.click(screen.getByText('Erstellen & Fortfahren'))
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Ungültiger Kategoriename",
+      description: "Der Kategoriename muss mindestens 2 Zeichen lang sein.",
+      variant: "destructive"
+    })
+    
+    // Test duplicate name
+    await user.clear(input)
+    await user.type(input, 'Mietverträge')
+    await user.click(screen.getByText('Erstellen & Fortfahren'))
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Ungültiger Kategoriename",
+      description: "Diese Kategorie existiert bereits.",
+      variant: "destructive"
     })
   })
 
-  it('should handle Enter key in new category input', async () => {
+  it('should handle invalid characters in category name', async () => {
+    const user = userEvent.setup()
+    
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
         existingCategories: [],
@@ -134,25 +215,27 @@ describe('CategorySelectionModal', () => {
 
     render(<CategorySelectionModal />)
     
-    // Click "Neue Kategorie erstellen" button
-    const createNewButton = screen.getByRole('button', { name: /neue kategorie erstellen/i })
-    fireEvent.click(createNewButton)
+    // Click "Neu" button
+    await user.click(screen.getByText('Neu'))
     
-    // Type in input and press Enter
     const input = screen.getByPlaceholderText('Kategoriename eingeben...')
-    fireEvent.change(input, { target: { value: 'Test Kategorie' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
     
-    // Should call callback
-    await waitFor(() => {
-      expect(mockOnCategorySelected).toHaveBeenCalledWith('Test Kategorie')
-      expect(mockCloseCategorySelectionModal).toHaveBeenCalled()
+    // Test invalid characters
+    await user.type(input, 'Test@Category!')
+    await user.click(screen.getByText('Erstellen & Fortfahren'))
+    
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Ungültiger Kategoriename",
+      description: "Der Kategoriename darf nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche enthalten.",
+      variant: "destructive"
     })
   })
 
-  it('should handle cancel action', () => {
+  it('should handle cancel action', async () => {
+    const user = userEvent.setup()
+    
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
         existingCategories: ['Mietverträge'],
@@ -164,35 +247,82 @@ describe('CategorySelectionModal', () => {
     render(<CategorySelectionModal />)
     
     // Click cancel button
-    const cancelButton = screen.getByText('Abbrechen')
-    fireEvent.click(cancelButton)
+    await user.click(screen.getByText('Abbrechen'))
     
-    // Should call cancel callback and close modal
     expect(mockOnCancel).toHaveBeenCalled()
     expect(mockCloseCategorySelectionModal).toHaveBeenCalled()
   })
 
-  it('should disable confirm button when no category is selected', () => {
+  it('should reset state when modal opens', () => {
+    const { rerender } = render(<CategorySelectionModal />)
+    
+    // First render with modal closed
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
+      isCategorySelectionModalOpen: false,
+    } as any)
+    
+    rerender(<CategorySelectionModal />)
+    
+    // Then render with modal open
+    mockUseModalStore.mockReturnValue({
+      ...defaultModalState,
+      isCategorySelectionModalOpen: true,
+      categorySelectionData: {
+        existingCategories: ['Test'],
+        onCategorySelected: mockOnCategorySelected,
+        onCancel: mockOnCancel,
+      },
+    } as any)
+    
+    rerender(<CategorySelectionModal />)
+    
+    // Should not show any selected category initially
+    expect(screen.queryByText('Ausgewählte Kategorie:')).not.toBeInTheDocument()
+  })
+
+  it('should disable buttons when processing', async () => {
+    const user = userEvent.setup()
+    
+    // Mock a slow onCategorySelected function
+    const slowOnCategorySelected = jest.fn().mockImplementation(() => 
+      new Promise(resolve => setTimeout(resolve, 100))
+    )
+    
+    mockUseModalStore.mockReturnValue({
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
         existingCategories: ['Mietverträge'],
-        onCategorySelected: mockOnCategorySelected,
+        onCategorySelected: slowOnCategorySelected,
         onCancel: mockOnCancel,
       },
     } as any)
 
     render(<CategorySelectionModal />)
     
-    // Confirm button should be disabled initially
-    const confirmButton = screen.getByText('Weiter')
-    expect(confirmButton).toBeDisabled()
+    // Select a category
+    await user.click(screen.getByText('Mietverträge'))
+    
+    // Click continue
+    const continueButton = screen.getByText('Fortfahren')
+    await user.click(continueButton)
+    
+    // Buttons should be disabled while processing
+    expect(screen.getByText('Abbrechen')).toBeDisabled()
+    expect(continueButton).toBeDisabled()
+    
+    // Wait for processing to complete
+    await waitFor(() => {
+      expect(slowOnCategorySelected).toHaveBeenCalledWith('Mietverträge')
+    })
   })
 
-  it('should disable confirm button when new category input is empty', () => {
+  it('should show success toast for new categories', async () => {
+    const user = userEvent.setup()
+    
     mockUseModalStore.mockReturnValue({
-      ...defaultStoreState,
+      ...defaultModalState,
       isCategorySelectionModalOpen: true,
       categorySelectionData: {
         existingCategories: [],
@@ -203,21 +333,14 @@ describe('CategorySelectionModal', () => {
 
     render(<CategorySelectionModal />)
     
-    // Click "Neue Kategorie erstellen" button
-    const createNewButton = screen.getByRole('button', { name: /neue kategorie erstellen/i })
-    fireEvent.click(createNewButton)
+    // Create new category
+    await user.click(screen.getByText('Neu'))
+    await user.type(screen.getByPlaceholderText('Kategoriename eingeben...'), 'Neue Kategorie')
+    await user.click(screen.getByText('Erstellen & Fortfahren'))
     
-    // Confirm button should be disabled when input is empty
-    const confirmButton = screen.getByText('Weiter')
-    expect(confirmButton).toBeDisabled()
-    
-    // Type something and it should be enabled
-    const input = screen.getByPlaceholderText('Kategoriename eingeben...')
-    fireEvent.change(input, { target: { value: 'Test' } })
-    expect(confirmButton).not.toBeDisabled()
-    
-    // Clear input and it should be disabled again
-    fireEvent.change(input, { target: { value: '' } })
-    expect(confirmButton).toBeDisabled()
+    expect(mockToast).toHaveBeenCalledWith({
+      title: "Kategorie erstellt",
+      description: 'Die Kategorie "Neue Kategorie" wurde erfolgreich erstellt.'
+    })
   })
 })
