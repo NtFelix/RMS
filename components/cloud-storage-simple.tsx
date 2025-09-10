@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { cn } from "@/lib/utils"
+import type { TemplateItem } from "@/types/template"
 
 interface CloudStorageSimpleProps {
   userId: string
@@ -99,6 +100,25 @@ export function CloudStorageSimple({
     }
     return "/dateien"
   }, [userId])
+
+  /**
+   * Convert StorageObject to TemplateItem if it's a template
+   */
+  const storageObjectToTemplateItem = useCallback((file: StorageObject): TemplateItem | null => {
+    if (file.metadata?.type !== 'template') return null
+    
+    return {
+      id: file.metadata?.template_id || file.id,
+      name: file.name.replace('.template', ''), // Remove .template extension
+      category: file.metadata?.category || null,
+      content: '{}', // We don't have the full content here, but it's not needed for context menu
+      variables: file.metadata?.variables || [],
+      createdAt: new Date(file.created_at),
+      updatedAt: new Date(file.updated_at),
+      size: file.size,
+      type: 'template'
+    }
+  }, [])
   
   /**
    * Initialize component with initial data
@@ -726,58 +746,67 @@ export function CloudStorageSimple({
               ))}
 
               {/* Render Files */}
-              {sortedFiles.map((file) => (
-                <CloudStorageItemCard
-                  key={file.id}
-                  item={file}
-                  type="file"
-                  viewMode={viewMode}
-                  isSelected={selectedItems.has(file.id)}
-                  onSelect={(selected) => handleItemSelect(file.id, selected)}
-                  onDownload={() => handleFileDownload(file)}
-                  onDelete={() => handleFileDelete(file)}
-                  onMove={() => {
-                    const { openFileMoveModal } = useModalStore.getState()
-                    openFileMoveModal({
-                      item: file,
-                      itemType: 'file',
-                      currentPath: currentNavPath,
-                      userId,
-                      onMove: async (targetPath: string) => {
-                        const { moveFile } = await import('@/lib/storage-service')
-                        
-                        // Construct source and target paths properly
-                        const sourcePath = `${currentNavPath}/${file.name}`
-                        const targetFilePath = `${targetPath}/${file.name}`
-                        
-                        console.log('🎬 Component: Starting move operation:', {
-                          fileName: file.name,
-                          fileId: file.id,
-                          fileSize: file.size,
-                          fileMetadata: file.metadata,
-                          sourcePath,
-                          targetFilePath,
-                          currentNavPath,
-                          targetPath,
-                          fullFileObject: file
-                        })
-                        
-                        try {
-                          // Debug: List source directory before move
-                          const { debugListDirectory } = await import('@/lib/storage-service')
-                          await debugListDirectory(currentNavPath)
+              {sortedFiles.map((file) => {
+                const templateItem = storageObjectToTemplateItem(file)
+                
+                return (
+                  <CloudStorageItemCard
+                    key={file.id}
+                    item={file}
+                    type="file"
+                    viewMode={viewMode}
+                    isSelected={selectedItems.has(file.id)}
+                    onSelect={(selected) => handleItemSelect(file.id, selected)}
+                    onDownload={() => handleFileDownload(file)}
+                    onDelete={() => handleFileDelete(file)}
+                    onMove={() => {
+                      const { openFileMoveModal } = useModalStore.getState()
+                      openFileMoveModal({
+                        item: file,
+                        itemType: 'file',
+                        currentPath: currentNavPath,
+                        userId,
+                        onMove: async (targetPath: string) => {
+                          const { moveFile } = await import('@/lib/storage-service')
                           
-                          await moveFile(sourcePath, targetFilePath)
-                          console.log('🎉 Component: Move completed successfully')
-                          handleRefresh()
-                        } catch (error) {
-                          console.error('❌ Component: Move failed:', error)
-                          throw error
+                          // Construct source and target paths properly
+                          const sourcePath = `${currentNavPath}/${file.name}`
+                          const targetFilePath = `${targetPath}/${file.name}`
+                          
+                          console.log('🎬 Component: Starting move operation:', {
+                            fileName: file.name,
+                            fileId: file.id,
+                            fileSize: file.size,
+                            fileMetadata: file.metadata,
+                            sourcePath,
+                            targetFilePath,
+                            currentNavPath,
+                            targetPath,
+                            fullFileObject: file
+                          })
+                          
+                          try {
+                            // Debug: List source directory before move
+                            const { debugListDirectory } = await import('@/lib/storage-service')
+                            await debugListDirectory(currentNavPath)
+                            
+                            await moveFile(sourcePath, targetFilePath)
+                            console.log('🎉 Component: Move completed successfully')
+                            handleRefresh()
+                          } catch (error) {
+                            console.error('❌ Component: Move failed:', error)
+                            throw error
+                          }
                         }
-                      }
-                    })
-                  }}
-                />
+                      })
+                    }}
+                    // Template-specific props
+                    templateItem={templateItem}
+                    onTemplateDeleted={handleRefresh}
+                    onTemplateUpdated={handleRefresh}
+                  />
+                )
+              }
               ))}
             </div>
           )}

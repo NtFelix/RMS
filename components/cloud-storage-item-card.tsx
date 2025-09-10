@@ -38,6 +38,8 @@ import { cn } from "@/lib/utils"
 import { StorageObject, VirtualFolder } from "@/hooks/use-simple-cloud-storage-store"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useSimpleCloudStorageStore } from "@/hooks/use-simple-cloud-storage-store"
+import { TemplateContextMenu } from "@/components/template-context-menu"
+import type { TemplateItem } from "@/types/template"
 
 // Global dropdown manager to ensure only one dropdown is open at a time
 // Using a more React-friendly approach that works with SSR and strict mode
@@ -77,6 +79,10 @@ interface ItemCardProps {
   onMove?: () => void
   onShare?: () => void
   className?: string
+  // Template-specific props
+  templateItem?: TemplateItem
+  onTemplateDeleted?: () => void
+  onTemplateUpdated?: () => void
 }
 
 export function CloudStorageItemCard({
@@ -92,7 +98,10 @@ export function CloudStorageItemCard({
   onRename,
   onMove,
   onShare,
-  className
+  className,
+  templateItem,
+  onTemplateDeleted,
+  onTemplateUpdated
 }: ItemCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
@@ -163,6 +172,13 @@ export function CloudStorageItemCard({
         }
       })
     }
+  }
+
+  // Check if item is a template
+  const isTemplate = () => {
+    if (type !== 'file') return false
+    const file = item as StorageObject
+    return file.metadata?.type === 'template' || file.name.endsWith('.template')
   }
 
   // Get icon and color based on item type
@@ -394,9 +410,7 @@ export function CloudStorageItemCard({
   )
 
   if (viewMode === 'grid') {
-    return (
-      <ContextMenu>
-        <ContextMenuTrigger>
+    const cardContent = (
           <Card
             className={cn(
               "relative cursor-pointer transition-all duration-200 hover:shadow-md group",
@@ -606,6 +620,25 @@ export function CloudStorageItemCard({
               </div>
             </div>
           </Card>
+    )
+
+    // Conditionally wrap with template context menu or regular context menu
+    if (isTemplate() && templateItem) {
+      return (
+        <TemplateContextMenu 
+          template={templateItem}
+          onTemplateDeleted={onTemplateDeleted}
+          onTemplateUpdated={onTemplateUpdated}
+        >
+          {cardContent}
+        </TemplateContextMenu>
+      )
+    }
+
+    return (
+      <ContextMenu>
+        <ContextMenuTrigger>
+          {cardContent}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-48">
           {contextMenuItems}
@@ -615,9 +648,7 @@ export function CloudStorageItemCard({
   }
 
   // List view
-  return (
-    <ContextMenu>
-      <ContextMenuTrigger>
+  const listContent = (
         <div
           className={cn(
             "flex items-center p-3 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group",
@@ -710,6 +741,25 @@ export function CloudStorageItemCard({
             )}
           </div>
         </div>
+  )
+
+  // Conditionally wrap with template context menu or regular context menu
+  if (isTemplate() && templateItem) {
+    return (
+      <TemplateContextMenu 
+        template={templateItem}
+        onTemplateDeleted={onTemplateDeleted}
+        onTemplateUpdated={onTemplateUpdated}
+      >
+        {listContent}
+      </TemplateContextMenu>
+    )
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger>
+        {listContent}
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
         {contextMenuItems}
