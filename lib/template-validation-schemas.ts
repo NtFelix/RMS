@@ -86,7 +86,7 @@ export const TemplateCategorySchema = z.string()
   })
   .transform(category => category.trim())
 
-// Template content schema
+// Template content schema (for creation - requires non-empty content)
 export const TemplateContentSchema = TiptapContentSchema
   .refine((content) => {
     const contentString = JSON.stringify(content)
@@ -113,6 +113,15 @@ export const TemplateContentSchema = TiptapContentSchema
     return true
   }, {
     message: 'Inhalt darf nicht leer sein'
+  })
+
+// Template content schema for updates (allows empty content)
+export const TemplateContentUpdateSchema = TiptapContentSchema
+  .refine((content) => {
+    const contentString = JSON.stringify(content)
+    return contentString.length <= VALIDATION_LIMITS.CONTENT_MAX_SIZE
+  }, {
+    message: `Inhalt ist zu groß (maximal ${VALIDATION_LIMITS.CONTENT_MAX_SIZE} Zeichen)`
   })
 
 // Variable ID schema
@@ -159,7 +168,7 @@ export const CreateTemplateRequestSchema = z.object({
 // Update template request schema
 export const UpdateTemplateRequestSchema = z.object({
   titel: TemplateTitleSchema.optional(),
-  inhalt: TemplateContentSchema.optional(),
+  inhalt: TemplateContentUpdateSchema.optional(),
   kategorie: TemplateCategorySchema.optional()
 }).refine((data) => {
   // At least one field must be provided for update
