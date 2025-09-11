@@ -48,6 +48,7 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
   const { toast } = useToast()
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const connectionCheckRef = useRef<NodeJS.Timeout | null>(null)
+  const isInitializedRef = useRef(false)
 
   /**
    * Check if we're actually online by making a small network request
@@ -65,168 +66,6 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
       return false
     }
   }, [])
-
-  /**
-   * Handle going online
-   */
-  const handleOnline = useCallback(async () => {
-    setState(prev => ({ ...prev, isConnecting: true }))
-
-    // Verify we're actually online
-    const isActuallyOnline = await checkConnection()
-    
-    if (isActuallyOnline) {
-      setState(prev => ({
-        ...prev,
-        isOffline: false,
-        isConnecting: false,
-        lastOnlineTime: new Date()
-      }))
-
-      // Process pending operations if offline queue is enabled
-      if (enableOfflineQueue && state.pendingOperations.length > 0) {
-        processPendingOperations()
-      }
-
-      // Show connection restored notification
-      toast({
-        title: "Verbindung wiederhergestellt",
-        description: "Ihre Änderungen werden jetzt synchronisiert.",
-        duration: 3000,
-      })
-
-      onConnectionRestored?.()
-    } else {
-      // Still offline, keep checking
-      setState(prev => ({ ...prev, isConnecting: false }))
-      scheduleConnectionCheck()
-    }
-  }, [checkConnection, enableOfflineQueue, state.pendingOperations, toast, onConnectionRestored])
-
-  /**
-   * Handle going offline
-   */
-  const handleOffline = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      isOffline: true,
-      isConnecting: false
-    }))
-
-    toast({
-      title: "Verbindung unterbrochen",
-      description: enableOfflineQueue 
-        ? "Ihre Änderungen werden lokal gespeichert und später synchronisiert."
-        : "Bitte überprüfen Sie Ihre Internetverbindung.",
-      variant: "destructive",
-      duration: 5000,
-    })
-
-    onConnectionLost?.()
-  }, [enableOfflineQueue, toast, onConnectionLost])
-
-  /**
-   * Schedule a connection check
-   */
-  const scheduleConnectionCheck = useCallback(() => {
-    if (connectionCheckRef.current) {
-      clearTimeout(connectionCheckRef.current)
-    }
-
-    connectionCheckRef.current = setTimeout(async () => {
-      if (state.isOffline) {
-        const isOnline = await checkConnection()
-        if (isOnline) {
-          handleOnline()
-        } else {
-          scheduleConnectionCheck() // Keep checking
-        }
-      }
-    }, retryDelay)
-  }, [state.isOffline, checkConnection, handleOnline, retryDelay])
-
-  /**
-   * Add operation to offline queue
-   */
-  const queueOperation = useCallback((operation: Omit<PendingOperation, 'id' | 'timestamp' | 'retryCount'>) => {
-    if (!enableOfflineQueue) return
-
-    const newOperation: PendingOperation = {
-      ...operation,
-      id: `${operation.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: new Date(),
-      retryCount: 0
-    }
-
-    setState(prev => ({
-      ...prev,
-      pendingOperations: [...prev.pendingOperations, newOperation]
-    }))
-
-    toast({
-      title: "Operation in Warteschlange",
-      description: "Die Änderung wird synchronisiert, sobald die Verbindung wiederhergestellt ist.",
-      duration: 3000,
-    })
-  }, [enableOfflineQueue, toast])
-
-  /**
-   * Process pending operations when connection is restored
-   */
-  const processPendingOperations = useCallback(async () => {
-    if (state.pendingOperations.length === 0) return
-
-    const operations = [...state.pendingOperations]
-    let successCount = 0
-    let failedOperations: PendingOperation[] = []
-
-    for (const operation of operations) {
-      try {
-        // Attempt to execute the operation
-        // This would typically call the appropriate API endpoint
-        await executeOperation(operation)
-        successCount++
-      } catch (error) {
-        console.error('Failed to execute pending operation:', error)
-        
-        if (operation.retryCount < maxRetries) {
-          failedOperations.push({
-            ...operation,
-            retryCount: operation.retryCount + 1
-          })
-        } else {
-          // Max retries reached, show error
-          toast({
-            title: "Synchronisation fehlgeschlagen",
-            description: `Operation ${operation.type} konnte nicht ausgeführt werden.`,
-            variant: "destructive",
-            duration: 5000,
-          })
-        }
-      }
-    }
-
-    // Update state with remaining failed operations
-    setState(prev => ({
-      ...prev,
-      pendingOperations: failedOperations
-    }))
-
-    if (successCount > 0) {
-      toast({
-        title: "Synchronisation abgeschlossen",
-        description: `${successCount} Änderung${successCount > 1 ? 'en' : ''} erfolgreich synchronisiert.`,
-        duration: 3000,
-      })
-    }
-
-    // Schedule retry for failed operations
-    if (failedOperations.length > 0) {
-      retryTimeoutRef.current = setTimeout(() => {
-        processPendingOperations()
-      }, retryDelay * 2) // Longer delay for retries
-    }
-  }, [state.pendingOperations, maxRetries, retryDelay, toast])
 
   /**
    * Execute a pending operation
@@ -263,7 +102,95 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
       default:
         throw new Error(`Unknown operation type: ${type}`)
     }
-  }, [])
+  }, [])  /*
+*
+   * Process pending operations when connection is restored
+   */
+  const processPendingOperations = useCallback(async () => {
+    setState(currentState => {
+      if (currentState.pendingOperations.length === 0) return currentState
+
+      const operations = [...currentState.pendingOperations]
+      
+      // Process operations asynchronously
+      setTimeout(async () => {
+        let successCount = 0
+        let failedOperations: PendingOperation[] = []
+
+        for (const operation of operations) {
+          try {
+            await executeOperation(operation)
+            successCount++
+          } catch (error) {
+            console.error('Failed to execute pending operation:', error)
+            
+            if (operation.retryCount < maxRetries) {
+              failedOperations.push({
+                ...operation,
+                retryCount: operation.retryCount + 1
+              })
+            } else {
+              // Max retries reached, show error
+              toast({
+                title: "Synchronisation fehlgeschlagen",
+                description: `Operation ${operation.type} konnte nicht ausgeführt werden.`,
+                variant: "destructive",
+                duration: 5000,
+              })
+            }
+          }
+        }
+
+        // Update state with remaining failed operations
+        setState(prev => ({
+          ...prev,
+          pendingOperations: failedOperations
+        }))
+
+        if (successCount > 0) {
+          toast({
+            title: "Synchronisation abgeschlossen",
+            description: `${successCount} Änderung${successCount > 1 ? 'en' : ''} erfolgreich synchronisiert.`,
+            duration: 3000,
+          })
+        }
+
+        // Schedule retry for failed operations
+        if (failedOperations.length > 0) {
+          retryTimeoutRef.current = setTimeout(() => {
+            processPendingOperations()
+          }, retryDelay * 2) // Longer delay for retries
+        }
+      }, 0)
+
+      return currentState
+    })
+  }, [maxRetries, retryDelay, toast, executeOperation])
+
+  /**
+   * Add operation to offline queue
+   */
+  const queueOperation = useCallback((operation: Omit<PendingOperation, 'id' | 'timestamp' | 'retryCount'>) => {
+    if (!enableOfflineQueue) return
+
+    const newOperation: PendingOperation = {
+      ...operation,
+      id: `${operation.type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp: new Date(),
+      retryCount: 0
+    }
+
+    setState(prev => ({
+      ...prev,
+      pendingOperations: [...prev.pendingOperations, newOperation]
+    }))
+
+    toast({
+      title: "Operation in Warteschlange",
+      description: "Die Änderung wird synchronisiert, sobald die Verbindung wiederhergestellt ist.",
+      duration: 3000,
+    })
+  }, [enableOfflineQueue, toast])
 
   /**
    * Manually retry connection
@@ -274,7 +201,25 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
     const isOnline = await checkConnection()
     
     if (isOnline) {
-      handleOnline()
+      setState(prev => ({
+        ...prev,
+        isOffline: false,
+        isConnecting: false,
+        lastOnlineTime: new Date()
+      }))
+
+      // Process pending operations if offline queue is enabled
+      if (enableOfflineQueue) {
+        setTimeout(() => processPendingOperations(), 0)
+      }
+
+      toast({
+        title: "Verbindung wiederhergestellt",
+        description: "Ihre Änderungen werden jetzt synchronisiert.",
+        duration: 3000,
+      })
+
+      onConnectionRestored?.()
     } else {
       setState(prev => ({ ...prev, isConnecting: false }))
       toast({
@@ -284,7 +229,7 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
         duration: 3000,
       })
     }
-  }, [checkConnection, handleOnline, toast])
+  }, [checkConnection, enableOfflineQueue, processPendingOperations, toast, onConnectionRestored])
 
   /**
    * Clear pending operations (for testing or manual cleanup)
@@ -305,10 +250,60 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
     }
   }, [state])
 
-  // Set up event listeners
+  // Set up event listeners and initial state - run only once
   useEffect(() => {
-    const handleOnlineEvent = () => handleOnline()
-    const handleOfflineEvent = () => handleOffline()
+    if (isInitializedRef.current) return
+    isInitializedRef.current = true
+
+    const handleOnlineEvent = async () => {
+      setState(prev => ({ ...prev, isConnecting: true }))
+
+      // Verify we're actually online
+      const isActuallyOnline = await checkConnection()
+      
+      if (isActuallyOnline) {
+        setState(prev => ({
+          ...prev,
+          isOffline: false,
+          isConnecting: false,
+          lastOnlineTime: new Date()
+        }))
+
+        // Process pending operations if offline queue is enabled
+        if (enableOfflineQueue) {
+          setTimeout(() => processPendingOperations(), 0)
+        }
+
+        toast({
+          title: "Verbindung wiederhergestellt",
+          description: "Ihre Änderungen werden jetzt synchronisiert.",
+          duration: 3000,
+        })
+
+        onConnectionRestored?.()
+      } else {
+        setState(prev => ({ ...prev, isConnecting: false }))
+      }
+    }
+
+    const handleOfflineEvent = () => {
+      setState(prev => ({
+        ...prev,
+        isOffline: true,
+        isConnecting: false
+      }))
+
+      toast({
+        title: "Verbindung unterbrochen",
+        description: enableOfflineQueue 
+          ? "Ihre Änderungen werden lokal gespeichert und später synchronisiert."
+          : "Bitte überprüfen Sie Ihre Internetverbindung.",
+        variant: "destructive",
+        duration: 5000,
+      })
+
+      onConnectionLost?.()
+    }
 
     window.addEventListener('online', handleOnlineEvent)
     window.addEventListener('offline', handleOfflineEvent)
@@ -321,11 +316,6 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
       lastOnlineTime: initialOfflineState ? null : new Date()
     }))
 
-    // If initially offline, start checking for connection
-    if (initialOfflineState) {
-      scheduleConnectionCheck()
-    }
-
     return () => {
       window.removeEventListener('online', handleOnlineEvent)
       window.removeEventListener('offline', handleOfflineEvent)
@@ -337,7 +327,40 @@ export function useTemplateOfflineDetection(options: UseTemplateOfflineDetection
         clearTimeout(connectionCheckRef.current)
       }
     }
-  }, [handleOnline, handleOffline, scheduleConnectionCheck])
+  }, []) // Empty dependency array - run only once
+
+  // Handle offline connection checking - separate effect with stable dependencies
+  useEffect(() => {
+    if (!state.isOffline || state.isConnecting) return
+
+    const checkOfflineConnection = async () => {
+      const isOnline = await checkConnection()
+      if (isOnline) {
+        setState(prev => ({
+          ...prev,
+          isOffline: false,
+          lastOnlineTime: new Date()
+        }))
+
+        if (enableOfflineQueue) {
+          setTimeout(() => processPendingOperations(), 0)
+        }
+
+        toast({
+          title: "Verbindung wiederhergestellt",
+          description: "Ihre Änderungen werden jetzt synchronisiert.",
+          duration: 3000,
+        })
+
+        onConnectionRestored?.()
+      }
+    }
+
+    // Initial check after a delay
+    const timeoutId = setTimeout(checkOfflineConnection, retryDelay)
+
+    return () => clearTimeout(timeoutId)
+  }, [state.isOffline, state.isConnecting]) // Only depend on state flags
 
   return {
     isOffline: state.isOffline,
