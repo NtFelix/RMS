@@ -368,6 +368,12 @@ export function CloudStorageSimple({
    */
   const handleItemSelect = useCallback((itemId: string, selected: boolean) => {
     setSelectedItems(prev => {
+      // Check if the state would actually change to prevent unnecessary updates
+      const isCurrentlySelected = prev.has(itemId)
+      if (isCurrentlySelected === selected) {
+        return prev // No change needed
+      }
+      
       const newSelection = new Set(prev)
       if (selected) {
         newSelection.add(itemId)
@@ -399,7 +405,7 @@ export function CloudStorageSimple({
     }
     
     setSelectedItems(new Set())
-  }, [sortedFiles, selectedItems, downloadFile, toast])
+  }, [sortedFiles, downloadFile, toast])
 
   const handleBulkDelete = useCallback(async () => {
     const selectedFiles = sortedFiles.filter(file => selectedItems.has(file.id))
@@ -418,7 +424,7 @@ export function CloudStorageSimple({
     }
     
     setSelectedItems(new Set())
-  }, [sortedFiles, selectedItems, deleteFile, toast])
+  }, [sortedFiles, deleteFile, toast])
   
   /**
    * Handle file operations

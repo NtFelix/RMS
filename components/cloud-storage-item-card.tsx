@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { 
   File, 
   FileText, 
@@ -111,6 +111,10 @@ export function CloudStorageItemCard({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const { openFilePreviewModal, openFileRenameModal, openMarkdownEditorModal } = useModalStore()
   const { currentPath, renameFile } = useSimpleCloudStorageStore()
+  
+  // Use a ref to prevent infinite loops in checkbox callbacks
+  const onSelectRef = useRef(onSelect)
+  onSelectRef.current = onSelect
 
   // Create a unique close callback for this dropdown
   const closeThisDropdown = useCallback(() => setIsDropdownOpen(false), [])
@@ -495,7 +499,12 @@ export function CloudStorageItemCard({
                 )}>
                   <Checkbox
                     checked={isSelected}
-                    onCheckedChange={onSelect}
+                    onCheckedChange={(checked) => {
+                      // Use ref to prevent infinite loops and ensure stable callback
+                      if (onSelectRef.current) {
+                        onSelectRef.current(checked === true)
+                      }
+                    }}
                     onClick={(e) => e.stopPropagation()}
                   />
                 </div>
@@ -750,7 +759,12 @@ export function CloudStorageItemCard({
             <div className="mr-3">
               <Checkbox
                 checked={isSelected}
-                onCheckedChange={onSelect}
+                onCheckedChange={(checked) => {
+                  // Use ref to prevent infinite loops and ensure stable callback
+                  if (onSelectRef.current) {
+                    onSelectRef.current(checked === true)
+                  }
+                }}
                 onClick={(e) => e.stopPropagation()}
               />
             </div>
