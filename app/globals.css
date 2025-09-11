@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import accessibility styles */
+@import '../styles/accessibility.css';
+
 /* Prose styles for markdown preview */
 .prose {
   color: var(--foreground);

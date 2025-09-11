@@ -161,20 +161,36 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
   }
 
   return (
-    <Card className="group hover:shadow-md transition-all duration-200 hover:border-primary/20 animate-in fade-in duration-300">
+    <Card 
+      className="group hover:shadow-md transition-all duration-200 hover:border-primary/20 animate-in fade-in duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
+      role="article"
+      aria-labelledby={`template-title-${template.id}`}
+      aria-describedby={`template-description-${template.id}`}
+    >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-base font-medium truncate text-card-foreground">
+            <CardTitle 
+              id={`template-title-${template.id}`}
+              className="text-base font-medium truncate text-card-foreground"
+            >
               {template.titel}
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant="outline" className="text-xs">
+            <div className="flex items-center gap-2 mt-2" role="group" aria-label="Vorlage-Eigenschaften">
+              <Badge 
+                variant="outline" 
+                className="text-xs"
+                aria-label={`Kategorie: ${getCategoryDisplayName()}`}
+              >
                 {getCategoryDisplayName()}
               </Badge>
               {getVariableCount() > 0 && (
-                <Badge variant="secondary" className="text-xs">
-                  <Hash className="w-3 h-3 mr-1" />
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs"
+                  aria-label={`${getVariableCount()} ${getVariableCount() === 1 ? 'Variable' : 'Variablen'}`}
+                >
+                  <Hash className="w-3 h-3 mr-1" aria-hidden="true" />
                   {getVariableCount()} Variable{getVariableCount() !== 1 ? 'n' : ''}
                 </Badge>
               )}
@@ -185,46 +201,69 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity h-8 w-8 p-0 focus:ring-2 focus:ring-primary focus:ring-offset-2"
                 disabled={isDeleting}
+                aria-label={`Aktionen für Vorlage ${template.titel}`}
+                tabIndex={-1}
               >
-                <MoreVertical className="h-4 w-4" />
-                <span className="sr-only">Aktionen öffnen</span>
+                <MoreVertical className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit} disabled={isDeleting}>
-                <Edit className="mr-2 h-4 w-4" />
+            <DropdownMenuContent align="end" aria-label="Vorlage-Aktionen">
+              <DropdownMenuItem 
+                onClick={onEdit} 
+                disabled={isDeleting}
+                className="focus:bg-accent focus:text-accent-foreground"
+              >
+                <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
                 Bearbeiten
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 onClick={handleDelete} 
                 disabled={isDeleting}
-                className="text-destructive focus:text-destructive"
+                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                aria-describedby={`delete-warning-${template.id}`}
               >
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
                 {isDeleting ? 'Wird gelöscht...' : 'Löschen'}
               </DropdownMenuItem>
+              <div id={`delete-warning-${template.id}`} className="sr-only">
+                Warnung: Diese Aktion kann nicht rückgängig gemacht werden
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </CardHeader>
       
       <CardContent className="pt-0">
-        <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+        <p 
+          id={`template-description-${template.id}`}
+          className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed"
+          aria-label="Vorlage-Vorschau"
+        >
           {getContentPreview(template.inhalt)}
         </p>
         
-        <div className="space-y-2">
+        <div className="space-y-2" role="group" aria-label="Vorlage-Metadaten">
           <div className="flex items-center text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3 mr-1.5" />
-            <span>Erstellt: {formatDate(template.erstellungsdatum)}</span>
+            <Calendar className="w-3 h-3 mr-1.5" aria-hidden="true" />
+            <time 
+              dateTime={template.erstellungsdatum}
+              aria-label={`Erstellt am ${formatDate(template.erstellungsdatum)}`}
+            >
+              Erstellt: {formatDate(template.erstellungsdatum)}
+            </time>
           </div>
           {template.aktualisiert_am && (
             <div className="flex items-center text-xs text-muted-foreground">
-              <Calendar className="w-3 h-3 mr-1.5" />
-              <span>Geändert: {formatDate(template.aktualisiert_am)}</span>
+              <Calendar className="w-3 h-3 mr-1.5" aria-hidden="true" />
+              <time 
+                dateTime={template.aktualisiert_am}
+                aria-label={`Zuletzt geändert am ${formatDate(template.aktualisiert_am)}`}
+              >
+                Geändert: {formatDate(template.aktualisiert_am)}
+              </time>
             </div>
           )}
         </div>
@@ -236,11 +275,20 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
           size="sm" 
           onClick={onEdit}
           disabled={isDeleting}
-          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          aria-label={`Vorlage "${template.titel}" bearbeiten`}
         >
-          <Edit className="mr-2 h-4 w-4" />
+          <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
           Bearbeiten
         </Button>
+        
+        {/* Screen reader only content */}
+        <div className="sr-only">
+          Vorlage {template.titel} in Kategorie {getCategoryDisplayName()}, 
+          erstellt am {formatDate(template.erstellungsdatum)}
+          {template.aktualisiert_am && `, zuletzt geändert am ${formatDate(template.aktualisiert_am)}`}
+          {getVariableCount() > 0 && `, enthält ${getVariableCount()} ${getVariableCount() === 1 ? 'Variable' : 'Variablen'}`}
+        </div>
       </CardFooter>
     </Card>
   )

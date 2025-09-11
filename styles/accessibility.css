@@ -1,0 +1,231 @@
+/* High Contrast Mode Support */
+.high-contrast {
+  /* Ensure sufficient contrast ratios in high contrast mode */
+}
+
+.high-contrast .high-contrast-modal {
+  border: 3px solid currentColor;
+  background: Canvas;
+  color: CanvasText;
+}
+
+.high-contrast .high-contrast-modal button {
+  border: 2px solid currentColor;
+  background: ButtonFace;
+  color: ButtonText;
+}
+
+.high-contrast .high-contrast-modal button:hover,
+.high-contrast .high-contrast-modal button:focus {
+  background: Highlight;
+  color: HighlightText;
+  border-color: HighlightText;
+}
+
+.high-contrast .high-contrast-modal input,
+.high-contrast .high-contrast-modal select {
+  border: 2px solid currentColor;
+  background: Field;
+  color: FieldText;
+}
+
+.high-contrast .high-contrast-modal input:focus,
+.high-contrast .high-contrast-modal select:focus {
+  outline: 3px solid Highlight;
+  outline-offset: 2px;
+}
+
+/* Enhanced focus indicators for keyboard navigation */
+.focus-visible:focus {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.high-contrast .focus-visible:focus {
+  outline: 3px solid Highlight;
+  outline-offset: 2px;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  transition: top 0.3s;
+}
+
+.skip-link:focus {
+  top: 6px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-out,
+  .transition-all,
+  .transition-colors,
+  .transition-opacity,
+  .transition-transform {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus management for modals */
+.modal-focus-trap {
+  position: relative;
+}
+
+.modal-focus-trap:focus {
+  outline: none;
+}
+
+/* High contrast mode detection and support */
+@media (prefers-contrast: high) {
+  .template-card {
+    border: 2px solid currentColor;
+  }
+  
+  .template-card:hover,
+  .template-card:focus-within {
+    border-color: Highlight;
+    background: Canvas;
+  }
+  
+  .badge {
+    border: 1px solid currentColor;
+  }
+}
+
+/* Windows High Contrast Mode */
+@media (-ms-high-contrast: active) {
+  .template-card {
+    border: 2px solid WindowText;
+  }
+  
+  .template-card:hover,
+  .template-card:focus-within {
+    border-color: Highlight;
+    background: Window;
+  }
+  
+  .badge {
+    border: 1px solid WindowText;
+  }
+  
+  button {
+    border: 2px solid ButtonText;
+  }
+  
+  button:hover,
+  button:focus {
+    background: Highlight;
+    color: HighlightText;
+    border-color: HighlightText;
+  }
+}
+
+/* Ensure interactive elements are large enough for touch */
+@media (pointer: coarse) {
+  button,
+  [role="button"],
+  input,
+  select {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Color contrast improvements */
+.text-muted-foreground {
+  color: hsl(var(--muted-foreground));
+  /* Ensure minimum 4.5:1 contrast ratio */
+}
+
+.high-contrast .text-muted-foreground {
+  color: CanvasText;
+}
+
+/* Focus indicators for custom components */
+.custom-focus:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.high-contrast .custom-focus:focus-visible {
+  outline: 3px solid Highlight;
+  outline-offset: 2px;
+}
+
+/* Keyboard navigation improvements */
+.keyboard-nav button:focus,
+.keyboard-nav [role="button"]:focus,
+.keyboard-nav input:focus,
+.keyboard-nav select:focus,
+.keyboard-nav textarea:focus {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Announcement regions */
+[aria-live] {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* Loading state accessibility */
+.loading-skeleton {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-skeleton {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+/* Error state accessibility */
+.error-state {
+  border-left: 4px solid hsl(var(--destructive));
+  padding-left: 1rem;
+}
+
+.high-contrast .error-state {
+  border-left-color: WindowText;
+}
+
+/* Success state accessibility */
+.success-state {
+  border-left: 4px solid hsl(var(--success));
+  padding-left: 1rem;
+}
+
+.high-contrast .success-state {
+  border-left-color: WindowText;
+}

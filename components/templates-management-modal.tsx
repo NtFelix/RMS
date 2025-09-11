@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { X, Plus, Search, FileText, AlertTriangle, RefreshCw } from "lucide-react"
 import {
   Dialog,
   DialogContent,
   DialogTitle,
+  DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,7 @@ import { TemplatesEmptyState, TemplatesErrorEmptyState } from "@/components/temp
 import { TemplateErrorBoundary, TemplateOperationErrorBoundary } from "@/components/template-error-boundary"
 import { useTemplateLoadingErrorHandling, useTemplateDeletionErrorHandling, useTemplateSearchErrorHandling, useNetworkErrorHandling } from "@/hooks/use-template-error-handling"
 import { TemplatesModalErrorHandler } from "@/lib/template-error-handler"
+import { useFocusTrap, useFocusAnnouncement, useHighContrastMode } from "@/hooks/use-focus-trap"
 import type { Template } from "@/types/template"
 import type { 
   TemplateWithMetadata, 
@@ -38,6 +40,17 @@ export function TemplatesManagementModal() {
   
   const { user } = useAuth()
   const { toast } = useToast()
+
+  // Accessibility refs and hooks
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const userMenuTriggerRef = useRef<HTMLElement>(null)
+  const focusTrapRef = useFocusTrap({
+    isActive: isTemplatesManagementModalOpen,
+    initialFocusRef: searchInputRef,
+    restoreFocusRef: userMenuTriggerRef
+  })
+  const { announce, AnnouncementRegion } = useFocusAnnouncement()
+  const isHighContrast = useHighContrastMode()
 
   // Template data state
   const [templates, setTemplates] = useState<TemplateWithMetadata[]>([])
@@ -69,8 +82,17 @@ export function TemplatesManagementModal() {
       setSearchQuery("")
       setSelectedCategory("all")
       loadTemplates(false) // Don't force refresh on modal open
+      
+      // Store reference to user menu trigger for focus restoration
+      const userMenuTrigger = document.querySelector('[aria-label*="Benutzermenü"]') as HTMLElement
+      if (userMenuTrigger) {
+        userMenuTriggerRef.current = userMenuTrigger
+      }
+      
+      // Announce modal opening
+      announce("Vorlagen-Modal geöffnet", "polite")
     }
-  }, [isTemplatesManagementModalOpen, user?.id])
+  }, [isTemplatesManagementModalOpen, user?.id, announce])
 
   // Track modal open/close for cache invalidation
   const [hasLoadedBefore, setHasLoadedBefore] = useState(false)
@@ -148,6 +170,7 @@ export function TemplatesManagementModal() {
           title: "Vorlagen geladen",
           description: "Die Vorlagen wurden erfolgreich aktualisiert."
         })
+        announce("Vorlagen erfolgreich geladen", "polite")
       }
 
       return templatesWithMetadata
@@ -244,6 +267,9 @@ export function TemplatesManagementModal() {
         title: "Vorlage gelöscht",
         description: `Die Vorlage "${templateToDelete.titel}" wurde erfolgreich gelöscht.`
       })
+      
+      // Announce deletion for screen readers
+      announce(`Vorlage "${templateToDelete.titel}" wurde gelöscht`, "polite")
     }
 
     const retryableDeleteOperation = TemplatesModalErrorHandler.createRetryMechanism(
@@ -443,6 +469,14 @@ export function TemplatesManagementModal() {
   const handleSearchChange = (value: string) => {
     try {
       setSearchQuery(value)
+      
+      // Announce search results for screen readers (debounced)
+      if (value.trim()) {
+        setTimeout(() => {
+          const resultCount = filteredTemplates.length
+          announce(`${resultCount} Suchergebnisse für "${value}"`, "polite")
+        }, 500)
+      }
     } catch (error) {
       TemplatesModalErrorHandler.handleSearchError(error as Error, value)
     }
@@ -466,59 +500,90 @@ export function TemplatesManagementModal() {
         TemplatesModalErrorHandler.handleModalInitializationError(error)
       }}
     >
-      <Dialog open={isTemplatesManagementModalOpen} onOpenChange={closeTemplatesManagementModal}>
+      <Dialog 
+        open={isTemplatesManagementModalOpen} 
+        onOpenChange={closeTemplatesManagementModal}
+        aria-describedby="templates-modal-description"
+      >
         <DialogContent 
-          className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 gap-0 overflow-hidden"
+          ref={focusTrapRef}
+          className={`max-w-[90vw] max-h-[90vh] w-full h-full p-0 gap-0 overflow-hidden focus:outline-none ${isHighContrast ? 'high-contrast-modal' : ''}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="templates-modal-title"
+          aria-describedby="templates-modal-description"
           onOpenAutoFocus={(e) => {
             // Focus the search input when modal opens
             e.preventDefault()
             setTimeout(() => {
-              const searchInput = document.querySelector('[data-testid="template-search-input"]') as HTMLInputElement
-              if (searchInput) {
-                searchInput.focus()
+              if (searchInputRef.current) {
+                searchInputRef.current.focus()
               }
             }, 100)
           }}
+          onCloseAutoFocus={(e) => {
+            // Return focus to the trigger element
+            e.preventDefault()
+            if (userMenuTriggerRef.current) {
+              userMenuTriggerRef.current.focus()
+            }
+          }}
         >
           <div className="flex flex-col h-full">
+          {/* Hidden description for screen readers */}
+          <DialogDescription className="sr-only">
+            Modal zum Verwalten Ihrer Dokumentvorlagen. Hier können Sie Vorlagen suchen, filtern, bearbeiten und neue erstellen.
+          </DialogDescription>
+          
           {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <header className="flex items-center justify-between p-4 sm:p-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex items-center gap-3">
-              <DialogTitle className="text-xl sm:text-2xl font-semibold text-foreground">
+              <DialogTitle 
+                id="templates-modal-title"
+                className="text-xl sm:text-2xl font-semibold text-foreground"
+              >
                 Vorlagen verwalten
               </DialogTitle>
               {templates.length > 0 && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge 
+                  variant="secondary" 
+                  className="text-xs"
+                  aria-label={`${filteredTemplates.length} von ${templates.length} Vorlagen werden angezeigt`}
+                >
                   {filteredTemplates.length} von {templates.length}
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2" role="toolbar" aria-label="Modal-Aktionen">
               {loadingState.lastLoadTime && (
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={handleRefresh}
                   disabled={loadingState.isLoading}
-                  className="h-8 w-8 rounded-full hover:bg-muted"
+                  className="h-8 w-8 rounded-full hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  aria-label="Vorlagen aktualisieren"
                   title="Vorlagen aktualisieren"
                 >
-                  <RefreshCw className={`h-4 w-4 ${loadingState.isLoading ? 'animate-spin' : ''}`} />
-                  <span className="sr-only">Aktualisieren</span>
+                  <RefreshCw 
+                    className={`h-4 w-4 ${loadingState.isLoading ? 'animate-spin' : ''}`}
+                    aria-hidden="true"
+                  />
                 </Button>
               )}
               <DialogClose asChild>
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full hover:bg-muted"
+                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  aria-label="Modal schließen"
+                  title="Modal schließen (Escape)"
                 >
-                  <X className="h-4 w-4" />
-                  <span className="sr-only">Modal schließen</span>
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </DialogClose>
             </div>
-          </div>
+          </header>
           
           {/* Search and Filters Bar */}
           <TemplateOperationErrorBoundary 
@@ -528,28 +593,46 @@ export function TemplatesManagementModal() {
               setSelectedCategory("all")
             }}
           >
-            <div className="p-4 sm:p-6 border-b bg-muted/30 backdrop-blur">
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <section 
+              className="p-4 sm:p-6 border-b bg-muted/30 backdrop-blur"
+              aria-label="Suche und Filter"
+            >
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4" role="search">
                 {/* Search Input */}
                 <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <label htmlFor="template-search-input" className="sr-only">
+                    Vorlagen durchsuchen
+                  </label>
+                  <Search 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" 
+                    aria-hidden="true"
+                  />
                   <Input
+                    ref={searchInputRef}
+                    id="template-search-input"
                     data-testid="template-search-input"
-                    type="text"
+                    type="search"
                     placeholder="Vorlagen durchsuchen..."
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10 pr-10 h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
+                    className="pl-10 pr-10 h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    aria-describedby="search-help-text search-results-count"
+                    autoComplete="off"
+                    spellCheck="false"
                   />
+                  <div id="search-help-text" className="sr-only">
+                    Geben Sie Suchbegriffe ein, um Vorlagen nach Titel, Kategorie oder Inhalt zu filtern
+                  </div>
                   {searchQuery && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2"
                       onClick={clearSearch}
+                      aria-label={`Suche "${searchQuery}" löschen`}
+                      title="Suche löschen"
                     >
-                      <X className="h-3 w-3" />
-                      <span className="sr-only">Suche löschen</span>
+                      <X className="h-3 w-3" aria-hidden="true" />
                     </Button>
                   )}
                 </div>
@@ -560,7 +643,7 @@ export function TemplatesManagementModal() {
                     templates={templates}
                     selectedCategory={selectedCategory}
                     onCategoryChange={setSelectedCategory}
-                    className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
+                    className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2"
                     placeholder="Kategorie wählen"
                   />
                 </div>
@@ -568,14 +651,26 @@ export function TemplatesManagementModal() {
                 {/* Create Button */}
                 <Button 
                   onClick={handleCreateTemplate}
-                  className="w-full sm:w-auto h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full sm:w-auto h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  aria-label="Neue Vorlage erstellen"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
                   <span className="hidden sm:inline">Neue Vorlage</span>
                   <span className="sm:hidden">Erstellen</span>
                 </Button>
               </div>
-            </div>
+              
+              {/* Search Results Count - Live Region */}
+              <div 
+                id="search-results-count" 
+                className="sr-only" 
+                aria-live="polite" 
+                aria-atomic="true"
+              >
+                {searchQuery && `${filteredTemplates.length} Suchergebnisse für "${searchQuery}"`}
+                {selectedCategory !== "all" && !searchQuery && `${filteredTemplates.length} Vorlagen in Kategorie "${selectedCategory}"`}
+              </div>
+            </section>
           </TemplateOperationErrorBoundary>
           
           {/* Content Area */}
@@ -583,39 +678,80 @@ export function TemplatesManagementModal() {
             operation="template display"
             onRetry={() => loadTemplates(true)}
           >
-            <div className="flex-1 overflow-auto p-4 sm:p-6">
-              {loadingState.isLoading ? (
-                <TemplatesLoadingSkeleton 
-                  count={8}
-                  showCategories={selectedCategory === "all"}
-                />
-              ) : loadingState.error ? (
-                <TemplatesErrorEmptyState 
-                  error={loadingState.error}
-                  onRetry={handleRetryLoad}
-                  onCreateTemplate={handleCreateTemplate}
-                  canRetry={loadingState.retryCount < 3}
-                />
-              ) : filteredTemplates.length === 0 ? (
-                <TemplatesEmptyState 
-                  onCreateTemplate={handleCreateTemplate}
-                  hasSearch={!!searchQuery}
-                  hasFilter={selectedCategory !== "all"}
-                  onClearFilters={() => {
-                    setSearchQuery("")
-                    setSelectedCategory("all")
-                  }}
-                />
-              ) : (
-                <TemplatesGrid 
-                  templates={filteredTemplates}
-                  onEditTemplate={handleEditTemplate}
-                  onDeleteTemplate={handleDeleteTemplate}
-                />
+            <main 
+              className="flex-1 overflow-auto p-4 sm:p-6 focus:outline-none" 
+              tabIndex={-1}
+              aria-label="Vorlagen-Inhalt"
+              role="main"
+            >
+              {/* Loading State */}
+              {loadingState.isLoading && (
+                <>
+                  <div className="sr-only" aria-live="polite">
+                    Vorlagen werden geladen...
+                  </div>
+                  <TemplatesLoadingSkeleton 
+                    count={8}
+                    showCategories={selectedCategory === "all"}
+                  />
+                </>
               )}
-            </div>
+              
+              {/* Error State */}
+              {!loadingState.isLoading && loadingState.error && (
+                <>
+                  <div className="sr-only" aria-live="assertive">
+                    Fehler beim Laden der Vorlagen: {loadingState.error}
+                  </div>
+                  <TemplatesErrorEmptyState 
+                    error={loadingState.error}
+                    onRetry={handleRetryLoad}
+                    onCreateTemplate={handleCreateTemplate}
+                    canRetry={loadingState.retryCount < 3}
+                  />
+                </>
+              )}
+              
+              {/* Empty State */}
+              {!loadingState.isLoading && !loadingState.error && filteredTemplates.length === 0 && (
+                <>
+                  <div className="sr-only" aria-live="polite">
+                    {searchQuery || selectedCategory !== "all" 
+                      ? "Keine Vorlagen gefunden für die aktuellen Filter"
+                      : "Keine Vorlagen vorhanden"
+                    }
+                  </div>
+                  <TemplatesEmptyState 
+                    onCreateTemplate={handleCreateTemplate}
+                    hasSearch={!!searchQuery}
+                    hasFilter={selectedCategory !== "all"}
+                    onClearFilters={() => {
+                      setSearchQuery("")
+                      setSelectedCategory("all")
+                    }}
+                  />
+                </>
+              )}
+              
+              {/* Templates Grid */}
+              {!loadingState.isLoading && !loadingState.error && filteredTemplates.length > 0 && (
+                <>
+                  <div className="sr-only" aria-live="polite">
+                    {filteredTemplates.length} Vorlagen werden angezeigt
+                  </div>
+                  <TemplatesGrid 
+                    templates={filteredTemplates}
+                    onEditTemplate={handleEditTemplate}
+                    onDeleteTemplate={handleDeleteTemplate}
+                  />
+                </>
+              )}
+            </main>
           </TemplateOperationErrorBoundary>
           </div>
+          
+          {/* Accessibility announcement region */}
+          <AnnouncementRegion />
         </DialogContent>
       </Dialog>
     </TemplateErrorBoundary>
@@ -679,19 +815,30 @@ function TemplatesGrid({ templates, onEditTemplate, onDeleteTemplate }: Template
       operation="template grid display"
       onRetry={() => window.location.reload()}
     >
-      <div className="space-y-8">
-        {groupedTemplates.map(([category, categoryTemplates]) => (
-          <div key={category}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-foreground">
+      <div className="space-y-8" role="region" aria-label="Vorlagen-Liste">
+        {groupedTemplates.map(([category, categoryTemplates], categoryIndex) => (
+          <section key={category} aria-labelledby={`category-${categoryIndex}-heading`}>
+            <header className="flex items-center justify-between mb-4">
+              <h3 
+                id={`category-${categoryIndex}-heading`}
+                className="text-lg font-semibold text-foreground"
+              >
                 {category}
               </h3>
-              <Badge variant="secondary" className="text-xs">
+              <Badge 
+                variant="secondary" 
+                className="text-xs"
+                aria-label={`${categoryTemplates.length} ${categoryTemplates.length === 1 ? 'Vorlage' : 'Vorlagen'} in Kategorie ${category}`}
+              >
                 {categoryTemplates.length} {categoryTemplates.length === 1 ? 'Vorlage' : 'Vorlagen'}
               </Badge>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {categoryTemplates.map((template) => (
+            </header>
+            <div 
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              role="grid"
+              aria-label={`Vorlagen in Kategorie ${category}`}
+            >
+              {categoryTemplates.map((template, templateIndex) => (
                 <TemplateOperationErrorBoundary
                   key={template.id}
                   operation={`template card for "${template.titel}"`}
@@ -700,15 +847,21 @@ function TemplatesGrid({ templates, onEditTemplate, onDeleteTemplate }: Template
                     console.log('Template card error, skipping template:', template.id)
                   }}
                 >
-                  <TemplateCard
-                    template={template}
-                    onEdit={() => onEditTemplate(template.id)}
-                    onDelete={onDeleteTemplate}
-                  />
+                  <div 
+                    role="gridcell"
+                    aria-rowindex={Math.floor(templateIndex / 4) + 1}
+                    aria-colindex={(templateIndex % 4) + 1}
+                  >
+                    <TemplateCard
+                      template={template}
+                      onEdit={() => onEditTemplate(template.id)}
+                      onDelete={onDeleteTemplate}
+                    />
+                  </div>
                 </TemplateOperationErrorBoundary>
               ))}
             </div>
-          </div>
+          </section>
         ))}
       </div>
     </TemplateOperationErrorBoundary>

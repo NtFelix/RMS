@@ -47,41 +47,61 @@ export function CategoryFilter({
   const totalCount = templates.length
 
   return (
-    <Select 
-      value={selectedCategory} 
-      onValueChange={onCategoryChange}
-    >
-      <SelectTrigger 
-        className={className}
-        aria-label="Kategorie auswählen"
+    <div>
+      <label htmlFor="category-filter" className="sr-only">
+        Kategorie zum Filtern auswählen
+      </label>
+      <Select 
+        value={selectedCategory} 
+        onValueChange={onCategoryChange}
       >
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        {/* "All Categories" option */}
-        <SelectItem value="all">
-          <div className="flex items-center justify-between w-full">
-            <span>Alle Kategorien</span>
-            <span className="ml-2 text-muted-foreground">({totalCount})</span>
-          </div>
-        </SelectItem>
-        
-        {/* Individual category options */}
-        {categories.length > 0 ? (
-          categories.map((category) => (
-            <SelectItem key={category.name} value={category.name}>
-              <div className="flex items-center justify-between w-full">
-                <span>{category.name}</span>
-                <span className="ml-2 text-muted-foreground">({category.count})</span>
-              </div>
-            </SelectItem>
-          ))
-        ) : (
-          <SelectItem value="no-categories" disabled>
-            <span className="text-muted-foreground">Keine Kategorien verfügbar</span>
+        <SelectTrigger 
+          id="category-filter"
+          className={className}
+          aria-label="Kategorie auswählen"
+          aria-describedby="category-filter-help"
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent 
+          role="listbox"
+          aria-label="Verfügbare Kategorien"
+        >
+          {/* "All Categories" option */}
+          <SelectItem 
+            value="all"
+            aria-label={`Alle Kategorien anzeigen, ${totalCount} Vorlagen insgesamt`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span>Alle Kategorien</span>
+              <span className="ml-2 text-muted-foreground" aria-hidden="true">({totalCount})</span>
+            </div>
           </SelectItem>
-        )}
-      </SelectContent>
-    </Select>
+          
+          {/* Individual category options */}
+          {categories.length > 0 ? (
+            categories.map((category) => (
+              <SelectItem 
+                key={category.name} 
+                value={category.name}
+                aria-label={`Kategorie ${category.name}, ${category.count} ${category.count === 1 ? 'Vorlage' : 'Vorlagen'}`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>{category.name}</span>
+                  <span className="ml-2 text-muted-foreground" aria-hidden="true">({category.count})</span>
+                </div>
+              </SelectItem>
+            ))
+          ) : (
+            <SelectItem value="no-categories" disabled aria-label="Keine Kategorien verfügbar">
+              <span className="text-muted-foreground">Keine Kategorien verfügbar</span>
+            </SelectItem>
+          )}
+        </SelectContent>
+      </Select>
+      <div id="category-filter-help" className="sr-only">
+        Wählen Sie eine Kategorie aus, um nur Vorlagen dieser Kategorie anzuzeigen
+      </div>
+    </div>
   )
 }
