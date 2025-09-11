@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
+import { TemplateOperationLoading } from '@/components/templates-loading-skeleton'
 import type { Template } from '@/types/template'
 import type { TemplateWithMetadata } from '@/types/template-modal'
 
@@ -101,8 +102,66 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
     return template.kategorie || 'Ohne Kategorie'
   }
 
+  // Show loading overlay when deleting
+  if (isDeleting) {
+    return (
+      <Card className="group relative overflow-hidden">
+        {/* Original card content with reduced opacity */}
+        <div className="opacity-50 pointer-events-none">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <CardTitle className="text-base font-medium truncate text-card-foreground">
+                  {template.titel}
+                </CardTitle>
+                <div className="flex items-center gap-2 mt-2">
+                  <Badge variant="outline" className="text-xs">
+                    {getCategoryDisplayName()}
+                  </Badge>
+                  {getVariableCount() > 0 && (
+                    <Badge variant="secondary" className="text-xs">
+                      <Hash className="w-3 h-3 mr-1" />
+                      {getVariableCount()} Variable{getVariableCount() !== 1 ? 'n' : ''}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          
+          <CardContent className="pt-0">
+            <p className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+              {getContentPreview(template.inhalt)}
+            </p>
+          </CardContent>
+          
+          <CardFooter className="pt-0">
+            <Button variant="outline" size="sm" className="w-full" disabled>
+              <Edit className="mr-2 h-4 w-4" />
+              Bearbeiten
+            </Button>
+          </CardFooter>
+        </div>
+        
+        {/* Loading overlay */}
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <TemplateOperationLoading 
+            operation="delete"
+            templateName={template.titel}
+            className="max-w-xs"
+          />
+        </div>
+        
+        {/* Screen reader announcement */}
+        <div className="sr-only" aria-live="polite">
+          Vorlage "{template.titel}" wird gelöscht.
+        </div>
+      </Card>
+    )
+  }
+
   return (
-    <Card className="group hover:shadow-md transition-all duration-200 hover:border-primary/20">
+    <Card className="group hover:shadow-md transition-all duration-200 hover:border-primary/20 animate-in fade-in duration-300">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
@@ -127,13 +186,14 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
                 variant="ghost" 
                 size="sm" 
                 className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 p-0"
+                disabled={isDeleting}
               >
                 <MoreVertical className="h-4 w-4" />
                 <span className="sr-only">Aktionen öffnen</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={onEdit}>
+              <DropdownMenuItem onClick={onEdit} disabled={isDeleting}>
                 <Edit className="mr-2 h-4 w-4" />
                 Bearbeiten
               </DropdownMenuItem>
@@ -175,6 +235,7 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
           variant="outline" 
           size="sm" 
           onClick={onEdit}
+          disabled={isDeleting}
           className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
         >
           <Edit className="mr-2 h-4 w-4" />

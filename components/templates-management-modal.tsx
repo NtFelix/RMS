@@ -19,6 +19,8 @@ import { TemplateClientService } from "@/lib/template-client-service"
 import { templateCacheService } from "@/lib/template-cache"
 import { CategoryFilter } from "@/components/category-filter"
 import { TemplateCard } from "@/components/template-card"
+import { TemplatesLoadingSkeleton } from "@/components/templates-loading-skeleton"
+import { TemplatesEmptyState, TemplatesErrorEmptyState } from "@/components/templates-empty-state"
 import type { Template } from "@/types/template"
 import type { 
   TemplateWithMetadata, 
@@ -517,11 +519,15 @@ export function TemplatesManagementModal() {
           {/* Content Area */}
           <div className="flex-1 overflow-auto p-4 sm:p-6">
             {loadingState.isLoading ? (
-              <TemplatesLoadingSkeleton />
+              <TemplatesLoadingSkeleton 
+                count={8}
+                showCategories={selectedCategory === "all"}
+              />
             ) : loadingState.error ? (
-              <TemplatesErrorState 
+              <TemplatesErrorEmptyState 
                 error={loadingState.error}
                 onRetry={handleRetryLoad}
+                onCreateTemplate={handleCreateTemplate}
                 canRetry={loadingState.retryCount < 3}
               />
             ) : filteredTemplates.length === 0 ? (
@@ -548,147 +554,7 @@ export function TemplatesManagementModal() {
   )
 }
 
-// Loading skeleton component
-function TemplatesLoadingSkeleton() {
-  return (
-    <div className="space-y-6" data-testid="templates-loading-skeleton">
-      {/* Category sections skeleton */}
-      {Array.from({ length: 3 }).map((_, sectionIndex) => (
-        <div key={sectionIndex} className="space-y-4">
-          {/* Category header skeleton */}
-          <div className="flex items-center justify-between">
-            <div className="h-6 bg-muted-foreground/20 rounded w-32 animate-pulse"></div>
-            <div className="h-5 bg-muted-foreground/20 rounded w-16 animate-pulse"></div>
-          </div>
-          
-          {/* Templates grid skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="animate-pulse">
-                <div className="bg-muted rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <div className="h-4 bg-muted-foreground/20 rounded w-3/4"></div>
-                      <div className="flex gap-2">
-                        <div className="h-3 bg-muted-foreground/20 rounded w-16"></div>
-                        <div className="h-3 bg-muted-foreground/20 rounded w-12"></div>
-                      </div>
-                    </div>
-                    <div className="h-6 w-6 bg-muted-foreground/20 rounded"></div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="h-3 bg-muted-foreground/20 rounded"></div>
-                    <div className="h-3 bg-muted-foreground/20 rounded w-5/6"></div>
-                    <div className="h-3 bg-muted-foreground/20 rounded w-4/6"></div>
-                  </div>
-                  <div className="flex justify-between text-xs">
-                    <div className="h-3 bg-muted-foreground/20 rounded w-20"></div>
-                    <div className="h-3 bg-muted-foreground/20 rounded w-20"></div>
-                  </div>
-                  <div className="h-8 bg-muted-foreground/20 rounded w-full mt-4"></div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
-// Error state component
-interface TemplatesErrorStateProps {
-  error: string
-  onRetry: () => void
-  canRetry: boolean
-}
-
-function TemplatesErrorState({ error, onRetry, canRetry }: TemplatesErrorStateProps) {
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center min-h-[400px]">
-      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-destructive/10 rounded-full flex items-center justify-center mb-6">
-        <AlertTriangle className="h-8 w-8 sm:h-10 sm:w-10 text-destructive" />
-      </div>
-      <h3 className="text-lg sm:text-xl font-semibold mb-2 text-foreground">
-        Fehler beim Laden der Vorlagen
-      </h3>
-      <p className="text-muted-foreground mb-6 max-w-md text-sm sm:text-base px-4">
-        {error}
-      </p>
-      {canRetry && (
-        <Button onClick={onRetry} variant="outline" size="lg">
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Erneut versuchen
-        </Button>
-      )}
-    </div>
-  )
-}
-
-// Empty state component
-interface TemplatesEmptyStateProps {
-  onCreateTemplate: () => void
-  hasSearch: boolean
-  hasFilter: boolean
-  onClearFilters: () => void
-}
-
-function TemplatesEmptyState({ 
-  onCreateTemplate, 
-  hasSearch, 
-  hasFilter, 
-  onClearFilters 
-}: TemplatesEmptyStateProps) {
-  if (hasSearch || hasFilter) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center min-h-[400px]">
-        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-          <Search className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg sm:text-xl font-semibold mb-2 text-foreground">
-          Keine Vorlagen gefunden
-        </h3>
-        <p className="text-muted-foreground mb-6 max-w-md text-sm sm:text-base px-4">
-          {hasSearch 
-            ? "Ihre Suche ergab keine Treffer. Versuchen Sie andere Suchbegriffe."
-            : "In dieser Kategorie sind keine Vorlagen vorhanden."
-          }
-        </p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onClearFilters}>
-            Filter zurücksetzen
-          </Button>
-          <Button onClick={onCreateTemplate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Neue Vorlage erstellen
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center min-h-[400px]">
-      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-full flex items-center justify-center mb-6">
-        <FileText className="h-8 w-8 sm:h-10 sm:w-10 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg sm:text-xl font-semibold mb-2 text-foreground">
-        Noch keine Vorlagen vorhanden
-      </h3>
-      <p className="text-muted-foreground mb-6 max-w-md text-sm sm:text-base px-4">
-        Erstellen Sie Ihre erste Vorlage, um Zeit bei wiederkehrenden Dokumenten zu sparen.
-      </p>
-      <Button 
-        onClick={onCreateTemplate}
-        size="lg"
-        className="px-6 py-3"
-      >
-        <Plus className="mr-2 h-4 w-4" />
-        Erste Vorlage erstellen
-      </Button>
-    </div>
-  )
-}
 
 // Templates grid component
 interface TemplatesGridProps {
