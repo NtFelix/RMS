@@ -410,21 +410,12 @@ export function TiptapTemplateEditor({
     }
   }, [enableAutoSave, autoSaveFunction, debouncedSave])
 
-  // Use optimized editor initialization if enabled
-  const optimizedInitialization = useOptimizedEditorInitialization({
-    extensions: editorExtensions,
-    initialContent: parsedContent,
-    editable,
-    onUpdate: handleContentChange,
-    editorProps: editorProps,
-    enablePerformanceMonitoring,
-    parseContentAsync: optimizeForLargeDocuments,
-    deferRendering: deferInitialization,
-    onStateChange: (state) => {
-      // Update loading state based on initialization progress
-      setIsContentLoading(state.stage !== 'ready')
-    }
-  })
+  // Temporarily disable optimized initialization to isolate schema issue
+  const optimizedInitialization = {
+    editor: null,
+    state: { stage: 'ready', progress: 100, currentStep: 0, steps: [], error: null },
+    metrics: {}
+  }
 
   // Virtual scrolling setup for large documents
   const virtualScrollItems = useMemo(() => {
@@ -503,14 +494,14 @@ export function TiptapTemplateEditor({
     ? optimizedInitialization.editor 
     : standardEditor
 
-  // Use optimized content updates
-  useOptimizedEditorUpdates(editor, parsedContent, {
-    debounceDelay: contentChangeDelay,
-    compareContent: true,
-    onContentChange: (content) => {
-      setCurrentContent(content)
-    }
-  })
+  // Temporarily disable optimized updates to isolate schema issue
+  // useOptimizedEditorUpdates(editor, parsedContent, {
+  //   debounceDelay: contentChangeDelay,
+  //   compareContent: true,
+  //   onContentChange: (content) => {
+  //     setCurrentContent(content)
+  //   }
+  // })
 
   // Update editor content when parsedContent changes (optimized with error handling)
   useEffect(() => {
