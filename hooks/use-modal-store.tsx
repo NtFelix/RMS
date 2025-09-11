@@ -398,6 +398,11 @@ export interface ModalState {
   openTemplateEditorModal: (data: TemplateEditorData) => void;
   closeTemplateEditorModal: (options?: CloseModalOptions) => void;
   setTemplateEditorModalDirty: (isDirty: boolean) => void;
+
+  // Templates Management Modal State
+  isTemplatesManagementModalOpen: boolean;
+  openTemplatesManagementModal: () => void;
+  closeTemplatesManagementModal: () => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -552,6 +557,10 @@ const initialTemplateEditorModalState = {
   isTemplateEditorModalDirty: false,
 };
 
+const initialTemplatesManagementModalState = {
+  isTemplatesManagementModalOpen: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -575,6 +584,7 @@ const createInitialModalState = () => ({
   ...initialMarkdownEditorModalState,
   ...initialCategorySelectionModalState,
   ...initialTemplateEditorModalState,
+  ...initialTemplatesManagementModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -1022,6 +1032,11 @@ export const useModalStore = create<ModalState>((set, get) => {
     openCategorySelectionModal: async (data: Omit<CategorySelectionData, 'existingCategories' | 'isLoading' | 'error'>, userId: string) => {
       const state = get();
       
+      // Prevent opening if already open
+      if (state.isCategorySelectionModalOpen) {
+        return;
+      }
+      
       // Set initial modal state with loading
       set({
         isCategorySelectionModalOpen: true,
@@ -1036,25 +1051,33 @@ export const useModalStore = create<ModalState>((set, get) => {
       try {
         const categories = await state.loadUserCategories(userId);
         
-        // Update modal data with loaded categories
-        set({
-          categorySelectionData: {
-            ...data,
-            existingCategories: categories,
-            isLoading: false,
-            error: undefined
-          }
-        });
+        // Only update if modal is still open (prevent race conditions)
+        const currentState = get();
+        if (currentState.isCategorySelectionModalOpen) {
+          set({
+            categorySelectionData: {
+              ...data,
+              existingCategories: categories,
+              isLoading: false,
+              error: undefined
+            }
+          });
+        }
       } catch (error) {
         console.error('Failed to load categories:', error);
-        set({
-          categorySelectionData: {
-            ...data,
-            existingCategories: [],
-            isLoading: false,
-            error: error instanceof Error ? error.message : 'Failed to load categories'
-          }
-        });
+        
+        // Only update if modal is still open (prevent race conditions)
+        const currentState = get();
+        if (currentState.isCategorySelectionModalOpen) {
+          set({
+            categorySelectionData: {
+              ...data,
+              existingCategories: [],
+              isLoading: false,
+              error: error instanceof Error ? error.message : 'Failed to load categories'
+            }
+          });
+        }
       }
     },
     
@@ -1068,6 +1091,10 @@ export const useModalStore = create<ModalState>((set, get) => {
     }),
     closeTemplateEditorModal: createCloseHandler('isTemplateEditorModalDirty', initialTemplateEditorModalState),
     setTemplateEditorModalDirty: (isDirty: boolean) => set({ isTemplateEditorModalDirty: isDirty }),
+
+    // Templates Management Modal
+    openTemplatesManagementModal: () => set({ isTemplatesManagementModalOpen: true }),
+    closeTemplatesManagementModal: () => set(initialTemplatesManagementModalState),
 
     // Category data loading and caching
     loadUserCategories: async (userId: string, forceRefresh = false): Promise<string[]> => {
