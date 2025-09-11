@@ -163,52 +163,61 @@ export const useActiveStateStore = create<ActiveStateManager>()(
  * Automatically syncs with Next.js router and navigation changes
  */
 export function useActiveStateManager() {
-  const store = useActiveStateStore()
   const pathname = usePathname()
+  const updateActiveRoute = useActiveStateStore((state) => state.updateActiveRoute)
   
   // Sync with Next.js router changes
   useEffect(() => {
-    // Always update to ensure we're in sync with the current route
-    store.updateActiveRoute(pathname)
-  }, [pathname, store.updateActiveRoute])
+    updateActiveRoute(pathname)
+  }, [pathname, updateActiveRoute])
   
-  return store
+  // Return the entire store for backward compatibility
+  return useActiveStateStore()
 }
 
 /**
  * Hook specifically for sidebar navigation active states
  */
 export function useSidebarActiveState() {
-  const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Initialize from persisted state on first load, then sync with current pathname
-  useEffect(() => {
-    // Always update to current pathname to ensure sync
-    store.updateActiveRoute(pathname)
-  }, [pathname, store.updateActiveRoute])
+  // Subscribe to the store state directly to ensure reactivity
+  const currentRoute = useActiveStateStore((state) => state.activeState.currentRoute)
+  const isCloudStorageActive = useActiveStateStore((state) => state.activeState.isCloudStorageActive)
+  const updateActiveRoute = useActiveStateStore((state) => state.updateActiveRoute)
+  const isRouteActive = useActiveStateStore((state) => state.isRouteActive)
+  const getActiveStateClasses = useActiveStateStore((state) => state.getActiveStateClasses)
   
-  // Memoize the return object to prevent unnecessary re-renders
-  return useMemo(() => ({
-    isRouteActive: store.isRouteActive,
-    getActiveStateClasses: store.getActiveStateClasses,
-    currentRoute: store.activeState.currentRoute,
-    isCloudStorageActive: store.activeState.isCloudStorageActive
-  }), [store.isRouteActive, store.getActiveStateClasses, store.activeState.currentRoute, store.activeState.isCloudStorageActive])
+  // Update route when pathname changes
+  useEffect(() => {
+    updateActiveRoute(pathname)
+  }, [pathname, updateActiveRoute])
+  
+  // Return the reactive state and methods
+  return {
+    isRouteActive,
+    getActiveStateClasses,
+    currentRoute,
+    isCloudStorageActive
+  }
 }
 
 /**
  * Hook for breadcrumb navigation active states
  */
 export function useBreadcrumbActiveState() {
-  const store = useActiveStateStore()
+  const breadcrumbs = useActiveStateStore((state) => state.activeState.breadcrumbs)
+  const activeDirectoryPath = useActiveStateStore((state) => state.activeState.activeDirectoryPath)
+  const updateBreadcrumbs = useActiveStateStore((state) => state.updateBreadcrumbs)
+  const isDirectoryActive = useActiveStateStore((state) => state.isDirectoryActive)
+  const getDirectoryActiveClasses = useActiveStateStore((state) => state.getDirectoryActiveClasses)
   
   return {
-    breadcrumbs: store.activeState.breadcrumbs,
-    updateBreadcrumbs: store.updateBreadcrumbs,
-    isDirectoryActive: store.isDirectoryActive,
-    getDirectoryActiveClasses: store.getDirectoryActiveClasses,
-    activeDirectoryPath: store.activeState.activeDirectoryPath
+    breadcrumbs,
+    updateBreadcrumbs,
+    isDirectoryActive,
+    getDirectoryActiveClasses,
+    activeDirectoryPath
   }
 }
 
@@ -216,15 +225,20 @@ export function useBreadcrumbActiveState() {
  * Hook for directory-specific active states
  */
 export function useDirectoryActiveState() {
-  const store = useActiveStateStore()
+  const activeDirectoryPath = useActiveStateStore((state) => state.activeState.activeDirectoryPath)
+  const currentDirectory = useActiveStateStore((state) => state.activeState.currentDirectory)
+  const updateActiveDirectory = useActiveStateStore((state) => state.updateActiveDirectory)
+  const isDirectoryActive = useActiveStateStore((state) => state.isDirectoryActive)
+  const getDirectoryActiveClasses = useActiveStateStore((state) => state.getDirectoryActiveClasses)
+  const syncWithNavigation = useActiveStateStore((state) => state.syncWithNavigation)
   
   return {
-    activeDirectoryPath: store.activeState.activeDirectoryPath,
-    currentDirectory: store.activeState.currentDirectory,
-    updateActiveDirectory: store.updateActiveDirectory,
-    isDirectoryActive: store.isDirectoryActive,
-    getDirectoryActiveClasses: store.getDirectoryActiveClasses,
-    syncWithNavigation: store.syncWithNavigation
+    activeDirectoryPath,
+    currentDirectory,
+    updateActiveDirectory,
+    isDirectoryActive,
+    getDirectoryActiveClasses,
+    syncWithNavigation
   }
 }
 
@@ -232,25 +246,28 @@ export function useDirectoryActiveState() {
  * Hook that automatically syncs active state with cloud storage navigation
  */
 export function useActiveStateSync() {
-  const store = useActiveStateStore()
+  const activeState = useActiveStateStore((state) => state.activeState)
+  const syncWithNavigation = useActiveStateStore((state) => state.syncWithNavigation)
+  const updateActiveDirectory = useActiveStateStore((state) => state.updateActiveDirectory)
+  const updateBreadcrumbs = useActiveStateStore((state) => state.updateBreadcrumbs)
   
   const syncActiveState = useCallback((currentPath: string, breadcrumbs: BreadcrumbItem[]) => {
-    store.syncWithNavigation(currentPath, breadcrumbs)
-  }, [store])
+    syncWithNavigation(currentPath, breadcrumbs)
+  }, [syncWithNavigation])
   
-  const updateActiveDirectory = useCallback((path: string, breadcrumbs?: BreadcrumbItem[]) => {
-    store.updateActiveDirectory(path, breadcrumbs)
-  }, [store])
+  const updateActiveDirectoryCallback = useCallback((path: string, breadcrumbs?: BreadcrumbItem[]) => {
+    updateActiveDirectory(path, breadcrumbs)
+  }, [updateActiveDirectory])
   
-  const updateBreadcrumbs = useCallback((breadcrumbs: BreadcrumbItem[]) => {
-    store.updateBreadcrumbs(breadcrumbs)
-  }, [store])
+  const updateBreadcrumbsCallback = useCallback((breadcrumbs: BreadcrumbItem[]) => {
+    updateBreadcrumbs(breadcrumbs)
+  }, [updateBreadcrumbs])
   
   return {
     syncActiveState,
-    updateActiveDirectory,
-    updateBreadcrumbs,
-    activeState: store.activeState
+    updateActiveDirectory: updateActiveDirectoryCallback,
+    updateBreadcrumbs: updateBreadcrumbsCallback,
+    activeState
   }
 }
 
@@ -259,48 +276,58 @@ export function useActiveStateSync() {
  * for components that need full active state functionality
  */
 export function useComprehensiveActiveState() {
-  const store = useActiveStateStore()
   const pathname = usePathname()
+  
+  // Subscribe to specific parts of the store for better reactivity
+  const activeState = useActiveStateStore((state) => state.activeState)
+  const isRouteActive = useActiveStateStore((state) => state.isRouteActive)
+  const getActiveStateClasses = useActiveStateStore((state) => state.getActiveStateClasses)
+  const isDirectoryActive = useActiveStateStore((state) => state.isDirectoryActive)
+  const getDirectoryActiveClasses = useActiveStateStore((state) => state.getDirectoryActiveClasses)
+  const updateActiveRoute = useActiveStateStore((state) => state.updateActiveRoute)
+  const updateActiveDirectory = useActiveStateStore((state) => state.updateActiveDirectory)
+  const updateBreadcrumbs = useActiveStateStore((state) => state.updateBreadcrumbs)
+  const syncWithNavigation = useActiveStateStore((state) => state.syncWithNavigation)
+  const reset = useActiveStateStore((state) => state.reset)
   
   // Auto-sync with router
   useEffect(() => {
-    // Always update to ensure we're in sync with the current route
-    store.updateActiveRoute(pathname)
-  }, [pathname, store.updateActiveRoute])
+    updateActiveRoute(pathname)
+  }, [pathname, updateActiveRoute])
   
   return useMemo(() => ({
     // Current state
-    activeState: store.activeState,
+    activeState,
     
     // Route active state
-    isRouteActive: store.isRouteActive,
-    getActiveStateClasses: store.getActiveStateClasses,
+    isRouteActive,
+    getActiveStateClasses,
     
     // Directory active state
-    isDirectoryActive: store.isDirectoryActive,
-    getDirectoryActiveClasses: store.getDirectoryActiveClasses,
+    isDirectoryActive,
+    getDirectoryActiveClasses,
     
     // Breadcrumb state
-    breadcrumbs: store.activeState.breadcrumbs,
+    breadcrumbs: activeState.breadcrumbs,
     
     // Update methods
-    updateActiveRoute: store.updateActiveRoute,
-    updateActiveDirectory: store.updateActiveDirectory,
-    updateBreadcrumbs: store.updateBreadcrumbs,
-    syncWithNavigation: store.syncWithNavigation,
+    updateActiveRoute,
+    updateActiveDirectory,
+    updateBreadcrumbs,
+    syncWithNavigation,
     
     // Utility
-    reset: store.reset
+    reset
   }), [
-    store.activeState,
-    store.isRouteActive,
-    store.getActiveStateClasses,
-    store.isDirectoryActive,
-    store.getDirectoryActiveClasses,
-    store.updateActiveRoute,
-    store.updateActiveDirectory,
-    store.updateBreadcrumbs,
-    store.syncWithNavigation,
-    store.reset
+    activeState,
+    isRouteActive,
+    getActiveStateClasses,
+    isDirectoryActive,
+    getDirectoryActiveClasses,
+    updateActiveRoute,
+    updateActiveDirectory,
+    updateBreadcrumbs,
+    syncWithNavigation,
+    reset
   ])
 }
