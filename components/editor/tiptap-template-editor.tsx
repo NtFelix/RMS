@@ -3,6 +3,9 @@
 import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Document from '@tiptap/extension-document'
+import Paragraph from '@tiptap/extension-paragraph'
+import Text from '@tiptap/extension-text'
 import Underline from '@tiptap/extension-underline'
 import { SlashCommandExtension } from './slash-command-extension'
 import { MentionExtension, MentionItem, PREDEFINED_VARIABLES } from './mention-extension'
@@ -314,30 +317,52 @@ export function TiptapTemplateEditor({
   )
 
   // Optimized editor extensions with proper memoization
-  const editorExtensions = useMemo(() => [
-    StarterKit.configure({
-      // Configure the starter kit extensions
-      heading: {
-        levels: [1, 2, 3, 4, 5, 6],
-      },
-      bulletList: {
-        keepMarks: true,
-        keepAttributes: false,
-      },
-      orderedList: {
-        keepMarks: true,
-        keepAttributes: false,
-      },
-      // Additional formatting options are enabled by default in StarterKit
-    }),
-    Underline,
-    SlashCommandExtension,
-    MentionExtension({
-      variables,
-      onVariableInsert,
-      onVariableRemove,
-    }),
-  ], [variables, onVariableInsert, onVariableRemove])
+  const editorExtensions = useMemo(() => {
+    // Ensure core document structure is always available
+    const coreExtensions = [
+      Document,
+      Paragraph,
+      Text,
+    ]
+    
+    const starterKitExtensions = [
+      StarterKit.configure({
+        // Disable document, paragraph, and text since we're adding them explicitly
+        document: false,
+        paragraph: false,
+        text: false,
+        // Configure the other starter kit extensions
+        heading: {
+          levels: [1, 2, 3, 4, 5, 6],
+        },
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        // Additional formatting options are enabled by default in StarterKit
+      }),
+      Underline,
+    ]
+    
+    const customExtensions = [
+      SlashCommandExtension,
+      MentionExtension({
+        variables,
+        onVariableInsert,
+        onVariableRemove,
+      }),
+    ]
+    
+    return [
+      ...coreExtensions,
+      ...starterKitExtensions,
+      ...customExtensions,
+    ]
+  }, [variables, onVariableInsert, onVariableRemove])
 
   // Memoized editor props to prevent recreation
   const editorProps = useMemo(() => ({
@@ -417,24 +442,36 @@ export function TiptapTemplateEditor({
     }
   }, [debouncedContent, extractedVariables, onContentChange])
   // Memoize the editor configuration to prevent recreation
-  const editorConfig = useMemo(() => ({
-    immediatelyRender: false, // Fix SSR hydration mismatch
-    extensions: editorExtensions,
-    content: parsedContent || {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-          content: [],
+  const editorConfig = useMemo(() => {
+    try {
+      return {
+        immediatelyRender: false, // Fix SSR hydration mismatch
+        extensions: editorExtensions,
+        content: parsedContent || {
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [],
+            },
+          ],
         },
-      ],
-    },
-    editable,
-    onUpdate: handleContentChange,
-    editorProps: editorProps,
-  }), [editorExtensions, parsedContent, editable, handleContentChange, editorProps])
+        editable,
+        onUpdate: handleContentChange,
+        editorProps: editorProps,
+      }
+    } catch (error) {
+      console.error('Error creating editor config:', error)
+      toast({
+        title: "Editor-Konfigurationsfehler",
+        description: "Fehler beim Erstellen der Editor-Konfiguration.",
+        variant: "destructive"
+      })
+      throw error
+    }
+  }, [editorExtensions, parsedContent, editable, handleContentChange, editorProps, toast])
 
-  // Use either optimized or standard editor initialization
+  // Use either optimized or standard editor initialization with error handling
   const standardEditor = useEditor(editorConfig)
   
   // Choose which editor to use based on optimization settings
