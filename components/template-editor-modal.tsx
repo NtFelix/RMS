@@ -724,6 +724,12 @@ export function TemplateEditorModal() {
               placeholder="Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle und '@' für Variablen..."
               className="h-full"
               editable={!isSaving && !saveInProgressRef.current}
+              enablePerformanceMonitoring={process.env.NODE_ENV === 'development'}
+              enableVirtualScrolling={false} // Can be enabled for very large templates
+              optimizeForLargeDocuments={true}
+              deferInitialization={false}
+              contentChangeDelay={200}
+              variableExtractionDelay={400}
             />
           </div>
 

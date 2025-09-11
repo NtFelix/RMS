@@ -24,6 +24,19 @@ import {
 } from '@/lib/template-content-parser'
 import { useToast } from '@/hooks/use-toast'
 import { ToastAction } from '@/components/ui/toast'
+import { 
+  EditorLoadingState, 
+  InitializationProgress, 
+  ContentLoadingSkeleton,
+  PerformanceIndicator 
+} from './editor-loading-states'
+import { 
+  VirtualScrollEditor, 
+  contentToVirtualItems,
+  useVirtualScroll,
+  type VirtualScrollRef 
+} from './virtual-scroll-editor'
+import { useOptimizedEditorInitialization, useOptimizedEditorUpdates } from '@/hooks/use-optimized-editor-initialization'
 import './mention-popup.css'
 
 interface TiptapTemplateEditorProps {
@@ -54,6 +67,12 @@ interface TiptapTemplateEditorProps {
   showToolbarLabels?: boolean
   showKeyboardShortcuts?: boolean
   enableToolbarCustomization?: boolean
+  // Performance and optimization options
+  enablePerformanceMonitoring?: boolean
+  enableVirtualScrolling?: boolean
+  virtualScrollHeight?: number
+  optimizeForLargeDocuments?: boolean
+  deferInitialization?: boolean
 }
 
 export function TiptapTemplateEditor({
@@ -79,7 +98,12 @@ export function TiptapTemplateEditor({
   compactToolbar = false,
   showToolbarLabels = false,
   showKeyboardShortcuts = true,
-  enableToolbarCustomization = false
+  enableToolbarCustomization = false,
+  enablePerformanceMonitoring = false,
+  enableVirtualScrolling = false,
+  virtualScrollHeight = 400,
+  optimizeForLargeDocuments = false,
+  deferInitialization = false
 }: TiptapTemplateEditorProps) {
   const { toast } = useToast()
   
@@ -98,7 +122,10 @@ export function TiptapTemplateEditor({
   const editorInitializedRef = useRef(false)
 
   // Performance monitoring (only in development)
-  usePerformanceMonitor('TiptapTemplateEditor', process.env.NODE_ENV === 'development')
+  const performanceMonitor = usePerformanceMonitor(
+    'TiptapTemplateEditor', 
+    enablePerformanceMonitoring || process.env.NODE_ENV === 'development'
+  )
 
   // Retry function for failed parsing
   const retryParsing = useCallback(() => {
@@ -312,6 +339,36 @@ export function TiptapTemplateEditor({
     }),
   ], [variables, onVariableInsert, onVariableRemove])
 
+  // Use optimized editor initialization if enabled
+  const optimizedInitialization = useOptimizedEditorInitialization({
+    extensions: editorExtensions,
+    initialContent: parsedContent,
+    editable,
+    onUpdate: handleContentChange,
+    editorProps: editorProps,
+    enablePerformanceMonitoring,
+    parseContentAsync: optimizeForLargeDocuments,
+    deferRendering: deferInitialization,
+    onStateChange: (state) => {
+      // Update loading state based on initialization progress
+      setIsContentLoading(state.stage !== 'ready')
+    }
+  })
+
+  // Virtual scrolling setup for large documents
+  const virtualScrollItems = useMemo(() => {
+    if (enableVirtualScrolling && parsedContent) {
+      return contentToVirtualItems(parsedContent, 50)
+    }
+    return []
+  }, [enableVirtualScrolling, parsedContent])
+
+  const virtualScroll = useVirtualScroll(
+    virtualScrollItems,
+    virtualScrollHeight,
+    50
+  )
+
   // Memoized editor props to prevent recreation
   const editorProps = useMemo(() => ({
     attributes: {
@@ -377,7 +434,22 @@ export function TiptapTemplateEditor({
     editorProps: editorProps,
   }), [editorExtensions, parsedContent, editable, handleContentChange, editorProps])
 
-  const editor = useEditor(editorConfig)
+  // Use either optimized or standard editor initialization
+  const standardEditor = useEditor(editorConfig)
+  
+  // Choose which editor to use based on optimization settings
+  const editor = optimizeForLargeDocuments || deferInitialization 
+    ? optimizedInitialization.editor 
+    : standardEditor
+
+  // Use optimized content updates
+  useOptimizedEditorUpdates(editor, parsedContent, {
+    debounceDelay: contentChangeDelay,
+    compareContent: true,
+    onContentChange: (content) => {
+      setCurrentContent(content)
+    }
+  })
 
   // Update editor content when parsedContent changes (optimized with error handling)
   useEffect(() => {
@@ -476,13 +548,42 @@ export function TiptapTemplateEditor({
     }
   }, [editor, onSave, onCancel])
 
-  // Show loading state while content is being parsed or editor is initializing
+  // Show enhanced loading state while content is being parsed or editor is initializing
   if (!editor || isContentLoading) {
-    return (
-      <div className={cn('min-h-[200px] flex items-center justify-center', className)}>
-        <div className="text-gray-500 dark:text-gray-400">
-          {isContentLoading ? 'Inhalt wird geladen...' : 'Editor wird geladen...'}
+    // Use optimized loading state if available
+    if (optimizeForLargeDocuments || deferInitialization) {
+      const initState = optimizedInitialization.state
+      
+      return (
+        <div className={cn('min-h-[200px]', className)}>
+          <EditorLoadingState
+            stage={initState.stage}
+            progress={initState.progress}
+            message={initState.error}
+            error={initState.error}
+            showProgress={true}
+          />
+          
+          {initState.steps.length > 0 && (
+            <div className="mt-4 flex justify-center">
+              <InitializationProgress
+                steps={initState.steps}
+                currentStep={initState.currentStep}
+              />
+            </div>
+          )}
         </div>
+      )
+    }
+    
+    // Standard loading state
+    return (
+      <div className={cn('min-h-[200px]', className)}>
+        <EditorLoadingState
+          stage={isContentLoading ? 'parsing' : 'initializing'}
+          progress={isContentLoading ? 50 : 25}
+          message={isContentLoading ? 'Inhalt wird verarbeitet...' : 'Editor wird initialisiert...'}
+        />
       </div>
     )
   }
@@ -510,6 +611,17 @@ export function TiptapTemplateEditor({
       className={cn('relative', className)}
       onKeyDown={handleKeyDown}
     >
+      {/* Performance indicator for development */}
+      {enablePerformanceMonitoring && (
+        <PerformanceIndicator 
+          metrics={
+            optimizeForLargeDocuments || deferInitialization
+              ? optimizedInitialization.metrics
+              : performanceMonitor.getMetrics()
+          }
+        />
+      )}
+      
       {/* Content error/warning indicator */}
       {contentError === "recovered" && (
         <div className="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
@@ -548,10 +660,24 @@ export function TiptapTemplateEditor({
           />
         )}
         
-        <EditorContent 
-          editor={editor}
-          className="w-full min-h-[200px]"
-        />
+        {/* Virtual scrolling for large documents */}
+        {enableVirtualScrolling && virtualScrollItems.length > 0 ? (
+          <VirtualScrollEditor
+            ref={virtualScroll.virtualScrollRef}
+            items={virtualScrollItems}
+            containerHeight={virtualScrollHeight}
+            itemHeight={50}
+            overscan={5}
+            onScroll={virtualScroll.handleScroll}
+            onVisibleRangeChange={virtualScroll.handleVisibleRangeChange}
+            className="w-full"
+          />
+        ) : (
+          <EditorContent 
+            editor={editor}
+            className="w-full min-h-[200px]"
+          />
+        )}
       </div>
       
       {/* Floating Bubble Menu */}

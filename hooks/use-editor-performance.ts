@@ -222,6 +222,17 @@ export function useRenderOptimization(dependencies: any[]) {
 export function usePerformanceMonitor(componentName: string, enabled: boolean = false) {
   const renderStartRef = useRef<number>(0)
   const renderCountRef = useRef<number>(0)
+  const metricsRef = useRef<{
+    initTime?: number
+    parseTime?: number
+    renderTime?: number
+    memoryUsage?: number
+    lastRenderTime?: number
+    averageRenderTime?: number
+    renderTimes: number[]
+  }>({
+    renderTimes: []
+  })
 
   if (enabled && process.env.NODE_ENV === 'development') {
     renderStartRef.current = performance.now()
@@ -230,14 +241,53 @@ export function usePerformanceMonitor(componentName: string, enabled: boolean = 
     // Log performance after render
     setTimeout(() => {
       const renderTime = performance.now() - renderStartRef.current
+      metricsRef.current.lastRenderTime = renderTime
+      metricsRef.current.renderTimes.push(renderTime)
+      
+      // Keep only last 10 render times for average calculation
+      if (metricsRef.current.renderTimes.length > 10) {
+        metricsRef.current.renderTimes.shift()
+      }
+      
+      // Calculate average render time
+      metricsRef.current.averageRenderTime = 
+        metricsRef.current.renderTimes.reduce((sum, time) => sum + time, 0) / 
+        metricsRef.current.renderTimes.length
+      
+      // Get memory usage if available
+      if ('memory' in performance) {
+        metricsRef.current.memoryUsage = (performance as any).memory.usedJSHeapSize
+      }
+      
       if (renderTime > 16) { // More than one frame (60fps)
         console.warn(`${componentName} render took ${renderTime.toFixed(2)}ms (render #${renderCountRef.current})`)
       }
     }, 0)
   }
 
+  const recordInitTime = useCallback((time: number) => {
+    metricsRef.current.initTime = time
+  }, [])
+
+  const recordParseTime = useCallback((time: number) => {
+    metricsRef.current.parseTime = time
+  }, [])
+
+  const recordRenderTime = useCallback((time: number) => {
+    metricsRef.current.renderTime = time
+  }, [])
+
+  const getMetrics = useCallback(() => {
+    return { ...metricsRef.current }
+  }, [])
+
   return {
     renderCount: renderCountRef.current,
-    startTime: renderStartRef.current
+    startTime: renderStartRef.current,
+    metrics: metricsRef.current,
+    recordInitTime,
+    recordParseTime,
+    recordRenderTime,
+    getMetrics
   }
 }
