@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useAuth } from "@/components/auth-provider"
-import { TemplateService } from "@/lib/template-service"
+import { TemplateClientService } from "@/lib/template-client-service"
 import { templateCacheService } from "@/lib/template-cache"
 import { CategoryFilter } from "@/components/category-filter"
 import { TemplateCard } from "@/components/template-card"
@@ -50,7 +50,7 @@ export function TemplatesManagementModal() {
   })
 
   // Template service instance
-  const templateService = useMemo(() => new TemplateService(), [])
+  const templateService = useMemo(() => new TemplateClientService(), [])
 
   // Reset state when modal opens and load templates
   useEffect(() => {
@@ -110,7 +110,7 @@ export function TemplatesManagementModal() {
       }
 
       // Load fresh data from service
-      const loadedTemplates = await templateService.getUserTemplates(user.id)
+      const loadedTemplates = await templateService.getUserTemplates()
 
       // Enhance templates with metadata
       const templatesWithMetadata = await enhanceTemplatesWithMetadata(loadedTemplates)
@@ -182,10 +182,35 @@ export function TemplatesManagementModal() {
     })
   }
 
-  // Handle template deletion
+  // Handle template deletion with confirmation
   const handleDeleteTemplate = async (templateId: string): Promise<void> => {
     if (!user?.id) {
-      throw new Error("Benutzer nicht authentifiziert")
+      toast({
+        title: "Fehler",
+        description: "Benutzer nicht authentifiziert",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Find the template to get its title for confirmation
+    const templateToDelete = templates.find(t => t.id === templateId)
+    if (!templateToDelete) {
+      toast({
+        title: "Fehler",
+        description: "Die zu löschende Vorlage konnte nicht gefunden werden.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+      `Möchten Sie die Vorlage "${templateToDelete.titel}" wirklich löschen?\n\nDiese Aktion kann nicht rückgängig gemacht werden.`
+    )
+
+    if (!confirmed) {
+      return
     }
 
     try {
@@ -197,9 +222,20 @@ export function TemplatesManagementModal() {
       // Invalidate cache
       templateCacheService.invalidateUserCaches(user.id)
       
+      toast({
+        title: "Vorlage gelöscht",
+        description: `Die Vorlage "${templateToDelete.titel}" wurde erfolgreich gelöscht.`
+      })
+      
     } catch (error) {
       console.error('Error deleting template:', error)
-      throw error // Re-throw so the TemplateCard can handle the error display
+      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+      
+      toast({
+        title: "Fehler beim Löschen",
+        description: `Die Vorlage "${templateToDelete.titel}" konnte nicht gelöscht werden: ${errorMessage}`,
+        variant: "destructive"
+      })
     }
   }
 
@@ -266,8 +302,95 @@ export function TemplatesManagementModal() {
   }, [templates, selectedCategory, searchQuery])
 
   const handleCreateTemplate = () => {
-    // Placeholder for create template functionality
-    console.log("Create new template")
+    const { openTemplateEditorModal } = useModalStore()
+    
+    openTemplateEditorModal({
+      isNewTemplate: true,
+      initialCategory: selectedCategory !== 'all' ? selectedCategory : undefined,
+      onSave: async (templateData) => {
+        try {
+          await templateService.createTemplate({
+            titel: templateData.titel,
+            inhalt: templateData.inhalt,
+            kategorie: templateData.kategorie,
+            kontext_anforderungen: templateData.kontext_anforderungen
+          })
+          
+          toast({
+            title: "Vorlage erstellt",
+            description: `Die Vorlage "${templateData.titel}" wurde erfolgreich erstellt.`
+          })
+          
+          // Refresh templates list
+          await loadTemplates(true)
+        } catch (error) {
+          console.error('Error creating template:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+          toast({
+            title: "Fehler beim Erstellen",
+            description: errorMessage,
+            variant: "destructive"
+          })
+          throw error // Re-throw to let the editor handle it
+        }
+      },
+      onCancel: () => {
+        // Template editor will handle closing
+      }
+    })
+  }
+
+  const handleEditTemplate = (templateId: string) => {
+    const { openTemplateEditorModal } = useModalStore()
+    
+    // Find the template to edit
+    const templateToEdit = templates.find(t => t.id === templateId)
+    if (!templateToEdit) {
+      toast({
+        title: "Fehler",
+        description: "Die zu bearbeitende Vorlage konnte nicht gefunden werden.",
+        variant: "destructive"
+      })
+      return
+    }
+    
+    openTemplateEditorModal({
+      templateId: templateToEdit.id,
+      initialTitle: templateToEdit.titel,
+      initialContent: templateToEdit.inhalt,
+      initialCategory: templateToEdit.kategorie,
+      isNewTemplate: false,
+      onSave: async (templateData) => {
+        try {
+          await templateService.updateTemplate(templateToEdit.id, {
+            titel: templateData.titel,
+            inhalt: templateData.inhalt,
+            kategorie: templateData.kategorie,
+            kontext_anforderungen: templateData.kontext_anforderungen
+          })
+          
+          toast({
+            title: "Vorlage gespeichert",
+            description: `Die Vorlage "${templateData.titel}" wurde erfolgreich aktualisiert.`
+          })
+          
+          // Refresh templates list
+          await loadTemplates(true)
+        } catch (error) {
+          console.error('Error updating template:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
+          toast({
+            title: "Fehler beim Speichern",
+            description: errorMessage,
+            variant: "destructive"
+          })
+          throw error // Re-throw to let the editor handle it
+        }
+      },
+      onCancel: () => {
+        // Template editor will handle closing
+      }
+    })
   }
 
   const handleSearchChange = (value: string) => {
@@ -414,7 +537,7 @@ export function TemplatesManagementModal() {
             ) : (
               <TemplatesGrid 
                 templates={filteredTemplates}
-                onEditTemplate={(templateId) => console.log('Edit template:', templateId)}
+                onEditTemplate={handleEditTemplate}
                 onDeleteTemplate={handleDeleteTemplate}
               />
             )}

@@ -255,8 +255,8 @@ export default function DashboardRootLayout({
       {/* CategorySelectionModal - Fixed version without infinite loops */}
       <CategorySelectionModal />
 
-      {/* TemplateEditorModal - Template creation and editing modal - TEMPORARILY DISABLED */}
-      {/* {isTemplateEditorModalOpen && <TemplateEditorModal key="template-editor-modal" />} */}
+      {/* TemplateEditorModal - Template creation and editing modal */}
+      {isTemplateEditorModalOpen && <TemplateEditorModal key="template-editor-modal" />}
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

@@ -27,24 +27,12 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
   const { toast } = useToast()
 
   const handleDelete = async () => {
-    if (!confirm(`Möchten Sie die Vorlage "${template.titel}" wirklich löschen?`)) {
-      return
-    }
-
     setIsDeleting(true)
     try {
       await onDelete(template.id)
-      toast({
-        title: "Vorlage gelöscht",
-        description: `"${template.titel}" wurde erfolgreich gelöscht.`,
-      })
     } catch (error) {
       console.error('Error deleting template:', error)
-      toast({
-        title: "Fehler beim Löschen",
-        description: "Die Vorlage konnte nicht gelöscht werden.",
-        variant: "destructive",
-      })
+      // Error handling is now done in the parent component
     } finally {
       setIsDeleting(false)
     }
