@@ -120,7 +120,7 @@ export class RobustContentParser {
           TemplateErrorType.INVALID_CONTENT,
           'Content parsing failed',
           error,
-          { contentType: typeof content }
+          { operation: 'content_parsing', component: 'template-content-parser' }
         )
       )
       

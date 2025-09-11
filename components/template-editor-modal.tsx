@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { TiptapTemplateEditor } from "@/components/editor/tiptap-template-editor"
 import { extractVariablesFromContent, hasContentMeaning } from "@/lib/template-variable-extraction"
@@ -311,10 +312,11 @@ export function TemplateEditorModal() {
         title: errorTitle,
         description: errorDescription,
         variant: "destructive",
-        action: shouldRetry ? {
-          label: "Erneut versuchen",
-          onClick: () => performManualSave(retryCount + 1)
-        } : undefined
+        action: shouldRetry ? (
+          <ToastAction altText="Erneut versuchen" onClick={() => performManualSave(retryCount + 1)}>
+            Erneut versuchen
+          </ToastAction>
+        ) : undefined
       })
       
       return false

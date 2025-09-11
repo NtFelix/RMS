@@ -23,6 +23,7 @@ import {
   type ParseResult 
 } from '@/lib/template-content-parser'
 import { useToast } from '@/hooks/use-toast'
+import { ToastAction } from '@/components/ui/toast'
 import './mention-popup.css'
 
 interface TiptapTemplateEditorProps {
@@ -141,10 +142,11 @@ export function TiptapTemplateEditor({
             title: "Fehler beim Laden des Inhalts",
             description: "Der Inhalt konnte nicht vollständig geladen werden. Ein leeres Dokument wurde erstellt.",
             variant: "destructive",
-            action: {
-              label: "Erneut versuchen",
-              onClick: retryParsing
-            }
+            action: (
+              <ToastAction altText="Erneut versuchen" onClick={retryParsing}>
+                Erneut versuchen
+              </ToastAction>
+            )
           })
         }
       } catch (error) {
@@ -228,10 +230,11 @@ export function TiptapTemplateEditor({
               title: "Fehler beim Laden des Inhalts",
               description: "Der Inhalt konnte nicht vollständig geladen werden. Ein leeres Dokument wurde erstellt.",
               variant: "destructive",
-              action: {
-                label: "Erneut versuchen",
-                onClick: retryParsing
-              }
+              action: (
+                <ToastAction altText="Erneut versuchen" onClick={retryParsing}>
+                  Erneut versuchen
+                </ToastAction>
+              )
             })
           }
         } catch (error) {

@@ -84,7 +84,7 @@ export class TemplateService {
       TemplateErrorType.TEMPLATE_SAVE_FAILED,
       `Failed to create template after ${maxRetries} attempts: ${lastError?.message}`,
       lastError,
-      { operation: 'create', attempts: maxRetries }
+      { operation: 'create', component: 'template-service' }
     )
     TemplateErrorReporter.reportError(templateError)
     throw templateError
@@ -425,7 +425,7 @@ export class TemplateService {
       TemplateErrorType.TEMPLATE_SAVE_FAILED,
       `Failed to update template after ${maxRetries} attempts: ${lastError?.message}`,
       lastError,
-      { templateId: id, operation: 'update', attempts: maxRetries }
+      { templateId: id, operation: 'update', component: 'template-service' }
     )
     TemplateErrorReporter.reportError(templateError)
     throw templateError

@@ -19,7 +19,7 @@ export function EnhancedToolbarDemo() {
   const [compactMode, setCompactMode] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(true)
   const [enableCustomization, setEnableCustomization] = useState(false)
-  const [content, setContent] = useState({
+  const [content, setContent] = useState<any>({
     type: 'doc',
     content: [
       {
