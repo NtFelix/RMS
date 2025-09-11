@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import type { BreadcrumbItem } from './use-cloud-storage-store'
 
@@ -48,18 +48,20 @@ const initialActiveState: ActiveStateInfo = {
 }
 
 export const useActiveStateStore = create<ActiveStateManager>()(
-  immer((set, get) => ({
-    activeState: initialActiveState,
+  immer((set, get) => {
+    const updateActiveRoute = (route: string) => {
+      const currentState = get().activeState
+      // Only update if the route actually changed
+      if (currentState.currentRoute !== route) {
+        set((draft) => {
+          draft.activeState.currentRoute = route
+          draft.activeState.isCloudStorageActive = route.startsWith('/dateien')
+          draft.activeState.lastUpdated = Date.now()
+        })
+      }
+    }
     
-    updateActiveRoute: (route: string) => {
-      set((draft) => {
-        draft.activeState.currentRoute = route
-        draft.activeState.isCloudStorageActive = route.startsWith('/dateien')
-        draft.activeState.lastUpdated = Date.now()
-      })
-    },
-    
-    updateActiveDirectory: (path: string, breadcrumbs?: BreadcrumbItem[]) => {
+    const updateActiveDirectory = (path: string, breadcrumbs?: BreadcrumbItem[]) => {
       set((draft) => {
         draft.activeState.currentDirectory = path
         draft.activeState.activeDirectoryPath = path
@@ -68,51 +70,51 @@ export const useActiveStateStore = create<ActiveStateManager>()(
         }
         draft.activeState.lastUpdated = Date.now()
       })
-    },
+    }
     
-    updateBreadcrumbs: (breadcrumbs: BreadcrumbItem[]) => {
+    const updateBreadcrumbs = (breadcrumbs: BreadcrumbItem[]) => {
       set((draft) => {
         draft.activeState.breadcrumbs = breadcrumbs
         draft.activeState.lastUpdated = Date.now()
       })
-    },
+    }
     
-    isRouteActive: (route: string) => {
+    const isRouteActive = (route: string) => {
       const { activeState } = get()
       return activeState.currentRoute === route || 
              activeState.currentRoute.startsWith(`${route}/`)
-    },
+    }
     
-    isDirectoryActive: (path: string) => {
+    const isDirectoryActive = (path: string) => {
       const { activeState } = get()
       return activeState.activeDirectoryPath === path
-    },
+    }
     
-    getActiveBreadcrumbs: () => {
+    const getActiveBreadcrumbs = () => {
       return get().activeState.breadcrumbs
-    },
+    }
     
-    getActiveStateClasses: (route: string) => {
-      const isActive = get().isRouteActive(route)
+    const getActiveStateClasses = (route: string) => {
+      const isActive = isRouteActive(route)
       return isActive 
         ? "bg-accent text-accent-foreground" 
         : "text-muted-foreground"
-    },
+    }
     
-    getDirectoryActiveClasses: (path: string) => {
-      const isActive = get().isDirectoryActive(path)
+    const getDirectoryActiveClasses = (path: string) => {
+      const isActive = isDirectoryActive(path)
       return isActive
         ? "bg-accent/20 border-accent text-accent-foreground font-medium"
         : "hover:bg-accent/10"
-    },
+    }
     
-    reset: () => {
+    const reset = () => {
       set((draft) => {
         draft.activeState = { ...initialActiveState, lastUpdated: Date.now() }
       })
-    },
+    }
     
-    syncWithNavigation: (currentPath: string, breadcrumbs: BreadcrumbItem[]) => {
+    const syncWithNavigation = (currentPath: string, breadcrumbs: BreadcrumbItem[]) => {
       set((draft) => {
         draft.activeState.currentDirectory = currentPath
         draft.activeState.activeDirectoryPath = currentPath
@@ -120,7 +122,21 @@ export const useActiveStateStore = create<ActiveStateManager>()(
         draft.activeState.lastUpdated = Date.now()
       })
     }
-  }))
+    
+    return {
+      activeState: initialActiveState,
+      updateActiveRoute,
+      updateActiveDirectory,
+      updateBreadcrumbs,
+      isRouteActive,
+      isDirectoryActive,
+      getActiveBreadcrumbs,
+      getActiveStateClasses,
+      getDirectoryActiveClasses,
+      reset,
+      syncWithNavigation
+    }
+  })
 )
 
 /**
@@ -131,10 +147,12 @@ export function useActiveStateManager() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Sync with Next.js router changes
+  // Sync with Next.js router changes, but only if it's actually different
   useEffect(() => {
-    store.updateActiveRoute(pathname)
-  }, [pathname, store])
+    if (store.activeState.currentRoute !== pathname) {
+      store.updateActiveRoute(pathname)
+    }
+  }, [pathname, store.activeState.currentRoute, store.updateActiveRoute])
   
   return store
 }
@@ -146,17 +164,20 @@ export function useSidebarActiveState() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Update active route when pathname changes
+  // Update active route when pathname changes, but only if it's actually different
   useEffect(() => {
-    store.updateActiveRoute(pathname)
-  }, [pathname, store])
+    if (store.activeState.currentRoute !== pathname) {
+      store.updateActiveRoute(pathname)
+    }
+  }, [pathname, store.activeState.currentRoute, store.updateActiveRoute])
   
-  return {
+  // Memoize the return object to prevent unnecessary re-renders
+  return useMemo(() => ({
     isRouteActive: store.isRouteActive,
     getActiveStateClasses: store.getActiveStateClasses,
     currentRoute: store.activeState.currentRoute,
     isCloudStorageActive: store.activeState.isCloudStorageActive
-  }
+  }), [store.isRouteActive, store.getActiveStateClasses, store.activeState.currentRoute, store.activeState.isCloudStorageActive])
 }
 
 /**
@@ -224,12 +245,14 @@ export function useComprehensiveActiveState() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Auto-sync with router
+  // Auto-sync with router, but only if it's actually different
   useEffect(() => {
-    store.updateActiveRoute(pathname)
-  }, [pathname, store])
+    if (store.activeState.currentRoute !== pathname) {
+      store.updateActiveRoute(pathname)
+    }
+  }, [pathname, store.activeState.currentRoute, store.updateActiveRoute])
   
-  return {
+  return useMemo(() => ({
     // Current state
     activeState: store.activeState,
     
@@ -252,5 +275,16 @@ export function useComprehensiveActiveState() {
     
     // Utility
     reset: store.reset
-  }
+  }), [
+    store.activeState,
+    store.isRouteActive,
+    store.getActiveStateClasses,
+    store.isDirectoryActive,
+    store.getDirectoryActiveClasses,
+    store.updateActiveRoute,
+    store.updateActiveDirectory,
+    store.updateBreadcrumbs,
+    store.syncWithNavigation,
+    store.reset
+  ])
 }
