@@ -11,13 +11,55 @@ import React from 'react'
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { act } from 'react-dom/test-utils'
+
+// Mock all dependencies before importing components
+jest.mock('@/lib/template-service', () => ({
+  templateService: {
+    getTemplate: jest.fn(),
+    updateTemplate: jest.fn(),
+    createTemplate: jest.fn(),
+    deleteTemplate: jest.fn()
+  }
+}))
+
+jest.mock('@/hooks/use-modal-store', () => ({
+  useModalStore: jest.fn()
+}))
+
+jest.mock('@/hooks/use-toast', () => ({
+  useToast: () => ({
+    toast: jest.fn()
+  })
+}))
+
+jest.mock('@/hooks/use-template-offline-detection', () => ({
+  useTemplateOfflineDetection: () => ({
+    isOffline: false,
+    hasUnsavedChanges: false,
+    syncChanges: jest.fn()
+  })
+}))
+
+// Mock TipTap editor
+jest.mock('@tiptap/react', () => ({
+  useEditor: () => ({
+    getJSON: () => ({ type: 'doc', content: [] }),
+    getHTML: () => '<p></p>',
+    commands: {
+      setContent: jest.fn(),
+      focus: jest.fn()
+    },
+    on: jest.fn(),
+    off: jest.fn(),
+    destroy: jest.fn()
+  }),
+  EditorContent: ({ editor }: any) => <div role="textbox" aria-label="template content" />
+}))
+
+// Now import components after mocking
 import { TemplateEditorModal } from '@/components/template-editor-modal'
 import { useModalStore } from '@/hooks/use-modal-store'
 import { templateService } from '@/lib/template-service'
-
-// Mock dependencies
-jest.mock('@/lib/template-service')
-jest.mock('@/hooks/use-modal-store')
 
 const mockTemplateService = templateService as jest.Mocked<typeof templateService>
 const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
