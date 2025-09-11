@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useToast } from "@/hooks/use-toast"
 import { useTemplateOperations } from "@/hooks/use-template-operations"
+import { TemplateOperationLoading } from "@/components/template-loading-states"
 import { CloudStorageQuickActions } from "@/components/cloud-storage-quick-actions"
 import { CloudStorageItemCard } from "@/components/cloud-storage-item-card"
 import { cn } from "@/lib/utils"
@@ -51,7 +52,7 @@ export function CloudStorageSimple({
   const router = useRouter()
   const { toast } = useToast()
   const { openUploadModal, openCreateFolderModal, openCreateFileModal, openCategorySelectionModal } = useModalStore()
-  const { openCreateTemplateEditor } = useTemplateOperations()
+  const { openCreateTemplateEditor, operationState } = useTemplateOperations()
   
   // Local navigation state
   const [currentNavPath, setCurrentNavPath] = useState(initialPath)
@@ -656,6 +657,17 @@ export function CloudStorageSimple({
       {/* Content Area */}
       <div className="flex-1 overflow-auto">
         <div className="p-6">
+          {/* Template Operation Loading */}
+          {operationState.isLoading && operationState.operation && (
+            <div className="mb-4">
+              <TemplateOperationLoading
+                operation={operationState.operation}
+                templateName={operationState.currentTemplate}
+                progress={operationState.progress}
+              />
+            </div>
+          )}
+
           {/* Loading State */}
           {showLoading && (
             <div className="text-center py-16">

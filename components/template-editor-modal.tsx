@@ -19,6 +19,13 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { TiptapTemplateEditor } from "@/components/editor/tiptap-template-editor"
 import { extractVariablesFromContent, hasContentMeaning } from "@/lib/template-variable-extraction"
 import { useDebouncedSave, SaveIndicator } from "@/hooks/use-debounced-save"
+import { useTemplateOfflineDetection } from "@/hooks/use-template-offline-detection"
+import { 
+  TemplateSaveStatus, 
+  TemplateContentSkeleton, 
+  OfflineStatus,
+  TemplateLoadingError 
+} from "@/components/template-loading-states"
 import { cn } from "@/lib/utils"
 
 interface TemplateFormData {
@@ -66,6 +73,8 @@ export function TemplateEditorModal() {
   const [saveError, setSaveError] = useState<string | null>(null)
   const [lastSaveAttempt, setLastSaveAttempt] = useState<Date | null>(null)
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  const [isLoadingContent, setIsLoadingContent] = useState(false)
+  const [contentLoadError, setContentLoadError] = useState<string | null>(null)
 
   // Refs for managing auto-save
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -75,6 +84,22 @@ export function TemplateEditorModal() {
   const saveInProgressRef = useRef(false)
 
   const { toast } = useToast()
+  
+  // Offline detection
+  const { 
+    isOffline, 
+    isConnecting, 
+    queueOperation, 
+    retryConnection 
+  } = useTemplateOfflineDetection({
+    enableOfflineQueue: true,
+    onConnectionRestored: () => {
+      // Retry any failed operations when connection is restored
+      if (saveError && isTemplateEditorModalDirty) {
+        performManualSave()
+      }
+    }
+  })
 
   // Handle client-side mounting
   useEffect(() => {
@@ -233,7 +258,7 @@ export function TemplateEditorModal() {
   }, [autoSaveEnabled, templateEditorData?.templateId, performAutoSave, clearAutoSaveTimers])
 
   /**
-   * Enhanced save operation with better error handling and retry logic
+   * Enhanced save operation with better error handling, retry logic, and offline support
    */
   const performManualSave = useCallback(async (retryCount = 0): Promise<boolean> => {
     if (!templateEditorData || saveInProgressRef.current) {
@@ -248,6 +273,36 @@ export function TemplateEditorModal() {
         variant: "destructive"
       })
       return false
+    }
+
+    // Handle offline scenario
+    if (isOffline) {
+      const templateData: TemplateFormData = {
+        titel: title.trim(),
+        inhalt: content,
+        kategorie: templateEditorData.initialCategory || "Sonstiges",
+        kontext_anforderungen: variables
+      }
+
+      // Queue operation for when connection is restored
+      queueOperation({
+        type: templateEditorData.isNewTemplate ? 'create' : 'update',
+        templateData: templateEditorData.templateId 
+          ? { ...templateData, id: templateEditorData.templateId }
+          : templateData
+      })
+
+      // Mark as saved locally
+      setTemplateEditorModalDirty(false)
+      lastSuccessfulSaveRef.current = new Date()
+      
+      toast({
+        title: "Offline gespeichert",
+        description: "Ihre Änderungen wurden lokal gespeichert und werden synchronisiert, sobald die Verbindung wiederhergestellt ist.",
+        duration: 5000,
+      })
+      
+      return true
     }
 
     saveInProgressRef.current = true
@@ -289,10 +344,13 @@ export function TemplateEditorModal() {
       let shouldRetry = false
       
       if (error instanceof Error) {
-        if (error.message.includes('network') || error.message.includes('fetch')) {
+        if (error.message.includes('network') || error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
           errorTitle = "Netzwerkfehler"
           errorDescription = "Überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut."
           shouldRetry = true
+          
+          // If it's a network error, the user might have gone offline
+          // The offline detection will handle this automatically
         } else if (error.message.includes('validation') || error.message.includes('Validation')) {
           errorTitle = "Validierungsfehler"
           errorDescription = error.message
@@ -324,29 +382,52 @@ export function TemplateEditorModal() {
       setIsSaving(false)
       saveInProgressRef.current = false
     }
-  }, [templateEditorData, title, content, variables, validateTemplate, setTemplateEditorModalDirty, clearAutoSaveTimers, toast])
+  }, [templateEditorData, title, content, variables, validateTemplate, setTemplateEditorModalDirty, clearAutoSaveTimers, toast, isOffline, queueOperation])
 
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isTemplateEditorModalOpen && templateEditorData) {
+      // Show loading state for existing templates
+      if (templateEditorData.templateId && templateEditorData.initialContent) {
+        setIsLoadingContent(true)
+        setContentLoadError(null)
+      }
+
       setTitle(templateEditorData.initialTitle || "")
       
-      // Handle initial content properly
-      const initialContent = templateEditorData.initialContent || {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [],
-          },
-        ],
+      // Handle initial content properly with loading simulation for better UX
+      const loadContent = async () => {
+        try {
+          // Simulate loading delay for better UX feedback
+          if (templateEditorData.templateId) {
+            await new Promise(resolve => setTimeout(resolve, 300))
+          }
+
+          const initialContent = templateEditorData.initialContent || {
+            type: 'doc',
+            content: [
+              {
+                type: 'paragraph',
+                content: [],
+              },
+            ],
+          }
+          
+          setContent(initialContent)
+          
+          // Extract variables from initial content
+          const initialVariables = extractVariablesFromContent(initialContent)
+          setVariables(initialVariables)
+          
+          setIsLoadingContent(false)
+        } catch (error) {
+          console.error('Error loading template content:', error)
+          setContentLoadError(error instanceof Error ? error.message : 'Fehler beim Laden des Inhalts')
+          setIsLoadingContent(false)
+        }
       }
-      
-      setContent(initialContent)
-      
-      // Extract variables from initial content
-      const initialVariables = extractVariablesFromContent(initialContent)
-      setVariables(initialVariables)
+
+      loadContent()
       
       // Reset all state
       setIsSaving(false)
@@ -366,6 +447,8 @@ export function TemplateEditorModal() {
     } else if (!isTemplateEditorModalOpen) {
       // Clear timers when modal closes
       clearAutoSaveTimers()
+      setIsLoadingContent(false)
+      setContentLoadError(null)
     }
   }, [isTemplateEditorModalOpen, templateEditorData, setTemplateEditorModalDirty, clearAutoSaveTimers])
 
@@ -565,43 +648,18 @@ export function TemplateEditorModal() {
                   )}
                   
                   {/* Save Status Indicator */}
-                  <div className="flex items-center gap-2">
-                    {saveError && (
-                      <div className="flex items-center text-red-600 text-xs">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Speichern fehlgeschlagen
-                      </div>
-                    )}
-                    
-                    {isSaving && (
-                      <div className="flex items-center text-blue-600 text-xs">
-                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        Speichert...
-                      </div>
-                    )}
-                    
-                    {isTemplateEditorModalDirty && !isSaving && !saveError && (
-                      <div className="flex items-center text-orange-600 text-xs">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Ungespeicherte Änderungen
-                      </div>
-                    )}
-                    
-                    {!isTemplateEditorModalDirty && !isSaving && !saveError && lastSuccessfulSaveRef.current && (
-                      <div className="flex items-center text-green-600 text-xs">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Gespeichert
-                      </div>
-                    )}
-                    
-                    {/* Auto-save indicator */}
-                    {autoSaveEnabled && templateEditorData.templateId && (
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <span className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></span>
-                        Auto-Save
-                      </div>
-                    )}
-                  </div>
+                  <TemplateSaveStatus
+                    status={
+                      isSaving ? 'saving' :
+                      saveError ? 'error' :
+                      isTemplateEditorModalDirty ? 'dirty' :
+                      lastSuccessfulSaveRef.current ? 'saved' :
+                      'idle'
+                    }
+                    lastSaved={lastSuccessfulSaveRef.current || undefined}
+                    error={saveError || undefined}
+                    autoSaveEnabled={autoSaveEnabled && !!templateEditorData?.templateId}
+                  />
                 </div>
               </div>
             </div>
@@ -634,6 +692,17 @@ export function TemplateEditorModal() {
 
         {/* Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Offline Status */}
+          {(isOffline || isConnecting) && (
+            <div className="px-6 py-2 border-b">
+              <OfflineStatus 
+                isOffline={isOffline}
+                isConnecting={isConnecting}
+                onRetry={retryConnection}
+              />
+            </div>
+          )}
+
           {/* Title Input */}
           <div className="px-6 py-4 border-b bg-background">
             <div className="space-y-2">
@@ -716,21 +785,39 @@ export function TemplateEditorModal() {
 
           {/* Editor */}
           <div className="flex-1 overflow-hidden">
-            <TiptapTemplateEditor
-              initialContent={content}
-              onContentChange={handleContentChange}
-              onSave={handleSave}
-              onCancel={handleCancel}
-              placeholder="Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle und '@' für Variablen..."
-              className="h-full"
-              editable={!isSaving && !saveInProgressRef.current}
-              enablePerformanceMonitoring={process.env.NODE_ENV === 'development'}
-              enableVirtualScrolling={false} // Can be enabled for very large templates
-              optimizeForLargeDocuments={true}
-              deferInitialization={false}
-              contentChangeDelay={200}
-              variableExtractionDelay={400}
-            />
+            {isLoadingContent ? (
+              <TemplateContentSkeleton />
+            ) : contentLoadError ? (
+              <TemplateLoadingError
+                error={contentLoadError}
+                templateName={templateEditorData?.initialTitle}
+                onRetry={() => {
+                  setContentLoadError(null)
+                  setIsLoadingContent(true)
+                  // Trigger content reload
+                  setTimeout(() => {
+                    setIsLoadingContent(false)
+                  }, 300)
+                }}
+                onCancel={handleCancel}
+              />
+            ) : (
+              <TiptapTemplateEditor
+                initialContent={content}
+                onContentChange={handleContentChange}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                placeholder="Beginnen Sie mit der Eingabe oder verwenden Sie '/' für Befehle und '@' für Variablen..."
+                className="h-full"
+                editable={!isSaving && !saveInProgressRef.current && !isLoadingContent}
+                enablePerformanceMonitoring={process.env.NODE_ENV === 'development'}
+                enableVirtualScrolling={false} // Can be enabled for very large templates
+                optimizeForLargeDocuments={true}
+                deferInitialization={false}
+                contentChangeDelay={200}
+                variableExtractionDelay={400}
+              />
+            )}
           </div>
 
           {/* Footer with Variable Summary and Save Status */}

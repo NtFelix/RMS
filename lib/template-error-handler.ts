@@ -314,8 +314,45 @@ export class TemplateErrorHandler {
         error_type: error.type,
         error_message: error.message,
         error_context: error.context,
-        error_severity: this.getErrorSeverity(error.type)
+        error_severity: this.getErrorSeverity(error.type),
+        error_timestamp: error.timestamp.toISOString(),
+        user_agent: window.navigator.userAgent,
+        url: window.location.href
       })
+    }
+
+    // Send to error reporting service (example implementation)
+    this.sendToErrorService(error)
+  }
+
+  /**
+   * Send error to external error reporting service
+   */
+  private static async sendToErrorService(error: TemplateError): Promise<void> {
+    try {
+      // Example implementation - replace with actual service
+      const errorReport = {
+        id: `template_error_${Date.now()}`,
+        type: error.type,
+        message: error.message,
+        details: error.details,
+        context: error.context,
+        timestamp: error.timestamp.toISOString(),
+        severity: this.getErrorSeverity(error.type),
+        recoverable: error.recoverable,
+        environment: process.env.NODE_ENV,
+        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'server',
+        url: typeof window !== 'undefined' ? window.location.href : 'server'
+      }
+
+      // In production, this would be sent to your error reporting service
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Error report would be sent:', errorReport)
+      } else {
+        // Example: await fetch('/api/errors', { method: 'POST', body: JSON.stringify(errorReport) })
+      }
+    } catch (reportingError) {
+      console.error('Failed to report error:', reportingError)
     }
   }
   
@@ -331,6 +368,86 @@ export class TemplateErrorHandler {
    */
   static clearErrorLog(): void {
     this.errorLog = []
+  }
+
+  /**
+   * Get error statistics
+   */
+  static getErrorStatistics(): {
+    totalErrors: number
+    errorsByType: Record<TemplateErrorType, number>
+    errorsBySeverity: Record<ErrorSeverity, number>
+    recentErrors: TemplateError[]
+  } {
+    const errorsByType = {} as Record<TemplateErrorType, number>
+    const errorsBySeverity = {} as Record<ErrorSeverity, number>
+
+    // Initialize counters
+    Object.values(TemplateErrorType).forEach(type => {
+      errorsByType[type] = 0
+    })
+    Object.values(ErrorSeverity).forEach(severity => {
+      errorsBySeverity[severity] = 0
+    })
+
+    // Count errors
+    this.errorLog.forEach(error => {
+      errorsByType[error.type]++
+      errorsBySeverity[this.getErrorSeverity(error.type)]++
+    })
+
+    // Get recent errors (last 10)
+    const recentErrors = this.errorLog.slice(-10)
+
+    return {
+      totalErrors: this.errorLog.length,
+      errorsByType,
+      errorsBySeverity,
+      recentErrors
+    }
+  }
+
+  /**
+   * Check if error type is critical
+   */
+  static isCriticalError(type: TemplateErrorType): boolean {
+    return this.getErrorSeverity(type) === ErrorSeverity.CRITICAL
+  }
+
+  /**
+   * Get user-friendly error message
+   */
+  static getUserFriendlyMessage(error: TemplateError): string {
+    const baseMessages: Record<TemplateErrorType, string> = {
+      [TemplateErrorType.TEMPLATE_NOT_FOUND]: 'Die angeforderte Vorlage wurde nicht gefunden.',
+      [TemplateErrorType.TEMPLATE_LOAD_FAILED]: 'Die Vorlage konnte nicht geladen werden.',
+      [TemplateErrorType.TEMPLATE_SAVE_FAILED]: 'Die Vorlage konnte nicht gespeichert werden.',
+      [TemplateErrorType.TEMPLATE_DELETE_FAILED]: 'Die Vorlage konnte nicht gelöscht werden.',
+      [TemplateErrorType.TEMPLATE_CREATE_FAILED]: 'Die Vorlage konnte nicht erstellt werden.',
+      [TemplateErrorType.INVALID_CONTENT]: 'Der Vorlageninhalt ist ungültig.',
+      [TemplateErrorType.INVALID_TEMPLATE_DATA]: 'Die Vorlagendaten sind ungültig.',
+      [TemplateErrorType.CONTENT_PARSE_ERROR]: 'Der Vorlageninhalt konnte nicht verarbeitet werden.',
+      [TemplateErrorType.VARIABLE_EXTRACTION_FAILED]: 'Die Variablen konnten nicht extrahiert werden.',
+      [TemplateErrorType.CATEGORY_REQUIRED]: 'Eine Kategorie ist erforderlich.',
+      [TemplateErrorType.INVALID_CATEGORY]: 'Die gewählte Kategorie ist ungültig.',
+      [TemplateErrorType.CATEGORY_LOAD_FAILED]: 'Die Kategorien konnten nicht geladen werden.',
+      [TemplateErrorType.TITLE_REQUIRED]: 'Ein Titel ist erforderlich.',
+      [TemplateErrorType.TITLE_TOO_LONG]: 'Der Titel ist zu lang.',
+      [TemplateErrorType.DUPLICATE_TITLE]: 'Eine Vorlage mit diesem Titel existiert bereits.',
+      [TemplateErrorType.PERMISSION_DENIED]: 'Sie haben keine Berechtigung für diese Aktion.',
+      [TemplateErrorType.UNAUTHORIZED_ACCESS]: 'Zugriff verweigert.',
+      [TemplateErrorType.USER_NOT_AUTHENTICATED]: 'Sie sind nicht angemeldet.',
+      [TemplateErrorType.EDITOR_INITIALIZATION_FAILED]: 'Der Editor konnte nicht initialisiert werden.',
+      [TemplateErrorType.EDITOR_CONTENT_CORRUPTION]: 'Der Editorinhalt ist beschädigt.',
+      [TemplateErrorType.EDITOR_EXTENSION_ERROR]: 'Ein Editor-Plugin ist fehlerhaft.',
+      [TemplateErrorType.NETWORK_ERROR]: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.',
+      [TemplateErrorType.DATABASE_ERROR]: 'Datenbankfehler. Bitte versuchen Sie es später erneut.',
+      [TemplateErrorType.CONNECTION_TIMEOUT]: 'Verbindung unterbrochen. Bitte versuchen Sie es erneut.',
+      [TemplateErrorType.UNKNOWN_ERROR]: 'Ein unbekannter Fehler ist aufgetreten.',
+      [TemplateErrorType.SYSTEM_ERROR]: 'Ein Systemfehler ist aufgetreten.'
+    }
+
+    return baseMessages[error.type] || error.message
   }
   
   /**
