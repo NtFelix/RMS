@@ -229,20 +229,10 @@ export function TiptapTemplateEditor({
             // Show warnings if any
             if (parseResult.warnings.length > 0) {
               console.warn('Content parsing warnings:', parseResult.warnings)
-              toast({
-                title: "Inhalt teilweise wiederhergestellt",
-                description: `${parseResult.warnings.length} Warnung(en) beim Laden des Inhalts.`,
-                variant: "default"
-              })
             }
             
             // Show recovery message if content was recovered
             if (parseResult.wasRecovered) {
-              toast({
-                title: "Inhalt wiederhergestellt",
-                description: "Der Inhalt wurde automatisch repariert und kann möglicherweise von der ursprünglichen Version abweichen.",
-                variant: "default"
-              })
               setContentError("recovered") // Set a flag for warning display
             }
           } else {
@@ -253,16 +243,6 @@ export function TiptapTemplateEditor({
             setCurrentContent(parseResult.content)
             
             console.error('Content parsing failed:', parseResult.errors)
-            toast({
-              title: "Fehler beim Laden des Inhalts",
-              description: "Der Inhalt konnte nicht vollständig geladen werden. Ein leeres Dokument wurde erstellt.",
-              variant: "destructive",
-              action: (
-                <ToastAction altText="Erneut versuchen" onClick={retryParsing}>
-                  Erneut versuchen
-                </ToastAction>
-              )
-            })
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
@@ -276,12 +256,6 @@ export function TiptapTemplateEditor({
           }
           setParsedContent(fallbackContent)
           setCurrentContent(fallbackContent)
-          
-          toast({
-            title: "Unerwarteter Fehler",
-            description: "Ein unerwarteter Fehler ist beim Laden des Inhalts aufgetreten.",
-            variant: "destructive"
-          })
         } finally {
           setIsContentLoading(false)
         }
@@ -289,7 +263,7 @@ export function TiptapTemplateEditor({
     }
     
     parseInitialContent()
-  }, [initialContent, toast, retryParsing])
+  }, [initialContent]) // Remove toast and retryParsing from dependencies to prevent infinite loops
 
   // Debounce content changes to reduce excessive re-renders
   const debouncedContent = useDebounce(currentContent, contentChangeDelay)
@@ -436,7 +410,7 @@ export function TiptapTemplateEditor({
     if (onContentChange && !isUpdatingContentRef.current) {
       onContentChange(debouncedContent, extractedVariables)
     }
-  }, [debouncedContent, extractedVariables, onContentChange])
+  }, [debouncedContent, extractedVariables]) // Remove onContentChange from dependencies to prevent infinite loop
   // Memoize the editor configuration to prevent recreation
   const editorConfig = useMemo(() => {
     try {
@@ -463,11 +437,6 @@ export function TiptapTemplateEditor({
       return config
     } catch (error) {
       console.error('Error creating editor config:', error)
-      toast({
-        title: "Editor-Konfigurationsfehler",
-        description: "Fehler beim Erstellen der Editor-Konfiguration.",
-        variant: "destructive"
-      })
       
       // Return minimal fallback config
       return {
@@ -484,7 +453,7 @@ export function TiptapTemplateEditor({
         editorProps: editorProps,
       }
     }
-  }, [editorExtensions, parsedContent, editable, handleContentChange, editorProps, toast])
+  }, [editorExtensions, parsedContent, editable, handleContentChange, editorProps]) // Remove toast from dependencies
 
   // Use either optimized or standard editor initialization with error handling
   const standardEditor = useEditor(editorConfig)

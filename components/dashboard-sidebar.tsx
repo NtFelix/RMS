@@ -9,10 +9,10 @@ import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
+
 import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
-import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
+
 import { useFeatureFlagEnabled } from "posthog-js/react"
 
 // Stelle sicher, dass der Mieter-Link korrekt ist
@@ -62,12 +62,22 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const { isRouteActive, getActiveStateClasses, currentRoute } = useSidebarActiveState()
-  // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
   // Memoize the close handler to prevent unnecessary re-renders
   const handleClose = useCallback(() => setIsOpen(false), [])
+
+  // Simple route active check without complex state management
+  const isRouteActive = useCallback((route: string) => {
+    return pathname === route || pathname.startsWith(`${route}/`)
+  }, [pathname])
+
+  const getActiveStateClasses = useCallback((route: string) => {
+    const isActive = pathname === route || pathname.startsWith(`${route}/`)
+    return isActive 
+      ? "bg-accent text-accent-foreground" 
+      : "text-muted-foreground"
+  }, [pathname])
 
   // Memoize the navigation items to prevent unnecessary re-renders
   const navigationItems = useMemo(() => {
@@ -86,7 +96,7 @@ export function DashboardSidebar() {
         )
       }
     })
-  }, [isRouteActive, getActiveStateClasses, currentRoute, documentsEnabled])
+  }, [isRouteActive, getActiveStateClasses, documentsEnabled])
 
   return (
     <>
@@ -127,7 +137,7 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <ScrollArea className="flex-1 pt-4 pb-4">
+          <div className="flex-1 pt-4 pb-4 overflow-y-auto">
             <nav className="grid gap-1 px-2">
               {navigationItems.map((item) => (
                 <Link
@@ -145,7 +155,7 @@ export function DashboardSidebar() {
                 </Link>
               ))}
             </nav>
-          </ScrollArea>
+          </div>
           <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />

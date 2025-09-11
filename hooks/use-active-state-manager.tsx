@@ -191,7 +191,7 @@ export function useSidebarActiveState() {
     updateActiveRoute(pathname)
   }, [pathname, updateActiveRoute])
   
-  // Create reactive functions that depend on currentRoute
+  // Create stable reactive functions that depend on currentRoute
   const isRouteActive = useCallback((route: string) => {
     return currentRoute === route || currentRoute.startsWith(`${route}/`)
   }, [currentRoute])
@@ -203,13 +203,13 @@ export function useSidebarActiveState() {
       : "text-muted-foreground"
   }, [currentRoute])
   
-  // Return the reactive state and methods
-  return {
+  // Return memoized object to prevent unnecessary re-renders
+  return useMemo(() => ({
     isRouteActive,
     getActiveStateClasses,
     currentRoute,
     isCloudStorageActive
-  }
+  }), [isRouteActive, getActiveStateClasses, currentRoute, isCloudStorageActive])
 }
 
 /**
