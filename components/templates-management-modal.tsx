@@ -10,23 +10,17 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useAuth } from "@/components/auth-provider"
 import { TemplateService } from "@/lib/template-service"
 import { templateCacheService } from "@/lib/template-cache"
+import { CategoryFilter } from "@/components/category-filter"
 import type { Template } from "@/types/template"
 import type { 
   TemplateWithMetadata, 
-  CategoryStats, 
   TemplateLoadingState 
 } from "@/types/template-modal"
 
@@ -41,7 +35,6 @@ export function TemplatesManagementModal() {
 
   // Template data state
   const [templates, setTemplates] = useState<TemplateWithMetadata[]>([])
-  const [categories, setCategories] = useState<CategoryStats[]>([])
   
   // Filter and search state
   const [searchQuery, setSearchQuery] = useState("")
@@ -100,14 +93,11 @@ export function TemplatesManagementModal() {
       // Check cache first unless force refresh
       if (!forceRefresh) {
         const cachedTemplates = templateCacheService.getUserTemplates(user.id)
-        const cachedCategories = templateCacheService.getUserCategories(user.id)
         
-        if (cachedTemplates && cachedCategories && cachedTemplates.length > 0) {
+        if (cachedTemplates && cachedTemplates.length > 0) {
           const templatesWithMetadata = await enhanceTemplatesWithMetadata(cachedTemplates)
-          const categoryStats = generateCategoryStats(templatesWithMetadata)
           
           setTemplates(templatesWithMetadata)
-          setCategories(categoryStats)
           setLoadingState(prev => ({
             ...prev,
             isLoading: false,
@@ -119,22 +109,16 @@ export function TemplatesManagementModal() {
       }
 
       // Load fresh data from service
-      const [loadedTemplates, loadedCategories] = await Promise.all([
-        templateService.getUserTemplates(user.id),
-        templateService.getUserCategories(user.id)
-      ])
+      const loadedTemplates = await templateService.getUserTemplates(user.id)
 
       // Enhance templates with metadata
       const templatesWithMetadata = await enhanceTemplatesWithMetadata(loadedTemplates)
-      const categoryStats = generateCategoryStats(templatesWithMetadata)
 
       // Update state
       setTemplates(templatesWithMetadata)
-      setCategories(categoryStats)
       
       // Update cache
       templateCacheService.setUserTemplates(user.id, loadedTemplates)
-      templateCacheService.setUserCategories(user.id, loadedCategories)
 
       setLoadingState(prev => ({
         ...prev,
@@ -197,35 +181,7 @@ export function TemplatesManagementModal() {
     })
   }
 
-  // Generate category statistics
-  const generateCategoryStats = (templates: TemplateWithMetadata[]): CategoryStats[] => {
-    if (!templates || !Array.isArray(templates)) {
-      return []
-    }
-    
-    const categoryMap = new Map<string, CategoryStats>()
-    
-    templates.forEach(template => {
-      const categoryName = template.kategorie || 'Ohne Kategorie'
-      const existing = categoryMap.get(categoryName)
-      
-      if (existing) {
-        existing.count++
-        // Update last used if this template is newer
-        if (template.lastAccessedAt && (!existing.lastUsed || template.lastAccessedAt > existing.lastUsed)) {
-          existing.lastUsed = template.lastAccessedAt
-        }
-      } else {
-        categoryMap.set(categoryName, {
-          name: categoryName,
-          count: 1,
-          lastUsed: template.lastAccessedAt || undefined
-        })
-      }
-    })
 
-    return Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-  }
 
   // Invalidate cache when modal reopens
   const handleModalReopen = () => {
@@ -394,21 +350,13 @@ export function TemplatesManagementModal() {
               
               {/* Category Filter */}
               <div className="w-full sm:w-64">
-                <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                  <SelectTrigger className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border">
-                    <SelectValue placeholder="Kategorie wählen" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      Alle Kategorien ({templates.length})
-                    </SelectItem>
-                    {categories.map((category) => (
-                      <SelectItem key={category.name} value={category.name}>
-                        {category.name} ({category.count})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CategoryFilter
+                  templates={templates}
+                  selectedCategory={selectedCategory}
+                  onCategoryChange={setSelectedCategory}
+                  className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
+                  placeholder="Kategorie wählen"
+                />
               </div>
               
               {/* Create Button */}
