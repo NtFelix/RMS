@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -66,6 +66,9 @@ export function DashboardSidebar() {
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
+  // Memoize the close handler to prevent unnecessary re-renders
+  const handleClose = useCallback(() => setIsOpen(false), [])
+
   // Memoize the navigation items to prevent unnecessary re-renders
   const navigationItems = useMemo(() => {
     return sidebarNavItems.map((item) => {
@@ -101,7 +104,7 @@ export function DashboardSidebar() {
           "fixed inset-0 z-30 bg-background/80 backdrop-blur-sm transition-all duration-100 md:hidden",
           isOpen ? "opacity-100" : "pointer-events-none opacity-0",
         )}
-        onClick={() => setIsOpen(false)}
+        onClick={handleClose}
       />
       <aside
         className={cn(
@@ -130,7 +133,7 @@ export function DashboardSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleClose}
                   className={item.className}
                   data-active={item.isActive}
                   aria-current={item.isActive ? "page" : undefined}
