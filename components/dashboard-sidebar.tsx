@@ -62,7 +62,7 @@ const sidebarNavItems = [
 export function DashboardSidebar() {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
-  const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
+  const { isRouteActive, getActiveStateClasses, currentRoute } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
@@ -86,7 +86,7 @@ export function DashboardSidebar() {
         )
       }
     })
-  }, [isRouteActive, getActiveStateClasses, documentsEnabled])
+  }, [isRouteActive, getActiveStateClasses, currentRoute, documentsEnabled])
 
   return (
     <>

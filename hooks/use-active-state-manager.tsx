@@ -185,13 +185,23 @@ export function useSidebarActiveState() {
   const currentRoute = useActiveStateStore((state) => state.activeState.currentRoute)
   const isCloudStorageActive = useActiveStateStore((state) => state.activeState.isCloudStorageActive)
   const updateActiveRoute = useActiveStateStore((state) => state.updateActiveRoute)
-  const isRouteActive = useActiveStateStore((state) => state.isRouteActive)
-  const getActiveStateClasses = useActiveStateStore((state) => state.getActiveStateClasses)
   
   // Update route when pathname changes
   useEffect(() => {
     updateActiveRoute(pathname)
   }, [pathname, updateActiveRoute])
+  
+  // Create reactive functions that depend on currentRoute
+  const isRouteActive = useCallback((route: string) => {
+    return currentRoute === route || currentRoute.startsWith(`${route}/`)
+  }, [currentRoute])
+  
+  const getActiveStateClasses = useCallback((route: string) => {
+    const isActive = currentRoute === route || currentRoute.startsWith(`${route}/`)
+    return isActive 
+      ? "bg-accent text-accent-foreground" 
+      : "text-muted-foreground"
+  }, [currentRoute])
   
   // Return the reactive state and methods
   return {
@@ -209,8 +219,18 @@ export function useBreadcrumbActiveState() {
   const breadcrumbs = useActiveStateStore((state) => state.activeState.breadcrumbs)
   const activeDirectoryPath = useActiveStateStore((state) => state.activeState.activeDirectoryPath)
   const updateBreadcrumbs = useActiveStateStore((state) => state.updateBreadcrumbs)
-  const isDirectoryActive = useActiveStateStore((state) => state.isDirectoryActive)
-  const getDirectoryActiveClasses = useActiveStateStore((state) => state.getDirectoryActiveClasses)
+  
+  // Create reactive functions that depend on activeDirectoryPath
+  const isDirectoryActive = useCallback((path: string) => {
+    return activeDirectoryPath === path
+  }, [activeDirectoryPath])
+  
+  const getDirectoryActiveClasses = useCallback((path: string) => {
+    const isActive = activeDirectoryPath === path
+    return isActive
+      ? "bg-accent/20 border-accent text-accent-foreground font-medium"
+      : "hover:bg-accent/10"
+  }, [activeDirectoryPath])
   
   return {
     breadcrumbs,
@@ -228,9 +248,19 @@ export function useDirectoryActiveState() {
   const activeDirectoryPath = useActiveStateStore((state) => state.activeState.activeDirectoryPath)
   const currentDirectory = useActiveStateStore((state) => state.activeState.currentDirectory)
   const updateActiveDirectory = useActiveStateStore((state) => state.updateActiveDirectory)
-  const isDirectoryActive = useActiveStateStore((state) => state.isDirectoryActive)
-  const getDirectoryActiveClasses = useActiveStateStore((state) => state.getDirectoryActiveClasses)
   const syncWithNavigation = useActiveStateStore((state) => state.syncWithNavigation)
+  
+  // Create reactive functions that depend on activeDirectoryPath
+  const isDirectoryActive = useCallback((path: string) => {
+    return activeDirectoryPath === path
+  }, [activeDirectoryPath])
+  
+  const getDirectoryActiveClasses = useCallback((path: string) => {
+    const isActive = activeDirectoryPath === path
+    return isActive
+      ? "bg-accent/20 border-accent text-accent-foreground font-medium"
+      : "hover:bg-accent/10"
+  }, [activeDirectoryPath])
   
   return {
     activeDirectoryPath,
@@ -280,10 +310,6 @@ export function useComprehensiveActiveState() {
   
   // Subscribe to specific parts of the store for better reactivity
   const activeState = useActiveStateStore((state) => state.activeState)
-  const isRouteActive = useActiveStateStore((state) => state.isRouteActive)
-  const getActiveStateClasses = useActiveStateStore((state) => state.getActiveStateClasses)
-  const isDirectoryActive = useActiveStateStore((state) => state.isDirectoryActive)
-  const getDirectoryActiveClasses = useActiveStateStore((state) => state.getDirectoryActiveClasses)
   const updateActiveRoute = useActiveStateStore((state) => state.updateActiveRoute)
   const updateActiveDirectory = useActiveStateStore((state) => state.updateActiveDirectory)
   const updateBreadcrumbs = useActiveStateStore((state) => state.updateBreadcrumbs)
@@ -294,6 +320,29 @@ export function useComprehensiveActiveState() {
   useEffect(() => {
     updateActiveRoute(pathname)
   }, [pathname, updateActiveRoute])
+  
+  // Create reactive functions that depend on activeState
+  const isRouteActive = useCallback((route: string) => {
+    return activeState.currentRoute === route || activeState.currentRoute.startsWith(`${route}/`)
+  }, [activeState.currentRoute])
+  
+  const getActiveStateClasses = useCallback((route: string) => {
+    const isActive = activeState.currentRoute === route || activeState.currentRoute.startsWith(`${route}/`)
+    return isActive 
+      ? "bg-accent text-accent-foreground" 
+      : "text-muted-foreground"
+  }, [activeState.currentRoute])
+  
+  const isDirectoryActive = useCallback((path: string) => {
+    return activeState.activeDirectoryPath === path
+  }, [activeState.activeDirectoryPath])
+  
+  const getDirectoryActiveClasses = useCallback((path: string) => {
+    const isActive = activeState.activeDirectoryPath === path
+    return isActive
+      ? "bg-accent/20 border-accent text-accent-foreground font-medium"
+      : "hover:bg-accent/10"
+  }, [activeState.activeDirectoryPath])
   
   return useMemo(() => ({
     // Current state
