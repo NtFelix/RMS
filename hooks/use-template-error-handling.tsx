@@ -1,331 +1,262 @@
-'use client'
+"use client"
 
-/**
- * Template Error Handling Hook
- * 
- * Provides React hooks for template error handling, recovery, and user feedback
- */
+import React, { useState, useCallback } from 'react'
+import { TemplatesModalErrorHandler } from '@/lib/template-error-handler'
 
-import { useCallback, useEffect, useState } from 'react'
-import { toast } from '@/hooks/use-toast'
-import { 
-  TemplateError, 
-  TemplateErrorHandler, 
-  TemplateErrorType,
-  TemplateErrorRecovery 
-} from '@/lib/template-error-handler'
-import { TemplateErrorLogger, TemplateErrorReporter } from '@/lib/template-error-logger'
-
-// Hook return type
-interface UseTemplateErrorHandling {
-  // Error state
-  error: TemplateError | null
-  hasError: boolean
-  isRecovering: boolean
-  
-  // Error handling functions
-  handleError: (error: TemplateError) => void
-  handleException: (exception: any, context?: TemplateError['context']) => void
-  clearError: () => void
-  
-  // Recovery functions
-  retry: (operation: () => Promise<void> | void) => Promise<void>
-  safeExecute: <T>(operation: () => Promise<T>, fallback?: T) => Promise<T | undefined>
-  
-  // Utility functions
-  createError: (type: TemplateErrorType, message: string, details?: any) => TemplateError
-  reportError: (error: TemplateError) => void
+export interface UseTemplateErrorHandlingOptions {
+  maxRetries?: number
+  retryDelay?: number
+  onError?: (error: Error) => void
+  onRetry?: (attempt: number) => void
+  onSuccess?: () => void
 }
 
-// Hook options
-interface UseTemplateErrorHandlingOptions {
-  context?: {
-    templateId?: string
-    userId?: string
-    component?: string
-  }
-  onError?: (error: TemplateError) => void
-  onRecovery?: () => void
-  autoReport?: boolean
-  showToast?: boolean
+export interface TemplateOperationState {
+  isLoading: boolean
+  error: Error | null
+  retryCount: number
+  canRetry: boolean
 }
 
 /**
- * Main template error handling hook
+ * Hook for handling template operations with built-in error handling and retry mechanisms
  */
-export function useTemplateErrorHandling(
-  options: UseTemplateErrorHandlingOptions = {}
-): UseTemplateErrorHandling {
-  const [error, setError] = useState<TemplateError | null>(null)
-  const [isRecovering, setIsRecovering] = useState(false)
-  
+export function useTemplateErrorHandling(options: UseTemplateErrorHandlingOptions = {}) {
   const {
-    context,
+    maxRetries = 3,
+    retryDelay = 1000,
     onError,
-    onRecovery,
-    autoReport = true,
-    showToast = true
+    onRetry,
+    onSuccess
   } = options
-  
-  // Handle error
-  const handleError = useCallback((templateError: TemplateError) => {
-    setError(templateError)
+
+  const [state, setState] = useState<TemplateOperationState>({
+    isLoading: false,
+    error: null,
+    retryCount: 0,
+    canRetry: true
+  })
+
+  const executeWithErrorHandling = useCallback(async <T>(
+    operation: () => Promise<T>,
+    operationName: string,
+    context?: Record<string, any>
+  ): Promise<T | null> => {
+    setState(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null
+    }))
+
+    let lastError: Error | null = null
     
-    // Show user feedback
-    if (showToast) {
-      TemplateErrorHandler.handleError(templateError)
-    }
-    
-    // Report error
-    if (autoReport) {
-      TemplateErrorReporter.reportError(templateError)
-    }
-    
-    // Call custom error handler
-    onError?.(templateError)
-  }, [onError, autoReport, showToast])
-  
-  // Handle exception
-  const handleException = useCallback((exception: any, errorContext?: TemplateError['context']) => {
-    const templateError = TemplateErrorHandler.fromException(
-      exception,
-      { ...context, ...errorContext }
-    )
-    handleError(templateError)
-  }, [handleError, context])
-  
-  // Clear error
-  const clearError = useCallback(() => {
-    setError(null)
-    setIsRecovering(false)
-  }, [])
-  
-  // Retry operation
-  const retry = useCallback(async (operation: () => Promise<void> | void) => {
-    setIsRecovering(true)
-    
-    try {
-      await operation()
-      clearError()
-      onRecovery?.()
-      
-      if (showToast) {
-        toast({
-          title: "Erfolgreich wiederhergestellt",
-          description: "Der Vorgang wurde erfolgreich wiederholt.",
-          variant: "default"
-        })
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await operation()
+        
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: null,
+          retryCount: 0,
+          canRetry: true
+        }))
+
+        if (onSuccess) {
+          onSuccess()
+        }
+
+        return result
+      } catch (error) {
+        lastError = error as Error
+        
+        if (attempt < maxRetries) {
+          setState(prev => ({
+            ...prev,
+            retryCount: attempt + 1,
+            canRetry: true
+          }))
+
+          if (onRetry) {
+            onRetry(attempt + 1)
+          }
+
+          // Exponential backoff
+          const delay = retryDelay * Math.pow(2, attempt)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        } else {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: lastError,
+            retryCount: attempt + 1,
+            canRetry: false
+          }))
+
+          // Handle the error using our centralized error handler
+          TemplatesModalErrorHandler.handleGenericError(
+            lastError,
+            operationName,
+            context
+          )
+
+          if (onError) {
+            onError(lastError)
+          }
+        }
       }
-    } catch (exception) {
-      handleException(exception, { ...context, operation: 'retry' })
-    } finally {
-      setIsRecovering(false)
     }
-  }, [clearError, handleException, onRecovery, showToast, context])
-  
-  // Safe execute with error handling
-  const safeExecute = useCallback(async <T,>(
+
+    return null
+  }, [maxRetries, retryDelay, onError, onRetry, onSuccess])
+
+  const retry = useCallback(async <T>(
     operation: () => Promise<T>,
-    fallback?: T
-  ): Promise<T | undefined> => {
-    try {
-      return await operation()
-    } catch (exception) {
-      handleException(exception, { ...context, operation: 'safeExecute' })
-      return fallback
-    }
-  }, [handleException, context])
-  
-  // Create error
-  const createError = useCallback((
-    type: TemplateErrorType,
-    message: string,
-    details?: any
-  ): TemplateError => {
-    return TemplateErrorHandler.createError(type, message, details, context)
-  }, [context])
-  
-  // Report error
-  const reportError = useCallback((templateError: TemplateError) => {
-    TemplateErrorReporter.reportError(templateError)
-  }, [])
-  
-  return {
-    error,
-    hasError: error !== null,
-    isRecovering,
-    handleError,
-    handleException,
-    clearError,
-    retry,
-    safeExecute,
-    createError,
-    reportError
-  }
-}
+    operationName: string,
+    context?: Record<string, any>
+  ): Promise<T | null> => {
+    setState(prev => ({
+      ...prev,
+      retryCount: 0,
+      canRetry: true,
+      error: null
+    }))
 
-/**
- * Hook for template operation error handling
- */
-export function useTemplateOperationError(templateId?: string) {
-  return useTemplateErrorHandling({
-    context: {
-      templateId,
-      component: 'TemplateOperation'
-    }
-  })
-}
+    return executeWithErrorHandling(operation, operationName, context)
+  }, [executeWithErrorHandling])
 
-/**
- * Hook for template editor error handling
- */
-export function useTemplateEditorError(templateId?: string) {
-  return useTemplateErrorHandling({
-    context: {
-      templateId,
-      component: 'TemplateEditor'
-    },
-    showToast: true,
-    autoReport: true
-  })
-}
-
-/**
- * Hook for template list error handling
- */
-export function useTemplateListError() {
-  return useTemplateErrorHandling({
-    context: {
-      component: 'TemplateList'
-    }
-  })
-}
-
-/**
- * Hook for safe async operations with retry
- */
-export function useSafeAsyncOperation<T>() {
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<TemplateError | null>(null)
-  const [data, setData] = useState<T | null>(null)
-  
-  const execute = useCallback(async (
-    operation: () => Promise<T>,
-    options: {
-      retries?: number
-      onError?: (error: TemplateError) => void
-      context?: TemplateError['context']
-    } = {}
-  ) => {
-    const { retries = 3, onError, context } = options
-    
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const result = await TemplateErrorRecovery.retryOperation(operation, retries)
-      setData(result)
-      return result
-    } catch (exception) {
-      const templateError = TemplateErrorHandler.fromException(exception, context)
-      setError(templateError)
-      
-      TemplateErrorHandler.handleError(templateError)
-      TemplateErrorReporter.reportError(templateError)
-      
-      onError?.(templateError)
-      throw templateError
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-  
   const reset = useCallback(() => {
-    setError(null)
-    setData(null)
-    setIsLoading(false)
-  }, [])
-  
-  return {
-    execute,
-    reset,
-    isLoading,
-    error,
-    data,
-    hasError: error !== null
-  }
-}
-
-/**
- * Hook for error statistics and monitoring
- */
-export function useTemplateErrorStatistics() {
-  const [statistics, setStatistics] = useState(() => 
-    TemplateErrorReporter.getDashboardData()
-  )
-  
-  const refreshStatistics = useCallback(() => {
-    setStatistics(TemplateErrorReporter.getDashboardData())
-  }, [])
-  
-  // Auto-refresh statistics
-  useEffect(() => {
-    const interval = setInterval(refreshStatistics, 30000) // Every 30 seconds
-    return () => clearInterval(interval)
-  }, [refreshStatistics])
-  
-  const generateReport = useCallback(() => {
-    return TemplateErrorReporter.generateReport()
-  }, [])
-  
-  const clearLogs = useCallback(() => {
-    TemplateErrorLogger.getInstance().clearLogs()
-    refreshStatistics()
-  }, [refreshStatistics])
-  
-  return {
-    statistics,
-    refreshStatistics,
-    generateReport,
-    clearLogs
-  }
-}
-
-/**
- * Hook for form validation error handling
- */
-export function useTemplateFormError() {
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  
-  const setFieldError = useCallback((field: string, message: string) => {
-    setFieldErrors(prev => ({ ...prev, [field]: message }))
-  }, [])
-  
-  const clearFieldError = useCallback((field: string) => {
-    setFieldErrors(prev => {
-      const { [field]: _, ...rest } = prev
-      return rest
+    setState({
+      isLoading: false,
+      error: null,
+      retryCount: 0,
+      canRetry: true
     })
   }, [])
-  
-  const clearAllErrors = useCallback(() => {
-    setFieldErrors({})
-  }, [])
-  
-  const hasFieldError = useCallback((field: string) => {
-    return field in fieldErrors
-  }, [fieldErrors])
-  
-  const getFieldError = useCallback((field: string) => {
-    return fieldErrors[field]
-  }, [fieldErrors])
-  
+
   return {
-    fieldErrors,
-    setFieldError,
-    clearFieldError,
-    clearAllErrors,
-    hasFieldError,
-    getFieldError
+    ...state,
+    executeWithErrorHandling,
+    retry,
+    reset
+  }
+}
+
+/**
+ * Specialized hook for template loading operations
+ */
+export function useTemplateLoadingErrorHandling() {
+  return useTemplateErrorHandling({
+    maxRetries: 2,
+    retryDelay: 1000,
+    onError: (error) => {
+      TemplatesModalErrorHandler.handleLoadError(error)
+    }
+  })
+}
+
+/**
+ * Specialized hook for template deletion operations
+ */
+export function useTemplateDeletionErrorHandling() {
+  return useTemplateErrorHandling({
+    maxRetries: 1,
+    retryDelay: 500,
+    onError: (error) => {
+      // Error handling is done in the component with template title context
+    }
+  })
+}
+
+/**
+ * Specialized hook for template search operations
+ */
+export function useTemplateSearchErrorHandling() {
+  return useTemplateErrorHandling({
+    maxRetries: 1,
+    retryDelay: 500,
+    onError: (error) => {
+      TemplatesModalErrorHandler.handleSearchError(error, 'search operation')
+    }
+  })
+}
+
+/**
+ * Hook for handling network-related errors specifically
+ */
+export function useNetworkErrorHandling() {
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+
+  const checkNetworkStatus = useCallback(() => {
+    setIsOnline(navigator.onLine)
+    return navigator.onLine
+  }, [])
+
+  const handleNetworkError = useCallback((error: Error, operation: string) => {
+    if (!checkNetworkStatus()) {
+      TemplatesModalErrorHandler.handleNetworkError(
+        new Error('No internet connection'),
+        operation
+      )
+    } else {
+      TemplatesModalErrorHandler.handleNetworkError(error, operation)
+    }
+  }, [checkNetworkStatus])
+
+  // Listen for online/offline events
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  return {
+    isOnline,
+    checkNetworkStatus,
+    handleNetworkError
+  }
+}
+
+/**
+ * Hook for graceful degradation when errors occur
+ */
+export function useGracefulDegradation<T>(
+  fallbackValue: T,
+  operation: () => Promise<T>,
+  operationName: string
+) {
+  const [value, setValue] = useState<T>(fallbackValue)
+  const [isUsingFallback, setIsUsingFallback] = useState(false)
+  
+  const { executeWithErrorHandling, isLoading, error } = useTemplateErrorHandling({
+    onError: () => {
+      setValue(fallbackValue)
+      setIsUsingFallback(true)
+    },
+    onSuccess: () => {
+      setIsUsingFallback(false)
+    }
+  })
+
+  const execute = useCallback(async () => {
+    const result = await executeWithErrorHandling(operation, operationName)
+    if (result !== null) {
+      setValue(result)
+    }
+  }, [executeWithErrorHandling, operation, operationName])
+
+  return {
+    value,
+    isLoading,
+    error,
+    isUsingFallback,
+    execute
   }
 }

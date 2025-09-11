@@ -21,6 +21,9 @@ import { CategoryFilter } from "@/components/category-filter"
 import { TemplateCard } from "@/components/template-card"
 import { TemplatesLoadingSkeleton } from "@/components/templates-loading-skeleton"
 import { TemplatesEmptyState, TemplatesErrorEmptyState } from "@/components/templates-empty-state"
+import { TemplateErrorBoundary, TemplateOperationErrorBoundary } from "@/components/template-error-boundary"
+import { useTemplateLoadingErrorHandling, useTemplateDeletionErrorHandling, useTemplateSearchErrorHandling, useNetworkErrorHandling } from "@/hooks/use-template-error-handling"
+import { TemplatesModalErrorHandler } from "@/lib/template-error-handler"
 import type { Template } from "@/types/template"
 import type { 
   TemplateWithMetadata, 
@@ -51,6 +54,12 @@ export function TemplatesManagementModal() {
     retryCount: 0
   })
 
+  // Error handling hooks
+  const loadingErrorHandler = useTemplateLoadingErrorHandling()
+  const deletionErrorHandler = useTemplateDeletionErrorHandling()
+  const searchErrorHandler = useTemplateSearchErrorHandling()
+  const { isOnline, handleNetworkError } = useNetworkErrorHandling()
+
   // Template service instance
   const templateService = useMemo(() => new TemplateClientService(), [])
 
@@ -75,9 +84,13 @@ export function TemplatesManagementModal() {
     }
   }, [isTemplatesManagementModalOpen, user?.id, hasLoadedBefore])
 
-  // Template loading function with retry mechanism
+  // Template loading function with comprehensive error handling
   const loadTemplates = async (forceRefresh = false) => {
     if (!user?.id) {
+      TemplatesModalErrorHandler.handlePermissionError(
+        new Error("User not authenticated"),
+        "load templates"
+      )
       setLoadingState(prev => ({
         ...prev,
         isLoading: false,
@@ -86,13 +99,7 @@ export function TemplatesManagementModal() {
       return
     }
 
-    setLoadingState(prev => ({
-      ...prev,
-      isLoading: true,
-      error: null
-    }))
-
-    try {
+    const loadOperation = async () => {
       // Check cache first unless force refresh
       if (!forceRefresh) {
         const cachedTemplates = templateCacheService.getUserTemplates(user.id)
@@ -107,8 +114,13 @@ export function TemplatesManagementModal() {
             lastLoadTime: Date.now(),
             retryCount: 0
           }))
-          return
+          return templatesWithMetadata
         }
+      }
+
+      // Check network status before making request
+      if (!isOnline) {
+        throw new Error("Keine Internetverbindung verfügbar")
       }
 
       // Load fresh data from service
@@ -138,29 +150,29 @@ export function TemplatesManagementModal() {
         })
       }
 
-    } catch (error) {
-      console.error('Error loading templates:', error)
-      
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Ein unbekannter Fehler ist aufgetreten'
+      return templatesWithMetadata
+    }
 
+    setLoadingState(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null
+    }))
+
+    const result = await loadingErrorHandler.executeWithErrorHandling(
+      loadOperation,
+      "load templates",
+      { userId: user.id, forceRefresh }
+    )
+
+    if (result === null) {
+      // Error was handled by the error handler
       setLoadingState(prev => ({
         ...prev,
         isLoading: false,
-        error: errorMessage,
+        error: "Fehler beim Laden der Vorlagen",
         retryCount: prev.retryCount + 1
       }))
-
-      toast({
-        title: "Fehler beim Laden",
-        description: errorMessage,
-        variant: "destructive",
-        action: loadingState.retryCount < 3 ? {
-          label: "Erneut versuchen",
-          onClick: () => loadTemplates(true)
-        } : undefined
-      })
     }
   }
 
@@ -184,25 +196,24 @@ export function TemplatesManagementModal() {
     })
   }
 
-  // Handle template deletion with confirmation
+  // Handle template deletion with comprehensive error handling
   const handleDeleteTemplate = async (templateId: string): Promise<void> => {
     if (!user?.id) {
-      toast({
-        title: "Fehler",
-        description: "Benutzer nicht authentifiziert",
-        variant: "destructive"
-      })
+      TemplatesModalErrorHandler.handlePermissionError(
+        new Error("User not authenticated"),
+        "delete template"
+      )
       return
     }
 
     // Find the template to get its title for confirmation
     const templateToDelete = templates.find(t => t.id === templateId)
     if (!templateToDelete) {
-      toast({
-        title: "Fehler",
-        description: "Die zu löschende Vorlage konnte nicht gefunden werden.",
-        variant: "destructive"
-      })
+      TemplatesModalErrorHandler.handleGenericError(
+        new Error("Template not found"),
+        "find template for deletion",
+        { templateId }
+      )
       return
     }
 
@@ -215,7 +226,12 @@ export function TemplatesManagementModal() {
       return
     }
 
-    try {
+    const deleteOperation = async () => {
+      // Check network status
+      if (!isOnline) {
+        throw new Error("Keine Internetverbindung verfügbar")
+      }
+
       await templateService.deleteTemplate(templateId)
       
       // Update local state immediately for better UX
@@ -228,16 +244,22 @@ export function TemplatesManagementModal() {
         title: "Vorlage gelöscht",
         description: `Die Vorlage "${templateToDelete.titel}" wurde erfolgreich gelöscht.`
       })
-      
+    }
+
+    const retryableDeleteOperation = TemplatesModalErrorHandler.createRetryMechanism(
+      deleteOperation,
+      2, // Max 2 retries for deletion
+      500 // 500ms base delay
+    )
+
+    try {
+      await retryableDeleteOperation()
     } catch (error) {
-      console.error('Error deleting template:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Unbekannter Fehler'
-      
-      toast({
-        title: "Fehler beim Löschen",
-        description: `Die Vorlage "${templateToDelete.titel}" konnte nicht gelöscht werden: ${errorMessage}`,
-        variant: "destructive"
-      })
+      TemplatesModalErrorHandler.handleDeleteError(
+        error as Error,
+        templateToDelete.titel,
+        retryableDeleteOperation
+      )
     }
   }
 
@@ -269,38 +291,61 @@ export function TemplatesManagementModal() {
     }
   }, [isTemplatesManagementModalOpen, closeTemplatesManagementModal])
 
-  // Filter templates based on search and category
+  // Filter templates based on search and category with error handling
   const filteredTemplates = useMemo(() => {
-    let filtered = templates
+    try {
+      let filtered = templates
 
-    // Apply category filter
-    if (selectedCategory !== "all") {
-      filtered = filtered.filter(template => 
-        (template.kategorie || 'Ohne Kategorie') === selectedCategory
-      )
-    }
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase()
-      filtered = filtered.filter(template => 
-        template.titel.toLowerCase().includes(query) ||
-        (template.kategorie || '').toLowerCase().includes(query) ||
-        JSON.stringify(template.inhalt).toLowerCase().includes(query)
-      )
-    }
-
-    return filtered.sort((a, b) => {
-      // Sort by last accessed/updated, then by title
-      const aDate = a.lastAccessedAt || a.erstellungsdatum
-      const bDate = b.lastAccessedAt || b.erstellungsdatum
-      
-      if (aDate !== bDate) {
-        return new Date(bDate).getTime() - new Date(aDate).getTime()
+      // Apply category filter
+      if (selectedCategory !== "all") {
+        filtered = filtered.filter(template => 
+          (template.kategorie || 'Ohne Kategorie') === selectedCategory
+        )
       }
-      
-      return a.titel.localeCompare(b.titel)
-    })
+
+      // Apply search filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase()
+        filtered = filtered.filter(template => {
+          try {
+            return template.titel.toLowerCase().includes(query) ||
+              (template.kategorie || '').toLowerCase().includes(query) ||
+              JSON.stringify(template.inhalt).toLowerCase().includes(query)
+          } catch (error) {
+            // If JSON.stringify fails, just search in title and category
+            console.warn('Error searching template content:', error)
+            return template.titel.toLowerCase().includes(query) ||
+              (template.kategorie || '').toLowerCase().includes(query)
+          }
+        })
+      }
+
+      return filtered.sort((a, b) => {
+        try {
+          // Sort by last accessed/updated, then by title
+          const aDate = a.lastAccessedAt || a.erstellungsdatum
+          const bDate = b.lastAccessedAt || b.erstellungsdatum
+          
+          if (aDate !== bDate) {
+            return new Date(bDate).getTime() - new Date(aDate).getTime()
+          }
+          
+          return a.titel.localeCompare(b.titel)
+        } catch (error) {
+          // Fallback to simple title comparison
+          console.warn('Error sorting templates:', error)
+          return a.titel.localeCompare(b.titel)
+        }
+      })
+    } catch (error) {
+      TemplatesModalErrorHandler.handleFilterError(
+        error as Error,
+        'search and category filter',
+        `search: "${searchQuery}", category: "${selectedCategory}"`
+      )
+      // Return original templates as fallback
+      return templates
+    }
   }, [templates, selectedCategory, searchQuery])
 
   const handleCreateTemplate = () => {
@@ -396,7 +441,11 @@ export function TemplatesManagementModal() {
   }
 
   const handleSearchChange = (value: string) => {
-    setSearchQuery(value)
+    try {
+      setSearchQuery(value)
+    } catch (error) {
+      TemplatesModalErrorHandler.handleSearchError(error as Error, value)
+    }
   }
 
   const clearSearch = () => {
@@ -412,21 +461,26 @@ export function TemplatesManagementModal() {
   }
 
   return (
-    <Dialog open={isTemplatesManagementModalOpen} onOpenChange={closeTemplatesManagementModal}>
-      <DialogContent 
-        className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 gap-0 overflow-hidden"
-        onOpenAutoFocus={(e) => {
-          // Focus the search input when modal opens
-          e.preventDefault()
-          setTimeout(() => {
-            const searchInput = document.querySelector('[data-testid="template-search-input"]') as HTMLInputElement
-            if (searchInput) {
-              searchInput.focus()
-            }
-          }, 100)
-        }}
-      >
-        <div className="flex flex-col h-full">
+    <TemplateErrorBoundary
+      onError={(error, errorInfo) => {
+        TemplatesModalErrorHandler.handleModalInitializationError(error)
+      }}
+    >
+      <Dialog open={isTemplatesManagementModalOpen} onOpenChange={closeTemplatesManagementModal}>
+        <DialogContent 
+          className="max-w-[90vw] max-h-[90vh] w-full h-full p-0 gap-0 overflow-hidden"
+          onOpenAutoFocus={(e) => {
+            // Focus the search input when modal opens
+            e.preventDefault()
+            setTimeout(() => {
+              const searchInput = document.querySelector('[data-testid="template-search-input"]') as HTMLInputElement
+              if (searchInput) {
+                searchInput.focus()
+              }
+            }, 100)
+          }}
+        >
+          <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-4 sm:p-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="flex items-center gap-3">
@@ -467,90 +521,104 @@ export function TemplatesManagementModal() {
           </div>
           
           {/* Search and Filters Bar */}
-          <div className="p-4 sm:p-6 border-b bg-muted/30 backdrop-blur">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              {/* Search Input */}
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  data-testid="template-search-input"
-                  type="text"
-                  placeholder="Vorlagen durchsuchen..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10 pr-10 h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
-                />
-                {searchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
-                    onClick={clearSearch}
-                  >
-                    <X className="h-3 w-3" />
-                    <span className="sr-only">Suche löschen</span>
-                  </Button>
-                )}
+          <TemplateOperationErrorBoundary 
+            operation="search and filter"
+            onRetry={() => {
+              setSearchQuery("")
+              setSelectedCategory("all")
+            }}
+          >
+            <div className="p-4 sm:p-6 border-b bg-muted/30 backdrop-blur">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                {/* Search Input */}
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    data-testid="template-search-input"
+                    type="text"
+                    placeholder="Vorlagen durchsuchen..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-10 pr-10 h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
+                  />
+                  {searchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+                      onClick={clearSearch}
+                    >
+                      <X className="h-3 w-3" />
+                      <span className="sr-only">Suche löschen</span>
+                    </Button>
+                  )}
+                </div>
+                
+                {/* Category Filter */}
+                <div className="w-full sm:w-64">
+                  <CategoryFilter
+                    templates={templates}
+                    selectedCategory={selectedCategory}
+                    onCategoryChange={setSelectedCategory}
+                    className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
+                    placeholder="Kategorie wählen"
+                  />
+                </div>
+                
+                {/* Create Button */}
+                <Button 
+                  onClick={handleCreateTemplate}
+                  className="w-full sm:w-auto h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span className="hidden sm:inline">Neue Vorlage</span>
+                  <span className="sm:hidden">Erstellen</span>
+                </Button>
               </div>
-              
-              {/* Category Filter */}
-              <div className="w-full sm:w-64">
-                <CategoryFilter
-                  templates={templates}
-                  selectedCategory={selectedCategory}
-                  onCategoryChange={setSelectedCategory}
-                  className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border"
-                  placeholder="Kategorie wählen"
-                />
-              </div>
-              
-              {/* Create Button */}
-              <Button 
-                onClick={handleCreateTemplate}
-                className="w-full sm:w-auto h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">Neue Vorlage</span>
-                <span className="sm:hidden">Erstellen</span>
-              </Button>
             </div>
-          </div>
+          </TemplateOperationErrorBoundary>
           
           {/* Content Area */}
-          <div className="flex-1 overflow-auto p-4 sm:p-6">
-            {loadingState.isLoading ? (
-              <TemplatesLoadingSkeleton 
-                count={8}
-                showCategories={selectedCategory === "all"}
-              />
-            ) : loadingState.error ? (
-              <TemplatesErrorEmptyState 
-                error={loadingState.error}
-                onRetry={handleRetryLoad}
-                onCreateTemplate={handleCreateTemplate}
-                canRetry={loadingState.retryCount < 3}
-              />
-            ) : filteredTemplates.length === 0 ? (
-              <TemplatesEmptyState 
-                onCreateTemplate={handleCreateTemplate}
-                hasSearch={!!searchQuery}
-                hasFilter={selectedCategory !== "all"}
-                onClearFilters={() => {
-                  setSearchQuery("")
-                  setSelectedCategory("all")
-                }}
-              />
-            ) : (
-              <TemplatesGrid 
-                templates={filteredTemplates}
-                onEditTemplate={handleEditTemplate}
-                onDeleteTemplate={handleDeleteTemplate}
-              />
-            )}
+          <TemplateOperationErrorBoundary 
+            operation="template display"
+            onRetry={() => loadTemplates(true)}
+          >
+            <div className="flex-1 overflow-auto p-4 sm:p-6">
+              {loadingState.isLoading ? (
+                <TemplatesLoadingSkeleton 
+                  count={8}
+                  showCategories={selectedCategory === "all"}
+                />
+              ) : loadingState.error ? (
+                <TemplatesErrorEmptyState 
+                  error={loadingState.error}
+                  onRetry={handleRetryLoad}
+                  onCreateTemplate={handleCreateTemplate}
+                  canRetry={loadingState.retryCount < 3}
+                />
+              ) : filteredTemplates.length === 0 ? (
+                <TemplatesEmptyState 
+                  onCreateTemplate={handleCreateTemplate}
+                  hasSearch={!!searchQuery}
+                  hasFilter={selectedCategory !== "all"}
+                  onClearFilters={() => {
+                    setSearchQuery("")
+                    setSelectedCategory("all")
+                  }}
+                />
+              ) : (
+                <TemplatesGrid 
+                  templates={filteredTemplates}
+                  onEditTemplate={handleEditTemplate}
+                  onDeleteTemplate={handleDeleteTemplate}
+                />
+              )}
+            </div>
+          </TemplateOperationErrorBoundary>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+    </TemplateErrorBoundary>
   )
 }
 
@@ -564,46 +632,86 @@ interface TemplatesGridProps {
 }
 
 function TemplatesGrid({ templates, onEditTemplate, onDeleteTemplate }: TemplatesGridProps) {
-  // Group templates by category
+  // Group templates by category with error handling
   const groupedTemplates = useMemo(() => {
-    const groups = new Map<string, TemplateWithMetadata[]>()
-    
-    templates.forEach(template => {
-      const category = template.kategorie || 'Ohne Kategorie'
-      if (!groups.has(category)) {
-        groups.set(category, [])
-      }
-      groups.get(category)!.push(template)
-    })
+    try {
+      const groups = new Map<string, TemplateWithMetadata[]>()
+      
+      templates.forEach(template => {
+        try {
+          const category = template.kategorie || 'Ohne Kategorie'
+          if (!groups.has(category)) {
+            groups.set(category, [])
+          }
+          groups.get(category)!.push(template)
+        } catch (error) {
+          console.warn('Error processing template for grouping:', error, template)
+          // Add to default category as fallback
+          const fallbackCategory = 'Ohne Kategorie'
+          if (!groups.has(fallbackCategory)) {
+            groups.set(fallbackCategory, [])
+          }
+          groups.get(fallbackCategory)!.push(template)
+        }
+      })
 
-    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b))
+      return Array.from(groups.entries()).sort(([a], [b]) => {
+        try {
+          return a.localeCompare(b)
+        } catch (error) {
+          console.warn('Error sorting categories:', error)
+          return 0
+        }
+      })
+    } catch (error) {
+      TemplatesModalErrorHandler.handleGenericError(
+        error as Error,
+        "group templates by category",
+        { templateCount: templates.length }
+      )
+      // Return templates ungrouped as fallback
+      return [['Alle Vorlagen', templates]]
+    }
   }, [templates])
 
   return (
-    <div className="space-y-8">
-      {groupedTemplates.map(([category, categoryTemplates]) => (
-        <div key={category}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-foreground">
-              {category}
-            </h3>
-            <Badge variant="secondary" className="text-xs">
-              {categoryTemplates.length} {categoryTemplates.length === 1 ? 'Vorlage' : 'Vorlagen'}
-            </Badge>
+    <TemplateOperationErrorBoundary 
+      operation="template grid display"
+      onRetry={() => window.location.reload()}
+    >
+      <div className="space-y-8">
+        {groupedTemplates.map(([category, categoryTemplates]) => (
+          <div key={category}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-foreground">
+                {category}
+              </h3>
+              <Badge variant="secondary" className="text-xs">
+                {categoryTemplates.length} {categoryTemplates.length === 1 ? 'Vorlage' : 'Vorlagen'}
+              </Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {categoryTemplates.map((template) => (
+                <TemplateOperationErrorBoundary
+                  key={template.id}
+                  operation={`template card for "${template.titel}"`}
+                  onRetry={() => {
+                    // Template card errors are usually not recoverable at this level
+                    console.log('Template card error, skipping template:', template.id)
+                  }}
+                >
+                  <TemplateCard
+                    template={template}
+                    onEdit={() => onEditTemplate(template.id)}
+                    onDelete={onDeleteTemplate}
+                  />
+                </TemplateOperationErrorBoundary>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {categoryTemplates.map((template) => (
-              <TemplateCard
-                key={template.id}
-                template={template}
-                onEdit={() => onEditTemplate(template.id)}
-                onDelete={onDeleteTemplate}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </TemplateOperationErrorBoundary>
   )
 }
 
