@@ -18,6 +18,10 @@ import { useModalStore } from "@/hooks/use-modal-store"
 import { useAuth } from "@/components/auth-provider"
 import { TemplateClientService } from "@/lib/template-client-service"
 import { templateCacheService } from "@/lib/template-cache"
+import { optimizedTemplateLoader } from "@/lib/template-performance-optimizer"
+import { useDebouncedTemplateFilters } from "@/hooks/use-debounced-template-search"
+import { VirtualTemplateGrid, useVirtualTemplateGrid } from "@/components/template-virtual-grid"
+import { TemplatePerformanceMonitor } from "@/components/template-performance-monitor"
 import { CategoryFilter } from "@/components/category-filter"
 import { TemplateCard } from "@/components/template-card"
 import { TemplatesLoadingSkeleton } from "@/components/templates-loading-skeleton"
@@ -55,10 +59,6 @@ export function TemplatesManagementModal() {
   // Template data state
   const [templates, setTemplates] = useState<TemplateWithMetadata[]>([])
   
-  // Filter and search state
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
-  
   // Loading and error state
   const [loadingState, setLoadingState] = useState<TemplateLoadingState>({
     isLoading: false,
@@ -66,6 +66,26 @@ export function TemplatesManagementModal() {
     lastLoadTime: null,
     retryCount: 0
   })
+
+  // Performance optimizations
+  const {
+    searchQuery,
+    setSearchQuery,
+    selectedCategory,
+    setCategoryFilter,
+    filteredTemplates,
+    clearAllFilters,
+    hasActiveFilters,
+    isProcessing,
+    performanceMetrics
+  } = useDebouncedTemplateFilters(templates, {
+    debounceMs: 300,
+    minQueryLength: 1,
+    enablePerformanceMonitoring: process.env.NODE_ENV === 'development'
+  })
+
+  // Virtual scrolling for large lists
+  const { shouldUseVirtualization } = useVirtualTemplateGrid(filteredTemplates)
 
   // Error handling hooks
   const loadingErrorHandler = useTemplateLoadingErrorHandling()
@@ -106,7 +126,7 @@ export function TemplatesManagementModal() {
     }
   }, [isTemplatesManagementModalOpen, user?.id, hasLoadedBefore])
 
-  // Template loading function with comprehensive error handling
+  // Template loading function with performance optimization
   const loadTemplates = async (forceRefresh = false) => {
     if (!user?.id) {
       TemplatesModalErrorHandler.handlePermissionError(
@@ -122,40 +142,19 @@ export function TemplatesManagementModal() {
     }
 
     const loadOperation = async () => {
-      // Check cache first unless force refresh
-      if (!forceRefresh) {
-        const cachedTemplates = templateCacheService.getUserTemplates(user.id)
-        
-        if (cachedTemplates && cachedTemplates.length > 0) {
-          const templatesWithMetadata = await enhanceTemplatesWithMetadata(cachedTemplates)
-          
-          setTemplates(templatesWithMetadata)
-          setLoadingState(prev => ({
-            ...prev,
-            isLoading: false,
-            lastLoadTime: Date.now(),
-            retryCount: 0
-          }))
-          return templatesWithMetadata
-        }
-      }
-
       // Check network status before making request
       if (!isOnline) {
         throw new Error("Keine Internetverbindung verfügbar")
       }
 
-      // Load fresh data from service
-      const loadedTemplates = await templateService.getUserTemplates()
+      // Use optimized loader with caching and deduplication
+      const loadedTemplates = await optimizedTemplateLoader.loadTemplates(user.id, forceRefresh)
 
       // Enhance templates with metadata
       const templatesWithMetadata = await enhanceTemplatesWithMetadata(loadedTemplates)
 
       // Update state
       setTemplates(templatesWithMetadata)
-      
-      // Update cache
-      templateCacheService.setUserTemplates(user.id, loadedTemplates)
 
       setLoadingState(prev => ({
         ...prev,
@@ -317,62 +316,7 @@ export function TemplatesManagementModal() {
     }
   }, [isTemplatesManagementModalOpen, closeTemplatesManagementModal])
 
-  // Filter templates based on search and category with error handling
-  const filteredTemplates = useMemo(() => {
-    try {
-      let filtered = templates
-
-      // Apply category filter
-      if (selectedCategory !== "all") {
-        filtered = filtered.filter(template => 
-          (template.kategorie || 'Ohne Kategorie') === selectedCategory
-        )
-      }
-
-      // Apply search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase()
-        filtered = filtered.filter(template => {
-          try {
-            return template.titel.toLowerCase().includes(query) ||
-              (template.kategorie || '').toLowerCase().includes(query) ||
-              JSON.stringify(template.inhalt).toLowerCase().includes(query)
-          } catch (error) {
-            // If JSON.stringify fails, just search in title and category
-            console.warn('Error searching template content:', error)
-            return template.titel.toLowerCase().includes(query) ||
-              (template.kategorie || '').toLowerCase().includes(query)
-          }
-        })
-      }
-
-      return filtered.sort((a, b) => {
-        try {
-          // Sort by last accessed/updated, then by title
-          const aDate = a.lastAccessedAt || a.erstellungsdatum
-          const bDate = b.lastAccessedAt || b.erstellungsdatum
-          
-          if (aDate !== bDate) {
-            return new Date(bDate).getTime() - new Date(aDate).getTime()
-          }
-          
-          return a.titel.localeCompare(b.titel)
-        } catch (error) {
-          // Fallback to simple title comparison
-          console.warn('Error sorting templates:', error)
-          return a.titel.localeCompare(b.titel)
-        }
-      })
-    } catch (error) {
-      TemplatesModalErrorHandler.handleFilterError(
-        error as Error,
-        'search and category filter',
-        `search: "${searchQuery}", category: "${selectedCategory}"`
-      )
-      // Return original templates as fallback
-      return templates
-    }
-  }, [templates, selectedCategory, searchQuery])
+  // Note: filteredTemplates is now handled by useDebouncedTemplateFilters hook
 
   const handleCreateTemplate = () => {
     const { openTemplateEditorModal } = useModalStore()
@@ -484,6 +428,10 @@ export function TemplatesManagementModal() {
 
   const clearSearch = () => {
     setSearchQuery("")
+  }
+
+  const handleCategoryChange = (category: string) => {
+    setCategoryFilter(category)
   }
 
   const handleRetryLoad = () => {
@@ -642,7 +590,7 @@ export function TemplatesManagementModal() {
                   <CategoryFilter
                     templates={templates}
                     selectedCategory={selectedCategory}
-                    onCategoryChange={setSelectedCategory}
+                    onCategoryChange={handleCategoryChange}
                     className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2"
                     placeholder="Kategorie wählen"
                   />
@@ -670,6 +618,15 @@ export function TemplatesManagementModal() {
                 {searchQuery && `${filteredTemplates.length} Suchergebnisse für "${searchQuery}"`}
                 {selectedCategory !== "all" && !searchQuery && `${filteredTemplates.length} Vorlagen in Kategorie "${selectedCategory}"`}
               </div>
+              
+              {/* Performance indicator for development */}
+              {process.env.NODE_ENV === 'development' && performanceMetrics && (
+                <div className="text-xs text-muted-foreground mt-2">
+                  Search: {performanceMetrics.searchTime.toFixed(1)}ms | 
+                  Results: {performanceMetrics.resultCount} | 
+                  {isProcessing && " Processing..."}
+                </div>
+              )}
             </section>
           </TemplateOperationErrorBoundary>
           
@@ -716,7 +673,7 @@ export function TemplatesManagementModal() {
               {!loadingState.isLoading && !loadingState.error && filteredTemplates.length === 0 && (
                 <>
                   <div className="sr-only" aria-live="polite">
-                    {searchQuery || selectedCategory !== "all" 
+                    {hasActiveFilters
                       ? "Keine Vorlagen gefunden für die aktuellen Filter"
                       : "Keine Vorlagen vorhanden"
                     }
@@ -725,25 +682,36 @@ export function TemplatesManagementModal() {
                     onCreateTemplate={handleCreateTemplate}
                     hasSearch={!!searchQuery}
                     hasFilter={selectedCategory !== "all"}
-                    onClearFilters={() => {
-                      setSearchQuery("")
-                      setSelectedCategory("all")
-                    }}
+                    onClearFilters={clearAllFilters}
                   />
                 </>
               )}
               
-              {/* Templates Grid */}
+              {/* Templates Grid - Use virtual scrolling for large lists */}
               {!loadingState.isLoading && !loadingState.error && filteredTemplates.length > 0 && (
                 <>
                   <div className="sr-only" aria-live="polite">
                     {filteredTemplates.length} Vorlagen werden angezeigt
+                    {shouldUseVirtualization && " (optimiert für große Listen)"}
                   </div>
-                  <TemplatesGrid 
-                    templates={filteredTemplates}
-                    onEditTemplate={handleEditTemplate}
-                    onDeleteTemplate={handleDeleteTemplate}
-                  />
+                  
+                  {shouldUseVirtualization ? (
+                    <div className="h-[600px]">
+                      <VirtualTemplateGrid
+                        templates={filteredTemplates}
+                        onEditTemplate={handleEditTemplate}
+                        onDeleteTemplate={handleDeleteTemplate}
+                        groupByCategory={selectedCategory === "all"}
+                        className="w-full h-full"
+                      />
+                    </div>
+                  ) : (
+                    <TemplatesGrid 
+                      templates={filteredTemplates}
+                      onEditTemplate={handleEditTemplate}
+                      onDeleteTemplate={handleDeleteTemplate}
+                    />
+                  )}
                 </>
               )}
             </main>
@@ -754,6 +722,9 @@ export function TemplatesManagementModal() {
           <AnnouncementRegion />
         </DialogContent>
       </Dialog>
+      
+      {/* Performance Monitor (Development only) */}
+      {process.env.NODE_ENV === 'development' && <TemplatePerformanceMonitor />}
     </TemplateErrorBoundary>
   )
 }
