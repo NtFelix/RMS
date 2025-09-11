@@ -348,7 +348,7 @@ export function EnhancedToolbar({
     return groups
   }, [allActions])
 
-  // Render a toolbar button
+  // Enhanced toolbar button rendering with animations
   const renderToolbarButton = (action: ToolbarAction) => {
     if (!editor) return null
 
@@ -364,30 +364,56 @@ export function EnhancedToolbar({
         disabled={isDisabled}
         size={compactMode ? "sm" : "default"}
         className={cn(
-          "data-[state=on]:bg-accent data-[state=on]:text-accent-foreground",
+          "transition-all duration-200 hover:scale-105 group relative",
+          "data-[state=on]:bg-primary/10 data-[state=on]:text-primary data-[state=on]:shadow-sm",
+          "hover:bg-muted/50 hover:shadow-sm",
+          "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100",
           compactMode && "h-8 w-8 p-0"
         )}
         aria-label={action.label}
       >
-        <Icon className={cn("h-4 w-4", showLabels && !compactMode && "mr-1")} />
+        <Icon className={cn(
+          "h-4 w-4 transition-transform duration-200 group-hover:scale-110",
+          showLabels && !compactMode && "mr-1",
+          isActive && "text-primary"
+        )} />
         {showLabels && !compactMode && (
-          <span className="hidden sm:inline text-xs">{action.label}</span>
+          <span className="hidden sm:inline text-xs font-medium transition-colors duration-200">
+            {action.label}
+          </span>
         )}
+        
+        {/* Active indicator */}
+        {isActive && (
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full animate-in fade-in duration-200" />
+        )}
+        
+        {/* Hover effect */}
+        <div className="absolute inset-0 rounded-md bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       </Toggle>
     )
 
-    // Wrap with tooltip if shortcuts are enabled or in compact mode
+    // Enhanced tooltip with better styling
     if (showShortcuts || compactMode) {
       return (
         <Tooltip key={action.id}>
           <TooltipTrigger asChild>
             {button}
           </TooltipTrigger>
-          <TooltipContent side="bottom" className="flex flex-col items-center">
-            <span>{action.label}</span>
-            {action.shortcut && (
-              <span className="text-xs text-muted-foreground">{action.shortcut}</span>
-            )}
+          <TooltipContent 
+            side="bottom" 
+            className="animate-in fade-in duration-200 slide-in-from-top-2"
+          >
+            <div className="text-center space-y-1">
+              <div className="font-medium">{action.label}</div>
+              {action.shortcut && (
+                <div className="text-xs text-muted-foreground">
+                  <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs font-mono">
+                    {action.shortcut}
+                  </kbd>
+                </div>
+              )}
+            </div>
           </TooltipContent>
         </Tooltip>
       )
@@ -442,40 +468,43 @@ export function EnhancedToolbar({
   return (
     <TooltipProvider>
       <div className={cn(
-        "flex items-center gap-1 p-2 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
+        "flex items-center gap-1 p-2 border-b transition-all duration-200",
+        "bg-gradient-to-r from-background via-muted/10 to-background backdrop-blur-sm",
+        "supports-[backdrop-filter]:bg-background/80",
         "flex-wrap sm:flex-nowrap",
+        "hover:shadow-sm",
         compactMode && "p-1 gap-0.5",
         className
       )}>
-        {/* History actions */}
-        <div className="flex items-center gap-1">
+        {/* History actions with animation */}
+        <div className="flex items-center gap-1 animate-in fade-in duration-300">
           {actionsByCategory.history.map(renderToolbarButton)}
         </div>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1 opacity-50" />
 
-        {/* Text formatting actions */}
-        <div className="flex items-center gap-1">
+        {/* Text formatting actions with staggered animation */}
+        <div className="flex items-center gap-1 animate-in fade-in duration-300 delay-100">
           {actionsByCategory.format.map(renderToolbarButton)}
         </div>
 
-        <Separator orientation="vertical" className="h-6 mx-1" />
+        <Separator orientation="vertical" className="h-6 mx-1 opacity-50" />
 
-        {/* Structure actions - responsive */}
-        <div className="hidden md:flex items-center gap-1">
+        {/* Structure actions - responsive with animation */}
+        <div className="hidden md:flex items-center gap-1 animate-in fade-in duration-300 delay-200">
           <HeadingDropdown editor={editor} showShortcuts={showShortcuts} />
           {actionsByCategory.structure.slice(3).map(renderToolbarButton)} {/* Skip headings, they're in dropdown */}
         </div>
 
         <div className="hidden md:block">
-          <Separator orientation="vertical" className="h-6 mx-1" />
+          <Separator orientation="vertical" className="h-6 mx-1 opacity-50" />
         </div>
 
-        {/* Insert actions - responsive */}
-        <div className="hidden lg:flex items-center gap-1">
+        {/* Insert actions - responsive with animation */}
+        <div className="hidden lg:flex items-center gap-1 animate-in fade-in duration-300 delay-300">
           {actionsByCategory.insert.map(renderToolbarButton)}
           
-          {/* Variable insert button */}
+          {/* Enhanced Variable insert button */}
           {onVariableInsert && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -483,54 +512,70 @@ export function EnhancedToolbar({
                   variant="ghost"
                   size={compactMode ? "sm" : "default"}
                   onClick={onVariableInsert}
-                  className={cn(compactMode && "h-8 w-8 p-0")}
+                  className={cn(
+                    "transition-all duration-200 hover:scale-105 hover:bg-primary/10",
+                    "group relative",
+                    compactMode && "h-8 w-8 p-0"
+                  )}
                 >
-                  <AtSign className="h-4 w-4" />
+                  <AtSign className="h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
                   {showLabels && !compactMode && (
                     <span className="hidden sm:inline ml-1 text-xs">Variable</span>
                   )}
+                  <div className="absolute inset-0 rounded-md bg-gradient-to-r from-primary/0 via-primary/5 to-primary/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <span>Variable einfügen</span>
-                <span className="text-xs text-muted-foreground block">@</span>
+              <TooltipContent side="bottom" className="animate-in fade-in duration-200">
+                <div className="text-center">
+                  <span className="font-medium">Variable einfügen</span>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Drücken Sie <kbd className="px-1 py-0.5 bg-muted rounded text-xs">@</kbd>
+                  </div>
+                </div>
               </TooltipContent>
             </Tooltip>
           )}
         </div>
 
-        {/* More actions dropdown for mobile/tablet */}
-        <div className="md:hidden">
-          <Separator orientation="vertical" className="h-6 mx-1" />
+        {/* More actions dropdown for mobile/tablet with animation */}
+        <div className="md:hidden animate-in fade-in duration-300 delay-400">
+          <Separator orientation="vertical" className="h-6 mx-1 opacity-50" />
           {renderMoreActionsDropdown()}
         </div>
 
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Right side actions */}
-        <div className="flex items-center gap-1">
-          {/* Keyboard shortcuts help */}
+        {/* Right side actions with animation */}
+        <div className="flex items-center gap-1 animate-in fade-in duration-300 delay-500">
+          {/* Enhanced Keyboard shortcuts help */}
           <KeyboardShortcutsHelp />
 
-          {/* Customization options */}
+          {/* Enhanced Customization options */}
           {enableCustomization && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size={compactMode ? "sm" : "default"}>
-                  <Settings className="h-4 w-4" />
+                <Button 
+                  variant="ghost" 
+                  size={compactMode ? "sm" : "default"}
+                  className="transition-all duration-200 hover:scale-105 hover:bg-muted/50"
+                >
+                  <Settings className="h-4 w-4 transition-transform duration-200 hover:rotate-90" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Toolbar-Einstellungen</DropdownMenuLabel>
+              <DropdownMenuContent align="end" className="animate-in slide-in-from-top duration-200">
+                <DropdownMenuLabel className="flex items-center gap-2">
+                  <Palette className="h-4 w-4" />
+                  Toolbar-Einstellungen
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem className="transition-colors duration-150">
                   <span>Labels anzeigen</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className="transition-colors duration-150">
                   <span>Shortcuts anzeigen</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
+                <DropdownMenuItem className="transition-colors duration-150">
                   <span>Kompakter Modus</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

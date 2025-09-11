@@ -660,10 +660,11 @@ export function TiptapTemplateEditor({
       )}
       
       <div className={cn(
-        'border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden',
-        'focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500',
-        'bg-white dark:bg-gray-900',
-        contentError === "recovered" && 'border-yellow-300 dark:border-yellow-600'
+        'border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden transition-all duration-200',
+        'focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary focus-within:shadow-sm',
+        'bg-white dark:bg-gray-900 hover:shadow-sm',
+        contentError === "recovered" && 'border-yellow-300 dark:border-yellow-600 shadow-yellow-100/50 dark:shadow-yellow-900/20',
+        'group'
       )}>
         {/* Enhanced Toolbar */}
         {showToolbar && (

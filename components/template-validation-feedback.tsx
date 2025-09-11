@@ -38,30 +38,45 @@ export function ValidationFeedback({
 
   return (
     <div className={cn('space-y-2', className)}>
-      {/* Errors */}
+      {/* Errors with staggered animation */}
       {result.errors.map((error, index) => (
-        <ValidationErrorAlert
+        <div 
           key={`error-${index}`}
-          error={error}
-          onQuickFix={onQuickFix}
-        />
+          className="animate-in slide-in-from-left duration-300"
+          style={{ animationDelay: `${index * 100}ms` }}
+        >
+          <ValidationErrorAlert
+            error={error}
+            onQuickFix={onQuickFix}
+          />
+        </div>
       ))}
 
-      {/* Warnings */}
+      {/* Warnings with staggered animation */}
       {result.warnings.map((warning, index) => (
-        <ValidationWarningAlert
+        <div 
           key={`warning-${index}`}
-          warning={warning}
-        />
+          className="animate-in slide-in-from-left duration-300"
+          style={{ animationDelay: `${(result.errors.length + index) * 100}ms` }}
+        >
+          <ValidationWarningAlert
+            warning={warning}
+          />
+        </div>
       ))}
 
-      {/* Suggestions */}
+      {/* Suggestions with staggered animation */}
       {showSuggestions && result.suggestions.map((suggestion, index) => (
-        <ValidationSuggestionAlert
+        <div 
           key={`suggestion-${index}`}
-          suggestion={suggestion}
-          onAction={onSuggestionAction}
-        />
+          className="animate-in slide-in-from-left duration-300"
+          style={{ animationDelay: `${(result.errors.length + result.warnings.length + index) * 100}ms` }}
+        >
+          <ValidationSuggestionAlert
+            suggestion={suggestion}
+            onAction={onSuggestionAction}
+          />
+        </div>
       ))}
     </div>
   )
@@ -76,13 +91,13 @@ function ValidationErrorAlert({ error, onQuickFix }: ValidationErrorAlertProps) 
   const getIcon = () => {
     switch (error.severity) {
       case 'error':
-        return <AlertTriangle className="h-4 w-4" />
+        return <AlertTriangle className="h-4 w-4 animate-in zoom-in duration-200" />
       case 'warning':
-        return <AlertCircle className="h-4 w-4" />
+        return <AlertCircle className="h-4 w-4 animate-in zoom-in duration-200" />
       case 'info':
-        return <Info className="h-4 w-4" />
+        return <Info className="h-4 w-4 animate-in zoom-in duration-200" />
       default:
-        return <AlertTriangle className="h-4 w-4" />
+        return <AlertTriangle className="h-4 w-4 animate-in zoom-in duration-200" />
     }
   }
 
@@ -100,16 +115,27 @@ function ValidationErrorAlert({ error, onQuickFix }: ValidationErrorAlertProps) 
   }
 
   return (
-    <Alert variant={getVariant() as any} className="relative">
-      <div className="flex items-start gap-2">
-        {getIcon()}
+    <Alert 
+      variant={getVariant() as any} 
+      className="relative transition-all duration-200 hover:shadow-sm border-l-4"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">
+          {getIcon()}
+        </div>
         <div className="flex-1 min-w-0">
           <AlertDescription className="text-sm">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex-1">
-                <span className="font-medium">{error.field}:</span> {error.message}
+              <div className="flex-1 space-y-1">
+                <div>
+                  <span className="font-semibold text-foreground">{error.field}:</span>{' '}
+                  <span className="text-muted-foreground">{error.message}</span>
+                </div>
                 {error.position && (
-                  <Badge variant="outline" className="ml-2 text-xs">
+                  <Badge 
+                    variant="outline" 
+                    className="text-xs animate-in fade-in duration-300 delay-100"
+                  >
                     Position {error.position.start}-{error.position.end}
                   </Badge>
                 )}
@@ -122,14 +148,14 @@ function ValidationErrorAlert({ error, onQuickFix }: ValidationErrorAlertProps) 
                         size="sm"
                         variant="outline"
                         onClick={() => onQuickFix(error)}
-                        className="h-6 px-2 text-xs"
+                        className="h-7 px-3 text-xs transition-all duration-200 hover:scale-105 hover:shadow-sm animate-in slide-in-from-right duration-300"
                       >
-                        <Zap className="h-3 w-3 mr-1" />
+                        <Zap className="h-3 w-3 mr-1.5 text-yellow-500" />
                         {error.quickFix.label}
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p className="text-xs">{error.quickFix.description}</p>
+                    <TooltipContent className="animate-in fade-in duration-200">
+                      <p className="text-xs max-w-xs">{error.quickFix.description}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

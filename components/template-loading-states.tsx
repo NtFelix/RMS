@@ -171,13 +171,13 @@ export function TemplateSaveStatus({
   const getStatusIcon = () => {
     switch (status) {
       case 'saving':
-        return <Loader2 className="h-3 w-3 animate-spin" />
+        return <Loader2 className="h-3 w-3 animate-spin text-blue-500" />
       case 'saved':
-        return <CheckCircle className="h-3 w-3" />
+        return <CheckCircle className="h-3 w-3 text-green-500 animate-in zoom-in duration-200" />
       case 'error':
-        return <AlertCircle className="h-3 w-3" />
+        return <AlertCircle className="h-3 w-3 text-red-500 animate-in shake duration-300" />
       case 'dirty':
-        return <Clock className="h-3 w-3" />
+        return <Clock className="h-3 w-3 text-orange-500 animate-pulse" />
       default:
         return null
     }
@@ -201,28 +201,53 @@ export function TemplateSaveStatus({
   const getStatusColor = () => {
     switch (status) {
       case 'saving':
-        return 'text-blue-600'
+        return 'text-blue-600 dark:text-blue-400'
       case 'saved':
-        return 'text-green-600'
+        return 'text-green-600 dark:text-green-400'
       case 'error':
-        return 'text-red-600'
+        return 'text-red-600 dark:text-red-400'
       case 'dirty':
-        return 'text-orange-600'
+        return 'text-orange-600 dark:text-orange-400'
       default:
         return 'text-muted-foreground'
+    }
+  }
+
+  const getBackgroundColor = () => {
+    switch (status) {
+      case 'saving':
+        return 'bg-blue-50/50 dark:bg-blue-950/20'
+      case 'saved':
+        return 'bg-green-50/50 dark:bg-green-950/20'
+      case 'error':
+        return 'bg-red-50/50 dark:bg-red-950/20'
+      case 'dirty':
+        return 'bg-orange-50/50 dark:bg-orange-950/20'
+      default:
+        return ''
     }
   }
 
   if (status === 'idle') return null
 
   return (
-    <div className={cn("flex items-center space-x-2 text-xs", getStatusColor(), className)}>
+    <div className={cn(
+      "flex items-center space-x-2 text-xs px-2 py-1 rounded-full transition-all duration-200",
+      "border border-transparent",
+      getStatusColor(),
+      getBackgroundColor(),
+      "animate-in fade-in duration-300",
+      className
+    )}>
       {getStatusIcon()}
-      <span>{getStatusText()}</span>
+      <span className="font-medium">{getStatusText()}</span>
       {autoSaveEnabled && status !== 'error' && (
-        <div className="flex items-center space-x-1">
-          <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          <span className="text-muted-foreground">Auto</span>
+        <div className="flex items-center space-x-1 animate-in slide-in-from-right duration-200">
+          <div className="relative">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            <span className="absolute inset-0 w-1.5 h-1.5 bg-green-400 rounded-full animate-ping" />
+          </div>
+          <span className="text-muted-foreground text-xs">Auto</span>
         </div>
       )}
     </div>

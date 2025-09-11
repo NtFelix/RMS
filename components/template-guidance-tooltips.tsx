@@ -48,30 +48,45 @@ export function GuidanceTooltip({
   const getIcon = () => {
     switch (type) {
       case 'info':
-        return <Info className="h-4 w-4" />
+        return <Info className="h-4 w-4 animate-in zoom-in duration-200" />
       case 'tip':
-        return <Lightbulb className="h-4 w-4" />
+        return <Lightbulb className="h-4 w-4 animate-in zoom-in duration-200" />
       case 'warning':
-        return <HelpCircle className="h-4 w-4" />
+        return <HelpCircle className="h-4 w-4 animate-in zoom-in duration-200" />
       case 'shortcut':
-        return <Keyboard className="h-4 w-4" />
+        return <Keyboard className="h-4 w-4 animate-in zoom-in duration-200" />
       default:
-        return <Info className="h-4 w-4" />
+        return <Info className="h-4 w-4 animate-in zoom-in duration-200" />
     }
   }
 
   const getIconColor = () => {
     switch (type) {
       case 'info':
-        return 'text-blue-500'
+        return 'text-blue-500 dark:text-blue-400'
       case 'tip':
-        return 'text-yellow-500'
+        return 'text-yellow-500 dark:text-yellow-400'
       case 'warning':
-        return 'text-orange-500'
+        return 'text-orange-500 dark:text-orange-400'
       case 'shortcut':
-        return 'text-purple-500'
+        return 'text-purple-500 dark:text-purple-400'
       default:
-        return 'text-blue-500'
+        return 'text-blue-500 dark:text-blue-400'
+    }
+  }
+
+  const getBackgroundGradient = () => {
+    switch (type) {
+      case 'info':
+        return 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50'
+      case 'tip':
+        return 'bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50'
+      case 'warning':
+        return 'bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-950/50 dark:to-red-950/50'
+      case 'shortcut':
+        return 'bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/50 dark:to-pink-950/50'
+      default:
+        return 'bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50'
     }
   }
 
@@ -81,17 +96,27 @@ export function GuidanceTooltip({
         <TooltipTrigger asChild>
           {children}
         </TooltipTrigger>
-        <TooltipContent side={side} align={align} className={cn(maxWidth, className)}>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
+        <TooltipContent 
+          side={side} 
+          align={align} 
+          className={cn(
+            maxWidth, 
+            'animate-in fade-in slide-in-from-top-2 duration-200',
+            'border-0 shadow-lg backdrop-blur-sm',
+            getBackgroundGradient(),
+            className
+          )}
+        >
+          <div className="space-y-3 p-1">
+            <div className="flex items-center gap-2 animate-in slide-in-from-left duration-300">
               {showIcon && (
-                <span className={getIconColor()}>
+                <span className={cn(getIconColor(), 'flex-shrink-0')}>
                   {getIcon()}
                 </span>
               )}
-              <span className="font-semibold text-sm">{title}</span>
+              <span className="font-semibold text-sm text-foreground">{title}</span>
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed animate-in fade-in duration-400 delay-100">
               {content}
             </p>
           </div>
@@ -345,34 +370,49 @@ export function ContextualHelp({ topic, className, size = 'sm' }: ContextualHelp
             size="sm"
             className={cn(
               getButtonSize(),
-              'rounded-full p-0 text-muted-foreground hover:text-foreground',
+              'rounded-full p-0 text-muted-foreground hover:text-foreground transition-all duration-200',
+              'hover:scale-110 hover:bg-blue-50 dark:hover:bg-blue-950/20',
+              'group relative',
               className
             )}
           >
-            <HelpCircle className={getIconSize()} />
+            <HelpCircle className={cn(
+              getIconSize(),
+              'transition-transform duration-200 group-hover:rotate-12'
+            )} />
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500/0 via-blue-500/10 to-blue-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent className="max-w-md">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-4 w-4 text-blue-500" />
-              <span className="font-semibold">{help.title}</span>
+        <TooltipContent 
+          className="max-w-md animate-in fade-in slide-in-from-top-2 duration-200 bg-gradient-to-br from-background via-muted/20 to-background border-0 shadow-lg backdrop-blur-sm"
+        >
+          <div className="space-y-3 p-1">
+            <div className="flex items-center gap-2 animate-in slide-in-from-left duration-300">
+              <BookOpen className="h-4 w-4 text-blue-500 animate-in zoom-in duration-200" />
+              <span className="font-semibold text-foreground">{help.title}</span>
             </div>
             
-            <p className="text-sm text-muted-foreground leading-relaxed">
+            <p className="text-sm text-muted-foreground leading-relaxed animate-in fade-in duration-400 delay-100">
               {help.content}
             </p>
             
             {help.tips && help.tips.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">
-                  💡 Tipps:
-                </p>
-                <ul className="space-y-1">
+              <div className="space-y-2 animate-in slide-in-from-bottom duration-300 delay-200">
+                <div className="flex items-center gap-1">
+                  <Lightbulb className="h-3 w-3 text-yellow-500" />
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Tipps:
+                  </p>
+                </div>
+                <ul className="space-y-1.5">
                   {help.tips.map((tip, index) => (
-                    <li key={index} className="text-xs text-muted-foreground flex items-start gap-1">
-                      <span className="text-blue-500 mt-0.5">•</span>
-                      <span>{tip}</span>
+                    <li 
+                      key={index} 
+                      className="text-xs text-muted-foreground flex items-start gap-2 animate-in slide-in-from-left duration-200"
+                      style={{ animationDelay: `${300 + index * 100}ms` }}
+                    >
+                      <span className="text-blue-500 mt-0.5 flex-shrink-0">•</span>
+                      <span className="leading-relaxed">{tip}</span>
                     </li>
                   ))}
                 </ul>

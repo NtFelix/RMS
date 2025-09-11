@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "test": "NODE_ENV=test jest",
+    "test:performance": "node scripts/performance-test.js",
+    "analyze": "ANALYZE=true npm run build",
+    "benchmark": "node -e \"require('./lib/template-benchmark.js').runTemplateBenchmarks().then(console.log)\"",
     "postinstall": "mkdir -p public/js && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/js/pdf.worker.min.js"
   },
   "dependencies": {

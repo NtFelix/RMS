@@ -31,6 +31,9 @@ import { ValidationFeedback, FieldValidationWrapper, ValidationProgress } from "
 import { GuidanceTooltip, ContextualHelp, SmartGuidance } from "./template-guidance-tooltips"
 import { AccessibleFormField, ValidationAnnouncer, ScreenReaderOnly } from "./template-accessibility"
 import { useTemplateValidation } from "@/hooks/use-template-validation"
+import { TemplateOnboarding, useTemplateOnboarding } from "./template-onboarding"
+import { ResponsiveModal } from "./template-responsive-enhancements"
+import "./template-animations.css"
 
 interface TemplateFormData {
   titel: string
@@ -59,6 +62,16 @@ export function TemplateEditorModal() {
     closeTemplateEditorModal,
     setTemplateEditorModalDirty,
   } = useModalStore()
+
+  // Enhanced onboarding integration
+  const {
+    isOnboardingOpen,
+    onboardingContext,
+    startOnboarding,
+    closeOnboarding,
+    completeOnboarding,
+    shouldShowOnboarding
+  } = useTemplateOnboarding()
 
   const [title, setTitle] = useState("")
   const [content, setContent] = useState<object>({
@@ -388,9 +401,16 @@ export function TemplateEditorModal() {
     }
   }, [templateEditorData, title, content, variables, validateTemplate, setTemplateEditorModalDirty, clearAutoSaveTimers, toast, isOffline, queueOperation])
 
-  // Reset state when modal opens/closes
+  // Reset state when modal opens/closes with enhanced onboarding
   useEffect(() => {
     if (isTemplateEditorModalOpen && templateEditorData) {
+      // Show onboarding for new users
+      if (templateEditorData.isNewTemplate && shouldShowOnboarding('new-template')) {
+        setTimeout(() => {
+          startOnboarding('new-template')
+        }, 1000) // Delay to let modal settle
+      }
+
       // Show loading state for existing templates
       if (templateEditorData.templateId && templateEditorData.initialContent) {
         setIsLoadingContent(true)
@@ -454,7 +474,7 @@ export function TemplateEditorModal() {
       setIsLoadingContent(false)
       setContentLoadError(null)
     }
-  }, [isTemplateEditorModalOpen, templateEditorData, setTemplateEditorModalDirty, clearAutoSaveTimers])
+  }, [isTemplateEditorModalOpen, templateEditorData, setTemplateEditorModalDirty, clearAutoSaveTimers, shouldShowOnboarding, startOnboarding])
 
   // Cleanup effect for component unmount
   useEffect(() => {
@@ -620,74 +640,82 @@ export function TemplateEditorModal() {
   if (!templateEditorData) return null
 
   return (
-    <Dialog 
-      open={isTemplateEditorModalOpen} 
-      onOpenChange={(open) => {
-        if (!open) {
-          handleCancel()
-        }
-      }}
-    >
+    <>
+      <Dialog 
+        open={isTemplateEditorModalOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCancel()
+          }
+        }}
+      >
       <DialogContent 
         className="max-w-6xl w-full h-[90vh] flex flex-col p-0"
         onKeyDown={handleKeyDown}
       >
-        {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b bg-muted/30">
+        {/* Enhanced Header with improved styling and animations */}
+        <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-background via-muted/20 to-background backdrop-blur-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <FileText className="h-5 w-5 text-primary" />
-              <div>
-                <DialogTitle className="text-lg">
+              <div className="relative">
+                <FileText className="h-5 w-5 text-primary transition-colors duration-200" />
+                {isTemplateEditorModalDirty && (
+                  <div className="absolute -top-1 -right-1 h-2 w-2 bg-orange-500 rounded-full animate-pulse" />
+                )}
+              </div>
+              <div className="space-y-1">
+                <DialogTitle className="text-lg font-semibold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
                   {templateEditorData.isNewTemplate ? "Neue Vorlage erstellen" : "Vorlage bearbeiten"}
                 </DialogTitle>
                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                   {templateEditorData.initialCategory && (
-                    <div className="flex items-center gap-2">
-                      Kategorie: 
-                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
+                    <div className="flex items-center gap-2 animate-in fade-in duration-300">
+                      <span className="text-xs">Kategorie:</span>
+                      <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary/80 text-secondary-foreground backdrop-blur-sm transition-all duration-200 hover:bg-secondary">
                         {templateEditorData.initialCategory}
                       </span>
                     </div>
                   )}
                   
-                  {/* Save Status Indicator */}
-                  <TemplateSaveStatus
-                    status={
-                      isSaving ? 'saving' :
-                      saveError ? 'error' :
-                      isTemplateEditorModalDirty ? 'dirty' :
-                      lastSuccessfulSaveRef.current ? 'saved' :
-                      'idle'
-                    }
-                    lastSaved={lastSuccessfulSaveRef.current || undefined}
-                    error={saveError || undefined}
-                    autoSaveEnabled={autoSaveEnabled && !!templateEditorData?.templateId}
-                  />
+                  {/* Enhanced Save Status Indicator */}
+                  <div className="animate-in slide-in-from-right duration-300">
+                    <TemplateSaveStatus
+                      status={
+                        isSaving ? 'saving' :
+                        saveError ? 'error' :
+                        isTemplateEditorModalDirty ? 'dirty' :
+                        lastSuccessfulSaveRef.current ? 'saved' :
+                        'idle'
+                      }
+                      lastSaved={lastSuccessfulSaveRef.current || undefined}
+                      error={saveError || undefined}
+                      autoSaveEnabled={autoSaveEnabled && !!templateEditorData?.templateId}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
             
-            {/* Action Buttons */}
+            {/* Enhanced Action Buttons with improved styling */}
             <div className="flex items-center space-x-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={handleCancel}
                 disabled={isSaving || saveInProgressRef.current}
-                className="h-9"
+                className="h-9 transition-all duration-200 hover:scale-105 hover:shadow-sm"
               >
-                <X className="h-4 w-4 mr-2" />
+                <X className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:rotate-90" />
                 Abbrechen
               </Button>
               <Button
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving || saveInProgressRef.current || !title.trim()}
-                className="h-9"
+                className="h-9 transition-all duration-200 hover:scale-105 hover:shadow-md bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary"
               >
                 {(isSaving || saveInProgressRef.current) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                <Save className="h-4 w-4 mr-2" />
+                <Save className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:scale-110" />
                 Speichern
               </Button>
             </div>
@@ -707,8 +735,8 @@ export function TemplateEditorModal() {
             </div>
           )}
 
-          {/* Enhanced Title Input with Validation and Guidance */}
-          <div className="px-6 py-4 border-b bg-background">
+          {/* Enhanced Title Input with improved styling and animations */}
+          <div className="px-6 py-4 border-b bg-gradient-to-b from-background to-muted/10">
             <AccessibleFormField
               label="Titel der Vorlage"
               description="Wählen Sie einen aussagekräftigen Titel, der den Zweck der Vorlage beschreibt"
@@ -717,108 +745,143 @@ export function TemplateEditorModal() {
               error={validationErrors.find(error => error.includes("Titel"))}
               warning={validationWarnings.find(warning => warning.includes("Titel"))}
             >
-              <div className="relative">
+              <div className="relative group">
                 <Input
                   value={title}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="z.B. Mietvertrag Wohnung, Kündigung Mieter, Nebenkostenabrechnung..."
                   disabled={isSaving}
                   className={cn(
-                    "text-lg font-medium pr-8",
-                    validationErrors.some(error => error.includes("Titel")) && "border-destructive focus-visible:ring-destructive"
+                    "text-lg font-medium pr-12 transition-all duration-200",
+                    "focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                    "group-hover:shadow-sm",
+                    validationErrors.some(error => error.includes("Titel")) && "border-destructive focus-visible:ring-destructive/20",
+                    title.length > 0 && "bg-background/50"
                   )}
                   maxLength={100}
                 />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  {title.length > 0 && (
+                    <div className="animate-in fade-in duration-200">
+                      <div className={cn(
+                        "h-2 w-2 rounded-full transition-colors duration-200",
+                        title.length > 80 ? "bg-yellow-500" : "bg-green-500"
+                      )} />
+                    </div>
+                  )}
                   <ContextualHelp topic="template-title" size="sm" />
+                </div>
+                
+                {/* Enhanced character count indicator */}
+                <div className="absolute -bottom-6 right-0 text-xs text-muted-foreground">
+                  <span className={cn(
+                    "transition-colors duration-200",
+                    title.length > 90 && "text-red-500",
+                    title.length > 80 && title.length <= 90 && "text-yellow-500"
+                  )}>
+                    {title.length}/100
+                  </span>
                 </div>
               </div>
             </AccessibleFormField>
             
-            <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+            {/* Enhanced status indicators with animations */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground mt-6">
               <div className="flex items-center gap-3">
-                <span>
-                  {title.length}/100 Zeichen
-                </span>
                 {title.length > 80 && (
-                  <span className="text-yellow-600 dark:text-yellow-400">
-                    Titel wird lang
-                  </span>
+                  <div className="animate-in slide-in-from-left duration-300">
+                    <span className="flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
+                      <div className="h-1.5 w-1.5 bg-yellow-500 rounded-full animate-pulse" />
+                      Titel wird lang
+                    </span>
+                  </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 {lastSaveAttempt && (
-                  <span className="text-xs">
+                  <span className="text-xs opacity-70">
                     Letzter Speicherversuch: {lastSaveAttempt.toLocaleTimeString()}
                   </span>
                 )}
                 {isTemplateEditorModalDirty && (
-                  <span className="text-amber-600 dark:text-amber-400">
-                    • Ungespeicherte Änderungen
-                  </span>
+                  <div className="animate-in fade-in duration-200">
+                    <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                      <div className="h-1.5 w-1.5 bg-amber-500 rounded-full animate-pulse" />
+                      Ungespeicherte Änderungen
+                    </span>
+                  </div>
                 )}
                 {autoSaveEnabled && templateEditorData.templateId && isTemplateEditorModalDirty && (
-                  <span className="text-blue-600 dark:text-blue-400 text-xs">
-                    • Auto-Save aktiv
-                  </span>
+                  <div className="animate-in slide-in-from-right duration-300">
+                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 text-xs">
+                      <div className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-pulse" />
+                      Auto-Save aktiv
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Enhanced Validation Messages with Progress */}
+          {/* Enhanced Validation Messages with improved animations */}
           {(validationErrors.length > 0 || validationWarnings.length > 0) && (
-            <div className="px-6 py-3 border-b bg-muted/20">
+            <div className="px-6 py-3 border-b bg-gradient-to-r from-muted/10 via-muted/20 to-muted/10 animate-in slide-in-from-top duration-300">
               <div className="space-y-3">
-                <ValidationProgress
-                  result={{
-                    isValid: validationErrors.length === 0,
-                    errors: validationErrors.map(error => ({
-                      field: 'template',
-                      message: error,
-                      code: 'VALIDATION_ERROR',
-                      severity: 'error' as const
-                    })),
-                    warnings: validationWarnings.map(warning => ({
-                      field: 'template',
-                      message: warning,
-                      code: 'VALIDATION_WARNING',
-                      severity: 'warning' as const
-                    })),
-                    suggestions: []
-                  }}
-                />
+                <div className="animate-in fade-in duration-500 delay-100">
+                  <ValidationProgress
+                    result={{
+                      isValid: validationErrors.length === 0,
+                      errors: validationErrors.map(error => ({
+                        field: 'template',
+                        message: error,
+                        code: 'VALIDATION_ERROR',
+                        severity: 'error' as const
+                      })),
+                      warnings: validationWarnings.map(warning => ({
+                        field: 'template',
+                        message: warning,
+                        code: 'VALIDATION_WARNING',
+                        severity: 'warning' as const
+                      })),
+                      suggestions: []
+                    }}
+                  />
+                </div>
                 
-                <ValidationFeedback
-                  result={{
-                    isValid: validationErrors.length === 0,
-                    errors: validationErrors.map(error => ({
-                      field: 'template',
-                      message: error,
-                      code: 'VALIDATION_ERROR',
-                      severity: 'error' as const
-                    })),
-                    warnings: validationWarnings.map(warning => ({
-                      field: 'template',
-                      message: warning,
-                      code: 'VALIDATION_WARNING',
-                      severity: 'warning' as const
-                    })),
-                    suggestions: []
-                  }}
-                  showSuggestions={true}
-                />
+                <div className="animate-in slide-in-from-bottom duration-400 delay-200">
+                  <ValidationFeedback
+                    result={{
+                      isValid: validationErrors.length === 0,
+                      errors: validationErrors.map(error => ({
+                        field: 'template',
+                        message: error,
+                        code: 'VALIDATION_ERROR',
+                        severity: 'error' as const
+                      })),
+                      warnings: validationWarnings.map(warning => ({
+                        field: 'template',
+                        message: warning,
+                        code: 'VALIDATION_WARNING',
+                        severity: 'warning' as const
+                      })),
+                      suggestions: []
+                    }}
+                    showSuggestions={true}
+                  />
+                </div>
               </div>
             </div>
           )}
 
-          {/* Smart Guidance for New Users */}
+          {/* Enhanced Smart Guidance for New Users */}
           {templateEditorData?.isNewTemplate && (
-            <div className="px-6 py-3 border-b">
-              <SmartGuidance
-                context="new-template"
-                userLevel="beginner"
-              />
+            <div className="px-6 py-3 border-b bg-gradient-to-r from-blue-50/50 via-indigo-50/30 to-purple-50/50 dark:from-blue-950/20 dark:via-indigo-950/10 dark:to-purple-950/20 animate-in slide-in-from-top duration-500">
+              <div className="animate-in fade-in duration-700 delay-300">
+                <SmartGuidance
+                  context="new-template"
+                  userLevel="beginner"
+                />
+              </div>
             </div>
           )}
 
@@ -961,5 +1024,14 @@ export function TemplateEditorModal() {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Enhanced Onboarding Component */}
+    <TemplateOnboarding
+      isOpen={isOnboardingOpen}
+      onClose={closeOnboarding}
+      onComplete={completeOnboarding}
+      context={onboardingContext}
+    />
+  </>
   )
 }
