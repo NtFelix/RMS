@@ -2,6 +2,7 @@
 
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
+import { persist } from 'zustand/middleware'
 import { useEffect, useCallback, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import type { BreadcrumbItem } from './use-cloud-storage-store'
@@ -48,18 +49,19 @@ const initialActiveState: ActiveStateInfo = {
 }
 
 export const useActiveStateStore = create<ActiveStateManager>()(
-  immer((set, get) => {
-    const updateActiveRoute = (route: string) => {
-      const currentState = get().activeState
-      // Only update if the route actually changed
-      if (currentState.currentRoute !== route) {
-        set((draft) => {
-          draft.activeState.currentRoute = route
-          draft.activeState.isCloudStorageActive = route.startsWith('/dateien')
-          draft.activeState.lastUpdated = Date.now()
-        })
+  persist(
+    immer((set, get) => {
+      const updateActiveRoute = (route: string) => {
+        const currentState = get().activeState
+        // Only update if the route actually changed
+        if (currentState.currentRoute !== route) {
+          set((draft) => {
+            draft.activeState.currentRoute = route
+            draft.activeState.isCloudStorageActive = route.startsWith('/dateien')
+            draft.activeState.lastUpdated = Date.now()
+          })
+        }
       }
-    }
     
     const updateActiveDirectory = (path: string, breadcrumbs?: BreadcrumbItem[]) => {
       set((draft) => {
@@ -123,20 +125,37 @@ export const useActiveStateStore = create<ActiveStateManager>()(
       })
     }
     
-    return {
-      activeState: initialActiveState,
-      updateActiveRoute,
-      updateActiveDirectory,
-      updateBreadcrumbs,
-      isRouteActive,
-      isDirectoryActive,
-      getActiveBreadcrumbs,
-      getActiveStateClasses,
-      getDirectoryActiveClasses,
-      reset,
-      syncWithNavigation
+      return {
+        activeState: initialActiveState,
+        updateActiveRoute,
+        updateActiveDirectory,
+        updateBreadcrumbs,
+        isRouteActive,
+        isDirectoryActive,
+        getActiveBreadcrumbs,
+        getActiveStateClasses,
+        getDirectoryActiveClasses,
+        reset,
+        syncWithNavigation
+      }
+    }),
+    {
+      name: 'sidebar-active-state',
+      partialize: (state) => ({
+        activeState: {
+          currentRoute: state.activeState.currentRoute,
+          isCloudStorageActive: state.activeState.isCloudStorageActive,
+          // Don't persist directory-specific state as it's more volatile
+          currentDirectory: '',
+          breadcrumbs: [],
+          activeDirectoryPath: null,
+          lastUpdated: Date.now()
+        }
+      }),
+      // Only persist the current route and cloud storage active state
+      version: 1,
     }
-  })
+  )
 )
 
 /**
@@ -147,12 +166,11 @@ export function useActiveStateManager() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Sync with Next.js router changes, but only if it's actually different
+  // Sync with Next.js router changes
   useEffect(() => {
-    if (store.activeState.currentRoute !== pathname) {
-      store.updateActiveRoute(pathname)
-    }
-  }, [pathname, store.activeState.currentRoute, store.updateActiveRoute])
+    // Always update to ensure we're in sync with the current route
+    store.updateActiveRoute(pathname)
+  }, [pathname, store.updateActiveRoute])
   
   return store
 }
@@ -164,12 +182,11 @@ export function useSidebarActiveState() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Update active route when pathname changes, but only if it's actually different
+  // Initialize from persisted state on first load, then sync with current pathname
   useEffect(() => {
-    if (store.activeState.currentRoute !== pathname) {
-      store.updateActiveRoute(pathname)
-    }
-  }, [pathname, store.activeState.currentRoute, store.updateActiveRoute])
+    // Always update to current pathname to ensure sync
+    store.updateActiveRoute(pathname)
+  }, [pathname, store.updateActiveRoute])
   
   // Memoize the return object to prevent unnecessary re-renders
   return useMemo(() => ({
@@ -245,12 +262,11 @@ export function useComprehensiveActiveState() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Auto-sync with router, but only if it's actually different
+  // Auto-sync with router
   useEffect(() => {
-    if (store.activeState.currentRoute !== pathname) {
-      store.updateActiveRoute(pathname)
-    }
-  }, [pathname, store.activeState.currentRoute, store.updateActiveRoute])
+    // Always update to ensure we're in sync with the current route
+    store.updateActiveRoute(pathname)
+  }, [pathname, store.updateActiveRoute])
   
   return useMemo(() => ({
     // Current state
