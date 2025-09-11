@@ -3,9 +3,6 @@
 import React, { useMemo, useCallback, useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Document from '@tiptap/extension-document'
-import Paragraph from '@tiptap/extension-paragraph'
-import Text from '@tiptap/extension-text'
 import Underline from '@tiptap/extension-underline'
 import { SlashCommandExtension } from './slash-command-extension'
 import { MentionExtension, MentionItem, PREDEFINED_VARIABLES } from './mention-extension'
@@ -318,50 +315,58 @@ export function TiptapTemplateEditor({
 
   // Optimized editor extensions with proper memoization
   const editorExtensions = useMemo(() => {
-    // Ensure core document structure is always available
-    const coreExtensions = [
-      Document,
-      Paragraph,
-      Text,
-    ]
-    
-    const starterKitExtensions = [
-      StarterKit.configure({
-        // Disable document, paragraph, and text since we're adding them explicitly
-        document: false,
-        paragraph: false,
-        text: false,
-        // Configure the other starter kit extensions
-        heading: {
-          levels: [1, 2, 3, 4, 5, 6],
-        },
-        bulletList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        orderedList: {
-          keepMarks: true,
-          keepAttributes: false,
-        },
-        // Additional formatting options are enabled by default in StarterKit
-      }),
-      Underline,
-    ]
-    
-    const customExtensions = [
-      SlashCommandExtension,
-      MentionExtension({
-        variables,
-        onVariableInsert,
-        onVariableRemove,
-      }),
-    ]
-    
-    return [
-      ...coreExtensions,
-      ...starterKitExtensions,
-      ...customExtensions,
-    ]
+    try {
+      // Start with a minimal working configuration
+      const basicExtensions = [
+        StarterKit.configure({
+          // Configure the starter kit extensions
+          heading: {
+            levels: [1, 2, 3, 4, 5, 6],
+          },
+          bulletList: {
+            keepMarks: true,
+            keepAttributes: false,
+          },
+          orderedList: {
+            keepMarks: true,
+            keepAttributes: false,
+          },
+        }),
+        Underline,
+      ]
+      
+      // Add custom extensions only if they're properly configured
+      const customExtensions = []
+      
+      // Temporarily disable custom extensions to isolate schema issue
+      // TODO: Re-enable after fixing schema issue
+      /*
+      try {
+        customExtensions.push(SlashCommandExtension)
+      } catch (error) {
+        console.warn('SlashCommandExtension failed to load:', error)
+      }
+      
+      try {
+        customExtensions.push(MentionExtension({
+          variables,
+          onVariableInsert,
+          onVariableRemove,
+        }))
+      } catch (error) {
+        console.warn('MentionExtension failed to load:', error)
+      }
+      */
+      
+      return [
+        ...basicExtensions,
+        ...customExtensions,
+      ]
+    } catch (error) {
+      console.error('Error configuring editor extensions:', error)
+      // Fallback to absolute minimum
+      return [StarterKit]
+    }
   }, [variables, onVariableInsert, onVariableRemove])
 
   // Memoized editor props to prevent recreation
@@ -444,7 +449,7 @@ export function TiptapTemplateEditor({
   // Memoize the editor configuration to prevent recreation
   const editorConfig = useMemo(() => {
     try {
-      return {
+      const config = {
         immediatelyRender: false, // Fix SSR hydration mismatch
         extensions: editorExtensions,
         content: parsedContent || {
@@ -457,9 +462,14 @@ export function TiptapTemplateEditor({
           ],
         },
         editable,
-        onUpdate: handleContentChange,
+        onUpdate: ({ editor }: { editor: any }) => {
+          handleContentChange(editor)
+        },
         editorProps: editorProps,
       }
+      
+      console.log('Editor config created with extensions:', editorExtensions.map(ext => ext.name))
+      return config
     } catch (error) {
       console.error('Error creating editor config:', error)
       toast({
@@ -467,7 +477,21 @@ export function TiptapTemplateEditor({
         description: "Fehler beim Erstellen der Editor-Konfiguration.",
         variant: "destructive"
       })
-      throw error
+      
+      // Return minimal fallback config
+      return {
+        immediatelyRender: false,
+        extensions: [StarterKit],
+        content: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [] }],
+        },
+        editable: true,
+        onUpdate: ({ editor }: { editor: any }) => {
+          handleContentChange(editor)
+        },
+        editorProps: editorProps,
+      }
     }
   }, [editorExtensions, parsedContent, editable, handleContentChange, editorProps, toast])
 
