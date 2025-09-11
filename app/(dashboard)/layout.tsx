@@ -37,7 +37,7 @@ import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confir
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
-import { CategorySelectionModal } from "@/components/category-selection-modal"; // Added
+import { CategorySelectionModal } from "@/components/category-selection-modal-fixed"; // Added
 import { TemplateEditorModal } from "@/components/template-editor-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 
@@ -252,11 +252,11 @@ export default function DashboardRootLayout({
         />
       )}
 
-      {/* CategorySelectionModal - Template category selection modal */}
+      {/* CategorySelectionModal - Fixed version without infinite loops */}
       <CategorySelectionModal />
 
-      {/* TemplateEditorModal - Template creation and editing modal */}
-      <TemplateEditorModal />
+      {/* TemplateEditorModal - Template creation and editing modal - TEMPORARILY DISABLED */}
+      {/* {isTemplateEditorModalOpen && <TemplateEditorModal key="template-editor-modal" />} */}
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
