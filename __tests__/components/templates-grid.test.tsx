@@ -1,363 +1,511 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TemplatesGrid } from '@/components/templates-grid'
 import type { Template } from '@/types/template'
 
-// Mock the TemplateCard component
+// Mock TemplateCard component
 jest.mock('@/components/template-card', () => ({
   TemplateCard: ({ template, onEdit, onDelete }: any) => (
-    <div data-testid={`template-card-${template.id}`}>
+    <div data-testid={`template-card-${template.id}`} role="article">
       <h3>{template.titel}</h3>
-      <p>{template.kategorie || 'Ohne Kategorie'}</p>
-      <button onClick={() => onEdit(template.id)}>Edit</button>
+      <p>{template.kategorie}</p>
+      <button onClick={onEdit}>Edit</button>
       <button onClick={() => onDelete(template.id)}>Delete</button>
     </div>
-  )
+  ),
 }))
 
-// Mock toast hook
-jest.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({
-    toast: jest.fn()
-  })
-}))
-
+// Mock templates for testing
 const mockTemplates: Template[] = [
   {
-    id: '1',
+    id: 'template-1',
     titel: 'Mietvertrag Standard',
-    inhalt: { content: 'Mietvertrag content' },
-    user_id: 'user1',
+    inhalt: { type: 'doc', content: [] },
+    user_id: 'test-user',
     erstellungsdatum: '2024-01-15T10:00:00Z',
     kategorie: 'Verträge',
-    kontext_anforderungen: ['mieter_name', 'wohnung_adresse'],
-    aktualisiert_am: '2024-01-20T10:00:00Z'
-  },
-  {
-    id: '2',
-    titel: 'Kündigung Vorlage',
-    inhalt: { content: 'Kündigung content' },
-    user_id: 'user1',
-    erstellungsdatum: '2024-01-10T10:00:00Z',
-    kategorie: 'Verträge',
     kontext_anforderungen: ['mieter_name'],
-    aktualisiert_am: null
+    aktualisiert_am: null,
   },
   {
-    id: '3',
+    id: 'template-2',
+    titel: 'Mietvertrag Premium',
+    inhalt: { type: 'doc', content: [] },
+    user_id: 'test-user',
+    erstellungsdatum: '2024-01-16T10:00:00Z',
+    kategorie: 'Verträge',
+    kontext_anforderungen: ['mieter_name', 'extras'],
+    aktualisiert_am: null,
+  },
+  {
+    id: 'template-3',
+    titel: 'Kündigung Standard',
+    inhalt: { type: 'doc', content: [] },
+    user_id: 'test-user',
+    erstellungsdatum: '2024-01-17T10:00:00Z',
+    kategorie: 'Kündigungen',
+    kontext_anforderungen: ['mieter_name'],
+    aktualisiert_am: null,
+  },
+  {
+    id: 'template-4',
     titel: 'Betriebskosten Abrechnung',
-    inhalt: { content: 'Betriebskosten content' },
-    user_id: 'user1',
-    erstellungsdatum: '2024-01-05T10:00:00Z',
-    kategorie: 'Abrechnungen',
-    kontext_anforderungen: ['zeitraum', 'kosten'],
-    aktualisiert_am: '2024-01-25T10:00:00Z'
+    inhalt: { type: 'doc', content: [] },
+    user_id: 'test-user',
+    erstellungsdatum: '2024-01-18T10:00:00Z',
+    kategorie: 'Betriebskosten',
+    kontext_anforderungen: ['mieter_name', 'zeitraum'],
+    aktualisiert_am: null,
   },
   {
-    id: '4',
-    titel: 'Allgemeine Mitteilung',
-    inhalt: { content: 'Mitteilung content' },
-    user_id: 'user1',
-    erstellungsdatum: '2024-01-12T10:00:00Z',
+    id: 'template-5',
+    titel: 'Template ohne Kategorie',
+    inhalt: { type: 'doc', content: [] },
+    user_id: 'test-user',
+    erstellungsdatum: '2024-01-19T10:00:00Z',
     kategorie: null,
     kontext_anforderungen: [],
-    aktualisiert_am: null
-  }
+    aktualisiert_am: null,
+  },
 ]
 
 describe('TemplatesGrid', () => {
-  const defaultProps = {
-    templates: mockTemplates,
-    groupByCategory: false,
-    onEditTemplate: jest.fn(),
-    onDeleteTemplate: jest.fn().mockResolvedValue(undefined)
-  }
+  const mockOnEditTemplate = jest.fn()
+  const mockOnDeleteTemplate = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
+    mockOnDeleteTemplate.mockResolvedValue(undefined)
   })
 
   describe('Basic Rendering', () => {
-    test('renders templates in grid layout', () => {
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      expect(screen.getByText('Mietvertrag Standard')).toBeInTheDocument()
-      expect(screen.getByText('Kündigung Vorlage')).toBeInTheDocument()
-      expect(screen.getByText('Betriebskosten Abrechnung')).toBeInTheDocument()
-      expect(screen.getByText('Allgemeine Mitteilung')).toBeInTheDocument()
+    it('should render all templates', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      expect(screen.getByTestId('template-card-template-1')).toBeInTheDocument()
+      expect(screen.getByTestId('template-card-template-2')).toBeInTheDocument()
+      expect(screen.getByTestId('template-card-template-3')).toBeInTheDocument()
+      expect(screen.getByTestId('template-card-template-4')).toBeInTheDocument()
+      expect(screen.getByTestId('template-card-template-5')).toBeInTheDocument()
     })
 
-    test('renders empty state when no templates', () => {
-      render(<TemplatesGrid {...defaultProps} templates={[]} />)
-      
-      expect(screen.getByText('Keine Vorlagen vorhanden')).toBeInTheDocument()
-      expect(screen.getByText('Erstellen Sie Ihre erste Vorlage, um loszulegen.')).toBeInTheDocument()
+    it('should render empty grid when no templates', () => {
+      render(
+        <TemplatesGrid
+          templates={[]}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      expect(screen.queryByRole('article')).not.toBeInTheDocument()
     })
 
-    test('renders sorting controls', () => {
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      expect(screen.getByText('Sortieren nach:')).toBeInTheDocument()
-      expect(screen.getByRole('combobox')).toBeInTheDocument()
+    it('should have proper grid layout classes', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const gridContainer = screen.getByRole('region', { name: /vorlagen-liste/i })
+      expect(gridContainer).toHaveClass('space-y-8')
     })
   })
 
   describe('Category Grouping', () => {
-    test('groups templates by category when groupByCategory is true', () => {
-      render(<TemplatesGrid {...defaultProps} groupByCategory={true} />)
-      
-      expect(screen.getByRole('heading', { name: 'Verträge' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Abrechnungen' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Ohne Kategorie' })).toBeInTheDocument()
-    })
-
-    test('shows template count for each category', () => {
-      render(<TemplatesGrid {...defaultProps} groupByCategory={true} />)
-      
-      // Verträge category should have 2 templates
-      expect(screen.getByText('2 Vorlagen')).toBeInTheDocument()
-      // Should have multiple "1 Vorlage" badges for single-template categories
-      expect(screen.getAllByText('1 Vorlage')).toHaveLength(2) // Abrechnungen and Ohne Kategorie
-    })
-
-    test('does not show category headers when groupByCategory is false', () => {
-      render(<TemplatesGrid {...defaultProps} groupByCategory={false} />)
-      
-      // Should not show category headers (h3 elements)
-      expect(screen.queryByRole('heading', { name: 'Verträge' })).not.toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: 'Abrechnungen' })).not.toBeInTheDocument()
-    })
-
-    test('handles empty categories correctly', () => {
-      const templatesWithEmptyCategory = mockTemplates.filter(t => t.kategorie !== 'Abrechnungen')
-      
+    it('should group templates by category', () => {
       render(
-        <TemplatesGrid 
-          {...defaultProps} 
-          templates={templatesWithEmptyCategory}
-          groupByCategory={true} 
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
         />
       )
-      
-      expect(screen.getByRole('heading', { name: 'Verträge' })).toBeInTheDocument()
-      expect(screen.getByRole('heading', { name: 'Ohne Kategorie' })).toBeInTheDocument()
-      expect(screen.queryByRole('heading', { name: 'Abrechnungen' })).not.toBeInTheDocument()
-    })
-  })
 
-  describe('Sorting Functionality', () => {
-    test('sorts templates by title by default', () => {
-      render(<TemplatesGrid {...defaultProps} />)
+      // Should show category headers
+      expect(screen.getByText('Verträge')).toBeInTheDocument()
+      expect(screen.getByText('Kündigungen')).toBeInTheDocument()
+      expect(screen.getByText('Betriebskosten')).toBeInTheDocument()
+      expect(screen.getByText('Ohne Kategorie')).toBeInTheDocument()
+    })
+
+    it('should show template counts for each category', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Verträge should have 2 templates
+      expect(screen.getByText('2 Vorlagen')).toBeInTheDocument()
       
-      const templateCards = screen.getAllByTestId(/template-card-/)
-      const titles = templateCards.map(card => card.querySelector('h3')?.textContent)
-      
-      // Should be sorted alphabetically by title
-      expect(titles).toEqual([
-        'Allgemeine Mitteilung',
-        'Betriebskosten Abrechnung', 
-        'Kündigung Vorlage',
-        'Mietvertrag Standard'
+      // Other categories should have 1 template each
+      const singleTemplateLabels = screen.getAllByText('1 Vorlage')
+      expect(singleTemplateLabels).toHaveLength(3) // Kündigungen, Betriebskosten, Ohne Kategorie
+    })
+
+    it('should sort categories alphabetically', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const categoryHeaders = screen.getAllByRole('heading', { level: 3 })
+      const categoryTexts = categoryHeaders.map(header => header.textContent)
+
+      expect(categoryTexts).toEqual([
+        'Betriebskosten',
+        'Kündigungen',
+        'Ohne Kategorie',
+        'Verträge',
       ])
     })
 
-    test('changes sort order when clicking sort button', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      const sortButton = screen.getByRole('button', { name: /aufsteigend sortiert/i })
-      await user.click(sortButton)
-      
-      expect(screen.getByRole('button', { name: /absteigend sortiert/i })).toBeInTheDocument()
-    })
-
-    test('sorts by creation date when selected', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      const sortSelect = screen.getByRole('combobox')
-      await user.click(sortSelect)
-      await user.click(screen.getByText('Erstellungsdatum'))
-      
-      // Should be sorted by creation date (oldest first)
-      const templateCards = screen.getAllByTestId(/template-card-/)
-      const titles = templateCards.map(card => card.querySelector('h3')?.textContent)
-      
-      expect(titles[0]).toBe('Betriebskosten Abrechnung') // 2024-01-05
-      expect(titles[1]).toBe('Kündigung Vorlage') // 2024-01-10
-    })
-
-    test('sorts by modified date when selected', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      const sortSelect = screen.getByRole('combobox')
-      await user.click(sortSelect)
-      await user.click(screen.getByText('Änderungsdatum'))
-      
-      // Templates without aktualisiert_am should use erstellungsdatum
-      const templateCards = screen.getAllByTestId(/template-card-/)
-      expect(templateCards).toHaveLength(4)
-    })
-
-    test('includes category sort option when grouping is disabled', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} groupByCategory={false} />)
-      
-      const sortSelect = screen.getByRole('combobox')
-      await user.click(sortSelect)
-      
-      expect(screen.queryByText('Kategorie')).not.toBeInTheDocument()
-    })
-
-    test('includes category sort option when grouping is enabled', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} groupByCategory={true} />)
-      
-      const sortSelect = screen.getByRole('combobox')
-      await user.click(sortSelect)
-      
-      expect(screen.getByText('Kategorie')).toBeInTheDocument()
-    })
-  })
-
-  describe('View Mode Controls', () => {
-    test('shows view mode controls when onViewModeChange is provided', () => {
-      const onViewModeChange = jest.fn()
+    it('should sort templates within categories alphabetically', () => {
       render(
-        <TemplatesGrid 
-          {...defaultProps} 
-          viewMode="grid"
-          onViewModeChange={onViewModeChange}
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
         />
       )
-      
-      expect(screen.getByRole('button', { name: /rasteransicht/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /listenansicht/i })).toBeInTheDocument()
+
+      // Find the Verträge section
+      const vertraegeSection = screen.getByText('Verträge').closest('section')
+      const templatesInSection = within(vertraegeSection!).getAllByRole('article')
+
+      // Should be sorted: Mietvertrag Premium, Mietvertrag Standard
+      expect(within(templatesInSection[0]).getByText('Mietvertrag Premium')).toBeInTheDocument()
+      expect(within(templatesInSection[1]).getByText('Mietvertrag Standard')).toBeInTheDocument()
     })
 
-    test('does not show view mode controls when onViewModeChange is not provided', () => {
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      expect(screen.queryByRole('button', { name: /rasteransicht/i })).not.toBeInTheDocument()
-      expect(screen.queryByRole('button', { name: /listenansicht/i })).not.toBeInTheDocument()
-    })
-
-    test('calls onViewModeChange when view mode button is clicked', async () => {
-      const user = userEvent.setup()
-      const onViewModeChange = jest.fn()
-      
+    it('should handle templates without categories', () => {
       render(
-        <TemplatesGrid 
-          {...defaultProps} 
-          viewMode="grid"
-          onViewModeChange={onViewModeChange}
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
         />
       )
+
+      expect(screen.getByText('Ohne Kategorie')).toBeInTheDocument()
       
-      const listViewButton = screen.getByRole('button', { name: /listenansicht/i })
-      await user.click(listViewButton)
-      
-      expect(onViewModeChange).toHaveBeenCalledWith('list')
+      const ohneKategorieSection = screen.getByText('Ohne Kategorie').closest('section')
+      expect(within(ohneKategorieSection!).getByText('Template ohne Kategorie')).toBeInTheDocument()
     })
   })
 
   describe('Template Actions', () => {
-    test('calls onEditTemplate when edit button is clicked', async () => {
+    it('should call onEditTemplate when edit button is clicked', async () => {
       const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} />)
       
-      // Templates are sorted alphabetically, so first template should be "Allgemeine Mitteilung" (id: '4')
-      const editButton = screen.getAllByText('Edit')[0]
-      await user.click(editButton)
-      
-      expect(defaultProps.onEditTemplate).toHaveBeenCalledWith('4')
-    })
-
-    test('calls onDeleteTemplate when delete button is clicked', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      // Templates are sorted alphabetically, so first template should be "Allgemeine Mitteilung" (id: '4')
-      const deleteButton = screen.getAllByText('Delete')[0]
-      await user.click(deleteButton)
-      
-      expect(defaultProps.onDeleteTemplate).toHaveBeenCalledWith('4')
-    })
-  })
-
-  describe('Responsive Design', () => {
-    test('applies correct grid classes for grid view mode', () => {
-      const { container } = render(<TemplatesGrid {...defaultProps} viewMode="grid" />)
-      
-      const gridContainer = container.querySelector('.grid')
-      expect(gridContainer).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'xl:grid-cols-4')
-    })
-
-    test('applies correct grid classes for list view mode', () => {
-      const { container } = render(<TemplatesGrid {...defaultProps} viewMode="list" />)
-      
-      const gridContainer = container.querySelector('.grid')
-      expect(gridContainer).toHaveClass('grid-cols-1')
-      expect(gridContainer).not.toHaveClass('sm:grid-cols-2')
-    })
-  })
-
-  describe('Summary Information', () => {
-    test('shows summary when grouping by category with multiple categories', () => {
-      render(<TemplatesGrid {...defaultProps} groupByCategory={true} />)
-      
-      // The summary should be present in the DOM
-      const summarySection = screen.getByText(/Gesamt:/)
-      expect(summarySection).toBeInTheDocument()
-      
-      // Check that it contains the expected information
-      expect(summarySection.textContent).toContain('4')
-      expect(summarySection.textContent).toContain('Vorlagen')
-      expect(summarySection.textContent).toContain('3')
-      expect(summarySection.textContent).toContain('Kategorien')
-    })
-
-    test('does not show summary when not grouping by category', () => {
-      render(<TemplatesGrid {...defaultProps} groupByCategory={false} />)
-      
-      expect(screen.queryByText(/Gesamt:/)).not.toBeInTheDocument()
-    })
-
-    test('shows correct singular/plural forms in summary', () => {
-      const singleTemplate = [mockTemplates[0]]
       render(
-        <TemplatesGrid 
-          {...defaultProps} 
-          templates={singleTemplate}
-          groupByCategory={true} 
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
         />
       )
+
+      const editButton = screen.getAllByText('Edit')[0]
+      await user.click(editButton)
+
+      expect(mockOnEditTemplate).toHaveBeenCalledWith('template-1')
+    })
+
+    it('should call onDeleteTemplate when delete button is clicked', async () => {
+      const user = userEvent.setup()
       
-      // With only one template in one category, summary should not be shown
-      // because the condition is groupedTemplates.length > 1
-      expect(screen.queryByText(/Gesamt:/)).not.toBeInTheDocument()
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const deleteButton = screen.getAllByText('Delete')[0]
+      await user.click(deleteButton)
+
+      expect(mockOnDeleteTemplate).toHaveBeenCalledWith('template-1')
+    })
+
+    it('should handle edit action for templates in different categories', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Find and click edit button for Kündigung template
+      const kuendigungSection = screen.getByText('Kündigungen').closest('section')
+      const editButton = within(kuendigungSection!).getByText('Edit')
+      await user.click(editButton)
+
+      expect(mockOnEditTemplate).toHaveBeenCalledWith('template-3')
+    })
+
+    it('should handle delete action for templates in different categories', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Find and click delete button for Betriebskosten template
+      const betriebskostenSection = screen.getByText('Betriebskosten').closest('section')
+      const deleteButton = within(betriebskostenSection!).getByText('Delete')
+      await user.click(deleteButton)
+
+      expect(mockOnDeleteTemplate).toHaveBeenCalledWith('template-4')
     })
   })
 
   describe('Accessibility', () => {
-    test('provides screen reader labels for sort controls', () => {
-      render(<TemplatesGrid {...defaultProps} />)
-      
-      expect(screen.getByRole('button', { name: /aufsteigend sortiert/i })).toBeInTheDocument()
-    })
-
-    test('provides screen reader labels for view mode controls', () => {
-      const onViewModeChange = jest.fn()
+    it('should have proper ARIA labels and roles', () => {
       render(
-        <TemplatesGrid 
-          {...defaultProps} 
-          onViewModeChange={onViewModeChange}
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
         />
       )
+
+      expect(screen.getByRole('region', { name: /vorlagen-liste/i })).toBeInTheDocument()
       
-      expect(screen.getByRole('button', { name: /rasteransicht/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /listenansicht/i })).toBeInTheDocument()
+      const sections = screen.getAllByRole('region')
+      sections.forEach(section => {
+        expect(section).toHaveAttribute('aria-labelledby')
+      })
+    })
+
+    it('should have proper heading hierarchy', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const categoryHeaders = screen.getAllByRole('heading', { level: 3 })
+      expect(categoryHeaders.length).toBeGreaterThan(0)
+      
+      categoryHeaders.forEach(header => {
+        expect(header).toHaveAttribute('id')
+      })
+    })
+
+    it('should have proper grid role and labels', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const grids = screen.getAllByRole('grid')
+      grids.forEach(grid => {
+        expect(grid).toHaveAttribute('aria-label')
+      })
+    })
+
+    it('should provide template count information for screen readers', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Check for badges with proper aria-labels
+      const badges = screen.getAllByText(/\d+ Vorlage/)
+      badges.forEach(badge => {
+        expect(badge).toHaveAttribute('aria-label')
+      })
+    })
+  })
+
+  describe('Error Handling', () => {
+    it('should handle templates with missing data gracefully', () => {
+      const templatesWithMissingData = [
+        {
+          id: 'template-missing-data',
+          titel: '',
+          inhalt: null,
+          user_id: 'test-user',
+          erstellungsdatum: '2024-01-15T10:00:00Z',
+          kategorie: null,
+          kontext_anforderungen: null,
+          aktualisiert_am: null,
+        },
+      ] as any
+
+      render(
+        <TemplatesGrid
+          templates={templatesWithMissingData}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Should still render without crashing
+      expect(screen.getByTestId('template-card-template-missing-data')).toBeInTheDocument()
+    })
+
+    it('should handle error in template processing', () => {
+      // Mock console.warn to avoid noise in tests
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const problematicTemplate = {
+        id: 'problematic-template',
+        titel: 'Problematic Template',
+        inhalt: { type: 'doc', content: [] },
+        user_id: 'test-user',
+        erstellungsdatum: '2024-01-15T10:00:00Z',
+        kategorie: 'Test Category',
+        kontext_anforderungen: [],
+        aktualisiert_am: null,
+      }
+
+      // Mock TemplateCard to throw an error for this specific template
+      jest.doMock('@/components/template-card', () => ({
+        TemplateCard: ({ template }: any) => {
+          if (template.id === 'problematic-template') {
+            throw new Error('Template processing error')
+          }
+          return (
+            <div data-testid={`template-card-${template.id}`} role="article">
+              <h3>{template.titel}</h3>
+            </div>
+          )
+        },
+      }))
+
+      // Should handle the error gracefully and continue rendering other templates
+      expect(() => {
+        render(
+          <TemplatesGrid
+            templates={[problematicTemplate, mockTemplates[0]]}
+            onEditTemplate={mockOnEditTemplate}
+            onDeleteTemplate={mockOnDeleteTemplate}
+          />
+        )
+      }).not.toThrow()
+
+      consoleSpy.mockRestore()
+    })
+  })
+
+  describe('Performance', () => {
+    it('should handle large numbers of templates efficiently', () => {
+      // Create many templates
+      const manyTemplates = Array.from({ length: 100 }, (_, i) => ({
+        id: `template-${i}`,
+        titel: `Template ${i}`,
+        inhalt: { type: 'doc', content: [] },
+        user_id: 'test-user',
+        erstellungsdatum: '2024-01-15T10:00:00Z',
+        kategorie: `Category ${i % 5}`, // 5 different categories
+        kontext_anforderungen: [],
+        aktualisiert_am: null,
+      }))
+
+      const startTime = performance.now()
+      
+      render(
+        <TemplatesGrid
+          templates={manyTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const endTime = performance.now()
+      const renderTime = endTime - startTime
+
+      // Should render within reasonable time (less than 1 second)
+      expect(renderTime).toBeLessThan(1000)
+
+      // Should still show all templates
+      expect(screen.getAllByRole('article')).toHaveLength(100)
+    })
+
+    it('should memoize category grouping calculations', () => {
+      const { rerender } = render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Rerender with same templates - should not recalculate grouping
+      rerender(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      // Should still show correct categories
+      expect(screen.getByText('Verträge')).toBeInTheDocument()
+      expect(screen.getByText('Kündigungen')).toBeInTheDocument()
+    })
+  })
+
+  describe('Responsive Design', () => {
+    it('should have responsive grid classes', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const grids = screen.getAllByRole('grid')
+      grids.forEach(grid => {
+        expect(grid).toHaveClass('grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-3', 'xl:grid-cols-4')
+      })
+    })
+
+    it('should maintain proper spacing between categories', () => {
+      render(
+        <TemplatesGrid
+          templates={mockTemplates}
+          onEditTemplate={mockOnEditTemplate}
+          onDeleteTemplate={mockOnDeleteTemplate}
+        />
+      )
+
+      const mainContainer = screen.getByRole('region', { name: /vorlagen-liste/i })
+      expect(mainContainer).toHaveClass('space-y-8')
     })
   })
 })

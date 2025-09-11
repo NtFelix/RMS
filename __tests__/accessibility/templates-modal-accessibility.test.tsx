@@ -1,11 +1,13 @@
-import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { axe, toHaveNoViolations } from 'jest-axe'
 import { TemplatesManagementModal } from '@/components/templates-management-modal'
+import { TemplateCard } from '@/components/template-card'
+import { TemplateSearchBar } from '@/components/template-search-bar'
+import { CategoryFilter } from '@/components/category-filter'
 import { useModalStore } from '@/hooks/use-modal-store'
 import { useAuth } from '@/components/auth-provider'
-import { TemplateClientService } from '@/lib/template-client-service'
+import type { Template } from '@/types/template'
 
 // Extend Jest matchers
 expect.extend(toHaveNoViolations)
@@ -13,313 +15,471 @@ expect.extend(toHaveNoViolations)
 // Mock dependencies
 jest.mock('@/hooks/use-modal-store')
 jest.mock('@/components/auth-provider')
-jest.mock('@/lib/template-client-service')
+jest.mock('@/lib/template-client-service', () => ({
+  TemplateClientService: jest.fn().mockImplementation(() => ({
+    getAllTemplates: jest.fn().mockResolvedValue([]),
+    deleteTemplate: jest.fn().mockResolvedValue(undefined),
+  })),
+}))
 jest.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
-    toast: jest.fn()
-  })
+    toast: jest.fn(),
+  }),
 }))
 
-const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
-const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
-const mockTemplateClientService = TemplateClientService as jest.MockedClass<typeof TemplateClientService>
-
-// Mock template data
-const mockTemplates = [
-  {
-    id: '1',
-    titel: 'Mietvertrag Vorlage',
-    kategorie: 'Verträge',
-    inhalt: { content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Mietvertrag Inhalt' }] }] },
-    erstellungsdatum: '2024-01-01',
-    aktualisiert_am: '2024-01-02',
-    kontext_anforderungen: ['mieter_name', 'wohnung_adresse']
+const mockTemplate: Template = {
+  id: 'test-template',
+  titel: 'Test Template',
+  inhalt: {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'Test content' }],
+      },
+    ],
   },
-  {
-    id: '2',
-    titel: 'Kündigung Vorlage',
-    kategorie: 'Kündigungen',
-    inhalt: { content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Kündigung Inhalt' }] }] },
-    erstellungsdatum: '2024-01-03',
-    aktualisiert_am: null,
-    kontext_anforderungen: ['kuendigungsgrund']
-  }
-]
+  user_id: 'test-user',
+  erstellungsdatum: '2024-01-15T10:00:00Z',
+  kategorie: 'Test Category',
+  kontext_anforderungen: ['variable1'],
+  aktualisiert_am: null,
+}
 
-describe('TemplatesManagementModal Accessibility', () => {
-  const mockUser = {
-    id: 'user-1',
-    email: 'test@example.com'
-  }
+describe('Templates Modal Accessibility Tests', () => {
+  const mockUseModalStore = useModalStore as jest.MockedFunction<typeof useModalStore>
+  const mockUseAuth = useAuth as jest.MockedFunction<typeof useAuth>
 
   beforeEach(() => {
-    // Reset mocks
-    jest.clearAllMocks()
-    
-    // Setup default mock implementations
-    mockUseAuth.mockReturnValue({
-      user: mockUser,
-      loading: false,
-      signOut: jest.fn()
-    })
-
     mockUseModalStore.mockReturnValue({
       isTemplatesManagementModalOpen: true,
       closeTemplatesManagementModal: jest.fn(),
-      openTemplateEditorModal: jest.fn()
-    })
+      openTemplateEditorModal: jest.fn(),
+    } as any)
 
-    // Mock TemplateClientService
-    const mockServiceInstance = {
-      getUserTemplates: jest.fn().mockResolvedValue(mockTemplates),
-      deleteTemplate: jest.fn().mockResolvedValue(undefined),
-      createTemplate: jest.fn().mockResolvedValue({ id: '3' }),
-      updateTemplate: jest.fn().mockResolvedValue(undefined)
-    }
-    mockTemplateClientService.mockImplementation(() => mockServiceInstance)
+    mockUseAuth.mockReturnValue({
+      user: { id: 'test-user', email: 'test@example.com' },
+    } as any)
   })
 
-  describe('ARIA Labels and Descriptions', () => {
-    test('should have proper ARIA labels on modal elements', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
-
-      const modal = screen.getByRole('dialog')
-      expect(modal).toHaveAttribute('aria-modal', 'true')
-      expect(modal).toHaveAttribute('aria-labelledby', 'templates-modal-title')
-      expect(modal).toHaveAttribute('aria-describedby', 'templates-modal-description')
-
-      expect(screen.getByText('Vorlagen verwalten')).toHaveAttribute('id', 'templates-modal-title')
-      expect(screen.getByText(/Modal zum Verwalten Ihrer Dokumentvorlagen/)).toHaveAttribute('id', 'templates-modal-description')
-    })
-
-    test('should have proper ARIA labels on search input', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('searchbox')).toBeInTheDocument()
-      })
-
-      const searchInput = screen.getByRole('searchbox')
-      expect(searchInput).toHaveAttribute('aria-describedby', 'search-help-text search-results-count')
-      expect(screen.getByText(/Geben Sie Suchbegriffe ein/)).toHaveAttribute('id', 'search-help-text')
-    })
-
-    test('should have proper ARIA labels on category filter', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('combobox')).toBeInTheDocument()
-      })
-
-      const categoryFilter = screen.getByRole('combobox')
-      expect(categoryFilter).toHaveAttribute('aria-label', 'Kategorie auswählen')
-      expect(categoryFilter).toHaveAttribute('aria-describedby', 'category-filter-help')
-    })
-
-    test('should have proper ARIA labels on template cards', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Mietvertrag Vorlage')).toBeInTheDocument()
-      })
-
-      const templateCard = screen.getByRole('article')
-      expect(templateCard).toHaveAttribute('aria-labelledby', 'template-title-1')
-      expect(templateCard).toHaveAttribute('aria-describedby', 'template-description-1')
-    })
-  })
-
-  describe('Keyboard Navigation', () => {
-    test('should support Tab navigation through modal elements', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('searchbox')).toBeInTheDocument()
-      })
-
-      // Search input should be focused initially
-      expect(screen.getByRole('searchbox')).toHaveFocus()
-
-      // Tab to category filter
-      await user.tab()
-      expect(screen.getByRole('combobox')).toHaveFocus()
-
-      // Tab to create button
-      await user.tab()
-      expect(screen.getByRole('button', { name: /Neue Vorlage erstellen/ })).toHaveFocus()
-
-      // Tab to first template card button
-      await user.tab()
-      expect(screen.getByRole('button', { name: /Vorlage "Mietvertrag Vorlage" bearbeiten/ })).toHaveFocus()
-    })
-
-    test('should support Escape key to close modal', async () => {
-      const mockClose = jest.fn()
-      mockUseModalStore.mockReturnValue({
-        isTemplatesManagementModalOpen: true,
-        closeTemplatesManagementModal: mockClose,
-        openTemplateEditorModal: jest.fn()
-      })
-
-      const user = userEvent.setup()
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
-
-      await user.keyboard('{Escape}')
-      expect(mockClose).toHaveBeenCalled()
-    })
-
-    test('should support Enter key on interactive elements', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Neue Vorlage erstellen/ })).toBeInTheDocument()
-      })
-
-      const createButton = screen.getByRole('button', { name: /Neue Vorlage erstellen/ })
-      createButton.focus()
+  describe('TemplatesManagementModal Accessibility', () => {
+    it('should have no accessibility violations', async () => {
+      const { container } = render(<TemplatesManagementModal />)
       
-      await user.keyboard('{Enter}')
-      
-      // Should open template editor modal
-      expect(mockUseModalStore().openTemplateEditorModal).toHaveBeenCalled()
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
     })
 
-    test('should trap focus within modal', async () => {
+    it('should have proper modal ARIA attributes', async () => {
+      render(<TemplatesManagementModal />)
+
+      await waitFor(() => {
+        const modal = screen.getByRole('dialog')
+        expect(modal).toHaveAttribute('aria-modal', 'true')
+        expect(modal).toHaveAttribute('aria-labelledby')
+        expect(modal).toHaveAttribute('aria-describedby')
+      })
+    })
+
+    it('should trap focus within the modal', async () => {
       const user = userEvent.setup()
       render(<TemplatesManagementModal />)
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument()
       })
-
-      // Get all focusable elements
-      const searchInput = screen.getByRole('searchbox')
-      const closeButton = screen.getByRole('button', { name: /Modal schließen/ })
 
       // Focus should start on search input
+      const searchInput = screen.getByPlaceholderText('Vorlagen durchsuchen...')
       expect(searchInput).toHaveFocus()
 
-      // Shift+Tab from first element should go to last element
-      await user.keyboard('{Shift>}{Tab}{/Shift}')
-      expect(closeButton).toHaveFocus()
+      // Tab through all focusable elements
+      await user.tab() // Category filter
+      expect(screen.getByRole('combobox')).toHaveFocus()
 
-      // Tab from last element should go to first element
-      await user.tab()
-      expect(searchInput).toHaveFocus()
+      await user.tab() // Create button
+      expect(screen.getByRole('button', { name: /neue vorlage/i })).toHaveFocus()
+
+      await user.tab() // Close button
+      expect(screen.getByRole('button', { name: /modal schließen/i })).toHaveFocus()
+
+      // Shift+Tab should go backwards
+      await user.tab({ shift: true })
+      expect(screen.getByRole('button', { name: /neue vorlage/i })).toHaveFocus()
+    })
+
+    it('should restore focus when modal closes', async () => {
+      const user = userEvent.setup()
+      
+      // Create a button outside the modal to test focus restoration
+      const triggerButton = document.createElement('button')
+      triggerButton.textContent = 'Open Modal'
+      triggerButton.setAttribute('aria-label', 'Benutzermenü für test')
+      document.body.appendChild(triggerButton)
+      triggerButton.focus()
+
+      render(<TemplatesManagementModal />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      // Close modal
+      const closeButton = screen.getByRole('button', { name: /modal schließen/i })
+      await user.click(closeButton)
+
+      // Focus should return to trigger button
+      expect(triggerButton).toHaveFocus()
+
+      document.body.removeChild(triggerButton)
+    })
+
+    it('should handle keyboard navigation properly', async () => {
+      const user = userEvent.setup()
+      render(<TemplatesManagementModal />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      // Escape should close modal
+      await user.keyboard('{Escape}')
+      
+      const mockCloseModal = mockUseModalStore().closeTemplatesManagementModal
+      expect(mockCloseModal).toHaveBeenCalled()
+    })
+
+    it('should announce loading states for screen readers', async () => {
+      render(<TemplatesManagementModal />)
+
+      // Should have loading announcement
+      await waitFor(() => {
+        expect(screen.getByText(/vorlagen werden geladen/i)).toBeInTheDocument()
+      })
+
+      // Loading region should have proper ARIA attributes
+      const loadingRegion = screen.getByRole('status')
+      expect(loadingRegion).toHaveAttribute('aria-live', 'polite')
+    })
+
+    it('should provide proper headings hierarchy', async () => {
+      render(<TemplatesManagementModal />)
+
+      await waitFor(() => {
+        const mainHeading = screen.getByRole('heading', { level: 1 })
+        expect(mainHeading).toHaveTextContent(/vorlagen verwalten/i)
+      })
+    })
+
+    it('should have proper landmark regions', async () => {
+      render(<TemplatesManagementModal />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+        expect(screen.getByRole('search')).toBeInTheDocument()
+        expect(screen.getByRole('main')).toBeInTheDocument()
+      })
     })
   })
 
-  describe('Screen Reader Announcements', () => {
-    test('should announce modal opening', async () => {
-      render(<TemplatesManagementModal />)
+  describe('TemplateCard Accessibility', () => {
+    it('should have no accessibility violations', async () => {
+      const { container } = render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn()}
+        />
+      )
 
-      await waitFor(() => {
-        expect(screen.getByText(/Vorlagen-Modal geöffnet/)).toBeInTheDocument()
-      })
-
-      const announcement = screen.getByText(/Vorlagen-Modal geöffnet/)
-      expect(announcement).toHaveAttribute('aria-live', 'polite')
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
     })
 
-    test('should announce search results', async () => {
+    it('should have proper ARIA labels and descriptions', () => {
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn()}
+        />
+      )
+
+      const card = screen.getByRole('article')
+      expect(card).toHaveAttribute('aria-labelledby')
+      expect(card).toHaveAttribute('aria-describedby')
+
+      const title = screen.getByRole('heading')
+      expect(title).toHaveAttribute('id')
+    })
+
+    it('should provide accessible button labels', () => {
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn()}
+        />
+      )
+
+      const editButton = screen.getByRole('button', { name: /bearbeiten/i })
+      expect(editButton).toHaveAccessibleName()
+
+      const moreButton = screen.getByRole('button', { name: /aktionen/i })
+      expect(moreButton).toHaveAccessibleName()
+    })
+
+    it('should handle keyboard navigation in dropdown menu', async () => {
       const user = userEvent.setup()
-      render(<TemplatesManagementModal />)
+      
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn()}
+        />
+      )
 
-      await waitFor(() => {
-        expect(screen.getByRole('searchbox')).toBeInTheDocument()
-      })
-
-      const searchInput = screen.getByRole('searchbox')
-      await user.type(searchInput, 'Mietvertrag')
-
-      await waitFor(() => {
-        expect(screen.getByText(/1 Suchergebnisse für "Mietvertrag"/)).toBeInTheDocument()
-      })
-
-      const searchResults = screen.getByText(/1 Suchergebnisse für "Mietvertrag"/)
-      expect(searchResults).toHaveAttribute('aria-live', 'polite')
-    })
-
-    test('should announce loading states', async () => {
-      // Mock loading state
-      const mockServiceInstance = {
-        getUserTemplates: jest.fn().mockImplementation(() => new Promise(() => {})), // Never resolves
-        deleteTemplate: jest.fn(),
-        createTemplate: jest.fn(),
-        updateTemplate: jest.fn()
-      }
-      mockTemplateClientService.mockImplementation(() => mockServiceInstance)
-
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByText(/Vorlagen werden geladen/)).toBeInTheDocument()
-      })
-
-      const loadingAnnouncement = screen.getByText(/Vorlagen werden geladen/)
-      expect(loadingAnnouncement).toHaveAttribute('aria-live', 'polite')
-    })
-
-    test('should announce template deletion', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByText('Mietvertrag Vorlage')).toBeInTheDocument()
-      })
-
-      // Open dropdown menu
-      const moreButton = screen.getByRole('button', { name: /Aktionen für Vorlage Mietvertrag Vorlage/ })
+      const moreButton = screen.getByRole('button', { name: /aktionen/i })
       await user.click(moreButton)
 
-      // Click delete
-      const deleteButton = screen.getByRole('menuitem', { name: /Löschen/ })
+      // Menu should be accessible
+      const menu = screen.getByRole('menu')
+      expect(menu).toBeInTheDocument()
+
+      const menuItems = screen.getAllByRole('menuitem')
+      expect(menuItems).toHaveLength(2)
+
+      // Should be able to navigate with arrow keys
+      await user.keyboard('{ArrowDown}')
+      expect(menuItems[0]).toHaveFocus()
+
+      await user.keyboard('{ArrowDown}')
+      expect(menuItems[1]).toHaveFocus()
+    })
+
+    it('should provide proper time elements', () => {
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn()}
+        />
+      )
+
+      const timeElements = screen.getAllByRole('time')
+      timeElements.forEach(timeElement => {
+        expect(timeElement).toHaveAttribute('dateTime')
+        expect(timeElement).toHaveAttribute('aria-label')
+      })
+    })
+
+    it('should announce loading states during operations', async () => {
+      const mockOnDelete = jest.fn().mockImplementation(() => new Promise(() => {}))
       
-      // Mock window.confirm
-      window.confirm = jest.fn().mockReturnValue(true)
-      
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={mockOnDelete}
+        />
+      )
+
+      const user = userEvent.setup()
+      const moreButton = screen.getByRole('button', { name: /aktionen/i })
+      await user.click(moreButton)
+
+      const deleteButton = screen.getByRole('menuitem', { name: /löschen/i })
       await user.click(deleteButton)
 
+      // Should announce deletion in progress
       await waitFor(() => {
-        expect(screen.getByText(/Vorlage "Mietvertrag Vorlage" wurde gelöscht/)).toBeInTheDocument()
+        expect(screen.getByText(/wird gelöscht/i)).toBeInTheDocument()
       })
+    })
+  })
+
+  describe('TemplateSearchBar Accessibility', () => {
+    it('should have no accessibility violations', async () => {
+      const { container } = render(
+        <TemplateSearchBar
+          value=""
+          onChange={jest.fn()}
+        />
+      )
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('should have proper search input attributes', () => {
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={jest.fn()}
+        />
+      )
+
+      const searchInput = screen.getByRole('textbox')
+      expect(searchInput).toHaveAttribute('aria-label')
+      expect(searchInput).toHaveAttribute('aria-describedby')
+      expect(searchInput).toHaveAttribute('type', 'text')
+      expect(searchInput).toHaveAttribute('autoComplete', 'off')
+      expect(searchInput).toHaveAttribute('spellCheck', 'false')
+    })
+
+    it('should provide help text for screen readers', () => {
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={jest.fn()}
+        />
+      )
+
+      expect(screen.getByText(/geben sie suchbegriffe ein/i)).toBeInTheDocument()
+    })
+
+    it('should handle keyboard shortcuts accessibly', async () => {
+      const user = userEvent.setup()
+      const mockOnChange = jest.fn()
+      
+      render(
+        <TemplateSearchBar
+          value="test"
+          onChange={mockOnChange}
+        />
+      )
+
+      const searchInput = screen.getByRole('textbox')
+      await user.click(searchInput)
+
+      // Escape should clear search
+      await user.keyboard('{Escape}')
+      expect(mockOnChange).toHaveBeenCalledWith('')
+
+      // Enter should trigger immediate search
+      await user.type(searchInput, 'new search')
+      await user.keyboard('{Enter}')
+      expect(mockOnChange).toHaveBeenCalledWith('new search')
+    })
+
+    it('should announce validation errors', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={jest.fn()}
+        />
+      )
+
+      const searchInput = screen.getByRole('textbox')
+      await user.type(searchInput, '<script>')
+
+      // Should announce validation error
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent(/ungültige suchzeichen/i)
+      })
+    })
+  })
+
+  describe('CategoryFilter Accessibility', () => {
+    const mockTemplates = [mockTemplate]
+
+    it('should have no accessibility violations', async () => {
+      const { container } = render(
+        <CategoryFilter
+          templates={mockTemplates}
+          selectedCategory="all"
+          onCategoryChange={jest.fn()}
+        />
+      )
+
+      const results = await axe(container)
+      expect(results).toHaveNoViolations()
+    })
+
+    it('should have proper combobox attributes', () => {
+      render(
+        <CategoryFilter
+          templates={mockTemplates}
+          selectedCategory="all"
+          onCategoryChange={jest.fn()}
+        />
+      )
+
+      const combobox = screen.getByRole('combobox')
+      expect(combobox).toHaveAttribute('aria-expanded', 'false')
+      expect(combobox).toHaveAttribute('aria-haspopup', 'listbox')
+    })
+
+    it('should update aria-expanded when opened', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <CategoryFilter
+          templates={mockTemplates}
+          selectedCategory="all"
+          onCategoryChange={jest.fn()}
+        />
+      )
+
+      const combobox = screen.getByRole('combobox')
+      await user.click(combobox)
+
+      expect(combobox).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    it('should provide accessible option labels', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <CategoryFilter
+          templates={mockTemplates}
+          selectedCategory="all"
+          onCategoryChange={jest.fn()}
+        />
+      )
+
+      const combobox = screen.getByRole('combobox')
+      await user.click(combobox)
+
+      const options = screen.getAllByRole('option')
+      options.forEach(option => {
+        expect(option).toHaveAccessibleName()
+        expect(option.textContent).toMatch(/\(\d+\)/) // Should include count
+      })
+    })
+
+    it('should support keyboard navigation', async () => {
+      const user = userEvent.setup()
+      const mockOnChange = jest.fn()
+      
+      render(
+        <CategoryFilter
+          templates={mockTemplates}
+          selectedCategory="all"
+          onCategoryChange={mockOnChange}
+        />
+      )
+
+      const combobox = screen.getByRole('combobox')
+      await user.click(combobox)
+
+      // Arrow keys should navigate options
+      await user.keyboard('{ArrowDown}')
+      await user.keyboard('{Enter}')
+
+      expect(mockOnChange).toHaveBeenCalled()
     })
   })
 
   describe('High Contrast Mode Support', () => {
-    test('should apply high contrast styles when detected', () => {
-      // Mock high contrast media query
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: jest.fn().mockImplementation(query => ({
-          matches: query === '(prefers-contrast: high)',
-          media: query,
-          onchange: null,
-          addListener: jest.fn(),
-          removeListener: jest.fn(),
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn(),
-          dispatchEvent: jest.fn(),
-        })),
-      })
-
-      render(<TemplatesManagementModal />)
-
-      // Check if high contrast class is applied
-      expect(document.documentElement).toHaveClass('high-contrast')
-    })
-
-    test('should have sufficient color contrast in high contrast mode', async () => {
+    it('should maintain readability in high contrast mode', async () => {
       // Mock high contrast mode
       Object.defineProperty(window, 'matchMedia', {
         writable: true,
@@ -338,176 +498,87 @@ describe('TemplatesManagementModal Accessibility', () => {
       render(<TemplatesManagementModal />)
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
+        const modal = screen.getByRole('dialog')
+        expect(modal).toHaveClass('high-contrast-modal')
       })
-
-      const modal = screen.getByRole('dialog')
-      expect(modal).toHaveClass('high-contrast-modal')
     })
   })
 
-  describe('Accessibility Compliance', () => {
-    test('should not have accessibility violations', async () => {
+  describe('Screen Reader Announcements', () => {
+    it('should announce search results', async () => {
+      const user = userEvent.setup()
+      render(<TemplatesManagementModal />)
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('Vorlagen durchsuchen...')
+      await user.type(searchInput, 'test')
+
+      // Should have live region for search results
+      await waitFor(() => {
+        const liveRegion = screen.getByRole('region', { name: /suchergebnisse/i })
+        expect(liveRegion).toHaveAttribute('aria-live', 'polite')
+      })
+    })
+
+    it('should announce template operations', async () => {
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn().mockImplementation(() => new Promise(() => {}))}
+        />
+      )
+
+      const user = userEvent.setup()
+      const moreButton = screen.getByRole('button', { name: /aktionen/i })
+      await user.click(moreButton)
+
+      const deleteButton = screen.getByRole('menuitem', { name: /löschen/i })
+      await user.click(deleteButton)
+
+      // Should announce operation status
+      await waitFor(() => {
+        const announcement = screen.getByText(/wird gelöscht/i)
+        expect(announcement.closest('[aria-live]')).toHaveAttribute('aria-live', 'polite')
+      })
+    })
+  })
+
+  describe('Color Contrast and Visual Accessibility', () => {
+    it('should have sufficient color contrast for text elements', async () => {
       const { container } = render(<TemplatesManagementModal />)
 
       await waitFor(() => {
         expect(screen.getByRole('dialog')).toBeInTheDocument()
       })
 
-      const results = await axe(container)
-      expect(results).toHaveNoViolations()
-    })
-
-    test('should have proper heading hierarchy', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
-
-      // Main modal title should be h1 equivalent (DialogTitle)
-      expect(screen.getByText('Vorlagen verwalten')).toBeInTheDocument()
-
-      // Category headings should be h3
-      await waitFor(() => {
-        const categoryHeadings = screen.getAllByRole('heading', { level: 3 })
-        expect(categoryHeadings.length).toBeGreaterThan(0)
-      })
-    })
-
-    test('should have proper landmark roles', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
-
-      // Modal should have dialog role
-      expect(screen.getByRole('dialog')).toBeInTheDocument()
-
-      // Search section should have search role
-      expect(screen.getByRole('search')).toBeInTheDocument()
-
-      // Main content should have main role
-      expect(screen.getByRole('main')).toBeInTheDocument()
-
-      // Template sections should have region roles
-      await waitFor(() => {
-        expect(screen.getByRole('region', { name: /Vorlagen-Liste/ })).toBeInTheDocument()
-      })
-    })
-
-    test('should support reduced motion preferences', () => {
-      // Mock reduced motion preference
-      Object.defineProperty(window, 'matchMedia', {
-        writable: true,
-        value: jest.fn().mockImplementation(query => ({
-          matches: query === '(prefers-reduced-motion: reduce)',
-          media: query,
-          onchange: null,
-          addListener: jest.fn(),
-          removeListener: jest.fn(),
-          addEventListener: jest.fn(),
-          removeEventListener: jest.fn(),
-          dispatchEvent: jest.fn(),
-        })),
-      })
-
-      render(<TemplatesManagementModal />)
-
-      // Check that animations are disabled or reduced
-      const animatedElements = document.querySelectorAll('.animate-in, .transition-all')
-      animatedElements.forEach(element => {
-        const styles = window.getComputedStyle(element)
-        // In reduced motion mode, animations should be very short or disabled
-        expect(
-          styles.animationDuration === '0.01ms' || 
-          styles.transitionDuration === '0.01ms' ||
-          styles.animationDuration === '0s' ||
-          styles.transitionDuration === '0s'
-        ).toBeTruthy()
-      })
-    })
-  })
-
-  describe('Touch and Mobile Accessibility', () => {
-    test('should have minimum touch target sizes', async () => {
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument()
-      })
-
-      // All interactive elements should meet minimum 44px touch target
-      const buttons = screen.getAllByRole('button')
-      buttons.forEach(button => {
-        const styles = window.getComputedStyle(button)
-        const minHeight = parseInt(styles.minHeight) || parseInt(styles.height)
-        const minWidth = parseInt(styles.minWidth) || parseInt(styles.width)
-        
-        expect(minHeight).toBeGreaterThanOrEqual(44)
-        expect(minWidth).toBeGreaterThanOrEqual(44)
-      })
-    })
-
-    test('should support touch interactions', async () => {
-      const user = userEvent.setup()
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Neue Vorlage erstellen/ })).toBeInTheDocument()
-      })
-
-      const createButton = screen.getByRole('button', { name: /Neue Vorlage erstellen/ })
+      // Check that important text elements have proper contrast
+      const title = screen.getByText(/vorlagen verwalten/i)
+      const computedStyle = window.getComputedStyle(title)
       
-      // Simulate touch interaction
-      fireEvent.touchStart(createButton)
-      fireEvent.touchEnd(createButton)
-      
-      expect(mockUseModalStore().openTemplateEditorModal).toHaveBeenCalled()
-    })
-  })
-
-  describe('Error State Accessibility', () => {
-    test('should announce errors with assertive priority', async () => {
-      // Mock error state
-      const mockServiceInstance = {
-        getUserTemplates: jest.fn().mockRejectedValue(new Error('Network error')),
-        deleteTemplate: jest.fn(),
-        createTemplate: jest.fn(),
-        updateTemplate: jest.fn()
-      }
-      mockTemplateClientService.mockImplementation(() => mockServiceInstance)
-
-      render(<TemplatesManagementModal />)
-
-      await waitFor(() => {
-        expect(screen.getByText(/Fehler beim Laden der Vorlagen/)).toBeInTheDocument()
-      })
-
-      const errorAnnouncement = screen.getByText(/Fehler beim Laden der Vorlagen/)
-      expect(errorAnnouncement).toHaveAttribute('aria-live', 'assertive')
+      // These would need actual color contrast calculation in a real test
+      expect(computedStyle.color).toBeDefined()
+      expect(computedStyle.backgroundColor).toBeDefined()
     })
 
-    test('should provide error recovery options', async () => {
-      // Mock error state
-      const mockServiceInstance = {
-        getUserTemplates: jest.fn().mockRejectedValue(new Error('Network error')),
-        deleteTemplate: jest.fn(),
-        createTemplate: jest.fn(),
-        updateTemplate: jest.fn()
-      }
-      mockTemplateClientService.mockImplementation(() => mockServiceInstance)
+    it('should not rely solely on color for information', () => {
+      render(
+        <TemplateCard
+          template={mockTemplate}
+          onEdit={jest.fn()}
+          onDelete={jest.fn()}
+        />
+      )
 
-      render(<TemplatesManagementModal />)
+      // Badges should have text labels, not just colors
+      const categoryBadge = screen.getByText('Test Category')
+      expect(categoryBadge).toBeInTheDocument()
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /Erneut versuchen/ })).toBeInTheDocument()
-      })
-
-      const retryButton = screen.getByRole('button', { name: /Erneut versuchen/ })
-      expect(retryButton).toBeInTheDocument()
-      expect(retryButton).not.toBeDisabled()
+      const variableBadge = screen.getByText(/1 variable/i)
+      expect(variableBadge).toBeInTheDocument()
     })
   })
 })

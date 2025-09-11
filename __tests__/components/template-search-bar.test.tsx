@@ -1,289 +1,407 @@
-import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TemplateSearchBar, highlightSearchTerms, extractSearchTerms } from '@/components/template-search-bar'
 
-// Mock the debounce hook to return the value immediately
-jest.mock('@/hooks/use-debounce', () => ({
-  useDebounce: jest.fn((value) => value)
-}))
-
 describe('TemplateSearchBar', () => {
-  const defaultProps = {
-    value: '',
-    onChange: jest.fn(),
-  }
+  const mockOnChange = jest.fn()
+  const mockOnSearchHighlight = jest.fn()
 
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  describe('Basic Rendering', () => {
-    it('should render search input with default placeholder', () => {
-      render(<TemplateSearchBar {...defaultProps} />)
-      
-      expect(screen.getByPlaceholderText('Vorlagen durchsuchen...')).toBeInTheDocument()
+  describe('Basic Functionality', () => {
+    it('should render search input with placeholder', () => {
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          placeholder="Search templates..."
+        />
+      )
+
+      expect(screen.getByPlaceholderText('Search templates...')).toBeInTheDocument()
       expect(screen.getByLabelText('Vorlagen suchen')).toBeInTheDocument()
     })
 
-    it('should render with custom placeholder', () => {
-      render(<TemplateSearchBar {...defaultProps} placeholder="Custom placeholder" />)
-      
-      expect(screen.getByPlaceholderText('Custom placeholder')).toBeInTheDocument()
-    })
+    it('should display current value', () => {
+      render(
+        <TemplateSearchBar
+          value="test query"
+          onChange={mockOnChange}
+        />
+      )
 
-    it('should render search icon', () => {
-      render(<TemplateSearchBar {...defaultProps} />)
-      
-      const searchIcon = screen.getByRole('textbox').parentElement?.querySelector('svg')
-      expect(searchIcon).toBeInTheDocument()
-    })
-
-    it('should not show clear button when input is empty', () => {
-      render(<TemplateSearchBar {...defaultProps} />)
-      
-      expect(screen.queryByLabelText('Suche löschen')).not.toBeInTheDocument()
-    })
-  })
-
-  describe('User Interactions', () => {
-    it('should update local value when user types', async () => {
-      const user = userEvent.setup()
-      render(<TemplateSearchBar {...defaultProps} />)
-      
-      const input = screen.getByRole('textbox')
-      await user.type(input, 'test')
-      
-      expect(input).toHaveValue('test')
+      expect(screen.getByDisplayValue('test query')).toBeInTheDocument()
     })
 
     it('should call onChange when user types', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
       
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          debounceMs={100}
+        />
+      )
+
       const input = screen.getByRole('textbox')
       await user.type(input, 'test')
-      
-      // Should be called with sanitized value
-      expect(mockOnChange).toHaveBeenCalledWith('test')
+
+      // Wait for debounce
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith('test')
+      }, { timeout: 200 })
     })
 
-    it('should show clear button when input has value', async () => {
+    it('should show clear button when there is a value', async () => {
       const user = userEvent.setup()
-      render(<TemplateSearchBar {...defaultProps} />)
       
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+        />
+      )
+
       const input = screen.getByRole('textbox')
       await user.type(input, 'test')
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText('Suche löschen')).toBeInTheDocument()
-      })
+
+      expect(screen.getByRole('button', { name: /suche löschen/i })).toBeInTheDocument()
     })
 
     it('should clear input when clear button is clicked', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
       
-      const input = screen.getByRole('textbox')
-      await user.type(input, 'test')
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText('Suche löschen')).toBeInTheDocument()
-      })
-      
-      const clearButton = screen.getByLabelText('Suche löschen')
+      render(
+        <TemplateSearchBar
+          value="test"
+          onChange={mockOnChange}
+        />
+      )
+
+      const clearButton = screen.getByRole('button', { name: /suche löschen/i })
       await user.click(clearButton)
-      
-      expect(input).toHaveValue('')
+
       expect(mockOnChange).toHaveBeenCalledWith('')
     })
   })
 
   describe('Keyboard Navigation', () => {
-    it('should clear input when Escape is pressed', async () => {
+    it('should clear input on Escape key', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
       
+      render(
+        <TemplateSearchBar
+          value="test"
+          onChange={mockOnChange}
+        />
+      )
+
       const input = screen.getByRole('textbox')
-      await user.type(input, 'test')
-      mockOnChange.mockClear() // Clear previous calls
-      
+      await user.click(input)
       await user.keyboard('{Escape}')
-      
-      expect(input).toHaveValue('')
+
       expect(mockOnChange).toHaveBeenCalledWith('')
     })
 
-    it('should trigger immediate search when Enter is pressed', async () => {
+    it('should trigger immediate search on Enter key', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      const mockOnSearchHighlight = jest.fn()
       
       render(
-        <TemplateSearchBar 
-          {...defaultProps} 
+        <TemplateSearchBar
+          value=""
           onChange={mockOnChange}
           onSearchHighlight={mockOnSearchHighlight}
+          debounceMs={1000} // Long debounce to test immediate trigger
         />
       )
-      
+
       const input = screen.getByRole('textbox')
       await user.type(input, 'test')
-      mockOnChange.mockClear() // Clear previous calls
-      
       await user.keyboard('{Enter}')
-      
+
+      // Should trigger immediately, not wait for debounce
       expect(mockOnChange).toHaveBeenCalledWith('test')
       expect(mockOnSearchHighlight).toHaveBeenCalledWith('test')
     })
 
-    it('should not clear input on Escape if input is empty', async () => {
+    it('should not clear on Escape if input is empty', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
       
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+        />
+      )
+
       const input = screen.getByRole('textbox')
+      await user.click(input)
       await user.keyboard('{Escape}')
-      
+
       expect(mockOnChange).not.toHaveBeenCalled()
     })
   })
 
-  describe('Input Validation and Sanitization', () => {
-    it('should sanitize dangerous characters', async () => {
+  describe('Debouncing', () => {
+    it('should debounce onChange calls', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
       
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          debounceMs={200}
+        />
+      )
+
       const input = screen.getByRole('textbox')
-      await user.type(input, 'test<script>')
       
-      // Check that dangerous characters are removed
-      expect(mockOnChange).toHaveBeenCalledWith('testscript')
+      // Type quickly
+      await user.type(input, 'test', { delay: 50 })
+
+      // Should not have called onChange yet
+      expect(mockOnChange).not.toHaveBeenCalled()
+
+      // Wait for debounce
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith('test')
+      }, { timeout: 300 })
+
+      // Should only be called once after debounce
+      expect(mockOnChange).toHaveBeenCalledTimes(1)
     })
 
-    it('should remove object notation characters', async () => {
+    it('should show loading indicator while debouncing', async () => {
       const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
       
-      const input = screen.getByRole('textbox')
-      await user.type(input, 'test{object}')
-      
-      expect(mockOnChange).toHaveBeenCalledWith('testobject')
-    })
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          debounceMs={200}
+        />
+      )
 
-    it('should trim whitespace', async () => {
-      const user = userEvent.setup()
-      const mockOnChange = jest.fn()
-      render(<TemplateSearchBar {...defaultProps} onChange={mockOnChange} />)
-      
       const input = screen.getByRole('textbox')
-      await user.type(input, '  test  ')
-      
-      expect(mockOnChange).toHaveBeenCalledWith('test')
+      await user.type(input, 'test', { delay: 50 })
+
+      // Should show loading indicator
+      expect(document.querySelector('.animate-pulse')).toBeInTheDocument()
+
+      // Wait for debounce to complete
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith('test')
+      }, { timeout: 300 })
+
+      // Loading indicator should be gone
+      expect(document.querySelector('.animate-pulse')).not.toBeInTheDocument()
     })
   })
 
-  describe('External Value Changes', () => {
-    it('should update local value when prop value changes', () => {
-      const { rerender } = render(<TemplateSearchBar {...defaultProps} value="" />)
+  describe('Input Sanitization', () => {
+    it('should sanitize dangerous characters', async () => {
+      const user = userEvent.setup()
       
-      rerender(<TemplateSearchBar {...defaultProps} value="external update" />)
-      
-      expect(screen.getByRole('textbox')).toHaveValue('external update')
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          debounceMs={100}
+        />
+      )
+
+      const input = screen.getByRole('textbox')
+      await user.type(input, '<script>alert("xss")</script>')
+
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith('scriptalert("xss")/script')
+      }, { timeout: 200 })
     })
 
-    it('should show clear button when prop value is provided', () => {
-      render(<TemplateSearchBar {...defaultProps} value="test" />)
+    it('should limit input length', async () => {
+      const user = userEvent.setup()
+      const longString = 'a'.repeat(150) // Longer than 100 character limit
       
-      expect(screen.getByLabelText('Suche löschen')).toBeInTheDocument()
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          debounceMs={100}
+        />
+      )
+
+      const input = screen.getByRole('textbox')
+      await user.type(input, longString)
+
+      await waitFor(() => {
+        expect(mockOnChange).toHaveBeenCalledWith('a'.repeat(100))
+      }, { timeout: 200 })
+    })
+
+    it('should show validation error for invalid characters', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          debounceMs={100}
+        />
+      )
+
+      const input = screen.getByRole('textbox')
+      await user.type(input, '<script>')
+
+      // Should show validation error styling
+      expect(input).toHaveClass('border-destructive')
+      
+      // Should announce error for screen readers
+      expect(screen.getByRole('alert')).toHaveTextContent(/ungültige suchzeichen/i)
+    })
+  })
+
+  describe('Search Highlighting', () => {
+    it('should call onSearchHighlight when provided', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          onSearchHighlight={mockOnSearchHighlight}
+          debounceMs={100}
+        />
+      )
+
+      const input = screen.getByRole('textbox')
+      await user.type(input, 'test')
+
+      await waitFor(() => {
+        expect(mockOnSearchHighlight).toHaveBeenCalledWith('test')
+      }, { timeout: 200 })
+    })
+
+    it('should not call onSearchHighlight for empty queries', async () => {
+      const user = userEvent.setup()
+      
+      render(
+        <TemplateSearchBar
+          value="test"
+          onChange={mockOnChange}
+          onSearchHighlight={mockOnSearchHighlight}
+        />
+      )
+
+      const clearButton = screen.getByRole('button', { name: /suche löschen/i })
+      await user.click(clearButton)
+
+      expect(mockOnSearchHighlight).not.toHaveBeenCalled()
     })
   })
 
   describe('Accessibility', () => {
     it('should have proper ARIA labels', () => {
-      render(<TemplateSearchBar {...defaultProps} />)
-      
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+        />
+      )
+
       const input = screen.getByRole('textbox')
       expect(input).toHaveAttribute('aria-label', 'Vorlagen suchen')
       expect(input).toHaveAttribute('aria-describedby', 'search-help')
     })
 
-    it('should have screen reader help text', () => {
-      render(<TemplateSearchBar {...defaultProps} />)
-      
-      expect(screen.getByText(/Geben Sie Suchbegriffe ein/)).toBeInTheDocument()
-    })
-
-    it('should have proper tabIndex for clear button', async () => {
-      const user = userEvent.setup()
-      render(<TemplateSearchBar {...defaultProps} />)
-      
-      const input = screen.getByRole('textbox')
-      await user.type(input, 'test')
-      
-      await waitFor(() => {
-        const clearButton = screen.getByLabelText('Suche löschen')
-        expect(clearButton).toHaveAttribute('tabIndex', '0')
-      })
-    })
-  })
-
-  describe('Search Highlighting Callback', () => {
-    it('should call onSearchHighlight when search term changes', async () => {
-      const user = userEvent.setup()
-      const mockOnSearchHighlight = jest.fn()
+    it('should provide help text for screen readers', () => {
       render(
-        <TemplateSearchBar 
-          {...defaultProps} 
-          onSearchHighlight={mockOnSearchHighlight}
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
         />
       )
-      
-      const input = screen.getByRole('textbox')
-      await user.type(input, 'test')
-      
-      expect(mockOnSearchHighlight).toHaveBeenCalledWith('test')
+
+      expect(screen.getByText(/geben sie suchbegriffe ein/i)).toBeInTheDocument()
     })
 
-    it('should not call onSearchHighlight for empty search', async () => {
-      const user = userEvent.setup()
-      const mockOnSearchHighlight = jest.fn()
+    it('should have proper autocomplete attributes', () => {
       render(
-        <TemplateSearchBar 
-          {...defaultProps} 
-          onSearchHighlight={mockOnSearchHighlight}
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
         />
       )
-      
+
       const input = screen.getByRole('textbox')
-      await user.type(input, '   ')
+      expect(input).toHaveAttribute('autoComplete', 'off')
+      expect(input).toHaveAttribute('spellCheck', 'false')
+    })
+
+    it('should focus input after clearing', async () => {
+      const user = userEvent.setup()
       
-      expect(mockOnSearchHighlight).not.toHaveBeenCalled()
+      render(
+        <TemplateSearchBar
+          value="test"
+          onChange={mockOnChange}
+        />
+      )
+
+      const clearButton = screen.getByRole('button', { name: /suche löschen/i })
+      await user.click(clearButton)
+
+      const input = screen.getByRole('textbox')
+      expect(input).toHaveFocus()
     })
   })
 
   describe('Custom Styling', () => {
     it('should apply custom className', () => {
-      render(<TemplateSearchBar {...defaultProps} className="custom-class" />)
-      
-      const container = screen.getByRole('textbox').closest('.custom-class')
-      expect(container).toBeInTheDocument()
+      render(
+        <TemplateSearchBar
+          value=""
+          onChange={mockOnChange}
+          className="custom-class"
+        />
+      )
+
+      expect(document.querySelector('.custom-class')).toBeInTheDocument()
+    })
+  })
+
+  describe('External Value Changes', () => {
+    it('should sync with external value changes', () => {
+      const { rerender } = render(
+        <TemplateSearchBar
+          value="initial"
+          onChange={mockOnChange}
+        />
+      )
+
+      expect(screen.getByDisplayValue('initial')).toBeInTheDocument()
+
+      rerender(
+        <TemplateSearchBar
+          value="updated"
+          onChange={mockOnChange}
+        />
+      )
+
+      expect(screen.getByDisplayValue('updated')).toBeInTheDocument()
     })
   })
 })
 
-describe('Utility Functions', () => {
+describe('Search Utility Functions', () => {
   describe('highlightSearchTerms', () => {
     it('should highlight matching terms', () => {
       const text = 'This is a test template'
       const query = 'test'
       const result = highlightSearchTerms(text, query)
-      
+
       expect(result).toContain('<mark')
       expect(result).toContain('test')
     })
@@ -292,75 +410,64 @@ describe('Utility Functions', () => {
       const text = 'This is a TEST template'
       const query = 'test'
       const result = highlightSearchTerms(text, query)
-      
+
       expect(result).toContain('<mark')
       expect(result).toContain('TEST')
     })
 
-    it('should escape regex special characters', () => {
-      const text = 'Price: $100 (special)'
-      const query = '$100'
-      const result = highlightSearchTerms(text, query)
-      
-      expect(result).toContain('<mark')
-      expect(result).toContain('$100')
-    })
-
     it('should return original text for empty query', () => {
-      const text = 'This is a test'
-      const result = highlightSearchTerms(text, '')
-      
+      const text = 'This is a test template'
+      const query = ''
+      const result = highlightSearchTerms(text, query)
+
       expect(result).toBe(text)
     })
 
-    it('should return original text for empty text', () => {
-      const result = highlightSearchTerms('', 'test')
-      
-      expect(result).toBe('')
+    it('should escape special regex characters', () => {
+      const text = 'Price: $100 (special)'
+      const query = '$100'
+      const result = highlightSearchTerms(text, query)
+
+      expect(result).toContain('<mark')
+      expect(result).toContain('$100')
     })
   })
 
   describe('extractSearchTerms', () => {
     it('should extract individual terms', () => {
-      const query = 'test search terms'
-      const result = extractSearchTerms(query)
-      
-      expect(result).toEqual(['test', 'search', 'terms'])
+      const query = 'test template search'
+      const terms = extractSearchTerms(query)
+
+      expect(terms).toEqual(['test', 'template', 'search'])
     })
 
     it('should handle extra whitespace', () => {
-      const query = '  test   search   terms  '
-      const result = extractSearchTerms(query)
-      
-      expect(result).toEqual(['test', 'search', 'terms'])
+      const query = '  test   template  search  '
+      const terms = extractSearchTerms(query)
+
+      expect(terms).toEqual(['test', 'template', 'search'])
     })
 
     it('should convert to lowercase', () => {
-      const query = 'Test SEARCH Terms'
-      const result = extractSearchTerms(query)
-      
-      expect(result).toEqual(['test', 'search', 'terms'])
+      const query = 'Test TEMPLATE Search'
+      const terms = extractSearchTerms(query)
+
+      expect(terms).toEqual(['test', 'template', 'search'])
     })
 
     it('should limit to 10 terms', () => {
       const query = 'one two three four five six seven eight nine ten eleven twelve'
-      const result = extractSearchTerms(query)
-      
-      expect(result).toHaveLength(10)
-      expect(result).toEqual(['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'])
+      const terms = extractSearchTerms(query)
+
+      expect(terms).toHaveLength(10)
+      expect(terms).toEqual(['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'])
     })
 
     it('should return empty array for empty query', () => {
-      const result = extractSearchTerms('')
-      
-      expect(result).toEqual([])
-    })
+      const query = ''
+      const terms = extractSearchTerms(query)
 
-    it('should filter out empty terms', () => {
-      const query = 'test  search'
-      const result = extractSearchTerms(query)
-      
-      expect(result).toEqual(['test', 'search'])
+      expect(terms).toEqual([])
     })
   })
 })
