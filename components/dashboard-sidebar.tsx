@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -66,6 +66,25 @@ export function DashboardSidebar() {
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
   const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
+  // Memoize the navigation items to prevent unnecessary re-renders
+  const navigationItems = useMemo(() => {
+    return sidebarNavItems.map((item) => {
+      const isActive = isRouteActive(item.href)
+      const isDocuments = item.href === '/dateien'
+      const hidden = isDocuments && !documentsEnabled
+      return {
+        ...item,
+        isActive,
+        hidden,
+        className: cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+          getActiveStateClasses(item.href),
+          hidden && "invisible pointer-events-none",
+        )
+      }
+    })
+  }, [isRouteActive, getActiveStateClasses, documentsEnabled])
+
   return (
     <>
       <Button
@@ -107,30 +126,21 @@ export function DashboardSidebar() {
           </div>
           <ScrollArea className="flex-1 pt-4 pb-4">
             <nav className="grid gap-1 px-2">
-              {sidebarNavItems.map((item) => {
-                const isActive = isRouteActive(item.href)
-                const isDocuments = item.href === '/dateien'
-                const hidden = isDocuments && !documentsEnabled
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
-                      getActiveStateClasses(item.href),
-                      hidden && "invisible pointer-events-none",
-                    )}
-                    data-active={isActive}
-                    aria-current={isActive ? "page" : undefined}
-                    aria-hidden={hidden || undefined}
-                    tabIndex={hidden ? -1 : undefined}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    {item.title}
-                  </Link>
-                )
-              })}
+              {navigationItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={item.className}
+                  data-active={item.isActive}
+                  aria-current={item.isActive ? "page" : undefined}
+                  aria-hidden={item.hidden || undefined}
+                  tabIndex={item.hidden ? -1 : undefined}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.title}
+                </Link>
+              ))}
             </nav>
           </ScrollArea>
           <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
