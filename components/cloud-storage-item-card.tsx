@@ -23,7 +23,7 @@ import {
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Checkbox } from "@/components/ui/checkbox"
+import { StableCheckbox } from "@/components/ui/stable-checkbox"
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -497,12 +497,12 @@ export function CloudStorageItemCard({
                   "absolute top-2 left-2 transition-opacity",
                   isSelected || isHovered ? "opacity-100" : "opacity-0"
                 )}>
-                  <Checkbox
+                  <StableCheckbox
                     checked={isSelected}
                     onCheckedChange={(checked) => {
                       // Use ref to prevent infinite loops and ensure stable callback
                       if (onSelectRef.current) {
-                        onSelectRef.current(checked === true)
+                        onSelectRef.current(checked)
                       }
                     }}
                     onClick={(e) => e.stopPropagation()}
@@ -757,12 +757,12 @@ export function CloudStorageItemCard({
           {/* Selection checkbox */}
           {onSelect && (
             <div className="mr-3">
-              <Checkbox
+              <StableCheckbox
                 checked={isSelected}
                 onCheckedChange={(checked) => {
                   // Use ref to prevent infinite loops and ensure stable callback
                   if (onSelectRef.current) {
-                    onSelectRef.current(checked === true)
+                    onSelectRef.current(checked)
                   }
                 }}
                 onClick={(e) => e.stopPropagation()}
