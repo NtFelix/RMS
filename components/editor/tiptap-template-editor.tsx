@@ -339,36 +339,6 @@ export function TiptapTemplateEditor({
     }),
   ], [variables, onVariableInsert, onVariableRemove])
 
-  // Use optimized editor initialization if enabled
-  const optimizedInitialization = useOptimizedEditorInitialization({
-    extensions: editorExtensions,
-    initialContent: parsedContent,
-    editable,
-    onUpdate: handleContentChange,
-    editorProps: editorProps,
-    enablePerformanceMonitoring,
-    parseContentAsync: optimizeForLargeDocuments,
-    deferRendering: deferInitialization,
-    onStateChange: (state) => {
-      // Update loading state based on initialization progress
-      setIsContentLoading(state.stage !== 'ready')
-    }
-  })
-
-  // Virtual scrolling setup for large documents
-  const virtualScrollItems = useMemo(() => {
-    if (enableVirtualScrolling && parsedContent) {
-      return contentToVirtualItems(parsedContent, 50)
-    }
-    return []
-  }, [enableVirtualScrolling, parsedContent])
-
-  const virtualScroll = useVirtualScroll(
-    virtualScrollItems,
-    virtualScrollHeight,
-    50
-  )
-
   // Memoized editor props to prevent recreation
   const editorProps = useMemo(() => ({
     attributes: {
@@ -409,6 +379,36 @@ export function TiptapTemplateEditor({
       console.error('Error getting editor content:', error)
     }
   }, [enableAutoSave, autoSaveFunction, debouncedSave])
+
+  // Use optimized editor initialization if enabled
+  const optimizedInitialization = useOptimizedEditorInitialization({
+    extensions: editorExtensions,
+    initialContent: parsedContent,
+    editable,
+    onUpdate: handleContentChange,
+    editorProps: editorProps,
+    enablePerformanceMonitoring,
+    parseContentAsync: optimizeForLargeDocuments,
+    deferRendering: deferInitialization,
+    onStateChange: (state) => {
+      // Update loading state based on initialization progress
+      setIsContentLoading(state.stage !== 'ready')
+    }
+  })
+
+  // Virtual scrolling setup for large documents
+  const virtualScrollItems = useMemo(() => {
+    if (enableVirtualScrolling && parsedContent) {
+      return contentToVirtualItems(parsedContent, 50)
+    }
+    return []
+  }, [enableVirtualScrolling, parsedContent])
+
+  const virtualScroll = useVirtualScroll(
+    virtualScrollItems,
+    virtualScrollHeight,
+    50
+  )
 
   // Effect to call onContentChange with optimized variables
   React.useEffect(() => {
