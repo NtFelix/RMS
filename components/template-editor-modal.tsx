@@ -27,6 +27,10 @@ import {
   TemplateLoadingError 
 } from "@/components/template-loading-states"
 import { cn } from "@/lib/utils"
+import { ValidationFeedback, FieldValidationWrapper, ValidationProgress } from "./template-validation-feedback"
+import { GuidanceTooltip, ContextualHelp, SmartGuidance } from "./template-guidance-tooltips"
+import { AccessibleFormField, ValidationAnnouncer, ScreenReaderOnly } from "./template-accessibility"
+import { useTemplateValidation } from "@/hooks/use-template-validation"
 
 interface TemplateFormData {
   titel: string
@@ -124,7 +128,7 @@ export function TemplateEditorModal() {
     }
   }, [])
 
-  // Validate template data
+  // Enhanced validation using the new real-time validation system
   const validateTemplate = useCallback((): boolean => {
     const errors: string[] = []
     const warnings: string[] = []
@@ -703,83 +707,118 @@ export function TemplateEditorModal() {
             </div>
           )}
 
-          {/* Title Input */}
+          {/* Enhanced Title Input with Validation and Guidance */}
           <div className="px-6 py-4 border-b bg-background">
-            <div className="space-y-2">
-              <Label htmlFor="template-title" className="text-sm font-medium">
-                Titel der Vorlage
-              </Label>
-              <Input
-                id="template-title"
-                value={title}
-                onChange={(e) => handleTitleChange(e.target.value)}
-                placeholder="Geben Sie einen Titel für die Vorlage ein..."
-                disabled={isSaving}
-                className={cn(
-                  "text-lg font-medium",
-                  validationErrors.some(error => error.includes("Titel")) && "border-destructive"
-                )}
-                maxLength={100}
-              />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <AccessibleFormField
+              label="Titel der Vorlage"
+              description="Wählen Sie einen aussagekräftigen Titel, der den Zweck der Vorlage beschreibt"
+              fieldId="template-title"
+              required={true}
+              error={validationErrors.find(error => error.includes("Titel"))}
+              warning={validationWarnings.find(warning => warning.includes("Titel"))}
+            >
+              <div className="relative">
+                <Input
+                  value={title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  placeholder="z.B. Mietvertrag Wohnung, Kündigung Mieter, Nebenkostenabrechnung..."
+                  disabled={isSaving}
+                  className={cn(
+                    "text-lg font-medium pr-8",
+                    validationErrors.some(error => error.includes("Titel")) && "border-destructive focus-visible:ring-destructive"
+                  )}
+                  maxLength={100}
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <ContextualHelp topic="template-title" size="sm" />
+                </div>
+              </div>
+            </AccessibleFormField>
+            
+            <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+              <div className="flex items-center gap-3">
                 <span>
                   {title.length}/100 Zeichen
                 </span>
-                <div className="flex items-center gap-2">
-                  {lastSaveAttempt && (
-                    <span className="text-xs">
-                      Letzter Speicherversuch: {lastSaveAttempt.toLocaleTimeString()}
-                    </span>
-                  )}
-                  {isTemplateEditorModalDirty && (
-                    <span className="text-amber-600 dark:text-amber-400">
-                      • Ungespeicherte Änderungen
-                    </span>
-                  )}
-                  {autoSaveEnabled && templateEditorData.templateId && isTemplateEditorModalDirty && (
-                    <span className="text-blue-600 dark:text-blue-400 text-xs">
-                      • Auto-Save aktiv
-                    </span>
-                  )}
-                </div>
+                {title.length > 80 && (
+                  <span className="text-yellow-600 dark:text-yellow-400">
+                    Titel wird lang
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {lastSaveAttempt && (
+                  <span className="text-xs">
+                    Letzter Speicherversuch: {lastSaveAttempt.toLocaleTimeString()}
+                  </span>
+                )}
+                {isTemplateEditorModalDirty && (
+                  <span className="text-amber-600 dark:text-amber-400">
+                    • Ungespeicherte Änderungen
+                  </span>
+                )}
+                {autoSaveEnabled && templateEditorData.templateId && isTemplateEditorModalDirty && (
+                  <span className="text-blue-600 dark:text-blue-400 text-xs">
+                    • Auto-Save aktiv
+                  </span>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Validation Messages */}
+          {/* Enhanced Validation Messages with Progress */}
           {(validationErrors.length > 0 || validationWarnings.length > 0) && (
             <div className="px-6 py-3 border-b bg-muted/20">
-              {validationErrors.length > 0 && (
-                <div className="mb-2">
-                  <div className="flex items-center space-x-2 text-destructive mb-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Fehler</span>
-                  </div>
-                  <ul className="text-sm text-destructive space-y-1 ml-6">
-                    {validationErrors.map((error, index) => (
-                      <li key={index} className="list-disc">
-                        {error}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              {validationWarnings.length > 0 && (
-                <div>
-                  <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400 mb-1">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span className="text-sm font-medium">Hinweise</span>
-                  </div>
-                  <ul className="text-sm text-amber-600 dark:text-amber-400 space-y-1 ml-6">
-                    {validationWarnings.map((warning, index) => (
-                      <li key={index} className="list-disc">
-                        {warning}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              <div className="space-y-3">
+                <ValidationProgress
+                  result={{
+                    isValid: validationErrors.length === 0,
+                    errors: validationErrors.map(error => ({
+                      field: 'template',
+                      message: error,
+                      code: 'VALIDATION_ERROR',
+                      severity: 'error' as const
+                    })),
+                    warnings: validationWarnings.map(warning => ({
+                      field: 'template',
+                      message: warning,
+                      code: 'VALIDATION_WARNING',
+                      severity: 'warning' as const
+                    })),
+                    suggestions: []
+                  }}
+                />
+                
+                <ValidationFeedback
+                  result={{
+                    isValid: validationErrors.length === 0,
+                    errors: validationErrors.map(error => ({
+                      field: 'template',
+                      message: error,
+                      code: 'VALIDATION_ERROR',
+                      severity: 'error' as const
+                    })),
+                    warnings: validationWarnings.map(warning => ({
+                      field: 'template',
+                      message: warning,
+                      code: 'VALIDATION_WARNING',
+                      severity: 'warning' as const
+                    })),
+                    suggestions: []
+                  }}
+                  showSuggestions={true}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Smart Guidance for New Users */}
+          {templateEditorData?.isNewTemplate && (
+            <div className="px-6 py-3 border-b">
+              <SmartGuidance
+                context="new-template"
+                userLevel="beginner"
+              />
             </div>
           )}
 
@@ -823,7 +862,7 @@ export function TemplateEditorModal() {
           {/* Footer with Variable Summary and Save Status */}
           <div className="px-6 py-3 border-t bg-muted/30">
             <div className="flex items-center justify-between">
-              {/* Variable Summary */}
+              {/* Enhanced Variable Summary with Guidance */}
               {variables.length > 0 ? (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm font-medium text-muted-foreground">
@@ -831,27 +870,61 @@ export function TemplateEditorModal() {
                   </span>
                   <div className="flex flex-wrap gap-1">
                     {variables.slice(0, 5).map((variable) => (
-                      <Badge 
-                        key={variable} 
-                        variant="outline" 
-                        className="text-xs"
-                        title={variable}
+                      <GuidanceTooltip
+                        key={variable}
+                        title={`Variable: ${variable}`}
+                        content={`Diese Variable wird durch den entsprechenden Wert ersetzt, wenn die Vorlage verwendet wird.`}
+                        type="info"
                       >
-                        @{variable}
-                      </Badge>
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs cursor-help"
+                          title={variable}
+                        >
+                          @{variable}
+                        </Badge>
+                      </GuidanceTooltip>
                     ))}
                     {variables.length > 5 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{variables.length - 5} weitere
-                      </Badge>
+                      <GuidanceTooltip
+                        title="Weitere Variablen"
+                        content={`${variables.length - 5} weitere Variablen: ${variables.slice(5).join(', ')}`}
+                        type="info"
+                      >
+                        <Badge variant="outline" className="text-xs cursor-help">
+                          +{variables.length - 5} weitere
+                        </Badge>
+                      </GuidanceTooltip>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="text-sm text-muted-foreground">
-                  Keine Variablen verwendet. Verwenden Sie '@' um Variablen hinzuzufügen.
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Keine Variablen verwendet.</span>
+                  <GuidanceTooltip
+                    title="Variablen hinzufügen"
+                    content="Tippen Sie '@' im Editor um verfügbare Variablen zu sehen und Ihre Vorlage dynamisch zu gestalten."
+                    type="tip"
+                  >
+                    <span className="text-blue-600 dark:text-blue-400 cursor-help underline">
+                      Verwenden Sie '@' um Variablen hinzuzufügen.
+                    </span>
+                  </GuidanceTooltip>
                 </div>
               )}
+
+              {/* Accessibility Announcements */}
+              <ValidationAnnouncer
+                errors={validationErrors}
+                warnings={validationWarnings}
+                fieldName="Vorlage"
+              />
+              
+              <ScreenReaderOnly>
+                {isSaving && "Vorlage wird gespeichert"}
+                {!isSaving && isTemplateEditorModalDirty && "Vorlage hat ungespeicherte Änderungen"}
+                {variables.length > 0 && `${variables.length} Variablen in der Vorlage verwendet`}
+              </ScreenReaderOnly>
 
               {/* Save Status and Controls */}
               <div className="flex items-center gap-3 text-xs text-muted-foreground">
