@@ -18,6 +18,7 @@ import { useAuth } from "@/components/auth-provider"
 import { TemplateService } from "@/lib/template-service"
 import { templateCacheService } from "@/lib/template-cache"
 import { CategoryFilter } from "@/components/category-filter"
+import { TemplateCard } from "@/components/template-card"
 import type { Template } from "@/types/template"
 import type { 
   TemplateWithMetadata, 
@@ -181,7 +182,26 @@ export function TemplatesManagementModal() {
     })
   }
 
+  // Handle template deletion
+  const handleDeleteTemplate = async (templateId: string): Promise<void> => {
+    if (!user?.id) {
+      throw new Error("Benutzer nicht authentifiziert")
+    }
 
+    try {
+      await templateService.deleteTemplate(templateId)
+      
+      // Update local state immediately for better UX
+      setTemplates(prev => prev.filter(template => template.id !== templateId))
+      
+      // Invalidate cache
+      templateCacheService.invalidateUserCaches(user.id)
+      
+    } catch (error) {
+      console.error('Error deleting template:', error)
+      throw error // Re-throw so the TemplateCard can handle the error display
+    }
+  }
 
   // Invalidate cache when modal reopens
   const handleModalReopen = () => {
@@ -395,7 +415,7 @@ export function TemplatesManagementModal() {
               <TemplatesGrid 
                 templates={filteredTemplates}
                 onEditTemplate={(templateId) => console.log('Edit template:', templateId)}
-                onDeleteTemplate={() => loadTemplates(true)}
+                onDeleteTemplate={handleDeleteTemplate}
               />
             )}
           </div>
@@ -551,7 +571,7 @@ function TemplatesEmptyState({
 interface TemplatesGridProps {
   templates: TemplateWithMetadata[]
   onEditTemplate: (templateId: string) => void
-  onDeleteTemplate: () => void
+  onDeleteTemplate: (templateId: string) => Promise<void>
 }
 
 function TemplatesGrid({ templates, onEditTemplate, onDeleteTemplate }: TemplatesGridProps) {
@@ -598,71 +618,3 @@ function TemplatesGrid({ templates, onEditTemplate, onDeleteTemplate }: Template
   )
 }
 
-// Template card component (placeholder for now)
-interface TemplateCardProps {
-  template: TemplateWithMetadata
-  onEdit: () => void
-  onDelete: () => void
-}
-
-function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('de-DE', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
-  }
-
-  const getContentPreview = (content: object): string => {
-    try {
-      const contentStr = JSON.stringify(content)
-      const textContent = contentStr.replace(/<[^>]*>/g, '').replace(/[{}"\[\]]/g, ' ')
-      return textContent.substring(0, 100) + (textContent.length > 100 ? '...' : '')
-    } catch {
-      return 'Keine Vorschau verfügbar'
-    }
-  }
-
-  return (
-    <div className="group bg-card border rounded-lg p-4 hover:shadow-md transition-shadow duration-200">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-medium truncate text-card-foreground">
-            {template.titel}
-          </h4>
-          <div className="flex items-center gap-2 mt-1">
-            <Badge variant="outline" className="text-xs">
-              {template.kategorie || 'Ohne Kategorie'}
-            </Badge>
-            {template.kontext_anforderungen.length > 0 && (
-              <Badge variant="secondary" className="text-xs" data-testid={`template-${template.id}-variables`}>
-                {template.kontext_anforderungen.length} Variable{template.kontext_anforderungen.length !== 1 ? 'n' : ''}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
-        {getContentPreview(template.inhalt)}
-      </p>
-      
-      <div className="flex items-center justify-between text-xs text-muted-foreground mb-3">
-        <span>Erstellt: {formatDate(template.erstellungsdatum)}</span>
-        {template.aktualisiert_am && (
-          <span>Geändert: {formatDate(template.aktualisiert_am)}</span>
-        )}
-      </div>
-      
-      <Button 
-        variant="outline" 
-        size="sm" 
-        onClick={onEdit}
-        className="w-full"
-      >
-        Bearbeiten
-      </Button>
-    </div>
-  )
-}
