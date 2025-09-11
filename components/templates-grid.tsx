@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/select'
 import { TemplateCard } from '@/components/template-card'
 import { ArrowUpDown, Grid3X3, List, SortAsc, SortDesc } from 'lucide-react'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { Template } from '@/types/template'
 import type { TemplateWithMetadata } from '@/types/template-modal'
 
@@ -43,6 +44,7 @@ export function TemplatesGrid({
 }: TemplatesGridProps) {
   const [sortBy, setSortBy] = useState<SortOption>('title')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+  const isMobile = useIsMobile()
 
   // Sort templates based on selected criteria
   const sortedTemplates = useMemo(() => {
@@ -134,8 +136,12 @@ export function TemplatesGrid({
   }
 
   const gridClasses = viewMode === 'grid' 
-    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'
-    : 'grid grid-cols-1 gap-3'
+    ? `grid gap-4 ${
+        isMobile 
+          ? 'grid-cols-1' 
+          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+      }`
+    : `grid grid-cols-1 ${isMobile ? 'gap-2' : 'gap-3'}`
 
   if (templates.length === 0) {
     return (
@@ -150,13 +156,15 @@ export function TemplatesGrid({
   }
 
   return (
-    <div className="space-y-6">
+    <div className={isMobile ? 'space-y-4' : 'space-y-6'}>
       {/* Sorting and View Controls */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Sortieren nach:</span>
+      <div className={`flex gap-4 items-start justify-between ${
+        isMobile ? 'flex-col' : 'flex-col sm:flex-row sm:items-center'
+      }`}>
+        <div className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}>
+          {!isMobile && <span className="text-sm font-medium text-muted-foreground">Sortieren nach:</span>}
           <Select value={sortBy} onValueChange={(value) => handleSortChange(value as SortOption)}>
-            <SelectTrigger className="w-40">
+            <SelectTrigger className={isMobile ? 'flex-1' : 'w-40'}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -168,9 +176,9 @@ export function TemplatesGrid({
           </Select>
           <Button
             variant="outline"
-            size="sm"
+            size={isMobile ? 'default' : 'sm'}
             onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-            className="px-2"
+            className={isMobile ? 'px-3' : 'px-2'}
           >
             {sortOrder === 'asc' ? (
               <SortAsc className="h-4 w-4" />
@@ -183,7 +191,7 @@ export function TemplatesGrid({
           </Button>
         </div>
 
-        {onViewModeChange && (
+        {onViewModeChange && !isMobile && (
           <div className="flex items-center gap-1 border rounded-md p-1">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
@@ -208,20 +216,20 @@ export function TemplatesGrid({
       </div>
 
       {/* Template Groups */}
-      <div className="space-y-8">
+      <div className={isMobile ? 'space-y-6' : 'space-y-8'}>
         {groupedTemplates.map((group) => (
-          <div key={group.category} className="space-y-4">
+          <div key={group.category} className={isMobile ? 'space-y-3' : 'space-y-4'}>
             {groupByCategory && (
-              <div className="flex items-center justify-between">
+              <div className={`flex items-center justify-between ${isMobile ? 'flex-col items-start gap-2' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <h3 className="text-lg font-semibold text-foreground">
+                  <h3 className={`font-semibold text-foreground ${isMobile ? 'text-base' : 'text-lg'}`}>
                     {group.category}
                   </h3>
                   <Badge variant="secondary" className="text-xs">
                     {group.count} {group.count === 1 ? 'Vorlage' : 'Vorlagen'}
                   </Badge>
                 </div>
-                {group.templates.length > 0 && (
+                {group.templates.length > 0 && !isMobile && (
                   <div className="text-xs text-muted-foreground">
                     Sortiert nach: {getSortLabel(sortBy)} ({sortOrder === 'asc' ? 'A-Z' : 'Z-A'})
                   </div>
@@ -230,7 +238,7 @@ export function TemplatesGrid({
             )}
 
             {group.templates.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className={`text-center text-muted-foreground ${isMobile ? 'py-6' : 'py-8'}`}>
                 <p className="text-sm">Keine Vorlagen in dieser Kategorie</p>
               </div>
             ) : (
@@ -251,8 +259,12 @@ export function TemplatesGrid({
 
       {/* Summary */}
       {groupByCategory && groupedTemplates.length > 1 && (
-        <div className="border-t pt-4 mt-8">
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className={`border-t mt-8 ${isMobile ? 'pt-3' : 'pt-4'}`}>
+          <div className={`text-sm text-muted-foreground ${
+            isMobile 
+              ? 'flex flex-col gap-1' 
+              : 'flex items-center justify-between'
+          }`}>
             <span>
               Gesamt: {templates.length} {templates.length === 1 ? 'Vorlage' : 'Vorlagen'} 
               in {groupedTemplates.length} {groupedTemplates.length === 1 ? 'Kategorie' : 'Kategorien'}

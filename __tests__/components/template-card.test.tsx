@@ -135,7 +135,7 @@ describe('TemplateCard', () => {
       />
     )
 
-    const moreButton = screen.getByRole('button', { name: /aktionen öffnen/i })
+    const moreButton = screen.getByRole('button', { name: /aktionen.*vorlage/i })
     await user.click(moreButton)
 
     expect(screen.getByRole('menuitem', { name: /bearbeiten/i })).toBeInTheDocument()
@@ -153,7 +153,7 @@ describe('TemplateCard', () => {
       />
     )
 
-    const moreButton = screen.getByRole('button', { name: /aktionen öffnen/i })
+    const moreButton = screen.getByRole('button', { name: /aktionen.*vorlage/i })
     await user.click(moreButton)
 
     const editMenuItem = screen.getByRole('menuitem', { name: /bearbeiten/i })
@@ -162,7 +162,7 @@ describe('TemplateCard', () => {
     expect(mockOnEdit).toHaveBeenCalledTimes(1)
   })
 
-  it('should handle delete confirmation and call onDelete', async () => {
+  it('should call onDelete when delete menu item is clicked', async () => {
     const user = userEvent.setup()
     mockOnDelete.mockResolvedValue(undefined)
     
@@ -174,24 +174,21 @@ describe('TemplateCard', () => {
       />
     )
 
-    const moreButton = screen.getByRole('button', { name: /aktionen öffnen/i })
+    const moreButton = screen.getByRole('button', { name: /aktionen.*vorlage/i })
     await user.click(moreButton)
 
     const deleteMenuItem = screen.getByRole('menuitem', { name: /löschen/i })
     await user.click(deleteMenuItem)
-
-    expect(mockConfirm).toHaveBeenCalledWith(
-      'Möchten Sie die Vorlage "Test Template" wirklich löschen?'
-    )
     
     await waitFor(() => {
       expect(mockOnDelete).toHaveBeenCalledWith('test-template-1')
     })
   })
 
-  it('should not call onDelete if user cancels confirmation', async () => {
+  it('should handle delete errors gracefully', async () => {
     const user = userEvent.setup()
-    mockConfirm.mockReturnValue(false)
+    const deleteError = new Error('Delete failed')
+    mockOnDelete.mockRejectedValue(deleteError)
     
     render(
       <TemplateCard
@@ -201,14 +198,18 @@ describe('TemplateCard', () => {
       />
     )
 
-    const moreButton = screen.getByRole('button', { name: /aktionen öffnen/i })
+    const moreButton = screen.getByRole('button', { name: /aktionen.*vorlage/i })
     await user.click(moreButton)
 
     const deleteMenuItem = screen.getByRole('menuitem', { name: /löschen/i })
     await user.click(deleteMenuItem)
 
-    expect(mockConfirm).toHaveBeenCalled()
-    expect(mockOnDelete).not.toHaveBeenCalled()
+    await waitFor(() => {
+      expect(mockOnDelete).toHaveBeenCalledWith('test-template-1')
+    })
+    
+    // Should not crash the component
+    expect(screen.getByText('Test Template')).toBeInTheDocument()
   })
 
 

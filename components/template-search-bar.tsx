@@ -5,6 +5,7 @@ import { Search, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
 
 interface TemplateSearchBarProps {
@@ -26,6 +27,7 @@ export function TemplateSearchBar({
 }: TemplateSearchBarProps) {
   const [localValue, setLocalValue] = useState(value)
   const debouncedValue = useDebounce(localValue, debounceMs)
+  const isMobile = useIsMobile()
 
   // Sanitize search query for security
   const sanitizeQuery = useCallback((query: string): string => {
@@ -121,19 +123,22 @@ export function TemplateSearchBar({
         {/* Search Input */}
         <Input
           data-testid="template-search-input"
-          type="text"
+          type="search"
           placeholder={placeholder}
           value={localValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           className={cn(
             "pl-10 pr-10",
+            isMobile && "text-base", // Prevent zoom on iOS
             searchStatus.hasInvalidChars && "border-destructive focus-visible:ring-destructive"
           )}
           aria-label="Vorlagen suchen"
           aria-describedby="search-help"
           autoComplete="off"
           spellCheck="false"
+          inputMode="search"
+          enterKeyHint="search"
         />
         
         {/* Clear Button */}
@@ -142,7 +147,9 @@ export function TemplateSearchBar({
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted"
+            className={`absolute right-1 top-1/2 transform -translate-y-1/2 p-0 hover:bg-muted touch-manipulation ${
+              isMobile ? 'h-7 w-7' : 'h-6 w-6'
+            }`}
             onClick={handleClear}
             aria-label="Suche löschen"
             tabIndex={0}

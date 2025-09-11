@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { useModalStore } from "@/hooks/use-modal-store"
 import { useAuth } from "@/components/auth-provider"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useMobileAccessibility } from "@/hooks/use-mobile-accessibility"
 import { TemplateClientService } from "@/lib/template-client-service"
 import { templateCacheService } from "@/lib/template-cache"
 import { optimizedTemplateLoader } from "@/lib/template-performance-optimizer"
@@ -44,6 +46,12 @@ export function TemplatesManagementModal() {
   
   const { user } = useAuth()
   const { toast } = useToast()
+  const isMobile = useIsMobile()
+  const { announceToScreenReader } = useMobileAccessibility({
+    enableTouchFeedback: true,
+    enableLargerTouchTargets: true,
+    announceStateChanges: true
+  })
 
   // Accessibility refs and hooks
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -111,6 +119,9 @@ export function TemplatesManagementModal() {
       
       // Announce modal opening
       announce("Vorlagen-Modal geöffnet", "polite")
+      if (isMobile) {
+        announceToScreenReader("Vorlagen-Modal geöffnet. Wischen Sie nach links oder rechts, um zwischen Vorlagen zu navigieren.", "polite")
+      }
     }
   }, [isTemplatesManagementModalOpen, user?.id, announce])
 
@@ -455,7 +466,14 @@ export function TemplatesManagementModal() {
       >
         <DialogContent 
           ref={focusTrapRef}
-          className={`max-w-[90vw] max-h-[90vh] w-full h-full p-0 gap-0 overflow-hidden focus:outline-none ${isHighContrast ? 'high-contrast-modal' : ''}`}
+          className={`
+            ${isMobile 
+              ? 'max-w-full max-h-full w-full h-full inset-0 rounded-none border-0' 
+              : 'max-w-[90vw] max-h-[90vh] w-full h-full rounded-lg'
+            } 
+            p-0 gap-0 overflow-hidden focus:outline-none 
+            ${isHighContrast ? 'high-contrast-modal' : ''}
+          `}
           role="dialog"
           aria-modal="true"
           aria-labelledby="templates-modal-title"
@@ -484,26 +502,29 @@ export function TemplatesManagementModal() {
           </DialogDescription>
           
           {/* Header */}
-          <header className="flex items-center justify-between p-4 sm:p-6 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="flex items-center gap-3">
+          <header className={`
+            flex items-center justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60
+            ${isMobile ? 'p-3 min-h-[56px]' : 'p-4 sm:p-6'}
+          `}>
+            <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <DialogTitle 
                 id="templates-modal-title"
-                className="text-xl sm:text-2xl font-semibold text-foreground"
+                className={`font-semibold text-foreground truncate ${isMobile ? 'text-lg' : 'text-xl sm:text-2xl'}`}
               >
-                Vorlagen verwalten
+                {isMobile ? 'Vorlagen' : 'Vorlagen verwalten'}
               </DialogTitle>
-              {templates.length > 0 && (
+              {templates.length > 0 && !isMobile && (
                 <Badge 
                   variant="secondary" 
-                  className="text-xs"
+                  className="text-xs shrink-0"
                   aria-label={`${filteredTemplates.length} von ${templates.length} Vorlagen werden angezeigt`}
                 >
                   {filteredTemplates.length} von {templates.length}
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2" role="toolbar" aria-label="Modal-Aktionen">
-              {loadingState.lastLoadTime && (
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0" role="toolbar" aria-label="Modal-Aktionen">
+              {loadingState.lastLoadTime && !isMobile && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -523,7 +544,7 @@ export function TemplatesManagementModal() {
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="h-8 w-8 sm:h-10 sm:w-10 rounded-full hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  className={`rounded-full hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isMobile ? 'h-9 w-9' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
                   aria-label="Modal schließen"
                   title="Modal schließen (Escape)"
                 >
@@ -542,10 +563,10 @@ export function TemplatesManagementModal() {
             }}
           >
             <section 
-              className="p-4 sm:p-6 border-b bg-muted/30 backdrop-blur"
+              className={`border-b bg-muted/30 backdrop-blur ${isMobile ? 'p-3' : 'p-4 sm:p-6'}`}
               aria-label="Suche und Filter"
             >
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4" role="search">
+              <div className={`flex gap-3 ${isMobile ? 'flex-col' : 'flex-col sm:flex-row sm:gap-4'}`} role="search">
                 {/* Search Input */}
                 <div className="flex-1 relative">
                   <label htmlFor="template-search-input" className="sr-only">
@@ -560,13 +581,14 @@ export function TemplatesManagementModal() {
                     id="template-search-input"
                     data-testid="template-search-input"
                     type="search"
-                    placeholder="Vorlagen durchsuchen..."
+                    placeholder={isMobile ? "Suchen..." : "Vorlagen durchsuchen..."}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10 pr-10 h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    className={`pl-10 pr-10 bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isMobile ? 'h-11 text-base' : 'h-10'}`}
                     aria-describedby="search-help-text search-results-count"
                     autoComplete="off"
                     spellCheck="false"
+                    inputMode="search"
                   />
                   <div id="search-help-text" className="sr-only">
                     Geben Sie Suchbegriffe ein, um Vorlagen nach Titel, Kategorie oder Inhalt zu filtern
@@ -575,7 +597,7 @@ export function TemplatesManagementModal() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0 hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                      className={`absolute right-1 top-1/2 transform -translate-y-1/2 p-0 hover:bg-muted focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isMobile ? 'h-7 w-7' : 'h-6 w-6'}`}
                       onClick={clearSearch}
                       aria-label={`Suche "${searchQuery}" löschen`}
                       title="Suche löschen"
@@ -585,27 +607,36 @@ export function TemplatesManagementModal() {
                   )}
                 </div>
                 
-                {/* Category Filter */}
-                <div className="w-full sm:w-64">
-                  <CategoryFilter
-                    templates={templates}
-                    selectedCategory={selectedCategory}
-                    onCategoryChange={handleCategoryChange}
-                    className="h-10 bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                    placeholder="Kategorie wählen"
-                  />
+                {/* Mobile: Category Filter and Create Button in same row */}
+                <div className={`flex gap-3 ${isMobile ? 'flex-row' : 'w-full sm:w-64'}`}>
+                  {/* Category Filter */}
+                  <div className={isMobile ? 'flex-1' : 'w-full'}>
+                    <CategoryFilter
+                      templates={templates}
+                      selectedCategory={selectedCategory}
+                      onCategoryChange={handleCategoryChange}
+                      className={`bg-background/50 border-border/50 focus:bg-background focus:border-border focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isMobile ? 'h-11' : 'h-10'}`}
+                      placeholder={isMobile ? "Kategorie" : "Kategorie wählen"}
+                    />
+                  </div>
+                  
+                  {/* Create Button */}
+                  <Button 
+                    onClick={handleCreateTemplate}
+                    className={`bg-primary hover:bg-primary/90 text-primary-foreground focus:ring-2 focus:ring-primary focus:ring-offset-2 ${isMobile ? 'h-11 px-4 shrink-0' : 'w-full sm:w-auto h-10 px-4'}`}
+                    aria-label="Neue Vorlage erstellen"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    {isMobile ? (
+                      <span className="sr-only">Neue Vorlage erstellen</span>
+                    ) : (
+                      <>
+                        <span className="ml-2 hidden sm:inline">Neue Vorlage</span>
+                        <span className="ml-2 sm:hidden">Erstellen</span>
+                      </>
+                    )}
+                  </Button>
                 </div>
-                
-                {/* Create Button */}
-                <Button 
-                  onClick={handleCreateTemplate}
-                  className="w-full sm:w-auto h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                  aria-label="Neue Vorlage erstellen"
-                >
-                  <Plus className="mr-2 h-4 w-4" aria-hidden="true" />
-                  <span className="hidden sm:inline">Neue Vorlage</span>
-                  <span className="sm:hidden">Erstellen</span>
-                </Button>
               </div>
               
               {/* Search Results Count - Live Region */}
@@ -636,7 +667,7 @@ export function TemplatesManagementModal() {
             onRetry={() => loadTemplates(true)}
           >
             <main 
-              className="flex-1 overflow-auto p-4 sm:p-6 focus:outline-none" 
+              className={`flex-1 overflow-auto focus:outline-none ${isMobile ? 'p-3' : 'p-4 sm:p-6'}`}
               tabIndex={-1}
               aria-label="Vorlagen-Inhalt"
               role="main"

@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/hooks/use-toast'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { TemplateOperationLoading } from '@/components/templates-loading-skeleton'
 import type { Template } from '@/types/template'
 import type { TemplateWithMetadata } from '@/types/template-modal'
@@ -26,6 +27,7 @@ interface TemplateCardProps {
 export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
   const [isDeleting, setIsDeleting] = useState(false)
   const { toast } = useToast()
+  const isMobile = useIsMobile()
 
   const handleDelete = async () => {
     setIsDeleting(true)
@@ -162,24 +164,28 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
 
   return (
     <Card 
-      className="group hover:shadow-md transition-all duration-200 hover:border-primary/20 animate-in fade-in duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2"
+      className={`group transition-all duration-200 animate-in fade-in duration-300 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 ${
+        isMobile 
+          ? 'hover:bg-accent/50 active:bg-accent/70 touch-manipulation' 
+          : 'hover:shadow-md hover:border-primary/20'
+      }`}
       role="article"
       aria-labelledby={`template-title-${template.id}`}
       aria-describedby={`template-description-${template.id}`}
     >
-      <CardHeader className="pb-3">
+      <CardHeader className={isMobile ? 'pb-2 px-4 pt-4' : 'pb-3'}>
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <CardTitle 
               id={`template-title-${template.id}`}
-              className="text-base font-medium truncate text-card-foreground"
+              className={`font-medium truncate text-card-foreground ${isMobile ? 'text-base leading-tight' : 'text-base'}`}
             >
               {template.titel}
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2" role="group" aria-label="Vorlage-Eigenschaften">
+            <div className={`flex items-center gap-2 ${isMobile ? 'mt-1.5' : 'mt-2'}`} role="group" aria-label="Vorlage-Eigenschaften">
               <Badge 
                 variant="outline" 
-                className="text-xs"
+                className={isMobile ? 'text-xs px-2 py-0.5' : 'text-xs'}
                 aria-label={`Kategorie: ${getCategoryDisplayName()}`}
               >
                 {getCategoryDisplayName()}
@@ -187,7 +193,7 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
               {getVariableCount() > 0 && (
                 <Badge 
                   variant="secondary" 
-                  className="text-xs"
+                  className={isMobile ? 'text-xs px-2 py-0.5' : 'text-xs'}
                   aria-label={`${getVariableCount()} ${getVariableCount() === 1 ? 'Variable' : 'Variablen'}`}
                 >
                   <Hash className="w-3 h-3 mr-1" aria-hidden="true" />
@@ -201,19 +207,27 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity h-8 w-8 p-0 focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                className={`transition-opacity focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+                  isMobile 
+                    ? 'opacity-100 h-9 w-9 p-0' 
+                    : 'opacity-0 group-hover:opacity-100 focus:opacity-100 h-8 w-8 p-0'
+                }`}
                 disabled={isDeleting}
                 aria-label={`Aktionen für Vorlage ${template.titel}`}
-                tabIndex={-1}
+                tabIndex={isMobile ? 0 : -1}
               >
                 <MoreVertical className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" aria-label="Vorlage-Aktionen">
+            <DropdownMenuContent 
+              align="end" 
+              aria-label="Vorlage-Aktionen"
+              className={isMobile ? 'min-w-[160px]' : ''}
+            >
               <DropdownMenuItem 
                 onClick={onEdit} 
                 disabled={isDeleting}
-                className="focus:bg-accent focus:text-accent-foreground"
+                className={`focus:bg-accent focus:text-accent-foreground ${isMobile ? 'py-3 text-base' : ''}`}
               >
                 <Edit className="mr-2 h-4 w-4" aria-hidden="true" />
                 Bearbeiten
@@ -222,7 +236,7 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
               <DropdownMenuItem 
                 onClick={handleDelete} 
                 disabled={isDeleting}
-                className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                className={`text-destructive focus:text-destructive focus:bg-destructive/10 ${isMobile ? 'py-3 text-base' : ''}`}
                 aria-describedby={`delete-warning-${template.id}`}
               >
                 <Trash2 className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -236,31 +250,37 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
         </div>
       </CardHeader>
       
-      <CardContent className="pt-0">
+      <CardContent className={isMobile ? 'pt-0 px-4' : 'pt-0'}>
         <p 
           id={`template-description-${template.id}`}
-          className="text-sm text-muted-foreground line-clamp-3 mb-4 leading-relaxed"
+          className={`text-muted-foreground leading-relaxed ${
+            isMobile 
+              ? 'text-sm line-clamp-2 mb-3' 
+              : 'text-sm line-clamp-3 mb-4'
+          }`}
           aria-label="Vorlage-Vorschau"
         >
           {getContentPreview(template.inhalt)}
         </p>
         
-        <div className="space-y-2" role="group" aria-label="Vorlage-Metadaten">
+        <div className={`${isMobile ? 'space-y-1' : 'space-y-2'}`} role="group" aria-label="Vorlage-Metadaten">
           <div className="flex items-center text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3 mr-1.5" aria-hidden="true" />
+            <Calendar className="w-3 h-3 mr-1.5 shrink-0" aria-hidden="true" />
             <time 
               dateTime={template.erstellungsdatum}
               aria-label={`Erstellt am ${formatDate(template.erstellungsdatum)}`}
+              className="truncate"
             >
               Erstellt: {formatDate(template.erstellungsdatum)}
             </time>
           </div>
           {template.aktualisiert_am && (
             <div className="flex items-center text-xs text-muted-foreground">
-              <Calendar className="w-3 h-3 mr-1.5" aria-hidden="true" />
+              <Calendar className="w-3 h-3 mr-1.5 shrink-0" aria-hidden="true" />
               <time 
                 dateTime={template.aktualisiert_am}
                 aria-label={`Zuletzt geändert am ${formatDate(template.aktualisiert_am)}`}
+                className="truncate"
               >
                 Geändert: {formatDate(template.aktualisiert_am)}
               </time>
@@ -269,13 +289,17 @@ export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) 
         </div>
       </CardContent>
       
-      <CardFooter className="pt-0">
+      <CardFooter className={isMobile ? 'pt-0 px-4 pb-4' : 'pt-0'}>
         <Button 
           variant="outline" 
-          size="sm" 
+          size={isMobile ? 'default' : 'sm'}
           onClick={onEdit}
           disabled={isDeleting}
-          className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2"
+          className={`w-full transition-colors focus:ring-2 focus:ring-primary focus:ring-offset-2 ${
+            isMobile 
+              ? 'h-11 text-base touch-manipulation active:scale-95' 
+              : 'group-hover:bg-primary group-hover:text-primary-foreground'
+          }`}
           aria-label={`Vorlage "${template.titel}" bearbeiten`}
         >
           <Edit className="mr-2 h-4 w-4" aria-hidden="true" />

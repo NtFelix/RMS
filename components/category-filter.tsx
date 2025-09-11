@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { useIsMobile } from "@/hooks/use-mobile"
 import type { TemplateWithMetadata, CategoryStats } from "@/types/template-modal"
 
 interface CategoryFilterProps {
@@ -25,6 +26,8 @@ export function CategoryFilter({
   className,
   placeholder = "Kategorie wählen"
 }: CategoryFilterProps) {
+  const isMobile = useIsMobile()
+  
   // Calculate category statistics from templates
   const categories = useMemo(() => {
     const categoryCount = templates.reduce((acc, template) => {
@@ -66,14 +69,16 @@ export function CategoryFilter({
         <SelectContent 
           role="listbox"
           aria-label="Verfügbare Kategorien"
+          className={isMobile ? 'max-h-[60vh]' : ''}
         >
           {/* "All Categories" option */}
           <SelectItem 
             value="all"
             aria-label={`Alle Kategorien anzeigen, ${totalCount} Vorlagen insgesamt`}
+            className={isMobile ? 'py-3 text-base' : ''}
           >
             <div className="flex items-center justify-between w-full">
-              <span>Alle Kategorien</span>
+              <span>{isMobile ? 'Alle' : 'Alle Kategorien'}</span>
               <span className="ml-2 text-muted-foreground" aria-hidden="true">({totalCount})</span>
             </div>
           </SelectItem>
@@ -85,15 +90,21 @@ export function CategoryFilter({
                 key={category.name} 
                 value={category.name}
                 aria-label={`Kategorie ${category.name}, ${category.count} ${category.count === 1 ? 'Vorlage' : 'Vorlagen'}`}
+                className={isMobile ? 'py-3 text-base' : ''}
               >
                 <div className="flex items-center justify-between w-full">
-                  <span>{category.name}</span>
-                  <span className="ml-2 text-muted-foreground" aria-hidden="true">({category.count})</span>
+                  <span className={isMobile ? 'truncate' : ''}>{category.name}</span>
+                  <span className="ml-2 text-muted-foreground shrink-0" aria-hidden="true">({category.count})</span>
                 </div>
               </SelectItem>
             ))
           ) : (
-            <SelectItem value="no-categories" disabled aria-label="Keine Kategorien verfügbar">
+            <SelectItem 
+              value="no-categories" 
+              disabled 
+              aria-label="Keine Kategorien verfügbar"
+              className={isMobile ? 'py-3 text-base' : ''}
+            >
               <span className="text-muted-foreground">Keine Kategorien verfügbar</span>
             </SelectItem>
           )}

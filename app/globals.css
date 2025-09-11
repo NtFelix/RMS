@@ -407,3 +407,121 @@
     scrollbar-color: transparent transparent;
   }
 }
+/* Mobile-specific styles for templates modal */
+@media (max-width: 768px) {
+  /* Touch-friendly interactions */
+  .mobile-touch-targets button,
+  .mobile-touch-targets [role="button"],
+  .mobile-touch-targets a,
+  .mobile-touch-targets [tabindex] {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+
+  /* Prevent zoom on input focus (iOS) */
+  input[type="search"],
+  input[type="text"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  /* Modal adjustments for mobile */
+  [data-radix-dialog-content] {
+    margin: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+
+  /* Improve touch scrolling */
+  .overflow-auto {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  /* Better tap highlights */
+  button, [role="button"], a {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    -webkit-touch-callout: none;
+  }
+
+  /* Keyboard adjustments */
+  .keyboard-open {
+    height: calc(100vh - var(--keyboard-height, 0px));
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    .reduced-motion * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Always show mobile controls on touch devices */
+  @media (hover: none) and (pointer: coarse) {
+    .group:hover .group-hover\:opacity-100,
+    .opacity-0.group-hover\:opacity-100 {
+      opacity: 1 !important;
+    }
+    
+    .hover\:shadow-md:hover {
+      box-shadow: none;
+    }
+
+    /* Make cards more touch-friendly */
+    .group {
+      background-color: hsl(var(--card));
+      border: 1px solid hsl(var(--border));
+    }
+
+    .group:active {
+      background-color: hsl(var(--accent) / 0.5);
+      transform: scale(0.98);
+    }
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .high-contrast-modal {
+    border: 2px solid hsl(var(--foreground));
+    background: hsl(var(--background));
+  }
+
+  .high-contrast-modal button {
+    border: 1px solid hsl(var(--foreground));
+  }
+}
+
+/* Focus improvements for mobile */
+@media (max-width: 768px) {
+  *:focus-visible {
+    outline: 2px solid hsl(var(--primary));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Larger focus targets */
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    outline: 3px solid hsl(var(--primary));
+    outline-offset: 3px;
+  }
+}
+
+/* Safe area adjustments for mobile devices with notches */
+@supports (padding: max(0px)) {
+  @media (max-width: 768px) {
+    .mobile-safe-area {
+      padding-left: max(1rem, env(safe-area-inset-left));
+      padding-right: max(1rem, env(safe-area-inset-right));
+      padding-top: max(1rem, env(safe-area-inset-top));
+      padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+  }
+}
