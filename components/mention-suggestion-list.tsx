@@ -1,9 +1,10 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useState, useCallback, useMemo, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
 import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
+import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
 import { cn } from '@/lib/utils';
 import { 
   User, 
@@ -42,8 +43,6 @@ export const MentionSuggestionList = forwardRef<
   MentionSuggestionListRef,
   MentionSuggestionListProps
 >(({ items, command, editor, range, query }, ref) => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
   // Group and order items by category
   const { groupedItems, orderedCategories, flatItems } = useMemo(() => {
     const grouped = groupMentionVariablesByCategory(items);
@@ -57,43 +56,28 @@ export const MentionSuggestionList = forwardRef<
     };
   }, [items]);
 
-  // Keyboard navigation methods
-  const selectNext = useCallback(() => {
-    setSelectedIndex((prev) => (prev + 1) % flatItems.length);
-  }, [flatItems.length]);
-
-  const selectPrevious = useCallback(() => {
-    setSelectedIndex((prev) => (prev - 1 + flatItems.length) % flatItems.length);
-  }, [flatItems.length]);
-
-  const selectCurrentItem = useCallback(() => {
-    if (flatItems[selectedIndex]) {
-      command(flatItems[selectedIndex]);
+  // Handle item selection
+  const handleSelect = useCallback((index: number) => {
+    if (flatItems[index]) {
+      command(flatItems[index]);
     }
-  }, [flatItems, selectedIndex, command]);
+  }, [flatItems, command]);
 
-  // Handle keyboard events
+  // Use keyboard navigation hook
+  const {
+    selectedIndex,
+    setSelectedIndex,
+    handleKeyDown,
+  } = useKeyboardNavigation({
+    itemCount: flatItems.length,
+    onSelect: handleSelect,
+    initialIndex: 0,
+  });
+
+  // Handle keyboard events for TipTap integration
   const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
-    if (event.key === 'ArrowUp') {
-      event.preventDefault();
-      selectPrevious();
-      return true;
-    }
-
-    if (event.key === 'ArrowDown') {
-      event.preventDefault();
-      selectNext();
-      return true;
-    }
-
-    if (event.key === 'Enter' || event.key === 'Tab') {
-      event.preventDefault();
-      selectCurrentItem();
-      return true;
-    }
-
-    return false;
-  }, [selectNext, selectPrevious, selectCurrentItem]);
+    return handleKeyDown(event);
+  }, [handleKeyDown]);
 
   // Expose keyboard navigation methods via ref
   useImperativeHandle(ref, () => ({
@@ -104,11 +88,6 @@ export const MentionSuggestionList = forwardRef<
   const handleItemClick = useCallback((item: MentionVariable) => {
     command(item);
   }, [command]);
-
-  // Reset selected index when items change
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [items]);
 
   // Get the currently selected item for ARIA
   const selectedItem = flatItems[selectedIndex];
@@ -123,18 +102,21 @@ export const MentionSuggestionList = forwardRef<
       className={cn(
         'bg-background border border-border rounded-md shadow-lg',
         'w-full max-w-sm max-h-80 overflow-y-auto',
-        'py-1'
+        'py-1 focus:outline-none'
       )}
       role="listbox"
       aria-label="Variable suggestions"
       aria-expanded="true"
       aria-activedescendant={selectedItem ? `suggestion-${selectedItem.id}` : undefined}
+      aria-multiselectable="false"
+      tabIndex={-1}
     >
       {items.length === 0 ? (
         <div
           className="px-3 py-2 text-sm text-muted-foreground"
           role="option"
           aria-selected="false"
+          aria-disabled="true"
         >
           No matches found
         </div>
@@ -182,15 +164,24 @@ export const MentionSuggestionList = forwardRef<
                       'text-sm ml-2', // Indent items under category
                       // Mobile-friendly touch targets
                       'min-h-[44px] sm:min-h-0 flex flex-col justify-center',
-                      isSelected && 'bg-accent text-accent-foreground'
+                      'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                      isSelected && 'bg-accent text-accent-foreground ring-2 ring-ring'
                     )}
                     role="option"
                     aria-selected={isSelected}
+                    aria-describedby={`suggestion-${item.id}-description`}
+                    tabIndex={isSelected ? 0 : -1}
                     onClick={() => handleItemClick(item)}
                     onMouseEnter={() => setSelectedIndex(flatIndex)}
                   >
-                    <div className="font-medium">{item.label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                    <div className="font-medium" aria-label={`Variable: ${item.label}`}>
+                      {item.label}
+                    </div>
+                    <div 
+                      id={`suggestion-${item.id}-description`}
+                      className="text-xs text-muted-foreground mt-0.5 line-clamp-1"
+                      aria-label={`Description: ${item.description}`}
+                    >
                       {item.description}
                     </div>
                   </div>
