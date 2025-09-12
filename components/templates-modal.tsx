@@ -459,11 +459,11 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
           </DialogHeader>
 
           <div className="flex-1 overflow-hidden flex flex-col" ref={containerRef}>
-            {/* Filters and Actions */}
-            <div className="flex-shrink-0 space-y-4 pb-4 sm:pb-6 border-b">
-              <div className="flex flex-col gap-4">
-                {/* Search - Full width on mobile */}
-                <div className="relative">
+            {/* Search, Filter and Actions Row */}
+            <div className="flex-shrink-0 pb-4 sm:pb-6 border-b">
+              <div className="flex items-center gap-3 sm:gap-4">
+                {/* Search Bar - Left */}
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Input
                     data-search-input
@@ -479,62 +479,59 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                   </div>
                 </div>
 
-                {/* Filter and Create Button Row */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                  {/* Category Filter */}
-                  <div className="flex items-center gap-2 flex-1 sm:max-w-[250px]">
-                    <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
-                    <Select 
-                      value={selectedCategory || 'all'} 
-                      onValueChange={(value) => {
-                        setSelectedCategory(value);
-                        announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
-                      }}
-                    >
-                      <SelectTrigger 
-                        className="w-full"
-                        aria-label={ARIA_LABELS.categoryFilter}
-                        aria-expanded={false}
-                      >
-                        <SelectValue placeholder="Alle Kategorien" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Alle Kategorien</SelectItem>
-                        {availableCategories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Create Button */}
-                  <Button 
-                    data-create-template-button
-                    onClick={handleCreateTemplate} 
-                    className="flex-shrink-0 w-full sm:w-auto sm:min-w-[140px]"
-                    disabled={isCreating || loading}
-                    aria-label={ARIA_LABELS.createTemplateButton}
-                    aria-describedby={`${modalId}-create-help`}
+                {/* Category Filter - Center */}
+                <div className="flex items-center gap-2 min-w-[200px] sm:min-w-[250px]">
+                  <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                  <Select 
+                    value={selectedCategory || 'all'} 
+                    onValueChange={(value) => {
+                      setSelectedCategory(value);
+                      announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
+                    }}
                   >
-                    {isCreating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
-                        <span className="hidden sm:inline">Erstellt...</span>
-                        <span className="sm:hidden">Wird erstellt...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
-                        <span className="hidden sm:inline">Neue Vorlage</span>
-                        <span className="sm:hidden">Vorlage erstellen</span>
-                      </>
-                    )}
-                  </Button>
-                  <div id={`${modalId}-create-help`} className="sr-only">
-                    Erstellt eine neue Dokumentvorlage mit dem Rich-Text-Editor
-                  </div>
+                    <SelectTrigger 
+                      className="w-full"
+                      aria-label={ARIA_LABELS.categoryFilter}
+                      aria-expanded={false}
+                    >
+                      <SelectValue placeholder="Alle Kategorien" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle Kategorien</SelectItem>
+                      {availableCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Create Button - Right */}
+                <Button 
+                  data-create-template-button
+                  onClick={handleCreateTemplate} 
+                  className="flex-shrink-0 min-w-[140px]"
+                  disabled={isCreating || loading}
+                  aria-label={ARIA_LABELS.createTemplateButton}
+                  aria-describedby={`${modalId}-create-help`}
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                      <span className="hidden sm:inline">Erstellt...</span>
+                      <span className="sm:hidden">Wird erstellt...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
+                      <span className="hidden sm:inline">Neue Vorlage</span>
+                      <span className="sm:hidden">Neu</span>
+                    </>
+                  )}
+                </Button>
+                <div id={`${modalId}-create-help`} className="sr-only">
+                  Erstellt eine neue Dokumentvorlage mit dem Rich-Text-Editor
                 </div>
               </div>
 
