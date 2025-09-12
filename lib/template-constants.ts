@@ -11,6 +11,53 @@ export const TEMPLATE_CATEGORIES = [
 
 export type TemplateCategory = typeof TEMPLATE_CATEGORIES[number];
 
+// Category configuration for visual grouping
+export interface CategoryConfig {
+  id: string;
+  label: string;
+  icon: string;
+  color: string;
+  order: number;
+}
+
+export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
+  mieter: {
+    id: 'mieter',
+    label: 'Mieter',
+    icon: 'User',
+    color: 'text-blue-600',
+    order: 1,
+  },
+  wohnung: {
+    id: 'wohnung',
+    label: 'Wohnung',
+    icon: 'Home',
+    color: 'text-green-600',
+    order: 2,
+  },
+  haus: {
+    id: 'haus',
+    label: 'Haus',
+    icon: 'Building',
+    color: 'text-purple-600',
+    order: 3,
+  },
+  datum: {
+    id: 'datum',
+    label: 'Datum',
+    icon: 'Calendar',
+    color: 'text-orange-600',
+    order: 4,
+  },
+  vermieter: {
+    id: 'vermieter',
+    label: 'Vermieter',
+    icon: 'UserCheck',
+    color: 'text-indigo-600',
+    order: 5,
+  },
+};
+
 // Mention variables for TipTap editor
 export interface MentionVariable {
   id: string;
@@ -166,4 +213,14 @@ export const getMentionVariablesByCategory = (category?: string) => {
 // Helper function to find variable by ID
 export const getMentionVariableById = (id: string) => {
   return MENTION_VARIABLES.find(variable => variable.id === id);
+};
+
+// Helper function to get category config by ID
+export const getCategoryConfig = (categoryId: string): CategoryConfig | undefined => {
+  return CATEGORY_CONFIGS[categoryId];
+};
+
+// Helper function to get sorted categories
+export const getSortedCategories = (): CategoryConfig[] => {
+  return Object.values(CATEGORY_CONFIGS).sort((a, b) => a.order - b.order);
 };

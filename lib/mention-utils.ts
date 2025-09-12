@@ -1,4 +1,4 @@
-import { MentionVariable } from './template-constants';
+import { MentionVariable, CATEGORY_CONFIGS, CategoryConfig } from './template-constants';
 
 /**
  * Filter mention variables based on search query
@@ -103,21 +103,50 @@ export function filterMentionVariables(
 }
 
 /**
- * Group mention variables by category
+ * Group mention variables by category with proper ordering
  * @param variables - Array of mention variables to group
- * @returns Object with category keys and variable arrays as values
+ * @returns Object with category keys and variable arrays as values, ordered by category order
  */
 export function groupMentionVariablesByCategory(
   variables: MentionVariable[]
 ): Record<string, MentionVariable[]> {
-  return variables.reduce((groups, variable) => {
+  const groups = variables.reduce((acc, variable) => {
     const category = variable.category || 'uncategorized';
-    if (!groups[category]) {
-      groups[category] = [];
+    if (!acc[category]) {
+      acc[category] = [];
     }
-    groups[category].push(variable);
-    return groups;
+    acc[category].push(variable);
+    return acc;
   }, {} as Record<string, MentionVariable[]>);
+
+  // Sort variables within each category alphabetically by label
+  Object.keys(groups).forEach(category => {
+    groups[category].sort((a, b) => a.label.localeCompare(b.label));
+  });
+
+  return groups;
+}
+
+/**
+ * Get ordered categories based on CATEGORY_CONFIGS order
+ * @param groupedVariables - Grouped variables object
+ * @returns Array of category IDs in proper order
+ */
+export function getOrderedCategories(groupedVariables: Record<string, MentionVariable[]>): string[] {
+  const availableCategories = Object.keys(groupedVariables);
+  
+  // Get categories in order from CATEGORY_CONFIGS
+  const orderedCategories = Object.values(CATEGORY_CONFIGS)
+    .sort((a, b) => a.order - b.order)
+    .map(config => config.id)
+    .filter(categoryId => availableCategories.includes(categoryId));
+  
+  // Add any uncategorized items at the end
+  const uncategorized = availableCategories.filter(
+    category => !Object.keys(CATEGORY_CONFIGS).includes(category)
+  );
+  
+  return [...orderedCategories, ...uncategorized];
 }
 
 /**
@@ -148,12 +177,12 @@ export function searchMentionVariables(
 ) {
   const filteredVariables = filterMentionVariables(variables, query, options);
   const groupedVariables = groupMentionVariablesByCategory(filteredVariables);
-  const categories = getUniqueCategories(filteredVariables);
+  const orderedCategories = getOrderedCategories(groupedVariables);
   
   return {
     variables: filteredVariables,
     grouped: groupedVariables,
-    categories,
+    categories: orderedCategories,
     total: filteredVariables.length
   };
 }
