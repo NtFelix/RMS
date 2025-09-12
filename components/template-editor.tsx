@@ -19,114 +19,9 @@ import {
   Redo,
   Type
 } from 'lucide-react';
-import tippy, { Instance as TippyInstance } from 'tippy.js';
 
-// Mention dropdown component
-class MentionList {
-  items: any[];
-  command: any;
-  element: HTMLDivElement;
-  selectedIndex: number = 0;
 
-  constructor({ items, command }: any) {
-    this.items = items;
-    this.command = command;
-    this.selectedIndex = 0;
-    this.element = this.createElement();
-  }
 
-  createElement() {
-    const element = document.createElement('div');
-    element.className = 'bg-popover border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto z-50';
-    element.setAttribute('role', 'listbox');
-    element.setAttribute('aria-label', ARIA_LABELS.mentionDropdown);
-    this.render();
-    return element;
-  }
-
-  render() {
-    if (this.items.length === 0) {
-      this.element.innerHTML = '<div class="px-3 py-2 text-sm text-muted-foreground" role="status">Keine Variablen gefunden</div>';
-      return;
-    }
-
-    this.element.innerHTML = this.items
-      .map((item, index) => `
-        <button
-          class="w-full px-3 py-2 text-left hover:bg-muted focus:bg-muted focus:outline-none border-none cursor-pointer transition-colors ${
-            index === this.selectedIndex ? 'bg-muted' : ''
-          }"
-          data-index="${index}"
-          data-mention-option
-          role="option"
-          aria-selected="${index === this.selectedIndex}"
-          aria-label="${ARIA_LABELS.mentionVariable(item.label)}"
-        >
-          <div class="font-medium text-sm">${item.label}</div>
-          <div class="text-xs text-muted-foreground">${item.description}</div>
-        </button>
-      `)
-      .join('');
-
-    // Add click listeners
-    this.element.querySelectorAll('button').forEach((button, index) => {
-      button.addEventListener('click', () => {
-        this.selectItem(index);
-      });
-    });
-  }
-
-  updateProps({ items, command }: any) {
-    this.items = items;
-    this.command = command;
-    this.selectedIndex = 0;
-    this.render();
-  }
-
-  onKeyDown({ event }: any) {
-    if (event.key === 'ArrowUp') {
-      this.upHandler();
-      return true;
-    }
-
-    if (event.key === 'ArrowDown') {
-      this.downHandler();
-      return true;
-    }
-
-    if (event.key === 'Enter') {
-      this.enterHandler();
-      return true;
-    }
-
-    return false;
-  }
-
-  upHandler() {
-    this.selectedIndex = ((this.selectedIndex + this.items.length) - 1) % this.items.length;
-    this.render();
-  }
-
-  downHandler() {
-    this.selectedIndex = (this.selectedIndex + 1) % this.items.length;
-    this.render();
-  }
-
-  enterHandler() {
-    this.selectItem(this.selectedIndex);
-  }
-
-  selectItem(index: number) {
-    const item = this.items[index];
-    if (item) {
-      this.command({ id: item.id, label: item.label });
-    }
-  }
-
-  destroy() {
-    // Cleanup if needed
-  }
-}
 
 export function TemplateEditor({ 
   content, 
@@ -158,68 +53,8 @@ export function TemplateEditor({
         HTMLAttributes: {
           class: 'mention-variable bg-primary/10 text-primary px-1 py-0.5 rounded font-medium',
         },
-        suggestion: {
-          items: ({ query }: { query: string }) => {
-            return MENTION_VARIABLES
-              .filter(item =>
-                item.label.toLowerCase().includes(query.toLowerCase()) ||
-                item.description.toLowerCase().includes(query.toLowerCase())
-              )
-              .slice(0, 10);
-          },
-          render: () => {
-            let component: MentionList;
-            let popup: TippyInstance | null = null;
-
-            return {
-              onStart: (props: any) => {
-                component = new MentionList(props);
-
-                if (!props.clientRect) {
-                  return;
-                }
-
-                const instances = tippy('body', {
-                  getReferenceClientRect: props.clientRect,
-                  appendTo: () => document.body,
-                  content: component.element,
-                  showOnCreate: true,
-                  interactive: true,
-                  trigger: 'manual',
-                  placement: 'bottom-start',
-                  theme: 'light-border',
-                  maxWidth: 'none',
-                });
-                popup = Array.isArray(instances) ? instances[0] : instances;
-              },
-
-              onUpdate(props: any) {
-                component?.updateProps(props);
-
-                if (!props.clientRect) {
-                  return;
-                }
-
-                popup?.setProps({
-                  getReferenceClientRect: props.clientRect,
-                });
-              },
-
-              onKeyDown(props: any) {
-                if (props.event.key === 'Escape') {
-                  popup?.hide();
-                  return true;
-                }
-
-                return component?.onKeyDown(props);
-              },
-
-              onExit() {
-                popup?.destroy();
-                component?.destroy();
-              },
-            };
-          },
+        renderText({ options, node }) {
+          return `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`;
         },
       }),
     ],
