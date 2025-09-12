@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Template Editor Styles */
+@import '../styles/template-editor.css';
+
 /* Prose styles for markdown preview */
 .prose {
   color: var(--foreground);
@@ -360,5 +363,71 @@
 
   .animate-fade-in-up {
     animation: fadeInUp 300ms ease-out;
+  }
+
+  /* Template-specific responsive utilities */
+  .template-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  @media (min-width: 640px) {
+    .template-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .template-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .template-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
+
+  /* Enhanced modal responsive behavior */
+  .template-modal-content {
+    width: 95vw;
+    max-height: 95vh;
+  }
+
+  @media (min-width: 640px) {
+    .template-modal-content {
+      width: 90vw;
+      max-height: 90vh;
+    }
+  }
+
+  /* Touch-friendly button sizing */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  @media (min-width: 640px) {
+    .touch-target {
+      min-height: auto;
+      min-width: auto;
+    }
+  }
+
+  /* Responsive text truncation */
+  .truncate-mobile {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (min-width: 640px) {
+    .truncate-mobile {
+      max-width: none;
+    }
   }
 }
