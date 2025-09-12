@@ -461,9 +461,9 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
           <div className="flex-1 overflow-hidden flex flex-col" ref={containerRef}>
             {/* Search, Filter and Actions Row */}
             <div className="flex-shrink-0 pb-4 sm:pb-6 border-b">
-              <div className="flex items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-3 sm:gap-4 p-1">
                 {/* Search Bar - Left */}
-                <div className="relative flex-1">
+                <div className="relative flex-1 z-10">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Input
                     data-search-input
@@ -480,7 +480,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                 </div>
 
                 {/* Category Filter - Center */}
-                <div className="flex items-center gap-2 min-w-[200px] sm:min-w-[250px]">
+                <div className="flex items-center gap-2 min-w-[200px] sm:min-w-[250px] z-10">
                   <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
                   <Select 
                     value={selectedCategory || 'all'} 
