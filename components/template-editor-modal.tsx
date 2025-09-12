@@ -347,7 +347,7 @@ export function TemplateEditorModal({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
         id={editorId}
-        className="max-w-[90vw] sm:max-w-2xl h-[98vh] min-h-[98vh] max-h-[98vh] overflow-hidden flex flex-col"
+        className="max-w-[95vw] sm:max-w-4xl h-[90vh] min-h-[90vh] max-h-[90vh] overflow-hidden flex flex-col"
         isDirty={isTemplateEditorModalDirty}
         onAttemptClose={handleAttemptClose}
         role="dialog"
