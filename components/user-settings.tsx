@@ -114,13 +114,10 @@ export function UserSettings() {
           <DropdownMenuSeparator />
           <DropdownMenuItem 
             onClick={openTemplatesModal}
-            aria-label={`${ARIA_LABELS.templatesModal} (${KEYBOARD_SHORTCUTS.openTemplates})`}
+            aria-label={ARIA_LABELS.templatesModal}
           >
             <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
             <span>Vorlagen</span>
-            <span className="ml-auto text-xs text-muted-foreground">
-              {KEYBOARD_SHORTCUTS.openTemplates}
-            </span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setOpenModal(true)}>
             <Settings className="mr-2 h-4 w-4" />
