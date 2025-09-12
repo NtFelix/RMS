@@ -157,7 +157,7 @@ export function getOrderedCategories(groupedVariables: Record<string, MentionVar
 export function getUniqueCategories(variables: MentionVariable[]): string[] {
   const categories = variables
     .map(variable => variable.category)
-    .filter((category): category is string => Boolean(category));
+    .filter((category): category is NonNullable<typeof category> => Boolean(category));
   
   return Array.from(new Set(categories));
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEditor, EditorContent, JSONContent } from '@tiptap/react';
+import { useEditor, EditorContent, JSONContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
 import { useCallback, useEffect, useRef } from 'react';
@@ -8,6 +8,9 @@ import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorProps } from '@/types/template';
 import { cn } from '@/lib/utils';
+import { filterMentionVariables } from '@/lib/mention-utils';
+import { createViewportAwarePopup } from '@/lib/mention-suggestion-popup';
+import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
 import { Button } from '@/components/ui/button';
 import { 
   Bold, 
@@ -55,6 +58,65 @@ export function TemplateEditor({
         },
         renderText({ options, node }) {
           return `${options.suggestion.char}${node.attrs.label ?? node.attrs.id}`;
+        },
+        suggestion: {
+          char: '@',
+          allowSpaces: false,
+          startOfLine: false,
+          items: ({ query }) => {
+            return filterMentionVariables(MENTION_VARIABLES, query, {
+              prioritizeExactMatches: true,
+            }).slice(0, 10);
+          },
+          render: () => {
+            let component: ReactRenderer<MentionSuggestionListRef>;
+            let popup: ReturnType<typeof createViewportAwarePopup>;
+
+            return {
+              onStart: (props) => {
+                component = new ReactRenderer(MentionSuggestionList, {
+                  props,
+                  editor: props.editor,
+                });
+
+                if (!props.clientRect) {
+                  return;
+                }
+
+                popup = createViewportAwarePopup({
+                  editor: props.editor,
+                  element: component.element as HTMLElement,
+                  clientRect: props.clientRect,
+                  onDestroy: () => {
+                    component?.destroy();
+                  },
+                });
+              },
+              onUpdate: (props) => {
+                component?.updateProps(props);
+
+                if (!props.clientRect) {
+                  return;
+                }
+
+                popup?.setProps({
+                  getReferenceClientRect: () => props.clientRect?.() || new DOMRect(),
+                });
+              },
+              onKeyDown: (props) => {
+                if (props.event.key === 'Escape') {
+                  popup?.hide();
+                  return true;
+                }
+
+                return component?.ref?.onKeyDown(props) || false;
+              },
+              onExit: () => {
+                popup?.destroy();
+                component?.destroy();
+              },
+            };
+          },
         },
       }),
     ],

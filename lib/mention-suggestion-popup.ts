@@ -129,8 +129,8 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
   const isMobile = isMobileDevice();
   
   // Base configuration
-  const baseConfig: Props = {
-    getReferenceClientRect: clientRect,
+  const baseConfig: Partial<Props> = {
+    getReferenceClientRect: () => clientRect() || new DOMRect(),
     appendTo: () => document.body,
     content: element,
     showOnCreate: true,
@@ -148,7 +148,8 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
   };
   
   // Create Tippy instance
-  const tippyInstance = tippy(document.body, baseConfig)[0];
+  const tippyInstances = tippy(document.body, baseConfig);
+  const tippyInstance = Array.isArray(tippyInstances) ? tippyInstances[0] : tippyInstances;
   
   // Handle responsive updates on window resize
   const handleResize = () => {
