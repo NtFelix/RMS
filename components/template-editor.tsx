@@ -141,6 +141,8 @@ export function TemplateEditor({
   'aria-describedby'?: string;
 }) {
   const editor = useEditor({
+    // Disable immediate rendering to prevent SSR issues
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         bulletList: {
