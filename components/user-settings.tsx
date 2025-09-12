@@ -13,9 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"; // Keep this if other buttons are styled with it, or remove if not.
-import { LogOut, Settings } from "lucide-react"; // Removed User icon as it's not used.
+import { LogOut, Settings, FileText } from "lucide-react"; // Removed User icon as it's not used.
 import { SettingsModal } from "@/components/settings-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useModalStore } from "@/hooks/use-modal-store";
 
 export function UserSettings() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function UserSettings() {
   const [userEmail, setUserEmail] = useState("");
   const [userInitials, setUserInitials] = useState("");
   const supabase = createClient();
+  const { openTemplatesModal } = useModalStore();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -109,6 +111,10 @@ export function UserSettings() {
         <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
           <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={openTemplatesModal}>
+            <FileText className="mr-2 h-4 w-4" />
+            <span>Vorlagen</span>
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setOpenModal(true)}>
             <Settings className="mr-2 h-4 w-4" />
             <span>Einstellungen</span>
