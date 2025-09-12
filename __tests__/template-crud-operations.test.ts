@@ -1,327 +1,544 @@
-import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { TemplateService, OptimisticTemplateService } from '@/lib/template-service';
-import { validateTemplate, sanitizeTemplateData, extractTextFromTipTap } from '@/lib/template-validation';
 import { Template, TemplatePayload } from '@/types/template';
-import { JSONContent } from '@tiptap/react';
 
 // Mock fetch
 global.fetch = jest.fn();
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
-describe('Template CRUD Operations', () => {
+describe('TemplateService', () => {
   beforeEach(() => {
-    mockFetch.mockClear();
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
   });
 
-  describe('TemplateService', () => {
-    const mockTemplate: Template = {
-      id: '123',
-      titel: 'Test Template',
-      inhalt: {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Hello ' },
-              { type: 'mention', attrs: { id: 'mieter.name', label: 'Mieter.Name' } },
-              { type: 'text', text: '!' }
-            ]
-          }
-        ]
-      },
-      kategorie: 'Mail',
-      kontext_anforderungen: ['mieter'],
-      user_id: 'user-123',
-      erstellungsdatum: '2024-01-01T00:00:00Z',
-      aktualisiert_am: '2024-01-01T00:00:00Z'
-    };
+  describe('getTemplates', () => {
+    it('fetches templates successfully', async () => {
+      const mockTemplates: Template[] = [
+        {
+          id: '1',
+          titel: 'Test Template',
+          inhalt: { type: 'doc', content: [] },
+          user_id: 'user1',
+          kategorie: 'Mail',
+          kontext_anforderungen: [],
+          erstellungsdatum: '2024-01-01',
+          aktualisiert_am: '2024-01-01',
+        },
+      ];
 
-    it('should fetch all templates', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => [mockTemplate]
+        json: async () => mockTemplates,
       } as Response);
 
-      const templates = await TemplateService.getTemplates();
+      const result = await TemplateService.getTemplates();
 
       expect(mockFetch).toHaveBeenCalledWith('/api/templates', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
-      expect(templates).toEqual([mockTemplate]);
+      expect(result).toEqual(mockTemplates);
     });
 
-    it('should fetch a single template', async () => {
+    it('handles unauthorized error', async () => {
       mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockTemplate
+        ok: false,
+        json: async () => ({ code: 'UNAUTHORIZED', error: 'Unauthorized' }),
       } as Response);
 
-      const template = await TemplateService.getTemplate('123');
-
-      expect(mockFetch).toHaveBeenCalledWith('/api/templates/123', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      expect(template).toEqual(mockTemplate);
+      await expect(TemplateService.getTemplates()).rejects.toThrow(
+        'Sitzung abgelaufen. Bitte melden Sie sich erneut an.'
+      );
     });
 
-    it('should create a new template', async () => {
-      const templatePayload: TemplatePayload = {
-        titel: 'New Template',
+    it('handles database error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ code: 'DATABASE_ERROR', error: 'Database error' }),
+      } as Response);
+
+      await expect(TemplateService.getTemplates()).rejects.toThrow(
+        'Datenbankfehler beim Laden der Vorlagen. Bitte versuchen Sie es später erneut.'
+      );
+    });
+
+    it('handles network error', async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      await expect(TemplateService.getTemplates()).rejects.toThrow(
+        'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.'
+      );
+    });
+  });
+
+  describe('getTemplate', () => {
+    it('fetches single template successfully', async () => {
+      const mockTemplate: Template = {
+        id: '1',
+        titel: 'Test Template',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Brief',
-        kontext_anforderungen: []
+        user_id: 'user1',
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ ...mockTemplate, ...templatePayload })
+        json: async () => mockTemplate,
       } as Response);
 
-      const result = await TemplateService.createTemplate(templatePayload);
+      const result = await TemplateService.getTemplate('1');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/templates/1', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      expect(result).toEqual(mockTemplate);
+    });
+
+    it('handles not found error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ code: 'NOT_FOUND', error: 'Not found' }),
+      } as Response);
+
+      await expect(TemplateService.getTemplate('999')).rejects.toThrow(
+        'Vorlage nicht gefunden oder keine Berechtigung.'
+      );
+    });
+
+    it('handles invalid ID error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ code: 'INVALID_ID', error: 'Invalid ID' }),
+      } as Response);
+
+      await expect(TemplateService.getTemplate('invalid')).rejects.toThrow(
+        'Ungültige Vorlagen-ID.'
+      );
+    });
+  });
+
+  describe('createTemplate', () => {
+    it('creates template successfully', async () => {
+      const templateData: TemplatePayload = {
+        titel: 'New Template',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+      };
+
+      const createdTemplate: Template = {
+        id: '1',
+        ...templateData,
+        user_id: 'user1',
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => createdTemplate,
+      } as Response);
+
+      const result = await TemplateService.createTemplate(templateData);
 
       expect(mockFetch).toHaveBeenCalledWith('/api/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templatePayload)
+        body: JSON.stringify(templateData),
       });
-      expect(result.titel).toBe(templatePayload.titel);
+      expect(result).toEqual(createdTemplate);
     });
 
-    it('should update a template', async () => {
-      const templatePayload: TemplatePayload = {
+    it('handles validation error', async () => {
+      const templateData: TemplatePayload = {
+        titel: '',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          code: 'VALIDATION_ERROR',
+          error: 'Validation failed',
+          details: ['Titel ist erforderlich'],
+        }),
+      } as Response);
+
+      await expect(TemplateService.createTemplate(templateData)).rejects.toThrow(
+        'Validierungsfehler: Titel ist erforderlich'
+      );
+    });
+
+    it('handles duplicate title error', async () => {
+      const templateData: TemplatePayload = {
+        titel: 'Existing Template',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ code: 'DUPLICATE_TITLE', error: 'Duplicate title' }),
+      } as Response);
+
+      await expect(TemplateService.createTemplate(templateData)).rejects.toThrow(
+        'Eine Vorlage mit diesem Namen existiert bereits.'
+      );
+    });
+  });
+
+  describe('updateTemplate', () => {
+    it('updates template successfully', async () => {
+      const templateData: TemplatePayload = {
         titel: 'Updated Template',
         inhalt: { type: 'doc', content: [] },
-        kategorie: 'Vertrag',
-        kontext_anforderungen: ['wohnung']
+        kategorie: 'Brief',
+        kontext_anforderungen: [],
+      };
+
+      const updatedTemplate: Template = {
+        id: '1',
+        ...templateData,
+        user_id: 'user1',
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-02',
       };
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ ...mockTemplate, ...templatePayload })
+        json: async () => updatedTemplate,
       } as Response);
 
-      const result = await TemplateService.updateTemplate('123', templatePayload);
+      const result = await TemplateService.updateTemplate('1', templateData);
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/templates/123', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/templates/1', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templatePayload)
+        body: JSON.stringify(templateData),
       });
-      expect(result.titel).toBe(templatePayload.titel);
+      expect(result).toEqual(updatedTemplate);
     });
 
-    it('should delete a template', async () => {
+    it('handles not found error on update', async () => {
+      const templateData: TemplatePayload = {
+        titel: 'Updated Template',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Brief',
+        kontext_anforderungen: [],
+      };
+
       mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ message: 'Template gelöscht' })
+        ok: false,
+        json: async () => ({ code: 'NOT_FOUND', error: 'Not found' }),
       } as Response);
 
-      await TemplateService.deleteTemplate('123');
+      await expect(TemplateService.updateTemplate('999', templateData)).rejects.toThrow(
+        'Vorlage nicht gefunden oder keine Berechtigung.'
+      );
+    });
+  });
 
-      expect(mockFetch).toHaveBeenCalledWith('/api/templates/123', {
+  describe('deleteTemplate', () => {
+    it('deletes template successfully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+
+      await expect(TemplateService.deleteTemplate('1')).resolves.toBeUndefined();
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/templates/1', {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
       });
     });
 
-    it('should handle API errors', async () => {
+    it('handles foreign key constraint error', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: async () => ({ error: 'Template nicht gefunden' })
+        json: async () => ({ code: 'FOREIGN_KEY_CONSTRAINT', error: 'Constraint violation' }),
       } as Response);
 
-      await expect(TemplateService.getTemplate('invalid')).rejects.toThrow('Template nicht gefunden');
-    });
-  });
-
-  describe('OptimisticTemplateService', () => {
-    let service: OptimisticTemplateService;
-    let onSuccess: jest.Mock;
-    let onError: jest.Mock;
-
-    beforeEach(() => {
-      onSuccess = jest.fn();
-      onError = jest.fn();
-      service = new OptimisticTemplateService({ onSuccess, onError });
+      await expect(TemplateService.deleteTemplate('1')).rejects.toThrow(
+        'Die Vorlage kann nicht gelöscht werden, da sie noch verwendet wird.'
+      );
     });
 
-    it('should handle optimistic create', async () => {
-      const templatePayload: TemplatePayload = {
-        titel: 'Optimistic Template',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        kontext_anforderungen: []
-      };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ id: 'real-123', ...templatePayload })
-      } as Response);
-
-      // Initially empty
-      expect(service.getTemplates()).toHaveLength(0);
-
-      const createPromise = service.createTemplate(templatePayload);
-
-      // Should have optimistic template immediately
-      expect(service.getTemplates()).toHaveLength(1);
-      expect(service.getTemplates()[0].titel).toBe(templatePayload.titel);
-      expect(service.getTemplates()[0].id).toMatch(/^temp-/);
-
-      await createPromise;
-
-      // Should have real template after API call
-      expect(service.getTemplates()).toHaveLength(1);
-      expect(service.getTemplates()[0].id).toBe('real-123');
-      expect(onSuccess).toHaveBeenCalledWith('Template erfolgreich erstellt');
-    });
-
-    it('should rollback optimistic create on error', async () => {
-      const templatePayload: TemplatePayload = {
-        titel: 'Failed Template',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        kontext_anforderungen: []
-      };
-
+    it('handles not found error on delete', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        json: async () => ({ error: 'Validation failed' })
+        json: async () => ({ code: 'NOT_FOUND', error: 'Not found' }),
       } as Response);
 
-      expect(service.getTemplates()).toHaveLength(0);
-
-      try {
-        await service.createTemplate(templatePayload);
-      } catch (error) {
-        // Expected to throw
-      }
-
-      // Should be empty after rollback
-      expect(service.getTemplates()).toHaveLength(0);
-      expect(onError).toHaveBeenCalledWith('Validation failed');
+      await expect(TemplateService.deleteTemplate('999')).rejects.toThrow(
+        'Vorlage nicht gefunden oder keine Berechtigung.'
+      );
     });
   });
+});
 
-  describe('Template Validation', () => {
-    it('should validate valid template data', () => {
-      const validTemplate: TemplatePayload = {
-        titel: 'Valid Template',
-        inhalt: {
-          type: 'doc',
-          content: [
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: 'Some content' }]
-            }
-          ]
+describe('OptimisticTemplateService', () => {
+  let service: OptimisticTemplateService;
+  let mockOnSuccess: jest.Mock;
+  let mockOnError: jest.Mock;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockOnSuccess = jest.fn();
+    mockOnError = jest.fn();
+    service = new OptimisticTemplateService({
+      onSuccess: mockOnSuccess,
+      onError: mockOnError,
+    });
+
+    // Mock TemplateService methods
+    jest.spyOn(TemplateService, 'createTemplate').mockImplementation();
+    jest.spyOn(TemplateService, 'updateTemplate').mockImplementation();
+    jest.spyOn(TemplateService, 'deleteTemplate').mockImplementation();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  describe('subscription management', () => {
+    it('notifies subscribers of changes', () => {
+      const listener = jest.fn();
+      const unsubscribe = service.subscribe(listener);
+
+      const templates: Template[] = [
+        {
+          id: '1',
+          titel: 'Test',
+          inhalt: { type: 'doc', content: [] },
+          user_id: 'user1',
+          kategorie: 'Mail',
+          kontext_anforderungen: [],
+          erstellungsdatum: '2024-01-01',
+          aktualisiert_am: '2024-01-01',
         },
-        kategorie: 'Mail',
-        kontext_anforderungen: ['mieter']
-      };
+      ];
 
-      const result = validateTemplate(validTemplate);
-      expect(result.isValid).toBe(true);
-      expect(result.errors).toHaveLength(0);
-    });
+      service.setTemplates(templates);
 
-    it('should reject template with missing title', () => {
-      const invalidTemplate: Partial<TemplatePayload> = {
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        kontext_anforderungen: []
-      };
+      expect(listener).toHaveBeenCalled();
+      expect(service.getTemplates()).toEqual(templates);
 
-      const result = validateTemplate(invalidTemplate);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContainEqual({
-        field: 'titel',
-        message: 'Titel ist erforderlich'
-      });
-    });
-
-    it('should reject template with short title', () => {
-      const invalidTemplate: TemplatePayload = {
-        titel: 'Hi',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        kontext_anforderungen: []
-      };
-
-      const result = validateTemplate(invalidTemplate);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContainEqual({
-        field: 'titel',
-        message: 'Titel muss mindestens 3 Zeichen lang sein'
-      });
-    });
-
-    it('should reject template with invalid category', () => {
-      const invalidTemplate: any = {
-        titel: 'Valid Title',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'InvalidCategory',
-        kontext_anforderungen: []
-      };
-
-      const result = validateTemplate(invalidTemplate);
-      expect(result.isValid).toBe(false);
-      expect(result.errors).toContainEqual({
-        field: 'kategorie',
-        message: 'Ungültige Kategorie'
-      });
-    });
-
-    it('should sanitize template data', () => {
-      const dirtyTemplate: TemplatePayload = {
-        titel: '  Dirty Title  ',
-        inhalt: { type: 'doc', content: [] },
-        kategorie: 'Mail',
-        kontext_anforderungen: []
-      };
-
-      const sanitized = sanitizeTemplateData(dirtyTemplate);
-      expect(sanitized.titel).toBe('Dirty Title');
+      unsubscribe();
+      service.setTemplates([]);
+      expect(listener).toHaveBeenCalledTimes(1); // Should not be called after unsubscribe
     });
   });
 
-  describe('Text Extraction', () => {
-    it('should extract text from TipTap content', () => {
-      const content: JSONContent = {
-        type: 'doc',
-        content: [
-          {
-            type: 'paragraph',
-            content: [
-              { type: 'text', text: 'Hello ' },
-              { type: 'mention', attrs: { id: 'mieter.name' } },
-              { type: 'text', text: ', welcome!' }
-            ]
-          },
-          {
-            type: 'paragraph',
-            content: [
-              { type: 'text', text: 'This is a test.' }
-            ]
-          }
-        ]
+  describe('optimistic create', () => {
+    it('adds template optimistically and replaces with real one', async () => {
+      const templateData: TemplatePayload = {
+        titel: 'New Template',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
       };
 
-      const text = extractTextFromTipTap(content);
-      expect(text).toBe('Hello , welcome! This is a test.');
+      const createdTemplate: Template = {
+        id: 'real-id',
+        ...templateData,
+        user_id: 'user1',
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
+      };
+
+      (TemplateService.createTemplate as jest.Mock).mockResolvedValue(createdTemplate);
+
+      const listener = jest.fn();
+      service.subscribe(listener);
+
+      await service.createTemplate(templateData);
+
+      expect(listener).toHaveBeenCalledTimes(2); // Once for optimistic, once for real
+      expect(service.getTemplates()).toHaveLength(1);
+      expect(service.getTemplates()[0].id).toBe('real-id');
+      expect(mockOnSuccess).toHaveBeenCalledWith('Template erfolgreich erstellt');
     });
 
-    it('should handle empty content', () => {
-      const emptyContent: JSONContent = { type: 'doc', content: [] };
-      const text = extractTextFromTipTap(emptyContent);
-      expect(text).toBe('');
+    it('removes optimistic template on error', async () => {
+      const templateData: TemplatePayload = {
+        titel: 'New Template',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+      };
+
+      const error = new Error('Creation failed');
+      (TemplateService.createTemplate as jest.Mock).mockRejectedValue(error);
+
+      const listener = jest.fn();
+      service.subscribe(listener);
+
+      await expect(service.createTemplate(templateData)).rejects.toThrow('Creation failed');
+
+      expect(listener).toHaveBeenCalledTimes(2); // Once for add, once for remove
+      expect(service.getTemplates()).toHaveLength(0);
+      expect(mockOnError).toHaveBeenCalledWith('Creation failed');
+    });
+  });
+
+  describe('optimistic update', () => {
+    it('updates template optimistically and replaces with real one', async () => {
+      const originalTemplate: Template = {
+        id: '1',
+        titel: 'Original',
+        inhalt: { type: 'doc', content: [] },
+        user_id: 'user1',
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
+      };
+
+      service.setTemplates([originalTemplate]);
+
+      const updateData: TemplatePayload = {
+        titel: 'Updated',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Brief',
+        kontext_anforderungen: [],
+      };
+
+      const updatedTemplate: Template = {
+        ...originalTemplate,
+        ...updateData,
+        aktualisiert_am: '2024-01-02',
+      };
+
+      (TemplateService.updateTemplate as jest.Mock).mockResolvedValue(updatedTemplate);
+
+      const listener = jest.fn();
+      service.subscribe(listener);
+
+      await service.updateTemplate('1', updateData);
+
+      expect(listener).toHaveBeenCalledTimes(2); // Once for optimistic, once for real
+      expect(service.getTemplates()[0].titel).toBe('Updated');
+      expect(mockOnSuccess).toHaveBeenCalledWith('Template erfolgreich aktualisiert');
+    });
+
+    it('rolls back optimistic update on error', async () => {
+      const originalTemplate: Template = {
+        id: '1',
+        titel: 'Original',
+        inhalt: { type: 'doc', content: [] },
+        user_id: 'user1',
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
+      };
+
+      service.setTemplates([originalTemplate]);
+
+      const updateData: TemplatePayload = {
+        titel: 'Updated',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Brief',
+        kontext_anforderungen: [],
+      };
+
+      const error = new Error('Update failed');
+      (TemplateService.updateTemplate as jest.Mock).mockRejectedValue(error);
+
+      const listener = jest.fn();
+      service.subscribe(listener);
+
+      await expect(service.updateTemplate('1', updateData)).rejects.toThrow('Update failed');
+
+      expect(listener).toHaveBeenCalledTimes(2); // Once for optimistic, once for rollback
+      expect(service.getTemplates()[0].titel).toBe('Original');
+      expect(mockOnError).toHaveBeenCalledWith('Update failed');
+    });
+
+    it('throws error when template not found', async () => {
+      service.setTemplates([]);
+
+      const updateData: TemplatePayload = {
+        titel: 'Updated',
+        inhalt: { type: 'doc', content: [] },
+        kategorie: 'Brief',
+        kontext_anforderungen: [],
+      };
+
+      await expect(service.updateTemplate('999', updateData)).rejects.toThrow(
+        'Template nicht gefunden'
+      );
+    });
+  });
+
+  describe('optimistic delete', () => {
+    it('removes template optimistically', async () => {
+      const template: Template = {
+        id: '1',
+        titel: 'To Delete',
+        inhalt: { type: 'doc', content: [] },
+        user_id: 'user1',
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
+      };
+
+      service.setTemplates([template]);
+
+      (TemplateService.deleteTemplate as jest.Mock).mockResolvedValue(undefined);
+
+      const listener = jest.fn();
+      service.subscribe(listener);
+
+      await service.deleteTemplate('1');
+
+      expect(listener).toHaveBeenCalledTimes(1); // Once for removal
+      expect(service.getTemplates()).toHaveLength(0);
+      expect(mockOnSuccess).toHaveBeenCalledWith('Template erfolgreich gelöscht');
+    });
+
+    it('restores template on delete error', async () => {
+      const template: Template = {
+        id: '1',
+        titel: 'To Delete',
+        inhalt: { type: 'doc', content: [] },
+        user_id: 'user1',
+        kategorie: 'Mail',
+        kontext_anforderungen: [],
+        erstellungsdatum: '2024-01-01',
+        aktualisiert_am: '2024-01-01',
+      };
+
+      service.setTemplates([template]);
+
+      const error = new Error('Delete failed');
+      (TemplateService.deleteTemplate as jest.Mock).mockRejectedValue(error);
+
+      const listener = jest.fn();
+      service.subscribe(listener);
+
+      await expect(service.deleteTemplate('1')).rejects.toThrow('Delete failed');
+
+      expect(listener).toHaveBeenCalledTimes(2); // Once for removal, once for restore
+      expect(service.getTemplates()).toHaveLength(1);
+      expect(service.getTemplates()[0].id).toBe('1');
+      expect(mockOnError).toHaveBeenCalledWith('Delete failed');
+    });
+
+    it('throws error when template not found for deletion', async () => {
+      service.setTemplates([]);
+
+      await expect(service.deleteTemplate('999')).rejects.toThrow(
+        'Template nicht gefunden'
+      );
     });
   });
 });

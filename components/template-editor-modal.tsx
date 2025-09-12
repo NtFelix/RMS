@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { JSONContent } from '@tiptap/react';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useModalKeyboardNavigation } from '@/hooks/use-modal-keyboard-navigation';
+import { useTemplateAccessibility } from '@/hooks/use-template-accessibility';
 import {
   Dialog,
   DialogContent,
@@ -34,6 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { TemplateEditor } from '@/components/template-editor';
 import { TEMPLATE_CATEGORIES, TemplateCategory } from '@/lib/template-constants';
+import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorModalProps } from '@/types/template';
 import { validateTemplate, validateMentionVariables, isEmptyTipTapContent } from '@/lib/template-validation';
 import { toast } from '@/hooks/use-toast';
@@ -98,6 +100,27 @@ export function TemplateEditorModal({
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const { setTemplateEditorModalDirty, isTemplateEditorModalDirty } = useModalStore();
+
+  // Accessibility hook
+  const {
+    editorId,
+    handleModalOpen,
+    handleModalClose,
+  } = useTemplateAccessibility({
+    isEditorOpen: isOpen,
+    onKeyboardShortcut: (shortcut) => {
+      switch (shortcut) {
+        case KEYBOARD_SHORTCUTS.save:
+          if (step === 'editor' && !isLoading) {
+            templateForm.handleSubmit(handleTemplateSave)();
+          }
+          break;
+        case KEYBOARD_SHORTCUTS.closeModal:
+          handleClose();
+          break;
+      }
+    },
+  });
 
   // Category selection form
   const categoryForm = useForm<CategoryFormData>({
@@ -311,16 +334,32 @@ export function TemplateEditorModal({
     enableArrowNavigation: true,
   });
 
+  // Handle modal open/close for accessibility
+  useEffect(() => {
+    if (isOpen) {
+      handleModalOpen();
+    } else {
+      handleModalClose();
+    }
+  }, [isOpen, handleModalOpen, handleModalClose]);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent
+        id={editorId}
         className="max-w-[95vw] sm:max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
         isDirty={isTemplateEditorModalDirty}
         onAttemptClose={handleAttemptClose}
+        role="dialog"
+        aria-labelledby={`${editorId}-title`}
+        aria-describedby={`${editorId}-description`}
       >
         <DialogHeader className="flex-shrink-0 px-4 sm:px-6">
-          <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-            <FileText className="h-5 w-5" />
+          <DialogTitle 
+            id={`${editorId}-title`}
+            className="flex items-center gap-2 text-lg sm:text-xl"
+          >
+            <FileText className="h-5 w-5" aria-hidden="true" />
             <span className="hidden sm:inline">
               {template ? 'Vorlage bearbeiten' : 'Neue Vorlage erstellen'}
             </span>
@@ -328,7 +367,10 @@ export function TemplateEditorModal({
               {template ? 'Bearbeiten' : 'Erstellen'}
             </span>
           </DialogTitle>
-          <DialogDescription className="text-sm">
+          <DialogDescription 
+            id={`${editorId}-description`}
+            className="text-sm"
+          >
             {template 
               ? 'Bearbeiten Sie Ihre bestehende Vorlage'
               : 'Erstellen Sie eine neue Dokumentvorlage mit dynamischen Variablen'
@@ -339,7 +381,11 @@ export function TemplateEditorModal({
         <div className="flex-1 overflow-hidden px-4 sm:px-6">
           {step === 'category' && (
             <div className="space-y-4 sm:space-y-6">
-              <div className="text-sm text-muted-foreground">
+              <div 
+                className="text-sm text-muted-foreground"
+                role="status"
+                aria-live="polite"
+              >
                 <span className="hidden sm:inline">Schritt 1 von 2: Wählen Sie eine Kategorie für Ihre Vorlage</span>
                 <span className="sm:hidden">Schritt 1/2: Kategorie wählen</span>
               </div>
@@ -348,7 +394,13 @@ export function TemplateEditorModal({
                 <form
                   onSubmit={categoryForm.handleSubmit(handleCategorySubmit)}
                   className="space-y-6"
+                  role="form"
+                  aria-labelledby={`${editorId}-category-form-title`}
                 >
+                  <h3 id={`${editorId}-category-form-title`} className="sr-only">
+                    Kategorie für neue Vorlage auswählen
+                  </h3>
+                  
                   <FormField
                     control={categoryForm.control}
                     name="kategorie"
@@ -360,7 +412,7 @@ export function TemplateEditorModal({
                           defaultValue={field.value}
                         >
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger aria-label={ARIA_LABELS.categorySelection}>
                               <SelectValue placeholder="Kategorie auswählen..." />
                             </SelectTrigger>
                           </FormControl>
@@ -378,8 +430,14 @@ export function TemplateEditorModal({
                   />
 
                   <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-2">
-                    <Button type="button" variant="outline" onClick={onClose} className="w-full sm:w-auto">
-                      <X className="h-4 w-4 mr-2" />
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={onClose} 
+                      className="w-full sm:w-auto"
+                      aria-label={ARIA_LABELS.cancelButton}
+                    >
+                      <X className="h-4 w-4 mr-2" aria-hidden="true" />
                       Abbrechen
                     </Button>
                     <Button type="submit" className="w-full sm:w-auto">
@@ -426,17 +484,28 @@ export function TemplateEditorModal({
 
               {/* Validation Errors Display */}
               {validationErrors.length > 0 && (
-                <div className="flex-shrink-0 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg">
+                <div 
+                  className="flex-shrink-0 p-3 sm:p-4 bg-destructive/10 border border-destructive/20 rounded-lg"
+                  role="alert"
+                  aria-labelledby={`${editorId}-validation-title`}
+                  aria-describedby={`${editorId}-validation-list`}
+                >
                   <div className="flex items-start gap-2">
-                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0 mt-0.5" />
+                    <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-destructive flex-shrink-0 mt-0.5" aria-hidden="true" />
                     <div className="space-y-1">
-                      <h4 className="text-sm font-medium text-destructive">
+                      <h4 
+                        id={`${editorId}-validation-title`}
+                        className="text-sm font-medium text-destructive"
+                      >
                         Validierungsfehler
                       </h4>
-                      <ul className="text-sm text-destructive/80 space-y-1">
+                      <ul 
+                        id={`${editorId}-validation-list`}
+                        className="text-sm text-destructive/80 space-y-1"
+                      >
                         {validationErrors.map((error, index) => (
                           <li key={index} className="flex items-start gap-1">
-                            <span className="text-xs">•</span>
+                            <span className="text-xs" aria-hidden="true">•</span>
                             <span className="break-words">{error}</span>
                           </li>
                         ))}
@@ -466,8 +535,13 @@ export function TemplateEditorModal({
                               handleTitleChange(e.target.value);
                             }}
                             className="text-sm sm:text-base"
+                            aria-label={ARIA_LABELS.templateNameInput}
+                            aria-describedby={`${editorId}-title-help`}
                           />
                         </FormControl>
+                        <div id={`${editorId}-title-help`} className="sr-only">
+                          Geben Sie einen aussagekräftigen Namen für Ihre Vorlage ein
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -486,7 +560,12 @@ export function TemplateEditorModal({
                               onChange={handleEditorChange}
                               placeholder="Beginnen Sie mit der Eingabe... Verwenden Sie @ für Variablen wie @Mieter.Name oder @Wohnung.Adresse"
                               className="h-full min-h-[250px] sm:min-h-[300px]"
+                              aria-label={ARIA_LABELS.templateContentEditor}
+                              aria-describedby={`${editorId}-content-help`}
                             />
+                            <div id={`${editorId}-content-help`} className="sr-only">
+                              Rich-Text-Editor für Vorlageninhalt. Verwenden Sie @ um Variablen einzufügen. Nutzen Sie die Toolbar für Formatierungen.
+                            </div>
                           </div>
                         </FormControl>
                         <FormMessage />

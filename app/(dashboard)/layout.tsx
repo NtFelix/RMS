@@ -37,7 +37,9 @@ import { FolderDeleteConfirmationModal } from "@/components/folder-delete-confir
 import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
+import { TemplatesModal } from "@/components/templates-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
+import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -114,13 +116,17 @@ export default function DashboardRootLayout({
     isMarkdownEditorModalOpen,
     markdownEditorData,
     closeMarkdownEditorModal,
+    // Templates Modal state
+    isTemplatesModalOpen,
+    closeTemplatesModal,
   } = useModalStore()
 
   return (
     <AuthProvider>
-      {/* <GlobalDragDropProvider> */}
-        <CommandMenu />
-        <DashboardLayout>{children}</DashboardLayout>
+      <NestedDialogProvider>
+        {/* <GlobalDragDropProvider> */}
+          <CommandMenu />
+          <DashboardLayout>{children}</DashboardLayout>
 
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
@@ -246,6 +252,12 @@ export default function DashboardRootLayout({
         />
       )}
 
+      {/* TemplatesModal - Global templates management modal */}
+      <TemplatesModal
+        isOpen={isTemplatesModalOpen}
+        onClose={closeTemplatesModal}
+      />
+
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
         <ConfirmationDialog
@@ -263,7 +275,8 @@ export default function DashboardRootLayout({
           cancelText={confirmationModalConfig.cancelText}
         />
       )}
-      {/* </GlobalDragDropProvider> */}
+        {/* </GlobalDragDropProvider> */}
+      </NestedDialogProvider>
     </AuthProvider>
   )
 }

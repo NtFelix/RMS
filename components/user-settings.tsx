@@ -17,6 +17,7 @@ import { LogOut, Settings, FileText } from "lucide-react"; // Removed User icon 
 import { SettingsModal } from "@/components/settings-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useModalStore } from "@/hooks/use-modal-store";
+import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from "@/lib/accessibility-constants";
 
 export function UserSettings() {
   const router = useRouter();
@@ -111,9 +112,15 @@ export function UserSettings() {
         <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={openTemplatesModal}>
-            <FileText className="mr-2 h-4 w-4" />
+          <DropdownMenuItem 
+            onClick={openTemplatesModal}
+            aria-label={`${ARIA_LABELS.templatesModal} (${KEYBOARD_SHORTCUTS.openTemplates})`}
+          >
+            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
             <span>Vorlagen</span>
+            <span className="ml-auto text-xs text-muted-foreground">
+              {KEYBOARD_SHORTCUTS.openTemplates}
+            </span>
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setOpenModal(true)}>
             <Settings className="mr-2 h-4 w-4" />

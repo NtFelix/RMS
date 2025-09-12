@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,9 @@ import { TemplateEditorModal } from '@/components/template-editor-modal';
 import { useTemplates, useTemplateFilters } from '@/hooks/use-templates';
 import { useModalStore } from '@/hooks/use-modal-store';
 import { useModalKeyboardNavigation } from '@/hooks/use-modal-keyboard-navigation';
+import { useTemplateAccessibility } from '@/hooks/use-template-accessibility';
 import { TEMPLATE_CATEGORIES } from '@/lib/template-constants';
+import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { Template, TemplatePayload } from '@/types/template';
 import { 
   FileText, 
@@ -44,6 +46,7 @@ interface TemplatesModalProps {
 export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { 
     openConfirmationModal,
@@ -80,6 +83,38 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
     return TEMPLATE_CATEGORIES.filter(category => categoriesInUse.has(category));
   }, [templates]);
 
+  // Accessibility hook
+  const {
+    modalId,
+    handleModalOpen,
+    handleModalClose,
+    handleTemplateCardNavigation,
+    announceTemplateCreated,
+    announceTemplateUpdated,
+    announceTemplateDeleted,
+    announceFilterApplied,
+    focusFirstTemplate,
+    focusSearchInput,
+  } = useTemplateAccessibility({
+    isModalOpen: isOpen,
+    templateCount: templates.length,
+    filteredCount: filteredTemplates.length,
+    searchQuery,
+    onKeyboardShortcut: (shortcut) => {
+      switch (shortcut) {
+        case KEYBOARD_SHORTCUTS.openTemplates:
+          // Already handled by parent component
+          break;
+        case KEYBOARD_SHORTCUTS.closeModal:
+          handleClose();
+          break;
+        case KEYBOARD_SHORTCUTS.save:
+          // Handled by editor
+          break;
+      }
+    },
+  });
+
   // Handle template creation
   const handleCreateTemplate = () => {
     if (isCreating) return; // Prevent multiple clicks
@@ -105,6 +140,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
         try {
           setIsDeleting(templateId);
           await deleteTemplate(templateId);
+          announceTemplateDeleted();
           toast({
             title: 'Erfolg',
             description: 'Vorlage wurde erfolgreich gelöscht.',
@@ -141,12 +177,14 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
       if (currentTemplate) {
         await updateTemplate(currentTemplate.id, payload);
+        announceTemplateUpdated();
         toast({
           title: 'Erfolg',
           description: 'Vorlage wurde erfolgreich aktualisiert.',
         });
       } else {
         await createTemplate(payload);
+        announceTemplateCreated();
         toast({
           title: 'Erfolg',
           description: 'Vorlage wurde erfolgreich erstellt.',
@@ -178,6 +216,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
+    announceFilterApplied(templates.length);
   };
 
   // Track dirty state for search and filters
@@ -213,11 +252,43 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
     enableArrowNavigation: true,
   });
 
+  // Handle modal open/close for accessibility
+  useEffect(() => {
+    if (isOpen) {
+      handleModalOpen();
+    } else {
+      handleModalClose();
+    }
+  }, [isOpen, handleModalOpen, handleModalClose]);
+
+  // Handle keyboard navigation for template cards
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle navigation if focus is within template cards area
+      const target = event.target as HTMLElement;
+      if (target.closest('[data-template-card]') || target.closest('[data-templates-grid]')) {
+        handleTemplateCardNavigation(event, container);
+      }
+    };
+
+    container.addEventListener('keydown', handleKeyDown);
+    return () => {
+      container.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, handleTemplateCardNavigation]);
+
   // Render loading skeleton
   const renderLoadingSkeleton = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+    <div 
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
+      role="status"
+      aria-label={ARIA_LABELS.loadingTemplates}
+    >
       {Array.from({ length: 8 }).map((_, index) => (
-        <div key={index} className="space-y-3 p-4 border rounded-lg">
+        <div key={index} className="space-y-3 p-4 border rounded-lg" aria-hidden="true">
           <Skeleton className="h-4 w-3/4" />
           <Skeleton className="h-16 sm:h-20 w-full" />
           <div className="flex justify-between items-center">
@@ -229,16 +300,30 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
           </div>
         </div>
       ))}
+      <div className="sr-only">Vorlagen werden geladen...</div>
     </div>
   );
 
   // Render error state
   const renderError = () => (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-medium mb-2">Fehler beim Laden der Vorlagen</h3>
-      <p className="text-muted-foreground mb-4">{error}</p>
-      <Button onClick={refreshTemplates} variant="outline">
+    <div 
+      className="flex flex-col items-center justify-center py-12 text-center"
+      role="alert"
+      aria-labelledby={`${modalId}-error-title`}
+      aria-describedby={`${modalId}-error-description`}
+    >
+      <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" aria-hidden="true" />
+      <h3 id={`${modalId}-error-title`} className="text-lg font-medium mb-2">
+        Fehler beim Laden der Vorlagen
+      </h3>
+      <p id={`${modalId}-error-description`} className="text-muted-foreground mb-4">
+        {error}
+      </p>
+      <Button 
+        onClick={refreshTemplates} 
+        variant="outline"
+        aria-label="Vorlagen erneut laden"
+      >
         Erneut versuchen
       </Button>
     </div>
@@ -266,15 +351,16 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
           onClick={handleCreateTemplate}
           disabled={isCreating}
           className="min-w-[180px]"
+          aria-label="Erste Vorlage erstellen"
         >
           {isCreating ? (
             <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
               Erstellt...
             </>
           ) : (
             <>
-              <Plus className="h-4 w-4 mr-2" />
+              <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
               Erste Vorlage erstellen
             </>
           )}
@@ -296,22 +382,46 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
         {categories.map((category) => (
           <div key={category} className="space-y-4">
             <div className="flex items-center gap-2">
-              <h3 className="text-lg font-medium">{category}</h3>
-              <Badge variant="secondary" className="text-xs">
+              <h3 
+                className="text-lg font-medium"
+                id={`${modalId}-category-${category}`}
+              >
+                {category}
+              </h3>
+              <Badge 
+                variant="secondary" 
+                className="text-xs"
+                aria-label={`${groupedTemplates[category].length} Vorlagen in Kategorie ${category}`}
+              >
                 {groupedTemplates[category].length}
               </Badge>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {groupedTemplates[category].map((template) => (
-                <div key={template.id} className="relative">
+            <div 
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4"
+              role="grid"
+              aria-labelledby={`${modalId}-category-${category}`}
+            >
+              {groupedTemplates[category].map((template, index) => (
+                <div 
+                  key={template.id} 
+                  className="relative"
+                  role="gridcell"
+                  aria-rowindex={Math.floor(index / 4) + 1}
+                  aria-colindex={(index % 4) + 1}
+                >
                   <TemplateCard
                     template={template}
                     onEdit={handleEditTemplate}
                     onDelete={handleDeleteTemplate}
                   />
                   {isDeleting === template.id && (
-                    <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
-                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    <div 
+                      className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg"
+                      role="status"
+                      aria-label={ARIA_LABELS.deletingTemplate}
+                    >
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden="true" />
+                      <span className="sr-only">Vorlage wird gelöscht...</span>
                     </div>
                   )}
                 </div>
@@ -327,42 +437,65 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
     <>
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent 
+          id={modalId}
           className="max-w-[95vw] sm:max-w-[90vw] max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col"
           isDirty={isTemplatesModalDirty}
           onAttemptClose={handleAttemptClose}
+          role="dialog"
+          aria-labelledby={`${modalId}-title`}
+          aria-describedby={`${modalId}-description`}
         >
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Vorlagen verwalten
+            <DialogTitle 
+              id={`${modalId}-title`}
+              className="flex items-center gap-2"
+            >
+              <FileText className="h-5 w-5" aria-hidden="true" />
+              {ARIA_LABELS.templatesModal}
             </DialogTitle>
-            <DialogDescription>
-              Erstellen und verwalten Sie Ihre Dokumentvorlagen mit dynamischen Variablen.
+            <DialogDescription id={`${modalId}-description`}>
+              {ARIA_LABELS.templatesModalDescription}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 overflow-hidden flex flex-col" ref={containerRef}>
             {/* Filters and Actions */}
             <div className="flex-shrink-0 space-y-4 pb-4 sm:pb-6 border-b">
               <div className="flex flex-col gap-4">
                 {/* Search - Full width on mobile */}
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                   <Input
+                    data-search-input
                     placeholder="Vorlagen durchsuchen..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
+                    aria-label={ARIA_LABELS.templatesSearch}
+                    aria-describedby={`${modalId}-search-help`}
                   />
+                  <div id={`${modalId}-search-help`} className="sr-only">
+                    Geben Sie Suchbegriffe ein, um Vorlagen zu filtern. Verwenden Sie die Pfeiltasten zur Navigation.
+                  </div>
                 </div>
 
                 {/* Filter and Create Button Row */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                   {/* Category Filter */}
                   <div className="flex items-center gap-2 flex-1 sm:max-w-[250px]">
-                    <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <Select value={selectedCategory || 'all'} onValueChange={setSelectedCategory}>
-                      <SelectTrigger className="w-full">
+                    <Filter className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                    <Select 
+                      value={selectedCategory || 'all'} 
+                      onValueChange={(value) => {
+                        setSelectedCategory(value);
+                        announceFilterApplied(value === 'all' ? templates.length : filteredTemplates.length);
+                      }}
+                    >
+                      <SelectTrigger 
+                        className="w-full"
+                        aria-label={ARIA_LABELS.categoryFilter}
+                        aria-expanded={false}
+                      >
                         <SelectValue placeholder="Alle Kategorien" />
                       </SelectTrigger>
                       <SelectContent>
@@ -378,24 +511,30 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
                   {/* Create Button */}
                   <Button 
+                    data-create-template-button
                     onClick={handleCreateTemplate} 
                     className="flex-shrink-0 w-full sm:w-auto sm:min-w-[140px]"
                     disabled={isCreating || loading}
+                    aria-label={ARIA_LABELS.createTemplateButton}
+                    aria-describedby={`${modalId}-create-help`}
                   >
                     {isCreating ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                         <span className="hidden sm:inline">Erstellt...</span>
                         <span className="sm:hidden">Wird erstellt...</span>
                       </>
                     ) : (
                       <>
-                        <Plus className="h-4 w-4 mr-2" />
+                        <Plus className="h-4 w-4 mr-2" aria-hidden="true" />
                         <span className="hidden sm:inline">Neue Vorlage</span>
                         <span className="sm:hidden">Vorlage erstellen</span>
                       </>
                     )}
                   </Button>
+                  <div id={`${modalId}-create-help`} className="sr-only">
+                    Erstellt eine neue Dokumentvorlage mit dem Rich-Text-Editor
+                  </div>
                 </div>
               </div>
 
@@ -422,6 +561,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
                     size="sm"
                     onClick={handleClearFilters}
                     className="h-6 px-2 text-xs"
+                    aria-label={ARIA_LABELS.clearFiltersButton}
                   >
                     <span className="hidden sm:inline">Zurücksetzen</span>
                     <span className="sm:hidden">Reset</span>
@@ -431,14 +571,24 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
               {/* Results Count */}
               {!loading && !error && (
-                <div className="text-sm text-muted-foreground">
+                <div 
+                  className="text-sm text-muted-foreground"
+                  role="status"
+                  aria-live="polite"
+                  aria-label={`${filteredTemplates.length} von ${templates.length} Vorlagen werden angezeigt`}
+                >
                   {filteredTemplates.length} von {templates.length} Vorlagen
                 </div>
               )}
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto py-6">
+            <div 
+              className="flex-1 overflow-y-auto py-6"
+              role="region"
+              aria-label={ARIA_LABELS.templatesList}
+              data-templates-grid
+            >
               {loading && renderLoadingSkeleton()}
               {error && renderError()}
               {!loading && !error && renderTemplateGroups()}
