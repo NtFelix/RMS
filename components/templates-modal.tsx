@@ -438,7 +438,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       <Dialog open={isOpen} onOpenChange={handleClose}>
         <DialogContent 
           id={modalId}
-          className="max-w-[90vw] sm:max-w-2xl max-h-[98vh] sm:max-h-[98vh] overflow-hidden flex flex-col"
+          className="max-w-[90vw] sm:max-w-2xl h-[98vh] min-h-[98vh] max-h-[98vh] overflow-hidden flex flex-col"
           isDirty={isTemplatesModalDirty}
           onAttemptClose={handleAttemptClose}
           role="dialog"
