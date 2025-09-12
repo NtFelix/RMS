@@ -189,27 +189,47 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
     if (!tippyInstance) {
       throw new Error('Failed to create Tippy instance');
     }
+
+    // Track cleanup functions for proper memory management
+    const cleanupFunctions: (() => void)[] = [];
     
-    // Handle responsive updates on window resize
+    // Handle responsive updates on window resize with throttling
+    let resizeTimeout: NodeJS.Timeout | null = null;
     const handleResize = () => {
-      try {
-        const currentRect = clientRect();
-        if (!currentRect) return;
-        
-        const newIsMobile = isMobileDevice();
-        const newConfig = newIsMobile 
-          ? getMobileConfig() 
-          : getDesktopConfig(currentRect);
-        
-        tippyInstance.setProps(newConfig);
-      } catch (error) {
-        console.warn('Error handling resize:', error);
+      // Throttle resize events to prevent excessive updates
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
       }
+      
+      resizeTimeout = setTimeout(() => {
+        try {
+          const currentRect = clientRect();
+          if (!currentRect) return;
+          
+          const newIsMobile = isMobileDevice();
+          const newConfig = newIsMobile 
+            ? getMobileConfig() 
+            : getDesktopConfig(currentRect);
+          
+          tippyInstance.setProps(newConfig);
+        } catch (error) {
+          console.warn('Error handling resize:', error);
+        } finally {
+          resizeTimeout = null;
+        }
+      }, 100); // 100ms throttle
     };
     
     // Add resize listener for responsive behavior
     if (typeof window !== 'undefined') {
-      window.addEventListener('resize', handleResize);
+      window.addEventListener('resize', handleResize, { passive: true });
+      cleanupFunctions.push(() => {
+        window.removeEventListener('resize', handleResize);
+        if (resizeTimeout) {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = null;
+        }
+      });
     }
     
     return {
@@ -229,10 +249,19 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
       },
       destroy: () => {
         try {
-          if (typeof window !== 'undefined') {
-            window.removeEventListener('resize', handleResize);
-          }
+          // Execute all cleanup functions
+          cleanupFunctions.forEach(cleanup => {
+            try {
+              cleanup();
+            } catch (error) {
+              console.warn('Error in cleanup function:', error);
+            }
+          });
+          
+          // Destroy Tippy instance
           tippyInstance.destroy();
+          
+          // Call onDestroy callback
           onDestroy?.();
         } catch (error) {
           console.warn('Error destroying popup:', error);
@@ -331,26 +360,58 @@ export function createViewportAwarePopup(config: SuggestionPopupConfig): PopupIn
   // Create popup with viewport awareness
   const popup = createSuggestionPopup(config);
   
-  // Handle orientation changes on mobile
+  // Handle orientation changes on mobile with throttling
+  let orientationTimeout: NodeJS.Timeout | null = null;
   const handleOrientationChange = () => {
-    setTimeout(() => {
-      const currentRect = config.clientRect();
-      if (currentRect) {
-        const newConfig = isMobileDevice() 
-          ? getMobileConfig() 
-          : getDesktopConfig(currentRect);
-        popup.setProps(newConfig);
+    if (orientationTimeout) {
+      clearTimeout(orientationTimeout);
+    }
+    
+    orientationTimeout = setTimeout(() => {
+      try {
+        const currentRect = config.clientRect();
+        if (currentRect) {
+          const newConfig = isMobileDevice() 
+            ? getMobileConfig() 
+            : getDesktopConfig(currentRect);
+          popup.setProps(newConfig);
+        }
+      } catch (error) {
+        console.warn('Error handling orientation change:', error);
+      } finally {
+        orientationTimeout = null;
       }
-    }, 100); // Small delay to allow viewport to settle
+    }, 150); // Slightly longer delay for orientation changes
   };
   
-  window.addEventListener('orientationchange', handleOrientationChange);
+  // Add orientation change listener with passive option for better performance
+  if (typeof window !== 'undefined') {
+    window.addEventListener('orientationchange', handleOrientationChange, { passive: true });
+  }
   
-  // Override destroy to clean up orientation listener
+  // Override destroy to clean up orientation listener and timeout
   const originalDestroy = popup.destroy;
   popup.destroy = () => {
-    window.removeEventListener('orientationchange', handleOrientationChange);
-    originalDestroy();
+    try {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('orientationchange', handleOrientationChange);
+      }
+      
+      if (orientationTimeout) {
+        clearTimeout(orientationTimeout);
+        orientationTimeout = null;
+      }
+      
+      originalDestroy();
+    } catch (error) {
+      console.warn('Error in viewport-aware popup destroy:', error);
+      // Still try to call original destroy
+      try {
+        originalDestroy();
+      } catch (originalError) {
+        console.warn('Error in original destroy:', originalError);
+      }
+    }
   };
   
   return popup;

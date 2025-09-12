@@ -1,10 +1,15 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect } from 'react';
+import { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect, memo } from 'react';
 import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
 import { useKeyboardNavigation } from '@/hooks/use-keyboard-navigation';
+import { 
+  suggestionPerformanceMonitor, 
+  createResourceCleanupTracker,
+  useRenderPerformanceMonitor 
+} from '@/lib/mention-suggestion-performance';
 import { cn } from '@/lib/utils';
 import { 
   User, 
@@ -50,22 +55,69 @@ export interface MentionSuggestionListRef {
   onKeyDown: (props: { event: KeyboardEvent }) => boolean;
 }
 
+// Memoized suggestion item component for better performance
+const MemoizedSuggestionItem = memo<{
+  item: MentionVariable;
+  isSelected: boolean;
+  query: string;
+  onSelect: () => void;
+  onMouseEnter: () => void;
+  highlightMatch: (text: string, query: string) => React.ReactNode;
+}>(({ item, isSelected, query, onSelect, onMouseEnter, highlightMatch }) => (
+  <div
+    id={`suggestion-${item.id}`}
+    className={cn(
+      'mention-suggestion-item',
+      isSelected && 'selected'
+    )}
+    role="option"
+    aria-selected={isSelected}
+    aria-describedby={`suggestion-${item.id}-description`}
+    tabIndex={isSelected ? 0 : -1}
+    onClick={onSelect}
+    onMouseEnter={onMouseEnter}
+  >
+    <div className="mention-suggestion-label" aria-label={`Variable: ${item.label}`}>
+      {highlightMatch(item.label, query)}
+    </div>
+    <div 
+      id={`suggestion-${item.id}-description`}
+      className="mention-suggestion-description"
+      aria-label={`Description: ${item.description}`}
+    >
+      {highlightMatch(item.description, query)}
+    </div>
+  </div>
+));
+
+MemoizedSuggestionItem.displayName = 'MemoizedSuggestionItem';
+
 // Main component with forwardRef for keyboard navigation
 export const MentionSuggestionList = forwardRef<
   MentionSuggestionListRef,
   MentionSuggestionListProps
 >(({ items, command, editor, range, query, loading = false }, ref) => {
+  // Performance monitoring
+  useRenderPerformanceMonitor('MentionSuggestionList');
+
   // Error handling state
   const { error, hasError, handleError, retry, reset } = useMentionSuggestionErrorHandler();
   const [fallbackMode, setFallbackMode] = useState(false);
   const fallback = useMemo(() => createGracefulFallback(), []);
 
-  // Group and order items by category with error handling
+  // Resource cleanup tracker
+  const cleanupTracker = useMemo(() => createResourceCleanupTracker(), []);
+
+  // Group and order items by category with error handling and performance monitoring
   const { groupedItems, orderedCategories, flatItems } = useMemo(() => {
+    const endTiming = suggestionPerformanceMonitor.startTiming('groupMentionVariables');
+    
     try {
       const grouped = groupMentionVariablesByCategory(items);
       const ordered = getOrderedCategories(grouped);
       const flat = ordered.flatMap(categoryId => grouped[categoryId] || []);
+      
+      const duration = endTiming();
       
       return {
         groupedItems: grouped,
@@ -73,6 +125,8 @@ export const MentionSuggestionList = forwardRef<
         flatItems: flat
       };
     } catch (error) {
+      endTiming();
+      
       const suggestionError = handleRenderError(
         error instanceof Error ? error : new Error('Unknown grouping error'),
         'MentionSuggestionList',
@@ -218,6 +272,13 @@ export const MentionSuggestionList = forwardRef<
     }
   }, [hasError]);
 
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      cleanupTracker.cleanup();
+    };
+  }, [cleanupTracker]);
+
   // If we have a critical error, show error fallback
   if (hasError && !fallbackMode) {
     return (
@@ -298,31 +359,15 @@ export const MentionSuggestionList = forwardRef<
                 const isSelected = flatIndex === selectedIndex;
                 
                 return (
-                  <div
+                  <MemoizedSuggestionItem
                     key={item.id}
-                    id={`suggestion-${item.id}`}
-                    className={cn(
-                      'mention-suggestion-item',
-                      isSelected && 'selected'
-                    )}
-                    role="option"
-                    aria-selected={isSelected}
-                    aria-describedby={`suggestion-${item.id}-description`}
-                    tabIndex={isSelected ? 0 : -1}
-                    onClick={() => handleItemClick(item)}
+                    item={item}
+                    isSelected={isSelected}
+                    query={query}
+                    onSelect={() => handleItemClick(item)}
                     onMouseEnter={() => setSelectedIndex(flatIndex)}
-                  >
-                    <div className="mention-suggestion-label" aria-label={`Variable: ${item.label}`}>
-                      {highlightMatch(item.label, query)}
-                    </div>
-                    <div 
-                      id={`suggestion-${item.id}-description`}
-                      className="mention-suggestion-description"
-                      aria-label={`Description: ${item.description}`}
-                    >
-                      {highlightMatch(item.description, query)}
-                    </div>
-                  </div>
+                    highlightMatch={highlightMatch}
+                  />
                 );
               })}
             </div>

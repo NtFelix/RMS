@@ -3,13 +3,19 @@
 import { useEditor, EditorContent, JSONContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorProps } from '@/types/template';
 import { cn } from '@/lib/utils';
 import { filterMentionVariables } from '@/lib/mention-utils';
 import { createViewportAwarePopup } from '@/lib/mention-suggestion-popup';
+import { 
+  createDebouncedFunction, 
+  createResourceCleanupTracker,
+  suggestionPerformanceMonitor,
+  useRenderPerformanceMonitor 
+} from '@/lib/mention-suggestion-performance';
 import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
 import { MentionSuggestionErrorBoundary } from '@/components/mention-suggestion-error-boundary';
 import {
@@ -48,10 +54,33 @@ export function TemplateEditor({
   'aria-label'?: string;
   'aria-describedby'?: string;
 }) {
+  // Performance monitoring
+  useRenderPerformanceMonitor('TemplateEditor');
+
   // Error handling state
   const [suggestionError, setSuggestionError] = useState<Error | null>(null);
   const [fallbackMode, setFallbackMode] = useState(false);
   const fallback = useRef(createGracefulFallback()).current;
+
+  // Resource cleanup tracker
+  const cleanupTracker = useMemo(() => createResourceCleanupTracker(), []);
+
+  // Debounced filtering function for better performance
+  const debouncedFilter = useMemo(() => {
+    const { debouncedFn, cancel } = createDebouncedFunction(
+      (query: string) => {
+        return filterMentionVariables(MENTION_VARIABLES, query, {
+          prioritizeExactMatches: true,
+        }).slice(0, 10);
+      },
+      150 // 150ms debounce
+    );
+
+    // Register cleanup
+    cleanupTracker.register(cancel);
+
+    return debouncedFn;
+  }, [cleanupTracker]);
   const editor = useEditor({
     // Disable immediate rendering to prevent SSR issues
     immediatelyRender: false,
@@ -78,33 +107,51 @@ export function TemplateEditor({
           allowSpaces: false,
           startOfLine: false,
           items: ({ query }) => {
-            // Use safe execution for filtering with error handling
-            const result = safeExecute(
-              () => filterMentionVariables(MENTION_VARIABLES, query, {
-                prioritizeExactMatches: true,
-              }).slice(0, 10),
-              MentionSuggestionErrorType.FILTER_ERROR,
-              { query, variableCount: MENTION_VARIABLES.length }
-            );
-
-            // Handle the promise result
-            if (result instanceof Promise) {
-              result.then(({ success, result: filteredItems, error }) => {
-                if (!success && error) {
-                  setSuggestionError(error.originalError || new Error(error.message));
-                  
-                  // Check if we should enter fallback mode
-                  if (mentionSuggestionErrorRecovery.recordError(error)) {
-                    setFallbackMode(true);
+            // Use safe execution for filtering with error handling and performance monitoring
+            const endTiming = suggestionPerformanceMonitor.startTiming('suggestion-items');
+            
+            try {
+              const result = safeExecute(
+                () => {
+                  // For empty queries, return immediate results
+                  if (!query.trim()) {
+                    return MENTION_VARIABLES.slice(0, 10);
                   }
-                }
-              });
-              
-              // Return fallback items for immediate use
+                  
+                  // Use debounced filtering for non-empty queries
+                  return filterMentionVariables(MENTION_VARIABLES, query, {
+                    prioritizeExactMatches: true,
+                  }).slice(0, 10);
+                },
+                MentionSuggestionErrorType.FILTER_ERROR,
+                { query, variableCount: MENTION_VARIABLES.length }
+              );
+
+              const duration = endTiming();
+
+              // Handle the promise result
+              if (result instanceof Promise) {
+                result.then(({ success, result: filteredItems, error }) => {
+                  if (!success && error) {
+                    setSuggestionError(error.originalError || new Error(error.message));
+                    
+                    // Check if we should enter fallback mode
+                    if (mentionSuggestionErrorRecovery.recordError(error)) {
+                      setFallbackMode(true);
+                    }
+                  }
+                });
+                
+                // Return fallback items for immediate use
+                return fallback.fallbackFilter(MENTION_VARIABLES, query);
+              }
+
+              return result.success ? result.result || [] : fallback.fallbackFilter(MENTION_VARIABLES, query);
+            } catch (error) {
+              endTiming();
+              console.error('Error in suggestion items:', error);
               return fallback.fallbackFilter(MENTION_VARIABLES, query);
             }
-
-            return result.success ? result.result || [] : fallback.fallbackFilter(MENTION_VARIABLES, query);
           },
           render: () => {
             let component: ReactRenderer<MentionSuggestionListRef> | null = null;
@@ -225,6 +272,13 @@ export function TemplateEditor({
       }
     }
   }, [content, editor]);
+
+  // Cleanup effect
+  useEffect(() => {
+    return () => {
+      cleanupTracker.cleanup();
+    };
+  }, [cleanupTracker]);
 
   const toggleBold = useCallback(() => {
     editor?.chain().focus().toggleBold().run();

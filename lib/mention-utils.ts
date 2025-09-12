@@ -4,6 +4,11 @@ import {
   safeExecute, 
   MentionSuggestionErrorType 
 } from './mention-suggestion-error-handling';
+import { 
+  createMemoizedFunction, 
+  suggestionPerformanceMonitor,
+  createOptimizedFilter 
+} from './mention-suggestion-performance';
 
 /**
  * Filter mention variables based on search query
@@ -22,14 +27,27 @@ export interface EnhancedMentionVariable extends MentionVariable {
   keywords?: string[];
 }
 
+// Create memoized version of the core filtering logic
+const { memoizedFn: memoizedFilterCore, clear: clearFilterCache } = createMemoizedFunction(
+  (variables: MentionVariable[], query: string, options: FilterOptions = {}) => {
+    return filterMentionVariablesCore(variables, query, options);
+  },
+  {
+    maxSize: 100,
+    ttl: 5 * 60 * 1000, // 5 minutes
+    keyGenerator: (variables, query, options) => {
+      const variablesLength = Array.isArray(variables) ? variables.length : 0;
+      const safeQuery = typeof query === 'string' ? query : '';
+      const safeOptions = options || {};
+      return `${variablesLength}-${safeQuery}-${JSON.stringify(safeOptions)}`;
+    },
+  }
+);
+
 /**
- * Filter mention variables based on query string and options with error handling
- * @param variables - Array of mention variables to filter
- * @param query - Search query string
- * @param options - Filtering options
- * @returns Filtered and sorted array of mention variables
+ * Core filtering logic without memoization
  */
-export function filterMentionVariables(
+function filterMentionVariablesCore(
   variables: MentionVariable[],
   query: string,
   options: FilterOptions = {}
@@ -158,11 +176,56 @@ export function filterMentionVariables(
 }
 
 /**
- * Group mention variables by category with proper ordering and error handling
- * @param variables - Array of mention variables to group
- * @returns Object with category keys and variable arrays as values, ordered by category order
+ * Filter mention variables based on query string and options with error handling
+ * @param variables - Array of mention variables to filter
+ * @param query - Search query string
+ * @param options - Filtering options
+ * @returns Filtered and sorted array of mention variables
  */
-export function groupMentionVariablesByCategory(
+export function filterMentionVariables(
+  variables: MentionVariable[],
+  query: string,
+  options: FilterOptions = {}
+): MentionVariable[] {
+  const endTiming = suggestionPerformanceMonitor.startTiming('filterMentionVariables');
+  
+  try {
+    const result = memoizedFilterCore(variables, query, options);
+    const duration = endTiming();
+    
+    suggestionPerformanceMonitor.recordFilteringMetrics(
+      duration,
+      variables.length,
+      result.length
+    );
+    
+    return result;
+  } catch (error) {
+    endTiming();
+    throw error;
+  }
+}
+
+// Create memoized version of the grouping function
+const { memoizedFn: memoizedGroupByCategory, clear: clearGroupCache } = createMemoizedFunction(
+  (variables: MentionVariable[]) => {
+    return groupMentionVariablesByCategoryCore(variables);
+  },
+  {
+    maxSize: 50,
+    ttl: 10 * 60 * 1000, // 10 minutes (grouping is more stable)
+    keyGenerator: (variables) => {
+      if (!Array.isArray(variables)) return '0-empty';
+      const ids = variables.map(v => v?.id || 'unknown').join(',');
+      return `${variables.length}-${ids}`;
+    },
+  }
+);
+
+/**
+ * Core grouping logic without memoization
+ */
+function groupMentionVariablesByCategoryCore(
   variables: MentionVariable[]
 ): Record<string, MentionVariable[]> {
   try {
@@ -210,6 +273,17 @@ export function groupMentionVariablesByCategory(
     // Return safe fallback
     return {};
   }
+}
+
+/**
+ * Group mention variables by category with proper ordering and error handling
+ * @param variables - Array of mention variables to group
+ * @returns Object with category keys and variable arrays as values, ordered by category order
+ */
+export function groupMentionVariablesByCategory(
+  variables: MentionVariable[]
+): Record<string, MentionVariable[]> {
+  return memoizedGroupByCategory(variables);
 }
 
 /**
@@ -270,4 +344,17 @@ export function searchMentionVariables(
     categories: orderedCategories,
     total: filteredVariables.length
   };
+}
+
+/**
+ * Clear all memoization caches for mention utilities
+ * Useful for memory management and testing
+ */
+export function clearMentionUtilsCaches(): void {
+  try {
+    clearFilterCache();
+    clearGroupCache();
+  } catch (error) {
+    console.warn('Error clearing mention utils caches:', error);
+  }
 }
