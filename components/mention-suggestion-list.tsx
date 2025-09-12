@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useCallback, useMemo } from 'react';
+import { forwardRef, useImperativeHandle, useCallback, useMemo, useState } from 'react';
 import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
@@ -12,6 +12,8 @@ import {
   Building, 
   Calendar, 
   UserCheck,
+  Search,
+  Loader2,
   LucideIcon
 } from 'lucide-react';
 
@@ -22,6 +24,7 @@ export interface MentionSuggestionListProps {
   editor: Editor;
   range: Range;
   query: string;
+  loading?: boolean;
 }
 
 // Icon mapping for categories
@@ -42,7 +45,7 @@ export interface MentionSuggestionListRef {
 export const MentionSuggestionList = forwardRef<
   MentionSuggestionListRef,
   MentionSuggestionListProps
->(({ items, command, editor, range, query }, ref) => {
+>(({ items, command, editor, range, query, loading = false }, ref) => {
   // Group and order items by category
   const { groupedItems, orderedCategories, flatItems } = useMemo(() => {
     const grouped = groupMentionVariablesByCategory(items);
@@ -97,12 +100,23 @@ export const MentionSuggestionList = forwardRef<
     return flatItems.findIndex(flatItem => flatItem.id === item.id);
   }, [flatItems]);
 
+  // Helper to highlight matching text in query
+  const highlightMatch = useCallback((text: string, query: string) => {
+    if (!query.trim()) return text;
+    
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => 
+      regex.test(part) ? <mark key={index}>{part}</mark> : part
+    );
+  }, []);
+
   return (
     <div
       className={cn(
-        'bg-background border border-border rounded-md shadow-lg',
-        'w-full max-w-sm max-h-80 overflow-y-auto',
-        'py-1 focus:outline-none'
+        'mention-suggestion-modal',
+        loading && 'mention-suggestion-loading-state'
       )}
       role="listbox"
       aria-label="Variable suggestions"
@@ -111,14 +125,27 @@ export const MentionSuggestionList = forwardRef<
       aria-multiselectable="false"
       tabIndex={-1}
     >
-      {items.length === 0 ? (
-        <div
-          className="px-3 py-2 text-sm text-muted-foreground"
-          role="option"
-          aria-selected="false"
-          aria-disabled="true"
-        >
-          No matches found
+      {loading ? (
+        <>
+          <div className="mention-suggestion-loading" role="status" aria-live="polite">
+            <Loader2 className="mention-suggestion-loading-spinner" />
+            <span className="mention-suggestion-loading-text">Loading suggestions...</span>
+          </div>
+          {/* Skeleton items for better UX */}
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={`skeleton-${index}`} className="mention-suggestion-skeleton">
+              <div className="mention-suggestion-skeleton-label" />
+              <div className="mention-suggestion-skeleton-description" />
+            </div>
+          ))}
+        </>
+      ) : items.length === 0 ? (
+        <div className="mention-suggestion-empty" role="status" aria-live="polite">
+          <Search className="mention-suggestion-empty-icon" />
+          <div className="mention-suggestion-empty-text">No matches found</div>
+          <div className="mention-suggestion-empty-subtext">
+            {query ? `No variables match "${query}"` : 'Start typing to search variables'}
+          </div>
         </div>
       ) : (
         orderedCategories.map((categoryId, categoryIndex) => {
@@ -133,18 +160,16 @@ export const MentionSuggestionList = forwardRef<
             <div key={categoryId}>
               {/* Category separator - only show if not first category */}
               {categoryIndex > 0 && (
-                <div className="border-t border-border my-1" />
+                <div className="mention-category-separator" />
               )}
               
               {/* Category header */}
-              <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <div className={cn(
+                'mention-category-header',
+                `mention-category-${categoryId}`
+              )}>
                 {IconComponent && (
-                  <IconComponent 
-                    className={cn(
-                      'h-3 w-3',
-                      categoryConfig?.color || 'text-muted-foreground'
-                    )} 
-                  />
+                  <IconComponent className="mention-category-icon" />
                 )}
                 <span>{categoryConfig?.label || categoryId}</span>
               </div>
@@ -159,13 +184,8 @@ export const MentionSuggestionList = forwardRef<
                     key={item.id}
                     id={`suggestion-${item.id}`}
                     className={cn(
-                      'px-3 py-2 cursor-pointer transition-colors',
-                      'hover:bg-accent hover:text-accent-foreground',
-                      'text-sm ml-2', // Indent items under category
-                      // Mobile-friendly touch targets
-                      'min-h-[44px] sm:min-h-0 flex flex-col justify-center',
-                      'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                      isSelected && 'bg-accent text-accent-foreground ring-2 ring-ring'
+                      'mention-suggestion-item',
+                      isSelected && 'selected'
                     )}
                     role="option"
                     aria-selected={isSelected}
@@ -174,15 +194,15 @@ export const MentionSuggestionList = forwardRef<
                     onClick={() => handleItemClick(item)}
                     onMouseEnter={() => setSelectedIndex(flatIndex)}
                   >
-                    <div className="font-medium" aria-label={`Variable: ${item.label}`}>
-                      {item.label}
+                    <div className="mention-suggestion-label" aria-label={`Variable: ${item.label}`}>
+                      {highlightMatch(item.label, query)}
                     </div>
                     <div 
                       id={`suggestion-${item.id}-description`}
-                      className="text-xs text-muted-foreground mt-0.5 line-clamp-1"
+                      className="mention-suggestion-description"
                       aria-label={`Description: ${item.description}`}
                     >
-                      {item.description}
+                      {highlightMatch(item.description, query)}
                     </div>
                   </div>
                 );

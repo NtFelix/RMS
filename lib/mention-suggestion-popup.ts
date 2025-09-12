@@ -195,52 +195,24 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
 }
 
 /**
- * Custom CSS theme for mention suggestion popup
+ * Custom CSS theme for mention suggestion popup - now handled by mention-suggestion.css
+ * This is kept for backward compatibility but the main styling is in the CSS file
  */
 export const mentionSuggestionTheme = `
+  /* Base Tippy.js theme integration - detailed styles are in mention-suggestion.css */
   .tippy-box[data-theme~='mention-suggestion'] {
-    background-color: hsl(var(--popover));
-    border: 1px solid hsl(var(--border));
-    border-radius: calc(var(--radius) - 2px);
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    font-size: 0.875rem;
-    line-height: 1.25rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
   }
   
   .tippy-box[data-theme~='mention-suggestion'] .tippy-content {
     padding: 0;
-    color: hsl(var(--popover-foreground));
   }
   
   .tippy-box[data-theme~='mention-suggestion'] .tippy-arrow {
-    color: hsl(var(--popover));
-  }
-  
-  .tippy-box[data-theme~='mention-suggestion'] .tippy-arrow:before {
-    border-color: hsl(var(--border));
-  }
-  
-  /* Mobile optimizations */
-  @media (max-width: 768px) {
-    .tippy-box[data-theme~='mention-suggestion'] {
-      font-size: 1rem;
-      line-height: 1.5rem;
-    }
-  }
-  
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    .tippy-box[data-theme~='mention-suggestion'] {
-      border-width: 2px;
-      box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.2);
-    }
-  }
-  
-  /* Reduced motion support */
-  @media (prefers-reduced-motion: reduce) {
-    .tippy-box[data-theme~='mention-suggestion'] {
-      transition: none;
-    }
+    display: none;
   }
 `;
 
