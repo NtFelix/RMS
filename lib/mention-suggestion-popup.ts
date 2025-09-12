@@ -1,5 +1,10 @@
 import tippy, { Instance, Props } from 'tippy.js';
 import { Editor } from '@tiptap/react';
+import { 
+  handlePositionError, 
+  MentionSuggestionErrorType,
+  safeExecute 
+} from './mention-suggestion-error-handling';
 
 export interface SuggestionPopupConfig {
   editor: Editor;
@@ -19,36 +24,50 @@ export interface PopupInstance {
  * Calculates optimal placement for the suggestion popup to prevent off-screen rendering
  */
 export function getOptimalPlacement(referenceRect: DOMRect): 'bottom-start' | 'top-start' | 'bottom-end' | 'top-end' {
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  
-  // Calculate available space in each direction
-  const spaceBelow = viewportHeight - referenceRect.bottom;
-  const spaceAbove = referenceRect.top;
-  const spaceRight = viewportWidth - referenceRect.left;
-  const spaceLeft = referenceRect.left;
-  
-  // Minimum space required for popup (approximate)
-  const minVerticalSpace = 200;
-  const minHorizontalSpace = 320;
-  
-  // Determine vertical placement
-  const preferBottom = spaceBelow >= minVerticalSpace;
-  const canFitBelow = spaceBelow >= minVerticalSpace;
-  const canFitAbove = spaceAbove >= minVerticalSpace;
-  
-  // Determine horizontal placement
-  const preferStart = spaceRight >= minHorizontalSpace;
-  const canFitRight = spaceRight >= minHorizontalSpace;
-  const canFitLeft = spaceLeft >= minHorizontalSpace;
-  
-  // Choose placement based on available space
-  if (preferBottom && canFitBelow) {
-    return preferStart && canFitRight ? 'bottom-start' : 'bottom-end';
-  } else if (canFitAbove) {
-    return preferStart && canFitRight ? 'top-start' : 'top-end';
-  } else {
-    // Fallback to bottom-start if no ideal placement
+  try {
+    if (!referenceRect || typeof window === 'undefined') {
+      return 'bottom-start';
+    }
+    
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Validate viewport dimensions
+    if (viewportWidth <= 0 || viewportHeight <= 0) {
+      return 'bottom-start';
+    }
+    
+    // Calculate available space in each direction
+    const spaceBelow = viewportHeight - referenceRect.bottom;
+    const spaceAbove = referenceRect.top;
+    const spaceRight = viewportWidth - referenceRect.left;
+    const spaceLeft = referenceRect.left;
+    
+    // Minimum space required for popup (approximate)
+    const minVerticalSpace = 200;
+    const minHorizontalSpace = 320;
+    
+    // Determine vertical placement
+    const preferBottom = spaceBelow >= minVerticalSpace;
+    const canFitBelow = spaceBelow >= minVerticalSpace;
+    const canFitAbove = spaceAbove >= minVerticalSpace;
+    
+    // Determine horizontal placement
+    const preferStart = spaceRight >= minHorizontalSpace;
+    const canFitRight = spaceRight >= minHorizontalSpace;
+    const canFitLeft = spaceLeft >= minHorizontalSpace;
+    
+    // Choose placement based on available space
+    if (preferBottom && canFitBelow) {
+      return preferStart && canFitRight ? 'bottom-start' : 'bottom-end';
+    } else if (canFitAbove) {
+      return preferStart && canFitRight ? 'top-start' : 'top-end';
+    } else {
+      // Fallback to bottom-start if no ideal placement
+      return 'bottom-start';
+    }
+  } catch (error) {
+    console.warn('Error calculating optimal placement:', error);
     return 'bottom-start';
   }
 }
@@ -119,79 +138,152 @@ export function getDesktopConfig(referenceRect: DOMRect): Partial<Props> {
 }
 
 /**
- * Creates and configures a Tippy.js instance for mention suggestions
+ * Creates and configures a Tippy.js instance for mention suggestions with error handling
  */
 export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInstance {
-  const { element, clientRect, onDestroy } = config;
-  
-  // Get initial reference rect for positioning
-  const initialRect = clientRect();
-  const isMobile = isMobileDevice();
-  
-  // Base configuration
-  const baseConfig: Partial<Props> = {
-    getReferenceClientRect: () => clientRect() || new DOMRect(),
-    appendTo: () => document.body,
-    content: element,
-    showOnCreate: true,
-    interactive: true,
-    trigger: 'manual',
-    hideOnClick: 'toggle',
-    theme: 'mention-suggestion',
-    animation: 'shift-away-subtle',
-    duration: [150, 100],
-    zIndex: 9999,
-    ...( isMobile && initialRect 
-      ? getMobileConfig() 
-      : getDesktopConfig(initialRect || new DOMRect())
-    ),
-  };
-  
-  // Create Tippy instance
-  const tippyInstances = tippy(document.body, baseConfig);
-  const tippyInstance = Array.isArray(tippyInstances) ? tippyInstances[0] : tippyInstances;
-  
-  // Handle responsive updates on window resize
-  const handleResize = () => {
-    const currentRect = clientRect();
-    if (!currentRect) return;
+  try {
+    const { element, clientRect, onDestroy } = config;
     
-    const newIsMobile = isMobileDevice();
-    const newConfig = newIsMobile 
-      ? getMobileConfig() 
-      : getDesktopConfig(currentRect);
+    if (!element) {
+      throw new Error('Element is required for popup creation');
+    }
     
-    tippyInstance.setProps(newConfig);
-  };
-  
-  // Add resize listener for responsive behavior
-  window.addEventListener('resize', handleResize);
-  
-  return {
-    show: () => tippyInstance.show(),
-    hide: () => tippyInstance.hide(),
-    destroy: () => {
-      window.removeEventListener('resize', handleResize);
-      tippyInstance.destroy();
-      onDestroy?.();
-    },
-    setProps: (props: Partial<Props>) => {
-      // Merge with responsive config when updating props
-      const currentRect = clientRect();
-      if (currentRect) {
-        const responsiveConfig = isMobileDevice() 
+    if (!clientRect || typeof clientRect !== 'function') {
+      throw new Error('ClientRect function is required for popup creation');
+    }
+    
+    // Get initial reference rect for positioning
+    const initialRect = clientRect();
+    const isMobile = isMobileDevice();
+    
+    // Base configuration
+    const baseConfig: Partial<Props> = {
+      getReferenceClientRect: () => {
+        try {
+          return clientRect() || new DOMRect();
+        } catch (error) {
+          console.warn('Error getting client rect:', error);
+          return new DOMRect();
+        }
+      },
+      appendTo: () => document.body,
+      content: element,
+      showOnCreate: true,
+      interactive: true,
+      trigger: 'manual',
+      hideOnClick: 'toggle',
+      theme: 'mention-suggestion',
+      animation: 'shift-away-subtle',
+      duration: [150, 100],
+      zIndex: 9999,
+      ...( isMobile && initialRect 
+        ? getMobileConfig() 
+        : getDesktopConfig(initialRect || new DOMRect())
+      ),
+    };
+    
+    // Create Tippy instance
+    const tippyInstances = tippy(document.body, baseConfig);
+    const tippyInstance = Array.isArray(tippyInstances) ? tippyInstances[0] : tippyInstances;
+    
+    if (!tippyInstance) {
+      throw new Error('Failed to create Tippy instance');
+    }
+    
+    // Handle responsive updates on window resize
+    const handleResize = () => {
+      try {
+        const currentRect = clientRect();
+        if (!currentRect) return;
+        
+        const newIsMobile = isMobileDevice();
+        const newConfig = newIsMobile 
           ? getMobileConfig() 
           : getDesktopConfig(currentRect);
         
-        tippyInstance.setProps({
-          ...responsiveConfig,
-          ...props,
-        });
-      } else {
-        tippyInstance.setProps(props);
+        tippyInstance.setProps(newConfig);
+      } catch (error) {
+        console.warn('Error handling resize:', error);
       }
-    },
-  };
+    };
+    
+    // Add resize listener for responsive behavior
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', handleResize);
+    }
+    
+    return {
+      show: () => {
+        try {
+          tippyInstance.show();
+        } catch (error) {
+          console.warn('Error showing popup:', error);
+        }
+      },
+      hide: () => {
+        try {
+          tippyInstance.hide();
+        } catch (error) {
+          console.warn('Error hiding popup:', error);
+        }
+      },
+      destroy: () => {
+        try {
+          if (typeof window !== 'undefined') {
+            window.removeEventListener('resize', handleResize);
+          }
+          tippyInstance.destroy();
+          onDestroy?.();
+        } catch (error) {
+          console.warn('Error destroying popup:', error);
+          // Still call onDestroy even if tippy destroy fails
+          try {
+            onDestroy?.();
+          } catch (destroyError) {
+            console.warn('Error in onDestroy callback:', destroyError);
+          }
+        }
+      },
+      setProps: (props: Partial<Props>) => {
+        try {
+          // Merge with responsive config when updating props
+          const currentRect = clientRect();
+          if (currentRect) {
+            const responsiveConfig = isMobileDevice() 
+              ? getMobileConfig() 
+              : getDesktopConfig(currentRect);
+            
+            tippyInstance.setProps({
+              ...responsiveConfig,
+              ...props,
+            });
+          } else {
+            tippyInstance.setProps(props);
+          }
+        } catch (error) {
+          console.warn('Error setting popup props:', error);
+        }
+      },
+    };
+  } catch (error) {
+    // Return a fallback popup instance that does nothing
+    console.error('Failed to create suggestion popup:', error);
+    
+    const fallbackInstance: PopupInstance = {
+      show: () => console.warn('Popup show called on fallback instance'),
+      hide: () => console.warn('Popup hide called on fallback instance'),
+      destroy: () => {
+        try {
+          config.onDestroy?.();
+        } catch (error) {
+          console.warn('Error in fallback destroy:', error);
+        }
+      },
+      setProps: () => console.warn('Popup setProps called on fallback instance'),
+    };
+    
+    return fallbackInstance;
+  }
 }
 
 /**

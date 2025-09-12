@@ -3,7 +3,7 @@
 import { useEditor, EditorContent, JSONContent, ReactRenderer } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Mention from '@tiptap/extension-mention';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from '@/lib/accessibility-constants';
 import { TemplateEditorProps } from '@/types/template';
@@ -11,6 +11,16 @@ import { cn } from '@/lib/utils';
 import { filterMentionVariables } from '@/lib/mention-utils';
 import { createViewportAwarePopup } from '@/lib/mention-suggestion-popup';
 import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
+import { MentionSuggestionErrorBoundary } from '@/components/mention-suggestion-error-boundary';
+import {
+  MentionSuggestionErrorType,
+  handleSuggestionInitializationError,
+  handleFilterError,
+  handlePositionError,
+  safeExecute,
+  createGracefulFallback,
+  mentionSuggestionErrorRecovery,
+} from '@/lib/mention-suggestion-error-handling';
 import { Button } from '@/components/ui/button';
 import { 
   Bold, 
@@ -38,6 +48,10 @@ export function TemplateEditor({
   'aria-label'?: string;
   'aria-describedby'?: string;
 }) {
+  // Error handling state
+  const [suggestionError, setSuggestionError] = useState<Error | null>(null);
+  const [fallbackMode, setFallbackMode] = useState(false);
+  const fallback = useRef(createGracefulFallback()).current;
   const editor = useEditor({
     // Disable immediate rendering to prevent SSR issues
     immediatelyRender: false,
@@ -64,56 +78,127 @@ export function TemplateEditor({
           allowSpaces: false,
           startOfLine: false,
           items: ({ query }) => {
-            return filterMentionVariables(MENTION_VARIABLES, query, {
-              prioritizeExactMatches: true,
-            }).slice(0, 10);
+            // Use safe execution for filtering with error handling
+            const result = safeExecute(
+              () => filterMentionVariables(MENTION_VARIABLES, query, {
+                prioritizeExactMatches: true,
+              }).slice(0, 10),
+              MentionSuggestionErrorType.FILTER_ERROR,
+              { query, variableCount: MENTION_VARIABLES.length }
+            );
+
+            // Handle the promise result
+            if (result instanceof Promise) {
+              result.then(({ success, result: filteredItems, error }) => {
+                if (!success && error) {
+                  setSuggestionError(error.originalError || new Error(error.message));
+                  
+                  // Check if we should enter fallback mode
+                  if (mentionSuggestionErrorRecovery.recordError(error)) {
+                    setFallbackMode(true);
+                  }
+                }
+              });
+              
+              // Return fallback items for immediate use
+              return fallback.fallbackFilter(MENTION_VARIABLES, query);
+            }
+
+            return result.success ? result.result || [] : fallback.fallbackFilter(MENTION_VARIABLES, query);
           },
           render: () => {
-            let component: ReactRenderer<MentionSuggestionListRef>;
-            let popup: ReturnType<typeof createViewportAwarePopup>;
+            let component: ReactRenderer<MentionSuggestionListRef> | null = null;
+            let popup: ReturnType<typeof createViewportAwarePopup> | null = null;
 
             return {
               onStart: (props) => {
-                component = new ReactRenderer(MentionSuggestionList, {
-                  props,
-                  editor: props.editor,
-                });
+                try {
+                  // Reset error state on successful start
+                  setSuggestionError(null);
+                  
+                  component = new ReactRenderer(MentionSuggestionList, {
+                    props,
+                    editor: props.editor,
+                  });
 
-                if (!props.clientRect) {
-                  return;
+                  if (!props.clientRect) {
+                    return;
+                  }
+
+                  popup = createViewportAwarePopup({
+                    editor: props.editor,
+                    element: component.element as HTMLElement,
+                    clientRect: props.clientRect,
+                    onDestroy: () => {
+                      component?.destroy();
+                    },
+                  });
+                } catch (error) {
+                  const suggestionError = handleSuggestionInitializationError(
+                    error instanceof Error ? error : new Error('Suggestion initialization failed'),
+                    { query: props.query }
+                  );
+                  
+                  setSuggestionError(suggestionError.originalError || new Error(suggestionError.message));
+                  
+                  // Check if we should enter fallback mode
+                  if (mentionSuggestionErrorRecovery.recordError(suggestionError)) {
+                    setFallbackMode(true);
+                  }
                 }
-
-                popup = createViewportAwarePopup({
-                  editor: props.editor,
-                  element: component.element as HTMLElement,
-                  clientRect: props.clientRect,
-                  onDestroy: () => {
-                    component?.destroy();
-                  },
-                });
               },
               onUpdate: (props) => {
-                component?.updateProps(props);
+                try {
+                  component?.updateProps(props);
 
-                if (!props.clientRect) {
-                  return;
+                  if (!props.clientRect || !popup) {
+                    return;
+                  }
+
+                  popup.setProps({
+                    getReferenceClientRect: () => props.clientRect?.() || new DOMRect(),
+                  });
+                } catch (error) {
+                  const positionError = handlePositionError(
+                    error instanceof Error ? error : new Error('Position update failed'),
+                    props.clientRect?.()
+                  );
+                  
+                  console.warn('Suggestion position update failed:', positionError);
+                  // Don't set error state for position errors as they're not critical
                 }
-
-                popup?.setProps({
-                  getReferenceClientRect: () => props.clientRect?.() || new DOMRect(),
-                });
               },
               onKeyDown: (props) => {
-                if (props.event.key === 'Escape') {
-                  popup?.hide();
-                  return true;
-                }
+                try {
+                  if (props.event.key === 'Escape') {
+                    popup?.hide();
+                    return true;
+                  }
 
-                return component?.ref?.onKeyDown(props) || false;
+                  return component?.ref?.onKeyDown(props) || false;
+                } catch (error) {
+                  console.warn('Suggestion keyboard handling failed:', error);
+                  
+                  // Fallback keyboard handling
+                  if (props.event.key === 'Escape') {
+                    popup?.hide();
+                    return true;
+                  }
+                  
+                  return false;
+                }
               },
               onExit: () => {
-                popup?.destroy();
-                component?.destroy();
+                try {
+                  popup?.destroy();
+                  component?.destroy();
+                } catch (error) {
+                  console.warn('Suggestion cleanup failed:', error);
+                }
+                
+                // Always reset references
+                popup = null;
+                component = null;
               },
             };
           },
@@ -174,12 +259,18 @@ export function TemplateEditor({
   }
 
   return (
-    <div 
-      className={cn('border border-input rounded-md', className)}
-      role="application"
-      aria-label={ariaLabel || ARIA_LABELS.templateContentEditor}
-      aria-describedby={ariaDescribedBy}
+    <MentionSuggestionErrorBoundary
+      onError={(error, errorInfo) => {
+        console.error('Template Editor Error:', error, errorInfo);
+        setSuggestionError(error);
+      }}
     >
+      <div 
+        className={cn('border border-input rounded-md', className)}
+        role="application"
+        aria-label={ariaLabel || ARIA_LABELS.templateContentEditor}
+        aria-describedby={ariaDescribedBy}
+      >
       {/* Toolbar */}
       {!readOnly && (
         <div 
@@ -335,6 +426,46 @@ export function TemplateEditor({
           </div>
         )}
       </div>
+      
+      {/* Error notification for suggestion failures */}
+      {suggestionError && !fallbackMode && (
+        <div className="border-t border-destructive/20 bg-destructive/5 p-2 text-xs text-destructive-foreground">
+          <div className="flex items-center justify-between">
+            <span>Variable suggestions temporarily unavailable</span>
+            <button
+              type="button"
+              onClick={() => {
+                setSuggestionError(null);
+                mentionSuggestionErrorRecovery.reset();
+                setFallbackMode(false);
+              }}
+              className="text-xs underline hover:no-underline"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {fallbackMode && (
+        <div className="border-t border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          <div className="flex items-center justify-between">
+            <span>Running in basic mode - type @ followed by variable names manually</span>
+            <button
+              type="button"
+              onClick={() => {
+                setFallbackMode(false);
+                setSuggestionError(null);
+                mentionSuggestionErrorRecovery.reset();
+              }}
+              className="text-xs underline hover:no-underline"
+            >
+              Try full mode
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+    </MentionSuggestionErrorBoundary>
   );
 }

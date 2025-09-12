@@ -1,6 +1,6 @@
 'use client';
 
-import { forwardRef, useImperativeHandle, useCallback, useMemo, useState } from 'react';
+import { forwardRef, useImperativeHandle, useCallback, useMemo, useState, useEffect } from 'react';
 import { Editor, Range } from '@tiptap/react';
 import { MentionVariable, CATEGORY_CONFIGS, getCategoryConfig } from '@/lib/template-constants';
 import { groupMentionVariablesByCategory, getOrderedCategories } from '@/lib/mention-utils';
@@ -16,6 +16,15 @@ import {
   Loader2,
   LucideIcon
 } from 'lucide-react';
+import {
+  MentionSuggestionErrorType,
+  handleRenderError,
+  handleKeyboardNavigationError,
+  safeExecute,
+  createGracefulFallback,
+  mentionSuggestionErrorRecovery,
+} from '@/lib/mention-suggestion-error-handling';
+import { MentionSuggestionErrorFallback, useMentionSuggestionErrorHandler } from '@/components/mention-suggestion-error-boundary';
 
 // Props interface for the MentionSuggestionList component
 export interface MentionSuggestionListProps {
@@ -46,36 +55,104 @@ export const MentionSuggestionList = forwardRef<
   MentionSuggestionListRef,
   MentionSuggestionListProps
 >(({ items, command, editor, range, query, loading = false }, ref) => {
-  // Group and order items by category
+  // Error handling state
+  const { error, hasError, handleError, retry, reset } = useMentionSuggestionErrorHandler();
+  const [fallbackMode, setFallbackMode] = useState(false);
+  const fallback = useMemo(() => createGracefulFallback(), []);
+
+  // Group and order items by category with error handling
   const { groupedItems, orderedCategories, flatItems } = useMemo(() => {
-    const grouped = groupMentionVariablesByCategory(items);
-    const ordered = getOrderedCategories(grouped);
-    const flat = ordered.flatMap(categoryId => grouped[categoryId] || []);
-    
-    return {
-      groupedItems: grouped,
-      orderedCategories: ordered,
-      flatItems: flat
-    };
-  }, [items]);
-
-  // Handle item selection
-  const handleSelect = useCallback((index: number) => {
-    if (flatItems[index]) {
-      command(flatItems[index]);
+    try {
+      const grouped = groupMentionVariablesByCategory(items);
+      const ordered = getOrderedCategories(grouped);
+      const flat = ordered.flatMap(categoryId => grouped[categoryId] || []);
+      
+      return {
+        groupedItems: grouped,
+        orderedCategories: ordered,
+        flatItems: flat
+      };
+    } catch (error) {
+      const suggestionError = handleRenderError(
+        error instanceof Error ? error : new Error('Unknown grouping error'),
+        'MentionSuggestionList',
+        { itemCount: items.length, query }
+      );
+      
+      handleError(suggestionError.originalError || new Error(suggestionError.message));
+      
+      // Check if we should enter fallback mode
+      if (mentionSuggestionErrorRecovery.recordError(suggestionError)) {
+        setFallbackMode(true);
+      }
+      
+      // Return safe fallback data
+      return {
+        groupedItems: {},
+        orderedCategories: [],
+        flatItems: []
+      };
     }
-  }, [flatItems, command]);
+  }, [items, query, handleError]);
 
-  // Use keyboard navigation hook
+  // Handle item selection with error handling
+  const handleSelect = useCallback((index: number) => {
+    try {
+      if (flatItems[index]) {
+        command(flatItems[index]);
+        // Reset error state on successful selection
+        reset();
+      }
+    } catch (error) {
+      const suggestionError = handleRenderError(
+        error instanceof Error ? error : new Error('Selection failed'),
+        'MentionSuggestionList.handleSelect',
+        { index, itemCount: flatItems.length }
+      );
+      
+      handleError(suggestionError.originalError || new Error(suggestionError.message));
+      
+      // Try fallback selection
+      if (fallbackMode || mentionSuggestionErrorRecovery.isInFallbackMode()) {
+        fallback.fallbackSuggestion(editor, query);
+      }
+    }
+  }, [flatItems, command, reset, handleError, fallbackMode, fallback, editor, query]);
+
+  // Use keyboard navigation hook with error handling
   const {
     selectedIndex,
     setSelectedIndex,
-    handleKeyDown,
+    handleKeyDown: originalHandleKeyDown,
   } = useKeyboardNavigation({
     itemCount: flatItems.length,
     onSelect: handleSelect,
     initialIndex: 0,
   });
+
+  // Wrap keyboard handling with error recovery
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    try {
+      return originalHandleKeyDown(event);
+    } catch (error) {
+      const suggestionError = handleKeyboardNavigationError(
+        error instanceof Error ? error : new Error('Keyboard navigation failed'),
+        event,
+        selectedIndex,
+        flatItems.length
+      );
+      
+      handleError(suggestionError.originalError || new Error(suggestionError.message));
+      
+      // Fallback: handle basic navigation manually
+      if (event.key === 'Enter' || event.key === 'Tab') {
+        handleSelect(selectedIndex);
+        return true;
+      }
+      
+      return false;
+    }
+  }, [originalHandleKeyDown, selectedIndex, flatItems.length, handleError, handleSelect]);
 
   // Handle keyboard events for TipTap integration
   const onKeyDown = useCallback(({ event }: { event: KeyboardEvent }) => {
@@ -87,10 +164,26 @@ export const MentionSuggestionList = forwardRef<
     onKeyDown,
   }), [onKeyDown]);
 
-  // Handle item selection via click
+  // Handle item selection via click with error handling
   const handleItemClick = useCallback((item: MentionVariable) => {
-    command(item);
-  }, [command]);
+    try {
+      command(item);
+      reset();
+    } catch (error) {
+      const suggestionError = handleRenderError(
+        error instanceof Error ? error : new Error('Click selection failed'),
+        'MentionSuggestionList.handleItemClick',
+        { itemId: item.id, itemLabel: item.label }
+      );
+      
+      handleError(suggestionError.originalError || new Error(suggestionError.message));
+      
+      // Try fallback
+      if (fallbackMode || mentionSuggestionErrorRecovery.isInFallbackMode()) {
+        fallback.fallbackSuggestion(editor, item.label);
+      }
+    }
+  }, [command, reset, handleError, fallbackMode, fallback, editor]);
 
   // Get the currently selected item for ARIA
   const selectedItem = flatItems[selectedIndex];
@@ -100,17 +193,42 @@ export const MentionSuggestionList = forwardRef<
     return flatItems.findIndex(flatItem => flatItem.id === item.id);
   }, [flatItems]);
 
-  // Helper to highlight matching text in query
+  // Helper to highlight matching text in query with error handling
   const highlightMatch = useCallback((text: string, query: string) => {
-    if (!query.trim()) return text;
-    
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
-      regex.test(part) ? <mark key={index}>{part}</mark> : part
-    );
+    try {
+      if (!query.trim()) return text;
+      
+      const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+      const parts = text.split(regex);
+      
+      return parts.map((part, index) => 
+        regex.test(part) ? <mark key={index}>{part}</mark> : part
+      );
+    } catch (error) {
+      // Fallback to plain text if highlighting fails
+      console.warn('Text highlighting failed, using plain text:', error);
+      return text;
+    }
   }, []);
+
+  // Effect to handle error recovery
+  useEffect(() => {
+    if (hasError && mentionSuggestionErrorRecovery.isInFallbackMode()) {
+      setFallbackMode(true);
+    }
+  }, [hasError]);
+
+  // If we have a critical error, show error fallback
+  if (hasError && !fallbackMode) {
+    return (
+      <MentionSuggestionErrorFallback
+        error={error || undefined}
+        onRetry={retry}
+        onDismiss={reset}
+        canRetry={!mentionSuggestionErrorRecovery.isInFallbackMode()}
+      />
+    );
+  }
 
   return (
     <div
