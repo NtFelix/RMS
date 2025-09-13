@@ -45,10 +45,55 @@ interface AIResponse {
 
 interface APIError {
   error: string;
-  code: 'GEMINI_API_ERROR' | 'RATE_LIMIT' | 'INVALID_REQUEST' | 'SERVER_ERROR';
+  code: 'GEMINI_API_ERROR' | 'RATE_LIMIT' | 'INVALID_REQUEST' | 'SERVER_ERROR' | 'TIMEOUT_ERROR' | 'NETWORK_ERROR';
   message: string;
   retryable: boolean;
+  retryAfter?: number;
+  details?: {
+    attemptCount?: number;
+    maxAttempts?: number;
+    nextRetryIn?: number;
+  };
 }
+
+// Rate limiting configuration
+interface RateLimitConfig {
+  windowMs: number;
+  maxRequests: number;
+  maxRequestsPerSession: number;
+  sessionWindowMs: number;
+}
+
+interface RateLimitData {
+  count: number;
+  resetTime: number;
+  sessions: Map<string, { count: number; resetTime: number }>;
+}
+
+const RATE_LIMIT_CONFIG: RateLimitConfig = {
+  windowMs: 60 * 1000, // 1 minute window
+  maxRequests: 30, // Max requests per IP per minute
+  maxRequestsPerSession: 10, // Max requests per session per minute
+  sessionWindowMs: 60 * 1000, // Session window (1 minute)
+};
+
+// In-memory rate limiting store (in production, consider Redis)
+const rateLimitStore = new Map<string, RateLimitData>();
+
+// Retry configuration for internal operations
+interface RetryConfig {
+  maxAttempts: number;
+  baseDelay: number;
+  maxDelay: number;
+  backoffFactor: number;
+}
+
+const RETRY_CONFIG: RetryConfig = {
+  maxAttempts: 3,
+  baseDelay: 1000, // 1 second
+  maxDelay: 10000, // 10 seconds
+  backoffFactor: 2,
+};
 
 // Initialize Gemini AI
 const genAI = new GoogleGenAI({
@@ -62,6 +107,240 @@ const posthog = process.env.POSTHOG_API_KEY ? new PostHog(
     host: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
   }
 ) : null;
+
+// Rate limiting functions
+function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolean; retryAfter?: number; details?: any } {
+  const now = Date.now();
+  
+  // Check IP-based rate limit
+  let clientData = rateLimitStore.get(clientId);
+  
+  if (!clientData || now > clientData.resetTime) {
+    clientData = {
+      count: 0,
+      resetTime: now + RATE_LIMIT_CONFIG.windowMs,
+      sessions: new Map()
+    };
+    rateLimitStore.set(clientId, clientData);
+  }
+  
+  // Clean up expired sessions
+  clientData.sessions.forEach((sessionData, sessionKey) => {
+    if (now > sessionData.resetTime) {
+      clientData.sessions.delete(sessionKey);
+    }
+  });
+  
+  // Check IP limit
+  if (clientData.count >= RATE_LIMIT_CONFIG.maxRequests) {
+    const retryAfter = Math.ceil((clientData.resetTime - now) / 1000);
+    return {
+      allowed: false,
+      retryAfter,
+      details: {
+        type: 'ip_limit',
+        limit: RATE_LIMIT_CONFIG.maxRequests,
+        windowMs: RATE_LIMIT_CONFIG.windowMs,
+        resetTime: clientData.resetTime
+      }
+    };
+  }
+  
+  // Check session limit if sessionId provided
+  if (sessionId) {
+    let sessionData = clientData.sessions.get(sessionId);
+    
+    if (!sessionData || now > sessionData.resetTime) {
+      sessionData = {
+        count: 0,
+        resetTime: now + RATE_LIMIT_CONFIG.sessionWindowMs
+      };
+      clientData.sessions.set(sessionId, sessionData);
+    }
+    
+    if (sessionData.count >= RATE_LIMIT_CONFIG.maxRequestsPerSession) {
+      const retryAfter = Math.ceil((sessionData.resetTime - now) / 1000);
+      return {
+        allowed: false,
+        retryAfter,
+        details: {
+          type: 'session_limit',
+          limit: RATE_LIMIT_CONFIG.maxRequestsPerSession,
+          windowMs: RATE_LIMIT_CONFIG.sessionWindowMs,
+          resetTime: sessionData.resetTime
+        }
+      };
+    }
+    
+    // Increment session count
+    sessionData.count++;
+  }
+  
+  // Increment IP count
+  clientData.count++;
+  
+  return { allowed: true };
+}
+
+// Retry utility with exponential backoff
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  config: RetryConfig = RETRY_CONFIG,
+  context: string = 'operation'
+): Promise<T> {
+  let lastError: Error;
+  
+  for (let attempt = 0; attempt < config.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on certain errors
+      if (
+        lastError.message.includes('API key') ||
+        lastError.message.includes('authentication') ||
+        lastError.message.includes('invalid') ||
+        lastError.message.includes('400')
+      ) {
+        throw lastError;
+      }
+      
+      // If this is the last attempt, throw the error
+      if (attempt === config.maxAttempts - 1) {
+        console.error(`${context} failed after ${config.maxAttempts} attempts:`, lastError.message);
+        throw lastError;
+      }
+      
+      // Calculate delay with jitter
+      const delay = Math.min(
+        config.baseDelay * Math.pow(config.backoffFactor, attempt),
+        config.maxDelay
+      );
+      const jitteredDelay = delay + Math.random() * 1000;
+      
+      console.warn(`${context} attempt ${attempt + 1} failed, retrying in ${Math.round(jitteredDelay)}ms:`, lastError.message);
+      
+      await new Promise(resolve => setTimeout(resolve, jitteredDelay));
+    }
+  }
+  
+  throw lastError!;
+}
+
+// Enhanced error response generator
+function createErrorResponse(
+  error: Error | string,
+  context: {
+    sessionId?: string;
+    attemptCount?: number;
+    clientId?: string;
+  } = {}
+): { response: NextResponse; errorDetails: any } {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const errorLower = errorMessage.toLowerCase();
+  
+  // Use existing error categorization
+  const errorDetails = categorizeAIError(errorMessage, {
+    sessionId: context.sessionId || '',
+    failureStage: 'api_request',
+    additionalData: {
+      attempt_count: context.attemptCount || 1,
+      client_id: context.clientId || 'unknown'
+    }
+  });
+  
+  let apiError: APIError;
+  let statusCode: number;
+  
+  // Enhanced error handling with German messages
+  if (errorLower.includes('rate limit') || errorLower.includes('quota') || errorLower.includes('429')) {
+    apiError = {
+      error: 'Rate limit exceeded',
+      code: 'RATE_LIMIT',
+      message: 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
+      retryable: true,
+      retryAfter: 60,
+      details: {
+        attemptCount: context.attemptCount,
+        maxAttempts: RETRY_CONFIG.maxAttempts,
+        nextRetryIn: 60
+      }
+    };
+    statusCode = 429;
+  } else if (errorLower.includes('timeout') || errorLower.includes('etimedout')) {
+    apiError = {
+      error: 'Request timeout',
+      code: 'TIMEOUT_ERROR',
+      message: 'Die Anfrage hat zu lange gedauert. Bitte versuchen Sie es erneut.',
+      retryable: true,
+      details: {
+        attemptCount: context.attemptCount,
+        maxAttempts: RETRY_CONFIG.maxAttempts
+      }
+    };
+    statusCode = 504;
+  } else if (errorLower.includes('network') || errorLower.includes('econnreset') || errorLower.includes('fetch')) {
+    apiError = {
+      error: 'Network error',
+      code: 'NETWORK_ERROR',
+      message: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.',
+      retryable: true,
+      details: {
+        attemptCount: context.attemptCount,
+        maxAttempts: RETRY_CONFIG.maxAttempts
+      }
+    };
+    statusCode = 503;
+  } else if (errorLower.includes('api key') || errorLower.includes('authentication')) {
+    apiError = {
+      error: 'Authentication failed',
+      code: 'GEMINI_API_ERROR',
+      message: 'Der AI-Service ist momentan nicht verfügbar. Bitte versuchen Sie es später erneut.',
+      retryable: false
+    };
+    statusCode = 503;
+  } else if (errorLower.includes('invalid') || errorLower.includes('400')) {
+    apiError = {
+      error: 'Invalid request',
+      code: 'INVALID_REQUEST',
+      message: 'Die Anfrage ist ungültig. Bitte überprüfen Sie Ihre Eingabe.',
+      retryable: false
+    };
+    statusCode = 400;
+  } else {
+    apiError = {
+      error: 'Internal server error',
+      code: 'SERVER_ERROR',
+      message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
+      retryable: true,
+      details: {
+        attemptCount: context.attemptCount,
+        maxAttempts: RETRY_CONFIG.maxAttempts
+      }
+    };
+    statusCode = 500;
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (apiError.retryAfter) {
+    headers['Retry-After'] = apiError.retryAfter.toString();
+  }
+  
+  if (apiError.code === 'RATE_LIMIT') {
+    headers['X-RateLimit-Limit'] = RATE_LIMIT_CONFIG.maxRequests.toString();
+    headers['X-RateLimit-Remaining'] = '0';
+    headers['X-RateLimit-Reset'] = Math.ceil((Date.now() + RATE_LIMIT_CONFIG.windowMs) / 1000).toString();
+  }
+  
+  return {
+    response: NextResponse.json(apiError, { status: statusCode, headers }),
+    errorDetails
+  };
+}
 
 // System instruction for Mietfluss assistant
 const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietfluss arbeitet. 
@@ -77,30 +356,85 @@ Antworte immer auf Deutsch und sei freundlich und professionell.`;
 export async function POST(request: NextRequest) {
   const requestStartTime = Date.now();
   let currentSessionId = '';
+  let clientId = '';
+  let validatedData: any = null;
   
   try {
     // Validate API key
     if (!process.env.GEMINI_API_KEY) {
       console.error('GEMINI_API_KEY is not configured');
-      return NextResponse.json(
-        {
-          error: 'Service temporarily unavailable',
-          code: 'SERVER_ERROR',
-          message: 'Der AI-Service ist momentan nicht verfügbar. Bitte versuchen Sie es später erneut.',
-          retryable: true
-        } as APIError,
-        { status: 503 }
-      );
+      const { response } = createErrorResponse('API key not configured', {});
+      return response;
     }
 
     // Parse and validate request body
-    const body = await request.json();
-    const validatedData = AIRequestSchema.parse(body);
+    let body: any;
+    try {
+      body = await request.json();
+    } catch (error) {
+      const { response } = createErrorResponse('Invalid JSON in request body', {
+        sessionId: currentSessionId,
+        clientId: clientId
+      });
+      return response;
+    }
+    
+    validatedData = AIRequestSchema.parse(body);
     
     const { message, context, contextOptions, sessionId } = validatedData;
 
     // Generate session ID if not provided
     currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Get client identifier for rate limiting
+    clientId = request.headers.get('x-forwarded-for') || 
+               request.headers.get('x-real-ip') || 
+               'unknown';
+
+    // Check rate limits
+    const rateLimitResult = checkRateLimit(clientId, currentSessionId);
+    if (!rateLimitResult.allowed) {
+      const isSessionLimit = rateLimitResult.details?.type === 'session_limit';
+      const limitType = isSessionLimit ? 'Sitzung' : 'IP-Adresse';
+      const limit = isSessionLimit ? RATE_LIMIT_CONFIG.maxRequestsPerSession : RATE_LIMIT_CONFIG.maxRequests;
+      
+      const rateLimitError: APIError = {
+        error: 'Rate limit exceeded',
+        code: 'RATE_LIMIT',
+        message: `Zu viele Anfragen für diese ${limitType}. Sie können ${limit} Anfragen pro Minute stellen. Bitte warten Sie ${rateLimitResult.retryAfter} Sekunden.`,
+        retryable: true,
+        retryAfter: rateLimitResult.retryAfter,
+        details: {
+          nextRetryIn: rateLimitResult.retryAfter
+        }
+      };
+
+      // Track rate limit event
+      if (posthog) {
+        posthog.capture({
+          distinctId: 'anonymous',
+          event: 'ai_request_failed',
+          properties: {
+            session_id: currentSessionId,
+            error_type: 'rate_limit',
+            error_code: 'RATE_LIMIT',
+            limit_type: rateLimitResult.details?.type,
+            client_id: clientId,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      return NextResponse.json(rateLimitError, {
+        status: 429,
+        headers: {
+          'Retry-After': rateLimitResult.retryAfter?.toString() || '60',
+          'X-RateLimit-Limit': limit.toString(),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': Math.ceil((rateLimitResult.details?.resetTime || Date.now() + 60000) / 1000).toString(),
+        }
+      });
+    }
 
     // Track AI question submitted event (server-side)
     if (posthog) {
@@ -113,35 +447,36 @@ export async function POST(request: NextRequest) {
           has_context: !!(context?.articles && context.articles.length > 0),
           context_articles_count: context?.articles?.length || 0,
           use_documentation_context: contextOptions?.useDocumentationContext !== false,
+          client_id: clientId,
           timestamp: new Date().toISOString(),
           user_agent: request.headers.get('user-agent') || 'unknown'
         }
       });
     }
 
-    // Prepare context for AI
+    // Prepare context for AI with retry logic
     let contextText = '';
     let finalContext = context;
 
     // Fetch documentation context if requested and not provided
     if (contextOptions?.useDocumentationContext !== false && (!context?.articles || context.articles.length === 0)) {
       try {
-        let documentationContext;
-        
-        // Determine which context to fetch based on options
-        if (contextOptions?.currentArticleId) {
-          documentationContext = await getArticleContext(contextOptions.currentArticleId, true);
-        } else if (contextOptions?.searchQuery) {
-          documentationContext = await getSearchContext(contextOptions.searchQuery, contextOptions.maxArticles);
-        } else {
-          // Use the user message as search query to get relevant context
-          documentationContext = await fetchDocumentationContext({
-            maxArticles: contextOptions?.maxArticles || 10,
-            maxContentLength: contextOptions?.maxContentLength || 1000,
-            searchQuery: message,
-            includeCategories: true
-          });
-        }
+        const documentationContext = await retryWithBackoff(async () => {
+          // Determine which context to fetch based on options
+          if (contextOptions?.currentArticleId) {
+            return await getArticleContext(contextOptions.currentArticleId, true);
+          } else if (contextOptions?.searchQuery) {
+            return await getSearchContext(contextOptions.searchQuery, contextOptions.maxArticles);
+          } else {
+            // Use the user message as search query to get relevant context
+            return await fetchDocumentationContext({
+              maxArticles: contextOptions?.maxArticles || 10,
+              maxContentLength: contextOptions?.maxContentLength || 1000,
+              searchQuery: message,
+              includeCategories: true
+            });
+          }
+        }, RETRY_CONFIG, 'documentation context fetch');
 
         // Process context for AI
         const aiContext = processContextForAI(documentationContext, message);
@@ -149,15 +484,28 @@ export async function POST(request: NextRequest) {
         
         console.log(`Fetched ${documentationContext.articles.length} articles for AI context`);
       } catch (error) {
-        console.error('Error fetching documentation context:', error);
-        // Continue without context if fetching fails
+        console.error('Error fetching documentation context after retries:', error);
+        // Continue without context if fetching fails after retries
+        
+        // Track context fetch failure
+        if (posthog) {
+          posthog.capture({
+            distinctId: 'anonymous',
+            event: 'ai_context_fetch_failed',
+            properties: {
+              session_id: currentSessionId,
+              error_message: error instanceof Error ? error.message : String(error),
+              timestamp: new Date().toISOString()
+            }
+          });
+        }
       }
     }
 
     // Build context text for AI prompt
     if (finalContext?.articles && finalContext.articles.length > 0) {
       contextText = '\n\nDokumentationskontext:\n';
-      finalContext.articles.forEach(article => {
+      finalContext.articles.forEach((article: any) => {
         if (article.seiteninhalt) {
           contextText += `\n**${article.titel}** (Kategorie: ${article.kategorie || 'Allgemein'}):\n${article.seiteninhalt}\n`;
         }
@@ -166,7 +514,7 @@ export async function POST(request: NextRequest) {
       // Add category information if available
       if (finalContext.categories && finalContext.categories.length > 0) {
         contextText += '\n\nVerfügbare Kategorien:\n';
-        finalContext.categories.forEach(category => {
+        finalContext.categories.forEach((category: any) => {
           contextText += `- ${category.name} (${category.articleCount} Artikel)\n`;
         });
       }
@@ -175,14 +523,19 @@ export async function POST(request: NextRequest) {
     // Prepare the full prompt
     const fullPrompt = `${message}${contextText}`;
 
-    // Generate response with streaming using the models API
-    const result = await genAI.models.generateContentStream({
-      model: 'gemini-2.0-flash-exp',
-      contents: [{
-        role: 'user',
-        parts: [{ text: `${SYSTEM_INSTRUCTION}\n\n${fullPrompt}` }]
-      }]
-    });
+    // Generate response with streaming using the models API with retry logic
+    const result = await retryWithBackoff(async () => {
+      return await genAI.models.generateContentStream({
+        model: 'gemini-2.0-flash-exp',
+        contents: [{
+          role: 'user',
+          parts: [{ text: `${SYSTEM_INSTRUCTION}\n\n${fullPrompt}` }]
+        }]
+      });
+    }, {
+      ...RETRY_CONFIG,
+      maxAttempts: 2, // Reduce attempts for streaming to avoid long delays
+    }, 'Gemini API streaming request');
     
     // Create a readable stream for the response
     const encoder = new TextEncoder();
@@ -241,34 +594,32 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           console.error('Streaming error:', error);
           
+          // Create enhanced error response for streaming
+          const { errorDetails } = createErrorResponse(error instanceof Error ? error : String(error), {
+            sessionId: currentSessionId,
+            clientId: clientId
+          });
+          
           // Track streaming error (server-side) with enhanced categorization
           if (posthog) {
             const responseTime = Date.now() - requestStartTime;
             
-            // Use the centralized error categorization utility
-            const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
-              sessionId: currentSessionId,
-              failureStage: 'streaming_server',
-              additionalData: {
-                http_status: 200 // Streaming started successfully but failed during processing
-              }
-            });
-
             // Override for streaming-specific error types
+            let streamingErrorDetails = { ...errorDetails };
             if (error instanceof Error) {
               if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
-                errorDetails.errorType = 'streaming_timeout';
-                errorDetails.errorCode = 'STREAMING_TIMEOUT';
+                streamingErrorDetails.errorType = 'streaming_timeout';
+                streamingErrorDetails.errorCode = 'STREAMING_TIMEOUT';
               } else if (error.message.includes('network') || error.message.includes('ECONNRESET')) {
-                errorDetails.errorType = 'streaming_network_error';
-                errorDetails.errorCode = 'STREAMING_NETWORK_ERROR';
+                streamingErrorDetails.errorType = 'streaming_network_error';
+                streamingErrorDetails.errorCode = 'STREAMING_NETWORK_ERROR';
               } else if (error.message.includes('parse') || error.message.includes('JSON')) {
-                errorDetails.errorType = 'streaming_parse_error';
-                errorDetails.errorCode = 'STREAMING_PARSE_ERROR';
-                errorDetails.retryable = false;
+                streamingErrorDetails.errorType = 'streaming_parse_error';
+                streamingErrorDetails.errorCode = 'STREAMING_PARSE_ERROR';
+                streamingErrorDetails.retryable = false;
               } else {
-                errorDetails.errorType = 'streaming_error';
-                errorDetails.errorCode = 'STREAMING_ERROR';
+                streamingErrorDetails.errorType = 'streaming_error';
+                streamingErrorDetails.errorCode = 'STREAMING_ERROR';
               }
             }
 
@@ -279,14 +630,15 @@ export async function POST(request: NextRequest) {
               properties: {
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
-                error_type: errorDetails.errorType,
-                error_code: errorDetails.errorCode,
-                error_message: errorDetails.errorMessage,
-                http_status: errorDetails.httpStatus,
-                retryable: errorDetails.retryable,
-                failure_stage: errorDetails.failureStage,
+                error_type: streamingErrorDetails.errorType,
+                error_code: streamingErrorDetails.errorCode,
+                error_message: streamingErrorDetails.errorMessage,
+                http_status: 200, // Streaming started successfully but failed during processing
+                retryable: streamingErrorDetails.retryable,
+                failure_stage: 'streaming_server',
+                client_id: clientId,
                 timestamp: new Date().toISOString(),
-                ...errorDetails.additionalData
+                ...streamingErrorDetails.additionalData
               }
             });
 
@@ -298,18 +650,40 @@ export async function POST(request: NextRequest) {
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
                 success: false,
-                error_type: errorDetails.errorType,
-                error_message: errorDetails.errorMessage,
+                error_type: streamingErrorDetails.errorType,
+                error_message: streamingErrorDetails.errorMessage,
                 timestamp: new Date().toISOString()
               }
             });
           }
           
+          // Determine appropriate German error message based on error type
+          let userMessage = 'Ein Fehler ist beim Generieren der Antwort aufgetreten.';
+          let retryable = true;
+          
+          if (error instanceof Error) {
+            const errorLower = error.message.toLowerCase();
+            if (errorLower.includes('timeout')) {
+              userMessage = 'Die Antwort hat zu lange gedauert. Bitte versuchen Sie es erneut.';
+            } else if (errorLower.includes('network') || errorLower.includes('connection')) {
+              userMessage = 'Netzwerkfehler beim Generieren der Antwort. Bitte versuchen Sie es erneut.';
+            } else if (errorLower.includes('rate limit') || errorLower.includes('quota')) {
+              userMessage = 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
+            } else if (errorLower.includes('parse') || errorLower.includes('invalid')) {
+              userMessage = 'Fehler beim Verarbeiten der Antwort. Bitte versuchen Sie es erneut.';
+              retryable = false;
+            }
+          }
+          
           const errorData = JSON.stringify({
             type: 'error',
-            error: 'Fehler beim Generieren der Antwort',
+            error: userMessage,
             code: 'GEMINI_API_ERROR',
-            retryable: true
+            retryable: retryable,
+            details: {
+              canRetry: retryable,
+              errorType: 'streaming_error'
+            }
           });
           
           controller.enqueue(encoder.encode(`data: ${errorData}\n\n`));
@@ -333,29 +707,27 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('AI Assistant API Error:', error);
 
+    // Create enhanced error response
+    const { response, errorDetails } = createErrorResponse(error instanceof Error ? error : String(error), {
+      sessionId: currentSessionId,
+      clientId: clientId
+    });
+
     // Track API error (server-side) with enhanced error categorization
     if (posthog) {
       const responseTime = Date.now() - requestStartTime;
       
-      // Use the centralized error categorization utility
-      const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
-        sessionId: currentSessionId,
-        failureStage: 'api_request',
-        additionalData: {
-          request_message_length: body?.message?.length || 0,
-          has_context: !!(body?.context?.articles && body.context.articles.length > 0),
-          context_articles_count: body?.context?.articles?.length || 0,
-          user_agent: request.headers.get('user-agent') || 'unknown'
-        }
-      });
-
       // Special handling for Zod validation errors
+      let finalErrorDetails = errorDetails;
       if (error instanceof z.ZodError) {
-        errorDetails.errorType = 'validation_error';
-        errorDetails.errorCode = 'INVALID_REQUEST';
-        errorDetails.errorMessage = 'Invalid request format';
-        errorDetails.httpStatus = 400;
-        errorDetails.retryable = false;
+        finalErrorDetails = {
+          ...errorDetails,
+          errorType: 'validation_error',
+          errorCode: 'INVALID_REQUEST',
+          errorMessage: 'Invalid request format',
+          httpStatus: 400,
+          retryable: false
+        };
       }
 
       // Track the enhanced ai_request_failed event
@@ -365,14 +737,19 @@ export async function POST(request: NextRequest) {
         properties: {
           response_time_ms: responseTime,
           session_id: currentSessionId,
-          error_type: errorDetails.errorType,
-          error_code: errorDetails.errorCode,
-          error_message: errorDetails.errorMessage,
-          http_status: errorDetails.httpStatus,
-          retryable: errorDetails.retryable,
-          failure_stage: errorDetails.failureStage,
+          error_type: finalErrorDetails.errorType,
+          error_code: finalErrorDetails.errorCode,
+          error_message: finalErrorDetails.errorMessage,
+          http_status: finalErrorDetails.httpStatus,
+          retryable: finalErrorDetails.retryable,
+          failure_stage: finalErrorDetails.failureStage,
+          client_id: clientId,
+          request_message_length: validatedData?.message?.length || 0,
+          has_context: !!(validatedData?.context?.articles && validatedData.context.articles.length > 0),
+          context_articles_count: validatedData?.context?.articles?.length || 0,
+          user_agent: request.headers.get('user-agent') || 'unknown',
           timestamp: new Date().toISOString(),
-          ...errorDetails.additionalData
+          ...finalErrorDetails.additionalData
         }
       });
 
@@ -384,78 +761,14 @@ export async function POST(request: NextRequest) {
           response_time_ms: responseTime,
           session_id: currentSessionId,
           success: false,
-          error_type: errorDetails.errorType,
-          error_message: errorDetails.errorMessage,
+          error_type: finalErrorDetails.errorType,
+          error_message: finalErrorDetails.errorMessage,
           timestamp: new Date().toISOString()
         }
       });
     }
 
-    // Handle validation errors
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: 'Invalid request format',
-          code: 'INVALID_REQUEST',
-          message: 'Die Anfrage ist ungültig. Bitte überprüfen Sie Ihre Eingabe.',
-          retryable: false
-        } as APIError,
-        { status: 400 }
-      );
-    }
-
-    // Handle Gemini API specific errors
-    if (error instanceof Error) {
-      // Rate limiting
-      if (error.message.includes('quota') || error.message.includes('rate limit')) {
-        return NextResponse.json(
-          {
-            error: 'Rate limit exceeded',
-            code: 'RATE_LIMIT',
-            message: 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.',
-            retryable: true
-          } as APIError,
-          { status: 429 }
-        );
-      }
-
-      // API key issues
-      if (error.message.includes('API key') || error.message.includes('authentication')) {
-        return NextResponse.json(
-          {
-            error: 'Authentication failed',
-            code: 'GEMINI_API_ERROR',
-            message: 'Der AI-Service ist momentan nicht verfügbar. Bitte versuchen Sie es später erneut.',
-            retryable: true
-          } as APIError,
-          { status: 503 }
-        );
-      }
-
-      // Network or timeout errors
-      if (error.message.includes('timeout') || error.message.includes('network')) {
-        return NextResponse.json(
-          {
-            error: 'Network error',
-            code: 'GEMINI_API_ERROR',
-            message: 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.',
-            retryable: true
-          } as APIError,
-          { status: 503 }
-        );
-      }
-    }
-
-    // Generic server error
-    return NextResponse.json(
-      {
-        error: 'Internal server error',
-        code: 'SERVER_ERROR',
-        message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.',
-        retryable: true
-      } as APIError,
-      { status: 500 }
-    );
+    return response;
   }
 }
 
