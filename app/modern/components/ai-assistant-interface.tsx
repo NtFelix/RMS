@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
+import { usePostHog } from 'posthog-js/react';
 
 export interface ChatMessage {
   id: string;
@@ -50,22 +51,53 @@ export default function AIAssistantInterface({
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const sessionStartTimeRef = useRef<Date | null>(null);
+  const posthog = usePostHog();
+
+  // Define handleClose function early so it can be used in useEffect dependencies
+  const handleClose = useCallback(() => {
+    // Track AI assistant closed event
+    if (posthog && posthog.has_opted_in_capturing?.() && sessionStartTimeRef.current) {
+      const sessionDuration = Date.now() - sessionStartTimeRef.current.getTime();
+      posthog.capture('ai_assistant_closed', {
+        session_duration_ms: sessionDuration,
+        message_count: state.messages.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Reset session start time
+    sessionStartTimeRef.current = null;
+    
+    // Call the original onClose
+    onClose();
+  }, [posthog, state.messages.length, onClose]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.messages]);
 
-  // Focus input when modal opens
+  // Focus input when modal opens and track analytics
   useEffect(() => {
     if (isOpen && inputRef.current) {
+      // Track AI assistant opened event
+      if (posthog && posthog.has_opted_in_capturing?.()) {
+        sessionStartTimeRef.current = new Date();
+        posthog.capture('ai_assistant_opened', {
+          source: 'documentation_search',
+          timestamp: sessionStartTimeRef.current.toISOString(),
+          has_documentation_context: documentationContext.length > 0
+        });
+      }
+
       // Small delay to ensure modal is fully rendered
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
+  }, [isOpen, posthog, documentationContext.length]);
 
   // Keyboard navigation and accessibility
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -74,7 +106,7 @@ export default function AIAssistantInterface({
     // Escape key to close modal
     if (e.key === 'Escape') {
       e.preventDefault();
-      onClose();
+      handleClose();
       return;
     }
 
@@ -111,7 +143,7 @@ export default function AIAssistantInterface({
       }
       return;
     }
-  }, [isOpen, onClose, state.error]);
+  }, [isOpen, handleClose, state.error]);
 
   // Add keyboard event listeners
   useEffect(() => {
@@ -194,6 +226,20 @@ export default function AIAssistantInterface({
     const message = state.inputValue.trim();
     if (!message || state.isLoading) return;
 
+    const requestStartTime = Date.now();
+    const sessionId = `session_${Date.now()}`;
+
+    // Track question submitted event
+    if (posthog && posthog.has_opted_in_capturing?.()) {
+      posthog.capture('ai_question_submitted', {
+        question_length: message.length,
+        session_id: sessionId,
+        has_context: documentationContext.length > 0,
+        message_count: state.messages.length + 1, // +1 for the message being submitted
+        timestamp: new Date().toISOString()
+      });
+    }
+
     // Add user message
     addMessage({
       role: 'user',
@@ -233,7 +279,7 @@ export default function AIAssistantInterface({
         body: JSON.stringify({
           message,
           context: documentationContext,
-          sessionId: `session_${Date.now()}`
+          sessionId: sessionId
         }),
       });
 
@@ -252,6 +298,18 @@ export default function AIAssistantInterface({
 
         try {
           await handleStreamingResponse(response, assistantMessageId);
+          
+          // Track successful response
+          if (posthog && posthog.has_opted_in_capturing?.()) {
+            const responseTime = Date.now() - requestStartTime;
+            posthog.capture('ai_response_received', {
+              response_time_ms: responseTime,
+              session_id: sessionId,
+              success: true,
+              response_type: 'streaming',
+              timestamp: new Date().toISOString()
+            });
+          }
         } finally {
           clearTimeout(streamingTimeout);
         }
@@ -259,23 +317,53 @@ export default function AIAssistantInterface({
         // Fallback to regular JSON response
         const data = await response.json();
         updateAssistantMessage(assistantMessageId, data.response || 'Entschuldigung, ich konnte keine Antwort generieren.');
+        
+        // Track successful response
+        if (posthog && posthog.has_opted_in_capturing?.()) {
+          const responseTime = Date.now() - requestStartTime;
+          posthog.capture('ai_response_received', {
+            response_time_ms: responseTime,
+            session_id: sessionId,
+            success: true,
+            response_type: 'json',
+            timestamp: new Date().toISOString()
+          });
+        }
       }
 
     } catch (error) {
       console.error('AI Assistant Error:', error);
       
       let errorMessage = 'Ein unerwarteter Fehler ist aufgetreten.';
+      let errorType = 'unknown';
       
       if (error instanceof Error) {
         if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
           errorMessage = 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.';
+          errorType = 'network';
         } else if (error.message.includes('429')) {
           errorMessage = 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
+          errorType = 'rate_limit';
         } else if (error.message.includes('500')) {
           errorMessage = 'Serverfehler. Bitte versuchen Sie es später erneut.';
+          errorType = 'server_error';
         } else {
           errorMessage = error.message;
+          errorType = 'api_error';
         }
+      }
+
+      // Track failed response
+      if (posthog && posthog.has_opted_in_capturing?.()) {
+        const responseTime = Date.now() - requestStartTime;
+        posthog.capture('ai_response_received', {
+          response_time_ms: responseTime,
+          session_id: sessionId,
+          success: false,
+          error_type: errorType,
+          error_message: errorMessage,
+          timestamp: new Date().toISOString()
+        });
       }
       
       // Remove the placeholder assistant message and show error
@@ -438,7 +526,7 @@ export default function AIAssistantInterface({
       )}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
-          onClose();
+          handleClose();
         }
       }}
     >
@@ -479,7 +567,7 @@ export default function AIAssistantInterface({
             <Button
               variant="ghost"
               size="sm"
-              onClick={onClose}
+              onClick={handleClose}
               className="text-muted-foreground hover:text-foreground"
               aria-label="AI Assistent schließen (Escape)"
               title="AI Assistent schließen (Escape)"

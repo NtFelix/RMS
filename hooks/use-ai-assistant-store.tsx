@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import posthog from 'posthog-js';
 
 export interface ChatMessage {
   id: string;
@@ -15,6 +16,7 @@ interface AIAssistantStore {
   isLoading: boolean;
   error: string | null;
   sessionId: string | null;
+  sessionStartTime: Date | null;
 
   // Actions
   openAI: () => void;
@@ -38,22 +40,49 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   isLoading: false,
   error: null,
   sessionId: null,
+  sessionStartTime: null,
 
   // Actions
   openAI: () => {
     const sessionId = generateSessionId();
+    const sessionStartTime = new Date();
+    
+    // Track AI assistant opened event
+    if (typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.()) {
+      posthog.capture('ai_assistant_opened', {
+        source: 'ai_store',
+        session_id: sessionId,
+        timestamp: sessionStartTime.toISOString()
+      });
+    }
+    
     set({ 
       isOpen: true, 
       currentMode: 'ai',
       sessionId,
+      sessionStartTime,
       error: null 
     });
   },
 
   closeAI: () => {
+    const state = get();
+    
+    // Track AI assistant closed event
+    if (typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.() && state.sessionStartTime) {
+      const sessionDuration = Date.now() - state.sessionStartTime.getTime();
+      posthog.capture('ai_assistant_closed', {
+        session_duration_ms: sessionDuration,
+        message_count: state.messages.length,
+        session_id: state.sessionId,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     set({ 
       isOpen: false,
-      error: null 
+      error: null,
+      sessionStartTime: null
     });
   },
 
@@ -68,10 +97,22 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   switchToAI: () => {
     const state = get();
     const sessionId = state.sessionId || generateSessionId();
+    const sessionStartTime = state.sessionStartTime || new Date();
+    
+    // Track AI assistant opened event if not already open
+    if (!state.isOpen && typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.()) {
+      posthog.capture('ai_assistant_opened', {
+        source: 'mode_switch',
+        session_id: sessionId,
+        timestamp: sessionStartTime.toISOString()
+      });
+    }
+    
     set({ 
       currentMode: 'ai',
       isOpen: true,
       sessionId,
+      sessionStartTime,
       error: null 
     });
   },

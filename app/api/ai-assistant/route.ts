@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { PostHog } from 'posthog-node';
 import { 
   fetchDocumentationContext, 
   processContextForAI, 
@@ -53,6 +54,14 @@ const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || ''
 });
 
+// Initialize PostHog for server-side analytics
+const posthog = process.env.POSTHOG_API_KEY ? new PostHog(
+  process.env.POSTHOG_API_KEY,
+  {
+    host: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+  }
+) : null;
+
 // System instruction for Mietfluss assistant
 const SYSTEM_INSTRUCTION = `Stelle dir vor du bist ein hilfreicher Assistent der für Mietfluss arbeitet. 
 Deine Aufgabe ist den Nutzer zu helfen seine Frage zu dem Programm zu beantworten. 
@@ -65,6 +74,9 @@ Wenn du Dokumentationskontext erhältst, nutze diesen um präzise und hilfreiche
 Antworte immer auf Deutsch und sei freundlich und professionell.`;
 
 export async function POST(request: NextRequest) {
+  const requestStartTime = Date.now();
+  let currentSessionId = '';
+  
   try {
     // Validate API key
     if (!process.env.GEMINI_API_KEY) {
@@ -87,7 +99,24 @@ export async function POST(request: NextRequest) {
     const { message, context, contextOptions, sessionId } = validatedData;
 
     // Generate session ID if not provided
-    const currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Track AI question submitted event (server-side)
+    if (posthog) {
+      posthog.capture({
+        distinctId: 'anonymous', // Could be enhanced with user ID if available
+        event: 'ai_question_submitted_server',
+        properties: {
+          question_length: message.length,
+          session_id: currentSessionId,
+          has_context: !!(context?.articles && context.articles.length > 0),
+          context_articles_count: context?.articles?.length || 0,
+          use_documentation_context: contextOptions?.useDocumentationContext !== false,
+          timestamp: new Date().toISOString(),
+          user_agent: request.headers.get('user-agent') || 'unknown'
+        }
+      });
+    }
 
     // Prepare context for AI
     let contextText = '';
@@ -177,6 +206,23 @@ export async function POST(request: NextRequest) {
             }
           }
           
+          // Track successful AI response (server-side)
+          if (posthog) {
+            const responseTime = Date.now() - requestStartTime;
+            posthog.capture({
+              distinctId: 'anonymous',
+              event: 'ai_response_generated_server',
+              properties: {
+                response_time_ms: responseTime,
+                session_id: currentSessionId,
+                success: true,
+                response_length: fullResponse.length,
+                response_type: 'streaming',
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
+
           // Send final response with metadata
           const finalData = JSON.stringify({
             type: 'complete',
@@ -193,6 +239,23 @@ export async function POST(request: NextRequest) {
           
         } catch (error) {
           console.error('Streaming error:', error);
+          
+          // Track streaming error (server-side)
+          if (posthog) {
+            const responseTime = Date.now() - requestStartTime;
+            posthog.capture({
+              distinctId: 'anonymous',
+              event: 'ai_response_generated_server',
+              properties: {
+                response_time_ms: responseTime,
+                session_id: currentSessionId,
+                success: false,
+                error_type: 'streaming_error',
+                error_message: error instanceof Error ? error.message : 'Unknown streaming error',
+                timestamp: new Date().toISOString()
+              }
+            });
+          }
           
           const errorData = JSON.stringify({
             type: 'error',
@@ -221,6 +284,42 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('AI Assistant API Error:', error);
+
+    // Track API error (server-side)
+    if (posthog) {
+      const responseTime = Date.now() - requestStartTime;
+      let errorType = 'unknown';
+      let errorMessage = 'Unknown error';
+      
+      if (error instanceof z.ZodError) {
+        errorType = 'validation_error';
+        errorMessage = 'Invalid request format';
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+        if (error.message.includes('quota') || error.message.includes('rate limit')) {
+          errorType = 'rate_limit';
+        } else if (error.message.includes('API key') || error.message.includes('authentication')) {
+          errorType = 'authentication_error';
+        } else if (error.message.includes('timeout') || error.message.includes('network')) {
+          errorType = 'network_error';
+        } else {
+          errorType = 'api_error';
+        }
+      }
+
+      posthog.capture({
+        distinctId: 'anonymous',
+        event: 'ai_response_generated_server',
+        properties: {
+          response_time_ms: responseTime,
+          session_id: currentSessionId,
+          success: false,
+          error_type: errorType,
+          error_message: errorMessage,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
 
     // Handle validation errors
     if (error instanceof z.ZodError) {
