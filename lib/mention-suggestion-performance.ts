@@ -325,7 +325,7 @@ class ResourceCleanupTracker {
   /**
    * Check if the tracker has been destroyed
    */
-  isDestroyed(): boolean {
+  getIsDestroyed(): boolean {
     return this.isDestroyed;
   }
 }

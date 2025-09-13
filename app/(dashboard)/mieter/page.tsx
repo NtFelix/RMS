@@ -1,6 +1,5 @@
 // "use client" directive removed - this is now a Server Component file.
 
-export const runtime = 'edge';
 export const dynamic = 'force-dynamic';
 
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";

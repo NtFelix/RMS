@@ -111,45 +111,37 @@ export function TemplateEditor({
             const endTiming = suggestionPerformanceMonitor.startTiming('suggestion-items');
             
             try {
-              const result = safeExecute(
-                () => {
-                  // For empty queries, return immediate results
-                  if (!query.trim()) {
-                    return MENTION_VARIABLES.slice(0, 10);
-                  }
-                  
-                  // Use debounced filtering for non-empty queries
-                  return filterMentionVariables(MENTION_VARIABLES, query, {
-                    prioritizeExactMatches: true,
-                  }).slice(0, 10);
-                },
-                MentionSuggestionErrorType.FILTER_ERROR,
-                { query, variableCount: MENTION_VARIABLES.length }
-              );
-
-              const duration = endTiming();
-
-              // Handle the promise result
-              if (result instanceof Promise) {
-                result.then(({ success, result: filteredItems, error }) => {
-                  if (!success && error) {
-                    setSuggestionError(error.originalError || new Error(error.message));
-                    
-                    // Check if we should enter fallback mode
-                    if (mentionSuggestionErrorRecovery.recordError(error)) {
-                      setFallbackMode(true);
-                    }
-                  }
-                });
-                
-                // Return fallback items for immediate use
-                return fallback.fallbackFilter(MENTION_VARIABLES, query);
+              // For empty queries, return immediate results
+              if (!query.trim()) {
+                endTiming();
+                return MENTION_VARIABLES.slice(0, 10);
               }
-
-              return result.success ? result.result || [] : fallback.fallbackFilter(MENTION_VARIABLES, query);
+              
+              // Use synchronous filtering to avoid Promise handling issues
+              const filteredItems = filterMentionVariables(MENTION_VARIABLES, query, {
+                prioritizeExactMatches: true,
+              }).slice(0, 10);
+              
+              endTiming();
+              return filteredItems;
             } catch (error) {
               endTiming();
               console.error('Error in suggestion items:', error);
+              
+              // Record error for fallback mode tracking
+              const suggestionError = handleFilterError(
+                error instanceof Error ? error : new Error('Filter operation failed'),
+                query,
+                MENTION_VARIABLES.length
+              );
+              
+              setSuggestionError(suggestionError.originalError || new Error(suggestionError.message));
+              
+              // Check if we should enter fallback mode
+              if (mentionSuggestionErrorRecovery.recordError(suggestionError)) {
+                setFallbackMode(true);
+              }
+              
               return fallback.fallbackFilter(MENTION_VARIABLES, query);
             }
           },
