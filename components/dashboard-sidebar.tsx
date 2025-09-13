@@ -127,8 +127,8 @@ export function DashboardSidebar() {
                     aria-hidden={hidden || undefined}
                     tabIndex={hidden ? -1 : undefined}
                   >
-                    <item.icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
-                    <span className="transition-all duration-300 ease-out group-hover:font-semibold">
+                    <item.icon className="h-4 w-4 transition-transform duration-300 ease-out group-hover:scale-110" />
+                    <span className="transition-[font-weight] duration-300 ease-out group-hover:font-semibold">
                       {item.title}
                     </span>
                   </Link>
