@@ -111,13 +111,14 @@ export function DashboardSidebar() {
                 const isActive = isRouteActive(item.href)
                 const isDocuments = item.href === '/dateien'
                 const hidden = isDocuments && !documentsEnabled
+                
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={() => setIsOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:text-white",
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 ease-out hover:bg-accent hover:text-white hover:translate-x-1 hover:shadow-sm",
                       getActiveStateClasses(item.href),
                       hidden && "invisible pointer-events-none",
                     )}
@@ -126,8 +127,10 @@ export function DashboardSidebar() {
                     aria-hidden={hidden || undefined}
                     tabIndex={hidden ? -1 : undefined}
                   >
-                    <item.icon className="h-4 w-4" />
-                    {item.title}
+                    <item.icon className="h-4 w-4 transition-all duration-200 group-hover:scale-110" />
+                    <span className="transition-all duration-200 ease-out group-hover:font-semibold">
+                      {item.title}
+                    </span>
                   </Link>
                 )
               })}
