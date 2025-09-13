@@ -1,200 +1,202 @@
 import { useState, useCallback, useRef } from 'react';
 
-interface RetryOptions {
+export interface RetryConfig {
   maxAttempts?: number;
-  delay?: number;
-  backoffMultiplier?: number;
+  baseDelay?: number;
   maxDelay?: number;
-  onRetry?: (attempt: number, error: Error) => void;
-  onMaxAttemptsReached?: (error: Error) => void;
+  backoffFactor?: number;
+  retryCondition?: (error: Error) => boolean;
 }
 
-interface RetryState {
-  isLoading: boolean;
-  error: Error | null;
-  attempt: number;
-  canRetry: boolean;
+export interface RetryState {
+  isRetrying: boolean;
+  attemptCount: number;
+  lastError: Error | null;
+  nextRetryIn: number;
 }
 
-export function useRetry<T extends any[], R>(
-  asyncFunction: (...args: T) => Promise<R>,
-  options: RetryOptions = {}
-) {
-  const {
-    maxAttempts = 3,
-    delay = 1000,
-    backoffMultiplier = 2,
-    maxDelay = 10000,
-    onRetry,
-    onMaxAttemptsReached,
-  } = options;
+export interface UseRetryReturn {
+  retry: <T>(fn: () => Promise<T>, config?: RetryConfig) => Promise<T>;
+  state: RetryState;
+  cancel: () => void;
+  reset: () => void;
+}
 
+const DEFAULT_CONFIG: Required<RetryConfig> = {
+  maxAttempts: 3,
+  baseDelay: 1000,
+  maxDelay: 10000,
+  backoffFactor: 2,
+  retryCondition: (error: Error) => {
+    const message = error.message.toLowerCase();
+    // Retry on network errors, timeouts, and server errors
+    return (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('fetch') ||
+      message.includes('500') ||
+      message.includes('502') ||
+      message.includes('503') ||
+      message.includes('504') ||
+      message.includes('econnreset') ||
+      message.includes('etimedout')
+    );
+  }
+};
+
+/**
+ * Custom hook for implementing retry logic with exponential backoff
+ * Provides configurable retry mechanisms for async operations
+ */
+export function useRetry(): UseRetryReturn {
   const [state, setState] = useState<RetryState>({
-    isLoading: false,
-    error: null,
-    attempt: 0,
-    canRetry: true,
+    isRetrying: false,
+    attemptCount: 0,
+    lastError: null,
+    nextRetryIn: 0
   });
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
-  const execute = useCallback(
-    async (...args: T): Promise<R | null> => {
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+  const calculateDelay = useCallback((attempt: number, config: Required<RetryConfig>): number => {
+    const delay = Math.min(
+      config.baseDelay * Math.pow(config.backoffFactor, attempt),
+      config.maxDelay
+    );
+    // Add some jitter to prevent thundering herd
+    return delay + Math.random() * 1000;
+  }, []);
+
+  const startCountdown = useCallback((delayMs: number) => {
+    let remaining = Math.ceil(delayMs / 1000);
+    setState(prev => ({ ...prev, nextRetryIn: remaining }));
+
+    const updateCountdown = () => {
+      remaining -= 1;
+      if (remaining > 0) {
+        setState(prev => ({ ...prev, nextRetryIn: remaining }));
+        countdownRef.current = setTimeout(updateCountdown, 1000);
+      } else {
+        setState(prev => ({ ...prev, nextRetryIn: 0 }));
       }
+    };
 
-      abortControllerRef.current = new AbortController();
-      
-      setState(prev => ({
-        ...prev,
-        isLoading: true,
-        error: null,
-      }));
-
-      let currentAttempt = 0;
-      let currentDelay = delay;
-
-      while (currentAttempt < maxAttempts) {
-        try {
-          const result = await asyncFunction(...args);
-          
-          setState({
-            isLoading: false,
-            error: null,
-            attempt: currentAttempt + 1,
-            canRetry: true,
-          });
-
-          return result;
-        } catch (error) {
-          currentAttempt++;
-          const isLastAttempt = currentAttempt >= maxAttempts;
-          const errorObj = error instanceof Error ? error : new Error(String(error));
-
-          if (abortControllerRef.current?.signal.aborted) {
-            setState({
-              isLoading: false,
-              error: new Error('Request was cancelled'),
-              attempt: currentAttempt,
-              canRetry: false,
-            });
-            return null;
-          }
-
-          if (isLastAttempt) {
-            setState({
-              isLoading: false,
-              error: errorObj,
-              attempt: currentAttempt,
-              canRetry: false,
-            });
-
-            if (onMaxAttemptsReached) {
-              onMaxAttemptsReached(errorObj);
-            }
-
-            throw errorObj;
-          }
-
-          // Call retry callback
-          if (onRetry) {
-            onRetry(currentAttempt, errorObj);
-          }
-
-          setState(prev => ({
-            ...prev,
-            error: errorObj,
-            attempt: currentAttempt,
-          }));
-
-          // Wait before retrying
-          await new Promise(resolve => 
-            setTimeout(resolve, Math.min(currentDelay, maxDelay))
-          );
-
-          currentDelay *= backoffMultiplier;
-        }
-      }
-
-      return null;
-    },
-    [asyncFunction, maxAttempts, delay, backoffMultiplier, maxDelay, onRetry, onMaxAttemptsReached]
-  );
-
-  const retry = useCallback(() => {
-    if (state.canRetry && !state.isLoading) {
-      setState(prev => ({
-        ...prev,
-        canRetry: true,
-        error: null,
-        attempt: 0,
-      }));
+    if (remaining > 0) {
+      countdownRef.current = setTimeout(updateCountdown, 1000);
     }
-  }, [state.canRetry, state.isLoading]);
+  }, []);
 
   const cancel = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (countdownRef.current) {
+      clearTimeout(countdownRef.current);
+      countdownRef.current = null;
     }
     setState(prev => ({
       ...prev,
-      isLoading: false,
-      canRetry: true,
+      isRetrying: false,
+      nextRetryIn: 0
     }));
   }, []);
 
   const reset = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+    cancel();
     setState({
-      isLoading: false,
-      error: null,
-      attempt: 0,
-      canRetry: true,
+      isRetrying: false,
+      attemptCount: 0,
+      lastError: null,
+      nextRetryIn: 0
     });
-  }, []);
+  }, [cancel]);
+
+  const retry = useCallback(async <T>(
+    fn: () => Promise<T>,
+    config: RetryConfig = {}
+  ): Promise<T> => {
+    const finalConfig = { ...DEFAULT_CONFIG, ...config };
+    let lastError: Error;
+
+    // Reset state at the beginning
+    setState({
+      isRetrying: false,
+      attemptCount: 0,
+      lastError: null,
+      nextRetryIn: 0
+    });
+
+    for (let attempt = 0; attempt < finalConfig.maxAttempts; attempt++) {
+      try {
+        setState(prev => ({
+          ...prev,
+          attemptCount: attempt + 1,
+          isRetrying: attempt > 0
+        }));
+
+        const result = await fn();
+        
+        // Success - reset state and return result
+        setState({
+          isRetrying: false,
+          attemptCount: 0,
+          lastError: null,
+          nextRetryIn: 0
+        });
+        
+        return result;
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        
+        setState(prev => ({
+          ...prev,
+          lastError: lastError
+        }));
+
+        // Check if we should retry this error
+        if (!finalConfig.retryCondition(lastError)) {
+          throw lastError;
+        }
+
+        // If this is the last attempt, don't wait
+        if (attempt === finalConfig.maxAttempts - 1) {
+          break;
+        }
+
+        // Calculate delay and wait before next attempt
+        const delay = calculateDelay(attempt, finalConfig);
+        
+        setState(prev => ({
+          ...prev,
+          isRetrying: true
+        }));
+
+        // Start countdown
+        startCountdown(delay);
+
+        // Wait for the delay
+        await new Promise((resolve, reject) => {
+          timeoutRef.current = setTimeout(resolve, delay);
+        });
+      }
+    }
+
+    // All attempts failed
+    setState(prev => ({
+      ...prev,
+      isRetrying: false,
+      nextRetryIn: 0
+    }));
+
+    throw lastError!;
+  }, [calculateDelay, startCountdown]);
 
   return {
-    execute,
     retry,
+    state,
     cancel,
-    reset,
-    ...state,
+    reset
   };
-}
-
-// Specialized hook for API calls with common retry patterns
-export function useApiRetry<T extends any[], R>(
-  apiFunction: (...args: T) => Promise<R>,
-  options: RetryOptions = {}
-) {
-  const defaultOptions: RetryOptions = {
-    maxAttempts: 3,
-    delay: 1000,
-    backoffMultiplier: 1.5,
-    maxDelay: 5000,
-    onRetry: (attempt, error) => {
-      console.warn(`API call failed (attempt ${attempt}):`, error.message);
-    },
-    onMaxAttemptsReached: (error) => {
-      console.error('API call failed after all retry attempts:', error);
-    },
-    ...options,
-  };
-
-  return useRetry(apiFunction, defaultOptions);
-}
-
-// Hook for retrying with exponential backoff
-export function useExponentialRetry<T extends any[], R>(
-  asyncFunction: (...args: T) => Promise<R>,
-  options: Omit<RetryOptions, 'backoffMultiplier'> = {}
-) {
-  return useRetry(asyncFunction, {
-    ...options,
-    backoffMultiplier: 2,
-  });
 }

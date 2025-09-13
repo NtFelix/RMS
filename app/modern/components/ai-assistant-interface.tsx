@@ -1,104 +1,65 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Bot, User, AlertCircle, RotateCcw, X } from "lucide-react";
+import { Send, Bot, User, AlertCircle, RotateCcw, X, Wifi, WifiOff, Search, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { usePostHog } from 'posthog-js/react';
-import { categorizeAIError, trackAIRequestFailure } from '@/lib/ai-documentation-context';
-
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
+import { useEnhancedAIAssistant } from "@/hooks/use-enhanced-ai-assistant";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
   onClose: () => void;
   documentationContext?: any[];
   className?: string;
-}
-
-interface AIAssistantState {
-  messages: ChatMessage[];
-  isLoading: boolean;
-  error: string | null;
-  inputValue: string;
-  streamingMessageId: string | null;
+  onFallbackToSearch?: () => void;
 }
 
 export default function AIAssistantInterface({
   isOpen,
   onClose,
   documentationContext = [],
-  className
+  className,
+  onFallbackToSearch
 }: AIAssistantInterfaceProps) {
-  const [state, setState] = useState<AIAssistantState>({
-    messages: [],
-    isLoading: false,
-    error: null,
-    inputValue: "",
-    streamingMessageId: null
-  });
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const sessionStartTimeRef = useRef<Date | null>(null);
-  const posthog = usePostHog();
 
-  // Define handleClose function early so it can be used in useEffect dependencies
+  const { 
+    state, 
+    actions, 
+    networkStatus, 
+    retryState 
+  } = useEnhancedAIAssistant(documentationContext);
+
+  // Handle close with cleanup
   const handleClose = useCallback(() => {
-    // Track AI assistant closed event
-    if (posthog && posthog.has_opted_in_capturing?.() && sessionStartTimeRef.current) {
-      const sessionDuration = Date.now() - sessionStartTimeRef.current.getTime();
-      posthog.capture('ai_assistant_closed', {
-        session_duration_ms: sessionDuration,
-        message_count: state.messages.length,
-        timestamp: new Date().toISOString()
-      });
-    }
-    
-    // Reset session start time
-    sessionStartTimeRef.current = null;
-    
-    // Call the original onClose
+    actions.clearMessages();
     onClose();
-  }, [posthog, state.messages.length, onClose]);
+  }, [actions, onClose]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [state.messages]);
 
-  // Focus input when modal opens and track analytics
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      // Track AI assistant opened event
-      if (posthog && posthog.has_opted_in_capturing?.()) {
-        sessionStartTimeRef.current = new Date();
-        posthog.capture('ai_assistant_opened', {
-          source: 'documentation_search',
-          timestamp: sessionStartTimeRef.current.toISOString(),
-          has_documentation_context: documentationContext.length > 0
-        });
-      }
-
       // Small delay to ensure modal is fully rendered
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, posthog, documentationContext.length]);
+  }, [isOpen]);
 
   // Keyboard navigation and accessibility
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -114,14 +75,14 @@ export default function AIAssistantInterface({
     // Ctrl/Cmd + K to clear conversation
     if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
       e.preventDefault();
-      clearMessages();
+      actions.clearMessages();
       return;
     }
 
     // Ctrl/Cmd + R to retry last message
     if ((e.ctrlKey || e.metaKey) && e.key === 'r' && state.error) {
       e.preventDefault();
-      handleRetry();
+      actions.retryLastMessage();
       return;
     }
 
@@ -189,36 +150,9 @@ export default function AIAssistantInterface({
     };
   }, [isOpen, state.messages.length]); // Re-run when messages change to update focusable elements
 
-  const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-  const addMessage = (message: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    const newMessage: ChatMessage = {
-      ...message,
-      id: generateMessageId(),
-      timestamp: new Date()
-    };
-
-    setState(prev => ({
-      ...prev,
-      messages: [...prev.messages, newMessage]
-    }));
-  };
-
-  const setLoading = (loading: boolean) => {
-    setState(prev => ({ ...prev, isLoading: loading }));
-  };
-
-  const setError = (error: string | null) => {
-    setState(prev => ({ ...prev, error }));
-  };
-
-  const clearMessages = () => {
-    setState(prev => ({
-      ...prev,
-      messages: [],
-      error: null,
-      streamingMessageId: null
-    }));
+  // Handle input changes with validation
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    actions.setInputValue(e.target.value);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -227,415 +161,10 @@ export default function AIAssistantInterface({
     const message = state.inputValue.trim();
     if (!message || state.isLoading) return;
 
-    const requestStartTime = Date.now();
-    const sessionId = `session_${Date.now()}`;
-
-    // Track question submitted event
-    if (posthog && posthog.has_opted_in_capturing?.()) {
-      posthog.capture('ai_question_submitted', {
-        question_length: message.length,
-        session_id: sessionId,
-        has_context: documentationContext.length > 0,
-        message_count: state.messages.length + 1, // +1 for the message being submitted
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Add user message
-    addMessage({
-      role: 'user',
-      content: message
-    });
-
-    // Clear input and set loading
-    setState(prev => ({
-      ...prev,
-      inputValue: "",
-      isLoading: true,
-      error: null
-    }));
-
-    // Create a placeholder message for the assistant response that will be updated with streaming content
-    const assistantMessageId = generateMessageId();
-    const assistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date()
-    };
-
-    // Add empty assistant message that will be updated with streaming content
-    setState(prev => ({
-      ...prev,
-      messages: [...prev.messages, assistantMessage],
-      streamingMessageId: assistantMessageId
-    }));
-
-    try {
-      const response = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message,
-          context: documentationContext,
-          sessionId: sessionId
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Check if response is streaming (SSE)
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('text/event-stream')) {
-        // Add timeout for streaming responses
-        const streamingTimeout = setTimeout(() => {
-          throw new Error('Streaming response timeout');
-        }, 30000); // 30 second timeout
-
-        try {
-          await handleStreamingResponse(response, assistantMessageId);
-          
-          // Track successful response
-          if (posthog && posthog.has_opted_in_capturing?.()) {
-            const responseTime = Date.now() - requestStartTime;
-            posthog.capture('ai_response_received', {
-              response_time_ms: responseTime,
-              session_id: sessionId,
-              success: true,
-              response_type: 'streaming',
-              timestamp: new Date().toISOString()
-            });
-          }
-        } finally {
-          clearTimeout(streamingTimeout);
-        }
-      } else {
-        // Fallback to regular JSON response
-        const data = await response.json();
-        updateAssistantMessage(assistantMessageId, data.response || 'Entschuldigung, ich konnte keine Antwort generieren.');
-        
-        // Track successful response
-        if (posthog && posthog.has_opted_in_capturing?.()) {
-          const responseTime = Date.now() - requestStartTime;
-          posthog.capture('ai_response_received', {
-            response_time_ms: responseTime,
-            session_id: sessionId,
-            success: true,
-            response_type: 'json',
-            timestamp: new Date().toISOString()
-          });
-        }
-      }
-
-    } catch (error) {
-      console.error('AI Assistant Error:', error);
-      
-      // Use the new error categorization utility
-      const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
-        sessionId: sessionId,
-        failureStage: 'client_request'
-      });
-      
-      // Get user-friendly error message in German
-      let errorMessage = 'Ein unerwarteter Fehler ist aufgetreten.';
-      
-      switch (errorDetails.errorType) {
-        case 'network_error':
-          errorMessage = 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.';
-          break;
-        case 'rate_limit':
-          errorMessage = 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
-          break;
-        case 'server_error':
-          errorMessage = 'Serverfehler. Bitte versuchen Sie es später erneut.';
-          break;
-        case 'authentication_error':
-          errorMessage = 'Authentifizierungsfehler. Der Service ist momentan nicht verfügbar.';
-          break;
-        case 'content_safety_error':
-          errorMessage = 'Ihre Anfrage konnte aufgrund von Inhaltsrichtlinien nicht verarbeitet werden.';
-          break;
-        case 'model_overloaded':
-          errorMessage = 'Der AI-Service ist überlastet. Bitte versuchen Sie es in wenigen Minuten erneut.';
-          break;
-        case 'timeout_error':
-          errorMessage = 'Die Anfrage ist abgelaufen. Bitte versuchen Sie es erneut.';
-          break;
-        case 'validation_error':
-          errorMessage = 'Ungültige Anfrage. Bitte überprüfen Sie Ihre Eingabe.';
-          break;
-        default:
-          errorMessage = errorDetails.errorMessage || 'Ein unerwarteter Fehler ist aufgetreten.';
-      }
-
-      // Track failed response using the new utility
-      if (posthog && posthog.has_opted_in_capturing?.()) {
-        const responseTime = Date.now() - requestStartTime;
-        
-        trackAIRequestFailure(posthog, errorDetails, {
-          sessionId: sessionId,
-          responseTimeMs: responseTime,
-          questionLength: message.length,
-          hasContext: documentationContext.length > 0,
-          contextArticlesCount: documentationContext.length,
-          messageCount: state.messages.length + 1
-        });
-
-        // Also track the legacy event for backward compatibility
-        posthog.capture('ai_response_received', {
-          response_time_ms: responseTime,
-          session_id: sessionId,
-          success: false,
-          error_type: errorDetails.errorType,
-          error_message: errorMessage,
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      // Remove the placeholder assistant message and show error
-      setState(prev => ({
-        ...prev,
-        messages: prev.messages.filter(msg => msg.id !== assistantMessageId)
-      }));
-      
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-      setState(prev => ({ ...prev, streamingMessageId: null }));
-    }
+    await actions.sendMessage(message);
   };
 
-  const updateAssistantMessage = (messageId: string, content: string) => {
-    setState(prev => ({
-      ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, content }
-          : msg
-      )
-    }));
-  };
 
-  const appendToAssistantMessage = (messageId: string, chunk: string) => {
-    setState(prev => ({
-      ...prev,
-      messages: prev.messages.map(msg => 
-        msg.id === messageId 
-          ? { ...msg, content: msg.content + chunk }
-          : msg
-      )
-    }));
-  };
-
-  const handleStreamingResponse = async (response: Response, messageId: string) => {
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-
-    if (!reader) {
-      throw new Error('Response body is not readable');
-    }
-
-    const streamStartTime = Date.now();
-    let hasReceivedContent = false;
-    let chunksReceived = 0;
-    let totalBytesReceived = 0;
-
-    try {
-      let buffer = '';
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        
-        if (done) {
-          // If stream ended without receiving any content, show fallback message
-          if (!hasReceivedContent) {
-            updateAssistantMessage(messageId, 'Entschuldigung, ich konnte keine Antwort generieren.');
-            
-            // Track streaming failure - no content received
-            if (posthog && posthog.has_opted_in_capturing?.()) {
-              posthog.capture('ai_request_failed', {
-                session_id: `session_${Date.now()}`,
-                error_type: 'streaming_no_content',
-                error_code: 'STREAMING_ERROR',
-                error_message: 'Stream ended without receiving content',
-                http_status: response.status,
-                retryable: true,
-                failure_stage: 'streaming_completion',
-                stream_duration_ms: Date.now() - streamStartTime,
-                chunks_received: chunksReceived,
-                bytes_received: totalBytesReceived,
-                timestamp: new Date().toISOString()
-              });
-            }
-          }
-          break;
-        }
-
-        // Track streaming progress
-        if (value) {
-          chunksReceived++;
-          totalBytesReceived += value.length;
-        }
-
-        // Decode the chunk and add to buffer
-        buffer += decoder.decode(value, { stream: true });
-        
-        // Process complete lines from buffer
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || ''; // Keep incomplete line in buffer
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          
-          // Skip empty lines and comments
-          if (!trimmedLine || trimmedLine.startsWith(':')) {
-            continue;
-          }
-          
-          // Parse SSE data
-          if (trimmedLine.startsWith('data: ')) {
-            const dataStr = trimmedLine.slice(6); // Remove 'data: ' prefix
-            
-            try {
-              const data = JSON.parse(dataStr);
-              
-              if (data.type === 'chunk' && data.content) {
-                // Append chunk to the assistant message
-                appendToAssistantMessage(messageId, data.content);
-                hasReceivedContent = true;
-              } else if (data.type === 'complete') {
-                // Final response received, ensure message is complete
-                if (data.content) {
-                  updateAssistantMessage(messageId, data.content);
-                  hasReceivedContent = true;
-                }
-                return; // Stream complete
-              } else if (data.type === 'error') {
-                // Handle streaming error from server
-                const errorMessage = data.error || 'Streaming error occurred';
-                
-                // Track server-side streaming error
-                if (posthog && posthog.has_opted_in_capturing?.()) {
-                  posthog.capture('ai_request_failed', {
-                    session_id: `session_${Date.now()}`,
-                    error_type: 'streaming_server_error',
-                    error_code: data.code || 'STREAMING_ERROR',
-                    error_message: errorMessage,
-                    http_status: response.status,
-                    retryable: data.retryable !== false,
-                    failure_stage: 'streaming_server',
-                    stream_duration_ms: Date.now() - streamStartTime,
-                    chunks_received: chunksReceived,
-                    bytes_received: totalBytesReceived,
-                    timestamp: new Date().toISOString()
-                  });
-                }
-                
-                throw new Error(errorMessage);
-              }
-            } catch (parseError) {
-              console.warn('Failed to parse SSE data:', dataStr, parseError);
-              
-              // Track parsing error but continue processing
-              if (posthog && posthog.has_opted_in_capturing?.()) {
-                posthog.capture('ai_request_failed', {
-                  session_id: `session_${Date.now()}`,
-                  error_type: 'streaming_parse_error',
-                  error_code: 'STREAMING_PARSE_ERROR',
-                  error_message: parseError instanceof Error ? parseError.message : 'Failed to parse SSE data',
-                  http_status: response.status,
-                  retryable: false,
-                  failure_stage: 'streaming_parse',
-                  stream_duration_ms: Date.now() - streamStartTime,
-                  chunks_received: chunksReceived,
-                  bytes_received: totalBytesReceived,
-                  raw_data: dataStr.substring(0, 200), // First 200 chars for debugging
-                  timestamp: new Date().toISOString()
-                });
-              }
-              
-              // Continue processing other chunks
-            }
-          }
-        }
-      }
-    } catch (streamError) {
-      console.error('Streaming error:', streamError);
-      
-      // Categorize streaming error using the utility
-      const errorDetails = categorizeAIError(streamError instanceof Error ? streamError : String(streamError), {
-        sessionId: `session_${Date.now()}`,
-        failureStage: 'streaming_client',
-        additionalData: {
-          stream_duration_ms: Date.now() - streamStartTime,
-          chunks_received: chunksReceived,
-          bytes_received: totalBytesReceived,
-          had_content: hasReceivedContent,
-          http_status: response.status
-        }
-      });
-      
-      // Override error type for streaming-specific errors
-      if (streamError instanceof Error) {
-        if (streamError.message.includes('timeout') || streamError.message.includes('ETIMEDOUT')) {
-          errorDetails.errorType = 'streaming_timeout';
-          errorDetails.errorCode = 'STREAMING_TIMEOUT';
-        } else if (streamError.message.includes('network') || streamError.message.includes('ECONNRESET')) {
-          errorDetails.errorType = 'streaming_network_error';
-          errorDetails.errorCode = 'STREAMING_NETWORK_ERROR';
-        } else if (streamError.message.includes('abort')) {
-          errorDetails.errorType = 'streaming_aborted';
-          errorDetails.errorCode = 'STREAMING_ABORTED';
-          errorDetails.retryable = false;
-        } else {
-          errorDetails.errorType = 'streaming_error';
-          errorDetails.errorCode = 'STREAMING_ERROR';
-        }
-      }
-      
-      // Track streaming error using the utility
-      if (posthog && posthog.has_opted_in_capturing?.()) {
-        trackAIRequestFailure(posthog, errorDetails);
-      }
-      
-      // Update the message with an error indicator if no content was received
-      const currentMessage = state.messages.find(msg => msg.id === messageId);
-      if (!currentMessage?.content) {
-        updateAssistantMessage(messageId, 'Fehler beim Empfangen der Antwort. Bitte versuchen Sie es erneut.');
-      }
-      
-      throw streamError;
-    } finally {
-      reader.releaseLock();
-    }
-  };
-
-  const handleRetry = () => {
-    if (state.messages.length > 0) {
-      const lastUserMessage = [...state.messages].reverse().find(msg => msg.role === 'user');
-      if (lastUserMessage) {
-        // Remove any incomplete assistant messages
-        setState(prev => ({
-          ...prev,
-          inputValue: lastUserMessage.content,
-          error: null,
-          messages: prev.messages.filter(msg => 
-            !(msg.role === 'assistant' && msg.content === '')
-          )
-        }));
-        
-        // Focus input after retry
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 100);
-      }
-    }
-  };
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('de-DE', { 
@@ -677,18 +206,44 @@ export default function AIAssistantInterface({
               <Bot className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietfluss AI Assistent</h2>
+              <div className="flex items-center gap-2">
+                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietfluss AI Assistent</h2>
+                {/* Network Status Indicator */}
+                {networkStatus.isOffline && (
+                  <Badge variant="destructive" className="text-xs">
+                    <WifiOff className="w-3 h-3 mr-1" />
+                    Offline
+                  </Badge>
+                )}
+                {retryState.isRetrying && (
+                  <Badge variant="secondary" className="text-xs">
+                    <RefreshCw className="w-3 h-3 mr-1 animate-spin" />
+                    Wiederholung {retryState.attemptCount}
+                  </Badge>
+                )}
+              </div>
               <p id="ai-assistant-description" className="text-xs text-muted-foreground">
-                Fragen Sie mich alles über Mietfluss
+                {networkStatus.isOffline 
+                  ? 'Keine Internetverbindung - Funktionen eingeschränkt'
+                  : 'Fragen Sie mich alles über Mietfluss'
+                }
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Network Status Icon */}
+            <div className="flex items-center">
+              {networkStatus.isOnline ? (
+                <Wifi className="w-4 h-4 text-green-500" title="Online" />
+              ) : (
+                <WifiOff className="w-4 h-4 text-red-500" title="Offline" />
+              )}
+            </div>
             {state.messages.length > 0 && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={clearMessages}
+                onClick={actions.clearMessages}
                 className="text-muted-foreground hover:text-foreground"
                 aria-label="Unterhaltung löschen (Strg+K)"
                 title="Unterhaltung löschen (Strg+K)"
@@ -819,50 +374,145 @@ export default function AIAssistantInterface({
           </div>
         </ScrollArea>
 
-        {/* Error Display */}
+        {/* Enhanced Error Display */}
         <AnimatePresence>
-          {state.error && (
+          {(state.error || state.validationError || retryState.nextRetryIn > 0) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               className="px-4"
             >
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription className="flex items-center justify-between">
-                  <span>{state.error}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleRetry}
-                    className="ml-2 h-auto p-1 text-destructive-foreground hover:bg-destructive/20"
-                    aria-label="Erneut versuchen (Strg+R)"
-                    title="Erneut versuchen (Strg+R)"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                  </Button>
-                </AlertDescription>
-              </Alert>
+              {/* Main Error */}
+              {state.error && (
+                <Alert variant="destructive" className="mb-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>{state.error}</span>
+                    <div className="flex items-center gap-2">
+                      {state.fallbackToSearch && onFallbackToSearch && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={onFallbackToSearch}
+                          className="h-auto p-1 text-destructive-foreground hover:bg-destructive/20"
+                          title="Zur normalen Suche wechseln"
+                        >
+                          <Search className="w-3 h-3" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={actions.retryLastMessage}
+                        disabled={retryState.isRetrying}
+                        className="h-auto p-1 text-destructive-foreground hover:bg-destructive/20"
+                        aria-label="Erneut versuchen (Strg+R)"
+                        title="Erneut versuchen (Strg+R)"
+                      >
+                        <RotateCcw className={cn("w-3 h-3", retryState.isRetrying && "animate-spin")} />
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Validation Error */}
+              {state.validationError && (
+                <Alert variant="destructive" className="mb-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{state.validationError}</AlertDescription>
+                </Alert>
+              )}
+
+              {/* Retry Countdown */}
+              {retryState.nextRetryIn > 0 && (
+                <Alert className="mb-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <AlertDescription>
+                    Wiederholung in {retryState.nextRetryIn} Sekunden... (Versuch {retryState.attemptCount})
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Fallback Suggestion */}
+              {state.fallbackToSearch && onFallbackToSearch && (
+                <Alert className="mb-2">
+                  <Search className="h-4 w-4" />
+                  <AlertDescription className="flex items-center justify-between">
+                    <span>Sie können stattdessen die normale Dokumentationssuche verwenden.</span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={onFallbackToSearch}
+                      className="ml-2"
+                    >
+                      Zur Suche
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Input Area */}
+        {/* Enhanced Input Area */}
         <div className="p-4 border-t border-border bg-muted/30">
+          {/* Input Suggestions */}
+          {state.inputSuggestions.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-muted-foreground mb-2">Vorschläge:</p>
+              <div className="space-y-1">
+                {state.inputSuggestions.slice(0, 2).map((suggestion, index) => (
+                  <p key={index} className="text-xs text-muted-foreground bg-muted/50 rounded px-2 py-1">
+                    {suggestion}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Validation Warning */}
+          {state.validationWarning && (
+            <Alert className="mb-3">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">{state.validationWarning}</AlertDescription>
+            </Alert>
+          )}
+
           <form onSubmit={handleSubmit} className="flex gap-2">
-            <Input
-              ref={inputRef}
-              value={state.inputValue}
-              onChange={(e) => setState(prev => ({ ...prev, inputValue: e.target.value }))}
-              placeholder="Stellen Sie eine Frage über Mietfluss..."
-              disabled={state.isLoading}
-              className="flex-1"
-              maxLength={500}
-            />
+            <div className="flex-1 relative">
+              <Input
+                ref={inputRef}
+                value={state.inputValue}
+                onChange={handleInputChange}
+                placeholder={
+                  networkStatus.isOffline 
+                    ? "Offline - Keine AI-Anfragen möglich"
+                    : "Stellen Sie eine Frage über Mietfluss..."
+                }
+                disabled={state.isLoading || networkStatus.isOffline}
+                className={cn(
+                  "pr-12",
+                  state.validationError && "border-destructive",
+                  state.validationWarning && "border-yellow-500"
+                )}
+                maxLength={2000}
+              />
+              {/* Character Counter */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                {state.inputValue.length}/2000
+              </div>
+            </div>
             <Button
               type="submit"
-              disabled={!state.inputValue.trim() || state.isLoading}
+              disabled={
+                !state.inputValue.trim() || 
+                state.isLoading || 
+                networkStatus.isOffline ||
+                !!state.validationError ||
+                retryState.isRetrying
+              }
               size="sm"
               className="px-3"
               aria-label="Nachricht senden"
@@ -874,10 +524,26 @@ export default function AIAssistantInterface({
               )}
             </Button>
           </form>
+          {/* Enhanced Help Text */}
           <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
-            <p>Drücken Sie Enter zum Senden • {state.inputValue.length}/500 Zeichen</p>
+            <div className="flex items-center justify-between">
+              <span>Drücken Sie Enter zum Senden</span>
+              <span className="flex items-center gap-2">
+                {networkStatus.isOnline && (
+                  <Badge variant="outline" className="text-xs">
+                    <Wifi className="w-3 h-3 mr-1" />
+                    Online
+                  </Badge>
+                )}
+                {retryState.isRetrying && (
+                  <Badge variant="secondary" className="text-xs">
+                    Wiederholung läuft...
+                  </Badge>
+                )}
+              </span>
+            </div>
             <p className="text-xs opacity-75">
-              Tastenkürzel: Escape (Schließen) • Strg+K (Löschen) • Alt+↑↓ (Scrollen)
+              Tastenkürzel: Escape (Schließen) • Strg+K (Löschen) • Strg+R (Wiederholen) • Alt+↑↓ (Scrollen)
             </p>
           </div>
         </div>
