@@ -128,6 +128,22 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   },
 
   setError: (error: string | null) => {
+    const state = get();
+    
+    // Track error in store if error is being set
+    if (error && typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.()) {
+      posthog.capture('ai_request_failed', {
+        session_id: state.sessionId,
+        error_type: 'store_error',
+        error_code: 'AI_STORE_ERROR',
+        error_message: error,
+        retryable: true,
+        failure_stage: 'store_management',
+        message_count: state.messages.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     set({ error });
   },
 

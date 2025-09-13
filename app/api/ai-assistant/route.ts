@@ -6,7 +6,8 @@ import {
   fetchDocumentationContext, 
   processContextForAI, 
   getArticleContext, 
-  getSearchContext 
+  getSearchContext,
+  categorizeAIError
 } from '@/lib/ai-documentation-context';
 
 // Request validation schema
@@ -240,9 +241,56 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           console.error('Streaming error:', error);
           
-          // Track streaming error (server-side)
+          // Track streaming error (server-side) with enhanced categorization
           if (posthog) {
             const responseTime = Date.now() - requestStartTime;
+            
+            // Use the centralized error categorization utility
+            const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
+              sessionId: currentSessionId,
+              failureStage: 'streaming_server',
+              additionalData: {
+                http_status: 200 // Streaming started successfully but failed during processing
+              }
+            });
+
+            // Override for streaming-specific error types
+            if (error instanceof Error) {
+              if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+                errorDetails.errorType = 'streaming_timeout';
+                errorDetails.errorCode = 'STREAMING_TIMEOUT';
+              } else if (error.message.includes('network') || error.message.includes('ECONNRESET')) {
+                errorDetails.errorType = 'streaming_network_error';
+                errorDetails.errorCode = 'STREAMING_NETWORK_ERROR';
+              } else if (error.message.includes('parse') || error.message.includes('JSON')) {
+                errorDetails.errorType = 'streaming_parse_error';
+                errorDetails.errorCode = 'STREAMING_PARSE_ERROR';
+                errorDetails.retryable = false;
+              } else {
+                errorDetails.errorType = 'streaming_error';
+                errorDetails.errorCode = 'STREAMING_ERROR';
+              }
+            }
+
+            // Track the enhanced ai_request_failed event for streaming errors
+            posthog.capture({
+              distinctId: 'anonymous',
+              event: 'ai_request_failed',
+              properties: {
+                response_time_ms: responseTime,
+                session_id: currentSessionId,
+                error_type: errorDetails.errorType,
+                error_code: errorDetails.errorCode,
+                error_message: errorDetails.errorMessage,
+                http_status: errorDetails.httpStatus,
+                retryable: errorDetails.retryable,
+                failure_stage: errorDetails.failureStage,
+                timestamp: new Date().toISOString(),
+                ...errorDetails.additionalData
+              }
+            });
+
+            // Also track the legacy event for backward compatibility
             posthog.capture({
               distinctId: 'anonymous',
               event: 'ai_response_generated_server',
@@ -250,8 +298,8 @@ export async function POST(request: NextRequest) {
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
                 success: false,
-                error_type: 'streaming_error',
-                error_message: error instanceof Error ? error.message : 'Unknown streaming error',
+                error_type: errorDetails.errorType,
+                error_message: errorDetails.errorMessage,
                 timestamp: new Date().toISOString()
               }
             });
@@ -285,28 +333,50 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('AI Assistant API Error:', error);
 
-    // Track API error (server-side)
+    // Track API error (server-side) with enhanced error categorization
     if (posthog) {
       const responseTime = Date.now() - requestStartTime;
-      let errorType = 'unknown';
-      let errorMessage = 'Unknown error';
       
-      if (error instanceof z.ZodError) {
-        errorType = 'validation_error';
-        errorMessage = 'Invalid request format';
-      } else if (error instanceof Error) {
-        errorMessage = error.message;
-        if (error.message.includes('quota') || error.message.includes('rate limit')) {
-          errorType = 'rate_limit';
-        } else if (error.message.includes('API key') || error.message.includes('authentication')) {
-          errorType = 'authentication_error';
-        } else if (error.message.includes('timeout') || error.message.includes('network')) {
-          errorType = 'network_error';
-        } else {
-          errorType = 'api_error';
+      // Use the centralized error categorization utility
+      const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
+        sessionId: currentSessionId,
+        failureStage: 'api_request',
+        additionalData: {
+          request_message_length: body?.message?.length || 0,
+          has_context: !!(body?.context?.articles && body.context.articles.length > 0),
+          context_articles_count: body?.context?.articles?.length || 0,
+          user_agent: request.headers.get('user-agent') || 'unknown'
         }
+      });
+
+      // Special handling for Zod validation errors
+      if (error instanceof z.ZodError) {
+        errorDetails.errorType = 'validation_error';
+        errorDetails.errorCode = 'INVALID_REQUEST';
+        errorDetails.errorMessage = 'Invalid request format';
+        errorDetails.httpStatus = 400;
+        errorDetails.retryable = false;
       }
 
+      // Track the enhanced ai_request_failed event
+      posthog.capture({
+        distinctId: 'anonymous',
+        event: 'ai_request_failed',
+        properties: {
+          response_time_ms: responseTime,
+          session_id: currentSessionId,
+          error_type: errorDetails.errorType,
+          error_code: errorDetails.errorCode,
+          error_message: errorDetails.errorMessage,
+          http_status: errorDetails.httpStatus,
+          retryable: errorDetails.retryable,
+          failure_stage: errorDetails.failureStage,
+          timestamp: new Date().toISOString(),
+          ...errorDetails.additionalData
+        }
+      });
+
+      // Also track the legacy event for backward compatibility
       posthog.capture({
         distinctId: 'anonymous',
         event: 'ai_response_generated_server',
@@ -314,8 +384,8 @@ export async function POST(request: NextRequest) {
           response_time_ms: responseTime,
           session_id: currentSessionId,
           success: false,
-          error_type: errorType,
-          error_message: errorMessage,
+          error_type: errorDetails.errorType,
+          error_message: errorDetails.errorMessage,
           timestamp: new Date().toISOString()
         }
       });

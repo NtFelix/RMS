@@ -10,6 +10,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import { usePostHog } from 'posthog-js/react';
+import { categorizeAIError, trackAIRequestFailure } from '@/lib/ai-documentation-context';
 
 export interface ChatMessage {
   id: string;
@@ -334,33 +335,63 @@ export default function AIAssistantInterface({
     } catch (error) {
       console.error('AI Assistant Error:', error);
       
-      let errorMessage = 'Ein unerwarteter Fehler ist aufgetreten.';
-      let errorType = 'unknown';
+      // Use the new error categorization utility
+      const errorDetails = categorizeAIError(error instanceof Error ? error : String(error), {
+        sessionId: sessionId,
+        failureStage: 'client_request'
+      });
       
-      if (error instanceof Error) {
-        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+      // Get user-friendly error message in German
+      let errorMessage = 'Ein unerwarteter Fehler ist aufgetreten.';
+      
+      switch (errorDetails.errorType) {
+        case 'network_error':
           errorMessage = 'Netzwerkfehler. Bitte überprüfen Sie Ihre Internetverbindung.';
-          errorType = 'network';
-        } else if (error.message.includes('429')) {
+          break;
+        case 'rate_limit':
           errorMessage = 'Zu viele Anfragen. Bitte warten Sie einen Moment und versuchen Sie es erneut.';
-          errorType = 'rate_limit';
-        } else if (error.message.includes('500')) {
+          break;
+        case 'server_error':
           errorMessage = 'Serverfehler. Bitte versuchen Sie es später erneut.';
-          errorType = 'server_error';
-        } else {
-          errorMessage = error.message;
-          errorType = 'api_error';
-        }
+          break;
+        case 'authentication_error':
+          errorMessage = 'Authentifizierungsfehler. Der Service ist momentan nicht verfügbar.';
+          break;
+        case 'content_safety_error':
+          errorMessage = 'Ihre Anfrage konnte aufgrund von Inhaltsrichtlinien nicht verarbeitet werden.';
+          break;
+        case 'model_overloaded':
+          errorMessage = 'Der AI-Service ist überlastet. Bitte versuchen Sie es in wenigen Minuten erneut.';
+          break;
+        case 'timeout_error':
+          errorMessage = 'Die Anfrage ist abgelaufen. Bitte versuchen Sie es erneut.';
+          break;
+        case 'validation_error':
+          errorMessage = 'Ungültige Anfrage. Bitte überprüfen Sie Ihre Eingabe.';
+          break;
+        default:
+          errorMessage = errorDetails.errorMessage || 'Ein unerwarteter Fehler ist aufgetreten.';
       }
 
-      // Track failed response
+      // Track failed response using the new utility
       if (posthog && posthog.has_opted_in_capturing?.()) {
         const responseTime = Date.now() - requestStartTime;
+        
+        trackAIRequestFailure(posthog, errorDetails, {
+          sessionId: sessionId,
+          responseTimeMs: responseTime,
+          questionLength: message.length,
+          hasContext: documentationContext.length > 0,
+          contextArticlesCount: documentationContext.length,
+          messageCount: state.messages.length + 1
+        });
+
+        // Also track the legacy event for backward compatibility
         posthog.capture('ai_response_received', {
           response_time_ms: responseTime,
           session_id: sessionId,
           success: false,
-          error_type: errorType,
+          error_type: errorDetails.errorType,
           error_message: errorMessage,
           timestamp: new Date().toISOString()
         });
@@ -409,9 +440,13 @@ export default function AIAssistantInterface({
       throw new Error('Response body is not readable');
     }
 
+    const streamStartTime = Date.now();
+    let hasReceivedContent = false;
+    let chunksReceived = 0;
+    let totalBytesReceived = 0;
+
     try {
       let buffer = '';
-      let hasReceivedContent = false;
       
       while (true) {
         const { done, value } = await reader.read();
@@ -420,8 +455,31 @@ export default function AIAssistantInterface({
           // If stream ended without receiving any content, show fallback message
           if (!hasReceivedContent) {
             updateAssistantMessage(messageId, 'Entschuldigung, ich konnte keine Antwort generieren.');
+            
+            // Track streaming failure - no content received
+            if (posthog && posthog.has_opted_in_capturing?.()) {
+              posthog.capture('ai_request_failed', {
+                session_id: `session_${Date.now()}`,
+                error_type: 'streaming_no_content',
+                error_code: 'STREAMING_ERROR',
+                error_message: 'Stream ended without receiving content',
+                http_status: response.status,
+                retryable: true,
+                failure_stage: 'streaming_completion',
+                stream_duration_ms: Date.now() - streamStartTime,
+                chunks_received: chunksReceived,
+                bytes_received: totalBytesReceived,
+                timestamp: new Date().toISOString()
+              });
+            }
           }
           break;
+        }
+
+        // Track streaming progress
+        if (value) {
+          chunksReceived++;
+          totalBytesReceived += value.length;
         }
 
         // Decode the chunk and add to buffer
@@ -458,11 +516,49 @@ export default function AIAssistantInterface({
                 }
                 return; // Stream complete
               } else if (data.type === 'error') {
-                // Handle streaming error
-                throw new Error(data.error || 'Streaming error occurred');
+                // Handle streaming error from server
+                const errorMessage = data.error || 'Streaming error occurred';
+                
+                // Track server-side streaming error
+                if (posthog && posthog.has_opted_in_capturing?.()) {
+                  posthog.capture('ai_request_failed', {
+                    session_id: `session_${Date.now()}`,
+                    error_type: 'streaming_server_error',
+                    error_code: data.code || 'STREAMING_ERROR',
+                    error_message: errorMessage,
+                    http_status: response.status,
+                    retryable: data.retryable !== false,
+                    failure_stage: 'streaming_server',
+                    stream_duration_ms: Date.now() - streamStartTime,
+                    chunks_received: chunksReceived,
+                    bytes_received: totalBytesReceived,
+                    timestamp: new Date().toISOString()
+                  });
+                }
+                
+                throw new Error(errorMessage);
               }
             } catch (parseError) {
               console.warn('Failed to parse SSE data:', dataStr, parseError);
+              
+              // Track parsing error but continue processing
+              if (posthog && posthog.has_opted_in_capturing?.()) {
+                posthog.capture('ai_request_failed', {
+                  session_id: `session_${Date.now()}`,
+                  error_type: 'streaming_parse_error',
+                  error_code: 'STREAMING_PARSE_ERROR',
+                  error_message: parseError instanceof Error ? parseError.message : 'Failed to parse SSE data',
+                  http_status: response.status,
+                  retryable: false,
+                  failure_stage: 'streaming_parse',
+                  stream_duration_ms: Date.now() - streamStartTime,
+                  chunks_received: chunksReceived,
+                  bytes_received: totalBytesReceived,
+                  raw_data: dataStr.substring(0, 200), // First 200 chars for debugging
+                  timestamp: new Date().toISOString()
+                });
+              }
+              
               // Continue processing other chunks
             }
           }
@@ -470,6 +566,42 @@ export default function AIAssistantInterface({
       }
     } catch (streamError) {
       console.error('Streaming error:', streamError);
+      
+      // Categorize streaming error using the utility
+      const errorDetails = categorizeAIError(streamError instanceof Error ? streamError : String(streamError), {
+        sessionId: `session_${Date.now()}`,
+        failureStage: 'streaming_client',
+        additionalData: {
+          stream_duration_ms: Date.now() - streamStartTime,
+          chunks_received: chunksReceived,
+          bytes_received: totalBytesReceived,
+          had_content: hasReceivedContent,
+          http_status: response.status
+        }
+      });
+      
+      // Override error type for streaming-specific errors
+      if (streamError instanceof Error) {
+        if (streamError.message.includes('timeout') || streamError.message.includes('ETIMEDOUT')) {
+          errorDetails.errorType = 'streaming_timeout';
+          errorDetails.errorCode = 'STREAMING_TIMEOUT';
+        } else if (streamError.message.includes('network') || streamError.message.includes('ECONNRESET')) {
+          errorDetails.errorType = 'streaming_network_error';
+          errorDetails.errorCode = 'STREAMING_NETWORK_ERROR';
+        } else if (streamError.message.includes('abort')) {
+          errorDetails.errorType = 'streaming_aborted';
+          errorDetails.errorCode = 'STREAMING_ABORTED';
+          errorDetails.retryable = false;
+        } else {
+          errorDetails.errorType = 'streaming_error';
+          errorDetails.errorCode = 'STREAMING_ERROR';
+        }
+      }
+      
+      // Track streaming error using the utility
+      if (posthog && posthog.has_opted_in_capturing?.()) {
+        trackAIRequestFailure(posthog, errorDetails);
+      }
       
       // Update the message with an error indicator if no content was received
       const currentMessage = state.messages.find(msg => msg.id === messageId);
