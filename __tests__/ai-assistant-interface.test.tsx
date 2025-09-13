@@ -8,6 +8,114 @@ global.fetch = jest.fn();
 
 const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
 
+// Mock ReadableStream for Node.js test environment
+if (typeof ReadableStream === 'undefined') {
+  global.ReadableStream = class MockReadableStream {
+    private controller: any;
+    
+    constructor(options: { start: (controller: any) => void }) {
+      this.controller = {
+        enqueue: jest.fn(),
+        close: jest.fn()
+      };
+      
+      // Execute start function asynchronously
+      setTimeout(() => {
+        options.start(this.controller);
+      }, 0);
+    }
+    
+    getReader() {
+      const chunks: Uint8Array[] = [];
+      let closed = false;
+      
+      // Collect all enqueued chunks
+      this.controller.enqueue.mock.calls.forEach((call: any) => {
+        chunks.push(call[0]);
+      });
+      
+      let index = 0;
+      
+      return {
+        read: async () => {
+          if (index < chunks.length) {
+            return { done: false, value: chunks[index++] };
+          }
+          return { done: true, value: undefined };
+        },
+        releaseLock: jest.fn()
+      };
+    }
+  } as any;
+}
+
+// Mock TextEncoder for Node.js test environment
+if (typeof TextEncoder === 'undefined') {
+  global.TextEncoder = class MockTextEncoder {
+    encode(input: string): Uint8Array {
+      return new Uint8Array(Buffer.from(input, 'utf8'));
+    }
+  } as any;
+}
+
+// Helper function to create a mock streaming response
+const createMockStreamingResponse = (chunks: string[], finalResponse?: string) => {
+  const encoder = new TextEncoder();
+  const allChunks: Uint8Array[] = [];
+  
+  // Create all chunks upfront
+  chunks.forEach(chunk => {
+    const data = JSON.stringify({
+      type: 'chunk',
+      content: chunk,
+      sessionId: 'test-session'
+    });
+    allChunks.push(encoder.encode(`data: ${data}\n\n`));
+  });
+  
+  // Add final complete message
+  const finalData = JSON.stringify({
+    type: 'complete',
+    content: finalResponse || chunks.join(''),
+    sessionId: 'test-session'
+  });
+  allChunks.push(encoder.encode(`data: ${finalData}\n\n`));
+
+  let chunkIndex = 0;
+  
+  const mockStream = {
+    getReader: () => ({
+      read: async () => {
+        if (chunkIndex < allChunks.length) {
+          const chunk = allChunks[chunkIndex++];
+          return { done: false, value: chunk };
+        }
+        return { done: true, value: undefined };
+      },
+      releaseLock: jest.fn()
+    })
+  };
+
+  return {
+    ok: true,
+    headers: new Headers({
+      'content-type': 'text/event-stream'
+    }),
+    body: mockStream
+  } as Response;
+};
+
+// Helper function to create a mock JSON response (fallback)
+const createMockJsonResponse = (response: string) => {
+  return {
+    ok: true,
+    headers: new Headers({
+      'content-type': 'application/json'
+    }),
+    json: async () => ({ response })
+  } as Response;
+};
+
 describe('AIAssistantInterface', () => {
   const defaultProps = {
     isOpen: true,
@@ -49,10 +157,9 @@ describe('AIAssistantInterface', () => {
   it('handles message submission', async () => {
     const user = userEvent.setup();
     
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ response: 'Test AI response' })
-    } as Response);
+    mockFetch.mockResolvedValueOnce(
+      createMockStreamingResponse(['Test ', 'AI ', 'response'], 'Test AI response')
+    );
 
     render(<AIAssistantInterface {...defaultProps} />);
     
@@ -65,10 +172,10 @@ describe('AIAssistantInterface', () => {
     // Check that user message appears
     expect(screen.getByText('Test question')).toBeInTheDocument();
 
-    // Wait for AI response
+    // Wait for AI response to be streamed
     await waitFor(() => {
       expect(screen.getByText('Test AI response')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     // Verify fetch was called correctly
     expect(mockFetch).toHaveBeenCalledWith('/api/ai-assistant', expect.objectContaining({
@@ -124,10 +231,9 @@ describe('AIAssistantInterface', () => {
   it('clears messages when clear button is clicked', async () => {
     const user = userEvent.setup();
     
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ response: 'Test response' })
-    } as Response);
+    mockFetch.mockResolvedValueOnce(
+      createMockStreamingResponse(['Test response'])
+    );
 
     render(<AIAssistantInterface {...defaultProps} />);
     
@@ -139,7 +245,7 @@ describe('AIAssistantInterface', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Test response')).toBeInTheDocument();
-    });
+    }, { timeout: 3000 });
 
     // Click clear button
     const clearButton = screen.getByRole('button', { name: /Unterhaltung löschen/i });
@@ -181,12 +287,11 @@ describe('AIAssistantInterface', () => {
   it('disables input and submit button when loading', async () => {
     const user = userEvent.setup();
     
-    // Mock a slow response
+    // Mock a slow streaming response
     mockFetch.mockImplementationOnce(() => 
-      new Promise(resolve => setTimeout(() => resolve({
-        ok: true,
-        json: async () => ({ response: 'Delayed response' })
-      } as Response), 100))
+      new Promise(resolve => setTimeout(() => resolve(
+        createMockStreamingResponse(['Delayed response'])
+      ), 100))
     );
 
     render(<AIAssistantInterface {...defaultProps} />);
@@ -205,10 +310,9 @@ describe('AIAssistantInterface', () => {
   it('formats timestamps correctly', async () => {
     const user = userEvent.setup();
     
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ response: 'Test response' })
-    } as Response);
+    mockFetch.mockResolvedValueOnce(
+      createMockStreamingResponse(['Test response'])
+    );
 
     render(<AIAssistantInterface {...defaultProps} />);
     
@@ -221,7 +325,50 @@ describe('AIAssistantInterface', () => {
       // Check that timestamp is displayed in German format (HH:MM)
       const timestamps = screen.getAllByText(/^\d{2}:\d{2}$/);
       expect(timestamps.length).toBeGreaterThan(0);
-    });
+    }, { timeout: 3000 });
+  });
+
+  it('handles streaming responses correctly', async () => {
+    const user = userEvent.setup();
+    
+    mockFetch.mockResolvedValueOnce(
+      createMockStreamingResponse(['Hello ', 'from ', 'AI!'], 'Hello from AI!')
+    );
+
+    render(<AIAssistantInterface {...defaultProps} />);
+    
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
+    
+    await user.type(input, 'Test question');
+    await user.keyboard('{Enter}');
+
+    // Check that user message appears immediately
+    expect(screen.getByText('Test question')).toBeInTheDocument();
+
+    // Wait for the complete streamed response
+    await waitFor(() => {
+      expect(screen.getByText('Hello from AI!')).toBeInTheDocument();
+    }, { timeout: 3000 });
+  });
+
+  it('falls back to JSON response when streaming is not available', async () => {
+    const user = userEvent.setup();
+    
+    mockFetch.mockResolvedValueOnce(
+      createMockJsonResponse('Fallback JSON response')
+    );
+
+    render(<AIAssistantInterface {...defaultProps} />);
+    
+    const input = screen.getByPlaceholderText('Stellen Sie eine Frage über Mietfluss...');
+    
+    await user.type(input, 'Test question');
+    await user.keyboard('{Enter}');
+
+    // Wait for the JSON response
+    await waitFor(() => {
+      expect(screen.getByText('Fallback JSON response')).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 
   describe('Keyboard Navigation and Accessibility', () => {
@@ -239,10 +386,9 @@ describe('AIAssistantInterface', () => {
     it('clears conversation when Ctrl+K is pressed', async () => {
       const user = userEvent.setup();
       
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ response: 'Test response' })
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createMockStreamingResponse(['Test response'])
+      );
 
       render(<AIAssistantInterface {...defaultProps} />);
       
@@ -254,7 +400,7 @@ describe('AIAssistantInterface', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Test response')).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
 
       // Clear with keyboard shortcut
       await user.keyboard('{Control>}k{/Control}');
@@ -326,10 +472,9 @@ describe('AIAssistantInterface', () => {
     it('has proper message accessibility labels', async () => {
       const user = userEvent.setup();
       
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ response: 'Test AI response' })
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createMockStreamingResponse(['Test AI response'])
+      );
 
       render(<AIAssistantInterface {...defaultProps} />);
       
@@ -342,16 +487,15 @@ describe('AIAssistantInterface', () => {
         // Check that messages have proper ARIA labels
         expect(screen.getByLabelText(/Ihre Nachricht um \d{2}:\d{2}/)).toBeInTheDocument();
         expect(screen.getByLabelText(/AI Antwort um \d{2}:\d{2}/)).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('shows tooltip hints for action buttons', async () => {
       const user = userEvent.setup();
       
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ response: 'Test response' })
-      } as Response);
+      mockFetch.mockResolvedValueOnce(
+        createMockStreamingResponse(['Test response'])
+      );
 
       render(<AIAssistantInterface {...defaultProps} />);
       
@@ -368,7 +512,7 @@ describe('AIAssistantInterface', () => {
         
         const closeButton = screen.getByLabelText(/AI Assistent schließen.*Escape/);
         expect(closeButton).toHaveAttribute('title', 'AI Assistent schließen (Escape)');
-      });
+      }, { timeout: 3000 });
     });
   });
 });

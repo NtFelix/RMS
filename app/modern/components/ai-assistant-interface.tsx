@@ -29,6 +29,7 @@ interface AIAssistantState {
   isLoading: boolean;
   error: string | null;
   inputValue: string;
+  streamingMessageId: string | null;
 }
 
 export default function AIAssistantInterface({
@@ -41,7 +42,8 @@ export default function AIAssistantInterface({
     messages: [],
     isLoading: false,
     error: null,
-    inputValue: ""
+    inputValue: "",
+    streamingMessageId: null
   });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -181,7 +183,8 @@ export default function AIAssistantInterface({
     setState(prev => ({
       ...prev,
       messages: [],
-      error: null
+      error: null,
+      streamingMessageId: null
     }));
   };
 
@@ -205,6 +208,22 @@ export default function AIAssistantInterface({
       error: null
     }));
 
+    // Create a placeholder message for the assistant response that will be updated with streaming content
+    const assistantMessageId = generateMessageId();
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+
+    // Add empty assistant message that will be updated with streaming content
+    setState(prev => ({
+      ...prev,
+      messages: [...prev.messages, assistantMessage],
+      streamingMessageId: assistantMessageId
+    }));
+
     try {
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -223,13 +242,24 @@ export default function AIAssistantInterface({
         throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      
-      // Add assistant response
-      addMessage({
-        role: 'assistant',
-        content: data.response || 'Entschuldigung, ich konnte keine Antwort generieren.'
-      });
+      // Check if response is streaming (SSE)
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('text/event-stream')) {
+        // Add timeout for streaming responses
+        const streamingTimeout = setTimeout(() => {
+          throw new Error('Streaming response timeout');
+        }, 30000); // 30 second timeout
+
+        try {
+          await handleStreamingResponse(response, assistantMessageId);
+        } finally {
+          clearTimeout(streamingTimeout);
+        }
+      } else {
+        // Fallback to regular JSON response
+        const data = await response.json();
+        updateAssistantMessage(assistantMessageId, data.response || 'Entschuldigung, ich konnte keine Antwort generieren.');
+      }
 
     } catch (error) {
       console.error('AI Assistant Error:', error);
@@ -248,9 +278,120 @@ export default function AIAssistantInterface({
         }
       }
       
+      // Remove the placeholder assistant message and show error
+      setState(prev => ({
+        ...prev,
+        messages: prev.messages.filter(msg => msg.id !== assistantMessageId)
+      }));
+      
       setError(errorMessage);
     } finally {
       setLoading(false);
+      setState(prev => ({ ...prev, streamingMessageId: null }));
+    }
+  };
+
+  const updateAssistantMessage = (messageId: string, content: string) => {
+    setState(prev => ({
+      ...prev,
+      messages: prev.messages.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, content }
+          : msg
+      )
+    }));
+  };
+
+  const appendToAssistantMessage = (messageId: string, chunk: string) => {
+    setState(prev => ({
+      ...prev,
+      messages: prev.messages.map(msg => 
+        msg.id === messageId 
+          ? { ...msg, content: msg.content + chunk }
+          : msg
+      )
+    }));
+  };
+
+  const handleStreamingResponse = async (response: Response, messageId: string) => {
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    try {
+      let buffer = '';
+      let hasReceivedContent = false;
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          // If stream ended without receiving any content, show fallback message
+          if (!hasReceivedContent) {
+            updateAssistantMessage(messageId, 'Entschuldigung, ich konnte keine Antwort generieren.');
+          }
+          break;
+        }
+
+        // Decode the chunk and add to buffer
+        buffer += decoder.decode(value, { stream: true });
+        
+        // Process complete lines from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+        
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          
+          // Skip empty lines and comments
+          if (!trimmedLine || trimmedLine.startsWith(':')) {
+            continue;
+          }
+          
+          // Parse SSE data
+          if (trimmedLine.startsWith('data: ')) {
+            const dataStr = trimmedLine.slice(6); // Remove 'data: ' prefix
+            
+            try {
+              const data = JSON.parse(dataStr);
+              
+              if (data.type === 'chunk' && data.content) {
+                // Append chunk to the assistant message
+                appendToAssistantMessage(messageId, data.content);
+                hasReceivedContent = true;
+              } else if (data.type === 'complete') {
+                // Final response received, ensure message is complete
+                if (data.content) {
+                  updateAssistantMessage(messageId, data.content);
+                  hasReceivedContent = true;
+                }
+                return; // Stream complete
+              } else if (data.type === 'error') {
+                // Handle streaming error
+                throw new Error(data.error || 'Streaming error occurred');
+              }
+            } catch (parseError) {
+              console.warn('Failed to parse SSE data:', dataStr, parseError);
+              // Continue processing other chunks
+            }
+          }
+        }
+      }
+    } catch (streamError) {
+      console.error('Streaming error:', streamError);
+      
+      // Update the message with an error indicator if no content was received
+      const currentMessage = state.messages.find(msg => msg.id === messageId);
+      if (!currentMessage?.content) {
+        updateAssistantMessage(messageId, 'Fehler beim Empfangen der Antwort. Bitte versuchen Sie es erneut.');
+      }
+      
+      throw streamError;
+    } finally {
+      reader.releaseLock();
     }
   };
 
@@ -258,8 +399,16 @@ export default function AIAssistantInterface({
     if (state.messages.length > 0) {
       const lastUserMessage = [...state.messages].reverse().find(msg => msg.role === 'user');
       if (lastUserMessage) {
-        setState(prev => ({ ...prev, inputValue: lastUserMessage.content }));
-        setError(null);
+        // Remove any incomplete assistant messages
+        setState(prev => ({
+          ...prev,
+          inputValue: lastUserMessage.content,
+          error: null,
+          messages: prev.messages.filter(msg => 
+            !(msg.role === 'assistant' && msg.content === '')
+          )
+        }));
+        
         // Focus input after retry
         setTimeout(() => {
           inputRef.current?.focus();
@@ -387,15 +536,36 @@ export default function AIAssistantInterface({
                   role="article"
                   aria-label={`${message.role === 'user' ? 'Ihre Nachricht' : 'AI Antwort'} um ${formatTime(message.timestamp)}`}
                 >
-                  <p className="text-sm whitespace-pre-wrap break-words">
-                    {message.content}
-                  </p>
-                  <p className={cn(
-                    "text-xs mt-2 opacity-70",
-                    message.role === 'user' ? "text-primary-foreground" : "text-muted-foreground"
-                  )}>
-                    {formatTime(message.timestamp)}
-                  </p>
+                  {message.role === 'assistant' && message.content === '' ? (
+                    // Show typing indicator for empty assistant messages (streaming in progress)
+                    <div className="flex items-center gap-2">
+                      <Spinner className="w-4 h-4" />
+                      <span className="text-sm text-muted-foreground">
+                        Schreibt...
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm whitespace-pre-wrap break-words flex-1">
+                          {message.content}
+                        </p>
+                        {/* Show streaming indicator for assistant messages that are being updated */}
+                        {message.role === 'assistant' && state.streamingMessageId === message.id && (
+                          <div className="flex-shrink-0 mt-1">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse" 
+                                 title="Nachricht wird empfangen..." />
+                          </div>
+                        )}
+                      </div>
+                      <p className={cn(
+                        "text-xs mt-2 opacity-70",
+                        message.role === 'user' ? "text-primary-foreground" : "text-muted-foreground"
+                      )}>
+                        {formatTime(message.timestamp)}
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 {message.role === 'user' && (
@@ -406,8 +576,8 @@ export default function AIAssistantInterface({
               </motion.div>
             ))}
 
-            {/* Loading indicator */}
-            {state.isLoading && (
+            {/* Loading indicator - only show when loading and no assistant message is being streamed */}
+            {state.isLoading && !state.messages.some(msg => msg.role === 'assistant' && msg.content === '') && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -419,7 +589,7 @@ export default function AIAssistantInterface({
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
                   <Spinner className="w-4 h-4" />
                   <span className="text-sm text-muted-foreground">
-                    Denke nach...
+                    Verbinde mit AI...
                   </span>
                 </div>
               </motion.div>
