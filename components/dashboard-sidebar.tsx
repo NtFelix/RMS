@@ -118,7 +118,7 @@ export function DashboardSidebar() {
                     href={item.href}
                     onClick={() => setIsOpen(false)}
                     className={cn(
-                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-300 ease-out hover:bg-accent hover:text-white hover:translate-x-1 hover:shadow-sm",
+                      "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors transition-transform transition-shadow duration-300 ease-out hover:bg-accent hover:text-white hover:translate-x-1 hover:shadow-sm",
                       getActiveStateClasses(item.href),
                       hidden && "invisible pointer-events-none",
                     )}
@@ -127,7 +127,7 @@ export function DashboardSidebar() {
                     aria-hidden={hidden || undefined}
                     tabIndex={hidden ? -1 : undefined}
                   >
-                    <item.icon className="h-4 w-4 transition-all duration-300 group-hover:scale-110" />
+                    <item.icon className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
                     <span className="transition-all duration-300 ease-out group-hover:font-semibold">
                       {item.title}
                     </span>
