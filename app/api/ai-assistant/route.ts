@@ -1,6 +1,12 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { 
+  fetchDocumentationContext, 
+  processContextForAI, 
+  getArticleContext, 
+  getSearchContext 
+} from '@/lib/ai-documentation-context';
 
 // Request validation schema
 const AIRequestSchema = z.object({
@@ -13,6 +19,13 @@ const AIRequestSchema = z.object({
       seiteninhalt: z.string().nullable()
     })).optional(),
     categories: z.array(z.any()).optional(),
+    currentArticleId: z.string().optional()
+  }).optional(),
+  contextOptions: z.object({
+    useDocumentationContext: z.boolean().default(true),
+    maxArticles: z.number().min(1).max(50).default(10),
+    maxContentLength: z.number().min(100).max(2000).default(1000),
+    searchQuery: z.string().optional(),
     currentArticleId: z.string().optional()
   }).optional(),
   sessionId: z.string().optional()
@@ -71,20 +84,62 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validatedData = AIRequestSchema.parse(body);
     
-    const { message, context, sessionId } = validatedData;
+    const { message, context, contextOptions, sessionId } = validatedData;
 
     // Generate session ID if not provided
     const currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Prepare context for AI
     let contextText = '';
-    if (context?.articles && context.articles.length > 0) {
+    let finalContext = context;
+
+    // Fetch documentation context if requested and not provided
+    if (contextOptions?.useDocumentationContext !== false && (!context?.articles || context.articles.length === 0)) {
+      try {
+        let documentationContext;
+        
+        // Determine which context to fetch based on options
+        if (contextOptions?.currentArticleId) {
+          documentationContext = await getArticleContext(contextOptions.currentArticleId, true);
+        } else if (contextOptions?.searchQuery) {
+          documentationContext = await getSearchContext(contextOptions.searchQuery, contextOptions.maxArticles);
+        } else {
+          // Use the user message as search query to get relevant context
+          documentationContext = await fetchDocumentationContext({
+            maxArticles: contextOptions?.maxArticles || 10,
+            maxContentLength: contextOptions?.maxContentLength || 1000,
+            searchQuery: message,
+            includeCategories: true
+          });
+        }
+
+        // Process context for AI
+        const aiContext = processContextForAI(documentationContext, message);
+        finalContext = aiContext;
+        
+        console.log(`Fetched ${documentationContext.articles.length} articles for AI context`);
+      } catch (error) {
+        console.error('Error fetching documentation context:', error);
+        // Continue without context if fetching fails
+      }
+    }
+
+    // Build context text for AI prompt
+    if (finalContext?.articles && finalContext.articles.length > 0) {
       contextText = '\n\nDokumentationskontext:\n';
-      context.articles.forEach(article => {
+      finalContext.articles.forEach(article => {
         if (article.seiteninhalt) {
           contextText += `\n**${article.titel}** (Kategorie: ${article.kategorie || 'Allgemein'}):\n${article.seiteninhalt}\n`;
         }
       });
+      
+      // Add category information if available
+      if (finalContext.categories && finalContext.categories.length > 0) {
+        contextText += '\n\nVerfügbare Kategorien:\n';
+        finalContext.categories.forEach(category => {
+          contextText += `- ${category.name} (${category.articleCount} Artikel)\n`;
+        });
+      }
     }
 
     // Prepare the full prompt
