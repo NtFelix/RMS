@@ -1,6 +1,7 @@
 // "use client" directive removed - this is now a Server Component file.
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'edge';
 
 import { createClient as createSupabaseServerClient } from "@/utils/supabase/server";
 import { handleSubmit as mieterServerAction } from "../../../app/mieter-actions";
