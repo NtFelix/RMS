@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Bot, User, AlertCircle, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,8 @@ export default function AIAssistantInterface({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -55,9 +57,102 @@ export default function AIAssistantInterface({
   // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+      // Small delay to ensure modal is fully rendered
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // Keyboard navigation and accessibility
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (!isOpen) return;
+
+    // Escape key to close modal
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onClose();
+      return;
+    }
+
+    // Ctrl/Cmd + K to clear conversation
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      clearMessages();
+      return;
+    }
+
+    // Ctrl/Cmd + R to retry last message
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r' && state.error) {
+      e.preventDefault();
+      handleRetry();
+      return;
+    }
+
+    // Arrow up to scroll messages up
+    if (e.key === 'ArrowUp' && e.altKey && scrollAreaRef.current) {
+      e.preventDefault();
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollBy({ top: -100, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    // Arrow down to scroll messages down
+    if (e.key === 'ArrowDown' && e.altKey && scrollAreaRef.current) {
+      e.preventDefault();
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollBy({ top: 100, behavior: 'smooth' });
+      }
+      return;
+    }
+  }, [isOpen, onClose, state.error]);
+
+  // Add keyboard event listeners
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isOpen, handleKeyDown]);
+
+  // Focus trap for accessibility
+  useEffect(() => {
+    if (!isOpen || !dialogRef.current) return;
+
+    const dialog = dialogRef.current;
+    const focusableElements = dialog.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    dialog.addEventListener('keydown', handleTabKey);
+    return () => {
+      dialog.removeEventListener('keydown', handleTabKey);
+    };
+  }, [isOpen, state.messages.length]); // Re-run when messages change to update focusable elements
 
   const generateMessageId = () => `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -165,6 +260,10 @@ export default function AIAssistantInterface({
       if (lastUserMessage) {
         setState(prev => ({ ...prev, inputValue: lastUserMessage.content }));
         setError(null);
+        // Focus input after retry
+        setTimeout(() => {
+          inputRef.current?.focus();
+        }, 100);
       }
     }
   };
@@ -195,9 +294,11 @@ export default function AIAssistantInterface({
       }}
     >
       <div 
+        ref={dialogRef}
         role="dialog" 
         aria-labelledby="ai-assistant-title"
         aria-describedby="ai-assistant-description"
+        aria-modal="true"
         className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl h-[600px] flex flex-col overflow-hidden"
       >
         {/* Header */}
@@ -220,7 +321,8 @@ export default function AIAssistantInterface({
                 size="sm"
                 onClick={clearMessages}
                 className="text-muted-foreground hover:text-foreground"
-                aria-label="Unterhaltung löschen"
+                aria-label="Unterhaltung löschen (Strg+K)"
+                title="Unterhaltung löschen (Strg+K)"
               >
                 <RotateCcw className="w-4 h-4" />
               </Button>
@@ -230,7 +332,8 @@ export default function AIAssistantInterface({
               size="sm"
               onClick={onClose}
               className="text-muted-foreground hover:text-foreground"
-              aria-label="AI Assistent schließen"
+              aria-label="AI Assistent schließen (Escape)"
+              title="AI Assistent schließen (Escape)"
             >
               <X className="w-4 h-4" />
             </Button>
@@ -238,7 +341,11 @@ export default function AIAssistantInterface({
         </div>
 
         {/* Messages Area */}
-        <ScrollArea className="flex-1 p-4">
+        <ScrollArea 
+          ref={scrollAreaRef}
+          className="flex-1 p-4"
+          aria-label="Unterhaltungsverlauf (Alt+Pfeiltasten zum Scrollen)"
+        >
           <div className="space-y-4">
             {state.messages.length === 0 && (
               <div className="text-center py-8">
@@ -270,12 +377,16 @@ export default function AIAssistantInterface({
                   </div>
                 )}
                 
-                <div className={cn(
-                  "max-w-[80%] rounded-2xl px-4 py-3",
-                  message.role === 'user' 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-muted border border-border"
-                )}>
+                <div 
+                  className={cn(
+                    "max-w-[80%] rounded-2xl px-4 py-3",
+                    message.role === 'user' 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-muted border border-border"
+                  )}
+                  role="article"
+                  aria-label={`${message.role === 'user' ? 'Ihre Nachricht' : 'AI Antwort'} um ${formatTime(message.timestamp)}`}
+                >
                   <p className="text-sm whitespace-pre-wrap break-words">
                     {message.content}
                   </p>
@@ -336,7 +447,8 @@ export default function AIAssistantInterface({
                     size="sm"
                     onClick={handleRetry}
                     className="ml-2 h-auto p-1 text-destructive-foreground hover:bg-destructive/20"
-                    aria-label="Erneut versuchen"
+                    aria-label="Erneut versuchen (Strg+R)"
+                    title="Erneut versuchen (Strg+R)"
                   >
                     <RotateCcw className="w-3 h-3" />
                   </Button>
@@ -372,9 +484,12 @@ export default function AIAssistantInterface({
               )}
             </Button>
           </form>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Drücken Sie Enter zum Senden • {state.inputValue.length}/500 Zeichen
-          </p>
+          <div className="text-xs text-muted-foreground mt-2 text-center space-y-1">
+            <p>Drücken Sie Enter zum Senden • {state.inputValue.length}/500 Zeichen</p>
+            <p className="text-xs opacity-75">
+              Tastenkürzel: Escape (Schließen) • Strg+K (Löschen) • Alt+↑↓ (Scrollen)
+            </p>
+          </div>
         </div>
       </div>
     </motion.div>
