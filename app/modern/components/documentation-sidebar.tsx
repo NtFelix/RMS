@@ -2,9 +2,11 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, ChevronRight, Search, Folder } from "lucide-react"; // Using Folder for categories
+import { ChevronDown, ChevronRight, Search, Folder, Atom } from "lucide-react"; // Using Folder for categories, Atom for AI mode
 import { Input } from "../../../components/ui/input";
+import { Button } from "../../../components/ui/button";
 import { NotionPageData } from "../../../lib/notion-service"; // NotionPageData now refers to metadata only
+import { useAIAssistantStore } from "../../../hooks/use-ai-assistant-store";
 import Link from "next/link";
 
 interface DocumentationSidebarProps {
@@ -28,9 +30,39 @@ interface SidebarSection {
 export default function DocumentationSidebar({ pages, activePageId }: DocumentationSidebarProps) {
   const [expandedSections, setExpandedSections] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // AI Assistant store
+  const { currentMode, switchToSearch, switchToAI } = useAIAssistantStore();
+
+  // Handle mode switching effects
+  useEffect(() => {
+    if (currentMode === 'ai') {
+      // Clear search query when switching to AI mode
+      setSearchQuery('');
+    }
+  }, [currentMode]);
 
   // Group pages by category (using 'pages' prop which contains metadata)
   const groupedPages = useMemo(() => {
+    // If in AI mode, don't filter pages - show all for context
+    if (currentMode === 'ai') {
+      const groups: Record<string, NotionPageData[]> = {};
+      const ungrouped: NotionPageData[] = [];
+
+      pages.forEach(page => {
+        if (page.category) {
+          if (!groups[page.category]) {
+            groups[page.category] = [];
+          }
+          groups[page.category].push(page);
+        } else {
+          ungrouped.push(page);
+        }
+      });
+      return { groups, ungrouped };
+    }
+
+    // Regular search mode - apply search filter
     const groups: Record<string, NotionPageData[]> = {};
     const ungrouped: NotionPageData[] = [];
 
@@ -53,12 +85,20 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
       }
     });
     return { groups, ungrouped };
-  }, [pages, searchQuery]);
+  }, [pages, searchQuery, currentMode]);
 
-  // Automatically expand categories based on search or default state
+  // Automatically expand categories based on search, mode, or default state
   useEffect(() => {
     let newExpanded: string[] = [];
-    if (searchQuery) {
+    
+    if (currentMode === 'ai') {
+      // In AI mode, expand all categories for better context visibility
+      newExpanded = Object.keys(groupedPages.groups).filter(cat => groupedPages.groups[cat].length > 0);
+      if (groupedPages.ungrouped.length > 0) {
+        newExpanded.push("General");
+      }
+    } else if (searchQuery) {
+      // In search mode with query, expand matching categories
       Object.keys(groupedPages.groups).forEach(categoryTitle => {
         if (categoryTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
             groupedPages.groups[categoryTitle].some(item => item.title.toLowerCase().includes(searchQuery.toLowerCase()))) {
@@ -78,7 +118,7 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
       }
     }
     setExpandedSections(newExpanded);
-  }, [searchQuery, groupedPages]);
+  }, [searchQuery, groupedPages, currentMode]);
 
 
   const toggleSection = (sectionTitle: string) => {
@@ -148,12 +188,49 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
         <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search documentation..."
+            placeholder={currentMode === 'ai' ? "Ask AI about documentation..." : "Search documentation..."}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 pr-12"
           />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (currentMode === 'search') {
+                switchToAI();
+              } else {
+                switchToSearch();
+              }
+            }}
+            className={`absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 rounded-full transition-all duration-200 ${
+              currentMode === 'ai' 
+                ? 'bg-primary/20 text-primary hover:bg-primary/30' 
+                : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
+            }`}
+            title={currentMode === 'ai' ? 'Switch to documentation search' : 'Switch to AI assistant'}
+          >
+            <Atom className="h-4 w-4" />
+          </Button>
+          
+          {/* Visual indicator for current mode */}
+          {currentMode === 'ai' && (
+            <div className="absolute -bottom-1 left-3 right-12 h-0.5 bg-gradient-to-r from-primary/50 via-primary to-primary/50 rounded-full" />
+          )}
         </div>
+
+        {/* Mode indicator */}
+        {currentMode === 'ai' && (
+          <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2 text-sm text-primary">
+              <Atom className="h-4 w-4" />
+              <span className="font-medium">AI Assistant Mode</span>
+            </div>
+            <p className="text-xs text-primary/80 mt-1">
+              Ask questions about the documentation content below
+            </p>
+          </div>
+        )}
 
         <nav className="space-y-1">
           {dynamicSidebarSections.map((section) => (
@@ -205,10 +282,10 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
             </div>
             )
           ))}
-          {!noPagesAvailable && !hasResults && searchQuery && (
+          {!noPagesAvailable && !hasResults && searchQuery && currentMode === 'search' && (
              <p className="p-2 text-sm text-muted-foreground">No documents match your search for &quot;{searchQuery}&quot;.</p>
           )}
-          {noPagesAvailable && !searchQuery && ( // Show this only if pages array is truly empty and no search
+          {noPagesAvailable && !searchQuery && currentMode === 'search' && ( // Show this only if pages array is truly empty and no search
              <p className="p-2 text-sm text-muted-foreground">No documents found for Version 2.0.</p>
           )}
         </nav>
