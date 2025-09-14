@@ -435,7 +435,7 @@ export function AIAssistantModal() {
         {/* Input Area */}
         <div className="p-4 border-t border-border bg-muted/30">
           <form onSubmit={handleSubmit} className="relative">
-            <div className="relative bg-background border-2 border-input rounded-full px-4 py-1.5 pr-16 shadow-sm focus-within:border-ring">
+            <div className="relative bg-background border-2 border-input rounded-full px-4 py-1 pr-16 shadow-sm focus-within:border-ring">
               <Input
                 ref={inputRef}
                 value={inputValue}
