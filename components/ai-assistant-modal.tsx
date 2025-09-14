@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, User, AlertCircle, RotateCcw, X } from "lucide-react";
+import { Send, User, AlertCircle, RotateCcw, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -292,8 +292,12 @@ export function AIAssistantModal() {
       <DialogContent className="max-w-2xl h-[600px] p-0 flex flex-col">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
           <DialogTitle className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-primary" />
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center p-1">
+              <img 
+                src="/mascot/normal.png" 
+                alt="Mietfluss Maskottchen" 
+                className="w-full h-full object-contain"
+              />
             </div>
             Mietfluss AI Assistent
           </DialogTitle>
@@ -348,8 +352,12 @@ export function AIAssistantModal() {
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                    <Bot className="w-4 h-4 text-primary" />
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
+                    <img 
+                      src="/mascot/normal.png" 
+                      alt="Mietfluss Maskottchen" 
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                 )}
                 
@@ -387,8 +395,12 @@ export function AIAssistantModal() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Bot className="w-4 h-4 text-primary" />
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
+                  <img 
+                    src="/mascot/normal.png" 
+                    alt="Mietfluss Maskottchen" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
                   <Spinner className="w-4 h-4" />
