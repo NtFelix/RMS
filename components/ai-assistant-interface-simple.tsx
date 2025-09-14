@@ -354,9 +354,6 @@ export default function AIAssistantInterfaceSimple({
               <div className="flex items-center gap-2">
                 <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietfluss AI Assistent</h2>
               </div>
-              <p id="ai-assistant-description" className="text-xs text-muted-foreground">
-                Fragen Sie mich alles über Mietfluss
-              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
