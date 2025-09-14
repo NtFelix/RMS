@@ -299,17 +299,7 @@ function DocumentationContent() {
             </div>
           </div>
 
-          {/* Quick Stats */}
-          <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>{state.articles.length} Artikel verfügbar</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>{state.categories.length} Kategorien</span>
-            </div>
-          </div>
+
         </div>
 
         {/* Error Display */}
