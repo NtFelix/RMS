@@ -96,13 +96,13 @@ export function DocumentationSearch({
     <div className={`space-y-3 ${className}`}>
       <div className="relative">
         <div className={cn(
-          "relative bg-background border-2 border-input rounded-full px-4 py-3 shadow-sm transition-all duration-200 focus-within:border-ring",
+          "relative bg-background border-2 border-input rounded-full px-6 py-4 shadow-sm transition-all duration-200 focus-within:border-ring",
           currentMode === 'ai' && "border-primary/50 bg-primary/5"
         )}>
           {/* Search Icon */}
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center justify-center">
+          <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center justify-center">
             <Search className={cn(
-              "h-5 w-5 transition-colors",
+              "h-6 w-6 transition-colors",
               isLoading 
                 ? 'text-primary animate-pulse' 
                 : query 
@@ -119,25 +119,25 @@ export function DocumentationSearch({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="border-0 bg-transparent pl-8 pr-20 text-lg focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+            className="border-0 bg-transparent pl-12 pr-24 text-xl focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
             disabled={isLoading || currentMode === 'ai'}
             aria-label="Dokumentation durchsuchen"
             aria-describedby={error ? "search-error" : undefined}
           />
 
           {/* Right Side Buttons */}
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
             {/* Clear Button */}
             {query && currentMode !== 'ai' && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleClear}
-                className="h-8 w-8 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="h-10 w-10 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 disabled={isLoading}
                 aria-label="Suche löschen"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </Button>
             )}
 
@@ -147,7 +147,7 @@ export function DocumentationSearch({
               size="sm"
               onClick={handleAIToggle}
               className={cn(
-                "h-8 w-8 p-0 rounded-full transition-all duration-200",
+                "h-10 w-10 p-0 rounded-full transition-all duration-200",
                 currentMode === 'ai' 
                   ? "bg-primary/20 hover:bg-primary/30 text-primary" 
                   : "hover:bg-muted text-muted-foreground hover:text-primary"
@@ -156,7 +156,7 @@ export function DocumentationSearch({
               aria-label={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
               title={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
             >
-              <Atom className="h-4 w-4" />
+              <Atom className="h-5 w-5" />
             </Button>
           </div>
         </div>
