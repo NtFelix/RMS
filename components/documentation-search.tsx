@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, X, AlertCircle, Atom } from 'lucide-react';
+import { Search, X, AlertCircle, Atom, Users, Euro, Home } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -212,20 +212,23 @@ export function DocumentationSearch({
             <span className="text-sm font-medium text-muted-foreground">Beliebte Suchbegriffe:</span>
             <button 
               onClick={() => setQuery('Mieter')}
-              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
+              <Users className="h-4 w-4" />
               Mieter
             </button>
             <button 
               onClick={() => setQuery('Betriebskosten')}
-              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
+              <Euro className="h-4 w-4" />
               Betriebskosten
             </button>
             <button 
               onClick={() => setQuery('Wohnung')}
-              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
+              <Home className="h-4 w-4" />
               Wohnung
             </button>
           </div>
