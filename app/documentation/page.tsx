@@ -13,8 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import AIAssistantInterfaceSimple from '@/components/ai-assistant-interface-simple';
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { useModalStore } from '@/hooks/use-modal-store';
 
 interface DocumentationState {
   categories: Category[];
@@ -34,11 +34,12 @@ function DocumentationContent() {
   
   // AI Assistant store
   const { 
-    isOpen: isAIOpen, 
-    closeAI, 
     switchToSearch,
     currentMode 
   } = useAIAssistantStore();
+
+  // Modal store
+  const { openAIAssistantModal, closeAIAssistantModal } = useModalStore();
 
   const [state, setState] = useState<DocumentationState>({
     categories: [],
@@ -248,17 +249,14 @@ function DocumentationContent() {
   }, [updateURL, state.selectedCategory, state.searchQuery]);
 
   // AI Assistant handlers
-  const handleAIClose = useCallback(() => {
-    closeAI();
-  }, [closeAI]);
-
   const handleFallbackToSearch = useCallback(() => {
     switchToSearch();
+    closeAIAssistantModal();
     toast({
       title: 'Zur normalen Suche gewechselt',
       description: 'Sie können jetzt die normale Dokumentationssuche verwenden.',
     });
-  }, [switchToSearch, toast]);
+  }, [switchToSearch, closeAIAssistantModal, toast]);
 
   // Prepare documentation context for AI assistant
   const documentationContext = useCallback(() => {
@@ -295,6 +293,8 @@ function DocumentationContent() {
               <DocumentationSearch
                 onSearch={handleSearch}
                 placeholder="Durchsuchen Sie die gesamte Dokumentation..."
+                documentationContext={documentationContext()}
+                onFallbackToSearch={handleFallbackToSearch}
               />
             </div>
           </div>
@@ -394,13 +394,7 @@ function DocumentationContent() {
           </div>
         </div>
 
-        {/* AI Assistant Interface */}
-        <AIAssistantInterfaceSimple
-          isOpen={isAIOpen}
-          onClose={handleAIClose}
-          documentationContext={documentationContext()}
-          onFallbackToSearch={handleFallbackToSearch}
-        />
+
       </div>
     </div>
   );

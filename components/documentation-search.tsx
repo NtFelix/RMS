@@ -19,6 +19,8 @@ interface SearchProps {
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  documentationContext?: any;
+  onFallbackToSearch?: () => void;
 }
 
 export function DocumentationSearch({ 
@@ -27,7 +29,9 @@ export function DocumentationSearch({
   className = "",
   isLoading = false,
   error = null,
-  onRetry
+  onRetry,
+  documentationContext,
+  onFallbackToSearch
 }: SearchProps) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
@@ -80,9 +84,10 @@ export function DocumentationSearch({
       switchToAI();
       // Open the AI assistant modal instead of the old interface
       openAIAssistantModal({
-        onFallbackToSearch: () => {
+        documentationContext,
+        onFallbackToSearch: onFallbackToSearch || (() => {
           switchToSearch();
-        }
+        })
       });
     }
   }, [currentMode, switchToSearch, switchToAI, openAIAssistantModal, onSearch]);
