@@ -207,24 +207,24 @@ export function DocumentationSearch({
       
       {/* Search suggestions when empty */}
       {query.length === 0 && !isLoading && (
-        <div className="text-center text-sm text-muted-foreground">
-          <div className="flex flex-wrap justify-center gap-2 mt-2">
-            <span className="text-xs">Beliebte Suchbegriffe:</span>
+        <div className="text-center">
+          <div className="flex flex-wrap justify-center items-center gap-3 mt-4">
+            <span className="text-sm font-medium text-muted-foreground">Beliebte Suchbegriffe:</span>
             <button 
               onClick={() => setQuery('Mieter')}
-              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary"
             >
               Mieter
             </button>
             <button 
               onClick={() => setQuery('Betriebskosten')}
-              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary"
             >
               Betriebskosten
             </button>
             <button 
               onClick={() => setQuery('Wohnung')}
-              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary"
             >
               Wohnung
             </button>
