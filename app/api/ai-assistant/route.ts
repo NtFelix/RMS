@@ -1,6 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+
+export const runtime = 'edge';
 import { PostHog } from 'posthog-node';
 import { 
   fetchDocumentationContext, 
