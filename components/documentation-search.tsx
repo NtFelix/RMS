@@ -119,7 +119,7 @@ export function DocumentationSearch({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="border-0 bg-transparent pl-12 pr-28 text-xl focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+            className="border-0 bg-transparent pl-12 pr-32 text-xl focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
             disabled={isLoading || currentMode === 'ai'}
             aria-label="Dokumentation durchsuchen"
             aria-describedby={error ? "search-error" : undefined}
@@ -133,11 +133,11 @@ export function DocumentationSearch({
                 variant="ghost"
                 size="sm"
                 onClick={handleClear}
-                className="h-10 w-10 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 hover:bg-muted text-muted-foreground hover:text-foreground hover:shadow-md"
+                className="h-12 w-12 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 hover:bg-primary/10 text-muted-foreground hover:text-primary hover:shadow-md"
                 disabled={isLoading}
                 aria-label="Suche löschen"
               >
-                <X className="h-5 w-5" />
+                <X className="h-6 w-6" />
               </Button>
             )}
 
