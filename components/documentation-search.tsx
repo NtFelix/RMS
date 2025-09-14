@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, X, AlertCircle, Atom, Users, Euro, Home } from 'lucide-react';
+import { Search, X, AlertCircle, Atom, Users, Euro, Home, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -209,7 +209,6 @@ export function DocumentationSearch({
       {query.length === 0 && !isLoading && (
         <div className="text-center">
           <div className="flex flex-wrap justify-center items-center gap-3 mt-4">
-            <span className="text-sm font-medium text-muted-foreground">Beliebte Suchbegriffe:</span>
             <button 
               onClick={() => setQuery('Mieter')}
               className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
@@ -230,6 +229,13 @@ export function DocumentationSearch({
             >
               <Home className="h-4 w-4" />
               Wohnung
+            </button>
+            <button 
+              onClick={() => setQuery('Dokumente')}
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Dokumente
             </button>
           </div>
         </div>
