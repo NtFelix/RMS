@@ -304,7 +304,10 @@ export function AIAssistantModal() {
           <DialogDescription className="sr-only">
             AI-Assistent für Fragen zu Mietfluss-Funktionen und Immobilienverwaltung
           </DialogDescription>
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex items-center justify-between mt-2">
+            <div className="text-xs text-muted-foreground">
+              <span>Enter: Senden • Esc: Schließen • Strg+K: Löschen</span>
+            </div>
             {messages.length > 0 && (
               <Button
                 variant="ghost"
@@ -468,9 +471,6 @@ export function AIAssistantModal() {
               )}
             </Button>
           </form>
-          <div className="text-xs text-muted-foreground mt-2 text-center">
-            <p>Drücken Sie Enter zum Senden • Escape zum Schließen • Strg+K zum Löschen</p>
-          </div>
         </div>
       </DialogContent>
     </Dialog>
