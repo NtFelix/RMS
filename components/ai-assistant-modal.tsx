@@ -321,6 +321,11 @@ export function AIAssistantModal() {
           <div className="space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-8">
+                <img 
+                  src="/mascot/normal.png" 
+                  alt="Mietfluss AI Assistent Maskottchen" 
+                  className="w-16 h-16 mx-auto mb-4 object-contain"
+                />
                 <h3 className="font-medium text-foreground mb-2">
                   Willkommen beim Mietfluss AI Assistenten
                 </h3>
