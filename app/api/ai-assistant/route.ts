@@ -11,6 +11,8 @@ import {
 } from '@/lib/ai-documentation-context';
 import { getAICache } from '@/lib/ai-cache';
 
+export const runtime = 'edge';
+
 // Request validation schema
 const AIRequestSchema = z.object({
   message: z.string().min(1).max(4000),

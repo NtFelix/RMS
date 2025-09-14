@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export const runtime = 'edge';
+
 /**
  * Health check endpoint for connectivity testing
  * Used by the network status hook to verify actual connectivity
