@@ -319,18 +319,7 @@ export function AIAssistantModal() {
         {/* Messages Area */}
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
-            {messages.length === 0 && (
-              <div className="text-center py-8">
-                <Bot className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="font-medium text-foreground mb-2">
-                  Willkommen beim Mietfluss AI Assistenten
-                </h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Stellen Sie mir Fragen über Mietfluss-Funktionen, Immobilienverwaltung, 
-                  Betriebskosten oder alles andere rund um die Anwendung.
-                </p>
-              </div>
-            )}
+
 
             {messages.map((message) => (
               <motion.div
