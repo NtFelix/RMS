@@ -8,6 +8,7 @@ import { Button } from "../../../components/ui/button";
 import { NotionPageData } from "../../../lib/notion-service"; // NotionPageData now refers to metadata only
 import { useAIAssistantStore } from "../../../hooks/use-ai-assistant-store";
 import Link from "next/link";
+import { naturalSort } from "@/lib/utils";
 
 interface DocumentationSidebarProps {
   pages: NotionPageData[]; // This is now allPagesMetadata
@@ -133,7 +134,7 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
     const sections: SidebarSection[] = [];
 
     Object.entries(groupedPages.groups)
-      .sort(([catA], [catB]) => catA.localeCompare(catB))
+      .sort(([catA], [catB]) => naturalSort(catA, catB))
       .forEach(([categoryTitle, categoryPages]) => {
         sections.push({
           title: categoryTitle,
@@ -144,7 +145,7 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
               id: page.id,
               title: page.title || "Untitled Page",
             }))
-            .sort((a,b) => a.title.localeCompare(b.title)),
+            .sort((a,b) => naturalSort(a.title, b.title)),
         });
       });
 
@@ -154,7 +155,7 @@ export default function DocumentationSidebar({ pages, activePageId }: Documentat
             id: page.id,
             title: page.title || "Untitled Page",
         }))
-        .sort((a,b) => a.title.localeCompare(b.title));
+        .sort((a,b) => naturalSort(a.title, b.title));
 
       // Add "General" section if it has items, regardless of other categories
       // This ensures "General" appears if it's the only category or alongside others.

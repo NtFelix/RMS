@@ -4,6 +4,7 @@ import DocumentationContent from "../components/documentation-content";
 import DocumentationSidebar from "../components/documentation-sidebar";
 import DocumentationErrorBoundary from "../components/documentation-error-boundary";
 import { getDatabasePages, getPageContent, NotionFileData, NotionPageData, BlockWithChildren } from "../../../lib/notion-service";
+import { naturalSort } from "@/lib/utils";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'edge';
@@ -76,11 +77,11 @@ export default async function DocumentationPage({
       return renderPage(allPagesMetadata, selectedPageId, currentPageContent, currentPageFiles, error);
     }
 
-    // Sort by category then title
+    // Sort by category then title using natural sort
     allPagesMetadata.sort((a, b) => {
       const categoryA = a.category || "General";
       const categoryB = b.category || "General";
-      return categoryA.localeCompare(categoryB) || a.title.localeCompare(b.title);
+      return naturalSort(categoryA, categoryB) || naturalSort(a.title, b.title);
     });
 
     // Determine selected page (from search param or first)

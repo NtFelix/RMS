@@ -3,6 +3,7 @@ import {
   getDocumentationClient, 
   getDocumentationServerClient 
 } from '@/lib/supabase/documentation-client';
+import { naturalSort } from '@/lib/utils';
 import type { 
   Article, 
   Category, 
@@ -59,7 +60,7 @@ export class DocumentationService {
       return Array.from(categoryMap.entries()).map(([name, articleCount]) => ({
         name,
         articleCount
-      })).sort((a, b) => a.name.localeCompare(b.name));
+      })).sort((a, b) => naturalSort(a.name, b.name));
     } catch (error) {
       console.error('Error fetching categories:', error);
       return [];

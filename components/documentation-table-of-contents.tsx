@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronRight, ChevronDown, FileText, FolderOpen, Folder } from 'lucide-react';
 import { Category } from './documentation-categories';
 import { Article } from './documentation-article-list';
+import { naturalSort } from '@/lib/utils';
 
 interface TableOfContentsProps {
   categories: Category[];
@@ -57,9 +58,10 @@ export function DocumentationTableOfContents({
       // Find the selected category
       const selectedCat = categories.find(cat => cat.name === selectedCategory);
       if (selectedCat) {
+        const categoryArticles = articles.filter(article => article.kategorie === selectedCategory);
         categoryMap.set(selectedCategory, {
           ...selectedCat,
-          articles: articles.filter(article => article.kategorie === selectedCategory),
+          articles: categoryArticles.sort((a, b) => naturalSort(a.titel, b.titel)),
           isExpanded: expandedCategories.has(selectedCategory)
         });
       }
@@ -90,9 +92,14 @@ export function DocumentationTableOfContents({
           });
         }
       });
+
+      // Sort articles within each category
+      categoryMap.forEach(category => {
+        category.articles.sort((a, b) => naturalSort(a.titel, b.titel));
+      });
     }
 
-    return Array.from(categoryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(categoryMap.values()).sort((a, b) => naturalSort(a.name, b.name));
   }, [categories, articles, expandedCategories, selectedCategory]);
 
   const toggleCategory = (categoryName: string, event: React.MouseEvent) => {
