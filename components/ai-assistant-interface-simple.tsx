@@ -161,7 +161,7 @@ export default function AIAssistantInterfaceSimple({
       // Start generation for the AI response
       generation = startAIGeneration({
         id: generationId,
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash-lite',
         provider: 'google',
         input: [{ role: 'user', content: message }],
         sessionId,

@@ -464,7 +464,7 @@ export async function POST(request: NextRequest) {
         event: '$ai_generation',
         properties: {
           $ai_trace_id: currentSessionId,
-          $ai_model: 'gemini-2.0-flash-exp',
+          $ai_model: 'gemini-2.5-flash-lite',
           $ai_provider: 'google',
           $ai_input: [{ role: 'user', content: message }],
           $ai_base_url: 'https://generativelanguage.googleapis.com',
@@ -632,10 +632,19 @@ export async function POST(request: NextRequest) {
     // Generate response with streaming using the models API with retry logic
     const result = await retryWithBackoff(async () => {
       return await genAI.models.generateContentStream({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-2.5-flash-lite',
+        config: {
+          temperature: 1.1,
+          thinkingConfig: {
+            thinkingBudget: 0,
+          },
+          systemInstruction: [{
+            text: SYSTEM_INSTRUCTION
+          }],
+        },
         contents: [{
           role: 'user',
-          parts: [{ text: `${SYSTEM_INSTRUCTION}\n\n${fullPrompt}` }]
+          parts: [{ text: fullPrompt }]
         }]
       });
     }, {
@@ -710,7 +719,7 @@ export async function POST(request: NextRequest) {
               event: '$ai_generation',
               properties: {
                 $ai_trace_id: currentSessionId,
-                $ai_model: 'gemini-2.0-flash-exp',
+                $ai_model: 'gemini-2.5-flash-lite',
                 $ai_provider: 'google',
                 $ai_input: [{ role: 'user', content: message }],
                 $ai_input_tokens: Math.ceil(message.length / 4), // Rough estimate
@@ -828,7 +837,7 @@ export async function POST(request: NextRequest) {
               event: '$ai_generation',
               properties: {
                 $ai_trace_id: currentSessionId,
-                $ai_model: 'gemini-2.0-flash-exp',
+                $ai_model: 'gemini-2.5-flash-lite',
                 $ai_provider: 'google',
                 $ai_input: [{ role: 'user', content: message }],
                 $ai_output_choices: [{ role: 'assistant', content: streamingErrorDetails.errorMessage }],
