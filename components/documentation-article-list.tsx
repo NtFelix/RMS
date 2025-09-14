@@ -93,7 +93,7 @@ export function DocumentationArticleList({
       return (
         <Card 
           key={article.id} 
-          className="cursor-pointer transition-colors hover:bg-muted/50 focus-within:ring-2 focus-within:ring-ring"
+          className="group cursor-pointer transition-all duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] border-2 border-input hover:border-ring focus-within:ring-2 focus-within:ring-ring bg-background"
           onClick={() => handleArticleSelect(article)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -107,20 +107,26 @@ export function DocumentationArticleList({
         >
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-4">
-              <h3 className="text-lg font-semibold leading-tight">
-                {highlightText(article.titel, searchQuery)}
-              </h3>
-              <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 flex-1">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 group-hover:bg-primary/20 transition-colors">
+                  <FileText className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold leading-tight group-hover:text-primary transition-colors">
+                    {highlightText(article.titel, searchQuery)}
+                  </h3>
+                  {article.kategorie && (
+                    <Badge variant="outline" className="w-fit mt-2 group-hover:border-primary/50 transition-colors">
+                      {article.kategorie}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             </div>
-            {article.kategorie && (
-              <Badge variant="outline" className="w-fit">
-                {article.kategorie}
-              </Badge>
-            )}
           </CardHeader>
           {previewText && (
-            <CardContent className="pt-0">
-              <p className="text-muted-foreground text-sm leading-relaxed">
+            <CardContent className="pt-0 pl-16">
+              <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
                 {highlightText(previewText, searchQuery)}
               </p>
             </CardContent>
