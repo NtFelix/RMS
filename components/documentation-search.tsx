@@ -96,7 +96,7 @@ export function DocumentationSearch({
     <div className={`space-y-3 ${className}`}>
       <div className="relative">
         <div className={cn(
-          "relative bg-background border-2 border-input rounded-full px-6 py-4 shadow-sm transition-all duration-200 focus-within:border-ring",
+          "relative bg-background border-2 border-input rounded-full px-6 py-4 shadow-sm transition-all duration-200 focus-within:border-ring hover:shadow-md hover:scale-[1.01]",
           currentMode === 'ai' && "border-primary/50 bg-primary/5"
         )}>
           {/* Search Icon */}
