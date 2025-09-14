@@ -11,6 +11,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useAIAssistantStore, type ChatMessage } from "@/hooks/use-ai-assistant-store";
+import { startAIGeneration, completeAIGeneration, startAITrace, completeAITrace, trackStreamingUpdate, type LLMGeneration, type LLMTrace } from "@/lib/posthog-llm-tracking";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
@@ -107,6 +108,11 @@ export default function AIAssistantInterfaceSimple({
     const message = inputValue.trim();
     if (!message || isLoading) return;
 
+    // Generate IDs for tracking
+    const sessionId = `session_${Date.now()}`;
+    const traceId = `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const generationId = `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     // Add user message
     const userMessage: ChatMessage = {
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -132,6 +138,43 @@ export default function AIAssistantInterfaceSimple({
     };
     addMessage(assistantMessage);
 
+    // Start LLM tracking
+    let trace: LLMTrace | null = null;
+    let generation: LLMGeneration | null = null;
+
+    try {
+      // Start trace for the conversation
+      trace = startAITrace({
+        id: traceId,
+        name: 'mietfluss_ai_conversation',
+        input: {
+          user_message: message,
+          context_articles: documentationContext?.articles?.length || 0,
+          context_categories: documentationContext?.categories?.length || 0
+        },
+        sessionId,
+        metadata: {
+          interface: 'simple',
+          has_documentation_context: !!(documentationContext?.articles?.length),
+          message_length: message.length
+        },
+        tags: ['ai_assistant', 'documentation', 'mietfluss']
+      });
+
+      // Start generation for the AI response
+      generation = startAIGeneration({
+        id: generationId,
+        model: 'gemini-2.0-flash-exp',
+        input: message,
+        sessionId,
+        metadata: {
+          trace_id: traceId,
+          interface: 'simple',
+          context_provided: !!(documentationContext?.articles?.length)
+        },
+        tags: ['gemini', 'streaming', 'documentation_qa']
+      });
+
     try {
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -153,6 +196,7 @@ export default function AIAssistantInterfaceSimple({
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullResponse = '';
+      let chunkCount = 0;
 
       if (reader) {
         while (true) {
@@ -174,10 +218,45 @@ export default function AIAssistantInterfaceSimple({
                   fullResponse += data.content;
                   // Update the assistant message with accumulated content
                   updateMessage(assistantMessageId, fullResponse);
+                  
+                  // Track streaming update
+                  if (generation) {
+                    trackStreamingUpdate({
+                      generationId: generation.id,
+                      chunkContent: data.content,
+                      chunkIndex: chunkCount++,
+                      sessionId
+                    });
+                  }
                 } else if (data.type === 'complete') {
                   fullResponse = data.content || fullResponse;
                   // Final update
                   updateMessage(assistantMessageId, fullResponse || 'Entschuldigung, ich konnte keine Antwort generieren.');
+                  
+                  // Complete LLM tracking
+                  if (generation) {
+                    completeAIGeneration(generation, {
+                      output: fullResponse,
+                      status: 'success',
+                      usage: {
+                        input_tokens: Math.ceil(message.length / 4), // Rough estimate
+                        output_tokens: Math.ceil(fullResponse.length / 4),
+                        total_tokens: Math.ceil((message.length + fullResponse.length) / 4)
+                      }
+                    });
+                  }
+                  
+                  if (trace) {
+                    completeAITrace(trace, {
+                      output: {
+                        assistant_response: fullResponse,
+                        response_length: fullResponse.length,
+                        chunks_received: chunkCount
+                      },
+                      status: 'success'
+                    });
+                  }
+                  
                   break;
                 } else if (data.type === 'error') {
                   throw new Error(data.error || 'Unbekannter Fehler beim Streaming');
@@ -202,6 +281,26 @@ export default function AIAssistantInterfaceSimple({
       
       // Update the assistant message with error
       updateMessage(assistantMessageId, 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.');
+      
+      // Complete LLM tracking with error
+      if (generation) {
+        completeAIGeneration(generation, {
+          output: errorMessage,
+          status: 'error',
+          statusMessage: errorMessage
+        });
+      }
+      
+      if (trace) {
+        completeAITrace(trace, {
+          output: {
+            error: errorMessage,
+            error_type: error instanceof Error ? error.constructor.name : 'UnknownError'
+          },
+          status: 'error',
+          statusMessage: errorMessage
+        });
+      }
     } finally {
       setIsLoading(false);
       setStoreLoading(false);
