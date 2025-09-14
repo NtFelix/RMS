@@ -112,7 +112,7 @@ export function DocumentationSearch({
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           className={cn(
-            "h-16 pl-24 pr-24 text-lg rounded-full border-2 border-border/50 bg-gray-50/90 dark:bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-white dark:focus:bg-background placeholder:text-muted-foreground/70",
+            "h-16 pl-24 pr-24 text-lg rounded-full border-2 border-input bg-background backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-ring focus:shadow-xl placeholder:text-muted-foreground/70",
             currentMode === 'ai' && "border-primary/50 bg-primary/5"
           )}
           disabled={isLoading || currentMode === 'ai'}
