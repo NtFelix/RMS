@@ -119,7 +119,7 @@ export function DocumentationSearch({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            className="border-0 bg-transparent pl-12 pr-24 text-xl focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+            className="border-0 bg-transparent pl-12 pr-28 text-xl focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
             disabled={isLoading || currentMode === 'ai'}
             aria-label="Dokumentation durchsuchen"
             aria-describedby={error ? "search-error" : undefined}
@@ -147,16 +147,16 @@ export function DocumentationSearch({
               size="sm"
               onClick={handleAIToggle}
               className={cn(
-                "h-10 w-10 p-0 rounded-full transition-all duration-200",
+                "h-12 w-12 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95",
                 currentMode === 'ai' 
-                  ? "bg-primary/20 hover:bg-primary/30 text-primary" 
-                  : "hover:bg-muted text-muted-foreground hover:text-primary"
+                  ? "bg-primary/20 hover:bg-primary/30 text-primary shadow-md hover:shadow-lg" 
+                  : "hover:bg-primary/10 text-muted-foreground hover:text-primary hover:shadow-md"
               )}
               disabled={isLoading}
               aria-label={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
               title={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
             >
-              <Atom className="h-5 w-5" />
+              <Atom className="h-6 w-6" />
             </Button>
           </div>
         </div>
