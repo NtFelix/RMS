@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useErrorHandler } from '@/components/documentation-error-boundary';
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { useModalStore } from '@/hooks/use-modal-store';
 import { cn } from '@/lib/utils';
 
 interface SearchProps {
@@ -37,9 +38,11 @@ export function DocumentationSearch({
   const { 
     currentMode, 
     switchToAI, 
-    switchToSearch,
-    openAI 
+    switchToSearch
   } = useAIAssistantStore();
+
+  // Modal store
+  const { openAIAssistantModal } = useModalStore();
 
   useEffect(() => {
     try {
@@ -75,9 +78,14 @@ export function DocumentationSearch({
       setQuery('');
       onSearch('');
       switchToAI();
-      openAI();
+      // Open the AI assistant modal instead of the old interface
+      openAIAssistantModal({
+        onFallbackToSearch: () => {
+          switchToSearch();
+        }
+      });
     }
-  }, [currentMode, switchToSearch, switchToAI, openAI, onSearch]);
+  }, [currentMode, switchToSearch, switchToAI, openAIAssistantModal, onSearch]);
 
   return (
     <div className={`space-y-3 ${className}`}>
