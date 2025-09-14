@@ -434,34 +434,34 @@ export function AIAssistantModal() {
 
         {/* Input Area */}
         <div className="p-4 border-t border-border bg-muted/30">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <div className="flex-1 relative">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="relative bg-background border border-border rounded-full px-4 py-3 pr-16 shadow-sm">
               <Input
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
                 placeholder="Stellen Sie eine Frage über Mietfluss..."
                 disabled={isLoading}
-                className="pr-12"
+                className="border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
                 maxLength={2000}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              <div className="absolute right-16 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                 {inputValue.length}/2000
               </div>
+              <Button
+                type="submit"
+                disabled={!inputValue.trim() || isLoading}
+                size="sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 bg-primary hover:bg-primary/90"
+                aria-label="Nachricht senden"
+              >
+                {isLoading ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-            <Button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading}
-              size="sm"
-              className="px-3"
-              aria-label="Nachricht senden"
-            >
-              {isLoading ? (
-                <Spinner className="w-4 h-4" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
           </form>
         </div>
       </DialogContent>
