@@ -289,7 +289,7 @@ export function AIAssistantModal() {
 
   return (
     <Dialog open={isAIAssistantModalOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl h-[600px] p-0 flex flex-col">
+      <DialogContent className="max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
           <DialogTitle className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center p-1">
