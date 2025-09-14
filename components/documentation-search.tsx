@@ -133,7 +133,7 @@ export function DocumentationSearch({
                 variant="ghost"
                 size="sm"
                 onClick={handleClear}
-                className="h-10 w-10 p-0 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="h-10 w-10 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 hover:bg-muted text-muted-foreground hover:text-foreground hover:shadow-md"
                 disabled={isLoading}
                 aria-label="Suche löschen"
               >
