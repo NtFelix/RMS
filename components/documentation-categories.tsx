@@ -105,17 +105,17 @@ export function DocumentationCategories({
       <Button
         variant={selectedCategory === null ? "default" : "ghost"}
         onClick={() => handleCategorySelect(null)}
-        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group hover:bg-primary/10 hover:scale-[1.02] hover:shadow-md transition-all duration-300 rounded-lg border border-transparent hover:border-primary/30"
+        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group hover:bg-primary/15 hover:shadow-md transition-all duration-300 rounded-lg border border-transparent hover:border-primary/30"
         aria-pressed={selectedCategory === null}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <FolderOpen className="h-4 w-4 flex-shrink-0 group-hover:text-primary group-hover:scale-110 transition-all duration-300" />
-          <span className="text-left text-sm font-medium group-hover:text-primary transition-colors duration-300">Alle Artikel</span>
+          <FolderOpen className="h-4 w-4 flex-shrink-0 group-hover:text-primary transition-colors duration-300" />
+          <span className="text-left text-sm font-medium group-hover:text-primary group-hover:font-semibold transition-all duration-300">Alle Artikel</span>
         </div>
         <Badge 
           variant="secondary" 
-          className="ml-2 flex-shrink-0 text-xs group-hover:bg-primary/20 group-hover:border-primary/40 group-hover:scale-105 transition-all duration-300"
+          className="ml-2 flex-shrink-0 text-xs group-hover:bg-primary/25 group-hover:border-primary/40 group-hover:text-primary/90 transition-all duration-300"
         >
           {totalArticleCount}
         </Badge>
