@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, User, AlertCircle, RotateCcw, X } from "lucide-react";
+import { ArrowUp, User, AlertCircle, RotateCcw, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -435,7 +435,7 @@ export function AIAssistantModal() {
         {/* Input Area */}
         <div className="p-4 border-t border-border bg-muted/30">
           <form onSubmit={handleSubmit} className="relative">
-            <div className="relative bg-background border-2 border-input rounded-full px-4 py-3 pr-16 shadow-sm focus-within:border-ring">
+            <div className="relative bg-background border-2 border-input rounded-full px-4 py-2 pr-16 shadow-sm focus-within:border-ring">
               <Input
                 ref={inputRef}
                 value={inputValue}
@@ -458,7 +458,7 @@ export function AIAssistantModal() {
                 {isLoading ? (
                   <Spinner className="w-4 h-4" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <ArrowUp className="w-4 h-4" />
                 )}
               </Button>
             </div>
