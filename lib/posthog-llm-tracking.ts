@@ -1,7 +1,7 @@
 /**
  * PostHog LLM Analytics Tracking
  * Implements PostHog's LLM tracking format for AI assistant interactions
- * Based on: https://posthog.com/docs/llm-analytics/installation/google
+ * Based on: https://posthog.com/docs/ai-engineering/observability
  */
 
 import posthog from 'posthog-js';
@@ -9,37 +9,37 @@ import posthog from 'posthog-js';
 export interface LLMGeneration {
   id: string;
   model: string;
-  input: string;
-  output?: string;
+  provider: string;
+  input: string | any[];
+  output?: string | any[];
   usage?: {
     input_tokens?: number;
     output_tokens?: number;
     total_tokens?: number;
   };
-  metadata?: Record<string, any>;
-  tags?: string[];
+  latency?: number;
+  http_status?: number;
+  base_url?: string;
+  is_error?: boolean;
+  error?: string;
+  trace_id?: string;
   start_time: string;
   end_time?: string;
-  level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
-  status_message?: string;
-  version?: string;
-  parent_run_id?: string;
   user_id?: string;
   session_id?: string;
 }
 
 export interface LLMTrace {
   id: string;
-  name: string;
-  input?: any;
-  output?: any;
-  metadata?: Record<string, any>;
-  tags?: string[];
+  span_name: string;
+  span_id?: string;
+  input_state?: any;
+  output_state?: any;
+  latency?: number;
+  error?: string;
+  is_error?: boolean;
   start_time: string;
   end_time?: string;
-  level?: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
-  status_message?: string;
-  version?: string;
   user_id?: string;
   session_id?: string;
 }
@@ -67,23 +67,18 @@ export class PostHogLLMTracker {
 
     try {
       posthog.capture('$ai_generation', {
-        $ai_generation_id: generation.id,
-        $ai_generation_model: generation.model,
-        $ai_generation_input: generation.input,
-        $ai_generation_output: generation.output,
-        $ai_generation_input_tokens: generation.usage?.input_tokens,
-        $ai_generation_output_tokens: generation.usage?.output_tokens,
-        $ai_generation_total_tokens: generation.usage?.total_tokens,
-        $ai_generation_start_time: generation.start_time,
-        $ai_generation_end_time: generation.end_time,
-        $ai_generation_level: generation.level || 'INFO',
-        $ai_generation_status_message: generation.status_message,
-        $ai_generation_version: generation.version,
-        $ai_generation_parent_run_id: generation.parent_run_id,
-        $ai_generation_metadata: generation.metadata,
-        $ai_generation_tags: generation.tags,
-        $ai_user_id: generation.user_id,
-        $ai_session_id: generation.session_id,
+        $ai_trace_id: generation.trace_id || generation.id,
+        $ai_model: generation.model,
+        $ai_provider: generation.provider,
+        $ai_input: generation.input,
+        $ai_input_tokens: generation.usage?.input_tokens,
+        $ai_output_choices: generation.output,
+        $ai_output_tokens: generation.usage?.output_tokens,
+        $ai_latency: generation.latency,
+        $ai_http_status: generation.http_status,
+        $ai_base_url: generation.base_url,
+        $ai_is_error: generation.is_error || false,
+        $ai_error: generation.error,
         
         // Additional Mietfluss-specific properties
         application: 'mietfluss',
@@ -106,18 +101,13 @@ export class PostHogLLMTracker {
     try {
       posthog.capture('$ai_trace', {
         $ai_trace_id: trace.id,
-        $ai_trace_name: trace.name,
-        $ai_trace_input: trace.input,
-        $ai_trace_output: trace.output,
-        $ai_trace_start_time: trace.start_time,
-        $ai_trace_end_time: trace.end_time,
-        $ai_trace_level: trace.level || 'INFO',
-        $ai_trace_status_message: trace.status_message,
-        $ai_trace_version: trace.version,
-        $ai_trace_metadata: trace.metadata,
-        $ai_trace_tags: trace.tags,
-        $ai_user_id: trace.user_id,
-        $ai_session_id: trace.session_id,
+        $ai_input_state: trace.input_state,
+        $ai_output_state: trace.output_state,
+        $ai_latency: trace.latency,
+        $ai_span_name: trace.span_name,
+        $ai_span_id: trace.span_id || trace.id,
+        $ai_error: trace.error,
+        $ai_is_error: trace.is_error || false,
         
         // Additional Mietfluss-specific properties
         application: 'mietfluss',
@@ -137,22 +127,21 @@ export class PostHogLLMTracker {
   startGeneration(params: {
     id: string;
     model: string;
-    input: string;
+    provider: string;
+    input: string | any[];
     sessionId?: string;
     userId?: string;
-    metadata?: Record<string, any>;
-    tags?: string[];
+    traceId?: string;
   }): LLMGeneration {
     const generation: LLMGeneration = {
       id: params.id,
       model: params.model,
+      provider: params.provider,
       input: params.input,
       start_time: new Date().toISOString(),
       session_id: params.sessionId,
       user_id: params.userId,
-      metadata: params.metadata,
-      tags: params.tags,
-      level: 'INFO'
+      trace_id: params.traceId || params.id
     };
 
     // Track the start
@@ -167,19 +156,23 @@ export class PostHogLLMTracker {
   completeGeneration(
     generation: LLMGeneration,
     params: {
-      output?: string;
+      output?: string | any[];
       usage?: LLMGeneration['usage'];
+      latency?: number;
       status?: 'success' | 'error';
-      statusMessage?: string;
+      error?: string;
+      httpStatus?: number;
     }
   ): void {
     const completedGeneration: LLMGeneration = {
       ...generation,
       output: params.output,
       usage: params.usage,
+      latency: params.latency,
       end_time: new Date().toISOString(),
-      level: params.status === 'error' ? 'ERROR' : 'INFO',
-      status_message: params.statusMessage
+      is_error: params.status === 'error',
+      error: params.error,
+      http_status: params.httpStatus || (params.status === 'error' ? 500 : 200)
     };
 
     this.trackGeneration(completedGeneration);
@@ -190,23 +183,19 @@ export class PostHogLLMTracker {
    */
   startTrace(params: {
     id: string;
-    name: string;
-    input?: any;
+    span_name: string;
+    input_state?: any;
     sessionId?: string;
     userId?: string;
-    metadata?: Record<string, any>;
-    tags?: string[];
   }): LLMTrace {
     const trace: LLMTrace = {
       id: params.id,
-      name: params.name,
-      input: params.input,
+      span_name: params.span_name,
+      span_id: params.id,
+      input_state: params.input_state,
       start_time: new Date().toISOString(),
       session_id: params.sessionId,
-      user_id: params.userId,
-      metadata: params.metadata,
-      tags: params.tags,
-      level: 'INFO'
+      user_id: params.userId
     };
 
     this.trackTrace(trace);
@@ -220,17 +209,19 @@ export class PostHogLLMTracker {
   completeTrace(
     trace: LLMTrace,
     params: {
-      output?: any;
+      output_state?: any;
+      latency?: number;
       status?: 'success' | 'error';
-      statusMessage?: string;
+      error?: string;
     }
   ): void {
     const completedTrace: LLMTrace = {
       ...trace,
-      output: params.output,
+      output_state: params.output_state,
+      latency: params.latency,
       end_time: new Date().toISOString(),
-      level: params.status === 'error' ? 'ERROR' : 'INFO',
-      status_message: params.statusMessage
+      is_error: params.status === 'error',
+      error: params.error
     };
 
     this.trackTrace(completedTrace);

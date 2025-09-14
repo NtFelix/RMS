@@ -146,36 +146,28 @@ export default function AIAssistantInterfaceSimple({
       // Start trace for the conversation
       trace = startAITrace({
         id: traceId,
-        name: 'mietfluss_ai_conversation',
-        input: {
+        span_name: 'mietfluss_ai_conversation',
+        input_state: {
           user_message: message,
           context_articles: documentationContext?.articles?.length || 0,
-          context_categories: documentationContext?.categories?.length || 0
-        },
-        sessionId,
-        metadata: {
+          context_categories: documentationContext?.categories?.length || 0,
           interface: 'simple',
           has_documentation_context: !!(documentationContext?.articles?.length),
           message_length: message.length
         },
-        tags: ['ai_assistant', 'documentation', 'mietfluss']
+        sessionId
       });
 
       // Start generation for the AI response
       generation = startAIGeneration({
         id: generationId,
         model: 'gemini-2.0-flash-exp',
-        input: message,
+        provider: 'google',
+        input: [{ role: 'user', content: message }],
         sessionId,
-        metadata: {
-          trace_id: traceId,
-          interface: 'simple',
-          context_provided: !!(documentationContext?.articles?.length)
-        },
-        tags: ['gemini', 'streaming', 'documentation_qa']
+        traceId
       });
 
-    try {
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
         headers: {
@@ -235,24 +227,30 @@ export default function AIAssistantInterfaceSimple({
                   
                   // Complete LLM tracking
                   if (generation) {
+                    const responseTime = Date.now() - Date.parse(generation.start_time);
                     completeAIGeneration(generation, {
-                      output: fullResponse,
+                      output: [{ role: 'assistant', content: fullResponse }],
                       status: 'success',
+                      latency: responseTime / 1000, // Convert to seconds
                       usage: {
                         input_tokens: Math.ceil(message.length / 4), // Rough estimate
                         output_tokens: Math.ceil(fullResponse.length / 4),
                         total_tokens: Math.ceil((message.length + fullResponse.length) / 4)
-                      }
+                      },
+                      httpStatus: 200
                     });
                   }
                   
                   if (trace) {
+                    const traceTime = Date.now() - Date.parse(trace.start_time);
                     completeAITrace(trace, {
-                      output: {
+                      output_state: {
                         assistant_response: fullResponse,
                         response_length: fullResponse.length,
-                        chunks_received: chunkCount
+                        chunks_received: chunkCount,
+                        success: true
                       },
+                      latency: traceTime / 1000,
                       status: 'success'
                     });
                   }
@@ -284,21 +282,27 @@ export default function AIAssistantInterfaceSimple({
       
       // Complete LLM tracking with error
       if (generation) {
+        const responseTime = Date.now() - Date.parse(generation.start_time);
         completeAIGeneration(generation, {
-          output: errorMessage,
+          output: [{ role: 'assistant', content: errorMessage }],
           status: 'error',
-          statusMessage: errorMessage
+          error: errorMessage,
+          latency: responseTime / 1000,
+          httpStatus: 500
         });
       }
       
       if (trace) {
+        const traceTime = Date.now() - Date.parse(trace.start_time);
         completeAITrace(trace, {
-          output: {
+          output_state: {
             error: errorMessage,
-            error_type: error instanceof Error ? error.constructor.name : 'UnknownError'
+            error_type: error instanceof Error ? error.constructor.name : 'UnknownError',
+            success: false
           },
+          latency: traceTime / 1000,
           status: 'error',
-          statusMessage: errorMessage
+          error: errorMessage
         });
       }
     } finally {

@@ -463,21 +463,17 @@ export async function POST(request: NextRequest) {
         distinctId: 'anonymous',
         event: '$ai_generation',
         properties: {
-          $ai_generation_id: generationId,
-          $ai_generation_model: 'gemini-2.0-flash-exp',
-          $ai_generation_input: message,
-          $ai_generation_start_time: new Date().toISOString(),
-          $ai_generation_level: 'INFO',
-          $ai_session_id: currentSessionId,
-          $ai_generation_metadata: {
-            server_side: true,
-            has_context: !!(context?.articles && context.articles.length > 0),
-            context_articles_count: context?.articles?.length || 0,
-            client_id: clientId
-          },
-          $ai_generation_tags: ['gemini', 'server-side', 'documentation_qa'],
+          $ai_trace_id: currentSessionId,
+          $ai_model: 'gemini-2.0-flash-exp',
+          $ai_provider: 'google',
+          $ai_input: [{ role: 'user', content: message }],
+          $ai_base_url: 'https://generativelanguage.googleapis.com',
           application: 'mietfluss',
           feature: 'ai_assistant_server',
+          server_side: true,
+          has_context: !!(context?.articles && context.articles.length > 0),
+          context_articles_count: context?.articles?.length || 0,
+          client_id: clientId,
           timestamp: new Date().toISOString()
         }
       });
@@ -709,33 +705,27 @@ export async function POST(request: NextRequest) {
             });
 
             // Track LLM Generation completion (server-side)
-            const generationId = `server_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             posthog.capture({
               distinctId: 'anonymous',
               event: '$ai_generation',
               properties: {
-                $ai_generation_id: generationId,
-                $ai_generation_model: 'gemini-2.0-flash-exp',
-                $ai_generation_input: message,
-                $ai_generation_output: fullResponse,
-                $ai_generation_start_time: new Date(requestStartTime).toISOString(),
-                $ai_generation_end_time: new Date().toISOString(),
-                $ai_generation_input_tokens: Math.ceil(message.length / 4), // Rough estimate
-                $ai_generation_output_tokens: Math.ceil(fullResponse.length / 4),
-                $ai_generation_total_tokens: Math.ceil((message.length + fullResponse.length) / 4),
-                $ai_generation_level: 'INFO',
-                $ai_generation_status_message: 'Success',
-                $ai_session_id: currentSessionId,
-                $ai_generation_metadata: {
-                  server_side: true,
-                  response_time_ms: responseTime,
-                  response_type: 'streaming',
-                  context_hash: contextHash,
-                  client_id: clientId
-                },
-                $ai_generation_tags: ['gemini', 'server-side', 'streaming', 'success'],
+                $ai_trace_id: currentSessionId,
+                $ai_model: 'gemini-2.0-flash-exp',
+                $ai_provider: 'google',
+                $ai_input: [{ role: 'user', content: message }],
+                $ai_input_tokens: Math.ceil(message.length / 4), // Rough estimate
+                $ai_output_choices: [{ role: 'assistant', content: fullResponse }],
+                $ai_output_tokens: Math.ceil(fullResponse.length / 4),
+                $ai_latency: responseTime / 1000, // Convert to seconds
+                $ai_http_status: 200,
+                $ai_base_url: 'https://generativelanguage.googleapis.com',
+                $ai_is_error: false,
                 application: 'mietfluss',
                 feature: 'ai_assistant_server',
+                server_side: true,
+                response_type: 'streaming',
+                context_hash: contextHash,
+                client_id: clientId,
                 timestamp: new Date().toISOString()
               }
             });
@@ -833,30 +823,27 @@ export async function POST(request: NextRequest) {
             });
 
             // Track LLM Generation error (server-side)
-            const generationId = `server_gen_error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             posthog.capture({
               distinctId: 'anonymous',
               event: '$ai_generation',
               properties: {
-                $ai_generation_id: generationId,
-                $ai_generation_model: 'gemini-2.0-flash-exp',
-                $ai_generation_input: message,
-                $ai_generation_output: streamingErrorDetails.errorMessage,
-                $ai_generation_start_time: new Date(requestStartTime).toISOString(),
-                $ai_generation_end_time: new Date().toISOString(),
-                $ai_generation_level: 'ERROR',
-                $ai_generation_status_message: streamingErrorDetails.errorMessage,
-                $ai_session_id: currentSessionId,
-                $ai_generation_metadata: {
-                  server_side: true,
-                  error_type: streamingErrorDetails.errorType,
-                  error_code: streamingErrorDetails.errorCode,
-                  failure_stage: 'streaming_server',
-                  client_id: clientId
-                },
-                $ai_generation_tags: ['gemini', 'server-side', 'streaming', 'error'],
+                $ai_trace_id: currentSessionId,
+                $ai_model: 'gemini-2.0-flash-exp',
+                $ai_provider: 'google',
+                $ai_input: [{ role: 'user', content: message }],
+                $ai_output_choices: [{ role: 'assistant', content: streamingErrorDetails.errorMessage }],
+                $ai_latency: responseTime / 1000,
+                $ai_http_status: 500,
+                $ai_base_url: 'https://generativelanguage.googleapis.com',
+                $ai_is_error: true,
+                $ai_error: streamingErrorDetails.errorMessage,
                 application: 'mietfluss',
                 feature: 'ai_assistant_server',
+                server_side: true,
+                error_type: streamingErrorDetails.errorType,
+                error_code: streamingErrorDetails.errorCode,
+                failure_stage: 'streaming_server',
+                client_id: clientId,
                 timestamp: new Date().toISOString()
               }
             });
