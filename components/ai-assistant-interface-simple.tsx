@@ -40,6 +40,7 @@ export default function AIAssistantInterfaceSimple({
   const { 
     messages, 
     addMessage, 
+    updateMessage,
     clearMessages,
     setLoading: setStoreLoading,
     setError: setStoreError
@@ -121,6 +122,16 @@ export default function AIAssistantInterfaceSimple({
     setError(null);
     setStoreError(null);
 
+    // Create assistant message placeholder for streaming
+    const assistantMessageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const assistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: new Date()
+    };
+    addMessage(assistantMessage);
+
     try {
       const response = await fetch('/api/ai-assistant', {
         method: 'POST',
@@ -138,23 +149,59 @@ export default function AIAssistantInterfaceSimple({
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      
-      // Add assistant message
-      const assistantMessage: ChatMessage = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        role: 'assistant',
-        content: data.response || 'Entschuldigung, ich konnte keine Antwort generieren.',
-        timestamp: new Date()
-      };
+      // Handle streaming response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullResponse = '';
 
-      addMessage(assistantMessage);
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.slice(6); // Remove 'data: ' prefix
+                if (jsonStr.trim() === '') continue;
+                
+                const data = JSON.parse(jsonStr);
+                
+                if (data.type === 'chunk' && data.content) {
+                  fullResponse += data.content;
+                  // Update the assistant message with accumulated content
+                  updateMessage(assistantMessageId, fullResponse);
+                } else if (data.type === 'complete') {
+                  fullResponse = data.content || fullResponse;
+                  // Final update
+                  updateMessage(assistantMessageId, fullResponse || 'Entschuldigung, ich konnte keine Antwort generieren.');
+                  break;
+                } else if (data.type === 'error') {
+                  throw new Error(data.error || 'Unbekannter Fehler beim Streaming');
+                }
+              } catch (parseError) {
+                console.warn('Failed to parse SSE data:', line, parseError);
+              }
+            }
+          }
+        }
+      } else {
+        throw new Error('Response body is not readable');
+      }
 
     } catch (error) {
       console.error('AI Assistant Error:', error);
-      const errorMessage = 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.';
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.';
       setError(errorMessage);
       setStoreError(errorMessage);
+      
+      // Update the assistant message with error
+      updateMessage(assistantMessageId, 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.');
     } finally {
       setIsLoading(false);
       setStoreLoading(false);

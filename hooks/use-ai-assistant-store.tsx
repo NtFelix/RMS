@@ -26,6 +26,7 @@ interface AIAssistantStore {
   switchToSearch: () => void;
   switchToAI: () => void;
   addMessage: (message: ChatMessage) => void;
+  updateMessage: (messageId: string, content: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearMessages: () => void;
@@ -137,8 +138,26 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   },
 
   addMessage: (message: ChatMessage) => {
+    set(state => {
+      // Check if message already exists and update it, otherwise add new
+      const existingIndex = state.messages.findIndex(m => m.id === message.id);
+      if (existingIndex >= 0) {
+        const updatedMessages = [...state.messages];
+        updatedMessages[existingIndex] = message;
+        return { messages: updatedMessages };
+      } else {
+        return { messages: [...state.messages, message] };
+      }
+    });
+  },
+
+  updateMessage: (messageId: string, content: string) => {
     set(state => ({
-      messages: [...state.messages, message]
+      messages: state.messages.map(message =>
+        message.id === messageId
+          ? { ...message, content }
+          : message
+      )
     }));
   },
 
