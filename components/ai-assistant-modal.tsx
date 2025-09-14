@@ -291,7 +291,7 @@ export function AIAssistantModal() {
     <Dialog open={isAIAssistantModalOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
-          <DialogTitle>
+          <DialogTitle className="mt-1">
             Mietfluss AI Assistent
           </DialogTitle>
           <DialogDescription className="sr-only">
