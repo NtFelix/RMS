@@ -105,17 +105,17 @@ export function DocumentationCategories({
       <Button
         variant={selectedCategory === null ? "default" : "ghost"}
         onClick={() => handleCategorySelect(null)}
-        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group"
+        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group hover:bg-primary/10 hover:scale-[1.02] hover:shadow-md transition-all duration-300 rounded-lg border border-transparent hover:border-primary/30"
         aria-pressed={selectedCategory === null}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          <FolderOpen className="h-4 w-4 flex-shrink-0" />
-          <span className="text-left text-sm font-medium">Alle Artikel</span>
+          <FolderOpen className="h-4 w-4 flex-shrink-0 group-hover:text-primary group-hover:scale-110 transition-all duration-300" />
+          <span className="text-left text-sm font-medium group-hover:text-primary transition-colors duration-300">Alle Artikel</span>
         </div>
         <Badge 
           variant="secondary" 
-          className="ml-2 flex-shrink-0 text-xs"
+          className="ml-2 flex-shrink-0 text-xs group-hover:bg-primary/20 group-hover:border-primary/40 group-hover:scale-105 transition-all duration-300"
         >
           {totalArticleCount}
         </Badge>
@@ -127,15 +127,15 @@ export function DocumentationCategories({
           key={category.name}
           variant={selectedCategory === category.name ? "default" : "ghost"}
           onClick={() => handleCategorySelect(category.name)}
-          className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group"
+          className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group hover:bg-primary/10 hover:scale-[1.02] hover:shadow-md transition-all duration-300 rounded-lg border border-transparent hover:border-primary/30 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:bg-transparent disabled:hover:border-transparent"
           disabled={category.articleCount === 0}
           aria-pressed={selectedCategory === category.name}
           aria-label={`Kategorie ${category.name || 'Ohne Kategorie'} (${category.articleCount} Artikel)`}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Folder className="h-4 w-4 flex-shrink-0" />
+            <Folder className="h-4 w-4 flex-shrink-0 group-hover:text-primary group-hover:scale-110 transition-all duration-300 group-disabled:group-hover:text-current group-disabled:group-hover:scale-100" />
             <span 
-              className="truncate text-left text-sm font-medium"
+              className="truncate text-left text-sm font-medium group-hover:text-primary transition-colors duration-300 group-disabled:group-hover:text-current"
               title={category.name || 'Ohne Kategorie'}
             >
               {category.name || 'Ohne Kategorie'}
@@ -143,7 +143,7 @@ export function DocumentationCategories({
           </div>
           <Badge 
             variant="secondary" 
-            className="ml-2 flex-shrink-0 text-xs"
+            className="ml-2 flex-shrink-0 text-xs group-hover:bg-primary/20 group-hover:border-primary/40 group-hover:scale-105 transition-all duration-300 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary group-disabled:group-hover:scale-100"
           >
             {category.articleCount}
           </Badge>
