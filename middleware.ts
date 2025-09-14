@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
     '/api/posthog-config', // Public API route for PostHog configuration
     '/api/documentation', // Allow documentation API route
     '/api/documentation/.*', // Allow all documentation API routes
+    '/api/ai-assistant', // Allow AI assistant API route
     '/datenschutz', // Allow access to datenschutz page
   ]
 

@@ -205,8 +205,8 @@ export class BundleSizeMonitor {
     // Track Largest Contentful Paint (LCP)
     this.observeWebVital('largest-contentful-paint', (entry) => {
       this.trackEvent('bundle_web_vital_lcp', {
-        value_ms: entry.value,
-        impact_category: this.categorizeWebVital(entry.value, 2500, 4000),
+        value_ms: (entry as any).value,
+        impact_category: this.categorizeWebVital((entry as any).value, 2500, 4000),
         timestamp: new Date().toISOString()
       });
     });
@@ -214,8 +214,8 @@ export class BundleSizeMonitor {
     // Track First Input Delay (FID)
     this.observeWebVital('first-input', (entry) => {
       this.trackEvent('bundle_web_vital_fid', {
-        value_ms: entry.value,
-        impact_category: this.categorizeWebVital(entry.value, 100, 300),
+        value_ms: (entry as any).value,
+        impact_category: this.categorizeWebVital((entry as any).value, 100, 300),
         timestamp: new Date().toISOString()
       });
     });
@@ -224,8 +224,8 @@ export class BundleSizeMonitor {
     this.observeWebVital('layout-shift', (entry) => {
       if (!(entry as any).hadRecentInput) {
         this.trackEvent('bundle_web_vital_cls', {
-          value: entry.value,
-          impact_category: this.categorizeWebVital(entry.value, 0.1, 0.25),
+          value: (entry as any).value,
+          impact_category: this.categorizeWebVital((entry as any).value, 0.1, 0.25),
           timestamp: new Date().toISOString()
         });
       }

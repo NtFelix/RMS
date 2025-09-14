@@ -234,9 +234,9 @@ export default function AIAssistantInterface({
             {/* Network Status Icon */}
             <div className="flex items-center">
               {networkStatus.isOnline ? (
-                <Wifi className="w-4 h-4 text-green-500" title="Online" />
+                <Wifi className="w-4 h-4 text-green-500" />
               ) : (
-                <WifiOff className="w-4 h-4 text-red-500" title="Offline" />
+                <WifiOff className="w-4 h-4 text-red-500" />
               )}
             </div>
             {state.messages.length > 0 && (

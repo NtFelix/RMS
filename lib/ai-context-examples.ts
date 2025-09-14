@@ -236,7 +236,7 @@ export async function batchAIRequests(
           return { question, response, success: true };
         } catch (error) {
           console.error(`Error processing question ${index}:`, error);
-          return { question, error: error.message, success: false };
+          return { question, error: error instanceof Error ? error.message : String(error), success: false };
         }
       })
     );

@@ -43,7 +43,7 @@ interface AICacheOptions {
   enableCommonQueryCaching?: boolean;
 }
 
-interface AICacheStats {
+export interface AICacheStats {
   responseCache: {
     size: number;
     hitRate: number;

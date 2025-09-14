@@ -13,6 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import AIAssistantInterfaceSimple from '@/components/ai-assistant-interface-simple';
+import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
 
 interface DocumentationState {
   categories: Category[];
@@ -29,6 +31,14 @@ function DocumentationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  
+  // AI Assistant store
+  const { 
+    isOpen: isAIOpen, 
+    closeAI, 
+    switchToSearch,
+    currentMode 
+  } = useAIAssistantStore();
 
   const [state, setState] = useState<DocumentationState>({
     categories: [],
@@ -237,6 +247,31 @@ function DocumentationContent() {
     });
   }, [updateURL, state.selectedCategory, state.searchQuery]);
 
+  // AI Assistant handlers
+  const handleAIClose = useCallback(() => {
+    closeAI();
+  }, [closeAI]);
+
+  const handleFallbackToSearch = useCallback(() => {
+    switchToSearch();
+    toast({
+      title: 'Zur normalen Suche gewechselt',
+      description: 'Sie können jetzt die normale Dokumentationssuche verwenden.',
+    });
+  }, [switchToSearch, toast]);
+
+  // Prepare documentation context for AI assistant
+  const documentationContext = useCallback(() => {
+    return {
+      articles: state.articles,
+      categories: state.categories,
+      selectedCategory: state.selectedCategory,
+      selectedArticle: state.selectedArticle,
+      totalArticles: state.articles.length,
+      totalCategories: state.categories.length
+    };
+  }, [state.articles, state.categories, state.selectedCategory, state.selectedArticle]);
+
 
 
   return (
@@ -358,6 +393,14 @@ function DocumentationContent() {
             )}
           </div>
         </div>
+
+        {/* AI Assistant Interface */}
+        <AIAssistantInterfaceSimple
+          isOpen={isAIOpen}
+          onClose={handleAIClose}
+          documentationContext={documentationContext()}
+          onFallbackToSearch={handleFallbackToSearch}
+        />
       </div>
     </div>
   );

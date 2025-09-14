@@ -355,7 +355,7 @@ export function useEnhancedAIAssistant(
         const contentType = response.headers.get('content-type');
         if (contentType?.includes('text/event-stream')) {
           performanceMonitor.current.trackStreamingStart(sessionId);
-          await handleStreamingResponse(response, assistantMessageId, sessionId, requestStartTime);
+          await handleStreamingResponse(response, assistantMessageId, sessionId, requestStartTime, sanitizedMessage);
         } else {
           // Fallback to regular JSON response
           const data = await response.json();
@@ -524,7 +524,8 @@ export function useEnhancedAIAssistant(
     response: Response, 
     messageId: string, 
     sessionId: string, 
-    requestStartTime: number
+    requestStartTime: number,
+    sanitizedMessage: string
   ) => {
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
