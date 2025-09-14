@@ -1,4 +1,5 @@
 import { createDocumentationService } from '@/lib/documentation-service';
+import { getAICache } from '@/lib/ai-cache';
 import type { Article, Category } from '@/types/documentation';
 
 /**
@@ -36,7 +37,7 @@ export interface ContextExtractionOptions {
 }
 
 /**
- * Fetches documentation context using DocumentationService
+ * Fetches documentation context using DocumentationService with caching
  * This function retrieves all articles and categories from Supabase
  */
 export async function fetchDocumentationContext(
@@ -50,7 +51,26 @@ export async function fetchDocumentationContext(
     currentArticleId
   } = options;
 
+  // Generate cache key for this context request
+  const aiCache = getAICache();
+  const contextCacheKey = aiCache.generateContextCacheKey({
+    searchQuery,
+    articleId: currentArticleId,
+    maxArticles,
+    maxContentLength,
+    includeCategories,
+  });
+
+  // Try to get from cache first
+  const cachedContext = aiCache.getCachedDocumentationContext(contextCacheKey);
+  if (cachedContext) {
+    console.log('Using cached documentation context');
+    return cachedContext;
+  }
+
   try {
+    const startTime = performance.now();
+    
     // Create documentation service instance for server-side usage
     const documentationService = createDocumentationService(true);
 
@@ -78,11 +98,23 @@ export async function fetchDocumentationContext(
       { maxContentLength }
     );
 
-    return {
+    const result: DocumentationContextData = {
       articles: processedArticles.articles,
       categories: processedArticles.categories,
       totalArticles: contextArticles.length
     };
+
+    // Cache the result
+    const loadTime = performance.now() - startTime;
+    aiCache.cacheDocumentationContext(contextCacheKey, result, {
+      searchQuery,
+      articleId: currentArticleId,
+      maxArticles,
+      maxContentLength,
+    });
+
+    console.log(`Fetched and cached documentation context in ${Math.round(loadTime)}ms`);
+    return result;
   } catch (error) {
     console.error('Error fetching documentation context:', error);
     
@@ -223,13 +255,30 @@ function truncateContent(content: string, maxLength: number): string {
 }
 
 /**
- * Gets context for a specific article and related articles
+ * Gets context for a specific article and related articles with caching
  */
 export async function getArticleContext(
   articleId: string,
   includeRelated: boolean = true
 ): Promise<DocumentationContextData> {
+  // Generate cache key for article context
+  const aiCache = getAICache();
+  const contextCacheKey = aiCache.generateContextCacheKey({
+    articleId,
+    maxArticles: includeRelated ? 6 : 1, // Main article + 5 related
+    maxContentLength: 1000,
+    includeCategories: true,
+  });
+
+  // Try to get from cache first
+  const cachedContext = aiCache.getCachedDocumentationContext(contextCacheKey);
+  if (cachedContext) {
+    console.log(`Using cached article context for ${articleId}`);
+    return cachedContext;
+  }
+
   try {
+    const startTime = performance.now();
     const documentationService = createDocumentationService(true);
     
     // Get the main article
@@ -255,7 +304,18 @@ export async function getArticleContext(
     // Get categories
     const categories = await documentationService.getCategories();
 
-    return extractDocumentationContext(articles, categories);
+    const result = extractDocumentationContext(articles, categories);
+
+    // Cache the result
+    const loadTime = performance.now() - startTime;
+    aiCache.cacheDocumentationContext(contextCacheKey, result, {
+      articleId,
+      maxArticles: includeRelated ? 6 : 1,
+      maxContentLength: 1000,
+    });
+
+    console.log(`Fetched and cached article context for ${articleId} in ${Math.round(loadTime)}ms`);
+    return result;
   } catch (error) {
     console.error('Error getting article context:', error);
     return {
@@ -267,13 +327,14 @@ export async function getArticleContext(
 }
 
 /**
- * Gets context based on a search query
+ * Gets context based on a search query with caching
  */
 export async function getSearchContext(
   searchQuery: string,
   maxResults: number = 10
 ): Promise<DocumentationContextData> {
   try {
+    // Use the main fetchDocumentationContext function which already has caching
     const contextData = await fetchDocumentationContext({
       maxArticles: maxResults,
       searchQuery: searchQuery,

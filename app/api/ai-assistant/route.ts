@@ -9,6 +9,7 @@ import {
   getSearchContext,
   categorizeAIError
 } from '@/lib/ai-documentation-context';
+import { getAICache } from '@/lib/ai-cache';
 
 // Request validation schema
 const AIRequestSchema = z.object({
@@ -523,6 +524,87 @@ export async function POST(request: NextRequest) {
     // Prepare the full prompt
     const fullPrompt = `${message}${contextText}`;
 
+    // Check for cached response
+    const aiCache = getAICache();
+    const contextHash = finalContext ? aiCache.generateContextHash({
+      articles: finalContext.articles || [],
+      categories: finalContext.categories || [],
+      currentArticleId: finalContext.currentArticleId
+    }) : 'no-context';
+
+    const cachedResponse = aiCache.getCachedResponse(message, contextHash);
+    if (cachedResponse) {
+      console.log('Using cached AI response');
+      
+      // Track cache hit
+      if (posthog) {
+        posthog.capture({
+          distinctId: 'anonymous',
+          event: 'ai_response_cache_hit',
+          properties: {
+            session_id: currentSessionId,
+            question_length: message.length,
+            context_hash: contextHash,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+
+      // Return cached response as streaming
+      const encoder = new TextEncoder();
+      const stream = new ReadableStream({
+        start(controller) {
+          // Send cached response as chunks to simulate streaming
+          const chunks = cachedResponse.match(/.{1,50}/g) || [cachedResponse];
+          
+          let chunkIndex = 0;
+          const sendNextChunk = () => {
+            if (chunkIndex < chunks.length) {
+              const chunk = chunks[chunkIndex];
+              const data = JSON.stringify({
+                type: 'chunk',
+                content: chunk,
+                sessionId: currentSessionId
+              });
+              
+              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+              chunkIndex++;
+              
+              // Small delay to simulate streaming
+              setTimeout(sendNextChunk, 50);
+            } else {
+              // Send final response
+              const finalData = JSON.stringify({
+                type: 'complete',
+                content: cachedResponse,
+                sessionId: currentSessionId,
+                usage: {
+                  inputTokens: 0,
+                  outputTokens: 0
+                }
+              });
+              
+              controller.enqueue(encoder.encode(`data: ${finalData}\n\n`));
+              controller.close();
+            }
+          };
+          
+          sendNextChunk();
+        }
+      });
+
+      return new Response(stream, {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'POST',
+          'Access-Control-Allow-Headers': 'Content-Type',
+        },
+      });
+    }
+
     // Generate response with streaming using the models API with retry logic
     const result = await retryWithBackoff(async () => {
       return await genAI.models.generateContentStream({
@@ -560,9 +642,18 @@ export async function POST(request: NextRequest) {
             }
           }
           
+          // Cache the response
+          const responseTime = Date.now() - requestStartTime;
+          aiCache.cacheResponse(
+            message,
+            fullResponse,
+            contextHash,
+            currentSessionId,
+            responseTime
+          );
+
           // Track successful AI response (server-side)
           if (posthog) {
-            const responseTime = Date.now() - requestStartTime;
             posthog.capture({
               distinctId: 'anonymous',
               event: 'ai_response_generated_server',
@@ -572,6 +663,8 @@ export async function POST(request: NextRequest) {
                 success: true,
                 response_length: fullResponse.length,
                 response_type: 'streaming',
+                cached: false,
+                context_hash: contextHash,
                 timestamp: new Date().toISOString()
               }
             });

@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { usePostHog } from 'posthog-js/react';
 import { useNetworkStatus } from './use-network-status';
 import { useRetry } from './use-retry';
+import { useAICacheClient, useAICacheWarming } from './use-ai-cache-client';
 import { validateAIInput, validateAIContext, sanitizeInput, getInputSuggestions } from '@/lib/ai-input-validation';
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
 
@@ -70,9 +71,12 @@ export function useEnhancedAIAssistant(
   const posthog = usePostHog();
   const networkStatus = useNetworkStatus();
   const { retry, state: retryState, reset: resetRetry } = useRetry();
+  const { cacheResponse, getCachedResponse, hasCachedResponse, stats: cacheStats } = useAICacheClient();
+  const { preloadFrequentQueries } = useAICacheWarming();
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastUserMessageRef = useRef<string>('');
+  const contextHashRef = useRef<string>('');
 
   // Initialize session when component mounts
   useEffect(() => {
@@ -84,6 +88,39 @@ export function useEnhancedAIAssistant(
       }));
     }
   }, [state.sessionId]);
+
+  // Preload frequent queries when documentation context changes
+  useEffect(() => {
+    if (documentationContext.length > 0 && networkStatus.isOnline) {
+      const contextHash = generateContextHash(documentationContext);
+      
+      // Preload common queries in the background
+      preloadFrequentQueries(contextHash, async (query: string) => {
+        try {
+          const response = await fetch('/api/ai-assistant', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: query,
+              context: documentationContext,
+              sessionId: state.sessionId || generateSessionId()
+            })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            return data.response || '';
+          }
+          throw new Error('Failed to preload query');
+        } catch (error) {
+          console.warn('Failed to preload query:', query, error);
+          throw error;
+        }
+      }).catch(error => {
+        console.warn('Cache warming failed:', error);
+      });
+    }
+  }, [documentationContext, networkStatus.isOnline, preloadFrequentQueries, state.sessionId]);
 
   // Monitor network status and handle reconnection
   useEffect(() => {
@@ -161,6 +198,57 @@ export function useEnhancedAIAssistant(
 
     const requestStartTime = Date.now();
     const sessionId = state.sessionId || generateSessionId();
+
+    // Generate context hash for caching
+    const contextHash = generateContextHash(documentationContext);
+    contextHashRef.current = contextHash;
+
+    // Check for cached response first
+    const cachedResponse = getCachedResponse(sanitizedMessage, contextHash);
+    if (cachedResponse) {
+      console.log('Using cached AI response');
+      
+      // Track cache hit
+      if (posthog && posthog.has_opted_in_capturing?.()) {
+        posthog.capture('ai_response_cache_hit', {
+          session_id: sessionId,
+          question_length: sanitizedMessage.length,
+          context_hash: contextHash,
+          cache_stats: cacheStats,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Add user message
+      const userMessage: ChatMessage = {
+        id: generateMessageId(),
+        role: 'user',
+        content: sanitizedMessage,
+        timestamp: new Date(),
+        validationWarning: state.validationWarning || undefined
+      };
+
+      // Add cached assistant message
+      const assistantMessage: ChatMessage = {
+        id: generateMessageId(),
+        role: 'assistant',
+        content: cachedResponse,
+        timestamp: new Date()
+      };
+
+      setState(prev => ({
+        ...prev,
+        messages: [...prev.messages, userMessage, assistantMessage],
+        inputValue: '',
+        error: null,
+        validationError: null,
+        validationWarning: null,
+        inputSuggestions: [],
+        fallbackToSearch: false
+      }));
+
+      return;
+    }
 
     // Track question submitted event
     if (posthog && posthog.has_opted_in_capturing?.()) {
@@ -456,6 +544,11 @@ export function useEnhancedAIAssistant(
                   hasReceivedContent = true;
                 }
                 
+                // Cache the response
+                if (data.content) {
+                  cacheResponse(sanitizedMessage, data.content, contextHashRef.current);
+                }
+
                 // Track successful streaming response
                 if (posthog && posthog.has_opted_in_capturing?.()) {
                   const responseTime = Date.now() - requestStartTime;
@@ -464,6 +557,9 @@ export function useEnhancedAIAssistant(
                     session_id: sessionId,
                     success: true,
                     response_type: 'streaming',
+                    cached: false,
+                    context_hash: contextHashRef.current,
+                    cache_stats: cacheStats,
                     timestamp: new Date().toISOString()
                   });
                 }
@@ -496,6 +592,29 @@ export function useEnhancedAIAssistant(
     networkStatus,
     retryState
   };
+}
+
+/**
+ * Generate context hash for caching
+ */
+function generateContextHash(documentationContext: any[]): string {
+  if (!documentationContext || documentationContext.length === 0) {
+    return 'no-context';
+  }
+
+  const contextString = JSON.stringify({
+    articleIds: documentationContext.map(article => article.id || article.titel).sort(),
+    count: documentationContext.length
+  });
+
+  // Simple hash function
+  let hash = 0;
+  for (let i = 0; i < contextString.length; i++) {
+    const char = contextString.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(36);
 }
 
 /**
