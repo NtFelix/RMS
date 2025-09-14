@@ -5,6 +5,7 @@ import { useRetry } from './use-retry';
 import { useAICacheClient, useAICacheWarming } from './use-ai-cache-client';
 import { validateAIInput, validateAIContext, sanitizeInput, getInputSuggestions } from '@/lib/ai-input-validation';
 import { categorizeAIError, trackAIRequestFailure, type AIErrorDetails } from '@/lib/ai-documentation-context';
+import { createAIPerformanceMonitor, type AIPerformanceMetrics } from '@/lib/ai-performance-monitor';
 
 export interface ChatMessage {
   id: string;
@@ -73,6 +74,9 @@ export function useEnhancedAIAssistant(
   const { retry, state: retryState, reset: resetRetry } = useRetry();
   const { cacheResponse, getCachedResponse, hasCachedResponse, stats: cacheStats } = useAICacheClient();
   const { preloadFrequentQueries } = useAICacheWarming();
+  
+  // Performance monitoring
+  const performanceMonitor = useRef(createAIPerformanceMonitor(posthog));
   
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastUserMessageRef = useRef<string>('');
@@ -203,10 +207,20 @@ export function useEnhancedAIAssistant(
     const contextHash = generateContextHash(documentationContext);
     contextHashRef.current = contextHash;
 
+    // Start performance tracking
+    performanceMonitor.current.startRequest(sessionId, {
+      message: sanitizedMessage,
+      contextSize: JSON.stringify(documentationContext).length,
+      cacheHit: false
+    });
+
     // Check for cached response first
     const cachedResponse = getCachedResponse(sanitizedMessage, contextHash);
     if (cachedResponse) {
       console.log('Using cached AI response');
+      
+      // Update performance tracking for cache hit
+      performanceMonitor.current.completeRequest(sessionId, true);
       
       // Track cache hit
       if (posthog && posthog.has_opted_in_capturing?.()) {
@@ -340,11 +354,15 @@ export function useEnhancedAIAssistant(
         // Handle streaming response
         const contentType = response.headers.get('content-type');
         if (contentType?.includes('text/event-stream')) {
+          performanceMonitor.current.trackStreamingStart(sessionId);
           await handleStreamingResponse(response, assistantMessageId, sessionId, requestStartTime);
         } else {
           // Fallback to regular JSON response
           const data = await response.json();
           updateAssistantMessage(assistantMessageId, data.response || 'Entschuldigung, ich konnte keine Antwort generieren.');
+          
+          // Complete performance tracking
+          performanceMonitor.current.completeRequest(sessionId, true);
           
           // Track successful response
           if (posthog && posthog.has_opted_in_capturing?.()) {
@@ -377,6 +395,16 @@ export function useEnhancedAIAssistant(
         failureStage: 'client_request'
       });
       
+      // Track error in performance monitor
+      performanceMonitor.current.trackError(sessionId, {
+        type: errorDetails.errorType,
+        message: errorDetails.errorMessage,
+        retryable: errorDetails.retryable
+      });
+      
+      // Complete performance tracking with error
+      performanceMonitor.current.completeRequest(sessionId, false);
+
       // Get user-friendly error message in German
       let errorMessage = getGermanErrorMessage(errorDetails);
       let shouldFallback = false;
@@ -435,10 +463,12 @@ export function useEnhancedAIAssistant(
   // Retry last message
   const retryLastMessage = useCallback(async () => {
     if (lastUserMessageRef.current) {
+      const sessionId = state.sessionId || generateSessionId();
+      performanceMonitor.current.trackRetry(sessionId, (retryState.attemptCount || 0) + 1);
       setState(prev => ({ ...prev, error: null }));
       await sendMessage(lastUserMessageRef.current);
     }
-  }, [sendMessage]);
+  }, [sendMessage, state.sessionId, retryState.attemptCount]);
 
   // Clear messages
   const clearMessages = useCallback(() => {
@@ -536,8 +566,12 @@ export function useEnhancedAIAssistant(
               const data = JSON.parse(dataStr);
               
               if (data.type === 'chunk' && data.content) {
+                if (!hasReceivedContent) {
+                  performanceMonitor.current.trackFirstChunk(sessionId);
+                  hasReceivedContent = true;
+                }
+                performanceMonitor.current.trackChunk(sessionId, data.content.length);
                 appendToAssistantMessage(messageId, data.content);
-                hasReceivedContent = true;
               } else if (data.type === 'complete') {
                 if (data.content) {
                   updateAssistantMessage(messageId, data.content);
@@ -548,6 +582,9 @@ export function useEnhancedAIAssistant(
                 if (data.content) {
                   cacheResponse(sanitizedMessage, data.content, contextHashRef.current);
                 }
+
+                // Complete performance tracking
+                performanceMonitor.current.completeRequest(sessionId, true);
 
                 // Track successful streaming response
                 if (posthog && posthog.has_opted_in_capturing?.()) {

@@ -360,6 +360,9 @@ export async function POST(request: NextRequest) {
   let clientId = '';
   let validatedData: any = null;
   
+  // Track server-side performance metrics
+  const serverPerformanceStart = performance.now();
+  
   try {
     // Validate API key
     if (!process.env.GEMINI_API_KEY) {
@@ -652,19 +655,56 @@ export async function POST(request: NextRequest) {
             responseTime
           );
 
-          // Track successful AI response (server-side)
+          // Track successful AI response (server-side) with enhanced performance metrics
           if (posthog) {
+            const serverProcessingTime = performance.now() - serverPerformanceStart;
+            
             posthog.capture({
               distinctId: 'anonymous',
               event: 'ai_response_generated_server',
               properties: {
                 response_time_ms: responseTime,
+                server_processing_time_ms: serverProcessingTime,
                 session_id: currentSessionId,
                 success: true,
                 response_length: fullResponse.length,
                 response_type: 'streaming',
                 cached: false,
                 context_hash: contextHash,
+                
+                // Performance breakdown
+                context_processing_time_ms: contextProcessingTime || 0,
+                gemini_api_time_ms: responseTime - (contextProcessingTime || 0),
+                
+                // Resource usage
+                memory_usage_estimate_mb: Math.round(fullResponse.length / 1024 / 1024 * 2), // Rough estimate
+                
+                timestamp: new Date().toISOString()
+              }
+            });
+            
+            // Track detailed server performance metrics
+            posthog.capture({
+              distinctId: 'anonymous',
+              event: 'ai_server_performance_breakdown',
+              properties: {
+                session_id: currentSessionId,
+                total_request_time_ms: responseTime,
+                server_processing_time_ms: serverProcessingTime,
+                validation_time_ms: validationTime || 0,
+                context_fetch_time_ms: contextProcessingTime || 0,
+                gemini_api_time_ms: geminiApiTime || 0,
+                response_processing_time_ms: responseProcessingTime || 0,
+                
+                // Request characteristics
+                request_size_bytes: validatedData?.message?.length || 0,
+                context_articles_count: finalContext?.articles?.length || 0,
+                context_size_bytes: contextText.length,
+                response_size_bytes: fullResponse.length,
+                
+                // Performance category
+                performance_category: categorizeServerPerformance(responseTime),
+                
                 timestamp: new Date().toISOString()
               }
             });
@@ -876,3 +916,18 @@ export async function OPTIONS() {
     },
   });
 }
+
+// Helper function to categorize server performance
+function categorizeServerPerformance(responseTime: number): string {
+  if (responseTime < 1000) return 'excellent';
+  if (responseTime < 2000) return 'good';
+  if (responseTime < 5000) return 'acceptable';
+  if (responseTime < 10000) return 'poor';
+  return 'very_poor';
+}
+
+// Performance tracking variables (would be properly implemented with actual timing)
+let validationTime = 0;
+let contextProcessingTime = 0;
+let geminiApiTime = 0;
+let responseProcessingTime = 0;

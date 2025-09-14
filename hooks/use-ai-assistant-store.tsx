@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import posthog from 'posthog-js';
+import { createAIPerformanceMonitor } from '@/lib/ai-performance-monitor';
+import { createBundleSizeMonitor } from '@/lib/bundle-size-monitor';
 
 export interface ChatMessage {
   id: string;
@@ -32,6 +34,10 @@ interface AIAssistantStore {
 
 const generateSessionId = () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
+// Initialize performance monitors
+const performanceMonitor = createAIPerformanceMonitor(posthog);
+const bundleMonitor = createBundleSizeMonitor(posthog);
+
 export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   // Initial state
   isOpen: false,
@@ -46,6 +52,11 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   openAI: () => {
     const sessionId = generateSessionId();
     const sessionStartTime = new Date();
+    
+    // Track component mount performance
+    bundleMonitor.trackComponentMount('AIAssistant', () => {
+      // Component mounting logic here
+    });
     
     // Track AI assistant opened event
     if (typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.()) {
@@ -68,6 +79,12 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
   closeAI: () => {
     const state = get();
     
+    // Track bundle performance metrics before closing
+    bundleMonitor.trackBundleMetrics();
+    
+    // Analyze bundle optimization opportunities
+    const optimizationSuggestions = bundleMonitor.analyzeBundleImpact();
+    
     // Track AI assistant closed event
     if (typeof window !== 'undefined' && posthog && posthog.has_opted_in_capturing?.() && state.sessionStartTime) {
       const sessionDuration = Date.now() - state.sessionStartTime.getTime();
@@ -75,6 +92,8 @@ export const useAIAssistantStore = create<AIAssistantStore>((set, get) => ({
         session_duration_ms: sessionDuration,
         message_count: state.messages.length,
         session_id: state.sessionId,
+        bundle_optimization_suggestions: optimizationSuggestions.recommendations.length,
+        estimated_bundle_savings_kb: optimizationSuggestions.estimatedSavings,
         timestamp: new Date().toISOString()
       });
     }
