@@ -291,26 +291,28 @@ export function AIAssistantModal() {
     <Dialog open={isAIAssistantModalOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
-          <DialogTitle className="mt-1">
-            Mietfluss AI Assistent
-          </DialogTitle>
+          <div className="flex items-center justify-between mt-3">
+            <DialogTitle className="text-lg font-semibold leading-none tracking-tight">
+              Mietfluss AI Assistent
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {messages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearMessages}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Unterhaltung löschen (Strg+K)"
+                  title="Unterhaltung löschen (Strg+K)"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
           <DialogDescription className="sr-only">
             AI-Assistent für Fragen zu Mietfluss-Funktionen und Immobilienverwaltung
           </DialogDescription>
-          <div className="flex items-center gap-2 mt-2">
-            {messages.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearMessages}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label="Unterhaltung löschen (Strg+K)"
-                title="Unterhaltung löschen (Strg+K)"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
         </DialogHeader>
 
         {/* Messages Area */}
