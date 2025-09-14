@@ -170,22 +170,26 @@ export function DocumentationTableOfContents({
         <div className="space-y-1 overflow-hidden">
           {/* All Articles Button */}
           <Button
-            variant={selectedCategory === null ? "default" : "ghost"}
+            variant="ghost"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
               onCategorySelect(null);
             }}
-            className="w-full justify-start h-10 p-3 text-left hover:bg-primary/15 hover:shadow-md transition-all duration-300 overflow-hidden rounded-lg border border-transparent hover:border-primary/30 group"
+            className={`w-full justify-start h-10 p-3 text-left transition-all duration-300 overflow-hidden rounded-lg border group ${
+              selectedCategory === null 
+                ? "bg-primary hover:bg-primary/90 border-primary/30" 
+                : "bg-primary/80 hover:bg-primary border-primary/20 hover:border-primary/30"
+            }`}
           >
             <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
               <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/25 transition-all duration-300">
-                  <FileText className="h-3.5 w-3.5 text-primary group-hover:text-primary/80 transition-colors duration-300" />
+                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition-colors duration-300">
+                  <FileText className="h-4 w-4 text-white" strokeWidth={2} />
                 </div>
-                <span className="text-sm font-medium truncate group-hover:text-primary group-hover:font-semibold transition-all duration-300">Alle Artikel</span>
+                <span className="text-sm font-semibold truncate text-white">Alle Artikel</span>
               </div>
-              <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20 group-hover:bg-primary/25 group-hover:border-primary/40 group-hover:text-primary/90 transition-all duration-300">
+              <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-white/20 text-white border-white/30 font-semibold group-hover:bg-white/30 transition-colors duration-300">
                 {articles.length}
               </Badge>
             </div>

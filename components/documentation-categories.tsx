@@ -103,19 +103,25 @@ export function DocumentationCategories({
       
       {/* All Articles Button */}
       <Button
-        variant={selectedCategory === null ? "default" : "ghost"}
+        variant="ghost"
         onClick={() => handleCategorySelect(null)}
-        className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group hover:bg-primary/15 hover:shadow-md transition-all duration-300 rounded-lg border border-transparent hover:border-primary/30"
+        className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border ${
+          selectedCategory === null 
+            ? "bg-primary hover:bg-primary/90 border-primary/30" 
+            : "bg-primary/80 hover:bg-primary border-primary/20 hover:border-primary/30"
+        }`}
         aria-pressed={selectedCategory === null}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <FolderOpen className="h-4 w-4 flex-shrink-0 group-hover:text-primary transition-colors duration-300" />
-          <span className="text-left text-sm font-medium group-hover:text-primary group-hover:font-semibold transition-all duration-300">Alle Artikel</span>
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition-colors duration-300">
+            <FolderOpen className="h-4 w-4 text-white" strokeWidth={2} />
+          </div>
+          <span className="text-left text-sm font-semibold text-white">Alle Artikel</span>
         </div>
         <Badge 
           variant="secondary" 
-          className="ml-2 flex-shrink-0 text-xs group-hover:bg-primary/25 group-hover:border-primary/40 group-hover:text-primary/90 transition-all duration-300"
+          className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-white/20 text-white border-white/30 font-semibold group-hover:bg-white/30 transition-colors duration-300"
         >
           {totalArticleCount}
         </Badge>
