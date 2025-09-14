@@ -291,14 +291,7 @@ export function AIAssistantModal() {
     <Dialog open={isAIAssistantModalOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
-          <DialogTitle className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center p-1">
-              <img 
-                src="/mascot/normal.png" 
-                alt="Mietfluss Maskottchen" 
-                className="w-full h-full object-contain"
-              />
-            </div>
+          <DialogTitle>
             Mietfluss AI Assistent
           </DialogTitle>
           <DialogDescription className="sr-only">
@@ -328,7 +321,7 @@ export function AIAssistantModal() {
                 <img 
                   src="/mascot/normal.png" 
                   alt="Mietfluss AI Assistent Maskottchen" 
-                  className="w-16 h-16 mx-auto mb-4 object-contain"
+                  className="w-24 h-24 mx-auto mb-4 object-contain"
                 />
                 <h3 className="font-medium text-foreground mb-2">
                   Willkommen beim Mietfluss AI Assistenten
