@@ -157,10 +157,12 @@ export function DocumentationTableOfContents({
   }
 
   return (
-    <Card className={`shadow-lg border-0 bg-card/50 backdrop-blur-sm overflow-hidden ${className}`}>
-      <CardHeader className="pb-4">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <FolderOpen className="h-5 w-5" />
+    <Card className={`border-2 border-input bg-background shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden ${className}`}>
+      <CardHeader className="pb-4 bg-muted/30 border-b border-border">
+        <CardTitle className="text-lg font-semibold flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+            <FolderOpen className="h-4 w-4 text-primary" />
+          </div>
           Inhaltsverzeichnis
         </CardTitle>
       </CardHeader>
@@ -174,14 +176,16 @@ export function DocumentationTableOfContents({
               e.stopPropagation();
               onCategorySelect(null);
             }}
-            className="w-full justify-start h-8 p-2 text-left hover:bg-muted/50 transition-colors duration-200 overflow-hidden"
+            className="w-full justify-start h-10 p-3 text-left hover:bg-primary/10 hover:scale-[1.01] transition-all duration-300 overflow-hidden rounded-lg border border-transparent hover:border-primary/20"
           >
             <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
-              <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                <FileText className="h-3.5 w-3.5 flex-shrink-0" />
+              <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <FileText className="h-3.5 w-3.5 text-primary" />
+                </div>
                 <span className="text-sm font-medium truncate">Alle Artikel</span>
               </div>
-              <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
+              <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20">
                 {articles.length}
               </Badge>
             </div>
@@ -191,19 +195,19 @@ export function DocumentationTableOfContents({
           {categoriesWithArticles.map((category) => (
             <div key={category.name} className="space-y-1">
               {/* Category Header */}
-              <div className="flex items-center w-full overflow-hidden">
+              <div className="flex items-center w-full overflow-hidden rounded-lg border border-transparent hover:border-primary/20 hover:bg-primary/5 transition-all duration-300 group">
                 {/* Expand/Collapse Button */}
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={(e) => toggleCategory(category.name, e)}
-                  className="p-1.5 h-8 w-8 hover:bg-muted/50 transition-colors duration-200 flex-shrink-0"
+                  className="p-2 h-10 w-10 hover:bg-primary/10 hover:scale-110 transition-all duration-300 flex-shrink-0 rounded-full"
                 >
                   <motion.div
                     animate={{ rotate: category.isExpanded ? 90 : 0 }}
-                    transition={{ duration: 0.2, ease: "easeInOut" }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
                   >
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-4 w-4 text-primary" />
                   </motion.div>
                 </Button>
                 
@@ -211,19 +215,21 @@ export function DocumentationTableOfContents({
                 <Button
                   variant={selectedCategory === category.name ? "secondary" : "ghost"}
                   onClick={(e) => handleCategorySelect(category.name, e)}
-                  className="flex-1 justify-start h-8 p-2 text-left hover:bg-muted/50 transition-colors duration-200 min-w-0 overflow-hidden"
+                  className="flex-1 justify-start h-10 p-3 text-left hover:bg-transparent transition-all duration-300 min-w-0 overflow-hidden"
                 >
                   <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
-                    <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                      <Folder className="h-3.5 w-3.5 flex-shrink-0" />
+                    <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                        <Folder className="h-3.5 w-3.5 text-primary" />
+                      </div>
                       <span 
-                        className="text-sm font-medium truncate"
+                        className="text-sm font-medium truncate group-hover:text-primary transition-colors"
                         title={category.name}
                       >
                         {category.name}
                       </span>
                     </div>
-                    <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs">
+                    <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20 group-hover:bg-primary/20 transition-colors">
                       {category.articles.length}
                     </Badge>
                   </div>
@@ -244,7 +250,7 @@ export function DocumentationTableOfContents({
                     }}
                     className="overflow-hidden"
                   >
-                    <div className="ml-6 space-y-1 pb-1">
+                    <div className="ml-8 space-y-2 pb-2">
                       {category.articles.map((article, index) => (
                         <motion.div
                           key={article.id}
@@ -259,12 +265,14 @@ export function DocumentationTableOfContents({
                           <Button
                             variant={selectedArticle?.id === article.id ? "default" : "ghost"}
                             onClick={(e) => handleArticleClick(article, e)}
-                            className="w-full justify-start h-7 p-2 text-left text-xs hover:bg-muted/30 transition-colors duration-150 overflow-hidden"
+                            className="w-full justify-start h-8 p-2 text-left text-sm hover:bg-primary/10 hover:scale-[1.01] transition-all duration-300 overflow-hidden rounded-md border border-transparent hover:border-primary/20"
                           >
                             <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                              <FileText className="h-3 w-3 flex-shrink-0 opacity-60" />
+                              <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <FileText className="h-2.5 w-2.5 text-primary" />
+                              </div>
                               <span 
-                                className="truncate"
+                                className="truncate hover:text-primary transition-colors"
                                 title={article.titel}
                               >
                                 {article.titel}
