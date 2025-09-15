@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import posthog from 'posthog-js';
+import { createClient } from '@/utils/supabase/server';
 import { 
   fetchDocumentationContext, 
   processContextForAI, 
@@ -366,6 +367,8 @@ export async function POST(request: NextRequest) {
   let currentSessionId = '';
   let clientId = '';
   let validatedData: any = null;
+  let userIdentifier = 'anonymous'; // Default fallback
+  let traceId = '';
   
   // Track server-side performance metrics
   const serverPerformanceStart = performance.now();
@@ -376,6 +379,15 @@ export async function POST(request: NextRequest) {
       console.error('GEMINI_API_KEY is not configured');
       const { response } = createErrorResponse('API key not configured', {});
       return response;
+    }
+
+    // Authenticate user
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
     // Parse and validate request body
@@ -394,8 +406,14 @@ export async function POST(request: NextRequest) {
     
     const { message, context, contextOptions, sessionId } = validatedData;
 
-    // Generate session ID if not provided
-    currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate session ID if not provided - include user ID for uniqueness
+    currentSessionId = sessionId || `session_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // User identification for PostHog events
+    userIdentifier = user.email || user.id;
+    
+    // Generate unique trace ID for this AI generation
+    traceId = `trace_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Get client identifier for rate limiting
     clientId = request.headers.get('x-forwarded-for') || 
@@ -423,7 +441,7 @@ export async function POST(request: NextRequest) {
       // Track rate limit event
       if (posthogClient) {
         posthogClient.capture('ai_request_failed', {
-          distinct_id: 'anonymous',
+          distinct_id: userIdentifier,
           session_id: currentSessionId,
           error_type: 'rate_limit',
           error_code: 'RATE_LIMIT',
@@ -447,7 +465,7 @@ export async function POST(request: NextRequest) {
     // Track AI question submitted event (server-side)
     if (posthogClient) {
       posthogClient.capture('ai_question_submitted_server', {
-        distinct_id: 'anonymous', // Could be enhanced with user ID if available
+        distinct_id: userIdentifier, // Could be enhanced with user ID if available
         question_length: message.length,
         session_id: currentSessionId,
         has_context: !!(context?.articles && context.articles.length > 0),
@@ -459,10 +477,10 @@ export async function POST(request: NextRequest) {
       });
 
       // Track LLM Generation start (server-side)
-      const generationId = `server_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const generationId = `server_gen_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       posthogClient.capture('$ai_generation', {
-        distinct_id: 'anonymous',
-        $ai_trace_id: currentSessionId,
+        distinct_id: userIdentifier,
+        $ai_trace_id: traceId,
         $ai_model: 'gemini-2.5-flash-lite',
         $ai_provider: 'google',
         $ai_input: [{ role: 'user', content: message }],
@@ -513,7 +531,7 @@ export async function POST(request: NextRequest) {
         // Track context fetch failure
         if (posthogClient) {
           posthogClient.capture('ai_context_fetch_failed', {
-            distinct_id: 'anonymous',
+            distinct_id: userIdentifier,
             session_id: currentSessionId,
             error_message: error instanceof Error ? error.message : String(error),
             timestamp: new Date().toISOString()
@@ -558,7 +576,7 @@ export async function POST(request: NextRequest) {
       // Track cache hit
       if (posthogClient) {
         posthogClient.capture('ai_response_cache_hit', {
-          distinct_id: 'anonymous',
+          distinct_id: userIdentifier,
           session_id: currentSessionId,
           question_length: message.length,
           context_hash: contextHash,
@@ -682,7 +700,7 @@ export async function POST(request: NextRequest) {
             const serverProcessingTime = performance.now() - serverPerformanceStart;
             
             posthogClient.capture('ai_response_generated_server', {
-              distinct_id: 'anonymous',
+              distinct_id: userIdentifier,
               response_time_ms: responseTime,
               server_processing_time_ms: serverProcessingTime,
               session_id: currentSessionId,
@@ -704,8 +722,8 @@ export async function POST(request: NextRequest) {
 
             // Track LLM Generation completion (server-side)
             posthogClient.capture('$ai_generation', {
-              distinct_id: 'anonymous',
-              $ai_trace_id: currentSessionId,
+              distinct_id: userIdentifier,
+              $ai_trace_id: traceId,
               $ai_model: 'gemini-2.5-flash-lite',
               $ai_provider: 'google',
               $ai_input: [{ role: 'user', content: message }],
@@ -727,7 +745,7 @@ export async function POST(request: NextRequest) {
             
             // Track detailed server performance metrics
             posthogClient.capture('ai_server_performance_breakdown', {
-              distinct_id: 'anonymous',
+              distinct_id: userIdentifier,
                 session_id: currentSessionId,
                 total_request_time_ms: responseTime,
                 server_processing_time_ms: serverProcessingTime,
@@ -797,7 +815,7 @@ export async function POST(request: NextRequest) {
 
             // Track the enhanced ai_request_failed event for streaming errors
             posthogClient.capture('ai_request_failed', {
-              distinct_id: 'anonymous',
+              distinct_id: userIdentifier,
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
                 error_type: streamingErrorDetails.errorType,
@@ -813,8 +831,8 @@ export async function POST(request: NextRequest) {
 
             // Track LLM Generation error (server-side)
             posthogClient.capture('$ai_generation', {
-              distinct_id: 'anonymous',
-                $ai_trace_id: currentSessionId,
+              distinct_id: userIdentifier,
+                $ai_trace_id: traceId,
                 $ai_model: 'gemini-2.5-flash-lite',
                 $ai_provider: 'google',
                 $ai_input: [{ role: 'user', content: message }],
@@ -836,7 +854,7 @@ export async function POST(request: NextRequest) {
 
             // Also track the legacy event for backward compatibility
             posthogClient.capture('ai_response_generated_server', {
-              distinct_id: 'anonymous',
+              distinct_id: userIdentifier,
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
                 success: false,
@@ -921,7 +939,7 @@ export async function POST(request: NextRequest) {
 
       // Track the enhanced ai_request_failed event
       posthogClient.capture('ai_request_failed', {
-        distinct_id: 'anonymous',
+        distinct_id: userIdentifier,
           response_time_ms: responseTime,
           session_id: currentSessionId,
           error_type: finalErrorDetails.errorType,
@@ -941,7 +959,7 @@ export async function POST(request: NextRequest) {
 
       // Also track the legacy event for backward compatibility
       posthogClient.capture('ai_response_generated_server', {
-        distinct_id: 'anonymous',
+        distinct_id: userIdentifier,
           response_time_ms: responseTime,
           session_id: currentSessionId,
           success: false,
