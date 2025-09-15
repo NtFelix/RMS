@@ -162,9 +162,10 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
   // Handle template save (create or update)
   const handleSaveTemplate = async (templateData: Partial<Template>) => {
     const currentTemplate = templateEditorData?.template;
+    const templateId = (templateData as any).id || currentTemplate?.id;
     
     try {
-      if (!currentTemplate) {
+      if (!templateId) {
         setIsCreating(true);
       }
 
@@ -175,8 +176,8 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
         kontext_anforderungen: templateData.kontext_anforderungen || [],
       };
 
-      if (currentTemplate) {
-        await updateTemplate(currentTemplate.id, payload);
+      if (templateId) {
+        await updateTemplate(templateId, payload);
         announceTemplateUpdated();
         toast({
           title: 'Erfolg',
@@ -206,7 +207,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
       // Re-throw to let the modal handle it
       throw error;
     } finally {
-      if (!currentTemplate) {
+      if (!templateId) {
         setIsCreating(false);
       }
     }

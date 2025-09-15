@@ -244,7 +244,9 @@ export function TemplateEditorModal({
         return;
       }
 
-      await onSave(templatePayload);
+      // Pass the template ID along with the payload if we're editing an existing template
+      const saveData = template ? { ...templatePayload, id: template.id } : templatePayload;
+      await onSave(saveData);
       setTemplateEditorModalDirty(false);
     } catch (error) {
       console.error('Error saving template:', error);
