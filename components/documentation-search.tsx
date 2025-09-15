@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, X, AlertCircle } from 'lucide-react';
+import { Search, X, AlertCircle, Atom, Users, Euro, Home, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { useDebounce } from '@/hooks/use-debounce';
 import { useErrorHandler } from '@/components/documentation-error-boundary';
+import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { useModalStore } from '@/hooks/use-modal-store';
+import { cn } from '@/lib/utils';
 
 interface SearchProps {
   onSearch: (query: string) => void;
@@ -15,6 +19,8 @@ interface SearchProps {
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  documentationContext?: any;
+  onFallbackToSearch?: () => void;
 }
 
 export function DocumentationSearch({ 
@@ -23,12 +29,24 @@ export function DocumentationSearch({
   className = "",
   isLoading = false,
   error = null,
-  onRetry
+  onRetry,
+  documentationContext,
+  onFallbackToSearch
 }: SearchProps) {
   const [query, setQuery] = useState('');
   const debouncedQuery = useDebounce(query, 300);
   const inputRef = useRef<HTMLInputElement>(null);
   const { handleError } = useErrorHandler();
+  
+  // AI Assistant store
+  const { 
+    currentMode, 
+    switchToAI, 
+    switchToSearch
+  } = useAIAssistantStore();
+
+  // Modal store
+  const { openAIAssistantModal } = useModalStore();
 
   useEffect(() => {
     try {
@@ -56,46 +74,109 @@ export function DocumentationSearch({
     }
   }, [onRetry]);
 
+  const handleAIToggle = useCallback(() => {
+    if (currentMode === 'ai') {
+      switchToSearch();
+    } else {
+      // Clear current search when switching to AI mode
+      setQuery('');
+      onSearch('');
+      switchToAI();
+      // Open the AI assistant modal instead of the old interface
+      openAIAssistantModal({
+        documentationContext,
+        onFallbackToSearch: onFallbackToSearch || (() => {
+          switchToSearch();
+        })
+      });
+    }
+  }, [currentMode, switchToSearch, switchToAI, openAIAssistantModal, onSearch]);
+
   return (
     <div className={`space-y-3 ${className}`}>
-      <div className="relative group">
-        <div className="absolute left-5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-gray-100/80 dark:bg-primary/10 flex items-center justify-center transition-all duration-200 group-focus-within:bg-primary/20 group-hover:bg-primary/15">
-          <Search className={`h-6 w-6 transition-colors ${
-            isLoading 
-              ? 'text-primary animate-pulse' 
-              : query 
-                ? 'text-primary' 
-                : 'text-primary/70 group-focus-within:text-primary group-hover:text-primary/90'
-          }`} />
+      <div className="relative">
+        <div className={cn(
+          "relative bg-background border-2 border-input rounded-full px-6 py-4 shadow-sm transition-all duration-200 focus-within:border-ring hover:shadow-md hover:scale-[1.01]",
+          currentMode === 'ai' && "border-primary/50 bg-primary/5"
+        )}>
+          {/* Search Icon */}
+          <div className="absolute left-6 top-1/2 -translate-y-1/2 flex items-center justify-center">
+            <Search className={cn(
+              "h-6 w-6 transition-colors",
+              isLoading 
+                ? 'text-primary animate-pulse' 
+                : query 
+                  ? 'text-primary' 
+                  : 'text-muted-foreground'
+            )} />
+          </div>
+
+          {/* Input Field */}
+          <Input
+            ref={inputRef}
+            type="text"
+            placeholder={currentMode === 'ai' ? "AI Assistent ist aktiv - Klicken Sie auf das Atom-Symbol" : placeholder}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="border-0 bg-transparent pl-12 pr-32 text-xl focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/70"
+            disabled={isLoading || currentMode === 'ai'}
+            aria-label="Dokumentation durchsuchen"
+            aria-describedby={error ? "search-error" : undefined}
+          />
+
+          {/* Right Side Buttons */}
+          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+            {/* Clear Button */}
+            {query && currentMode !== 'ai' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClear}
+                className="h-12 w-12 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 hover:bg-primary/10 text-muted-foreground hover:text-primary hover:shadow-md"
+                disabled={isLoading}
+                aria-label="Suche löschen"
+              >
+                <X className="h-6 w-6" />
+              </Button>
+            )}
+
+            {/* AI Toggle Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAIToggle}
+              className={cn(
+                "h-12 w-12 p-0 rounded-full transition-all duration-300 hover:scale-105 active:scale-95",
+                currentMode === 'ai' 
+                  ? "bg-primary/20 hover:bg-primary/30 text-primary shadow-md hover:shadow-lg" 
+                  : "hover:bg-primary/10 text-muted-foreground hover:text-primary hover:shadow-md"
+              )}
+              disabled={isLoading}
+              aria-label={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
+              title={currentMode === 'ai' ? "Zur normalen Suche wechseln" : "AI Assistent öffnen"}
+            >
+              <Atom className="h-6 w-6" />
+            </Button>
+          </div>
         </div>
-        <Input
-          ref={inputRef}
-          type="text"
-          placeholder={placeholder}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="h-16 pl-24 pr-16 text-lg rounded-full border-2 border-border/50 bg-gray-50/90 dark:bg-background/80 backdrop-blur-sm shadow-lg transition-all duration-200 focus:border-primary focus:shadow-xl focus:bg-white dark:focus:bg-background placeholder:text-muted-foreground/70"
-          disabled={isLoading}
-          aria-label="Dokumentation durchsuchen"
-          aria-describedby={error ? "search-error" : undefined}
-        />
-        {query && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClear}
-            className="absolute right-4 top-1/2 h-10 w-10 -translate-y-1/2 p-0 hover:bg-gray-200/80 dark:hover:bg-muted/80 rounded-full transition-colors"
-            disabled={isLoading}
-            aria-label="Suche löschen"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        )}
         
         {/* Subtle glow effect */}
         <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary/10 via-transparent to-primary/10 opacity-0 group-focus-within:opacity-100 transition-opacity duration-300 pointer-events-none" />
       </div>
+
+      {/* Mode Indicator */}
+      {currentMode === 'ai' && (
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <Badge variant="secondary" className="text-xs">
+            <Atom className="w-3 h-3 mr-1" />
+            AI Modus aktiv
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            Klicken Sie auf das Atom-Symbol, um zur normalen Suche zurückzukehren
+          </span>
+        </div>
+      )}
 
       {/* Error display */}
       {error && (
@@ -126,26 +207,35 @@ export function DocumentationSearch({
       
       {/* Search suggestions when empty */}
       {query.length === 0 && !isLoading && (
-        <div className="text-center text-sm text-muted-foreground">
-          <div className="flex flex-wrap justify-center gap-2 mt-2">
-            <span className="text-xs">Beliebte Suchbegriffe:</span>
+        <div className="text-center">
+          <div className="flex flex-wrap justify-center items-center gap-3 mt-4">
             <button 
               onClick={() => setQuery('Mieter')}
-              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
+              <Users className="h-4 w-4" />
               Mieter
             </button>
             <button 
               onClick={() => setQuery('Betriebskosten')}
-              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
+              <Euro className="h-4 w-4" />
               Betriebskosten
             </button>
             <button 
               onClick={() => setQuery('Wohnung')}
-              className="text-xs bg-muted/50 hover:bg-muted px-2 py-1 rounded-md transition-colors"
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
             >
+              <Home className="h-4 w-4" />
               Wohnung
+            </button>
+            <button 
+              onClick={() => setQuery('Dokumente')}
+              className="bg-background border-2 border-input hover:border-ring text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-md active:scale-95 text-foreground hover:text-primary flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              Dokumente
             </button>
           </div>
         </div>

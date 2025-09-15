@@ -38,6 +38,7 @@ import { FileMoveModal } from "@/components/file-move-modal"; // Added
 import { ShareDocumentModal } from "@/components/share-document-modal"; // Added
 import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
+import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -114,6 +115,8 @@ export default function DashboardRootLayout({
     isMarkdownEditorModalOpen,
     markdownEditorData,
     closeMarkdownEditorModal,
+    // AI Assistant Modal state
+    isAIAssistantModalOpen,
   } = useModalStore()
 
   return (
@@ -245,6 +248,9 @@ export default function DashboardRootLayout({
           onSave={markdownEditorData.onSave}
         />
       )}
+
+      {/* AI Assistant Modal - Global AI assistant modal */}
+      <AIAssistantModal />
 
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (

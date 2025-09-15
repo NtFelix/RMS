@@ -216,7 +216,7 @@ export function useCachedCategories() {
   return useDocumentationCache<Category[]>(
     'documentation:categories',
     async () => {
-      const response = await fetch('/api/documentation/categories');
+      const response = await fetch('/api/dokumentation/categories');
       if (!response.ok) {
         throw new Error('Failed to fetch categories');
       }
@@ -239,7 +239,7 @@ export function useCachedArticles(kategorie?: string | null) {
         params.set('kategorie', kategorie);
       }
       
-      const response = await fetch(`/api/documentation?${params}`);
+      const response = await fetch(`/api/dokumentation?${params}`);
       if (!response.ok) {
         throw new Error('Failed to fetch articles');
       }
@@ -253,7 +253,7 @@ export function useCachedArticle(id: string) {
   return useDocumentationCache<Article>(
     `documentation:article:${id}`,
     async () => {
-      const response = await fetch(`/api/documentation/${id}`);
+      const response = await fetch(`/api/dokumentation/${id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch article');
       }
@@ -274,7 +274,7 @@ export function useCachedSearch(query: string) {
       }
       
       const params = new URLSearchParams({ q: query });
-      const response = await fetch(`/api/documentation/search?${params}`);
+      const response = await fetch(`/api/dokumentation/search?${params}`);
       if (!response.ok) {
         throw new Error('Failed to search articles');
       }

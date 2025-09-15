@@ -97,6 +97,12 @@ interface ConfirmationModalConfig {
   cancelText?: string;
 }
 
+// AI Assistant Modal Types
+interface AIAssistantModalData {
+  documentationContext?: any;
+  onFallbackToSearch?: () => void;
+}
+
 interface CreateFolderModalData {
   currentPath: string;
   onFolderCreated: (folderName: string) => void;
@@ -313,6 +319,12 @@ export interface ModalState {
   openFileRenameModal: (fileData: FileRenameData) => void;
   closeFileRenameModal: () => void;
 
+  // AI Assistant Modal State
+  isAIAssistantModalOpen: boolean;
+  aiAssistantModalData?: AIAssistantModalData;
+  openAIAssistantModal: (data?: AIAssistantModalData) => void;
+  closeAIAssistantModal: () => void;
+
   // Create Folder Modal State
   isCreateFolderModalOpen: boolean;
   createFolderModalData?: CreateFolderModalData;
@@ -465,6 +477,11 @@ const initialFileRenameModalState = {
   fileRenameData: undefined,
 };
 
+const initialAIAssistantModalState = {
+  isAIAssistantModalOpen: false,
+  aiAssistantModalData: undefined,
+};
+
 const initialCreateFolderModalState = {
   isCreateFolderModalOpen: false,
   createFolderModalData: undefined,
@@ -510,6 +527,7 @@ const createInitialModalState = () => ({
   ...initialUploadModalState,
   ...initialFilePreviewModalState,
   ...initialFileRenameModalState,
+  ...initialAIAssistantModalState,
   ...initialCreateFolderModalState,
   ...initialCreateFileModalState,
   ...initialFolderDeleteConfirmationModalState,
@@ -888,6 +906,13 @@ export const useModalStore = create<ModalState>((set, get) => {
       fileRenameData: fileData,
     }),
     closeFileRenameModal: () => set(initialFileRenameModalState),
+
+    // AI Assistant Modal
+    openAIAssistantModal: (data?: AIAssistantModalData) => set({
+      isAIAssistantModalOpen: true,
+      aiAssistantModalData: data,
+    }),
+    closeAIAssistantModal: () => set(initialAIAssistantModalState),
 
     // Create Folder Modal
     openCreateFolderModal: (currentPath: string, onFolderCreated: (folderName: string) => void) => set({
