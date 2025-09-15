@@ -22,18 +22,16 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = [
     '/',
     '/landing',
-    '/documentation',
-    '/documentation/.*', // Allow all sub-routes under documentation
-    '/modern/documentation',
-    '/modern/documentation/.*', // Allow all sub-routes under documentation
+    '/dokumentation',
+    '/dokumentation/.*', // Allow all sub-routes under dokumentation
     '/auth/.*', // Allow all auth routes
     '/_next/.*', // Allow Next.js internal routes
     '/favicon.ico', // Allow favicon
     '/subscription-locked', // Allow subscription locked page
     '/api/stripe/plans', // Public API route for fetching plans
     '/api/posthog-config', // Public API route for PostHog configuration
-    '/api/documentation', // Allow documentation API route
-    '/api/documentation/.*', // Allow all documentation API routes
+    '/api/dokumentation', // Allow dokumentation API route
+    '/api/dokumentation/.*', // Allow all dokumentation API routes
     '/api/ai-assistant', // Allow AI assistant API route
     '/datenschutz', // Allow access to datenschutz page
   ]

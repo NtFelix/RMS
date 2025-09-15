@@ -101,7 +101,7 @@ function DocumentationContent() {
       newParams.set('search', params.search);
     }
 
-    const newURL = `/documentation${newParams.toString() ? `?${newParams.toString()}` : ''}`;
+    const newURL = `/dokumentation${newParams.toString() ? `?${newParams.toString()}` : ''}`;
     router.replace(newURL, { scroll: false });
   }, [router]);
 
@@ -109,7 +109,7 @@ function DocumentationContent() {
     try {
       setState(prev => ({ ...prev, isLoadingCategories: true, error: null }));
       
-      const response = await fetch('/api/documentation/categories');
+      const response = await fetch('/api/dokumentation/categories');
       if (!response.ok) {
         throw new Error(`Failed to load categories: ${response.statusText}`);
       }
@@ -136,8 +136,8 @@ function DocumentationContent() {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
       
       const url = category 
-        ? `/api/documentation?kategorie=${encodeURIComponent(category)}`
-        : '/api/documentation';
+        ? `/api/dokumentation?kategorie=${encodeURIComponent(category)}`
+        : '/api/dokumentation';
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -170,7 +170,7 @@ function DocumentationContent() {
     try {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
       
-      const response = await fetch(`/api/documentation/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/dokumentation/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`);
       }
@@ -194,7 +194,7 @@ function DocumentationContent() {
 
   const loadArticleById = async (articleId: string) => {
     try {
-      const response = await fetch(`/api/documentation/${articleId}`);
+      const response = await fetch(`/api/dokumentation/${articleId}`);
       if (!response.ok) {
         throw new Error(`Failed to load article: ${response.statusText}`);
       }
@@ -270,8 +270,6 @@ function DocumentationContent() {
     };
   }, [state.articles, state.categories, state.selectedCategory, state.selectedArticle]);
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <div className="container mx-auto px-4 py-12">
@@ -298,8 +296,6 @@ function DocumentationContent() {
               />
             </div>
           </div>
-
-
         </div>
 
         {/* Error Display */}
@@ -383,8 +379,6 @@ function DocumentationContent() {
             )}
           </div>
         </div>
-
-
       </div>
     </div>
   );

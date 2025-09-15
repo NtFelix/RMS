@@ -46,7 +46,7 @@ const navItems = [
 ]
 
 const staticNavItems = [
-  { name: "Dokumentation", href: "/documentation", icon: BookOpen },
+  { name: "Dokumentation", href: "/dokumentation", icon: BookOpen },
 ]
 
 interface NavigationProps {

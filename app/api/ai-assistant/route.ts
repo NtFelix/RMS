@@ -1,7 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { PostHog } from 'posthog-node';
+import posthog from 'posthog-js';
+import { createClient } from '@/utils/supabase/server';
 import { 
   fetchDocumentationContext, 
   processContextForAI, 
@@ -103,13 +104,18 @@ const genAI = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY || ''
 });
 
-// Initialize PostHog for server-side analytics
-const posthog = process.env.POSTHOG_API_KEY ? new PostHog(
-  process.env.POSTHOG_API_KEY,
-  {
-    host: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
-  }
-) : null;
+// Initialize PostHog for Edge Runtime
+let posthogClient: typeof posthog | null = null;
+
+if (process.env.POSTHOG_API_KEY) {
+  posthogClient = posthog;
+  posthogClient.init(process.env.POSTHOG_API_KEY, {
+    api_host: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+    person_profiles: 'never', // For server-side usage
+    capture_pageview: false,
+    capture_pageleave: false,
+  });
+}
 
 // Rate limiting functions
 function checkRateLimit(clientId: string, sessionId?: string): { allowed: boolean; retryAfter?: number; details?: any } {
@@ -361,6 +367,10 @@ export async function POST(request: NextRequest) {
   let currentSessionId = '';
   let clientId = '';
   let validatedData: any = null;
+  let userIdentifier = 'anonymous'; // Default fallback
+  let traceId = '';
+  let isAuthenticated = false;
+  let isAnonymous = true;
   
   // Track server-side performance metrics
   const serverPerformanceStart = performance.now();
@@ -372,6 +382,14 @@ export async function POST(request: NextRequest) {
       const { response } = createErrorResponse('API key not configured', {});
       return response;
     }
+
+    // Try to authenticate user, but allow anonymous access
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    // Allow both authenticated and anonymous users
+    isAuthenticated = !authError && !!user;
+    isAnonymous = !isAuthenticated;
 
     // Parse and validate request body
     let body: any;
@@ -389,8 +407,20 @@ export async function POST(request: NextRequest) {
     
     const { message, context, contextOptions, sessionId } = validatedData;
 
-    // Generate session ID if not provided
-    currentSessionId = sessionId || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate session ID if not provided - handle both authenticated and anonymous users
+    const userIdForSession = isAuthenticated && user ? user.id : 'anonymous';
+    currentSessionId = sessionId || `session_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // User identification for PostHog events
+    if (isAuthenticated && user) {
+      userIdentifier = user.email || user.id;
+    } else {
+      // For anonymous users, create a consistent identifier based on session
+      userIdentifier = `anonymous_${currentSessionId}`;
+    }
+    
+    // Generate unique trace ID for this AI generation
+    traceId = `trace_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Get client identifier for rate limiting
     clientId = request.headers.get('x-forwarded-for') || 
@@ -416,18 +446,17 @@ export async function POST(request: NextRequest) {
       };
 
       // Track rate limit event
-      if (posthog) {
-        posthog.capture({
-          distinctId: 'anonymous',
-          event: 'ai_request_failed',
-          properties: {
-            session_id: currentSessionId,
-            error_type: 'rate_limit',
-            error_code: 'RATE_LIMIT',
-            limit_type: rateLimitResult.details?.type,
-            client_id: clientId,
-            timestamp: new Date().toISOString()
-          }
+      if (posthogClient) {
+        posthogClient.capture('ai_request_failed', {
+          distinct_id: userIdentifier,
+          session_id: currentSessionId,
+          error_type: 'rate_limit',
+          error_code: 'RATE_LIMIT',
+          limit_type: rateLimitResult.details?.type,
+          client_id: clientId,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -443,42 +472,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Track AI question submitted event (server-side)
-    if (posthog) {
-      posthog.capture({
-        distinctId: 'anonymous', // Could be enhanced with user ID if available
-        event: 'ai_question_submitted_server',
-        properties: {
-          question_length: message.length,
-          session_id: currentSessionId,
-          has_context: !!(context?.articles && context.articles.length > 0),
-          context_articles_count: context?.articles?.length || 0,
-          use_documentation_context: contextOptions?.useDocumentationContext !== false,
-          client_id: clientId,
-          timestamp: new Date().toISOString(),
-          user_agent: request.headers.get('user-agent') || 'unknown'
-        }
+    if (posthogClient) {
+      posthogClient.capture('ai_question_submitted_server', {
+        distinct_id: userIdentifier,
+        question_length: message.length,
+        session_id: currentSessionId,
+        has_context: !!(context?.articles && context.articles.length > 0),
+        context_articles_count: context?.articles?.length || 0,
+        use_documentation_context: contextOptions?.useDocumentationContext !== false,
+        client_id: clientId,
+        user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+        is_anonymous: isAnonymous,
+        timestamp: new Date().toISOString(),
+        user_agent: request.headers.get('user-agent') || 'unknown'
       });
 
-      // Track LLM Generation start (server-side)
-      const generationId = `server_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      posthog.capture({
-        distinctId: 'anonymous',
-        event: '$ai_generation',
-        properties: {
-          $ai_trace_id: currentSessionId,
-          $ai_model: 'gemini-2.5-flash-lite',
-          $ai_provider: 'google',
-          $ai_input: [{ role: 'user', content: message }],
-          $ai_base_url: 'https://generativelanguage.googleapis.com',
-          application: 'mietfluss',
-          feature: 'ai_assistant_server',
-          server_side: true,
-          has_context: !!(context?.articles && context.articles.length > 0),
-          context_articles_count: context?.articles?.length || 0,
-          client_id: clientId,
+      // For anonymous users, also track that they're using the documentation
+      if (isAnonymous) {
+        posthogClient.capture('anonymous_user_documentation_access', {
+          distinct_id: userIdentifier,
+          session_id: currentSessionId,
+          feature: 'ai_assistant',
           timestamp: new Date().toISOString()
-        }
-      });
+        });
+      }
+
+      // Note: LLM Generation tracking is handled client-side to avoid duplicates
+      // Server-side events focus on API-specific metrics
     }
 
     // Prepare context for AI with retry logic
@@ -515,15 +535,14 @@ export async function POST(request: NextRequest) {
         // Continue without context if fetching fails after retries
         
         // Track context fetch failure
-        if (posthog) {
-          posthog.capture({
-            distinctId: 'anonymous',
-            event: 'ai_context_fetch_failed',
-            properties: {
-              session_id: currentSessionId,
-              error_message: error instanceof Error ? error.message : String(error),
-              timestamp: new Date().toISOString()
-            }
+        if (posthogClient) {
+          posthogClient.capture('ai_context_fetch_failed', {
+            distinct_id: userIdentifier,
+            session_id: currentSessionId,
+            error_message: error instanceof Error ? error.message : String(error),
+            user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+            is_anonymous: isAnonymous,
+            timestamp: new Date().toISOString()
           });
         }
       }
@@ -563,16 +582,15 @@ export async function POST(request: NextRequest) {
       console.log('Using cached AI response');
       
       // Track cache hit
-      if (posthog) {
-        posthog.capture({
-          distinctId: 'anonymous',
-          event: 'ai_response_cache_hit',
-          properties: {
-            session_id: currentSessionId,
-            question_length: message.length,
-            context_hash: contextHash,
-            timestamp: new Date().toISOString()
-          }
+      if (posthogClient) {
+        posthogClient.capture('ai_response_cache_hit', {
+          distinct_id: userIdentifier,
+          session_id: currentSessionId,
+          question_length: message.length,
+          context_hash: contextHash,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
+          timestamp: new Date().toISOString()
         });
       }
 
@@ -688,64 +706,37 @@ export async function POST(request: NextRequest) {
           );
 
           // Track successful AI response (server-side) with enhanced performance metrics
-          if (posthog) {
+          if (posthogClient) {
             const serverProcessingTime = performance.now() - serverPerformanceStart;
             
-            posthog.capture({
-              distinctId: 'anonymous',
-              event: 'ai_response_generated_server',
-              properties: {
-                response_time_ms: responseTime,
-                server_processing_time_ms: serverProcessingTime,
-                session_id: currentSessionId,
-                success: true,
-                response_length: fullResponse.length,
-                response_type: 'streaming',
-                cached: false,
-                context_hash: contextHash,
-                
-                // Performance breakdown
-                context_processing_time_ms: contextProcessingTime || 0,
-                gemini_api_time_ms: responseTime - (contextProcessingTime || 0),
-                
-                // Resource usage
-                memory_usage_estimate_mb: Math.round(fullResponse.length / 1024 / 1024 * 2), // Rough estimate
-                
-                timestamp: new Date().toISOString()
-              }
+            posthogClient.capture('ai_response_generated_server', {
+              distinct_id: userIdentifier,
+              response_time_ms: responseTime,
+              server_processing_time_ms: serverProcessingTime,
+              session_id: currentSessionId,
+              success: true,
+              response_length: fullResponse.length,
+              response_type: 'streaming',
+              cached: false,
+              context_hash: contextHash,
+              user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+              is_anonymous: isAnonymous,
+              
+              // Performance breakdown
+              context_processing_time_ms: contextProcessingTime || 0,
+              gemini_api_time_ms: responseTime - (contextProcessingTime || 0),
+              
+              // Resource usage
+              memory_usage_estimate_mb: Math.round(fullResponse.length / 1024 / 1024 * 2), // Rough estimate
+              
+              timestamp: new Date().toISOString()
             });
 
-            // Track LLM Generation completion (server-side)
-            posthog.capture({
-              distinctId: 'anonymous',
-              event: '$ai_generation',
-              properties: {
-                $ai_trace_id: currentSessionId,
-                $ai_model: 'gemini-2.5-flash-lite',
-                $ai_provider: 'google',
-                $ai_input: [{ role: 'user', content: message }],
-                $ai_input_tokens: Math.ceil(message.length / 4), // Rough estimate
-                $ai_output_choices: [{ role: 'assistant', content: fullResponse }],
-                $ai_output_tokens: Math.ceil(fullResponse.length / 4),
-                $ai_latency: responseTime / 1000, // Convert to seconds
-                $ai_http_status: 200,
-                $ai_base_url: 'https://generativelanguage.googleapis.com',
-                $ai_is_error: false,
-                application: 'mietfluss',
-                feature: 'ai_assistant_server',
-                server_side: true,
-                response_type: 'streaming',
-                context_hash: contextHash,
-                client_id: clientId,
-                timestamp: new Date().toISOString()
-              }
-            });
+            // Note: LLM Generation completion tracking is handled client-side to avoid duplicates
             
             // Track detailed server performance metrics
-            posthog.capture({
-              distinctId: 'anonymous',
-              event: 'ai_server_performance_breakdown',
-              properties: {
+            posthogClient.capture('ai_server_performance_breakdown', {
+              distinct_id: userIdentifier,
                 session_id: currentSessionId,
                 total_request_time_ms: responseTime,
                 server_processing_time_ms: serverProcessingTime,
@@ -753,6 +744,8 @@ export async function POST(request: NextRequest) {
                 context_fetch_time_ms: contextProcessingTime || 0,
                 gemini_api_time_ms: geminiApiTime || 0,
                 response_processing_time_ms: responseProcessingTime || 0,
+                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+                is_anonymous: isAnonymous,
                 
                 // Request characteristics
                 request_size_bytes: validatedData?.message?.length || 0,
@@ -764,8 +757,7 @@ export async function POST(request: NextRequest) {
                 performance_category: categorizeServerPerformance(responseTime),
                 
                 timestamp: new Date().toISOString()
-              }
-            });
+              });
           }
 
           // Send final response with metadata
@@ -792,7 +784,7 @@ export async function POST(request: NextRequest) {
           });
           
           // Track streaming error (server-side) with enhanced categorization
-          if (posthog) {
+          if (posthogClient) {
             const responseTime = Date.now() - requestStartTime;
             
             // Override for streaming-specific error types
@@ -815,10 +807,8 @@ export async function POST(request: NextRequest) {
             }
 
             // Track the enhanced ai_request_failed event for streaming errors
-            posthog.capture({
-              distinctId: 'anonymous',
-              event: 'ai_request_failed',
-              properties: {
+            posthogClient.capture('ai_request_failed', {
+              distinct_id: userIdentifier,
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
                 error_type: streamingErrorDetails.errorType,
@@ -828,50 +818,26 @@ export async function POST(request: NextRequest) {
                 retryable: streamingErrorDetails.retryable,
                 failure_stage: 'streaming_server',
                 client_id: clientId,
+                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+                is_anonymous: isAnonymous,
                 timestamp: new Date().toISOString(),
                 ...streamingErrorDetails.additionalData
-              }
-            });
+              });
 
-            // Track LLM Generation error (server-side)
-            posthog.capture({
-              distinctId: 'anonymous',
-              event: '$ai_generation',
-              properties: {
-                $ai_trace_id: currentSessionId,
-                $ai_model: 'gemini-2.5-flash-lite',
-                $ai_provider: 'google',
-                $ai_input: [{ role: 'user', content: message }],
-                $ai_output_choices: [{ role: 'assistant', content: streamingErrorDetails.errorMessage }],
-                $ai_latency: responseTime / 1000,
-                $ai_http_status: 500,
-                $ai_base_url: 'https://generativelanguage.googleapis.com',
-                $ai_is_error: true,
-                $ai_error: streamingErrorDetails.errorMessage,
-                application: 'mietfluss',
-                feature: 'ai_assistant_server',
-                server_side: true,
-                error_type: streamingErrorDetails.errorType,
-                error_code: streamingErrorDetails.errorCode,
-                failure_stage: 'streaming_server',
-                client_id: clientId,
-                timestamp: new Date().toISOString()
-              }
-            });
+            // Note: LLM Generation error tracking is handled client-side to avoid duplicates
 
             // Also track the legacy event for backward compatibility
-            posthog.capture({
-              distinctId: 'anonymous',
-              event: 'ai_response_generated_server',
-              properties: {
+            posthogClient.capture('ai_response_generated_server', {
+              distinct_id: userIdentifier,
                 response_time_ms: responseTime,
                 session_id: currentSessionId,
                 success: false,
                 error_type: streamingErrorDetails.errorType,
                 error_message: streamingErrorDetails.errorMessage,
+                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+                is_anonymous: isAnonymous,
                 timestamp: new Date().toISOString()
-              }
-            });
+              });
           }
           
           // Determine appropriate German error message based on error type
@@ -931,7 +897,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Track API error (server-side) with enhanced error categorization
-    if (posthog) {
+    if (posthogClient) {
       const responseTime = Date.now() - requestStartTime;
       
       // Special handling for Zod validation errors
@@ -948,10 +914,8 @@ export async function POST(request: NextRequest) {
       }
 
       // Track the enhanced ai_request_failed event
-      posthog.capture({
-        distinctId: 'anonymous',
-        event: 'ai_request_failed',
-        properties: {
+      posthogClient.capture('ai_request_failed', {
+        distinct_id: userIdentifier,
           response_time_ms: responseTime,
           session_id: currentSessionId,
           error_type: finalErrorDetails.errorType,
@@ -961,28 +925,28 @@ export async function POST(request: NextRequest) {
           retryable: finalErrorDetails.retryable,
           failure_stage: finalErrorDetails.failureStage,
           client_id: clientId,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
           request_message_length: validatedData?.message?.length || 0,
           has_context: !!(validatedData?.context?.articles && validatedData.context.articles.length > 0),
           context_articles_count: validatedData?.context?.articles?.length || 0,
           user_agent: request.headers.get('user-agent') || 'unknown',
           timestamp: new Date().toISOString(),
           ...finalErrorDetails.additionalData
-        }
-      });
+        });
 
       // Also track the legacy event for backward compatibility
-      posthog.capture({
-        distinctId: 'anonymous',
-        event: 'ai_response_generated_server',
-        properties: {
+      posthogClient.capture('ai_response_generated_server', {
+        distinct_id: userIdentifier,
           response_time_ms: responseTime,
           session_id: currentSessionId,
           success: false,
           error_type: finalErrorDetails.errorType,
           error_message: finalErrorDetails.errorMessage,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
           timestamp: new Date().toISOString()
-        }
-      });
+        });
     }
 
     return response;
