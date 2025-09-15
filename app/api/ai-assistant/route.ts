@@ -388,7 +388,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     // Allow both authenticated and anonymous users
-    isAuthenticated = !authError && user;
+    isAuthenticated = !authError && !!user;
     isAnonymous = !isAuthenticated;
 
     // Parse and validate request body
@@ -408,11 +408,11 @@ export async function POST(request: NextRequest) {
     const { message, context, contextOptions, sessionId } = validatedData;
 
     // Generate session ID if not provided - handle both authenticated and anonymous users
-    const userIdForSession = isAuthenticated ? user.id : 'anonymous';
+    const userIdForSession = isAuthenticated && user ? user.id : 'anonymous';
     currentSessionId = sessionId || `session_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // User identification for PostHog events
-    if (isAuthenticated) {
+    if (isAuthenticated && user) {
       userIdentifier = user.email || user.id;
     } else {
       // For anonymous users, create a consistent identifier based on session
