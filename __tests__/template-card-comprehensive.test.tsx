@@ -158,7 +158,7 @@ describe('TemplateCard - Comprehensive Tests', () => {
       expect(screen.getByText('Keine Vorschau verfügbar')).toBeInTheDocument();
     });
 
-    it('extracts text from complex TipTap structure', () => {
+    it('extracts text from complex TipTap structure with mentions', () => {
       const template = createMockTemplate({
         inhalt: {
           type: 'doc',
@@ -169,12 +169,12 @@ describe('TemplateCard - Comprehensive Tests', () => {
                 { type: 'text', text: 'Hello ' },
                 {
                   type: 'mention',
-                  attrs: { id: 'mieter.name', label: '@Mieter.Name' },
+                  attrs: { id: 'mieter.name', label: 'Mieter.Name' },
                 },
                 { type: 'text', text: ', welcome to ' },
                 {
                   type: 'mention',
-                  attrs: { id: 'wohnung.adresse', label: '@Wohnung.Adresse' },
+                  attrs: { id: 'wohnung.adresse', label: 'Wohnung.Adresse' },
                 },
                 { type: 'text', text: '!' },
               ],
@@ -197,8 +197,13 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      // Should extract text content, ignoring mention nodes
-      expect(screen.getByText(/Hello.*welcome to.*Second paragraph/)).toBeInTheDocument();
+      // Should show text content with highlighted mentions
+      expect(screen.getByText('Hello')).toBeInTheDocument();
+      expect(screen.getByText('@Mieter.Name')).toBeInTheDocument();
+      expect(screen.getByText(', welcome to')).toBeInTheDocument();
+      expect(screen.getByText('@Wohnung.Adresse')).toBeInTheDocument();
+      expect(screen.getByText('!')).toBeInTheDocument();
+      expect(screen.getByText('Second paragraph.')).toBeInTheDocument();
     });
 
     it('handles nested content structures', () => {
@@ -258,7 +263,7 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      const editButton = screen.getByTitle('Vorlage bearbeiten');
+      const editButton = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten')[0];
       await user.click(editButton);
 
       expect(mockOnEdit).toHaveBeenCalledWith(template);
@@ -277,7 +282,7 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      const deleteButton = screen.getByTitle('Vorlage löschen');
+      const deleteButton = screen.getAllByLabelText('Vorlage "Test Template" löschen')[0];
       await user.click(deleteButton);
 
       expect(mockOnDelete).toHaveBeenCalledWith('123');
@@ -296,7 +301,7 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      const editButton = screen.getByTitle('Vorlage bearbeiten');
+      const editButton = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten')[0];
       
       // Rapid clicks
       await user.click(editButton);
@@ -319,7 +324,7 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      const editButton = screen.getByTitle('Vorlage bearbeiten');
+      const editButton = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten')[0];
       
       // Focus and press Enter
       editButton.focus();
@@ -341,12 +346,12 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      // Mobile buttons should be visible (not hidden by sm:hidden)
-      const mobileEditButton = screen.getByTitle('Bearbeiten');
-      const mobileDeleteButton = screen.getByTitle('Löschen');
+      // Both desktop and mobile buttons should be present
+      const editButtons = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten');
+      const deleteButtons = screen.getAllByLabelText('Vorlage "Test Template" löschen');
 
-      expect(mobileEditButton).toBeInTheDocument();
-      expect(mobileDeleteButton).toBeInTheDocument();
+      expect(editButtons).toHaveLength(2); // Desktop and mobile
+      expect(deleteButtons).toHaveLength(2); // Desktop and mobile
     });
 
     it('shows desktop hover buttons', () => {
@@ -360,12 +365,12 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      // Desktop buttons should be present
-      const desktopEditButton = screen.getByTitle('Vorlage bearbeiten');
-      const desktopDeleteButton = screen.getByTitle('Vorlage löschen');
+      // Both desktop and mobile buttons should be present
+      const editButtons = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten');
+      const deleteButtons = screen.getAllByLabelText('Vorlage "Test Template" löschen');
 
-      expect(desktopEditButton).toBeInTheDocument();
-      expect(desktopDeleteButton).toBeInTheDocument();
+      expect(editButtons).toHaveLength(2); // Desktop and mobile
+      expect(deleteButtons).toHaveLength(2); // Desktop and mobile
     });
   });
 
@@ -381,10 +386,9 @@ describe('TemplateCard - Comprehensive Tests', () => {
         />
       );
 
-      expect(screen.getByTitle('Vorlage bearbeiten')).toBeInTheDocument();
-      expect(screen.getByTitle('Vorlage löschen')).toBeInTheDocument();
-      expect(screen.getByTitle('Bearbeiten')).toBeInTheDocument();
-      expect(screen.getByTitle('Löschen')).toBeInTheDocument();
+      // Both desktop and mobile buttons have the same aria-label
+      expect(screen.getAllByLabelText('Vorlage "Test Template" bearbeiten')).toHaveLength(2);
+      expect(screen.getAllByLabelText('Vorlage "Test Template" löschen')).toHaveLength(2);
     });
 
     it('has proper button roles', () => {

@@ -115,7 +115,7 @@ describe('TemplateCard', () => {
       />
     );
 
-    const editButton = screen.getByTitle('Vorlage bearbeiten');
+    const editButton = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten')[0];
     fireEvent.click(editButton);
 
     expect(mockOnEdit).toHaveBeenCalledWith(mockTemplate);
@@ -130,7 +130,7 @@ describe('TemplateCard', () => {
       />
     );
 
-    const deleteButton = screen.getByTitle('Vorlage löschen');
+    const deleteButton = screen.getAllByLabelText('Vorlage "Test Template" löschen')[0];
     fireEvent.click(deleteButton);
 
     expect(mockOnDelete).toHaveBeenCalledWith('123');
@@ -145,12 +145,12 @@ describe('TemplateCard', () => {
       />
     );
 
-    const editButton = screen.getByTitle('Vorlage bearbeiten');
-    const deleteButton = screen.getByTitle('Vorlage löschen');
+    const editButtons = screen.getAllByLabelText('Vorlage "Test Template" bearbeiten');
+    const deleteButtons = screen.getAllByLabelText('Vorlage "Test Template" löschen');
 
-    // Buttons should be present but initially hidden (opacity-0)
-    expect(editButton).toBeInTheDocument();
-    expect(deleteButton).toBeInTheDocument();
+    // Both desktop and mobile buttons should be present
+    expect(editButtons).toHaveLength(2);
+    expect(deleteButtons).toHaveLength(2);
   });
 
   it('displays category badge correctly', () => {
@@ -170,7 +170,7 @@ describe('TemplateCard', () => {
     expect(screen.getByText('Vertrag')).toBeInTheDocument();
   });
 
-  it('handles complex TipTap content structure', () => {
+  it('handles complex TipTap content structure with mentions', () => {
     const complexContentTemplate: Template = {
       ...mockTemplate,
       inhalt: {
@@ -182,7 +182,7 @@ describe('TemplateCard', () => {
               { type: 'text', text: 'Hello ' },
               {
                 type: 'mention',
-                attrs: { id: 'mieter.name', label: '@Mieter.Name' },
+                attrs: { id: 'mieter.name', label: 'Mieter.Name' },
               },
               { type: 'text', text: ', this is a test.' },
             ],
@@ -205,7 +205,10 @@ describe('TemplateCard', () => {
       />
     );
 
-    // Should extract text content from complex structure
-    expect(screen.getByText(/Hello.*this is a test.*Second paragraph/)).toBeInTheDocument();
+    // Should show text content with highlighted mentions
+    expect(screen.getByText('Hello')).toBeInTheDocument();
+    expect(screen.getByText('@Mieter.Name')).toBeInTheDocument();
+    expect(screen.getByText(', this is a test.')).toBeInTheDocument();
+    expect(screen.getByText('Second paragraph content.')).toBeInTheDocument();
   });
 });

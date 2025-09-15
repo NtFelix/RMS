@@ -9,7 +9,7 @@ import { Edit, Trash2, FileText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { de } from 'date-fns/locale';
 import { ARIA_LABELS } from '@/lib/accessibility-constants';
-import { extractTextPreview } from '@/lib/template-performance';
+import { TemplatePreview } from '@/components/template-preview';
 
 interface TemplateCardProps {
   template: Template;
@@ -18,11 +18,6 @@ interface TemplateCardProps {
 }
 
 export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, onDelete }) => {
-  // Memoized text preview extraction
-  const textPreview = useMemo(() => {
-    return extractTextPreview(template.inhalt, 120);
-  }, [template.inhalt]);
-
   // Memoized last modified date
   const lastModified = useMemo(() => {
     return formatDistanceToNow(new Date(template.aktualisiert_am), {
@@ -84,10 +79,13 @@ export const TemplateCard = React.memo<TemplateCardProps>(({ template, onEdit, o
         <div 
           id={`template-description-${template.id}`}
           className="text-sm text-muted-foreground leading-relaxed min-h-[3rem] sm:min-h-[4rem] overflow-hidden"
-          aria-label={`Vorschau: ${textPreview || 'Keine Vorschau verfügbar'}`}
         >
           <div className="line-clamp-3">
-            {textPreview || 'Keine Vorschau verfügbar'}
+            <TemplatePreview 
+              content={template.inhalt}
+              maxLength={120}
+              fallbackText="Keine Vorschau verfügbar"
+            />
           </div>
         </div>
       </CardContent>

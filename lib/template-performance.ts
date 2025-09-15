@@ -321,6 +321,91 @@ export function extractTextPreview(content: any, maxLength: number = 120): strin
   }
 }
 
+// Enhanced content extraction that preserves mention highlighting for previews
+export function extractRichTextPreview(content: any, maxLength: number = 120): { 
+  text: string; 
+  hasHighlights: boolean;
+  segments: Array<{ text: string; isMention: boolean; mentionId?: string; mentionLabel?: string }>;
+} {
+  if (!content || !content.content) {
+    return { text: '', hasHighlights: false, segments: [] };
+  }
+  
+  const monitor = TemplatePerformanceMonitor.getInstance();
+  const endTimer = monitor.startTimer('rich-text-extraction');
+  
+  try {
+    const segments: Array<{ text: string; isMention: boolean; mentionId?: string; mentionLabel?: string }> = [];
+    let hasHighlights = false;
+    
+    const extractFromNode = (node: any): void => {
+      if (node.type === 'text') {
+        segments.push({
+          text: node.text || '',
+          isMention: false
+        });
+      } else if (node.type === 'mention') {
+        hasHighlights = true;
+        const mentionLabel = node.attrs?.label || node.attrs?.id || 'variable';
+        segments.push({
+          text: `@${mentionLabel}`,
+          isMention: true,
+          mentionId: node.attrs?.id,
+          mentionLabel: mentionLabel
+        });
+      } else if (node.content && Array.isArray(node.content)) {
+        node.content.forEach(extractFromNode);
+      }
+      
+      // Add space after block elements
+      if (node.type === 'paragraph' || node.type === 'heading') {
+        segments.push({ text: ' ', isMention: false });
+      }
+    };
+    
+    content.content.forEach(extractFromNode);
+    
+    // Join segments to create full text
+    const fullText = segments.map(segment => segment.text).join('').replace(/\s+/g, ' ').trim();
+    
+    // Truncate if necessary while preserving segment boundaries
+    let truncatedText = fullText;
+    let truncatedSegments = segments;
+    
+    if (fullText.length > maxLength) {
+      let currentLength = 0;
+      truncatedSegments = [];
+      
+      for (const segment of segments) {
+        if (currentLength + segment.text.length <= maxLength) {
+          truncatedSegments.push(segment);
+          currentLength += segment.text.length;
+        } else {
+          // Partial segment
+          const remainingLength = maxLength - currentLength;
+          if (remainingLength > 0) {
+            truncatedSegments.push({
+              ...segment,
+              text: segment.text.substring(0, remainingLength)
+            });
+          }
+          break;
+        }
+      }
+      
+      truncatedText = truncatedSegments.map(segment => segment.text).join('').trim() + '...';
+    }
+    
+    return {
+      text: truncatedText,
+      hasHighlights,
+      segments: truncatedSegments
+    };
+  } finally {
+    endTimer();
+  }
+}
+
 // Performance monitoring hook
 export function useTemplatePerformanceMonitoring() {
   const monitor = TemplatePerformanceMonitor.getInstance();
