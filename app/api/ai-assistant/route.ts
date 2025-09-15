@@ -369,6 +369,8 @@ export async function POST(request: NextRequest) {
   let validatedData: any = null;
   let userIdentifier = 'anonymous'; // Default fallback
   let traceId = '';
+  let isAuthenticated = false;
+  let isAnonymous = true;
   
   // Track server-side performance metrics
   const serverPerformanceStart = performance.now();
@@ -381,14 +383,13 @@ export async function POST(request: NextRequest) {
       return response;
     }
 
-    // Authenticate user
+    // Try to authenticate user, but allow anonymous access
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !user) {
-      console.error('Authentication error:', authError);
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
+    // Allow both authenticated and anonymous users
+    isAuthenticated = !authError && user;
+    isAnonymous = !isAuthenticated;
 
     // Parse and validate request body
     let body: any;
@@ -406,14 +407,20 @@ export async function POST(request: NextRequest) {
     
     const { message, context, contextOptions, sessionId } = validatedData;
 
-    // Generate session ID if not provided - include user ID for uniqueness
-    currentSessionId = sessionId || `session_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Generate session ID if not provided - handle both authenticated and anonymous users
+    const userIdForSession = isAuthenticated ? user.id : 'anonymous';
+    currentSessionId = sessionId || `session_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // User identification for PostHog events
-    userIdentifier = user.email || user.id;
+    if (isAuthenticated) {
+      userIdentifier = user.email || user.id;
+    } else {
+      // For anonymous users, create a consistent identifier based on session
+      userIdentifier = `anonymous_${currentSessionId}`;
+    }
     
     // Generate unique trace ID for this AI generation
-    traceId = `trace_${user.id}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    traceId = `trace_${userIdForSession}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     // Get client identifier for rate limiting
     clientId = request.headers.get('x-forwarded-for') || 
@@ -447,6 +454,8 @@ export async function POST(request: NextRequest) {
           error_code: 'RATE_LIMIT',
           limit_type: rateLimitResult.details?.type,
           client_id: clientId,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
           timestamp: new Date().toISOString()
         });
       }
@@ -465,16 +474,28 @@ export async function POST(request: NextRequest) {
     // Track AI question submitted event (server-side)
     if (posthogClient) {
       posthogClient.capture('ai_question_submitted_server', {
-        distinct_id: userIdentifier, // Could be enhanced with user ID if available
+        distinct_id: userIdentifier,
         question_length: message.length,
         session_id: currentSessionId,
         has_context: !!(context?.articles && context.articles.length > 0),
         context_articles_count: context?.articles?.length || 0,
         use_documentation_context: contextOptions?.useDocumentationContext !== false,
         client_id: clientId,
+        user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+        is_anonymous: isAnonymous,
         timestamp: new Date().toISOString(),
         user_agent: request.headers.get('user-agent') || 'unknown'
       });
+
+      // For anonymous users, also track that they're using the documentation
+      if (isAnonymous) {
+        posthogClient.capture('anonymous_user_documentation_access', {
+          distinct_id: userIdentifier,
+          session_id: currentSessionId,
+          feature: 'ai_assistant',
+          timestamp: new Date().toISOString()
+        });
+      }
 
       // Note: LLM Generation tracking is handled client-side to avoid duplicates
       // Server-side events focus on API-specific metrics
@@ -519,6 +540,8 @@ export async function POST(request: NextRequest) {
             distinct_id: userIdentifier,
             session_id: currentSessionId,
             error_message: error instanceof Error ? error.message : String(error),
+            user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+            is_anonymous: isAnonymous,
             timestamp: new Date().toISOString()
           });
         }
@@ -565,6 +588,8 @@ export async function POST(request: NextRequest) {
           session_id: currentSessionId,
           question_length: message.length,
           context_hash: contextHash,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
           timestamp: new Date().toISOString()
         });
       }
@@ -694,6 +719,8 @@ export async function POST(request: NextRequest) {
               response_type: 'streaming',
               cached: false,
               context_hash: contextHash,
+              user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+              is_anonymous: isAnonymous,
               
               // Performance breakdown
               context_processing_time_ms: contextProcessingTime || 0,
@@ -717,6 +744,8 @@ export async function POST(request: NextRequest) {
                 context_fetch_time_ms: contextProcessingTime || 0,
                 gemini_api_time_ms: geminiApiTime || 0,
                 response_processing_time_ms: responseProcessingTime || 0,
+                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+                is_anonymous: isAnonymous,
                 
                 // Request characteristics
                 request_size_bytes: validatedData?.message?.length || 0,
@@ -789,6 +818,8 @@ export async function POST(request: NextRequest) {
                 retryable: streamingErrorDetails.retryable,
                 failure_stage: 'streaming_server',
                 client_id: clientId,
+                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+                is_anonymous: isAnonymous,
                 timestamp: new Date().toISOString(),
                 ...streamingErrorDetails.additionalData
               });
@@ -803,6 +834,8 @@ export async function POST(request: NextRequest) {
                 success: false,
                 error_type: streamingErrorDetails.errorType,
                 error_message: streamingErrorDetails.errorMessage,
+                user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+                is_anonymous: isAnonymous,
                 timestamp: new Date().toISOString()
               });
           }
@@ -892,6 +925,8 @@ export async function POST(request: NextRequest) {
           retryable: finalErrorDetails.retryable,
           failure_stage: finalErrorDetails.failureStage,
           client_id: clientId,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
           request_message_length: validatedData?.message?.length || 0,
           has_context: !!(validatedData?.context?.articles && validatedData.context.articles.length > 0),
           context_articles_count: validatedData?.context?.articles?.length || 0,
@@ -908,6 +943,8 @@ export async function POST(request: NextRequest) {
           success: false,
           error_type: finalErrorDetails.errorType,
           error_message: finalErrorDetails.errorMessage,
+          user_type: isAuthenticated ? 'authenticated' : 'anonymous',
+          is_anonymous: isAnonymous,
           timestamp: new Date().toISOString()
         });
     }

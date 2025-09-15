@@ -46,13 +46,19 @@ async function initializePostHog() {
   }
 
   console.log('Initializing PostHog with key:', config.key.substring(0, 10) + '...');
+  
+  // Check if we're on a public documentation page
+  const isDocumentationPage = typeof window !== 'undefined' && 
+    (window.location.pathname.startsWith('/dokumentation') || 
+     window.location.pathname.startsWith('/landing'));
+  
   posthog.init(config.key, {
     api_host: config.host,
     capture_pageview: false, // We'll handle this manually
     persistence: 'localStorage',
     enable_recording_console_log: true,
-    // Respect consent: start opted-out and rely on explicit opt-in
-    opt_out_capturing_by_default: true,
+    // For documentation pages, allow anonymous tracking; otherwise require consent
+    opt_out_capturing_by_default: !isDocumentationPage,
     // Enable early access features
     bootstrap: {
       distinctID: undefined, // Will be set when user is identified
@@ -61,20 +67,49 @@ async function initializePostHog() {
     loaded: function(posthog) {
       console.log('PostHog loaded successfully, reloading feature flags...');
       posthog.reloadFeatureFlags?.();
+      
+      // For documentation pages, identify as anonymous user
+      if (isDocumentationPage && !posthog.get_distinct_id()?.startsWith('anonymous_')) {
+        const anonymousId = `anonymous_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        posthog.identify(anonymousId, {
+          user_type: 'anonymous',
+          is_anonymous: true,
+          first_seen: new Date().toISOString(),
+          page_type: 'documentation'
+        });
+        
+        // Track anonymous documentation access
+        posthog.capture('anonymous_user_documentation_access', {
+          page: window.location.pathname,
+          feature: 'documentation',
+          timestamp: new Date().toISOString()
+        });
+      }
     }
   });
 
   // Apply stored consent on load
   const consent = localStorage.getItem('cookieConsent');
-  if (consent === 'all' && posthog.has_opted_out_capturing?.()) {
-    console.log('Applying stored consent: opting in to PostHog tracking');
-    posthog.opt_in_capturing();
-    // Ensure feature flags are available right after opting in
-    posthog.reloadFeatureFlags?.();
-  } else if (consent !== 'all' && !posthog.has_opted_out_capturing?.()) {
-    console.log('Applying stored consent: opting out of PostHog tracking');
-    // Ensure we're opted-out if consent wasn't granted
-    posthog.opt_out_capturing();
+  
+  if (isDocumentationPage) {
+    // For documentation pages, always allow basic tracking for anonymous users
+    if (posthog.has_opted_out_capturing?.()) {
+      console.log('Enabling PostHog tracking for documentation page');
+      posthog.opt_in_capturing();
+      posthog.reloadFeatureFlags?.();
+    }
+  } else {
+    // For other pages, respect cookie consent
+    if (consent === 'all' && posthog.has_opted_out_capturing?.()) {
+      console.log('Applying stored consent: opting in to PostHog tracking');
+      posthog.opt_in_capturing();
+      // Ensure feature flags are available right after opting in
+      posthog.reloadFeatureFlags?.();
+    } else if (consent !== 'all' && !posthog.has_opted_out_capturing?.()) {
+      console.log('Applying stored consent: opting out of PostHog tracking');
+      // Ensure we're opted-out if consent wasn't granted
+      posthog.opt_out_capturing();
+    }
   }
 }
 
@@ -94,8 +129,16 @@ function PostHogTracking({ children }: { children: React.ReactNode }) {
       if (searchParams.toString()) {
         url = url + `?${searchParams.toString()}`
       }
+      
+      // Check if this is an anonymous user on documentation
+      const isAnonymous = posthog.get_distinct_id()?.startsWith('anonymous_');
+      const isDocPage = pathname.startsWith('/dokumentation');
+      
       posthog.capture('$pageview', {
         $current_url: url,
+        user_type: isAnonymous ? 'anonymous' : 'authenticated',
+        is_anonymous: isAnonymous,
+        page_type: isDocPage ? 'documentation' : 'other'
       })
     }
   }, [pathname, searchParams])
