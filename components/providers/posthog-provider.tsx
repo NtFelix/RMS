@@ -64,58 +64,9 @@ async function initializePostHog() {
       distinctID: undefined, // Will be set when user is identified
     },
     // Ensure feature flags are loaded
-    loaded: async function(posthog) {
+    loaded: function(posthog) {
       console.log('PostHog loaded successfully, reloading feature flags...');
       posthog.reloadFeatureFlags?.();
-      
-      // For documentation pages, identify as anonymous user only if not authenticated
-      if (isDocumentationPage) {
-        try {
-          // Check if user is authenticated via Supabase
-          const { createClient } = await import('@/utils/supabase/client');
-          const supabase = createClient();
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          // Only assign anonymous ID if user is not authenticated and doesn't already have an anonymous ID
-          if (!user && !posthog.get_distinct_id()?.startsWith('anonymous_')) {
-            const anonymousId = `anonymous_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-            posthog.identify(anonymousId, {
-              user_type: 'anonymous',
-              is_anonymous: true,
-              first_seen: new Date().toISOString(),
-              page_type: 'documentation'
-            });
-            
-            // Track anonymous documentation access
-            posthog.capture('anonymous_user_documentation_access', {
-              page: window.location.pathname,
-              feature: 'documentation',
-              timestamp: new Date().toISOString()
-            });
-          } else if (user) {
-            // User is authenticated, only identify if not already identified with correct user ID
-            const currentDistinctId = posthog.get_distinct_id();
-            if (!currentDistinctId || currentDistinctId !== user.id) {
-              posthog.identify(user.id, {
-                email: user.email,
-                user_type: 'authenticated',
-                is_anonymous: false,
-                page_type: 'documentation'
-              });
-            } else {
-              // User already properly identified, just update properties without re-identifying
-              posthog.people.set({
-                email: user.email,
-                user_type: 'authenticated',
-                is_anonymous: false,
-                page_type: 'documentation'
-              });
-            }
-          }
-        } catch (error) {
-          console.error('Error checking authentication status for PostHog:', error);
-        }
-      }
     }
   });
 
@@ -152,6 +103,53 @@ if (typeof window !== 'undefined') {
 function PostHogTracking({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  // Handle user identification based on auth state
+  useEffect(() => {
+    const handleUserIdentification = async () => {
+      if (!posthog.__loaded) return;
+
+      try {
+        const { createClient } = await import('@/utils/supabase/client');
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        const currentDistinctId = posthog.get_distinct_id();
+        const isDocumentationPage = pathname?.startsWith('/dokumentation') || pathname?.startsWith('/landing');
+        
+        if (user) {
+          // User is authenticated - identify them if not already identified correctly
+          if (!currentDistinctId || currentDistinctId !== user.id) {
+            posthog.identify(user.id, {
+              email: user.email,
+              user_type: 'authenticated',
+              is_anonymous: false,
+            });
+          }
+        } else if (isDocumentationPage && !currentDistinctId?.startsWith('anonymous_')) {
+          // User is not authenticated and on documentation page - assign anonymous ID
+          const anonymousId = `anonymous_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          posthog.identify(anonymousId, {
+            user_type: 'anonymous',
+            is_anonymous: true,
+            first_seen: new Date().toISOString(),
+            page_type: 'documentation'
+          });
+          
+          // Track anonymous documentation access
+          posthog.capture('anonymous_user_documentation_access', {
+            page: pathname,
+            feature: 'documentation',
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        console.error('Error handling user identification for PostHog:', error);
+      }
+    };
+
+    handleUserIdentification();
+  }, [pathname]);
 
   // Track pageviews
   useEffect(() => {
