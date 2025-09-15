@@ -39,6 +39,16 @@ export type {
   OptimizedWasserzaehlerFormData
 } from './optimized-betriebskosten';
 
+// Re-export documentation types
+export type {
+  DokumentationRecord,
+  Category,
+  Article,
+  SearchResult,
+  DocumentationFilters,
+  SyncResult
+} from './documentation';
+
 // Re-export type guards
 export {
   isOptimizedNebenkosten,
