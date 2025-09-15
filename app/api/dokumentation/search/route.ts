@@ -54,8 +54,8 @@ function isValidQuery(query: string): boolean {
   
   return !suspiciousPatterns.some(pattern => pattern.test(query));
 }
-export a
-sync function GET(request: Request) {
+
+export async function GET(request: Request) {
   const startTime = Date.now();
   
   try {
