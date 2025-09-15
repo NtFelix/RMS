@@ -93,13 +93,24 @@ async function initializePostHog() {
               timestamp: new Date().toISOString()
             });
           } else if (user) {
-            // User is authenticated, identify them properly
-            posthog.identify(user.id, {
-              email: user.email,
-              user_type: 'authenticated',
-              is_anonymous: false,
-              page_type: 'documentation'
-            });
+            // User is authenticated, only identify if not already identified with correct user ID
+            const currentDistinctId = posthog.get_distinct_id();
+            if (!currentDistinctId || currentDistinctId !== user.id) {
+              posthog.identify(user.id, {
+                email: user.email,
+                user_type: 'authenticated',
+                is_anonymous: false,
+                page_type: 'documentation'
+              });
+            } else {
+              // User already properly identified, just update properties without re-identifying
+              posthog.people.set({
+                email: user.email,
+                user_type: 'authenticated',
+                is_anonymous: false,
+                page_type: 'documentation'
+              });
+            }
           }
         } catch (error) {
           console.error('Error checking authentication status for PostHog:', error);
