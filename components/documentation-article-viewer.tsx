@@ -94,7 +94,7 @@ export function DocumentationArticleViewer({
     const shareData = {
       title: `${article.titel} - Mietfluss Dokumentation`,
       text: `Lesen Sie mehr über "${article.titel}" in der Mietfluss Dokumentation.`,
-      url: `${window.location.origin}/documentation/${article.id}`
+      url: `${window.location.origin}/dokumentation/${article.id}`
     };
 
     try {
@@ -119,7 +119,7 @@ export function DocumentationArticleViewer({
   };
 
   const handleOpenInNewTab = () => {
-    window.open(`/documentation/${article.id}`, '_blank');
+    window.open(`/dokumentation/${article.id}`, '_blank');
   };
 
   return (

@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: ArticlePageProps): Promise<Me
 
     const title = `${article.titel} | Mietfluss Dokumentation`;
     const description = getPreviewText(article.seiteninhalt) || `Erfahren Sie mehr über ${article.titel} in der Mietfluss Dokumentation.`;
-    const canonicalUrl = `https://mietfluss.de/documentation/${article.id}`;
+    const canonicalUrl = `https://mietfluss.de/dokumentation/${article.id}`;
 
     return {
       title,
