@@ -1,17 +1,15 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, User, AlertCircle, RotateCcw, X, Atom } from "lucide-react";
+import { Send, Bot, User, AlertCircle, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { useAIAssistantStore, type ChatMessage } from "@/hooks/use-ai-assistant-store";
-import { startAIGeneration, completeAIGeneration, startAITrace, completeAITrace, trackStreamingUpdate, type LLMGeneration, type LLMTrace } from "@/lib/posthog-llm-tracking";
+import { useAIConversation } from "@/hooks/use-ai-conversation";
 
 interface AIAssistantInterfaceProps {
   isOpen: boolean;
@@ -32,28 +30,27 @@ export default function AIAssistantInterfaceSimple({
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Local state for the interface
-  const [inputValue, setInputValue] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // AI Assistant store
-  const { 
-    messages, 
-    addMessage, 
-    updateMessage,
-    clearMessages,
-    setLoading: setStoreLoading,
-    setError: setStoreError
-  } = useAIAssistantStore();
+  // AI conversation hook
+  const {
+    inputValue,
+    isLoading,
+    error,
+    messages,
+    handleInputChange,
+    handleSubmit,
+    clearMessages: clearConversationMessages,
+    formatTime
+  } = useAIConversation({
+    documentationContext,
+    onFallbackToSearch,
+    interface: 'simple'
+  });
 
   // Handle close with cleanup
   const handleClose = useCallback(() => {
-    clearMessages();
-    setInputValue('');
-    setError(null);
+    clearConversationMessages();
     onClose();
-  }, [clearMessages, onClose]);
+  }, [clearConversationMessages, onClose]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -69,6 +66,11 @@ export default function AIAssistantInterfaceSimple({
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // Clear messages action for the button
+  const clearMessages = useCallback(() => {
+    clearConversationMessages();
+  }, [clearConversationMessages]);
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -95,228 +97,6 @@ export default function AIAssistantInterfaceSimple({
       };
     }
   }, [isOpen, handleKeyDown]);
-
-  // Handle input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
-  };
-
-  // Send message to AI
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const message = inputValue.trim();
-    if (!message || isLoading) return;
-
-    // Generate IDs for tracking
-    const sessionId = `session_${Date.now()}`;
-    const traceId = `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const generationId = `gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Add user message
-    const userMessage: ChatMessage = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      role: 'user',
-      content: message,
-      timestamp: new Date()
-    };
-
-    addMessage(userMessage);
-    setInputValue('');
-    setIsLoading(true);
-    setStoreLoading(true);
-    setError(null);
-    setStoreError(null);
-
-    // Create assistant message placeholder for streaming
-    const assistantMessageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const assistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date()
-    };
-    addMessage(assistantMessage);
-
-    // Start LLM tracking
-    let trace: LLMTrace | null = null;
-    let generation: LLMGeneration | null = null;
-
-    try {
-      // Start trace for the conversation
-      trace = startAITrace({
-        id: traceId,
-        span_name: 'mietfluss_ai_conversation',
-        input_state: {
-          user_message: message,
-          context_articles: documentationContext?.articles?.length || 0,
-          context_categories: documentationContext?.categories?.length || 0,
-          interface: 'simple',
-          has_documentation_context: !!(documentationContext?.articles?.length),
-          message_length: message.length
-        },
-        sessionId
-      });
-
-      // Start generation for the AI response
-      generation = startAIGeneration({
-        id: generationId,
-        model: 'gemini-2.5-flash-lite',
-        provider: 'google',
-        input: [{ role: 'user', content: message }],
-        sessionId,
-        traceId
-      });
-
-      const response = await fetch('/api/ai-assistant', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          context: documentationContext,
-          sessionId: `session_${Date.now()}`
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      // Handle streaming response
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = '';
-      let chunkCount = 0;
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const jsonStr = line.slice(6); // Remove 'data: ' prefix
-                if (jsonStr.trim() === '') continue;
-                
-                const data = JSON.parse(jsonStr);
-                
-                if (data.type === 'chunk' && data.content) {
-                  fullResponse += data.content;
-                  // Update the assistant message with accumulated content
-                  updateMessage(assistantMessageId, fullResponse);
-                  
-                  // Track streaming update
-                  if (generation) {
-                    trackStreamingUpdate({
-                      generationId: generation.id,
-                      chunkContent: data.content,
-                      chunkIndex: chunkCount++,
-                      sessionId
-                    });
-                  }
-                } else if (data.type === 'complete') {
-                  fullResponse = data.content || fullResponse;
-                  // Final update
-                  updateMessage(assistantMessageId, fullResponse || 'Entschuldigung, ich konnte keine Antwort generieren.');
-                  
-                  // Complete LLM tracking
-                  if (generation) {
-                    const responseTime = Date.now() - Date.parse(generation.start_time);
-                    completeAIGeneration(generation, {
-                      output: [{ role: 'assistant', content: fullResponse }],
-                      status: 'success',
-                      latency: responseTime / 1000, // Convert to seconds
-                      usage: {
-                        input_tokens: Math.ceil(message.length / 4), // Rough estimate
-                        output_tokens: Math.ceil(fullResponse.length / 4),
-                        total_tokens: Math.ceil((message.length + fullResponse.length) / 4)
-                      },
-                      httpStatus: 200
-                    });
-                  }
-                  
-                  if (trace) {
-                    const traceTime = Date.now() - Date.parse(trace.start_time);
-                    completeAITrace(trace, {
-                      output_state: {
-                        assistant_response: fullResponse,
-                        response_length: fullResponse.length,
-                        chunks_received: chunkCount,
-                        success: true
-                      },
-                      latency: traceTime / 1000,
-                      status: 'success'
-                    });
-                  }
-                  
-                  break;
-                } else if (data.type === 'error') {
-                  throw new Error(data.error || 'Unbekannter Fehler beim Streaming');
-                }
-              } catch (parseError) {
-                console.warn('Failed to parse SSE data:', line, parseError);
-              }
-            }
-          }
-        }
-      } else {
-        throw new Error('Response body is not readable');
-      }
-
-    } catch (error) {
-      console.error('AI Assistant Error:', error);
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.';
-      setError(errorMessage);
-      setStoreError(errorMessage);
-      
-      // Update the assistant message with error
-      updateMessage(assistantMessageId, 'Entschuldigung, es gab einen Fehler bei der Verarbeitung Ihrer Anfrage. Bitte versuchen Sie es erneut.');
-      
-      // Complete LLM tracking with error
-      if (generation) {
-        const responseTime = Date.now() - Date.parse(generation.start_time);
-        completeAIGeneration(generation, {
-          output: [{ role: 'assistant', content: errorMessage }],
-          status: 'error',
-          error: errorMessage,
-          latency: responseTime / 1000,
-          httpStatus: 500
-        });
-      }
-      
-      if (trace) {
-        const traceTime = Date.now() - Date.parse(trace.start_time);
-        completeAITrace(trace, {
-          output_state: {
-            error: errorMessage,
-            error_type: error instanceof Error ? error.constructor.name : 'UnknownError',
-            success: false
-          },
-          latency: traceTime / 1000,
-          status: 'error',
-          error: errorMessage
-        });
-      }
-    } finally {
-      setIsLoading(false);
-      setStoreLoading(false);
-    }
-  };
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('de-DE', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
 
   if (!isOpen) return null;
 
