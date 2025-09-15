@@ -50,6 +50,7 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
 
   const { 
     openConfirmationModal,
+    closeConfirmationModal,
     openTemplateEditorModal,
     closeTemplateEditorModal,
     isTemplateEditorModalOpen,
@@ -145,6 +146,11 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
             title: 'Erfolg',
             description: 'Vorlage wurde erfolgreich gelöscht.',
           });
+          
+          // Close the confirmation modal after a brief delay to show success
+          setTimeout(() => {
+            closeConfirmationModal();
+          }, 500);
         } catch (error) {
           console.error('Error deleting template:', error);
           toast({
@@ -152,6 +158,9 @@ export function TemplatesModal({ isOpen, onClose }: TemplatesModalProps) {
             description: 'Fehler beim Löschen der Vorlage.',
             variant: 'destructive',
           });
+          
+          // Close the confirmation modal even on error
+          closeConfirmationModal();
         } finally {
           setIsDeleting(null);
         }
