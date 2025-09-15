@@ -57,43 +57,39 @@ export function DocumentationCategoryCards({
 
 
       {/* Category Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {categories.map((category) => (
           <Card
             key={category.name}
-            className="group cursor-pointer border-0 bg-card/30 hover:bg-card/50 transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
+            className="group cursor-pointer border-2 border-input hover:border-ring bg-background hover:shadow-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             onClick={() => onCategorySelect(category.name)}
           >
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                    <FolderOpen className="h-5 w-5 text-primary" />
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-all duration-300 group-hover:scale-110">
+                    <FolderOpen className="h-6 w-6 text-primary" />
                   </div>
                   <CardTitle className="text-lg font-semibold group-hover:text-primary transition-colors">
                     {category.name || 'Ohne Kategorie'}
                   </CardTitle>
                 </div>
-                <Badge variant="secondary" className="group-hover:bg-primary/20 transition-colors">
+                <Badge variant="secondary" className="group-hover:bg-primary/20 group-hover:text-primary transition-colors px-3 py-1">
                   {category.articleCount}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">
                   <FileText className="h-4 w-4" />
                   <span>
                     {category.articleCount} {category.articleCount === 1 ? 'Artikel' : 'Artikel'}
                   </span>
                 </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
               </div>
-              <p className="text-sm text-muted-foreground mt-2 overflow-hidden text-ellipsis" style={{ 
-                display: '-webkit-box', 
-                WebkitLineClamp: 2, 
-                WebkitBoxOrient: 'vertical' 
-              }}>
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-2">
                 Entdecken Sie alle Artikel in der Kategorie "{category.name || 'Ohne Kategorie'}" 
                 und finden Sie die Informationen, die Sie benötigen.
               </p>
@@ -104,17 +100,17 @@ export function DocumentationCategoryCards({
 
       {/* Summary Stats */}
       <div className="mt-12 text-center">
-        <div className="inline-flex items-center gap-6 px-6 py-3 bg-muted/30 rounded-full">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-primary rounded-full"></div>
-            <span className="text-sm font-medium">
+        <div className="inline-flex items-center gap-6 px-8 py-4 bg-background border-2 border-input rounded-full shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-primary rounded-full animate-pulse"></div>
+            <span className="text-sm font-semibold text-foreground">
               {categories.length} {categories.length === 1 ? 'Kategorie' : 'Kategorien'}
             </span>
           </div>
-          <div className="w-px h-4 bg-border"></div>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-sm font-medium">
+          <div className="w-px h-6 bg-border"></div>
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-sm font-semibold text-foreground">
               {categories.reduce((sum, cat) => sum + cat.articleCount, 0)} Artikel insgesamt
             </span>
           </div>

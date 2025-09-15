@@ -23,7 +23,7 @@ export async function GET() {
     );
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    console.error('GET /api/documentation/categories error:', {
+    console.error('GET /api/dokumentation/categories error:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       responseTime,

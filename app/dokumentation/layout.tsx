@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Navigation from '@/app/modern/components/navigation';
 import Footer from '@/app/modern/components/footer';
 import AuthModalProvider from '@/components/auth-modal-provider';
+import { AIAssistantModal } from '@/components/ai-assistant-modal';
 
 export const metadata: Metadata = {
   title: 'Dokumentation | Mietfluss',
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
     title: 'Dokumentation | Mietfluss',
     description: 'Umfassende Dokumentation und Hilfe für die Mietfluss Plattform',
     type: 'website',
-    url: 'https://mietfluss.de/documentation',
+    url: 'https://mietfluss.de/dokumentation',
     siteName: 'Mietfluss',
     locale: 'de_DE',
   },
@@ -24,7 +25,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   alternates: {
-    canonical: 'https://mietfluss.de/documentation',
+    canonical: 'https://mietfluss.de/dokumentation',
   },
 };
 
@@ -46,6 +47,9 @@ export default function DocumentationLayout({ children }: DocumentationLayoutPro
         
         {/* Footer */}
         <Footer />
+        
+        {/* AI Assistant Modal */}
+        <AIAssistantModal />
       </div>
     </AuthModalProvider>
   );

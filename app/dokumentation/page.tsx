@@ -13,8 +13,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import AIAssistantInterfaceSimple from '@/components/ai-assistant-interface-simple';
 import { useAIAssistantStore } from '@/hooks/use-ai-assistant-store';
+import { useModalStore } from '@/hooks/use-modal-store';
 
 interface DocumentationState {
   categories: Category[];
@@ -34,11 +34,12 @@ function DocumentationContent() {
   
   // AI Assistant store
   const { 
-    isOpen: isAIOpen, 
-    closeAI, 
     switchToSearch,
     currentMode 
   } = useAIAssistantStore();
+
+  // Modal store
+  const { openAIAssistantModal, closeAIAssistantModal } = useModalStore();
 
   const [state, setState] = useState<DocumentationState>({
     categories: [],
@@ -100,7 +101,7 @@ function DocumentationContent() {
       newParams.set('search', params.search);
     }
 
-    const newURL = `/documentation${newParams.toString() ? `?${newParams.toString()}` : ''}`;
+    const newURL = `/dokumentation${newParams.toString() ? `?${newParams.toString()}` : ''}`;
     router.replace(newURL, { scroll: false });
   }, [router]);
 
@@ -108,7 +109,7 @@ function DocumentationContent() {
     try {
       setState(prev => ({ ...prev, isLoadingCategories: true, error: null }));
       
-      const response = await fetch('/api/documentation/categories');
+      const response = await fetch('/api/dokumentation/categories');
       if (!response.ok) {
         throw new Error(`Failed to load categories: ${response.statusText}`);
       }
@@ -135,8 +136,8 @@ function DocumentationContent() {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
       
       const url = category 
-        ? `/api/documentation?kategorie=${encodeURIComponent(category)}`
-        : '/api/documentation';
+        ? `/api/dokumentation?kategorie=${encodeURIComponent(category)}`
+        : '/api/dokumentation';
       
       const response = await fetch(url);
       if (!response.ok) {
@@ -169,7 +170,7 @@ function DocumentationContent() {
     try {
       setState(prev => ({ ...prev, isLoadingArticles: true, error: null }));
       
-      const response = await fetch(`/api/documentation/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/dokumentation/search?q=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error(`Search failed: ${response.statusText}`);
       }
@@ -193,7 +194,7 @@ function DocumentationContent() {
 
   const loadArticleById = async (articleId: string) => {
     try {
-      const response = await fetch(`/api/documentation/${articleId}`);
+      const response = await fetch(`/api/dokumentation/${articleId}`);
       if (!response.ok) {
         throw new Error(`Failed to load article: ${response.statusText}`);
       }
@@ -248,17 +249,14 @@ function DocumentationContent() {
   }, [updateURL, state.selectedCategory, state.searchQuery]);
 
   // AI Assistant handlers
-  const handleAIClose = useCallback(() => {
-    closeAI();
-  }, [closeAI]);
-
   const handleFallbackToSearch = useCallback(() => {
     switchToSearch();
+    closeAIAssistantModal();
     toast({
       title: 'Zur normalen Suche gewechselt',
       description: 'Sie können jetzt die normale Dokumentationssuche verwenden.',
     });
-  }, [switchToSearch, toast]);
+  }, [switchToSearch, closeAIAssistantModal, toast]);
 
   // Prepare documentation context for AI assistant
   const documentationContext = useCallback(() => {
@@ -271,8 +269,6 @@ function DocumentationContent() {
       totalCategories: state.categories.length
     };
   }, [state.articles, state.categories, state.selectedCategory, state.selectedArticle]);
-
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
@@ -295,19 +291,9 @@ function DocumentationContent() {
               <DocumentationSearch
                 onSearch={handleSearch}
                 placeholder="Durchsuchen Sie die gesamte Dokumentation..."
+                documentationContext={documentationContext()}
+                onFallbackToSearch={handleFallbackToSearch}
               />
-            </div>
-          </div>
-
-          {/* Quick Stats */}
-          <div className="flex items-center justify-center gap-8 text-sm text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span>{state.articles.length} Artikel verfügbar</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <span>{state.categories.length} Kategorien</span>
             </div>
           </div>
         </div>
@@ -393,14 +379,6 @@ function DocumentationContent() {
             )}
           </div>
         </div>
-
-        {/* AI Assistant Interface */}
-        <AIAssistantInterfaceSimple
-          isOpen={isAIOpen}
-          onClose={handleAIClose}
-          documentationContext={documentationContext()}
-          onFallbackToSearch={handleFallbackToSearch}
-        />
       </div>
     </div>
   );

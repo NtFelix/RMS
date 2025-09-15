@@ -1,11 +1,10 @@
 export const runtime = 'edge';
 import { NextResponse } from "next/server";
 import { createDocumentationService } from "@/lib/documentation-service";
-import type { DocumentationFilters } from "@/types/documentation";
 
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 100;
+const RATE_LIMIT_MAX_REQUESTS = 60; // Lower limit for search to prevent abuse
 const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 function checkRateLimit(clientId: string): boolean {
@@ -28,6 +27,34 @@ function checkRateLimit(clientId: string): boolean {
   return true;
 }
 
+// Helper function to sanitize search query
+function sanitizeQuery(query: string): string {
+  // Remove potentially harmful patterns
+  return query
+    .trim()
+    .replace(/[<>]/g, '') // Remove HTML tags
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+    .replace(/[%_]/g, '\\$&'); // Escape SQL wildcards
+}
+
+// Validate query for suspicious patterns
+function isValidQuery(query: string): boolean {
+  // Check for suspicious patterns
+  const suspiciousPatterns = [
+    /<script/i,
+    /javascript:/i,
+    /data:/i,
+    /vbscript:/i,
+    /on\w+\s*=/i, // Event handlers like onclick=
+    /eval\s*\(/i,
+    /expression\s*\(/i,
+  ];
+  
+  return !suspiciousPatterns.some(pattern => pattern.test(query));
+}
+
 export async function GET(request: Request) {
   const startTime = Date.now();
   
@@ -37,7 +64,7 @@ export async function GET(request: Request) {
     if (!checkRateLimit(clientId)) {
       return NextResponse.json(
         { 
-          error: 'Zu viele Anfragen. Bitte versuchen Sie es später erneut.',
+          error: 'Zu viele Suchanfragen. Bitte versuchen Sie es später erneut.',
           retryAfter: 60 
         },
         { 
@@ -53,57 +80,40 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
-    
-    // Validate and parse query parameters
-    const filters: DocumentationFilters = {};
-    
-    const kategorie = searchParams.get('kategorie');
-    if (kategorie && kategorie.trim()) {
-      filters.kategorie = kategorie.trim();
-    }
-    
-    const searchQuery = searchParams.get('q');
-    if (searchQuery && searchQuery.trim()) {
-      if (searchQuery.length > 100) {
-        return NextResponse.json(
-          { error: 'Suchbegriff ist zu lang. Maximal 100 Zeichen erlaubt.' },
-          { status: 400 }
-        );
-      }
-      filters.searchQuery = searchQuery.trim();
-    }
-    
-    const limit = searchParams.get('limit');
-    if (limit) {
-      const parsedLimit = parseInt(limit);
-      if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
-        return NextResponse.json(
-          { error: 'Ungültiger Limit-Parameter. Muss zwischen 1 und 100 liegen.' },
-          { status: 400 }
-        );
-      }
-      filters.limit = parsedLimit;
-    }
-    
-    const offset = searchParams.get('offset');
-    if (offset) {
-      const parsedOffset = parseInt(offset);
-      if (isNaN(parsedOffset) || parsedOffset < 0) {
-        return NextResponse.json(
-          { error: 'Ungültiger Offset-Parameter. Muss >= 0 sein.' },
-          { status: 400 }
-        );
-      }
-      filters.offset = parsedOffset;
+    const query = searchParams.get('q');
+
+    if (!query || !query.trim()) {
+      return NextResponse.json(
+        { error: 'Suchbegriff ist erforderlich' },
+        { status: 400 }
+      );
     }
 
+    if (query.length > 100) {
+      return NextResponse.json(
+        { error: 'Suchbegriff ist zu lang. Maximal 100 Zeichen erlaubt.' },
+        { status: 400 }
+      );
+    }
+
+    // Validate query for suspicious patterns
+    if (!isValidQuery(query)) {
+      return NextResponse.json(
+        { error: 'Ungültiger Suchbegriff. Bitte verwenden Sie nur Text ohne spezielle Zeichen.' },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize the query
+    const sanitizedQuery = sanitizeQuery(query);
+
     const documentationService = createDocumentationService(true);
-    const articles = await documentationService.getAllArticles(filters);
+    const results = await documentationService.searchArticles(sanitizedQuery);
 
     const responseTime = Date.now() - startTime;
 
     return NextResponse.json(
-      articles, 
+      results, 
       { 
         status: 200,
         headers: {
@@ -114,7 +124,7 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     const responseTime = Date.now() - startTime;
-    console.error('GET /api/documentation error:', {
+    console.error('GET /api/dokumentation/search error:', {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       responseTime,
@@ -126,7 +136,7 @@ export async function GET(request: Request) {
       if (error.message.includes('timeout') || error.message.includes('TIMEOUT')) {
         return NextResponse.json(
           { 
-            error: 'Anfrage-Timeout. Bitte versuchen Sie es erneut.',
+            error: 'Such-Timeout. Bitte versuchen Sie es erneut.',
             retryable: true 
           },
           { status: 504 }
@@ -146,7 +156,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       { 
-        error: 'Fehler beim Abrufen der Dokumentation. Bitte versuchen Sie es erneut.',
+        error: 'Fehler bei der Suche. Bitte versuchen Sie es erneut.',
         retryable: true 
       },
       { status: 500 }

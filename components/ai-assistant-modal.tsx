@@ -2,35 +2,28 @@
 
 import { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
-import { Send, Bot, User, AlertCircle, RotateCcw, X, Atom } from "lucide-react";
+import { ArrowUp, User, AlertCircle, RotateCcw, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useModalStore } from "@/hooks/use-modal-store";
 import { useAIAssistantStore, type ChatMessage } from "@/hooks/use-ai-assistant-store";
 import { startAIGeneration, completeAIGeneration, startAITrace, completeAITrace, trackStreamingUpdate, type LLMGeneration, type LLMTrace } from "@/lib/posthog-llm-tracking";
 
-interface AIAssistantInterfaceProps {
-  isOpen: boolean;
-  onClose: () => void;
-  documentationContext?: any;
-  className?: string;
-  onFallbackToSearch?: () => void;
-}
-
-export default function AIAssistantInterfaceSimple({
-  isOpen,
-  onClose,
-  documentationContext,
-  className,
-  onFallbackToSearch
-}: AIAssistantInterfaceProps) {
+export function AIAssistantModal() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Modal store
+  const {
+    isAIAssistantModalOpen,
+    aiAssistantModalData,
+    closeAIAssistantModal,
+  } = useModalStore();
 
   // Local state for the interface
   const [inputValue, setInputValue] = useState('');
@@ -52,8 +45,8 @@ export default function AIAssistantInterfaceSimple({
     clearMessages();
     setInputValue('');
     setError(null);
-    onClose();
-  }, [clearMessages, onClose]);
+    closeAIAssistantModal();
+  }, [clearMessages, closeAIAssistantModal]);
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -62,39 +55,13 @@ export default function AIAssistantInterfaceSimple({
 
   // Focus input when modal opens
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isAIAssistantModalOpen && inputRef.current) {
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isOpen]);
-
-  // Keyboard navigation
-  const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (!isOpen) return;
-
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      handleClose();
-      return;
-    }
-
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      clearMessages();
-      return;
-    }
-  }, [isOpen, handleClose, clearMessages]);
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [isOpen, handleKeyDown]);
+  }, [isAIAssistantModalOpen]);
 
   // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,10 +116,10 @@ export default function AIAssistantInterfaceSimple({
         span_name: 'mietfluss_ai_conversation',
         input_state: {
           user_message: message,
-          context_articles: documentationContext?.articles?.length || 0,
-          context_categories: documentationContext?.categories?.length || 0,
-          interface: 'simple',
-          has_documentation_context: !!(documentationContext?.articles?.length),
+          context_articles: aiAssistantModalData?.documentationContext?.articles?.length || 0,
+          context_categories: aiAssistantModalData?.documentationContext?.categories?.length || 0,
+          interface: 'modal',
+          has_documentation_context: !!(aiAssistantModalData?.documentationContext?.articles?.length),
           message_length: message.length
         },
         sessionId
@@ -175,7 +142,7 @@ export default function AIAssistantInterfaceSimple({
         },
         body: JSON.stringify({
           message: message,
-          context: documentationContext,
+          context: aiAssistantModalData?.documentationContext,
           sessionId: `session_${Date.now()}`
         }),
       });
@@ -318,76 +285,46 @@ export default function AIAssistantInterfaceSimple({
     });
   };
 
-  if (!isOpen) return null;
+  if (!isAIAssistantModalOpen) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
-      className={cn(
-        "fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4",
-        className
-      )}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) {
-          handleClose();
-        }
-      }}
-    >
-      <div 
-        ref={dialogRef}
-        role="dialog" 
-        aria-labelledby="ai-assistant-title"
-        aria-describedby="ai-assistant-description"
-        aria-modal="true"
-        className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl h-[600px] flex flex-col overflow-hidden"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 id="ai-assistant-title" className="font-semibold text-foreground">Mietfluss AI Assistent</h2>
-              </div>
+    <Dialog open={isAIAssistantModalOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-2xl h-[600px] max-h-[90vh] p-0 flex flex-col bg-background border-0 shadow-2xl rounded-lg overflow-hidden">
+        <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
+          <div className="flex items-center justify-between mt-3">
+            <DialogTitle className="text-lg font-semibold leading-none tracking-tight">
+              Mietfluss AI Assistent
+            </DialogTitle>
+            <div className="flex items-center gap-2">
+              {messages.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearMessages}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Unterhaltung löschen (Strg+K)"
+                  title="Unterhaltung löschen (Strg+K)"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {messages.length > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearMessages}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label="Unterhaltung löschen (Strg+K)"
-                title="Unterhaltung löschen (Strg+K)"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="text-muted-foreground hover:text-foreground"
-              aria-label="AI Assistent schließen (Escape)"
-              title="AI Assistent schließen (Escape)"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+          <DialogDescription className="sr-only">
+            AI-Assistent für Fragen zu Mietfluss-Funktionen und Immobilienverwaltung
+          </DialogDescription>
+        </DialogHeader>
 
         {/* Messages Area */}
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-4">
             {messages.length === 0 && (
               <div className="text-center py-8">
-                <Bot className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <img 
+                  src="/mascot/normal.png" 
+                  alt="Mietfluss AI Assistent Maskottchen" 
+                  className="w-24 h-24 mx-auto mb-4 object-contain"
+                />
                 <h3 className="font-medium text-foreground mb-2">
                   Willkommen beim Mietfluss AI Assistenten
                 </h3>
@@ -410,8 +347,12 @@ export default function AIAssistantInterfaceSimple({
                 )}
               >
                 {message.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                    <Bot className="w-4 h-4 text-primary" />
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
+                    <img 
+                      src="/mascot/normal.png" 
+                      alt="Mietfluss Maskottchen" 
+                      className="w-full h-full object-contain"
+                    />
                   </div>
                 )}
                 
@@ -449,8 +390,12 @@ export default function AIAssistantInterfaceSimple({
                 animate={{ opacity: 1, y: 0 }}
                 className="flex gap-3 justify-start"
               >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Bot className="w-4 h-4 text-primary" />
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 p-1">
+                  <img 
+                    src="/mascot/normal.png" 
+                    alt="Mietfluss Maskottchen" 
+                    className="w-full h-full object-contain"
+                  />
                 </div>
                 <div className="bg-muted border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
                   <Spinner className="w-4 h-4" />
@@ -472,11 +417,11 @@ export default function AIAssistantInterfaceSimple({
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="flex items-center justify-between">
                 <span>{error}</span>
-                {onFallbackToSearch && (
+                {aiAssistantModalData?.onFallbackToSearch && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onFallbackToSearch}
+                    onClick={aiAssistantModalData.onFallbackToSearch}
                     className="ml-2"
                   >
                     Zur Suche
@@ -489,40 +434,37 @@ export default function AIAssistantInterfaceSimple({
 
         {/* Input Area */}
         <div className="p-4 border-t border-border bg-muted/30">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <div className="flex-1 relative">
+          <form onSubmit={handleSubmit} className="relative">
+            <div className="relative bg-background border-2 border-input rounded-full px-4 py-1 pr-16 shadow-sm focus-within:border-ring hover:shadow-md hover:scale-[1.01] transition-all duration-200">
               <Input
                 ref={inputRef}
                 value={inputValue}
                 onChange={handleInputChange}
                 placeholder="Stellen Sie eine Frage über Mietfluss..."
                 disabled={isLoading}
-                className="pr-12"
+                className="border-0 bg-transparent p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground"
                 maxLength={2000}
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              <div className="absolute right-16 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                 {inputValue.length}/2000
               </div>
+              <Button
+                type="submit"
+                disabled={!inputValue.trim() || isLoading}
+                size="sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full p-0 bg-primary hover:bg-primary/90"
+                aria-label="Nachricht senden"
+              >
+                {isLoading ? (
+                  <Spinner className="w-4 h-4" />
+                ) : (
+                  <ArrowUp className="w-4 h-4" />
+                )}
+              </Button>
             </div>
-            <Button
-              type="submit"
-              disabled={!inputValue.trim() || isLoading}
-              size="sm"
-              className="px-3"
-              aria-label="Nachricht senden"
-            >
-              {isLoading ? (
-                <Spinner className="w-4 h-4" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
           </form>
-          <div className="text-xs text-muted-foreground mt-2 text-center">
-            <p>Drücken Sie Enter zum Senden • Escape zum Schließen • Strg+K zum Löschen</p>
-          </div>
         </div>
-      </div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }
