@@ -42,12 +42,10 @@ function formatContent(content: string | null): React.ReactNode {
     marked.setOptions({
       breaks: true, // Convert line breaks to <br>
       gfm: true, // Enable GitHub Flavored Markdown
-      headerIds: true, // Add IDs to headers for linking
-      mangle: false, // Don't mangle autolinked email addresses
     });
 
-    // Parse markdown content to HTML
-    const htmlContent = marked.parse(content);
+    // Parse markdown content to HTML synchronously
+    const htmlContent = marked.parse(content, { async: false }) as string;
 
     return (
       <div 
