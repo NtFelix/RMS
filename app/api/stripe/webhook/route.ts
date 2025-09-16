@@ -18,7 +18,6 @@ export async function POST(req: Request) {
 
   // Define helper functions within POST to access supabaseAdmin
   async function updateProfileInSupabase(userId: string, dataToUpdate: Partial<Profile>) {
-    console.log(`Updating profile for user ${userId} with data:`, dataToUpdate);
     const { data, error } = await supabaseAdmin
       .from('profiles')
       .update(dataToUpdate)
@@ -28,12 +27,10 @@ export async function POST(req: Request) {
       console.error(`Supabase error updating profile for user ${userId}:`, error.message);
       throw error;
     }
-    console.log(`Profile update successful for user ${userId}.`);
     return data;
   }
 
   async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpdate: Partial<Profile>) {
-    console.log(`Updating profile for customer ${customerId} with data:`, dataToUpdate);
     const { data, error } = await supabaseAdmin
       .from('profiles')
       .update(dataToUpdate)
@@ -43,7 +40,6 @@ export async function POST(req: Request) {
       console.error(`Supabase error updating profile for customer ${customerId}:`, error.message);
       throw error;
     }
-    console.log(`Profile update successful for customer ${customerId}.`);
     return data;
   }
 
@@ -61,7 +57,6 @@ export async function POST(req: Request) {
       console.error('Supabase URL or Service Role Key is not set for Admin client.');
       return new NextResponse('Supabase admin client not configured', { status: 500 });
     }
-
 
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
@@ -92,7 +87,6 @@ export async function POST(req: Request) {
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        console.log('Retrieved Subscription Object (checkout.session.completed):', JSON.stringify(retrievedSubscription, null, 2));
         if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID:', subscriptionId);
             break;
@@ -107,12 +101,10 @@ export async function POST(req: Request) {
         };
 
         await updateProfileInSupabase(userId, profileUpdateData);
-        console.log(`Profile updated for user ${userId} after checkout. Update data:`, profileUpdateData);
         break;
       }
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        // console.log('Invoice Object (invoice.paid):', JSON.stringify(invoice, null, 2)); // Less verbose logging
         console.log('Invoice paid:', invoice.id);
         const customerId = invoice.customer as string;
         const subscriptionId = (invoice as any).subscription as string;
@@ -123,7 +115,6 @@ export async function POST(req: Request) {
         }
 
         const retrievedSubscription: Stripe.Subscription = await stripe.subscriptions.retrieve(subscriptionId);
-        console.log('Retrieved Subscription Object (invoice.paid):', JSON.stringify(retrievedSubscription, null, 2));
         if (!retrievedSubscription) {
             console.error('Could not retrieve subscription details for sub ID (invoice.paid):', subscriptionId);
             break;
@@ -134,13 +125,10 @@ export async function POST(req: Request) {
           stripe_price_id: retrievedSubscription.items.data[0]?.price.id,
           stripe_current_period_end: new Date((retrievedSubscription as any).current_period_end * 1000).toISOString(),
         });
-        console.log(`Profile updated for customer ${customerId} after invoice payment.`);
         break;
       }
       case 'invoice.payment_failed': {
         const invoice = event.data.object as Stripe.Invoice;
-        // It might be useful to log the invoice object here too if issues persist with this handler
-        // console.log('Invoice Object (invoice.payment_failed):', JSON.stringify(invoice, null, 2));
         console.log('Invoice payment failed:', invoice.id);
         const customerId = invoice.customer as string;
         if (!customerId) {
@@ -169,7 +157,6 @@ export async function POST(req: Request) {
       case 'customer.subscription.updated': {
         // The 'subscription' object here is directly from the event data, not from a 'retrieve' call.
         const subscriptionFromEvent = event.data.object as Stripe.Subscription;
-        console.log('Subscription Object from Event (customer.subscription.updated):', JSON.stringify(subscriptionFromEvent, null, 2));
         console.log('Subscription updated:', subscriptionFromEvent.id, 'Status:', subscriptionFromEvent.status);
         const customerId = subscriptionFromEvent.customer as string;
         if (!customerId) {
@@ -185,7 +172,6 @@ export async function POST(req: Request) {
         };
 
         await updateProfileByCustomerIdInSupabase(customerId, profileUpdateData);
-        console.log(`Profile updated for customer ${customerId} after subscription update. Update data:`, profileUpdateData);
         break;
       }
       case 'customer.subscription.deleted': {

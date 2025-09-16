@@ -42,20 +42,12 @@ export async function speichereWohnung(formData: WohnungFormData) {
     // If not, this part needs to fetch from 'profiles' table directly using userId
     const userProfile = await fetchUserProfile();
     if (!userProfile) {
-        // Assuming userId is available from const userId = user.id; defined earlier in the function
-        console.error(`speichereWohnung: User profile not found for user ID: ${userId}`);
+        console.error('speichereWohnung: User profile not found');
         return { error: 'Benutzerprofil nicht gefunden.' };
     }
 
-    // Log the crucial parts of the fetched profile
-    // Assuming userId is available from const userId = user.id; defined earlier in the function
-    console.log(`speichereWohnung: Debug User ID: ${userId.substring(0, 8)}..., Profile Status: ${userProfile.stripe_subscription_status}`);
-
     const isEffectivelyInTrial = userProfile.stripe_subscription_status === 'trialing';
     const isPaidActiveStripeSub = userProfile.stripe_subscription_status === 'active' && !!userProfile.stripe_price_id;
-
-    // Log the derived boolean flags
-    console.log(`speichereWohnung: Debug Flags - isEffectivelyInTrial: ${isEffectivelyInTrial}, isPaidActiveStripeSub: ${isPaidActiveStripeSub}`);
 
     let currentApartmentLimit: number | null | typeof Infinity = null;
     let limitReasonIsTrial = false;
@@ -121,7 +113,7 @@ export async function speichereWohnung(formData: WohnungFormData) {
     }
 
     if (currentApartmentLimit === null) {
-        console.error("Apartment limit logic resulted in null limit unexpectedly. User ID:", userId, "Profile:", userProfile);
+        console.error("Apartment limit logic resulted in null limit unexpectedly.");
         return { error: 'Fehler bei der Bestimmung Ihres Wohnungslimits. Bitte kontaktieren Sie den Support.' };
     }
 

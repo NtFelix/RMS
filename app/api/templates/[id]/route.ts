@@ -155,11 +155,7 @@ export async function PUT(
       aktualisiert_am: new Date().toISOString()
     };
 
-    console.log('PUT /api/templates/[id] payload:', { 
-      id: resolvedParams.id,
-      ...updateData, 
-      inhalt: '[JSON Content]' // Don't log full content for privacy
-    });
+
     
     const { data, error } = await supabase
       .from('Vorlagen')

@@ -51,7 +51,6 @@ async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
     console.error("Supabase admin client not initialized. Cannot update profile for user:", userId);
     throw new Error("Supabase admin client not initialized.");
   }
-  console.log(`Attempting to update profile for user ${userId} with data:`, JSON.stringify(dataToUpdate));
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .update(dataToUpdate)
@@ -61,7 +60,6 @@ async function updateProfileInSupabase(userId: string, dataToUpdate: any) {
     console.error(`Supabase error updating profile for user ${userId}:`, error.message, error.details);
     throw error;
   }
-  console.log(`Profile update successful for user ${userId}.`);
   return data;
 }
 
@@ -70,7 +68,6 @@ async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpd
     console.error("Supabase admin client not initialized. Cannot update profile for customer:", customerId);
     throw new Error("Supabase admin client not initialized.");
   }
-  console.log(`Attempting to update profile for customer ${customerId} with data:`, JSON.stringify(dataToUpdate));
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .update(dataToUpdate)
@@ -80,7 +77,6 @@ async function updateProfileByCustomerIdInSupabase(customerId: string, dataToUpd
     console.error(`Supabase error updating profile for customer ${customerId}:`, error.message, error.details);
     throw error;
   }
-  console.log(`Profile update successful for customer ${customerId}.`);
   return data;
 }
 
@@ -151,7 +147,6 @@ Deno.serve(async (request: Request) => {
         console.log(`Subscription ${subscription.id} trial status handled by Stripe subscription status.`);
 
         await updateProfileInSupabase(userId, profileUpdateData);
-        console.log(`Profile updated for user ${userId} after checkout.session.completed.`);
         break;
       }
       case 'invoice.paid': {

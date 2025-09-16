@@ -125,10 +125,7 @@ export async function POST(request: Request) {
       user_id: user.id
     };
 
-    console.log('POST /api/templates payload:', { 
-      ...insertData, 
-      inhalt: '[JSON Content]' // Don't log full content for privacy
-    });
+
     
     const { data, error } = await supabase
       .from('Vorlagen')
