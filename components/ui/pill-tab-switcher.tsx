@@ -47,15 +47,14 @@ const PillTabSwitcher = React.forwardRef<
     const buttonRect = activeButton.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
     
-    // Calculate position relative to the indicator's starting position (inset-2 = 8px on all sides)
-    const indicatorOffset = 8 // inset-2 = 8px
+    // Calculate position relative to the indicator's starting position (left-2 = 8px from left)
+    const indicatorOffset = 8 // left-2 = 8px from left edge
     const left = buttonRect.left - containerRect.left - indicatorOffset
     const width = buttonRect.width
 
     setIndicatorStyle({
       transform: `translateX(${left}px)`,
       width: `${width}px`,
-      height: `${buttonRect.height}px`, // Ensure height matches button exactly
       opacity: 1
     })
     
@@ -108,7 +107,7 @@ const PillTabSwitcher = React.forwardRef<
       {/* Sliding indicator */}
       <div
         className={cn(
-          "absolute inset-2 rounded-full",
+          "absolute top-2 bottom-2 left-2 rounded-full",
           "bg-primary shadow-sm",
           "transition-all duration-200 ease-out",
           "z-0"
