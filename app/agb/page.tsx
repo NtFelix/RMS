@@ -1,44 +1,17 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 import Navigation from '../modern/components/navigation';
 import Footer from '../modern/components/footer';
 import AuthModalProvider, { useAuthModal } from '@/components/auth-modal-provider';
 
-const breadcrumbItems = [
-  { label: 'Home', href: '/' },
-  { label: 'AGB', href: '/agb' },
-];
-
 function AGBPageContent() {
-  const { toast } = useToast();
   const { openAuthModal } = useAuthModal();
-  const router = useRouter();
-
-  const handleGetStarted = () => {
-    openAuthModal('register');
-  };
-
-  const handleLogin = () => {
-    openAuthModal('login');
-  };
-
-  useEffect(() => {
-    // Add any page-specific effects here if needed
-  }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navigation 
-        onGetStarted={handleGetStarted}
-        onLogin={handleLogin}
-        breadcrumbItems={breadcrumbItems}
-      />
-      
-      <main className="pt-20">
-        <div className="max-w-4xl mx-auto px-4 py-16">
+    <>
+      <Navigation onLogin={() => openAuthModal('login')} />
+      <div className="w-full bg-background pt-24 pb-12">
+        <div className="container mx-auto px-4 max-w-4xl">
           <div className="prose dark:prose-invert max-w-none bg-card p-8 rounded-lg shadow-sm">
             <h1 className="text-3xl font-bold mb-2">Allgemeine Geschäftsbedingungen</h1>
             <p className="text-muted-foreground italic mb-8">Letzte Aktualisierung: 16. September 2025</p>
@@ -99,10 +72,9 @@ function AGBPageContent() {
             </div>
           </div>
         </div>
-      </main>
-
+      </div>
       <Footer />
-    </div>
+    </>
   );
 }
 
