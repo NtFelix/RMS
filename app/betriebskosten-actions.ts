@@ -142,7 +142,7 @@ export async function deleteNebenkosten(id: string) {
 }
 
 export async function createRechnungenBatch(rechnungen: RechnungData[]) {
-  console.log('[Server Action] createRechnungenBatch received:', JSON.stringify(rechnungen, null, 2));
+  console.log('[Server Action] createRechnungenBatch received batch of', rechnungen.length, 'items');
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -156,15 +156,19 @@ export async function createRechnungenBatch(rechnungen: RechnungData[]) {
     user_id: user.id,
   }));
 
-  console.log('[Server Action] Data to insert into Rechnungen table:', JSON.stringify(dataWithUserId, null, 2));
+  console.log('[Server Action] Inserting', dataWithUserId.length, 'records into Rechnungen table');
 
   const { data, error } = await supabase
     .from("Rechnungen")
     .insert(dataWithUserId)
     .select(); // .select() returns the inserted rows
   
-  console.log('[Server Action] Supabase insert response - data:', JSON.stringify(data, null, 2));
-  console.log('[Server Action] Supabase insert response - error:', JSON.stringify(error, null, 2));
+  if (data) {
+    console.log('[Server Action] Successfully inserted', data.length, 'records');
+  }
+  if (error) {
+    console.log('[Server Action] Insert error:', error.message);
+  }
 
   if (error) {
     console.error("Error creating Rechnungen batch:", error); // This log is already good

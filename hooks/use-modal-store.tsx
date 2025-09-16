@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { Nebenkosten, Mieter, Wasserzaehler, WasserzaehlerFormData } from '@/lib/data-fetching';
 import { WasserzaehlerModalData } from '@/types/optimized-betriebskosten';
 import { Tenant, KautionData } from '@/types/Tenant';
+import { Template } from '@/types/template';
 
 // Overview Modal Types
 interface HausWithWohnungen {
@@ -366,6 +367,22 @@ export interface ModalState {
   markdownEditorData?: MarkdownEditorData;
   openMarkdownEditorModal: (data: MarkdownEditorData) => void;
   closeMarkdownEditorModal: () => void;
+
+  // Templates Modal State
+  isTemplatesModalOpen: boolean;
+  isTemplateEditorModalOpen: boolean;
+  templateEditorData?: {
+    template?: Template;
+    onSave: (templateData: Partial<Template>) => void;
+  };
+  isTemplatesModalDirty: boolean;
+  isTemplateEditorModalDirty: boolean;
+  openTemplatesModal: () => void;
+  closeTemplatesModal: (options?: CloseModalOptions) => void;
+  openTemplateEditorModal: (template?: Template, onSave?: (templateData: Partial<Template>) => void) => void;
+  closeTemplateEditorModal: (options?: CloseModalOptions) => void;
+  setTemplatesModalDirty: (isDirty: boolean) => void;
+  setTemplateEditorModalDirty: (isDirty: boolean) => void;
 }
 
 const CONFIRMATION_MODAL_DEFAULTS = {
@@ -512,6 +529,14 @@ const initialMarkdownEditorModalState = {
   markdownEditorData: undefined,
 };
 
+const initialTemplatesModalState = {
+  isTemplatesModalOpen: false,
+  isTemplateEditorModalOpen: false,
+  templateEditorData: undefined,
+  isTemplatesModalDirty: false,
+  isTemplateEditorModalDirty: false,
+};
+
 const createInitialModalState = () => ({
   ...initialTenantModalState,
   ...initialHouseModalState,
@@ -534,6 +559,7 @@ const createInitialModalState = () => ({
   ...initialFileMoveModalState,
   ...initialShareDocumentModalState,
   ...initialMarkdownEditorModalState,
+  ...initialTemplatesModalState,
   isConfirmationModalOpen: false,
   confirmationModalConfig: null,
 });
@@ -983,5 +1009,29 @@ export const useModalStore = create<ModalState>((set, get) => {
       markdownEditorData: data,
     }),
     closeMarkdownEditorModal: () => set(initialMarkdownEditorModalState),
+
+    // Templates Modal
+    openTemplatesModal: () => set({
+      isTemplatesModalOpen: true,
+      isTemplatesModalDirty: false,
+    }),
+    closeTemplatesModal: createCloseHandler('isTemplatesModalDirty', initialTemplatesModalState),
+    setTemplatesModalDirty: (isDirty) => set({ isTemplatesModalDirty: isDirty }),
+
+    // Template Editor Modal (nested within Templates Modal)
+    openTemplateEditorModal: (template, onSave) => set({
+      isTemplateEditorModalOpen: true,
+      templateEditorData: {
+        template,
+        onSave: onSave || (() => {}),
+      },
+      isTemplateEditorModalDirty: false,
+    }),
+    closeTemplateEditorModal: createCloseHandler('isTemplateEditorModalDirty', {
+      isTemplateEditorModalOpen: false,
+      templateEditorData: undefined,
+      isTemplateEditorModalDirty: false,
+    }),
+    setTemplateEditorModalDirty: (isDirty) => set({ isTemplateEditorModalDirty: isDirty }),
   };
 });

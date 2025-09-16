@@ -1,0 +1,67 @@
+{
+  "timestamp": "2025-09-12T13:28:19.029Z",
+  "summary": {
+    "filesChecked": 10,
+    "issues": 1,
+    "optimizations": 2,
+    "accessibilityChecks": 4
+  },
+  "details": {
+    "issues": [
+      "TypeScript validation failed"
+    ],
+    "optimizations": [
+      {
+        "file": "components/template-editor-modal.tsx",
+        "suggestion": "Consider adding performance optimizations (useMemo, useCallback, React.memo)"
+      },
+      {
+        "file": "components/template-card.tsx",
+        "suggestion": "Consider adding performance optimizations (useMemo, useCallback, React.memo)"
+      }
+    ],
+    "accessibilityChecks": [
+      {
+        "file": "components/templates-modal.tsx",
+        "score": 56,
+        "missing": [
+          "aria-expanded",
+          "aria-selected",
+          "aria-pressed",
+          "aria-atomic"
+        ]
+      },
+      {
+        "file": "components/template-editor-modal.tsx",
+        "score": 56,
+        "missing": [
+          "aria-expanded",
+          "aria-selected",
+          "aria-pressed",
+          "aria-atomic"
+        ]
+      },
+      {
+        "file": "components/template-card.tsx",
+        "score": 44,
+        "missing": [
+          "aria-expanded",
+          "aria-selected",
+          "aria-pressed",
+          "aria-live",
+          "aria-atomic"
+        ]
+      },
+      {
+        "file": "components/template-editor.tsx",
+        "score": 56,
+        "missing": [
+          "aria-labelledby",
+          "aria-expanded",
+          "aria-live",
+          "aria-atomic"
+        ]
+      }
+    ]
+  }
+}

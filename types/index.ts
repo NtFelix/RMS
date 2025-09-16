@@ -8,6 +8,15 @@ export type { Tenant, NebenkostenEntry, KautionStatus, KautionData, KautionFormD
 export type { Wohnung } from './Wohnung';
 export type { Finanzen } from './finanzen';
 export type { Profile } from './supabase';
+export type { 
+  Template, 
+  TemplatePayload, 
+  TemplateEditorProps, 
+  TemplatesModalProps, 
+  TemplateCardProps, 
+  TemplateEditorModalProps, 
+  TemplateModalProps 
+} from './template';
 
 // Re-export data fetching types
 export type { 

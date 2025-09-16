@@ -112,6 +112,18 @@ foreground: "hsl(var(--destructive-foreground))",
           "-webkit-backdrop-filter": "blur(8px) saturate(150%)",
           "border": "1px solid rgba(255, 255, 255, 0.2)",
         },
+        ".line-clamp-1": {
+          "overflow": "hidden",
+          "display": "-webkit-box",
+          "-webkit-box-orient": "vertical",
+          "-webkit-line-clamp": "1",
+        },
+        ".line-clamp-2": {
+          "overflow": "hidden",
+          "display": "-webkit-box",
+          "-webkit-box-orient": "vertical",
+          "-webkit-line-clamp": "2",
+        },
       };
       addUtilities(newUtilities, ["responsive", "hover"]);
     },

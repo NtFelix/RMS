@@ -44,8 +44,6 @@ export async function POST(req: Request) {
       });
     }
 
-    console.log('User profile fetched:', profile);
-
     // Check for active subscription to the *same* plan
     if (profile && profile.stripe_subscription_id &&
         (profile.stripe_subscription_status === 'active' || profile.stripe_subscription_status === 'trialing') &&
@@ -103,11 +101,9 @@ export async function POST(req: Request) {
     }
 
     if (profile && profile.stripe_customer_id) {
-      console.log('Using existing Stripe customer ID:', profile.stripe_customer_id);
       sessionParams.customer = profile.stripe_customer_id;
       // customer_email should not be set if customer is set
     } else {
-      console.log('Using user email for new Stripe customer:', user.email);
       sessionParams.customer_email = user.email;
       // customer should not be set if customer_email is set
     }

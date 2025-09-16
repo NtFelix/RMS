@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Dialog, DialogTrigger, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { PlusCircle } from 'lucide-react';
 
 // Mock all dependencies
@@ -177,6 +177,10 @@ describe('Layout Components', () => {
             <Button data-testid="dialog-trigger">Open Dialog</Button>
           </DialogTrigger>
           <DialogContent data-testid="dialog-content">
+            <DialogHeader>
+              <DialogTitle>Test Dialog</DialogTitle>
+              <DialogDescription>This is a test dialog for layout testing</DialogDescription>
+            </DialogHeader>
             <p>Dialog Content</p>
           </DialogContent>
         </Dialog>
@@ -292,7 +296,10 @@ describe('Layout Components', () => {
       const { container } = render(
         <Dialog open={true}>
           <DialogContent>
-            <h2>Test Dialog</h2>
+            <DialogHeader>
+              <DialogTitle>Test Dialog</DialogTitle>
+              <DialogDescription>This is a test dialog for accessibility testing</DialogDescription>
+            </DialogHeader>
             <p>This is a test dialog</p>
           </DialogContent>
         </Dialog>

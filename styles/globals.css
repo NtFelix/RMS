@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import mention suggestion modal styles */
+@import './mention-suggestion.css';
+
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
