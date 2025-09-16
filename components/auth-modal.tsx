@@ -396,7 +396,7 @@ export default function AuthModal({
                   <Checkbox
                     id="agb-checkbox"
                     checked={agbAccepted}
-                    onCheckedChange={(checked) => setAgbAccepted(checked as boolean)}
+                    onCheckedChange={(checked) => setAgbAccepted(checked === true)}
                     className="mt-0.5"
                   />
                   <Label htmlFor="agb-checkbox" className="text-sm leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
