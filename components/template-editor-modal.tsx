@@ -356,10 +356,27 @@ export function TemplateEditorModal({
         aria-labelledby={`${editorId}-title`}
         aria-describedby={`${editorId}-description`}
       >
+        {/* Always render DialogTitle first to ensure accessibility */}
+        <DialogTitle 
+          id={`${editorId}-title`}
+          className="sr-only"
+        >
+          {template ? 'Vorlage bearbeiten' : 'Neue Vorlage erstellen'}
+        </DialogTitle>
+        <DialogDescription 
+          id={`${editorId}-description`}
+          className="sr-only"
+        >
+          {template 
+            ? 'Bearbeiten Sie Ihre bestehende Vorlage'
+            : 'Erstellen Sie eine neue Dokumentvorlage mit dynamischen Variablen'
+          }
+        </DialogDescription>
+        
         <DialogHeader className="flex-shrink-0 px-4 sm:px-6">
           <DialogTitle 
-            id={`${editorId}-title`}
             className="flex items-center gap-2 text-lg sm:text-xl"
+            aria-hidden="true"
           >
             <FileText className="h-5 w-5" aria-hidden="true" />
             <span className="hidden sm:inline">
@@ -370,8 +387,8 @@ export function TemplateEditorModal({
             </span>
           </DialogTitle>
           <DialogDescription 
-            id={`${editorId}-description`}
             className="text-sm"
+            aria-hidden="true"
           >
             {template 
               ? 'Bearbeiten Sie Ihre bestehende Vorlage'

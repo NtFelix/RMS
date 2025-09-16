@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 // Mock Radix UI Dialog to test z-index behavior
 jest.mock('@radix-ui/react-dialog', () => {
@@ -64,6 +64,10 @@ describe('Modal Layering', () => {
     render(
       <Dialog open={true}>
         <DialogContent className="max-w-6xl">
+          <DialogHeader>
+            <DialogTitle>Test Modal</DialogTitle>
+            <DialogDescription>Test modal for layering tests</DialogDescription>
+          </DialogHeader>
           <div>Overview Modal Content</div>
         </DialogContent>
       </Dialog>
@@ -85,6 +89,10 @@ describe('Modal Layering', () => {
         {/* First modal (overview) */}
         <Dialog open={true}>
           <DialogContent className="max-w-6xl" data-testid="overview-modal">
+            <DialogHeader>
+              <DialogTitle>Overview Modal</DialogTitle>
+              <DialogDescription>Overview modal for testing</DialogDescription>
+            </DialogHeader>
             <div>Overview Modal</div>
           </DialogContent>
         </Dialog>
@@ -92,6 +100,10 @@ describe('Modal Layering', () => {
         {/* Second modal (details) that should layer on top */}
         <Dialog open={true}>
           <DialogContent className="max-w-4xl" data-testid="details-modal">
+            <DialogHeader>
+              <DialogTitle>Details Modal</DialogTitle>
+              <DialogDescription>Details modal for testing</DialogDescription>
+            </DialogHeader>
             <div>Details Modal</div>
           </DialogContent>
         </Dialog>
@@ -115,6 +127,10 @@ describe('Modal Layering', () => {
     const { rerender } = render(
       <Dialog open={true}>
         <DialogContent className="max-w-6xl" data-testid="large-modal">
+          <DialogHeader>
+            <DialogTitle>Large Modal</DialogTitle>
+            <DialogDescription>Large modal for size testing</DialogDescription>
+          </DialogHeader>
           <div>Large Modal (6xl)</div>
         </DialogContent>
       </Dialog>
@@ -125,6 +141,10 @@ describe('Modal Layering', () => {
     rerender(
       <Dialog open={true}>
         <DialogContent className="max-w-4xl" data-testid="medium-modal">
+          <DialogHeader>
+            <DialogTitle>Medium Modal</DialogTitle>
+            <DialogDescription>Medium modal for size testing</DialogDescription>
+          </DialogHeader>
           <div>Medium Modal (4xl)</div>
         </DialogContent>
       </Dialog>
@@ -137,6 +157,10 @@ describe('Modal Layering', () => {
     render(
       <Dialog open={true}>
         <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Test Modal</DialogTitle>
+            <DialogDescription>Test modal for portal structure testing</DialogDescription>
+          </DialogHeader>
           <div>Modal Content</div>
         </DialogContent>
       </Dialog>

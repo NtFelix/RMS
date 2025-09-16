@@ -77,6 +77,8 @@ const DialogContent = React.forwardRef<
         onInteractOutside={handleInteraction} // Assign the correctly typed handler
         {...props}
       >
+        {/* Always add a fallback DialogTitle for accessibility - will be overridden by actual DialogTitle if present */}
+        <DialogTitle className="sr-only">Dialog</DialogTitle>
         {children}
         {!hideCloseButton && (
           <DialogPrimitive.Close
