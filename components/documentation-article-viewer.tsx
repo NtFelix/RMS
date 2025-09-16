@@ -8,6 +8,7 @@ import { ArrowLeft, Calendar, User, Share2, ExternalLink } from 'lucide-react';
 import { Article } from './documentation-article-list';
 import { DocumentationBreadcrumb } from './documentation-breadcrumb';
 import { useToast } from '@/hooks/use-toast';
+import { marked } from 'marked';
 
 interface ArticleViewerProps {
   article: Article;
@@ -36,20 +37,43 @@ function formatDate(dateString: string): string {
 function formatContent(content: string | null): React.ReactNode {
   if (!content) return null;
 
-  // Basic HTML content rendering - in a real app, you might want to use a proper markdown/HTML renderer
-  // For now, we'll handle basic formatting and preserve line breaks
-  const formattedContent = content
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>');
+  try {
+    // Configure marked options for better rendering
+    marked.setOptions({
+      breaks: true, // Convert line breaks to <br>
+      gfm: true, // Enable GitHub Flavored Markdown
+      headerIds: true, // Add IDs to headers for linking
+      mangle: false, // Don't mangle autolinked email addresses
+    });
 
-  return (
-    <div 
-      className="prose prose-sm max-w-none dark:prose-invert"
-      dangerouslySetInnerHTML={{ 
-        __html: `<p>${formattedContent}</p>` 
-      }}
-    />
-  );
+    // Parse markdown content to HTML
+    const htmlContent = marked.parse(content);
+
+    return (
+      <div 
+        className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs"
+        dangerouslySetInnerHTML={{ 
+          __html: htmlContent 
+        }}
+      />
+    );
+  } catch (error) {
+    console.error('Error parsing markdown content:', error);
+    
+    // Fallback to basic text rendering if markdown parsing fails
+    const fallbackContent = content
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br/>');
+
+    return (
+      <div 
+        className="prose prose-sm max-w-none dark:prose-invert"
+        dangerouslySetInnerHTML={{ 
+          __html: `<p>${fallbackContent}</p>` 
+        }}
+      />
+    );
+  }
 }
 
 export function DocumentationArticleViewer({
