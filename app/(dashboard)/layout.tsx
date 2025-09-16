@@ -1,5 +1,4 @@
 "use client" // Make this a client component
-
 import type React from "react"
 import { AuthProvider } from "@/components/auth-provider"
 import { CommandMenu } from "@/components/command-menu"
@@ -40,6 +39,7 @@ import { MarkdownEditorModal } from "@/components/markdown-editor-modal"; // Add
 import { TemplatesModal } from "@/components/templates-modal"; // Added
 import { GlobalDragDropProvider } from "@/components/global-drag-drop-provider"; // Added
 import { NestedDialogProvider } from "@/components/ui/nested-dialog"; // Added
+import { AIAssistantModal } from "@/components/ai-assistant-modal"; // Added
 
 export default function DashboardRootLayout({
   children,
@@ -119,25 +119,23 @@ export default function DashboardRootLayout({
     // Templates Modal state
     isTemplatesModalOpen,
     closeTemplatesModal,
+    // AI Assistant Modal state
+    isAIAssistantModalOpen,
   } = useModalStore()
-
+  
   return (
     <AuthProvider>
       <NestedDialogProvider>
         {/* <GlobalDragDropProvider> */}
           <CommandMenu />
           <DashboardLayout>{children}</DashboardLayout>
-
       {/* Render modals: They control their own open/close state via the store */}
       {/* TenantEditModal needs serverAction. Other props are from store. */}
       <TenantEditModal serverAction={tenantServerAction} />
-
       {/* HouseEditModal needs serverAction. */}
       <HouseEditModal serverAction={houseServerAction} />
-
       {/* FinanceEditModal needs serverAction. */}
       <FinanceEditModal serverAction={financeServerAction} />
-
       {/* WohnungEditModal needs serverAction. */}
       {/* Also pass specific props if they are not part of the store's initialData object for wohnung */}
       <WohnungEditModal
@@ -146,34 +144,24 @@ export default function DashboardRootLayout({
         isActiveSubscriptionFromProps={wohnungIsActiveSubscription}
         currentApartmentCountFromProps={wohnungApartmentCount}
       />
-
       {/* AufgabeEditModal needs serverAction. */}
       <AufgabeEditModal serverAction={aufgabeServerAction} />
-
       {/* BetriebskostenEditModal - Assuming it handles its own server actions internally or doesn't need a generic one passed */}
       <BetriebskostenEditModal />
-
       {/* WasserzaehlerModal - Handles its own state via modal store */}
       <WasserzaehlerModal />
-
       {/* KautionModal - Handles kaution management */}
       <KautionModal serverAction={updateKautionAction} />
-
       {/* HausOverviewModal - Displays Haus overview with all Wohnungen */}
       <HausOverviewModal />
-
       {/* WohnungOverviewModal - Displays Wohnung overview with all Mieter */}
       <WohnungOverviewModal />
-
       {/* ApartmentTenantDetailsModal - Displays detailed apartment-tenant information */}
       <ApartmentTenantDetailsModal />
-
       {/* FileUploadModal - Global file upload modal */}
       <FileUploadModal />
-
       {/* FilePreviewModal - Global file preview modal */}
       <FilePreviewModal />
-
       {/* FileRenameModal - Global file rename modal */}
       {isFileRenameModalOpen && fileRenameData && (
         <FileRenameModal
@@ -183,7 +171,6 @@ export default function DashboardRootLayout({
           onRename={fileRenameData.onRename}
         />
       )}
-
       {/* CreateFolderModal - Global create folder modal */}
       {isCreateFolderModalOpen && createFolderModalData && (
         <CreateFolderModal
@@ -193,7 +180,6 @@ export default function DashboardRootLayout({
           onFolderCreated={createFolderModalData.onFolderCreated}
         />
       )}
-
       {/* CreateFileModal - Global create file modal */}
       {isCreateFileModalOpen && createFileModalData && (
         <CreateFileModal
@@ -203,7 +189,6 @@ export default function DashboardRootLayout({
           onFileCreated={createFileModalData.onFileCreated}
         />
       )}
-
       {/* FolderDeleteConfirmationModal - Global folder delete confirmation modal */}
       {isFolderDeleteConfirmationModalOpen && folderDeleteConfirmationData && (
         <FolderDeleteConfirmationModal
@@ -215,7 +200,6 @@ export default function DashboardRootLayout({
           onConfirm={folderDeleteConfirmationData.onConfirm}
         />
       )}
-
       {/* FileMoveModal - Global file/folder move modal */}
       {isFileMoveModalOpen && fileMoveData && (
         <FileMoveModal
@@ -228,7 +212,6 @@ export default function DashboardRootLayout({
           onMove={fileMoveData.onMove}
         />
       )}
-
       {/* ShareDocumentModal - Global document sharing modal */}
       {isShareDocumentModalOpen && shareDocumentData && (
         <ShareDocumentModal
@@ -238,7 +221,6 @@ export default function DashboardRootLayout({
           filePath={shareDocumentData.filePath}
         />
       )}
-
       {/* MarkdownEditorModal - Global markdown editor modal */}
       {isMarkdownEditorModalOpen && markdownEditorData && (
         <MarkdownEditorModal
@@ -251,13 +233,13 @@ export default function DashboardRootLayout({
           onSave={markdownEditorData.onSave}
         />
       )}
-
       {/* TemplatesModal - Global templates management modal */}
       <TemplatesModal
         isOpen={isTemplatesModalOpen}
         onClose={closeTemplatesModal}
       />
-
+      {/* AI Assistant Modal - Global AI assistant modal */}
+      <AIAssistantModal />
       {/* Global Confirmation Dialog */}
       {isConfirmationModalOpen && confirmationModalConfig && (
         <ConfirmationDialog
