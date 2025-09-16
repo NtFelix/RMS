@@ -21,6 +21,9 @@ const PillTabSwitcher = React.forwardRef<
   PillTabSwitcherProps
 >(({ tabs, activeTab, onTabChange, className, ...props }, ref) => {
   const containerRef = React.useRef<HTMLDivElement>(null)
+  
+  // Forward the ref to the container element
+  React.useImperativeHandle(ref, () => containerRef.current!)
   const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({
     opacity: 0
   })
@@ -44,14 +47,15 @@ const PillTabSwitcher = React.forwardRef<
     const buttonRect = activeButton.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
     
-    // Calculate position relative to container's content area (excluding padding)
-    const containerPadding = 8 // p-2 = 8px
-    const left = buttonRect.left - containerRect.left - containerPadding
+    // Calculate position relative to the indicator's starting position (inset-2 = 8px on all sides)
+    const indicatorOffset = 8 // inset-2 = 8px
+    const left = buttonRect.left - containerRect.left - indicatorOffset
     const width = buttonRect.width
 
     setIndicatorStyle({
       transform: `translateX(${left}px)`,
       width: `${width}px`,
+      height: `${buttonRect.height}px`, // Ensure height matches button exactly
       opacity: 1
     })
     
@@ -104,7 +108,7 @@ const PillTabSwitcher = React.forwardRef<
       {/* Sliding indicator */}
       <div
         className={cn(
-          "absolute top-2 bottom-2 rounded-full",
+          "absolute inset-2 rounded-full",
           "bg-primary shadow-sm",
           "transition-all duration-200 ease-out",
           "z-0"
