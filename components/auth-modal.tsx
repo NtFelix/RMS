@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Building2 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -44,6 +45,7 @@ export default function AuthModal({
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [registerIsLoading, setRegisterIsLoading] = useState(false)
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState<string | null>(null);
+  const [agbAccepted, setAgbAccepted] = useState(false);
 
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
   const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null)
@@ -63,6 +65,7 @@ export default function AuthModal({
       setRegisterError(null);
       setRegisterIsLoading(false);
       setRegisterSuccessMessage(null);
+      setAgbAccepted(false);
       setForgotPasswordError(null);
       setForgotPasswordIsLoading(false);
       setForgotPasswordSuccess(false);
@@ -108,6 +111,11 @@ export default function AuthModal({
 
       if (password !== confirmPassword) {
         setRegisterError("Passwords do not match.");
+        return;
+      }
+
+      if (!agbAccepted) {
+        setRegisterError("Sie müssen die Allgemeinen Geschäftsbedingungen akzeptieren.");
         return;
       }
 
@@ -351,43 +359,70 @@ export default function AuthModal({
                 title="Registrieren"
                 description="Erstellen Sie ein neues Konto, um loszulegen"
               />
-              <AuthForm 
-                onSubmit={handleRegister} 
-                error={registerError}
-                successMessage={registerSuccessMessage}
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="register-email">E-Mail</Label>
-                  <Input
-                    id="register-email"
-                    type="email"
-                    placeholder="name@example.com"
-                    ref={registerEmailRef}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">Passwort</Label>
-                  <Input
-                    id="register-password"
-                    type="password"
-                    ref={registerPasswordRef}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirm-password">Passwort bestätigen</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    ref={confirmPasswordRef}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={registerIsLoading}>
-                  {registerIsLoading ? "Wird registriert..." : "Registrieren"}
-                </Button>
-              </AuthForm>
+              <CardContent className="px-6 pb-6">
+                <form onSubmit={handleRegister} className="space-y-4">
+                  {registerError && (
+                    <Alert variant="destructive">
+                      <AlertDescription>{registerError}</AlertDescription>
+                    </Alert>
+                  )}
+                  {registerSuccessMessage && (
+                    <Alert variant="default">
+                      <AlertDescription>{registerSuccessMessage}</AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">E-Mail</Label>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      placeholder="name@example.com"
+                      ref={registerEmailRef}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">Passwort</Label>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      ref={registerPasswordRef}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirm-password">Passwort bestätigen</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      ref={confirmPasswordRef}
+                      required
+                    />
+                  </div>
+                  <div className="flex items-start space-x-3 mt-4">
+                    <Checkbox
+                      id="agb-checkbox"
+                      checked={agbAccepted}
+                      onCheckedChange={(checked) => setAgbAccepted(checked === true)}
+                      className="mt-0.5"
+                    />
+                    <Label htmlFor="agb-checkbox" className="text-sm leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Ich akzeptiere die{" "}
+                      <Link 
+                        href="/agb" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary underline hover:no-underline"
+                      >
+                        Allgemeinen Geschäftsbedingungen
+                      </Link>
+                    </Label>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={registerIsLoading || !agbAccepted}>
+                    {registerIsLoading ? "Wird registriert..." : "Registrieren"}
+                  </Button>
+                </form>
+              </CardContent>
             </>
           )}
         </div>
