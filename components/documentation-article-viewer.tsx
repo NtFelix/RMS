@@ -9,6 +9,7 @@ import { Article } from './documentation-article-list';
 import { DocumentationBreadcrumb } from './documentation-breadcrumb';
 import { useToast } from '@/hooks/use-toast';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 interface ArticleViewerProps {
   article: Article;
@@ -46,12 +47,33 @@ function formatContent(content: string | null): React.ReactNode {
 
     // Parse markdown content to HTML synchronously
     const htmlContent = marked.parse(content, { async: false }) as string;
+    
+    // Sanitize the HTML to prevent XSS attacks
+    const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
+      // Allow common HTML elements for documentation
+      ALLOWED_TAGS: [
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'p', 'br', 'strong', 'em', 'u', 'del', 'ins',
+        'ul', 'ol', 'li',
+        'blockquote', 'pre', 'code',
+        'a', 'img',
+        'table', 'thead', 'tbody', 'tr', 'th', 'td',
+        'hr', 'div', 'span'
+      ],
+      ALLOWED_ATTR: [
+        'href', 'title', 'alt', 'src', 'width', 'height',
+        'class', 'id', 'target', 'rel'
+      ],
+      // Ensure links open safely
+      ADD_ATTR: ['target', 'rel'],
+      FORBID_ATTR: ['style', 'onclick', 'onerror', 'onload'],
+    });
 
     return (
       <div 
         className="prose prose-sm max-w-none dark:prose-invert prose-headings:scroll-mt-20 prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg prose-h4:text-base prose-h5:text-sm prose-h6:text-xs"
         dangerouslySetInnerHTML={{ 
-          __html: htmlContent 
+          __html: sanitizedHtml 
         }}
       />
     );
@@ -63,11 +85,14 @@ function formatContent(content: string | null): React.ReactNode {
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br/>');
 
+    // Also sanitize the fallback content
+    const sanitizedFallback = DOMPurify.sanitize(`<p>${fallbackContent}</p>`);
+
     return (
       <div 
         className="prose prose-sm max-w-none dark:prose-invert"
         dangerouslySetInnerHTML={{ 
-          __html: `<p>${fallbackContent}</p>` 
+          __html: sanitizedFallback 
         }}
       />
     );
