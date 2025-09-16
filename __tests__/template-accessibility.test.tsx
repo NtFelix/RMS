@@ -449,9 +449,6 @@ describe('Template System Accessibility', () => {
 
   describe('Screen Reader Announcements', () => {
     it('should announce template operations', async () => {
-      // Mock screen reader announcement function
-      const mockAnnounce = jest.fn();
-      
       // This would need to be implemented with a proper screen reader testing library
       // For now, we test that the live regions are present
       
