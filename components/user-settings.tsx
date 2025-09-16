@@ -18,6 +18,7 @@ import { SettingsModal } from "@/components/settings-modal";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useModalStore } from "@/hooks/use-modal-store";
 import { ARIA_LABELS, KEYBOARD_SHORTCUTS } from "@/lib/accessibility-constants";
+import { useFeatureFlagEnabled } from "posthog-js/react";
 
 export function UserSettings() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export function UserSettings() {
   const [userInitials, setUserInitials] = useState("");
   const supabase = createClient();
   const { openTemplatesModal } = useModalStore();
+  const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled');
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -112,13 +114,15 @@ export function UserSettings() {
         <DropdownMenuContent align="end" className="w-56 ml-4">
           <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
-            onClick={openTemplatesModal}
-            aria-label={ARIA_LABELS.templatesModal}
-          >
-            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-            <span>Vorlagen</span>
-          </DropdownMenuItem>
+          {templateModalEnabled && (
+            <DropdownMenuItem 
+              onClick={openTemplatesModal}
+              aria-label={ARIA_LABELS.templatesModal}
+            >
+              <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+              <span>Vorlagen</span>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => setOpenModal(true)}>
             <Settings className="mr-2 h-4 w-4" />
             <span>Einstellungen</span>
