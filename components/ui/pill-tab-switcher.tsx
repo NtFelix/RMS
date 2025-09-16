@@ -27,7 +27,7 @@ const PillTabSwitcher = React.forwardRef<
   const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({
     opacity: 0
   })
-  const [isInitialized, setIsInitialized] = React.useState(false)
+  const isInitialized = React.useRef(false)
 
   // Calculate indicator position based on active tab
   const updateIndicatorPosition = React.useCallback(() => {
@@ -47,9 +47,10 @@ const PillTabSwitcher = React.forwardRef<
     const buttonRect = activeButton.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
     
-    // Calculate position relative to the indicator's starting position (left-2 = 8px from left)
-    const indicatorOffset = 8 // left-2 = 8px from left edge
-    const left = buttonRect.left - containerRect.left - indicatorOffset
+    // Calculate position relative to container's content area (excluding padding)
+    const computedStyle = window.getComputedStyle(container)
+    const containerPadding = parseFloat(computedStyle.paddingLeft)
+    const left = buttonRect.left - containerRect.left - containerPadding
     const width = buttonRect.width
 
     setIndicatorStyle({
@@ -58,10 +59,10 @@ const PillTabSwitcher = React.forwardRef<
       opacity: 1
     })
     
-    if (!isInitialized) {
-      setIsInitialized(true)
+    if (!isInitialized.current) {
+      isInitialized.current = true
     }
-  }, [activeTab, tabs, isInitialized])
+  }, [activeTab, tabs])
 
   // Handle tab change - only call onTabChange if it's actually a different tab
   const handleTabClick = React.useCallback((tabValue: string) => {
