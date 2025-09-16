@@ -34,6 +34,7 @@ export async function middleware(request: NextRequest) {
     '/api/dokumentation/.*', // Allow all dokumentation API routes
     '/api/ai-assistant', // Allow AI assistant API route
     '/datenschutz', // Allow access to datenschutz page
+    '/agb', // Allow access to AGB page
   ]
 
   // If we're already on the login page, don't redirect

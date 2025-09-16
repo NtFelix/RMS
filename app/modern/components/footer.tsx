@@ -15,6 +15,7 @@ const footerLinks = {
 const specialLinks: Record<string, { href: string; text: string }> = {
   "Hilfezentrum": { href: "/dokumentation", text: "Dokumentation" },
   "Datenschutz": { href: "/datenschutz", text: "Datenschutz" },
+  "AGB": { href: "/agb", text: "AGB" },
 }
 
 const socialLinks = [
