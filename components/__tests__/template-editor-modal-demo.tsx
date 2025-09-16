@@ -47,7 +47,7 @@ export function TemplateEditorModalDemo() {
   };
 
   const handleSave = (templateData: any) => {
-    console.log('Template saved:', templateData);
+    console.log('Template saved with title:', templateData.titel);
     setIsNewModalOpen(false);
     setIsEditModalOpen(false);
   };
