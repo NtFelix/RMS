@@ -1,5 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MentionSuggestionList } from '@/components/mention-suggestion-list';
+import React from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MentionSuggestionList, MentionSuggestionListRef } from '@/components/mention-suggestion-list';
 import { MENTION_VARIABLES } from '@/lib/template-constants';
 import { Editor } from '@tiptap/react';
 
@@ -69,7 +70,7 @@ describe('MentionSuggestionList - Categorized Display', () => {
   });
 
   it('should handle keyboard navigation across categories', () => {
-    const ref = { current: null };
+    const ref = React.createRef<MentionSuggestionListRef>();
     render(
       <MentionSuggestionList
         ref={ref}
@@ -82,11 +83,11 @@ describe('MentionSuggestionList - Categorized Display', () => {
     );
 
     // Simulate arrow down key press
-    const keyDownEvent = new KeyboardEvent('keydown', { key: 'ArrowDown' });
-    if (ref.current?.onKeyDown) {
-      const handled = ref.current.onKeyDown({ event: keyDownEvent });
+    act(() => {
+      const keyDownEvent = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+      const handled = ref.current?.onKeyDown({ event: keyDownEvent });
       expect(handled).toBe(true);
-    }
+    });
   });
 
   it('should call command when item is clicked', () => {
