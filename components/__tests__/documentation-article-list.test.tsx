@@ -242,41 +242,35 @@ describe('DocumentationArticleList', () => {
     expect(highlightedElements.some(el => el.tagName === 'MARK')).toBe(true);
   });
 
-  it('shows active state for selected article', () => {
+  describe('article selection states', () => {
     const selectedArticle = mockArticles[0];
-    render(
-      <DocumentationArticleList
-        articles={mockArticles}
-        onArticleSelect={mockOnArticleSelect}
-        selectedArticle={selectedArticle}
-      />
-    );
+    let articleCards: HTMLElement[];
 
-    // The selected article should have different styling
-    const articleCards = screen.getAllByRole('button');
-    const selectedCard = articleCards.find(card => 
-      card.getAttribute('aria-label')?.includes(selectedArticle.titel)
-    );
-    
-    expect(selectedCard).toHaveClass('bg-primary/5', 'border-primary');
-  });
+    beforeEach(() => {
+      render(
+        <DocumentationArticleList
+          articles={mockArticles}
+          onArticleSelect={mockOnArticleSelect}
+          selectedArticle={selectedArticle}
+        />
+      );
+      articleCards = screen.getAllByRole('button');
+    });
 
-  it('shows normal state for non-selected articles', () => {
-    const selectedArticle = mockArticles[0];
-    render(
-      <DocumentationArticleList
-        articles={mockArticles}
-        onArticleSelect={mockOnArticleSelect}
-        selectedArticle={selectedArticle}
-      />
-    );
+    it('shows active state for selected article', () => {
+      const selectedCard = articleCards.find(card => 
+        card.getAttribute('aria-label')?.includes(selectedArticle.titel)
+      );
+      
+      expect(selectedCard).toHaveClass('bg-primary/5', 'border-primary');
+    });
 
-    // Non-selected articles should have normal styling
-    const articleCards = screen.getAllByRole('button');
-    const nonSelectedCard = articleCards.find(card => 
-      card.getAttribute('aria-label')?.includes(mockArticles[1].titel)
-    );
-    
-    expect(nonSelectedCard).toHaveClass('bg-background', 'border-input');
+    it('shows normal state for non-selected articles', () => {
+      const nonSelectedCard = articleCards.find(card => 
+        card.getAttribute('aria-label')?.includes(mockArticles[1].titel)
+      );
+      
+      expect(nonSelectedCard).toHaveClass('bg-background', 'border-input');
+    });
   });
 });
