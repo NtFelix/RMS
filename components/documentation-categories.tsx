@@ -105,36 +105,47 @@ export function DocumentationCategories({
       <Button
         variant="ghost"
         onClick={() => handleCategorySelect(null)}
-        className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border-2 ${
+        className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 ease-out rounded-lg border-2 relative overflow-hidden ${
           selectedCategory === null 
             ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25" 
-            : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md"
+            : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
         }`}
         aria-pressed={selectedCategory === null}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+        {/* Hover gradient overlay */}
+        <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${
+          selectedCategory === null 
+            ? "bg-gradient-to-r from-primary-foreground/5 to-transparent" 
+            : "bg-gradient-to-r from-primary/5 to-transparent"
+        }`} />
+        
+        <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-out ${
             selectedCategory === null 
-              ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30" 
-              : "bg-primary/10 group-hover:bg-primary/20"
+              ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30 group-hover:shadow-sm" 
+              : "bg-primary/10 group-hover:bg-primary/20 group-hover:shadow-sm group-hover:shadow-primary/20"
           }`}>
-            <FolderOpen className={`h-4 w-4 transition-all duration-300 ${
-              selectedCategory === null ? "text-primary-foreground" : "text-primary"
+            <FolderOpen className={`h-4 w-4 transition-all duration-300 ease-out ${
+              selectedCategory === null 
+                ? "text-primary-foreground group-hover:drop-shadow-sm" 
+                : "text-primary group-hover:text-primary group-hover:drop-shadow-sm"
             }`} strokeWidth={2} />
           </div>
-          <span className={`text-left text-sm font-semibold transition-colors duration-300 ${
-            selectedCategory === null ? "text-primary-foreground" : "text-foreground group-hover:text-primary"
+          <span className={`text-left text-sm font-semibold transition-all duration-300 ease-out ${
+            selectedCategory === null 
+              ? "text-primary-foreground group-hover:drop-shadow-sm" 
+              : "text-foreground group-hover:text-primary group-hover:font-bold"
           }`}>
             Alle Artikel
           </span>
         </div>
         <Badge 
           variant="secondary" 
-          className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ${
+          className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ease-out relative z-10 ${
             selectedCategory === null 
-              ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
-              : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20"
+              ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30 group-hover:shadow-sm" 
+              : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:border-primary/50 group-hover:shadow-sm group-hover:shadow-primary/20"
           }`}
         >
           {totalArticleCount}
@@ -147,36 +158,53 @@ export function DocumentationCategories({
           key={category.name}
           variant="ghost"
           onClick={() => handleCategorySelect(category.name)}
-          className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border-2 ${
+          className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 ease-out rounded-lg border-2 relative overflow-hidden ${
             selectedCategory === category.name
               ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25"
-              : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md"
+              : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
           } ${
             category.articleCount === 0 
-              ? "opacity-50 cursor-not-allowed hover:scale-100 hover:shadow-none hover:bg-card hover:border-border" 
+              ? "opacity-50 cursor-not-allowed hover:shadow-none hover:bg-card hover:border-border" 
               : ""
           }`}
           disabled={category.articleCount === 0}
           aria-pressed={selectedCategory === category.name}
           aria-label={`Kategorie ${category.name || 'Ohne Kategorie'} (${category.articleCount} Artikel)`}
         >
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+          {/* Hover gradient overlay */}
+          <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${
+            selectedCategory === category.name 
+              ? "bg-gradient-to-r from-primary-foreground/5 to-transparent" 
+              : "bg-gradient-to-r from-primary/5 to-transparent"
+          } ${
+            category.articleCount === 0 ? "group-hover:opacity-0" : ""
+          }`} />
+          
+          <div className="flex items-center gap-2 min-w-0 flex-1 relative z-10">
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-out ${
               selectedCategory === category.name 
-                ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30" 
-                : "bg-primary/10 group-hover:bg-primary/20"
+                ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30 group-hover:shadow-sm" 
+                : "bg-primary/10 group-hover:bg-primary/20 group-hover:shadow-sm group-hover:shadow-primary/20"
+            } ${
+              category.articleCount === 0 
+                ? "group-hover:bg-primary/10 group-hover:shadow-none" 
+                : ""
             }`}>
-              <Folder className={`h-3.5 w-3.5 transition-all duration-300 ${
+              <Folder className={`h-3.5 w-3.5 transition-all duration-300 ease-out ${
                 selectedCategory === category.name 
-                  ? "text-primary-foreground" 
-                  : "text-primary group-disabled:group-hover:text-current"
+                  ? "text-primary-foreground group-hover:drop-shadow-sm" 
+                  : "text-primary group-disabled:group-hover:text-current group-hover:drop-shadow-sm"
+              } ${
+                category.articleCount === 0 
+                  ? "group-hover:drop-shadow-none" 
+                  : ""
               }`} />
             </div>
             <span 
-              className={`truncate text-left text-sm font-medium transition-colors duration-300 ${
+              className={`truncate text-left text-sm font-medium transition-all duration-300 ease-out ${
                 selectedCategory === category.name 
-                  ? "text-primary-foreground" 
-                  : "text-foreground group-hover:text-primary group-disabled:group-hover:text-current"
+                  ? "text-primary-foreground group-hover:drop-shadow-sm" 
+                  : "text-foreground group-hover:text-primary group-hover:font-semibold group-disabled:group-hover:text-current group-disabled:group-hover:font-medium"
               }`}
               title={category.name || 'Ohne Kategorie'}
             >
@@ -185,10 +213,10 @@ export function DocumentationCategories({
           </div>
           <Badge 
             variant="secondary" 
-            className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-medium transition-all duration-300 ${
+            className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-medium transition-all duration-300 ease-out relative z-10 ${
               selectedCategory === category.name 
-                ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
-                : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary"
+                ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30 group-hover:shadow-sm" 
+                : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:border-primary/50 group-hover:shadow-sm group-hover:shadow-primary/20 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary group-disabled:group-hover:shadow-none"
             }`}
           >
             {category.articleCount}
