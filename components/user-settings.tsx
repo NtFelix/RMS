@@ -30,8 +30,8 @@ export function UserSettings() {
   const [userInitials, setUserInitials] = useState("");
   const supabase = createClient();
   const { openTemplatesModal } = useModalStore();
-  // Use a stable reference for the feature flag to prevent infinite re-renders
-  const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
+  // Temporarily disable templates to prevent infinite re-render until PostHog issue is resolved
+  const templateModalEnabled = false
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -89,49 +89,25 @@ export function UserSettings() {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <div
-            className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors duration-150"
-            aria-label="User menu"
-          >
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
-              <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                {isLoadingUser ? "Lade..." : userName}
-              </span>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                {isLoadingUser ? "" : userEmail}
-              </span>
-            </div>
-          </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 ml-4">
-          <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {templateModalEnabled && (
-            <DropdownMenuItem 
-              onClick={openTemplatesModal}
-              aria-label={ARIA_LABELS.templatesModal}
-            >
-              <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-              <span>Vorlagen</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => setOpenModal(true)}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Einstellungen</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} disabled={isLoadingLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {/* Temporarily disabled DropdownMenu due to infinite re-render issue with Radix UI */}
+      <div
+        className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors duration-150"
+        aria-label="User menu"
+        onClick={() => setOpenModal(true)}
+      >
+        <Avatar className="h-10 w-10">
+          <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
+          <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col text-left">
+          <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            {isLoadingUser ? "Lade..." : userName}
+          </span>
+          <span className="text-xs text-gray-500 dark:text-gray-400">
+            {isLoadingUser ? "" : userEmail}
+          </span>
+        </div>
+      </div>
       <SettingsModal open={openModal} onOpenChange={setOpenModal} />
     </>
   )
