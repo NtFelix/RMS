@@ -138,27 +138,8 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
           </div>
         </PopoverTrigger>
         <PopoverContent 
-          className="w-auto p-0 pointer-events-auto" 
+          className="w-auto p-0" 
           align="start"
-          style={{ zIndex: 9999, pointerEvents: 'auto' }}
-          onInteractOutside={(e) => {
-            // Prevent closing when interacting with native select elements
-            const target = e.target as Element;
-            if (target?.tagName === 'SELECT' || 
-                target?.closest('select') ||
-                target?.tagName === 'OPTION') {
-              e.preventDefault();
-            }
-          }}
-          onPointerDownOutside={(e) => {
-            // Also prevent on pointer down
-            const target = e.target as Element;
-            if (target?.tagName === 'SELECT' || 
-                target?.closest('select') ||
-                target?.tagName === 'OPTION') {
-              e.preventDefault();
-            }
-          }}
         >
           <Calendar
             mode="single"
