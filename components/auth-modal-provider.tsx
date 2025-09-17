@@ -24,7 +24,7 @@ export const useAuthModal = () => {
 };
 
 // Provider component
-export default function AuthModalProvider({ children }: { children: React.ReactNode }) {
+function AuthModalProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalInitialTab, setAuthModalInitialTab] = useState<'login' | 'register'>('login');
@@ -80,3 +80,5 @@ export default function AuthModalProvider({ children }: { children: React.ReactN
     </AuthModalContext.Provider>
   );
 }
+
+export default AuthModalProvider;

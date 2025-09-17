@@ -69,7 +69,7 @@ export function UserSettings() {
     };
 
     fetchUser();
-  }, [supabase]);
+  }, []); // Remove supabase from dependency array to prevent infinite re-renders
 
 
   const handleLogout = async () => {

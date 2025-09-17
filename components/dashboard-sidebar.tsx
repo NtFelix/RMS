@@ -105,7 +105,7 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <ScrollArea className="flex-1 pt-4 pb-4">
+          <div className="flex-1 pt-4 pb-4 overflow-y-auto">
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)
@@ -135,7 +135,7 @@ export function DashboardSidebar() {
                 )
               })}
             </nav>
-          </ScrollArea>
+          </div>
           <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />
