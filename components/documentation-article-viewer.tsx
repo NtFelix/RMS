@@ -11,6 +11,12 @@ import { useToast } from '@/hooks/use-toast';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
+// Configure marked options once when module loads for better performance
+marked.setOptions({
+  breaks: true, // Convert line breaks to <br>
+  gfm: true, // Enable GitHub Flavored Markdown
+});
+
 interface ArticleViewerProps {
   article: Article;
   onBack: () => void;
@@ -39,12 +45,6 @@ function formatContent(content: string | null): React.ReactNode {
   if (!content) return null;
 
   try {
-    // Configure marked options for better rendering
-    marked.setOptions({
-      breaks: true, // Convert line breaks to <br>
-      gfm: true, // Enable GitHub Flavored Markdown
-    });
-
     // Parse markdown content to HTML synchronously
     const htmlContent = marked.parse(content, { async: false }) as string;
     
