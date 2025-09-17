@@ -68,7 +68,11 @@ export function CustomCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn("p-0", width)} align="start">
+      <PopoverContent 
+        className={cn("p-0 pointer-events-auto", width)} 
+        align="start"
+        style={{ zIndex: 9999, pointerEvents: 'auto' }}
+      >
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>

@@ -3,7 +3,7 @@
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker, DropdownProps, CaptionProps, useNavigation } from "react-day-picker" // Import useNavigation
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+// Removed Radix Select imports - using native select elements instead
 import { getYear, getMonth, setYear, setMonth } from "date-fns"
 import { de } from "date-fns/locale"
 
@@ -73,7 +73,7 @@ function Calendar({
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-        // Provide a custom Caption component
+        // Provide a custom Caption component with native select elements
         Caption: ({ displayMonth }: CaptionProps) => {
           const { goToMonth } = useNavigation(); // Use useNavigation hook
           const currentYear = getYear(displayMonth);
@@ -82,14 +82,16 @@ function Calendar({
           const startYear = fromYear;
           const endYear = toYear;
 
-          const handleMonthChange = (newMonthIndex: string) => {
-            const newDate = setMonth(displayMonth, parseInt(newMonthIndex, 10));
-            goToMonth(newDate); // Use goToMonth from useNavigation
+          const handleMonthChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+            const newMonthIndex = parseInt(e.target.value, 10);
+            const newDate = setMonth(displayMonth, newMonthIndex);
+            goToMonth(newDate);
           };
 
-          const handleYearChange = (newYear: string) => {
-            const newDate = setYear(displayMonth, parseInt(newYear, 10));
-            goToMonth(newDate); // Use goToMonth from useNavigation
+          const handleYearChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+            const newYear = parseInt(e.target.value, 10);
+            const newDate = setYear(displayMonth, newYear);
+            goToMonth(newDate);
           };
 
           const years = [];
@@ -99,41 +101,35 @@ function Calendar({
 
           const months = Array.from({ length: 12 }, (_, i) => ({
             value: i,
-            label: de.localize?.month(i, { width: 'wide' }) ?? i + 1
+            label: de.localize?.month(i, { width: 'wide' }) ?? `Monat ${i + 1}`
           }));
 
           return (
             <div className="flex justify-center pt-1 relative items-center space-x-2">
-              <Select
-                value={currentMonth.toString()}
-                onValueChange={handleMonthChange}
+              <select
+                value={currentMonth}
+                onChange={handleMonthChange}
+                className="h-7 w-[100px] px-2 py-1 text-xs rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 relative z-[70] pointer-events-auto"
+                style={{ pointerEvents: 'auto' }}
               >
-                <SelectTrigger className="h-7 w-[100px] px-2 py-1 text-xs">
-                  <SelectValue placeholder="Monat" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={currentYear.toString()}
-                onValueChange={handleYearChange}
+                {months.map((month) => (
+                  <option key={month.value} value={month.value}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={currentYear}
+                onChange={handleYearChange}
+                className="h-7 w-[70px] px-2 py-1 text-xs rounded-md border border-input bg-background text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 relative z-[70] pointer-events-auto"
+                style={{ pointerEvents: 'auto' }}
               >
-                <SelectTrigger className="h-7 w-[70px] px-2 py-1 text-xs">
-                  <SelectValue placeholder="Jahr" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
           );
         },
