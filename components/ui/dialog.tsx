@@ -46,6 +46,25 @@ const DialogContent = React.forwardRef<
   ) => {
     if (!event) return;
 
+    // Check if the interaction is with a combobox or popover element
+    const target = event.target as Element;
+    
+    // More comprehensive check for combobox elements
+    if (target?.closest('[data-radix-popover-content]') || 
+        target?.closest('[data-radix-popper-content-wrapper]') ||
+        target?.hasAttribute('cmdk-input') ||
+        target?.hasAttribute('cmdk-item') ||
+        target?.hasAttribute('cmdk-list') ||
+        target?.closest('[role="combobox"]') ||
+        target?.closest('[role="option"]') ||
+        target?.closest('[role="listbox"]') ||
+        target?.closest('input[placeholder*="suchen"]') ||
+        target?.closest('input[placeholder*="Search"]') ||
+        target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
+      // Allow interactions with combobox elements - just return without preventing
+      return;
+    }
+
     if (isDirty && onAttemptClose) {
       event.preventDefault();
       onAttemptClose();
@@ -75,6 +94,14 @@ const DialogContent = React.forwardRef<
           className
         )}
         onInteractOutside={handleInteraction} // Assign the correctly typed handler
+        onOpenAutoFocus={(e) => {
+          // Prevent auto focus to allow combobox inputs to work
+          e.preventDefault();
+        }}
+        onCloseAutoFocus={(e) => {
+          // Prevent auto focus on close
+          e.preventDefault();
+        }}
         {...props}
       >
         {/* Always add a fallback DialogTitle for accessibility - will be overridden by actual DialogTitle if present */}
