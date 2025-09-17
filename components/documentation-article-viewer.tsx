@@ -48,6 +48,19 @@ function formatContent(content: string | null): React.ReactNode {
     // Parse markdown content to HTML synchronously
     const htmlContent = marked.parse(content, { async: false }) as string;
     
+    // Add hook to ensure external links open safely
+    DOMPurify.addHook('afterSanitizeAttributes', function(node) {
+      // Ensure external links open in new tab with security attributes
+      if (node.tagName === 'A' && node.hasAttribute('href')) {
+        const href = node.getAttribute('href');
+        // Check if it's an external link (starts with http/https or //)
+        if (href && (href.startsWith('http') || href.startsWith('//'))) {
+          node.setAttribute('target', '_blank');
+          node.setAttribute('rel', 'noopener noreferrer');
+        }
+      }
+    });
+    
     // Sanitize the HTML to prevent XSS attacks
     const sanitizedHtml = DOMPurify.sanitize(htmlContent, {
       // Allow common HTML elements for documentation
@@ -64,22 +77,11 @@ function formatContent(content: string | null): React.ReactNode {
         'href', 'title', 'alt', 'src', 'width', 'height',
         'class', 'id', 'target', 'rel'
       ],
-      FORBID_ATTR: ['style', 'onclick', 'onerror', 'onload'],
-      // Use hooks to ensure external links open safely
-      HOOKS: {
-        afterSanitizeAttributes: function(node) {
-          // Ensure external links open in new tab with security attributes
-          if (node.tagName === 'A' && node.hasAttribute('href')) {
-            const href = node.getAttribute('href');
-            // Check if it's an external link (starts with http/https or //)
-            if (href && (href.startsWith('http') || href.startsWith('//'))) {
-              node.setAttribute('target', '_blank');
-              node.setAttribute('rel', 'noopener noreferrer');
-            }
-          }
-        }
-      }
+      FORBID_ATTR: ['style', 'onclick', 'onerror', 'onload']
     });
+    
+    // Remove the hook after sanitization to avoid affecting other calls
+    DOMPurify.removeHook('afterSanitizeAttributes');
 
     return (
       <div 
