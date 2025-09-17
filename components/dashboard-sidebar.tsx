@@ -105,7 +105,7 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <SimpleScrollArea className="flex-1 pt-4 pb-4" key="sidebar-scroll">
+          <SimpleScrollArea className="flex-1 pt-4 pb-4">
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)

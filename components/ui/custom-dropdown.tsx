@@ -4,6 +4,9 @@ import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
+// Minimum space required below trigger before opening dropdown upward
+const DROPDOWN_MIN_SPACE_BELOW = 200
+
 interface CustomDropdownProps {
   children: React.ReactNode
   trigger: React.ReactNode
@@ -71,7 +74,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
       const spaceAbove = triggerRect.top
       
       // If there's more space above and not enough space below, open upward
-      if (spaceAbove > spaceBelow && spaceBelow < 200) {
+      if (spaceAbove > spaceBelow && spaceBelow < DROPDOWN_MIN_SPACE_BELOW) {
         setPosition("top")
       } else {
         setPosition("bottom")
