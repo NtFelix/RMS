@@ -105,23 +105,37 @@ export function DocumentationCategories({
       <Button
         variant="ghost"
         onClick={() => handleCategorySelect(null)}
-        className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border ${
+        className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border-2 ${
           selectedCategory === null 
-            ? "bg-primary hover:bg-primary/90 border-primary/30" 
-            : "bg-primary/80 hover:bg-primary border-primary/20 hover:border-primary/30"
+            ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" 
+            : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md"
         }`}
         aria-pressed={selectedCategory === null}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition-colors duration-300">
-            <FolderOpen className="h-4 w-4 text-white" strokeWidth={2} />
+          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+            selectedCategory === null 
+              ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30" 
+              : "bg-primary/10 group-hover:bg-primary/20"
+          }`}>
+            <FolderOpen className={`h-4 w-4 transition-all duration-300 ${
+              selectedCategory === null ? "text-primary-foreground" : "text-primary group-hover:scale-110"
+            }`} strokeWidth={2} />
           </div>
-          <span className="text-left text-sm font-semibold text-white">Alle Artikel</span>
+          <span className={`text-left text-sm font-semibold transition-colors duration-300 ${
+            selectedCategory === null ? "text-primary-foreground" : "text-foreground group-hover:text-primary"
+          }`}>
+            Alle Artikel
+          </span>
         </div>
         <Badge 
           variant="secondary" 
-          className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-white/20 text-white border-white/30 font-semibold group-hover:bg-white/30 transition-colors duration-300"
+          className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ${
+            selectedCategory === null 
+              ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
+              : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:scale-105"
+          }`}
         >
           {totalArticleCount}
         </Badge>
@@ -131,17 +145,39 @@ export function DocumentationCategories({
       {categories.map((category) => (
         <Button
           key={category.name}
-          variant={selectedCategory === category.name ? "default" : "ghost"}
+          variant="ghost"
           onClick={() => handleCategorySelect(category.name)}
-          className="w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group hover:bg-primary/10 hover:scale-[1.02] hover:shadow-md transition-all duration-300 rounded-lg border border-transparent hover:border-primary/30 disabled:hover:scale-100 disabled:hover:shadow-none disabled:hover:bg-transparent disabled:hover:border-transparent"
+          className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border-2 ${
+            selectedCategory === category.name
+              ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]"
+              : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md hover:scale-[1.01]"
+          } ${
+            category.articleCount === 0 
+              ? "opacity-50 cursor-not-allowed hover:scale-100 hover:shadow-none hover:bg-card hover:border-border" 
+              : ""
+          }`}
           disabled={category.articleCount === 0}
           aria-pressed={selectedCategory === category.name}
           aria-label={`Kategorie ${category.name || 'Ohne Kategorie'} (${category.articleCount} Artikel)`}
         >
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <Folder className="h-4 w-4 flex-shrink-0 group-hover:text-primary group-hover:scale-110 transition-all duration-300 group-disabled:group-hover:text-current group-disabled:group-hover:scale-100" />
+            <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+              selectedCategory === category.name 
+                ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30" 
+                : "bg-primary/10 group-hover:bg-primary/20"
+            }`}>
+              <Folder className={`h-3.5 w-3.5 transition-all duration-300 ${
+                selectedCategory === category.name 
+                  ? "text-primary-foreground" 
+                  : "text-primary group-hover:scale-110 group-disabled:group-hover:text-current group-disabled:group-hover:scale-100"
+              }`} />
+            </div>
             <span 
-              className="truncate text-left text-sm font-medium group-hover:text-primary transition-colors duration-300 group-disabled:group-hover:text-current"
+              className={`truncate text-left text-sm font-medium transition-colors duration-300 ${
+                selectedCategory === category.name 
+                  ? "text-primary-foreground" 
+                  : "text-foreground group-hover:text-primary group-disabled:group-hover:text-current"
+              }`}
               title={category.name || 'Ohne Kategorie'}
             >
               {category.name || 'Ohne Kategorie'}
@@ -149,7 +185,11 @@ export function DocumentationCategories({
           </div>
           <Badge 
             variant="secondary" 
-            className="ml-2 flex-shrink-0 text-xs group-hover:bg-primary/20 group-hover:border-primary/40 group-hover:scale-105 transition-all duration-300 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary group-disabled:group-hover:scale-100"
+            className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-medium transition-all duration-300 ${
+              selectedCategory === category.name 
+                ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
+                : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:scale-105 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary group-disabled:group-hover:scale-100"
+            }`}
           >
             {category.articleCount}
           </Badge>

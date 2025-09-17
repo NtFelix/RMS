@@ -183,20 +183,37 @@ export function DocumentationTableOfContents({
               e.stopPropagation();
               onCategorySelect(null);
             }}
-            className={`w-full justify-start h-10 p-3 text-left transition-all duration-300 overflow-hidden rounded-lg border group ${
+            className={`w-full justify-start h-10 p-3 text-left transition-all duration-300 overflow-hidden rounded-lg border-2 group ${
               selectedCategory === null 
-                ? "bg-primary hover:bg-primary/90 border-primary/30" 
-                : "bg-primary/80 hover:bg-primary border-primary/20 hover:border-primary/30"
+                ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" 
+                : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md hover:scale-[1.01]"
             }`}
           >
             <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
               <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0 group-hover:bg-white/30 transition-colors duration-300">
-                  <FileText className="h-4 w-4 text-white" strokeWidth={2} />
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                  selectedCategory === null 
+                    ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30" 
+                    : "bg-primary/10 group-hover:bg-primary/20"
+                }`}>
+                  <FileText className={`h-4 w-4 transition-all duration-300 ${
+                    selectedCategory === null ? "text-primary-foreground" : "text-primary group-hover:scale-110"
+                  }`} strokeWidth={2} />
                 </div>
-                <span className="text-sm font-semibold truncate text-white">Alle Artikel</span>
+                <span className={`text-sm font-semibold truncate transition-colors duration-300 ${
+                  selectedCategory === null ? "text-primary-foreground" : "text-foreground group-hover:text-primary"
+                }`}>
+                  Alle Artikel
+                </span>
               </div>
-              <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-white/20 text-white border-white/30 font-semibold group-hover:bg-white/30 transition-colors duration-300">
+              <Badge 
+                variant="secondary" 
+                className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ${
+                  selectedCategory === null 
+                    ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
+                    : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:scale-105"
+                }`}
+              >
                 {articles.length}
               </Badge>
             </div>
@@ -224,23 +241,46 @@ export function DocumentationTableOfContents({
                 
                 {/* Category Selection Button */}
                 <Button
-                  variant={selectedCategory === category.name ? "secondary" : "ghost"}
+                  variant="ghost"
                   onClick={(e) => handleCategorySelect(category.name, e)}
-                  className="flex-1 justify-start h-10 p-3 text-left hover:bg-transparent transition-all duration-300 min-w-0 overflow-hidden"
+                  className={`flex-1 justify-start h-10 p-3 text-left transition-all duration-300 min-w-0 overflow-hidden rounded-r-lg ${
+                    selectedCategory === category.name 
+                      ? "bg-primary/20 hover:bg-primary/30 text-primary border-l-4 border-primary shadow-md" 
+                      : "hover:bg-primary/10 hover:text-primary border-l-4 border-transparent hover:border-primary/50"
+                  }`}
                 >
                   <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
                     <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                        <Folder className="h-3.5 w-3.5 text-primary" />
+                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                        selectedCategory === category.name 
+                          ? "bg-primary/20 group-hover:bg-primary/30" 
+                          : "bg-primary/10 group-hover:bg-primary/20"
+                      }`}>
+                        <Folder className={`h-3.5 w-3.5 transition-all duration-300 ${
+                          selectedCategory === category.name 
+                            ? "text-primary scale-110" 
+                            : "text-primary group-hover:scale-110"
+                        }`} />
                       </div>
                       <span 
-                        className="text-sm font-medium truncate group-hover:text-primary transition-colors"
+                        className={`text-sm font-medium truncate transition-all duration-300 ${
+                          selectedCategory === category.name 
+                            ? "text-primary font-semibold" 
+                            : "text-foreground group-hover:text-primary"
+                        }`}
                         title={category.name}
                       >
                         {category.name}
                       </span>
                     </div>
-                    <Badge variant="secondary" className="ml-2 flex-shrink-0 text-xs px-2 py-1 bg-primary/10 text-primary border-primary/20 group-hover:bg-primary/20 transition-colors">
+                    <Badge 
+                      variant="secondary" 
+                      className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-medium transition-all duration-300 ${
+                        selectedCategory === category.name 
+                          ? "bg-primary/20 text-primary border-primary/40 scale-105" 
+                          : "bg-primary/10 text-primary border-primary/20 group-hover:bg-primary/20 group-hover:scale-105"
+                      }`}
+                    >
                       {category.articles.length}
                     </Badge>
                   </div>
@@ -274,16 +314,32 @@ export function DocumentationTableOfContents({
                           }}
                         >
                           <Button
-                            variant={selectedArticle?.id === article.id ? "default" : "ghost"}
+                            variant="ghost"
                             onClick={(e) => handleArticleClick(article, e)}
-                            className="w-full justify-start h-8 p-2 text-left text-sm hover:bg-primary/10 hover:scale-[1.01] transition-all duration-300 overflow-hidden rounded-md border border-transparent hover:border-primary/20"
+                            className={`w-full justify-start h-8 p-2 text-left text-sm transition-all duration-300 overflow-hidden rounded-md border-2 ${
+                              selectedArticle?.id === article.id 
+                                ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-md shadow-primary/25 scale-[1.02]" 
+                                : "bg-card hover:bg-primary/10 border-transparent hover:border-primary/30 hover:scale-[1.01] hover:shadow-sm"
+                            }`}
                           >
                             <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
-                              <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <FileText className="h-2.5 w-2.5 text-primary" />
+                              <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                                selectedArticle?.id === article.id 
+                                  ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30" 
+                                  : "bg-primary/10 group-hover:bg-primary/20"
+                              }`}>
+                                <FileText className={`h-2.5 w-2.5 transition-all duration-300 ${
+                                  selectedArticle?.id === article.id 
+                                    ? "text-primary-foreground" 
+                                    : "text-primary group-hover:scale-110"
+                                }`} />
                               </div>
                               <span 
-                                className="truncate hover:text-primary transition-colors"
+                                className={`truncate transition-all duration-300 ${
+                                  selectedArticle?.id === article.id 
+                                    ? "text-primary-foreground font-semibold" 
+                                    : "text-foreground group-hover:text-primary"
+                                }`}
                                 title={article.titel}
                               >
                                 {article.titel}

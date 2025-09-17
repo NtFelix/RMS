@@ -371,6 +371,7 @@ function DocumentationContent() {
                   <DocumentationArticleList
                     articles={state.articles}
                     searchQuery={state.searchQuery}
+                    selectedArticle={state.selectedArticle}
                     onArticleSelect={handleArticleSelect}
                     isLoading={state.isLoadingArticles}
                   />

@@ -38,6 +38,7 @@ describe('DocumentationArticleList', () => {
       <DocumentationArticleList
         articles={[]}
         onArticleSelect={mockOnArticleSelect}
+        selectedArticle={null}
         isLoading={true}
       />
     );
@@ -52,6 +53,7 @@ describe('DocumentationArticleList', () => {
       <DocumentationArticleList
         articles={[]}
         onArticleSelect={mockOnArticleSelect}
+        selectedArticle={null}
         isLoading={false}
       />
     );
@@ -65,6 +67,7 @@ describe('DocumentationArticleList', () => {
       <DocumentationArticleList
         articles={[]}
         onArticleSelect={mockOnArticleSelect}
+        selectedArticle={null}
         searchQuery="nonexistent"
         isLoading={false}
       />
@@ -79,6 +82,7 @@ describe('DocumentationArticleList', () => {
       <DocumentationArticleList
         articles={mockArticles}
         onArticleSelect={mockOnArticleSelect}
+        selectedArticle={null}
       />
     );
 
@@ -229,11 +233,50 @@ describe('DocumentationArticleList', () => {
           meta: null
         }]}
         onArticleSelect={mockOnArticleSelect}
+        selectedArticle={null}
         searchQuery="(parentheses)"
       />
     );
 
     const highlightedElements = screen.getAllByText('(parentheses)');
     expect(highlightedElements.some(el => el.tagName === 'MARK')).toBe(true);
+  });
+
+  it('shows active state for selected article', () => {
+    const selectedArticle = mockArticles[0];
+    render(
+      <DocumentationArticleList
+        articles={mockArticles}
+        onArticleSelect={mockOnArticleSelect}
+        selectedArticle={selectedArticle}
+      />
+    );
+
+    // The selected article should have different styling
+    const articleCards = screen.getAllByRole('button');
+    const selectedCard = articleCards.find(card => 
+      card.getAttribute('aria-label')?.includes(selectedArticle.titel)
+    );
+    
+    expect(selectedCard).toHaveClass('bg-primary/5', 'border-primary');
+  });
+
+  it('shows normal state for non-selected articles', () => {
+    const selectedArticle = mockArticles[0];
+    render(
+      <DocumentationArticleList
+        articles={mockArticles}
+        onArticleSelect={mockOnArticleSelect}
+        selectedArticle={selectedArticle}
+      />
+    );
+
+    // Non-selected articles should have normal styling
+    const articleCards = screen.getAllByRole('button');
+    const nonSelectedCard = articleCards.find(card => 
+      card.getAttribute('aria-label')?.includes(mockArticles[1].titel)
+    );
+    
+    expect(nonSelectedCard).toHaveClass('bg-background', 'border-input');
   });
 });
