@@ -119,11 +119,7 @@ export function DocumentationArticleList({
                     ? "bg-primary/20 group-hover:bg-primary/30" 
                     : "bg-primary/10 group-hover:bg-primary/20"
                 }`}>
-                  <FileText className={`h-5 w-5 transition-all duration-300 ${
-                    selectedArticle?.id === article.id 
-                      ? "text-primary" 
-                      : "text-primary"
-                  }`} />
+                  <FileText className="h-5 w-5 text-primary transition-all duration-300" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className={`text-lg font-semibold leading-tight transition-colors duration-300 ${
