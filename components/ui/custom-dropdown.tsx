@@ -100,6 +100,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
       {isOpen && (
         <div
           ref={dropdownRef}
+          role="menu"
           className={cn(
             "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
             "animate-in fade-in-0 zoom-in-95 duration-200",
@@ -121,7 +122,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
 
 const CustomDropdownContext = React.createContext<{ closeDropdown: () => void } | null>(null)
 
-export function CustomDropdownItem({ children, onClick, disabled = false, className }: CustomDropdownItemProps) {
+export function CustomDropdownItem({ children, onClick, disabled = false, className, ...props }: CustomDropdownItemProps & React.HTMLAttributes<HTMLDivElement>) {
   const context = React.useContext(CustomDropdownContext)
   
   const handleClick = () => {
@@ -131,8 +132,18 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
     }
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
     <div
+      role="menuitem"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
       className={cn(
         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
         disabled
@@ -141,6 +152,8 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
         className
       )}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      {...props}
     >
       {children}
     </div>
