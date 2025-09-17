@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { useIsMobile } from "./use-mobile"
 
 interface PillTabSwitcherTab {
   id: string;
@@ -17,208 +16,126 @@ interface PillTabSwitcherProps {
   className?: string;
 }
 
-const PillTabSwitcher = React.memo(React.forwardRef<
+const PillTabSwitcher = React.forwardRef<
   HTMLDivElement,
   PillTabSwitcherProps
 >(({ tabs, activeTab, onTabChange, className, ...props }, ref) => {
-  // Responsive design hook for mobile optimization
-  const isMobile = useIsMobile()
-  
-  // State management for tracking active tab
-  const [currentActiveTab, setCurrentActiveTab] = React.useState(activeTab)
-  
-  // Ref for the container to calculate tab positions
   const containerRef = React.useRef<HTMLDivElement>(null)
   
-  // State for sliding background indicator position
-  const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({})
-  
+  // Forward the ref to the container element
+  React.useImperativeHandle(ref, () => containerRef.current!)
+  const [indicatorStyle, setIndicatorStyle] = React.useState<React.CSSProperties>({
+    opacity: 0
+  })
+  const isInitialized = React.useRef(false)
 
-  
-  // Touch interaction state for better mobile feedback
-  const [touchedTab, setTouchedTab] = React.useState<string | null>(null)
-  
-  // Update internal state when activeTab prop changes
-  React.useEffect(() => {
-    setCurrentActiveTab(activeTab)
-  }, [activeTab])
+  // Calculate indicator position based on active tab
+  const updateIndicatorPosition = React.useCallback(() => {
+    if (!containerRef.current) return
 
-  // Memoized function to calculate and update indicator position
-  const updateIndicatorPosition = React.useCallback((tabValue: string) => {
-    if (!containerRef.current) return;
+    const container = containerRef.current
+    const activeIndex = tabs.findIndex(tab => tab.value === activeTab)
+    
+    if (activeIndex === -1) return
 
-    const container = containerRef.current;
-    const activeIndex = tabs.findIndex(tab => tab.value === tabValue);
+    const buttons = container.querySelectorAll('button[data-tab]')
+    const activeButton = buttons[activeIndex] as HTMLElement
+    
+    if (!activeButton) return
 
-    if (activeIndex === -1) return;
-
-    const tabButtons = container.querySelectorAll('button[data-tab]');
-    const activeButton = tabButtons[activeIndex] as HTMLElement;
-
-    if (!activeButton) return;
-
-    const containerRect = container.getBoundingClientRect();
-    const buttonRect = activeButton.getBoundingClientRect();
-    const computedStyle = window.getComputedStyle(container);
-    const paddingLeft = parseFloat(computedStyle.paddingLeft);
-    const left = buttonRect.left - containerRect.left - paddingLeft;
-    const width = buttonRect.width;
+    // Get button dimensions and position
+    const buttonRect = activeButton.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    
+    // Calculate position relative to container's content area (excluding padding)
+    const computedStyle = window.getComputedStyle(container)
+    const containerPadding = parseFloat(computedStyle.paddingLeft)
+    const left = buttonRect.left - containerRect.left - containerPadding
+    const width = buttonRect.width
 
     setIndicatorStyle({
       transform: `translateX(${left}px)`,
       width: `${width}px`,
-    });
-  }, [tabs]);
+      opacity: 1
+    })
+    
+    if (!isInitialized.current) {
+      isInitialized.current = true
+    }
+  }, [activeTab, tabs])
 
-  const handleTabChange = React.useCallback((tabValue: string) => {
-    setCurrentActiveTab(tabValue);
-    onTabChange(tabValue);
-    updateIndicatorPosition(tabValue);
-  }, [onTabChange, updateIndicatorPosition]);
+  // Handle tab change - only call onTabChange if it's actually a different tab
+  const handleTabClick = React.useCallback((tabValue: string) => {
+    if (tabValue !== activeTab) {
+      onTabChange(tabValue)
+    }
+  }, [activeTab, onTabChange])
 
+  // Update indicator position when activeTab changes
   React.useEffect(() => {
-    // Initial position update
-    updateIndicatorPosition(activeTab);
+    // Use requestAnimationFrame to ensure DOM is ready
+    const frame = requestAnimationFrame(() => {
+      updateIndicatorPosition()
+    })
+    
+    return () => cancelAnimationFrame(frame)
+  }, [updateIndicatorPosition])
 
-    // Update on resize
-    const handleResize = () => requestAnimationFrame(() => updateIndicatorPosition(activeTab));
-    window.addEventListener('resize', handleResize);
+  // Handle resize events
+  React.useEffect(() => {
+    const handleResize = () => {
+      requestAnimationFrame(updateIndicatorPosition)
+    }
 
-    return () => window.removeEventListener('resize', handleResize);
-  }, [activeTab, updateIndicatorPosition]);
-
-  // Touch interaction handlers for better mobile feedback
-  const handleTouchStart = React.useCallback((tabValue: string) => {
-    setTouchedTab(tabValue)
-  }, [])
-
-  const handleTouchEnd = React.useCallback(() => {
-    setTouchedTab(null)
-  }, [])
-
-  const handleTouchCancel = React.useCallback(() => {
-    setTouchedTab(null)
-  }, [])
-
-
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [updateIndicatorPosition])
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        // Core pill container styling with responsive height
-        "relative inline-flex items-center justify-center",
-        // Add gap between tabs for better visual separation
-        isMobile ? "gap-2" : "gap-1.5",
-        // Responsive height: larger on mobile for better touch targets
-        isMobile ? "h-14" : "h-12",
-        // Pill shape with rounded corners
-        "rounded-full",
-        // Semi-transparent background with backdrop blur
-        "bg-muted/60 backdrop-blur-md",
-        // Responsive padding: more on mobile for better touch spacing
-        isMobile ? "p-2.5" : "p-2",
-        // Subtle shadow for elevation
-        "shadow-md shadow-black/5",
-        // Border for better definition
+        "relative inline-flex items-center",
+        "h-12 p-2 rounded-full",
+        "bg-muted/60 backdrop-blur-sm",
         "border border-border/50",
-        // Responsive width: full width on small screens, auto on larger
-        "w-full sm:w-auto",
-        // Responsive max width to prevent excessive stretching on mobile
-        "max-w-sm sm:max-w-none",
-        // Touch optimization: prevent text selection and improve touch response
-        "select-none touch-manipulation",
+        "shadow-sm",
+        "select-none",
         className
       )}
       {...props}
     >
-      {/* Sliding background indicator */}
+      {/* Sliding indicator */}
       <div
         className={cn(
-          // Responsive positioning and layering based on container padding
-          "absolute rounded-full bg-primary",
-          // Responsive positioning: adjust for different padding on mobile vs desktop
-          isMobile ? "left-2.5 top-2.5 bottom-2.5" : "left-2 top-2 bottom-2",
-          // Smooth sliding animation
-          "transition-all duration-300 ease-out motion-reduce:transition-none",
-          // Subtle shadow for the indicator
-          "shadow-sm shadow-primary/20",
-          // Ensure it's behind the tab buttons
+          "absolute top-2 bottom-2 left-2 rounded-full",
+          "bg-primary shadow-sm",
+          "transition-all duration-200 ease-out",
           "z-0"
         )}
         style={indicatorStyle}
       />
       
-
-      {tabs.map((tab, index) => {
-        const isActive = currentActiveTab === tab.value
+      {/* Tab buttons */}
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.value
         
         return (
           <button
             key={tab.id}
             type="button"
             data-tab={tab.value}
-            onClick={() => handleTabChange(tab.value)}
-
-            onTouchStart={() => handleTouchStart(tab.value)}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchCancel}
+            onClick={() => handleTabClick(tab.value)}
             className={cn(
-              // Base tab item structure
-              "relative z-10 inline-flex items-center justify-center whitespace-nowrap",
-              // Pill shape matching container
-              "rounded-full",
-              // Responsive spacing and typography for tab labels
-              // Mobile: larger padding and text for better touch targets
-              isMobile 
-                ? "px-6 py-3 text-base font-medium leading-none" 
-                : "px-4 py-2.5 text-sm font-medium leading-none",
-              // Ensure even distribution within container
-              "flex-1 min-w-0",
-              // Responsive minimum touch target size (44px minimum on mobile)
-              isMobile ? "min-h-[44px]" : "min-h-[40px]",
-              // Touch optimization: improve tap response
-              "touch-manipulation",
-              // Simple smooth transitions
-              "transition-all duration-200 ease-out motion-reduce:transition-none",
-              // Enhanced focus states for accessibility with better visibility
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-              // Focus state background for better contrast
-              "focus-visible:bg-muted/30",
-              // Disabled state handling
+              "relative z-10 flex-1",
+              "px-4 py-2 rounded-full",
+              "text-sm font-medium",
+              "transition-colors duration-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
               "disabled:pointer-events-none disabled:opacity-50",
-              // Touch feedback: visual feedback when touched on mobile
-              touchedTab === tab.value && isMobile && "bg-muted/30 scale-[0.98]",
-              // Enhanced active vs inactive state styling
               isActive
-                ? [
-                    // Active tab: white text over sliding background indicator
-                    "text-primary-foreground",
-                    // Ensure active state is clearly visible
-                    "font-semibold",
-                    // No background since sliding indicator provides it
-                    "bg-transparent",
-                    // Prevent hover effects on active tab to avoid interference
-                    "hover:scale-100",
-                    // Mobile: prevent hover effects entirely on touch devices
-                    isMobile && "hover:scale-100 hover:bg-transparent"
-                  ]
-                : [
-                    // Inactive tab: muted styling with enhanced hover effects
-                    "text-muted-foreground",
-                    // Simple desktop hover effects
-                    !isMobile && [
-                      "hover:text-foreground",
-                      "hover:scale-105"
-                    ],
-                    // Mobile: simpler touch feedback without hover effects
-                    isMobile && [
-                      "active:bg-muted/40",
-                      "active:scale-[0.98]"
-                    ],
-                    // Maintain normal font weight for inactive
-                    "font-medium"
-                  ]
+                ? "text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
             )}
           >
             {tab.label}
@@ -227,7 +144,7 @@ const PillTabSwitcher = React.memo(React.forwardRef<
       })}
     </div>
   )
-}))
+})
 
 PillTabSwitcher.displayName = "PillTabSwitcher"
 

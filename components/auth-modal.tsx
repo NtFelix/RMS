@@ -288,14 +288,14 @@ export default function AuthModal({
     }
 
     const tabs = [
-      { id: 'login', label: 'Login', value: 'login' },
-      { id: 'register', label: 'Register', value: 'register' }
+      { id: 'login', label: 'Anmelden', value: 'login' },
+      { id: 'register', label: 'Registrieren', value: 'register' }
     ];
 
     return (
       <div className="w-full">
         {/* Modern pill tab switcher with proper spacing */}
-        <div className="flex justify-center px-6 pt-6 pb-4">
+        <div className="flex justify-center px-2 pt-6 pb-4">
           <PillTabSwitcher
             tabs={tabs}
             activeTab={activeView}
