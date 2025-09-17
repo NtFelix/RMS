@@ -95,10 +95,10 @@ export function DocumentationArticleList({
       return (
         <Card 
           key={article.id} 
-          className={`group cursor-pointer transition-all duration-300 active:scale-[0.99] border-2 focus-within:ring-2 focus-within:ring-ring ${
+          className={`group cursor-pointer transition-all duration-300 border-2 focus-within:ring-2 focus-within:ring-ring ${
             selectedArticle?.id === article.id 
-              ? "bg-primary/5 border-primary shadow-lg shadow-primary/10 scale-[1.01] hover:shadow-xl hover:shadow-primary/15" 
-              : "bg-background border-input hover:border-ring hover:shadow-md hover:scale-[1.01]"
+              ? "bg-primary/5 border-primary shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/15" 
+              : "bg-background border-input hover:border-ring hover:shadow-md"
           }`}
           onClick={() => handleArticleSelect(article)}
           onKeyDown={(e) => {
@@ -116,13 +116,13 @@ export function DocumentationArticleList({
               <div className="flex items-start gap-3 flex-1">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 transition-all duration-300 ${
                   selectedArticle?.id === article.id 
-                    ? "bg-primary/20 group-hover:bg-primary/30 scale-110" 
-                    : "bg-primary/10 group-hover:bg-primary/20 group-hover:scale-110"
+                    ? "bg-primary/20 group-hover:bg-primary/30" 
+                    : "bg-primary/10 group-hover:bg-primary/20"
                 }`}>
                   <FileText className={`h-5 w-5 transition-all duration-300 ${
                     selectedArticle?.id === article.id 
-                      ? "text-primary scale-110" 
-                      : "text-primary group-hover:scale-110"
+                      ? "text-primary" 
+                      : "text-primary"
                   }`} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -138,8 +138,8 @@ export function DocumentationArticleList({
                       variant="outline" 
                       className={`w-fit mt-2 transition-all duration-300 ${
                         selectedArticle?.id === article.id 
-                          ? "border-primary/70 bg-primary/10 text-primary scale-105" 
-                          : "border-border group-hover:border-primary/50 group-hover:bg-primary/5 group-hover:text-primary group-hover:scale-105"
+                          ? "border-primary/70 bg-primary/10 text-primary" 
+                          : "border-border group-hover:border-primary/50 group-hover:bg-primary/5 group-hover:text-primary"
                       }`}
                     >
                       {article.kategorie}

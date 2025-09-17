@@ -185,8 +185,8 @@ export function DocumentationTableOfContents({
             }}
             className={`w-full justify-start h-10 p-3 text-left transition-all duration-300 overflow-hidden rounded-lg border-2 group ${
               selectedCategory === null 
-                ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" 
-                : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md hover:scale-[1.01]"
+                ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25" 
+                : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md"
             }`}
           >
             <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
@@ -197,7 +197,7 @@ export function DocumentationTableOfContents({
                     : "bg-primary/10 group-hover:bg-primary/20"
                 }`}>
                   <FileText className={`h-4 w-4 transition-all duration-300 ${
-                    selectedCategory === null ? "text-primary-foreground" : "text-primary group-hover:scale-110"
+                    selectedCategory === null ? "text-primary-foreground" : "text-primary"
                   }`} strokeWidth={2} />
                 </div>
                 <span className={`text-sm font-semibold truncate transition-colors duration-300 ${
@@ -211,7 +211,7 @@ export function DocumentationTableOfContents({
                 className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ${
                   selectedCategory === null 
                     ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
-                    : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:scale-105"
+                    : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20"
                 }`}
               >
                 {articles.length}
@@ -229,7 +229,7 @@ export function DocumentationTableOfContents({
                   variant="ghost"
                   size="sm"
                   onClick={(e) => toggleCategory(category.name, e)}
-                  className="p-2 h-10 w-10 hover:bg-primary/10 hover:scale-110 transition-all duration-300 flex-shrink-0 rounded-full"
+                  className="p-2 h-10 w-10 hover:bg-primary/10 transition-all duration-300 flex-shrink-0 rounded-full"
                 >
                   <motion.div
                     animate={{ rotate: category.isExpanded ? 90 : 0 }}
@@ -245,8 +245,8 @@ export function DocumentationTableOfContents({
                   onClick={(e) => handleCategorySelect(category.name, e)}
                   className={`flex-1 justify-start h-10 p-3 text-left transition-all duration-300 min-w-0 overflow-hidden rounded-r-lg ${
                     selectedCategory === category.name 
-                      ? "bg-primary/20 hover:bg-primary/30 text-primary border-l-4 border-primary shadow-md" 
-                      : "hover:bg-primary/10 hover:text-primary border-l-4 border-transparent hover:border-primary/50"
+                      ? "bg-primary/20 hover:bg-primary/30 text-primary shadow-md" 
+                      : "hover:bg-primary/10 hover:text-primary"
                   }`}
                 >
                   <div className="flex items-center justify-between w-full min-w-0 overflow-hidden">
@@ -258,8 +258,8 @@ export function DocumentationTableOfContents({
                       }`}>
                         <Folder className={`h-3.5 w-3.5 transition-all duration-300 ${
                           selectedCategory === category.name 
-                            ? "text-primary scale-110" 
-                            : "text-primary group-hover:scale-110"
+                            ? "text-primary" 
+                            : "text-primary"
                         }`} />
                       </div>
                       <span 
@@ -277,8 +277,8 @@ export function DocumentationTableOfContents({
                       variant="secondary" 
                       className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-medium transition-all duration-300 ${
                         selectedCategory === category.name 
-                          ? "bg-primary/20 text-primary border-primary/40 scale-105" 
-                          : "bg-primary/10 text-primary border-primary/20 group-hover:bg-primary/20 group-hover:scale-105"
+                          ? "bg-primary/20 text-primary border-primary/40" 
+                          : "bg-primary/10 text-primary border-primary/20 group-hover:bg-primary/20"
                       }`}
                     >
                       {category.articles.length}
@@ -318,8 +318,8 @@ export function DocumentationTableOfContents({
                             onClick={(e) => handleArticleClick(article, e)}
                             className={`w-full justify-start h-8 p-2 text-left text-sm transition-all duration-300 overflow-hidden rounded-md border-2 ${
                               selectedArticle?.id === article.id 
-                                ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-md shadow-primary/25 scale-[1.02]" 
-                                : "bg-card hover:bg-primary/10 border-transparent hover:border-primary/30 hover:scale-[1.01] hover:shadow-sm"
+                                ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-md shadow-primary/25" 
+                                : "bg-card hover:bg-primary/10 border-transparent hover:border-primary/30 hover:shadow-sm"
                             }`}
                           >
                             <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
@@ -331,7 +331,7 @@ export function DocumentationTableOfContents({
                                 <FileText className={`h-2.5 w-2.5 transition-all duration-300 ${
                                   selectedArticle?.id === article.id 
                                     ? "text-primary-foreground" 
-                                    : "text-primary group-hover:scale-110"
+                                    : "text-primary"
                                 }`} />
                               </div>
                               <span 

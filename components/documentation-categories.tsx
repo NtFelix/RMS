@@ -107,7 +107,7 @@ export function DocumentationCategories({
         onClick={() => handleCategorySelect(null)}
         className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border-2 ${
           selectedCategory === null 
-            ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]" 
+            ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25" 
             : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md"
         }`}
         aria-pressed={selectedCategory === null}
@@ -120,7 +120,7 @@ export function DocumentationCategories({
               : "bg-primary/10 group-hover:bg-primary/20"
           }`}>
             <FolderOpen className={`h-4 w-4 transition-all duration-300 ${
-              selectedCategory === null ? "text-primary-foreground" : "text-primary group-hover:scale-110"
+              selectedCategory === null ? "text-primary-foreground" : "text-primary"
             }`} strokeWidth={2} />
           </div>
           <span className={`text-left text-sm font-semibold transition-colors duration-300 ${
@@ -134,7 +134,7 @@ export function DocumentationCategories({
           className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ${
             selectedCategory === null 
               ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
-              : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:scale-105"
+              : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20"
           }`}
         >
           {totalArticleCount}
@@ -149,8 +149,8 @@ export function DocumentationCategories({
           onClick={() => handleCategorySelect(category.name)}
           className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 rounded-lg border-2 ${
             selectedCategory === category.name
-              ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25 scale-[1.02]"
-              : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md hover:scale-[1.01]"
+              ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25"
+              : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-md"
           } ${
             category.articleCount === 0 
               ? "opacity-50 cursor-not-allowed hover:scale-100 hover:shadow-none hover:bg-card hover:border-border" 
@@ -169,7 +169,7 @@ export function DocumentationCategories({
               <Folder className={`h-3.5 w-3.5 transition-all duration-300 ${
                 selectedCategory === category.name 
                   ? "text-primary-foreground" 
-                  : "text-primary group-hover:scale-110 group-disabled:group-hover:text-current group-disabled:group-hover:scale-100"
+                  : "text-primary group-disabled:group-hover:text-current"
               }`} />
             </div>
             <span 
@@ -188,7 +188,7 @@ export function DocumentationCategories({
             className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-medium transition-all duration-300 ${
               selectedCategory === category.name 
                 ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30" 
-                : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:scale-105 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary group-disabled:group-hover:scale-100"
+                : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-disabled:group-hover:bg-secondary group-disabled:group-hover:border-secondary"
             }`}
           >
             {category.articleCount}
