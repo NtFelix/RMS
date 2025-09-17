@@ -30,7 +30,8 @@ export function UserSettings() {
   const [userInitials, setUserInitials] = useState("");
   const supabase = createClient();
   const { openTemplatesModal } = useModalStore();
-  const templateModalEnabled = false; // Temporarily disable to prevent infinite re-render
+  // Use a stable reference for the feature flag to prevent infinite re-renders
+  const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   useEffect(() => {
     const fetchUser = async () => {

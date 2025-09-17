@@ -64,7 +64,7 @@ export function CloudStorageQuickActions({
   onBulkArchive
 }: QuickActionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
-  const createFileEnabled = true; // Temporarily hardcode to test infinite re-render fix
+  const createFileEnabled = useFeatureFlagEnabled('create-file-option')
 
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter)
