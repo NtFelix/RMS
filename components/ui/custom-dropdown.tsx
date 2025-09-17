@@ -36,6 +36,20 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
 
+  // Focus management effect
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      // Focus first menu item when dropdown opens
+      const firstMenuItem = dropdownRef.current.querySelector('[role="menuitem"]:not([aria-disabled="true"])') as HTMLElement
+      if (firstMenuItem) {
+        firstMenuItem.focus()
+      }
+    } else if (!isOpen && triggerRef.current) {
+      // Return focus to trigger when dropdown closes
+      triggerRef.current.focus()
+    }
+  }, [isOpen])
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -96,7 +110,20 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
 
   return (
     <div className="relative">
-      <div ref={triggerRef} onClick={handleTriggerClick}>
+      <div 
+        ref={triggerRef} 
+        onClick={handleTriggerClick}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleTriggerClick();
+          }
+        }}
+      >
         {trigger}
       </div>
       
