@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { 
   Upload, 
   FolderPlus, 
@@ -64,7 +64,7 @@ export function CloudStorageQuickActions({
   onBulkArchive
 }: QuickActionsProps) {
   const [activeFilter, setActiveFilter] = useState<string>('all')
-  const createFileEnabled = true // Temporarily hardcode to prevent infinite re-render
+  const createFileEnabled = useFeatureFlagEnabled('create-file-option')
 
   const handleFilterChange = (filter: string) => {
     setActiveFilter(filter)

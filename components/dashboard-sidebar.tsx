@@ -64,7 +64,7 @@ export function DashboardSidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
-  const documentsEnabled = true // Temporarily hardcode to prevent infinite re-render
+  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
 
   return (
     <>
