@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FolderOpen, Folder, AlertTriangle } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface Category {
   name: string;
@@ -50,6 +51,9 @@ export function DocumentationCategories({
   const totalArticleCount = useMemo(() => {
     return categories.reduce((sum, cat) => sum + cat.articleCount, 0);
   }, [categories]);
+
+  // Boolean for cleaner conditional logic
+  const isAllArticlesSelected = selectedCategory === null;
 
   if (error) {
     return (
@@ -105,48 +109,54 @@ export function DocumentationCategories({
       <Button
         variant="ghost"
         onClick={() => handleCategorySelect(null)}
-        className={`w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 ease-out rounded-lg border-2 relative overflow-hidden ${
-          selectedCategory === null 
-            ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25" 
+        className={cn(
+          "w-full justify-between h-auto p-3 focus:ring-2 focus:ring-ring group transition-all duration-300 ease-out rounded-lg border-2 relative overflow-hidden",
+          isAllArticlesSelected
+            ? "bg-primary hover:bg-primary/90 border-primary text-primary-foreground shadow-lg shadow-primary/25"
             : "bg-card hover:bg-primary/10 border-border hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
-        }`}
-        aria-pressed={selectedCategory === null}
+        )}
+        aria-pressed={isAllArticlesSelected}
         aria-label={`Alle Artikel anzeigen (${totalArticleCount} Artikel)`}
       >
         {/* Hover gradient overlay */}
-        <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${
-          selectedCategory === null 
-            ? "bg-gradient-to-r from-primary-foreground/5 to-transparent" 
+        <div className={cn(
+          "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none",
+          isAllArticlesSelected
+            ? "bg-gradient-to-r from-primary-foreground/5 to-transparent"
             : "bg-gradient-to-r from-primary/5 to-transparent"
-        }`} />
+        )} />
         
         <div className="flex items-center gap-3 min-w-0 flex-1 relative z-10">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-out ${
-            selectedCategory === null 
-              ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30 group-hover:shadow-sm" 
+          <div className={cn(
+            "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-out",
+            isAllArticlesSelected
+              ? "bg-primary-foreground/20 group-hover:bg-primary-foreground/30 group-hover:shadow-sm"
               : "bg-primary/10 group-hover:bg-primary/20 group-hover:shadow-sm group-hover:shadow-primary/20"
-          }`}>
-            <FolderOpen className={`h-4 w-4 transition-all duration-300 ease-out ${
-              selectedCategory === null 
-                ? "text-primary-foreground group-hover:drop-shadow-sm" 
+          )}>
+            <FolderOpen className={cn(
+              "h-4 w-4 transition-all duration-300 ease-out",
+              isAllArticlesSelected
+                ? "text-primary-foreground group-hover:drop-shadow-sm"
                 : "text-primary group-hover:text-primary group-hover:drop-shadow-sm"
-            }`} strokeWidth={2} />
+            )} strokeWidth={2} />
           </div>
-          <span className={`text-left text-sm font-semibold transition-all duration-300 ease-out ${
-            selectedCategory === null 
-              ? "text-primary-foreground group-hover:drop-shadow-sm" 
+          <span className={cn(
+            "text-left text-sm font-semibold transition-all duration-300 ease-out",
+            isAllArticlesSelected
+              ? "text-primary-foreground group-hover:drop-shadow-sm"
               : "text-foreground group-hover:text-primary group-hover:font-bold"
-          }`}>
+          )}>
             Alle Artikel
           </span>
         </div>
         <Badge 
           variant="secondary" 
-          className={`ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ease-out relative z-10 ${
-            selectedCategory === null 
-              ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30 group-hover:shadow-sm" 
+          className={cn(
+            "ml-2 flex-shrink-0 text-xs px-2 py-1 font-semibold transition-all duration-300 ease-out relative z-10",
+            isAllArticlesSelected
+              ? "bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30 group-hover:bg-primary-foreground/30 group-hover:shadow-sm"
               : "bg-primary/10 text-primary border-primary/30 group-hover:bg-primary/20 group-hover:border-primary/50 group-hover:shadow-sm group-hover:shadow-primary/20"
-          }`}
+          )}
         >
           {totalArticleCount}
         </Badge>
