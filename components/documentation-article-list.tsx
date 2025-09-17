@@ -20,6 +20,7 @@ interface ArticleListProps {
   articles: Article[];
   searchQuery?: string;
   onArticleSelect: (article: Article) => void;
+  selectedArticle?: Article | null;
   isLoading?: boolean;
   className?: string;
 }
@@ -62,6 +63,7 @@ export function DocumentationArticleList({
   articles,
   searchQuery = '',
   onArticleSelect,
+  selectedArticle = null,
   isLoading = false,
   className = ""
 }: ArticleListProps) {
@@ -93,7 +95,11 @@ export function DocumentationArticleList({
       return (
         <Card 
           key={article.id} 
-          className="group cursor-pointer transition-all duration-300 hover:shadow-md hover:scale-[1.01] active:scale-[0.99] border-2 border-input hover:border-ring focus-within:ring-2 focus-within:ring-ring bg-background"
+          className={`group cursor-pointer transition-all duration-300 border-2 focus-within:ring-2 focus-within:ring-ring ${
+            selectedArticle?.id === article.id 
+              ? "bg-primary/5 border-primary shadow-lg shadow-primary/10 hover:shadow-xl hover:shadow-primary/15" 
+              : "bg-background border-input hover:border-ring hover:shadow-md"
+          }`}
           onClick={() => handleArticleSelect(article)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -108,15 +114,30 @@ export function DocumentationArticleList({
           <CardHeader className="pb-3">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1 group-hover:bg-primary/20 transition-colors">
-                  <FileText className="h-5 w-5 text-primary" />
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 transition-all duration-300 ${
+                  selectedArticle?.id === article.id 
+                    ? "bg-primary/20 group-hover:bg-primary/30" 
+                    : "bg-primary/10 group-hover:bg-primary/20"
+                }`}>
+                  <FileText className="h-5 w-5 text-primary transition-all duration-300" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold leading-tight group-hover:text-primary transition-colors">
+                  <h3 className={`text-lg font-semibold leading-tight transition-colors duration-300 ${
+                    selectedArticle?.id === article.id 
+                      ? "text-primary" 
+                      : "text-foreground group-hover:text-primary"
+                  }`}>
                     {highlightText(article.titel, searchQuery)}
                   </h3>
                   {article.kategorie && (
-                    <Badge variant="outline" className="w-fit mt-2 group-hover:border-primary/50 transition-colors">
+                    <Badge 
+                      variant="outline" 
+                      className={`w-fit mt-2 transition-all duration-300 ${
+                        selectedArticle?.id === article.id 
+                          ? "border-primary/70 bg-primary/10 text-primary" 
+                          : "border-border group-hover:border-primary/50 group-hover:bg-primary/5 group-hover:text-primary"
+                      }`}
+                    >
                       {article.kategorie}
                     </Badge>
                   )}

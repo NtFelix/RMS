@@ -27,7 +27,7 @@ describe('DocumentationCategories', () => {
 
     // Should show skeleton loaders
     const skeletons = document.querySelectorAll('.animate-pulse');
-    expect(skeletons).toHaveLength(6); // 1 title + 5 category skeletons
+    expect(skeletons).toHaveLength(7); // 2 title elements + 5 category skeletons
   });
 
   it('renders empty state when no categories', () => {
