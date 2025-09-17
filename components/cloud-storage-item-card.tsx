@@ -106,7 +106,7 @@ export function CloudStorageItemCard({
   useEffect(() => {
     const unregister = globalDropdownManager.register(closeThisDropdown)
     return unregister
-  }, [closeThisDropdown])
+  }, []) // Remove closeThisDropdown from dependency array to prevent infinite re-renders
 
   // Handle dropdown open change with global management
   const handleDropdownOpenChange = (open: boolean) => {

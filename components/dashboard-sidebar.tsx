@@ -64,7 +64,7 @@ export function DashboardSidebar() {
   const [isOpen, setIsOpen] = useState(false)
   const { isRouteActive, getActiveStateClasses } = useSidebarActiveState()
   // Removed supabase client and useEffect for userEmail as it's handled by UserSettings
-  const documentsEnabled = useFeatureFlagEnabled('documents_tab_access')
+  const documentsEnabled = true; // Temporarily hardcode to test infinite re-render fix
 
   return (
     <>
@@ -105,7 +105,7 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <div className="flex-1 pt-4 pb-4 overflow-y-auto">
+          <ScrollArea className="flex-1 pt-4 pb-4">
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)
@@ -135,7 +135,7 @@ export function DashboardSidebar() {
                 )
               })}
             </nav>
-          </div>
+          </ScrollArea>
           <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />

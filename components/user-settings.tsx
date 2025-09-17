@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { User } from "@supabase/supabase-js"
@@ -30,7 +30,7 @@ export function UserSettings() {
   const [userInitials, setUserInitials] = useState("");
   const supabase = createClient();
   const { openTemplatesModal } = useModalStore();
-  const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled');
+  const templateModalEnabled = false; // Temporarily disable to prevent infinite re-render
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -95,10 +95,7 @@ export function UserSettings() {
             aria-label="User menu"
           >
             <Avatar className="h-10 w-10">
-              {/* Actual user image can be added if available in profile */}
-              {/* <AvatarImage src={profile?.avatar_url || "/placeholder-user.jpg"} alt={userName} /> */}
-              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} /> {/* Keeping placeholder for now */}
-              {/* Changed to accent blue background and white text for fallback */}
+              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
               <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left">
