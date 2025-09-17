@@ -4,6 +4,9 @@ import * as React from "react"
 import { useState, useRef, useEffect } from "react"
 import { cn } from "@/lib/utils"
 
+// Minimum space required below trigger before opening dropdown upward
+const DROPDOWN_MIN_SPACE_BELOW = 200
+
 interface CustomDropdownProps {
   children: React.ReactNode
   trigger: React.ReactNode
@@ -32,6 +35,20 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const [position, setPosition] = useState<"top" | "bottom">("bottom")
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
+
+  // Focus management effect
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+      // Focus first menu item when dropdown opens
+      const firstMenuItem = dropdownRef.current.querySelector('[role="menuitem"]:not([aria-disabled="true"])') as HTMLElement
+      if (firstMenuItem) {
+        firstMenuItem.focus()
+      }
+    } else if (!isOpen && triggerRef.current) {
+      // Return focus to trigger when dropdown closes
+      triggerRef.current.focus()
+    }
+  }, [isOpen])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -71,7 +88,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
       const spaceAbove = triggerRect.top
       
       // If there's more space above and not enough space below, open upward
-      if (spaceAbove > spaceBelow && spaceBelow < 200) {
+      if (spaceAbove > spaceBelow && spaceBelow < DROPDOWN_MIN_SPACE_BELOW) {
         setPosition("top")
       } else {
         setPosition("bottom")
@@ -93,13 +110,27 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
 
   return (
     <div className="relative">
-      <div ref={triggerRef} onClick={handleTriggerClick}>
+      <div 
+        ref={triggerRef} 
+        onClick={handleTriggerClick}
+        role="button"
+        tabIndex={0}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleTriggerClick();
+          }
+        }}
+      >
         {trigger}
       </div>
       
       {isOpen && (
         <div
           ref={dropdownRef}
+          role="menu"
           className={cn(
             "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
             "animate-in fade-in-0 zoom-in-95 duration-200",
@@ -121,7 +152,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
 
 const CustomDropdownContext = React.createContext<{ closeDropdown: () => void } | null>(null)
 
-export function CustomDropdownItem({ children, onClick, disabled = false, className }: CustomDropdownItemProps) {
+export function CustomDropdownItem({ children, onClick, disabled = false, className, ...props }: CustomDropdownItemProps & React.HTMLAttributes<HTMLDivElement>) {
   const context = React.useContext(CustomDropdownContext)
   
   const handleClick = () => {
@@ -131,8 +162,18 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
     }
   }
 
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handleClick();
+    }
+  };
+
   return (
     <div
+      role="menuitem"
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled}
       className={cn(
         "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
         disabled
@@ -141,6 +182,8 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
         className
       )}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      {...props}
     >
       {children}
     </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { User } from "@supabase/supabase-js"
@@ -115,6 +115,7 @@ export function UserSettings() {
         {templateModalEnabled && (
           <CustomDropdownItem 
             onClick={openTemplatesModal}
+            aria-label={ARIA_LABELS.templatesModal}
           >
             <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
             <span>Vorlagen</span>
