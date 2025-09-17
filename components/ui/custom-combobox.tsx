@@ -191,7 +191,17 @@ export function CustomCombobox({
             zIndex: 99999, // Even higher z-index
             pointerEvents: 'auto'
           }}
-          onMouseDown={(e) => e.stopPropagation()} // Prevent event bubbling
+          onMouseDown={(e) => {
+            // Only stop propagation for non-scroll interactions
+            const target = e.target as Element
+            if (!target.closest('[data-scroll-area]')) {
+              e.stopPropagation()
+            }
+          }}
+          onWheel={(e) => {
+            // Allow wheel events to pass through for scrolling
+            e.stopPropagation()
+          }}
         >
           <div className="flex flex-col">
             {/* Custom search input with aggressive focus management */}
@@ -219,8 +229,30 @@ export function CustomCombobox({
               />
             </div>
             
-            {/* Custom options list */}
-            <div className="max-h-[300px] overflow-y-auto p-1">
+            {/* Custom options list with proper scrolling */}
+            <div 
+              data-scroll-area=""
+              className="max-h-[300px] overflow-y-auto p-1"
+              style={{ 
+                pointerEvents: 'auto',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                scrollbarWidth: 'thin',
+                scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent'
+              }}
+              onWheel={(e) => {
+                // Allow wheel events for scrolling and prevent them from closing the dropdown
+                e.stopPropagation()
+              }}
+              onScroll={(e) => {
+                // Allow scroll events
+                e.stopPropagation()
+              }}
+              onMouseDown={(e) => {
+                // Don't prevent default on the scroll area itself
+                e.stopPropagation()
+              }}
+            >
               {filteredOptions.length === 0 ? (
                 <div className="py-6 text-center text-sm text-muted-foreground">{emptyText}</div>
               ) : (
@@ -237,7 +269,13 @@ export function CustomCombobox({
                         setOpen(false)
                       }
                     }}
-                    onMouseDown={(e) => e.preventDefault()} // Prevent focus loss
+                    onMouseDown={(e) => {
+                      // Only prevent default for selection, not scrolling
+                      if (e.button === 0) { // Left click only
+                        e.preventDefault()
+                      }
+                    }}
+                    style={{ pointerEvents: 'auto' }}
                   >
                     <Check
                       className={cn(
