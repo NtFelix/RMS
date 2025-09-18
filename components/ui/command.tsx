@@ -43,7 +43,6 @@ const CommandInput = React.forwardRef<
   <div 
     className="flex items-center border-b px-3 pointer-events-auto" 
     cmdk-input-wrapper=""
-    cmdk-input=""
   >
     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50 pointer-events-none" />
     <CommandPrimitive.Input
