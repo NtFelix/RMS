@@ -314,7 +314,7 @@ export function WasserzaehlerModal() {
         <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-4 py-4">
           {/* General Date Picker */}
           {formData.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-6 p-4 bg-muted/50 border rounded-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 mb-6 p-6 bg-muted/50 border rounded-xl">
               <div className="w-full">
                 <Label htmlFor="general-date-picker" className="block mb-1">
                   Gemeinsames Ablesedatum für alle Mieter:
@@ -347,7 +347,7 @@ export function WasserzaehlerModal() {
             </div>
           ) : formData.length > 0 ? (
             formData.map((entry, index) => (
-              <div key={entry.mieter_id} className="p-4 bg-muted/50 border rounded-lg space-y-3">
+              <div key={entry.mieter_id} className="p-6 bg-muted/50 border rounded-xl space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-semibold text-lg">{entry.mieter_name}</p>

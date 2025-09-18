@@ -197,7 +197,7 @@ export function SortableCostItem({
       </div>
 
       {item.berechnungsart === 'nach Rechnung' && (
-        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-md space-y-3 shadow-sm">
+        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3 shadow-sm">
           <h4 className="text-md font-semibold text-gray-700">
             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
           </h4>
@@ -211,12 +211,12 @@ export function SortableCostItem({
           ) : (
             <>
               {!isFetchingTenants && !hausId && (
-                <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">
+                <p className="text-sm text-orange-600 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                   Bitte wählen Sie zuerst ein Haus aus, um Mieter zu laden.
                 </p>
               )}
               {!isFetchingTenants && hausId && selectedHausMieter.length === 0 && !isLoadingDetails && (
-                <p className="text-sm text-orange-600 p-2 bg-orange-50 border border-orange-200 rounded-md">
+                <p className="text-sm text-orange-600 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                   Für das ausgewählte Haus wurden keine Mieter gefunden.
                 </p>
               )}
