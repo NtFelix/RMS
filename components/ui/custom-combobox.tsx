@@ -140,10 +140,23 @@ export function CustomCombobox({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!open) return
 
+      // If the input is focused, let it handle everything except escape
+      const isInputFocused = document.activeElement === inputRef.current
+      
+      if (isInputFocused) {
+        // Only handle escape when input is focused
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          setOpen(false)
+          buttonRef.current?.focus()
+        }
+        return
+      }
+      
       // Check if this is a printable character for typing
       const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
       
-      // Navigation and control keys
+      // Handle keys when input is not focused
       switch (event.key) {
         case 'Escape':
           event.preventDefault()
@@ -195,11 +208,25 @@ export function CustomCombobox({
           break
           
         case 'Backspace':
-          // Handle backspace for search input
+        case 'Delete':
           event.preventDefault()
           if (inputRef.current) {
             inputRef.current.focus()
-            setInputValue(prev => prev.slice(0, -1))
+            
+            // Handle Cmd+Delete (or Cmd+Backspace) to clear entire input
+            if (event.metaKey || event.ctrlKey) {
+              setInputValue('')
+            } else {
+              // Handle single character deletion
+              if (event.key === 'Backspace') {
+                setInputValue(prev => prev.slice(0, -1))
+              } else if (event.key === 'Delete') {
+                // For Delete key, we need to handle cursor position
+                // Since we don't track cursor position in this implementation,
+                // we'll treat it like backspace for simplicity
+                setInputValue(prev => prev.slice(0, -1))
+              }
+            }
             setHighlightedIndex(0)
           }
           break
@@ -219,13 +246,13 @@ export function CustomCombobox({
       }
     }
 
-    // Use capture phase to ensure we get the events first
+    // Use capture phase for click outside, but normal phase for keyboard
     document.addEventListener('mousedown', handleClickOutside, true)
-    document.addEventListener('keydown', handleKeyDown, true)
+    document.addEventListener('keydown', handleKeyDown, false)
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside, true)
-      document.removeEventListener('keydown', handleKeyDown, true)
+      document.removeEventListener('keydown', handleKeyDown, false)
     }
   }, [open, filteredOptions, highlightedIndex, value, onChange])
 
@@ -272,7 +299,7 @@ export function CustomCombobox({
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={selectedOption ? `Selected: ${selectedOption.label}` : placeholder}
+        aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
         className={cn("justify-between", width, !value && "text-muted-foreground")}
         disabled={disabled}
         id={id}
@@ -346,6 +373,65 @@ export function CustomCombobox({
                   setInputValue(e.target.value)
                   // Reset highlighted index when searching
                   setHighlightedIndex(0)
+                }}
+                onKeyDown={(e) => {
+                  // Handle navigation keys
+                  switch (e.key) {
+                    case 'ArrowDown':
+                      e.preventDefault()
+                      setHighlightedIndex(prev => {
+                        const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0
+                        return nextIndex
+                      })
+                      break
+                      
+                    case 'ArrowUp':
+                      e.preventDefault()
+                      setHighlightedIndex(prev => {
+                        const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1
+                        return nextIndex
+                      })
+                      break
+                      
+                    case 'Enter':
+                      e.preventDefault()
+                      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+                        const selectedOption = filteredOptions[highlightedIndex]
+                        if (!selectedOption.disabled) {
+                          onChange(selectedOption.value === value ? null : selectedOption.value)
+                          setOpen(false)
+                          buttonRef.current?.focus()
+                        }
+                      }
+                      break
+                      
+                    case 'Escape':
+                      e.preventDefault()
+                      setOpen(false)
+                      buttonRef.current?.focus()
+                      break
+                      
+                    case 'Home':
+                      e.preventDefault()
+                      setHighlightedIndex(0)
+                      break
+                      
+                    case 'End':
+                      e.preventDefault()
+                      setHighlightedIndex(filteredOptions.length - 1)
+                      break
+                      
+                    case 'Tab':
+                      // Allow tab to close dropdown and move focus
+                      setOpen(false)
+                      break
+                      
+                    default:
+                      // For all other keys (including text input, Cmd+A, Cmd+C, Cmd+V, Cmd+Delete, etc.)
+                      // let the native input handle them and just update our state
+                      // Don't prevent default or stop propagation
+                      break
+                  }
                 }}
                 onFocus={handleInputFocus}
                 onClick={handleInputClick}

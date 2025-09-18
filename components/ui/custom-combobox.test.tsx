@@ -72,4 +72,42 @@ describe('CustomCombobox', () => {
 
     expect(screen.getByText('Choose an option')).toBeInTheDocument();
   });
+
+  it('handles keyboard input and deletion correctly', async () => {
+    const user = userEvent.setup();
+    
+    render(
+      <CustomCombobox
+        options={mockOptions}
+        value={null}
+        onChange={mockOnChange}
+      />
+    );
+
+    const combobox = screen.getByRole('combobox');
+    
+    // Open the dropdown
+    await user.click(combobox);
+    
+    // Find the search input
+    const searchInput = screen.getByRole('searchbox');
+    expect(searchInput).toBeInTheDocument();
+    
+    // Type some text
+    await user.type(searchInput, 'test');
+    expect(searchInput).toHaveValue('test');
+    
+    // Test single character deletion with backspace
+    await user.keyboard('{Backspace}');
+    expect(searchInput).toHaveValue('tes');
+    
+    // Test multiple character deletion by selecting all and deleting
+    await user.keyboard('{Control>}a{/Control}');
+    await user.keyboard('{Backspace}');
+    expect(searchInput).toHaveValue('');
+    
+    // Test that we can type again after clearing
+    await user.type(searchInput, 'new');
+    expect(searchInput).toHaveValue('new');
+  });
 });
