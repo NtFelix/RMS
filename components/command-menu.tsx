@@ -164,12 +164,11 @@ export function CommandMenu() {
     if (open) {
       // Auto-focus the input when command menu opens
       const focusInput = () => {
-        const input = document.querySelector('input[cmdk-input]') as HTMLInputElement
-        if (input) {
-          input.focus()
+        if (inputRef.current) {
+          inputRef.current.focus()
           // Set cursor to end if there's existing text
-          const len = input.value.length
-          input.setSelectionRange(len, len)
+          const len = inputRef.current.value.length
+          inputRef.current.setSelectionRange(len, len)
         }
       }
 
