@@ -49,7 +49,12 @@ export function AccessibilityDemo() {
             <li><kbd className="px-1 py-0.5 bg-muted rounded">Home</kbd> First option</li>
             <li><kbd className="px-1 py-0.5 bg-muted rounded">End</kbd> Last option</li>
             <li><kbd className="px-1 py-0.5 bg-muted rounded">Tab</kbd> Close and move focus</li>
+            <li><kbd className="px-1 py-0.5 bg-muted rounded">Type</kbd> Auto-search (no click needed!)</li>
+            <li><kbd className="px-1 py-0.5 bg-muted rounded">Backspace</kbd> Delete search text</li>
           </ul>
+          <p className="text-xs italic mt-2">
+            💡 Try typing directly on the dropdown button - it will open and start searching automatically!
+          </p>
         </div>
         
         {selectedValue && (

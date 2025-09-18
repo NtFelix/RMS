@@ -158,4 +158,84 @@ describe('CustomCombobox Accessibility', () => {
     // Should not select disabled option
     expect(mockOnChange).not.toHaveBeenCalled()
   })
+
+  it('should automatically capture typing when dropdown is open', async () => {
+    const user = userEvent.setup()
+    
+    render(
+      <CustomCombobox
+        options={mockOptions}
+        value={null}
+        onChange={mockOnChange}
+        placeholder="Select option"
+      />
+    )
+
+    const combobox = screen.getByRole('combobox')
+    await user.click(combobox)
+    
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+
+    // Type characters - should automatically update search input
+    fireEvent.keyDown(document, { key: 'O' })
+    fireEvent.keyDown(document, { key: 'p' })
+    
+    await waitFor(() => {
+      const searchInput = screen.getByRole('searchbox')
+      expect(searchInput).toHaveValue('Op')
+    })
+  })
+
+  it('should open dropdown and start typing when typing on closed combobox', async () => {
+    render(
+      <CustomCombobox
+        options={mockOptions}
+        value={null}
+        onChange={mockOnChange}
+        placeholder="Select option"
+      />
+    )
+
+    const combobox = screen.getByRole('combobox')
+    combobox.focus()
+    
+    // Type a character on the closed combobox
+    fireEvent.keyDown(combobox, { key: 'O' })
+    
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+  })
+
+  it('should handle backspace in search input', async () => {
+    const user = userEvent.setup()
+    
+    render(
+      <CustomCombobox
+        options={mockOptions}
+        value={null}
+        onChange={mockOnChange}
+        placeholder="Select option"
+      />
+    )
+
+    const combobox = screen.getByRole('combobox')
+    await user.click(combobox)
+    
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+
+    // Type and then backspace
+    fireEvent.keyDown(document, { key: 'O' })
+    fireEvent.keyDown(document, { key: 'p' })
+    fireEvent.keyDown(document, { key: 'Backspace' })
+    
+    await waitFor(() => {
+      const searchInput = screen.getByRole('searchbox')
+      expect(searchInput).toHaveValue('O')
+    })
+  })
 })

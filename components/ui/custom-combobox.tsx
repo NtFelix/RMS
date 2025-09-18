@@ -125,7 +125,7 @@ export function CustomCombobox({
     }
   }, [highlightedIndex, open])
 
-  // Handle keyboard navigation and outside clicks
+  // Handle keyboard navigation, typing capture, and outside clicks
   React.useEffect(() => {
     if (!open) return
 
@@ -140,6 +140,10 @@ export function CustomCombobox({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!open) return
 
+      // Check if this is a printable character for typing
+      const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+      
+      // Navigation and control keys
       switch (event.key) {
         case 'Escape':
           event.preventDefault()
@@ -188,6 +192,47 @@ export function CustomCombobox({
         case 'Tab':
           // Allow tab to close dropdown and move focus
           setOpen(false)
+          break
+          
+        case 'Backspace':
+          // Handle backspace for search input
+          event.preventDefault()
+          if (inputRef.current) {
+            inputRef.current.focus()
+            setInputValue(prev => {
+              const newValue = prev.slice(0, -1)
+              // Trigger input event to ensure proper handling
+              const inputEvent = new Event('input', { bubbles: true })
+              Object.defineProperty(inputEvent, 'target', { value: { value: newValue }, enumerable: true })
+              inputRef.current?.dispatchEvent(inputEvent)
+              return newValue
+            })
+            setHighlightedIndex(0)
+          }
+          break
+          
+        default:
+          // Handle printable characters for auto-typing
+          if (isPrintableChar) {
+            event.preventDefault()
+            if (inputRef.current) {
+              // Focus the input and add the character
+              inputRef.current.focus()
+              setInputValue(prev => {
+                const newValue = prev + event.key
+                // Use setTimeout to ensure the input value is updated before triggering events
+                setTimeout(() => {
+                  if (inputRef.current) {
+                    inputRef.current.value = newValue
+                    const inputEvent = new Event('input', { bubbles: true })
+                    inputRef.current.dispatchEvent(inputEvent)
+                  }
+                }, 0)
+                return newValue
+              })
+              setHighlightedIndex(0)
+            }
+          }
           break
       }
     }
@@ -252,12 +297,24 @@ export function CustomCombobox({
         onClick={handleButtonClick}
         onMouseDown={(e) => e.preventDefault()} // Prevent focus issues
         onKeyDown={(e) => {
-          // Handle keyboard opening
+          // Check if this is a printable character
+          const isPrintableChar = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
+          
+          // Handle keyboard opening and typing
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             if (!open) {
               setOpen(true)
             }
+          } else if (isPrintableChar && !open) {
+            // Open dropdown and start typing
+            e.preventDefault()
+            setOpen(true)
+            // Set the initial input value
+            setTimeout(() => {
+              setInputValue(e.key)
+              setHighlightedIndex(0)
+            }, 0)
           }
         }}
       >
