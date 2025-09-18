@@ -234,7 +234,12 @@ export async function getNebenkostenDetailsAction(id: string): Promise<{
         Haeuser (
           name
         ),
-        Rechnungen (*)
+        Rechnungen (
+          id,
+          mieter_id,
+          name,
+          betrag
+        )
       `)
       .eq("id", id)
       .eq("user_id", user.id)
