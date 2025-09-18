@@ -11,7 +11,7 @@ export default function Loading() {
         <SummaryCardSkeleton title="Aktiv / Ehemalig" icon={<BadgeCheck className="h-4 w-4 text-muted-foreground" />} />
         <SummaryCardSkeleton title="Ø Nebenkosten" icon={<Euro className="h-4 w-4 text-muted-foreground" />} />
       </div>
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40 mb-2" />
         </CardHeader>

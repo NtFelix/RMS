@@ -7,7 +7,7 @@ export default function Loading() {
       {/* Instruction Cards Skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {[1,2,3,4].map((idx) => (
-          <Card key={idx} className="rounded-xl">
+          <Card key={idx} className="rounded-2xl">
             <CardHeader className="pb-2">
               <Skeleton className="h-5 w-48" /> {/* Mimics CardTitle */}
             </CardHeader>
@@ -20,7 +20,7 @@ export default function Loading() {
       </div>
 
       {/* Main Card Structure Skeleton */}
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader className="flex flex-row items-center justify-between">
           {/* Left side: Card Title Skeleton */}
           <Skeleton className="h-6 w-48" /> {/* Mimics CardTitle */}

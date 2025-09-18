@@ -41,7 +41,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex flex-1 flex-col min-h-0 p-6">
-          <div className="flex-1 overflow-y-auto rounded-xl bg-white dark:main-container border shadow-sm">
+          <div className="flex-1 overflow-y-auto rounded-2xl bg-white dark:main-container border shadow-sm">
             {children}
           </div>
         </main>

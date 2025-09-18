@@ -12,7 +12,7 @@ export default function Loading() {
         <SummaryCardSkeleton title="Ø Miete" icon={<Euro className="h-4 w-4 text-muted-foreground" />} />
         <SummaryCardSkeleton title="Ø Preis pro m²" icon={<Ruler className="h-4 w-4 text-muted-foreground" />} />
       </div>
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40 mb-2" />
           <Skeleton className="h-4 w-56" />
