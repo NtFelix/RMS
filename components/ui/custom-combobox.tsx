@@ -68,7 +68,8 @@ export function CustomCombobox({
     ), [options, inputValue]
   )
 
-  // Shared keyboard navigation logic
+  // Shared keyboard navigation logic used by both global handler and input handler
+  // This eliminates code duplication and ensures consistent navigation behavior
   const handleNavigationKey = React.useCallback((key: string, event: KeyboardEvent | React.KeyboardEvent) => {
     switch (key) {
       case 'ArrowDown':
