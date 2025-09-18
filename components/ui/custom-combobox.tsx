@@ -400,7 +400,7 @@ export function CustomCombobox({
                 onFocus={handleInputFocus}
                 onClick={handleInputClick}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="flex h-8 w-full rounded-lg bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-8 w-full rounded-lg bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ 
                   pointerEvents: 'auto',
                   userSelect: 'text',
