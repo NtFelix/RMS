@@ -373,7 +373,7 @@ export function CustomCombobox({
         >
           <div className="flex flex-col">
             {/* Custom search input with aggressive focus management */}
-            <div className="flex items-center border-b px-4 py-3">
+            <div className="flex items-center border-b px-3 py-2">
               <input
                 ref={inputRef}
                 type="text"
