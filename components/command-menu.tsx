@@ -902,7 +902,6 @@ export function CommandMenu() {
             placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
             value={query}
             onValueChange={setQuery}
-            autoFocus
           />
         
         {/* Network Status Indicator */}
