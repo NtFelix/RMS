@@ -68,6 +68,61 @@ export function CustomCombobox({
     ), [options, inputValue]
   )
 
+  // Shared keyboard navigation logic used by both global handler and input handler
+  // This eliminates code duplication and ensures consistent navigation behavior
+  const handleNavigationKey = React.useCallback((key: string, event: KeyboardEvent | React.KeyboardEvent) => {
+    switch (key) {
+      case 'ArrowDown':
+        event.preventDefault()
+        setHighlightedIndex(prev => {
+          const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0
+          return nextIndex
+        })
+        break
+        
+      case 'ArrowUp':
+        event.preventDefault()
+        setHighlightedIndex(prev => {
+          const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1
+          return nextIndex
+        })
+        break
+        
+      case 'Enter':
+        event.preventDefault()
+        if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
+          const selectedOption = filteredOptions[highlightedIndex]
+          if (!selectedOption.disabled) {
+            onChange(selectedOption.value === value ? null : selectedOption.value)
+            setOpen(false)
+            buttonRef.current?.focus()
+          }
+        }
+        break
+        
+      case 'Escape':
+        event.preventDefault()
+        setOpen(false)
+        buttonRef.current?.focus()
+        break
+        
+      case 'Home':
+        event.preventDefault()
+        setHighlightedIndex(0)
+        break
+        
+      case 'End':
+        event.preventDefault()
+        setHighlightedIndex(filteredOptions.length - 1)
+        break
+        
+      case 'Tab':
+        // Allow tab to close dropdown and move focus
+        setOpen(false)
+        break
+    }
+  }, [filteredOptions, highlightedIndex, value, onChange])
+
   // Reset input and highlighted index when opening/closing
   React.useEffect(() => {
     if (!open) {
@@ -140,94 +195,78 @@ export function CustomCombobox({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!open) return
 
-      // Check if this is a printable character for typing
-      const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+      // If the input is focused, let it handle everything except escape
+      const isInputFocused = document.activeElement === inputRef.current
       
-      // Navigation and control keys
-      switch (event.key) {
-        case 'Escape':
+      if (isInputFocused) {
+        // Only handle escape when input is focused
+        if (event.key === 'Escape') {
           event.preventDefault()
           setOpen(false)
           buttonRef.current?.focus()
-          break
-          
-        case 'ArrowDown':
-          event.preventDefault()
-          setHighlightedIndex(prev => {
-            const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0
-            return nextIndex
-          })
-          break
-          
-        case 'ArrowUp':
-          event.preventDefault()
-          setHighlightedIndex(prev => {
-            const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1
-            return nextIndex
-          })
-          break
-          
-        case 'Enter':
-          event.preventDefault()
-          if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-            const selectedOption = filteredOptions[highlightedIndex]
-            if (!selectedOption.disabled) {
-              onChange(selectedOption.value === value ? null : selectedOption.value)
-              setOpen(false)
-              buttonRef.current?.focus()
-            }
-          }
-          break
-          
-        case 'Home':
-          event.preventDefault()
-          setHighlightedIndex(0)
-          break
-          
-        case 'End':
-          event.preventDefault()
-          setHighlightedIndex(filteredOptions.length - 1)
-          break
-          
-        case 'Tab':
-          // Allow tab to close dropdown and move focus
-          setOpen(false)
-          break
-          
-        case 'Backspace':
-          // Handle backspace for search input
-          event.preventDefault()
-          if (inputRef.current) {
-            inputRef.current.focus()
-            setInputValue(prev => prev.slice(0, -1))
-            setHighlightedIndex(0)
-          }
-          break
-          
-        default:
-          // Handle printable characters for auto-typing
-          if (isPrintableChar) {
+        }
+        return
+      }
+      
+      // Check if this is a printable character for typing
+      const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+      
+      // Handle keys when input is not focused
+      const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
+      
+      if (navigationKeys.includes(event.key)) {
+        handleNavigationKey(event.key, event)
+      } else {
+        // Handle non-navigation keys
+        switch (event.key) {
+          case 'Backspace':
+          case 'Delete':
             event.preventDefault()
             if (inputRef.current) {
-              // Focus the input and add the character
               inputRef.current.focus()
-              setInputValue(prev => prev + event.key)
+              
+              // Handle Cmd+Delete (or Cmd+Backspace) to clear entire input
+              if (event.metaKey || event.ctrlKey) {
+                setInputValue('')
+              } else {
+                // Handle single character deletion shortcuts (when input is not focused)
+                if (event.key === 'Backspace') {
+                  // Backspace shortcut: focus input and remove last character
+                  setInputValue(prev => prev.slice(0, -1))
+                } else if (event.key === 'Delete') {
+                  // Delete shortcut: focus input but preserve value
+                  // This allows user to then use native Delete behavior (remove char to right of cursor)
+                }
+              }
               setHighlightedIndex(0)
             }
-          }
-          break
+            break
+            
+          default:
+            // Handle printable characters for auto-typing
+            if (isPrintableChar) {
+              event.preventDefault()
+              if (inputRef.current) {
+                // Focus the input and add the character
+                inputRef.current.focus()
+                setInputValue(prev => prev + event.key)
+                setHighlightedIndex(0)
+              }
+            }
+            break
+        }
       }
     }
 
-    // Use capture phase to ensure we get the events first
+    // Use capture phase for click outside, but normal phase for keyboard
     document.addEventListener('mousedown', handleClickOutside, true)
-    document.addEventListener('keydown', handleKeyDown, true)
+    document.addEventListener('keydown', handleKeyDown, false)
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside, true)
-      document.removeEventListener('keydown', handleKeyDown, true)
+      document.removeEventListener('keydown', handleKeyDown, false)
     }
-  }, [open, filteredOptions, highlightedIndex, value, onChange])
+  }, [open, filteredOptions, highlightedIndex, value, onChange, handleNavigationKey])
 
   // Handle mouse hover to update highlighted index
   const handleOptionMouseEnter = (index: number) => {
@@ -272,7 +311,7 @@ export function CustomCombobox({
         role="combobox"
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={selectedOption ? `Selected: ${selectedOption.label}` : placeholder}
+        aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
         className={cn("justify-between", width, !value && "text-muted-foreground")}
         disabled={disabled}
         id={id}
@@ -346,6 +385,17 @@ export function CustomCombobox({
                   setInputValue(e.target.value)
                   // Reset highlighted index when searching
                   setHighlightedIndex(0)
+                }}
+                onKeyDown={(e) => {
+                  // Handle navigation keys using shared helper
+                  const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
+                  
+                  if (navigationKeys.includes(e.key)) {
+                    handleNavigationKey(e.key, e)
+                  }
+                  // For all other keys (including text input, Cmd+A, Cmd+C, Cmd+V, Cmd+Delete, etc.)
+                  // let the native input handle them and just update our state
+                  // Don't prevent default or stop propagation
                 }}
                 onFocus={handleInputFocus}
                 onClick={handleInputClick}
