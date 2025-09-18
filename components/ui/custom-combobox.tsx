@@ -199,14 +199,7 @@ export function CustomCombobox({
           event.preventDefault()
           if (inputRef.current) {
             inputRef.current.focus()
-            setInputValue(prev => {
-              const newValue = prev.slice(0, -1)
-              // Trigger input event to ensure proper handling
-              const inputEvent = new Event('input', { bubbles: true })
-              Object.defineProperty(inputEvent, 'target', { value: { value: newValue }, enumerable: true })
-              inputRef.current?.dispatchEvent(inputEvent)
-              return newValue
-            })
+            setInputValue(prev => prev.slice(0, -1))
             setHighlightedIndex(0)
           }
           break
@@ -218,18 +211,7 @@ export function CustomCombobox({
             if (inputRef.current) {
               // Focus the input and add the character
               inputRef.current.focus()
-              setInputValue(prev => {
-                const newValue = prev + event.key
-                // Use setTimeout to ensure the input value is updated before triggering events
-                setTimeout(() => {
-                  if (inputRef.current) {
-                    inputRef.current.value = newValue
-                    const inputEvent = new Event('input', { bubbles: true })
-                    inputRef.current.dispatchEvent(inputEvent)
-                  }
-                }, 0)
-                return newValue
-              })
+              setInputValue(prev => prev + event.key)
               setHighlightedIndex(0)
             }
           }
