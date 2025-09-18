@@ -107,15 +107,15 @@ function Calendar({
           };
 
           // Check if we can navigate to previous/next month based on year constraints
-          const canGoPrevious = () => {
+          const canGoPrevious = React.useCallback(() => {
             const prevMonth = subMonths(displayMonth, 1);
             return getYear(prevMonth) >= startYear;
-          };
+          }, [displayMonth, startYear]);
 
-          const canGoNext = () => {
+          const canGoNext = React.useCallback(() => {
             const nextMonth = addMonths(displayMonth, 1);
             return getYear(nextMonth) <= endYear;
-          };
+          }, [displayMonth, endYear]);
 
           const years = [];
           for (let i = startYear; i <= endYear; i++) {
