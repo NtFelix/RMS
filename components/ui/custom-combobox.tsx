@@ -221,10 +221,8 @@ export function CustomCombobox({
               if (event.key === 'Backspace') {
                 setInputValue(prev => prev.slice(0, -1))
               } else if (event.key === 'Delete') {
-                // For Delete key, we need to handle cursor position
-                // Since we don't track cursor position in this implementation,
-                // we'll treat it like backspace for simplicity
-                setInputValue(prev => prev.slice(0, -1))
+                // For 'Delete', we just focus the input and do not modify the value,
+                // allowing the user to use native editing commands.
               }
             }
             setHighlightedIndex(0)
