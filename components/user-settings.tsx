@@ -5,13 +5,11 @@ import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import type { User } from "@supabase/supabase-js"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  CustomDropdown,
+  CustomDropdownItem,
+  CustomDropdownLabel,
+  CustomDropdownSeparator,
+} from "@/components/ui/custom-dropdown"
 import { Button } from "@/components/ui/button"; // Keep this if other buttons are styled with it, or remove if not.
 import { LogOut, Settings, FileText } from "lucide-react"; // Removed User icon as it's not used.
 import { SettingsModal } from "@/components/settings-modal";
@@ -30,7 +28,8 @@ export function UserSettings() {
   const [userInitials, setUserInitials] = useState("");
   const supabase = createClient();
   const { openTemplatesModal } = useModalStore();
-  const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled');
+  // Use PostHog feature flag properly at the top level
+  const templateModalEnabled = useFeatureFlagEnabled('template-modal-enabled')
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -69,7 +68,7 @@ export function UserSettings() {
     };
 
     fetchUser();
-  }, [supabase]);
+  }, []); // Remove supabase from dependency array to prevent infinite re-renders
 
 
   const handleLogout = async () => {
@@ -88,17 +87,16 @@ export function UserSettings() {
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <CustomDropdown
+        align="end"
+        className="w-56 ml-4"
+        trigger={
           <div
             className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors duration-150"
             aria-label="User menu"
           >
             <Avatar className="h-10 w-10">
-              {/* Actual user image can be added if available in profile */}
-              {/* <AvatarImage src={profile?.avatar_url || "/placeholder-user.jpg"} alt={userName} /> */}
-              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} /> {/* Keeping placeholder for now */}
-              {/* Changed to accent blue background and white text for fallback */}
+              <AvatarImage src={"/placeholder-user.jpg"} alt={userName} />
               <AvatarFallback className="bg-accent text-accent-foreground">{isLoadingUser ? "" : userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex flex-col text-left">
@@ -110,30 +108,29 @@ export function UserSettings() {
               </span>
             </div>
           </div>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 ml-4">
-          <DropdownMenuLabel>Mein Konto</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {templateModalEnabled && (
-            <DropdownMenuItem 
-              onClick={openTemplatesModal}
-              aria-label={ARIA_LABELS.templatesModal}
-            >
-              <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
-              <span>Vorlagen</span>
-            </DropdownMenuItem>
-          )}
-          <DropdownMenuItem onClick={() => setOpenModal(true)}>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Einstellungen</span>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleLogout} disabled={isLoadingLogout}>
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        }
+      >
+        <CustomDropdownLabel>Mein Konto</CustomDropdownLabel>
+        <CustomDropdownSeparator />
+        {templateModalEnabled && (
+          <CustomDropdownItem 
+            onClick={openTemplatesModal}
+            aria-label={ARIA_LABELS.templatesModal}
+          >
+            <FileText className="mr-2 h-4 w-4" aria-hidden="true" />
+            <span>Vorlagen</span>
+          </CustomDropdownItem>
+        )}
+        <CustomDropdownItem onClick={() => setOpenModal(true)}>
+          <Settings className="mr-2 h-4 w-4" />
+          <span>Einstellungen</span>
+        </CustomDropdownItem>
+        <CustomDropdownSeparator />
+        <CustomDropdownItem onClick={handleLogout} disabled={isLoadingLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span>{isLoadingLogout ? "Wird abgemeldet..." : "Abmelden"}</span>
+        </CustomDropdownItem>
+      </CustomDropdown>
       <SettingsModal open={openModal} onOpenChange={setOpenModal} />
     </>
   )

@@ -130,6 +130,18 @@
 
 @layer base {
   :root {
+    /* Z-index management */
+    --z-index-dropdown: 1000;
+    --z-index-sticky: 1020;
+    --z-index-fixed: 1030;
+    --z-index-modal-backdrop: 1040;
+    --z-index-modal: 1050;
+    --z-index-popover: 1060;
+    --z-index-tooltip: 1070;
+    --z-index-toast: 1080;
+    /* Portal dropdowns need to be above all other UI elements to prevent clipping */
+    --z-index-portal-dropdown: 1100;
+
     /* Neue Farbpalette */
     --primary-color: #2c3e50;
     --secondary-color: #34495e;
@@ -417,6 +429,31 @@
       min-height: auto;
       min-width: auto;
     }
+  }
+
+  /* Custom scrollbar styling for combobox dropdowns */
+  [data-scroll-area]::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  [data-scroll-area]::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  [data-scroll-area]::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  [data-scroll-area]::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  [data-scroll-area]::-webkit-scrollbar-corner {
+    background: transparent;
   }
 
   /* Responsive text truncation */

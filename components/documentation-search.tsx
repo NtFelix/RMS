@@ -123,6 +123,7 @@ export function DocumentationSearch({
             disabled={isLoading || currentMode === 'ai'}
             aria-label="Dokumentation durchsuchen"
             aria-describedby={error ? "search-error" : undefined}
+            data-dialog-ignore-interaction
           />
 
           {/* Right Side Buttons */}

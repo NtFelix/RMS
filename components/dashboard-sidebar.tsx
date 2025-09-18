@@ -9,7 +9,7 @@ import { LOGO_URL } from "@/lib/constants"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { SimpleScrollArea } from "@/components/ui/simple-scroll-area"
 import { UserSettings } from "@/components/user-settings"
 import { createClient } from "@/utils/supabase/client"
 import { useSidebarActiveState } from "@/hooks/use-active-state-manager"
@@ -105,7 +105,7 @@ export function DashboardSidebar() {
               <span className="text-lg">Mietfluss</span>
             </Link>
           </div>
-          <ScrollArea className="flex-1 pt-4 pb-4">
+          <SimpleScrollArea className="flex-1 pt-4 pb-4">
             <nav className="grid gap-1 px-2 pr-4">
               {sidebarNavItems.map((item) => {
                 const isActive = isRouteActive(item.href)
@@ -135,7 +135,7 @@ export function DashboardSidebar() {
                 )
               })}
             </nav>
-          </ScrollArea>
+          </SimpleScrollArea>
           <div className="mt-auto border-t p-4 pb-6 dark:sidebar-footer">
             {/* The UserSettings component itself is now the sole display for user info in this area */}
             <UserSettings />

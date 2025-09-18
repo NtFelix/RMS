@@ -28,14 +28,14 @@ interface DatePickerProps {
 export function DatePicker({ value, onChange, placeholder = "Datum auswählen", className, disabled, id }: DatePickerProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [inputValue, setInputValue] = useState<string>("");
-  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   // Effect to synchronize internal state with external value prop
   useEffect(() => {
     let initialDate: Date | undefined = undefined;
     if (value instanceof Date) {
       initialDate = value;
-    } else if (typeof value === 'string') {
+    } else if (typeof value === 'string' && value.trim() !== '') {
       // Try parsing DD.MM.YYYY first
       try {
         const parsedDate = parse(value, "dd.MM.yyyy", new Date());
@@ -65,7 +65,7 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
     setSelectedDate(date);
     setInputValue(date ? format(date, "dd.MM.yyyy", { locale: de }) : "");
     onChange?.(date);
-    setPopoverOpen(false); // Close popover on selection
+    setIsOpen(false); // Close popover on selection
   }
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -96,52 +96,64 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
   }
 
   return (
-    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-      <PopoverTrigger asChild>
-        <div className={cn("relative w-full", className)}>
-          <Input
-            id={id}
-            type="text"
-            placeholder={placeholder}
-            value={inputValue}
-            onChange={handleInputChange}
-            className={cn("pr-10", !selectedDate && "text-muted-foreground")}
+    <div className={cn("relative w-full", className)}>
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <div className="relative">
+            <Input
+              id={id}
+              type="text"
+              placeholder={placeholder}
+              value={inputValue}
+              onChange={handleInputChange}
+              className={cn("pr-10", !selectedDate && "text-muted-foreground")}
+              disabled={disabled}
+              onClick={(e) => {
+                e.preventDefault();
+                if (!disabled) {
+                  setIsOpen(true);
+                }
+              }}
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              className={cn(
+                "absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground",
+                disabled && "cursor-not-allowed opacity-50"
+              )}
+              disabled={disabled}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!disabled) {
+                  setIsOpen(!isOpen);
+                }
+              }}
+              type="button"
+              aria-label="Kalender öffnen"
+            >
+              <CalendarIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-auto p-0" 
+          align="start"
+        >
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={handleSelect}
             disabled={disabled}
+            locale={de}
+            fromYear={1900}
+            toYear={2100}
+            captionLayout="dropdown"
+            initialFocus
           />
-          <Button
-            variant={"outline"}
-            size="icon"
-            className={cn(
-              "absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground",
-              disabled && "cursor-not-allowed opacity-50"
-            )}
-            disabled={disabled}
-            onClick={(event) => { // Added event parameter
-              event.preventDefault(); // Prevent default button behavior
-              if (!disabled) {
-                const today = new Date();
-                setSelectedDate(today);
-                setInputValue(format(today, "dd.MM.yyyy", { locale: de }));
-                onChange?.(today);
-                setPopoverOpen(true); // Open popover after setting date
-              }
-            }}
-            aria-label="Kalender öffnen und heutiges Datum auswählen"
-          >
-            <CalendarIcon className="h-4 w-4" />
-          </Button>
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={handleSelect}
-          initialFocus
-          locale={de}
-          disabled={disabled}
-        />
-      </PopoverContent>
-    </Popover>
+        </PopoverContent>
+      </Popover>
+    </div>
   )
 }

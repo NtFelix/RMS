@@ -2,13 +2,19 @@
 
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { DayPicker, DropdownProps, CaptionProps, useNavigation } from "react-day-picker" // Import useNavigation
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getYear, getMonth, setYear, setMonth } from "date-fns"
+import { DayPicker, DropdownProps, CaptionProps, useNavigation } from "react-day-picker"
+import { getYear, getMonth, setYear, setMonth, addMonths, subMonths } from "date-fns"
 import { de } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants, Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
   captionLayout?: "buttons" | "dropdown" // Keep this prop for potential future use or compatibility, but custom Caption handles dropdown logic
@@ -41,13 +47,10 @@ function Calendar({
         //   "hidden": captionLayout === 'dropdown',
         // }),
         // caption_dropdowns: "flex space-x-2",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
+        nav: "hidden", // Hide default navigation since we have custom navigation in Caption
+        nav_button: "hidden",
+        nav_button_previous: "hidden",
+        nav_button_next: "hidden",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell:
@@ -73,67 +76,109 @@ function Calendar({
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-        // Provide a custom Caption component
+        // Provide a custom Caption component with navigation arrows and dropdowns
         Caption: ({ displayMonth }: CaptionProps) => {
-          const { goToMonth } = useNavigation(); // Use useNavigation hook
+          const { goToMonth } = useNavigation();
           const currentYear = getYear(displayMonth);
           const currentMonth = getMonth(displayMonth);
-          // Use fromYear and toYear from the outer Calendar component props
           const startYear = fromYear;
           const endYear = toYear;
 
-          const handleMonthChange = (newMonthIndex: string) => {
-            const newDate = setMonth(displayMonth, parseInt(newMonthIndex, 10));
-            goToMonth(newDate); // Use goToMonth from useNavigation
+          const handleMonthChange = (value: string) => {
+            const newMonthIndex = parseInt(value, 10);
+            const newDate = setMonth(displayMonth, newMonthIndex);
+            goToMonth(newDate);
           };
 
-          const handleYearChange = (newYear: string) => {
-            const newDate = setYear(displayMonth, parseInt(newYear, 10));
-            goToMonth(newDate); // Use goToMonth from useNavigation
+          const handleYearChange = (value: string) => {
+            const newYear = parseInt(value, 10);
+            const newDate = setYear(displayMonth, newYear);
+            goToMonth(newDate);
           };
 
-          const years = [];
-          for (let i = startYear; i <= endYear; i++) {
-            years.push(i);
-          }
+          const handlePreviousMonth = () => {
+            const previousMonth = subMonths(displayMonth, 1);
+            goToMonth(previousMonth);
+          };
+
+          const handleNextMonth = () => {
+            const nextMonth = addMonths(displayMonth, 1);
+            goToMonth(nextMonth);
+          };
+
+          // Check if we can navigate to previous/next month based on year constraints
+          const canGoPrevious = React.useCallback(() => {
+            const prevMonth = subMonths(displayMonth, 1);
+            return getYear(prevMonth) >= startYear;
+          }, [displayMonth, startYear]);
+
+          const canGoNext = React.useCallback(() => {
+            const nextMonth = addMonths(displayMonth, 1);
+            return getYear(nextMonth) <= endYear;
+          }, [displayMonth, endYear]);
+
+          const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
           const months = Array.from({ length: 12 }, (_, i) => ({
             value: i,
-            label: de.localize?.month(i, { width: 'wide' }) ?? i + 1
+            label: de.localize?.month(i, { width: 'wide' }) ?? `Monat ${i + 1}`
           }));
 
           return (
-            <div className="flex justify-center pt-1 relative items-center space-x-2">
-              <Select
-                value={currentMonth.toString()}
-                onValueChange={handleMonthChange}
+            <div className="flex justify-between items-center pt-1 relative w-full">
+              {/* Left arrow button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25"
+                onClick={handlePreviousMonth}
+                disabled={!canGoPrevious()}
+                type="button"
+                aria-label="Vorheriger Monat"
               >
-                <SelectTrigger className="h-7 w-[100px] px-2 py-1 text-xs">
-                  <SelectValue placeholder="Monat" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select
-                value={currentYear.toString()}
-                onValueChange={handleYearChange}
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              {/* Center dropdowns */}
+              <div className="flex items-center space-x-2">
+                <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
+                  <SelectTrigger className="h-7 w-[120px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={currentYear.toString()} onValueChange={handleYearChange}>
+                  <SelectTrigger className="h-7 w-[80px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Right arrow button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25"
+                onClick={handleNextMonth}
+                disabled={!canGoNext()}
+                type="button"
+                aria-label="Nächster Monat"
               >
-                <SelectTrigger className="h-7 w-[70px] px-2 py-1 text-xs">
-                  <SelectValue placeholder="Jahr" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           );
         },
