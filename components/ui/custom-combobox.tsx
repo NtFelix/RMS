@@ -349,7 +349,7 @@ export function CustomCombobox({
           role="listbox"
           aria-label="Options"
           className={cn(
-            "fixed bg-popover border border-border rounded-md shadow-lg p-0 pointer-events-auto",
+            "fixed bg-popover border border-border rounded-xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
             width
           )}
           style={{
