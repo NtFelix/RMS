@@ -78,9 +78,8 @@ export function CustomCombobox({
             (document.activeElement as HTMLElement).blur()
           }
           
-          // Force focus with multiple attempts
+          // Force focus
           inputRef.current.focus()
-          inputRef.current.click()
           
           // Set cursor to end
           const len = inputRef.current.value.length
@@ -88,13 +87,9 @@ export function CustomCombobox({
         }
       }
 
-      // Try focusing immediately
+      // Try focusing immediately and again after a short delay to handle race conditions
       focusInput()
-      
-      // Try again after a short delay
-      setTimeout(focusInput, 10)
       setTimeout(focusInput, 50)
-      setTimeout(focusInput, 100)
     }
   }, [open])
 
