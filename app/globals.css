@@ -139,7 +139,8 @@
     --z-index-popover: 1060;
     --z-index-tooltip: 1070;
     --z-index-toast: 1080;
-    --z-index-portal-dropdown: 99999;
+    /* Portal dropdowns need to be above all other UI elements to prevent clipping */
+    --z-index-portal-dropdown: 1100;
 
     /* Neue Farbpalette */
     --primary-color: #2c3e50;
