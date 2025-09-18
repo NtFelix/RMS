@@ -91,6 +91,7 @@ export function CommandMenu() {
   const { open, setOpen } = useCommandMenu()
   const [isLoadingWohnungContext, setIsLoadingWohnungContext] = useState(false)
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
   
   // Search functionality with enhanced error handling
   const {
@@ -122,7 +123,18 @@ export function CommandMenu() {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        setOpen(!open)
+        const newOpenState = !open
+        setOpen(newOpenState)
+        
+        // If opening the menu, ensure input gets focused
+        if (newOpenState) {
+          setTimeout(() => {
+            const input = document.querySelector('input[cmdk-input]') as HTMLInputElement
+            if (input) {
+              input.focus()
+            }
+          }, 100)
+        }
       }
       // Clear search when Escape is pressed and there's a query
       if (e.key === "Escape" && query.trim().length > 0) {
@@ -158,15 +170,28 @@ export function CommandMenu() {
     return () => document.removeEventListener("keydown", down)
   }, [setOpen, open, query, clearSearch, setQuery])
 
-  // Clear search when menu is closed
+  // Auto-focus input when command menu opens and clear search when closed
   useEffect(() => {
-    if (!open && query.trim().length > 0) {
-      clearSearch()
-    }
-  }, [open, query, clearSearch])
+    if (open) {
+      // Auto-focus the input when command menu opens
+      const focusInput = () => {
+        const input = document.querySelector('input[cmdk-input]') as HTMLInputElement
+        if (input) {
+          input.focus()
+          // Set cursor to end if there's existing text
+          const len = input.value.length
+          input.setSelectionRange(len, len)
+        }
+      }
 
-  useEffect(() => {
-    if (!open && query.trim().length > 0) {
+      // Try focusing immediately and again after the next frame to handle race conditions
+      focusInput()
+      requestAnimationFrame(focusInput)
+      
+      // Also try after a short delay to ensure the dialog is fully rendered
+      setTimeout(focusInput, 50)
+    } else if (query.trim().length > 0) {
+      // Clear search when menu is closed
       clearSearch()
     }
   }, [open, query, clearSearch])
@@ -885,9 +910,11 @@ export function CommandMenu() {
       <CommandDialog open={open} onOpenChange={setOpen}>
         <Command shouldFilter={false}>
           <CommandInput 
+            ref={inputRef}
             placeholder="Suchen Sie nach Mietern, Häusern, Wohnungen..." 
             value={query}
             onValueChange={setQuery}
+            autoFocus
           />
         
         {/* Network Status Indicator */}
