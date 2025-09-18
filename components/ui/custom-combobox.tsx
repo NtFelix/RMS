@@ -74,7 +74,9 @@ export function CustomCombobox({
       const focusInput = () => {
         if (inputRef.current) {
           // Remove any existing focus
-          document.activeElement?.blur?.()
+          if (document.activeElement && 'blur' in document.activeElement) {
+            (document.activeElement as HTMLElement).blur()
+          }
           
           // Force focus with multiple attempts
           inputRef.current.focus()
