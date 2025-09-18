@@ -117,10 +117,7 @@ function Calendar({
             return getYear(nextMonth) <= endYear;
           }, [displayMonth, endYear]);
 
-          const years = [];
-          for (let i = startYear; i <= endYear; i++) {
-            years.push(i);
-          }
+          const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
           const months = Array.from({ length: 12 }, (_, i) => ({
             value: i,
