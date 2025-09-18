@@ -3,11 +3,11 @@
 import * as React from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { DayPicker, DropdownProps, CaptionProps, useNavigation } from "react-day-picker"
-import { getYear, getMonth, setYear, setMonth } from "date-fns"
+import { getYear, getMonth, setYear, setMonth, addMonths, subMonths } from "date-fns"
 import { de } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
-import { buttonVariants } from "@/components/ui/button"
+import { buttonVariants, Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -47,13 +47,10 @@ function Calendar({
         //   "hidden": captionLayout === 'dropdown',
         // }),
         // caption_dropdowns: "flex space-x-2",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
-        ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
+        nav: "hidden", // Hide default navigation since we have custom navigation in Caption
+        nav_button: "hidden",
+        nav_button_previous: "hidden",
+        nav_button_next: "hidden",
         table: "w-full border-collapse space-y-1",
         head_row: "flex",
         head_cell:
@@ -79,7 +76,7 @@ function Calendar({
       components={{
         IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />,
-        // Provide a custom Caption component with custom Select dropdowns
+        // Provide a custom Caption component with navigation arrows and dropdowns
         Caption: ({ displayMonth }: CaptionProps) => {
           const { goToMonth } = useNavigation();
           const currentYear = getYear(displayMonth);
@@ -99,6 +96,27 @@ function Calendar({
             goToMonth(newDate);
           };
 
+          const handlePreviousMonth = () => {
+            const previousMonth = subMonths(displayMonth, 1);
+            goToMonth(previousMonth);
+          };
+
+          const handleNextMonth = () => {
+            const nextMonth = addMonths(displayMonth, 1);
+            goToMonth(nextMonth);
+          };
+
+          // Check if we can navigate to previous/next month based on year constraints
+          const canGoPrevious = () => {
+            const prevMonth = subMonths(displayMonth, 1);
+            return getYear(prevMonth) >= startYear;
+          };
+
+          const canGoNext = () => {
+            const nextMonth = addMonths(displayMonth, 1);
+            return getYear(nextMonth) <= endYear;
+          };
+
           const years = [];
           for (let i = startYear; i <= endYear; i++) {
             years.push(i);
@@ -110,31 +128,60 @@ function Calendar({
           }));
 
           return (
-            <div className="flex justify-center pt-1 relative items-center space-x-2">
-              <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
-                <SelectTrigger className="h-7 w-[120px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map((month) => (
-                    <SelectItem key={month.value} value={month.value.toString()}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select value={currentYear.toString()} onValueChange={handleYearChange}>
-                <SelectTrigger className="h-7 w-[80px] text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex justify-between items-center pt-1 relative w-full">
+              {/* Left arrow button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25"
+                onClick={handlePreviousMonth}
+                disabled={!canGoPrevious()}
+                type="button"
+                aria-label="Vorheriger Monat"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              {/* Center dropdowns */}
+              <div className="flex items-center space-x-2">
+                <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
+                  <SelectTrigger className="h-7 w-[120px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {months.map((month) => (
+                      <SelectItem key={month.value} value={month.value.toString()}>
+                        {month.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={currentYear.toString()} onValueChange={handleYearChange}>
+                  <SelectTrigger className="h-7 w-[80px] text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {years.map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Right arrow button */}
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25"
+                onClick={handleNextMonth}
+                disabled={!canGoNext()}
+                type="button"
+                aria-label="Nächster Monat"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
           );
         },
