@@ -87,7 +87,7 @@ const DesignSystemShowcase = React.forwardRef<HTMLDivElement, DesignSystemShowca
                 <Checkbox 
                   id="demo-checkbox" 
                   checked={isChecked}
-                  onCheckedChange={setIsChecked}
+                  onCheckedChange={(checked) => setIsChecked(checked === true)}
                 />
                 <Label htmlFor="demo-checkbox">
                   Checkbox with hover animation
