@@ -123,18 +123,7 @@ export function CommandMenu() {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        const newOpenState = !open
-        setOpen(newOpenState)
-        
-        // If opening the menu, ensure input gets focused
-        if (newOpenState) {
-          setTimeout(() => {
-            const input = document.querySelector('input[cmdk-input]') as HTMLInputElement
-            if (input) {
-              input.focus()
-            }
-          }, 100)
-        }
+        setOpen(!open)
       }
       // Clear search when Escape is pressed and there's a query
       if (e.key === "Escape" && query.trim().length > 0) {

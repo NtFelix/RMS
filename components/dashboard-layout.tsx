@@ -30,16 +30,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Button
               variant="outline"
               className="flex w-full items-center gap-2 rounded-lg border-muted-foreground/20 text-sm text-muted-foreground"
-              onClick={() => {
-                setOpen(true)
-                // Ensure input gets focused when opened via button click
-                setTimeout(() => {
-                  const input = document.querySelector('input[cmdk-input]') as HTMLInputElement
-                  if (input) {
-                    input.focus()
-                  }
-                }, 100)
-              }}
+              onClick={() => setOpen(true)}
             >
               <SearchIcon className="h-4 w-4" />
               <span>Suchen...</span>
