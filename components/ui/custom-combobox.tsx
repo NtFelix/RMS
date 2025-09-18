@@ -418,7 +418,7 @@ export function CustomCombobox({
             {/* Custom options list with proper scrolling */}
             <div 
               data-scroll-area=""
-              className="max-h-[300px] overflow-y-auto p-1"
+              className="max-h-[300px] overflow-y-auto p-2"
               style={{ 
                 pointerEvents: 'auto',
                 overscrollBehavior: 'contain',
