@@ -349,7 +349,7 @@ export function CustomCombobox({
           role="listbox"
           aria-label="Options"
           className={cn(
-            "fixed bg-popover border border-border rounded-xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
+            "fixed bg-popover border border-border rounded-2xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
             width
           )}
           style={{
@@ -400,7 +400,7 @@ export function CustomCombobox({
                 onFocus={handleInputFocus}
                 onClick={handleInputClick}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="flex h-8 w-full rounded-md bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-8 w-full rounded-lg bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ 
                   pointerEvents: 'auto',
                   userSelect: 'text',
@@ -458,7 +458,7 @@ export function CustomCombobox({
                     aria-selected={value === option.value}
                     aria-disabled={option.disabled}
                     className={cn(
-                      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
+                      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none",
                       "hover:bg-accent hover:text-accent-foreground",
                       highlightedIndex === index && "bg-accent text-accent-foreground",
                       option.disabled && "pointer-events-none opacity-50"
