@@ -87,9 +87,9 @@ export function CustomCombobox({
         }
       }
 
-      // Try focusing immediately and again after a short delay to handle race conditions
+      // Try focusing immediately and again after the next frame to handle race conditions
       focusInput()
-      setTimeout(focusInput, 50)
+      requestAnimationFrame(focusInput)
     }
   }, [open])
 
