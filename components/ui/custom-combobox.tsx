@@ -217,12 +217,13 @@ export function CustomCombobox({
             if (event.metaKey || event.ctrlKey) {
               setInputValue('')
             } else {
-              // Handle single character deletion
+              // Handle single character deletion shortcuts (when input is not focused)
               if (event.key === 'Backspace') {
+                // Backspace shortcut: focus input and remove last character
                 setInputValue(prev => prev.slice(0, -1))
               } else if (event.key === 'Delete') {
-                // For 'Delete', we just focus the input and do not modify the value,
-                // allowing the user to use native editing commands.
+                // Delete shortcut: focus input but preserve value
+                // This allows user to then use native Delete behavior (remove char to right of cursor)
               }
             }
             setHighlightedIndex(0)
