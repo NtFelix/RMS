@@ -123,16 +123,36 @@ export function CustomCombobox({
     }
   }, [filteredOptions, highlightedIndex, value, onChange])
 
+  // Capture button rect in normal state (not during hover)
+  React.useEffect(() => {
+    if (buttonRef.current && !buttonRect) {
+      // Capture initial dimensions when component mounts
+      const rect = buttonRef.current.getBoundingClientRect()
+      setButtonRect(rect)
+    }
+  }, [buttonRect])
+
   // Reset input and highlighted index when opening/closing
   React.useEffect(() => {
     if (!open) {
       setInputValue("")
       setHighlightedIndex(-1)
     } else {
-      // Get button position when opening
-      if (buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect()
-        setButtonRect(rect)
+      // Update button position when opening (but keep original width)
+      if (buttonRef.current && buttonRect) {
+        const currentRect = buttonRef.current.getBoundingClientRect()
+        setButtonRect({
+          ...buttonRect,
+          top: currentRect.top,
+          bottom: currentRect.bottom,
+          left: currentRect.left,
+          right: currentRect.right,
+          x: currentRect.x,
+          y: currentRect.y,
+          // Keep original width and height from normal state
+          width: buttonRect.width,
+          height: buttonRect.height,
+        } as DOMRect)
       }
       
       // Set initial highlighted index to current selection or first option
