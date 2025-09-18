@@ -185,7 +185,7 @@ export function CustomCombobox({
             top: buttonRect.bottom + window.scrollY + 4,
             left: buttonRect.left + window.scrollX,
             width: buttonRect.width,
-            zIndex: 99999, // Even higher z-index
+            zIndex: 'var(--z-index-portal-dropdown)',
             pointerEvents: 'auto'
           }}
           onMouseDown={(e) => {

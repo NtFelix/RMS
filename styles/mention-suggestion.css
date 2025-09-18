@@ -8,7 +8,7 @@
   @apply animate-in fade-in-0 zoom-in-95 duration-200;
   
   /* Ensure proper z-index for Tippy.js */
-  z-index: 9999;
+  z-index: var(--z-index-tooltip);
   
   /* Smooth scrolling */
   scroll-behavior: smooth;

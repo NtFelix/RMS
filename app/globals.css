@@ -130,6 +130,17 @@
 
 @layer base {
   :root {
+    /* Z-index management */
+    --z-index-dropdown: 1000;
+    --z-index-sticky: 1020;
+    --z-index-fixed: 1030;
+    --z-index-modal-backdrop: 1040;
+    --z-index-modal: 1050;
+    --z-index-popover: 1060;
+    --z-index-tooltip: 1070;
+    --z-index-toast: 1080;
+    --z-index-portal-dropdown: 99999;
+
     /* Neue Farbpalette */
     --primary-color: #2c3e50;
     --secondary-color: #34495e;

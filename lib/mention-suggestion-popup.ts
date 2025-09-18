@@ -175,7 +175,7 @@ export function createSuggestionPopup(config: SuggestionPopupConfig): PopupInsta
       theme: 'mention-suggestion',
       animation: 'shift-away-subtle',
       duration: [150, 100],
-      zIndex: 9999,
+      zIndex: parseInt(getComputedStyle(document.documentElement).getPropertyValue('--z-index-tooltip').trim()) || 1070,
       ...( isMobile && initialRect 
         ? getMobileConfig() 
         : getDesktopConfig(initialRect || new DOMRect())
