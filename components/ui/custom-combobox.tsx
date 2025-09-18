@@ -361,6 +361,7 @@ export function CustomCombobox({
                 autoCapitalize="off"
                 spellCheck="false"
                 tabIndex={0}
+                data-dialog-ignore-interaction
               />
             </div>
             

@@ -58,8 +58,7 @@ const DialogContent = React.forwardRef<
         target?.closest('[role="combobox"]') ||
         target?.closest('[role="option"]') ||
         target?.closest('[role="listbox"]') ||
-        target?.closest('input[placeholder*="suchen"]') ||
-        target?.closest('input[placeholder*="Search"]') ||
+        target?.closest('[data-dialog-ignore-interaction]') ||
         target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
       // Allow interactions with combobox elements - just return without preventing
       return;
