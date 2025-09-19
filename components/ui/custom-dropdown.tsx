@@ -36,15 +36,9 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
 
-  // Focus management effect
+  // Focus management effect - only handle closing focus return
   useEffect(() => {
-    if (isOpen && dropdownRef.current) {
-      // Focus first menu item when dropdown opens
-      const firstMenuItem = dropdownRef.current.querySelector('[role="menuitem"]:not([aria-disabled="true"])') as HTMLElement
-      if (firstMenuItem) {
-        firstMenuItem.focus()
-      }
-    } else if (!isOpen && triggerRef.current) {
+    if (!isOpen && triggerRef.current) {
       // Return focus to trigger when dropdown closes
       triggerRef.current.focus()
     }
@@ -175,10 +169,10 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-colors",
+        "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-all duration-200",
         disabled
           ? "pointer-events-none opacity-50"
-          : "focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer",
+          : "focus:bg-gray-100 focus:text-gray-900 hover:bg-gray-100 hover:text-gray-900 hover:scale-[1.02] cursor-pointer dark:focus:bg-gray-700 dark:focus:text-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-100",
         className
       )}
       onClick={handleClick}
