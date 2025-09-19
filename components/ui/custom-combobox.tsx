@@ -256,19 +256,17 @@ export function CustomCombobox({
         return
       }
       
-      // Check if this is a printable character for typing
-      const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
-      
       // Handle keys when input is not focused
       const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
       
       if (navigationKeys.includes(event.key)) {
         handleNavigationKey(event.key, event)
       } else {
-        // Handle non-navigation keys
+        // Handle non-navigation keys only when dropdown is already open
         switch (event.key) {
           case 'Backspace':
           case 'Delete':
+            // Only handle deletion shortcuts when dropdown is open
             event.preventDefault()
             if (inputRef.current) {
               inputRef.current.focus()
@@ -291,7 +289,8 @@ export function CustomCombobox({
             break
             
           default:
-            // Handle printable characters for auto-typing
+            // Handle printable characters for typing only when dropdown is already open
+            const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
             if (isPrintableChar) {
               event.preventDefault()
               if (inputRef.current) {
@@ -364,25 +363,14 @@ export function CustomCombobox({
         data-dropdown-trigger
         onClick={handleButtonClick}
         onKeyDown={(e) => {
-          // Check if this is a printable character
-          const isPrintableChar = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
-          
-          // Handle keyboard opening and typing
+          // Handle keyboard opening - only for specific navigation keys, not typing
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             if (!open) {
               setOpen(true)
             }
-          } else if (isPrintableChar && !open) {
-            // Open dropdown and start typing
-            e.preventDefault()
-            setOpen(true)
-            // Set the initial input value
-            setTimeout(() => {
-              setInputValue(e.key)
-              setHighlightedIndex(0)
-            }, 0)
           }
+          // Remove automatic opening on typing - user must click to open
         }}
       >
         {selectedOption ? selectedOption.label : placeholder}
