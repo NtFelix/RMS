@@ -113,7 +113,7 @@ export function LastTransactionsContainer() {
   };
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col rounded-xl">
       <CardHeader className="flex-shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div>
