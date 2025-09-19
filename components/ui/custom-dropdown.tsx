@@ -1,11 +1,28 @@
 "use client"
 
 import * as React from "react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
 
 // Minimum space required below trigger before opening dropdown upward
 const DROPDOWN_MIN_SPACE_BELOW = 200
+
+/**
+ * CustomDropdown with full keyboard navigation support
+ * 
+ * Keyboard Navigation:
+ * - Enter/Space: Open/close dropdown
+ * - Arrow Down/Up: Navigate between menu items (also opens dropdown if closed)
+ * - Home: Focus first menu item
+ * - End: Focus last menu item
+ * - Escape: Close dropdown and return focus to trigger
+ * - Tab: Close dropdown and move to next focusable element
+ * 
+ * Mouse Navigation:
+ * - Click trigger to open/close
+ * - Click outside to close
+ * - Hover over items to focus them
+ */
 
 interface CustomDropdownProps {
   children: React.ReactNode
@@ -33,16 +50,32 @@ interface CustomDropdownSeparatorProps {
 export function CustomDropdown({ children, trigger, align = "end", className }: CustomDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState<"top" | "bottom">("bottom")
+  const [focusedIndex, setFocusedIndex] = useState(-1)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
+  const menuItemsRef = useRef<HTMLDivElement[]>([])
 
-  // Focus management effect - only handle closing focus return
+  // Get all focusable menu items
+  const getFocusableItems = useCallback(() => {
+    if (!dropdownRef.current) return []
+    return Array.from(dropdownRef.current.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])')) as HTMLDivElement[]
+  }, [])
+
+  // Focus management effect
   useEffect(() => {
-    if (!isOpen && triggerRef.current) {
+    if (isOpen) {
+      // Focus first item when dropdown opens
+      const focusableItems = getFocusableItems()
+      if (focusableItems.length > 0) {
+        setFocusedIndex(0)
+        focusableItems[0].focus()
+      }
+    } else if (triggerRef.current) {
       // Return focus to trigger when dropdown closes
       triggerRef.current.focus()
+      setFocusedIndex(-1)
     }
-  }, [isOpen])
+  }, [isOpen, getFocusableItems])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -56,22 +89,64 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
       }
     }
 
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false)
+    function handleKeyDown(event: KeyboardEvent) {
+      if (!isOpen) return
+
+      const focusableItems = getFocusableItems()
+      
+      switch (event.key) {
+        case "Escape":
+          event.preventDefault()
+          setIsOpen(false)
+          break
+        case "ArrowDown":
+          event.preventDefault()
+          if (focusableItems.length > 0) {
+            const nextIndex = focusedIndex < focusableItems.length - 1 ? focusedIndex + 1 : 0
+            setFocusedIndex(nextIndex)
+            focusableItems[nextIndex].focus()
+          }
+          break
+        case "ArrowUp":
+          event.preventDefault()
+          if (focusableItems.length > 0) {
+            const prevIndex = focusedIndex > 0 ? focusedIndex - 1 : focusableItems.length - 1
+            setFocusedIndex(prevIndex)
+            focusableItems[prevIndex].focus()
+          }
+          break
+        case "Home":
+          event.preventDefault()
+          if (focusableItems.length > 0) {
+            setFocusedIndex(0)
+            focusableItems[0].focus()
+          }
+          break
+        case "End":
+          event.preventDefault()
+          if (focusableItems.length > 0) {
+            const lastIndex = focusableItems.length - 1
+            setFocusedIndex(lastIndex)
+            focusableItems[lastIndex].focus()
+          }
+          break
+        case "Tab":
+          // Allow tab to close dropdown and move to next element
+          setIsOpen(false)
+          break
       }
     }
 
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside)
-      document.addEventListener("keydown", handleEscape)
+      document.addEventListener("keydown", handleKeyDown)
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside)
-      document.removeEventListener("keydown", handleEscape)
+      document.removeEventListener("keydown", handleKeyDown)
     }
-  }, [isOpen])
+  }, [isOpen, focusedIndex, getFocusableItems])
 
   const handleTriggerClick = () => {
     if (!isOpen && triggerRef.current) {
@@ -91,9 +166,9 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
     setIsOpen(!isOpen)
   }
 
-  const closeDropdown = () => {
+  const closeDropdown = useCallback(() => {
     setIsOpen(false)
-  }
+  }, [])
 
   const getPositionStyles = () => {
     if (position === "top") {
@@ -115,6 +190,11 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             handleTriggerClick();
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (!isOpen) {
+              handleTriggerClick();
+            }
           }
         }}
       >
@@ -125,6 +205,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         <div
           ref={dropdownRef}
           role="menu"
+          aria-orientation="vertical"
           className={cn(
             "absolute z-50 min-w-[8rem] overflow-hidden rounded-2xl border bg-popover p-2 text-popover-foreground shadow-xl",
             "animate-in fade-in-0 zoom-in-95 duration-200",
@@ -135,7 +216,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           )}
           style={getPositionStyles()}
         >
-          <CustomDropdownContext.Provider value={{ closeDropdown }}>
+          <CustomDropdownContext.Provider value={{ closeDropdown, focusedIndex, setFocusedIndex }}>
             {children}
           </CustomDropdownContext.Provider>
         </div>
@@ -144,10 +225,15 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   )
 }
 
-const CustomDropdownContext = React.createContext<{ closeDropdown: () => void } | null>(null)
+const CustomDropdownContext = React.createContext<{ 
+  closeDropdown: () => void
+  focusedIndex: number
+  setFocusedIndex: (index: number) => void
+} | null>(null)
 
 export function CustomDropdownItem({ children, onClick, disabled = false, className, ...props }: CustomDropdownItemProps & React.HTMLAttributes<HTMLDivElement>) {
   const context = React.useContext(CustomDropdownContext)
+  const itemRef = useRef<HTMLDivElement>(null)
   
   const handleClick = () => {
     if (!disabled && onClick) {
@@ -163,8 +249,20 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
     }
   };
 
+  const handleMouseEnter = () => {
+    if (!disabled && itemRef.current) {
+      // Update focused index when mouse enters
+      const menuItems = Array.from(itemRef.current.parentElement?.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])') || [])
+      const index = menuItems.indexOf(itemRef.current)
+      if (index !== -1) {
+        context?.setFocusedIndex(index)
+      }
+    }
+  }
+
   return (
     <div
+      ref={itemRef}
       role="menuitem"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
@@ -177,6 +275,7 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       )}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
+      onMouseEnter={handleMouseEnter}
       {...props}
     >
       {children}
