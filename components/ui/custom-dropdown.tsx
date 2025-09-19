@@ -235,7 +235,6 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         aria-expanded={isOpen}
         aria-haspopup="menu"
         data-dropdown-trigger
-        className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
@@ -247,13 +246,6 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
             if (!isOpen) {
               handleTriggerClick();
             }
-          }
-        }}
-        onFocus={(e) => {
-          // Auto-open dropdown when focused via keyboard navigation (tab)
-          if (!isOpen && e.target === document.activeElement) {
-            setIsKeyboardMode(true);
-            handleTriggerClick();
           }
         }}
       >
