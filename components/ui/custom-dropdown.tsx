@@ -51,6 +51,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState<"top" | "bottom">("bottom")
   const [focusedIndex, setFocusedIndex] = useState(-1)
+  const [isKeyboardMode, setIsKeyboardMode] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const menuItemsRef = useRef<HTMLDivElement[]>([])
@@ -64,18 +65,23 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   // Focus management effect
   useEffect(() => {
     if (isOpen) {
-      // Focus first item when dropdown opens
-      const focusableItems = getFocusableItems()
-      if (focusableItems.length > 0) {
-        setFocusedIndex(0)
-        focusableItems[0].focus()
+      // Only auto-focus first item if opened via keyboard
+      if (isKeyboardMode) {
+        const focusableItems = getFocusableItems()
+        if (focusableItems.length > 0) {
+          setFocusedIndex(0)
+          focusableItems[0].focus()
+        }
+      } else {
+        setFocusedIndex(-1)
       }
     } else if (triggerRef.current) {
       // Return focus to trigger when dropdown closes
       triggerRef.current.focus()
       setFocusedIndex(-1)
+      setIsKeyboardMode(false)
     }
-  }, [isOpen, getFocusableItems])
+  }, [isOpen, isKeyboardMode, getFocusableItems])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -101,6 +107,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           break
         case "ArrowDown":
           event.preventDefault()
+          setIsKeyboardMode(true)
           if (focusableItems.length > 0) {
             const nextIndex = focusedIndex < focusableItems.length - 1 ? focusedIndex + 1 : 0
             setFocusedIndex(nextIndex)
@@ -109,6 +116,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           break
         case "ArrowUp":
           event.preventDefault()
+          setIsKeyboardMode(true)
           if (focusableItems.length > 0) {
             const prevIndex = focusedIndex > 0 ? focusedIndex - 1 : focusableItems.length - 1
             setFocusedIndex(prevIndex)
@@ -117,6 +125,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           break
         case "Home":
           event.preventDefault()
+          setIsKeyboardMode(true)
           if (focusableItems.length > 0) {
             setFocusedIndex(0)
             focusableItems[0].focus()
@@ -124,6 +133,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           break
         case "End":
           event.preventDefault()
+          setIsKeyboardMode(true)
           if (focusableItems.length > 0) {
             const lastIndex = focusableItems.length - 1
             setFocusedIndex(lastIndex)
@@ -189,9 +199,11 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
+            setIsKeyboardMode(true);
             handleTriggerClick();
           } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault();
+            setIsKeyboardMode(true);
             if (!isOpen) {
               handleTriggerClick();
             }
@@ -216,7 +228,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           )}
           style={getPositionStyles()}
         >
-          <CustomDropdownContext.Provider value={{ closeDropdown, focusedIndex, setFocusedIndex }}>
+          <CustomDropdownContext.Provider value={{ closeDropdown, focusedIndex, setFocusedIndex, isKeyboardMode, setIsKeyboardMode }}>
             {children}
           </CustomDropdownContext.Provider>
         </div>
@@ -229,6 +241,8 @@ const CustomDropdownContext = React.createContext<{
   closeDropdown: () => void
   focusedIndex: number
   setFocusedIndex: (index: number) => void
+  isKeyboardMode: boolean
+  setIsKeyboardMode: (mode: boolean) => void
 } | null>(null)
 
 export function CustomDropdownItem({ children, onClick, disabled = false, className, ...props }: CustomDropdownItemProps & React.HTMLAttributes<HTMLDivElement>) {
@@ -250,13 +264,25 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
   };
 
   const handleMouseEnter = () => {
-    if (!disabled && itemRef.current) {
-      // Update focused index when mouse enters
+    if (!disabled && itemRef.current && context) {
+      // Switch to mouse mode and update focused index
+      context.setIsKeyboardMode(false)
       const menuItems = Array.from(itemRef.current.parentElement?.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])') || [])
       const index = menuItems.indexOf(itemRef.current)
       if (index !== -1) {
-        context?.setFocusedIndex(index)
+        context.setFocusedIndex(index)
+        // Only focus if we're in keyboard mode, otherwise just update the index
+        if (context.isKeyboardMode) {
+          itemRef.current.focus()
+        }
       }
+    }
+  }
+
+  const handleMouseLeave = () => {
+    if (!disabled && context && !context.isKeyboardMode) {
+      // Clear focus index when mouse leaves in mouse mode
+      context.setFocusedIndex(-1)
     }
   }
 
@@ -276,6 +302,7 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       {...props}
     >
       {children}
