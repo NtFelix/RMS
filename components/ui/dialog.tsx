@@ -59,6 +59,8 @@ const DialogContent = React.forwardRef<
         target?.closest('[role="option"]') ||
         target?.closest('[role="listbox"]') ||
         target?.closest('[data-dialog-ignore-interaction]') ||
+        target?.closest('[data-combobox-dropdown]') ||
+        target?.hasAttribute('data-combobox-input') ||
         target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
       // Allow interactions with combobox elements - just return without preventing
       return;
@@ -100,6 +102,22 @@ const DialogContent = React.forwardRef<
         onCloseAutoFocus={(e) => {
           // Prevent auto focus on close
           e.preventDefault();
+        }}
+        onFocusOutside={(e) => {
+          // Don't prevent focus from moving to combobox elements or when combobox is actively being used
+          const target = e.target as Element;
+          const activeComboboxInput = document.querySelector('[data-combobox-active="true"]')
+          
+          if (target?.hasAttribute('data-combobox-input') || 
+              target?.hasAttribute('data-combobox-active') ||
+              target?.hasAttribute('data-combobox-focusing') ||
+              target?.closest('[data-dialog-ignore-interaction]') ||
+              target?.closest('[data-combobox-dropdown]') ||
+              target?.closest('[role="listbox"]') ||
+              target?.closest('[role="option"]') ||
+              activeComboboxInput) {
+            e.preventDefault();
+          }
         }}
         {...props}
       >

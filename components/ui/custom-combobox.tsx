@@ -57,6 +57,11 @@ export function CustomCombobox({
 
   const closeCombobox = React.useCallback(() => {
     setOpen(false)
+    // Clean up active flag when closing
+    if (inputRef.current) {
+      inputRef.current.removeAttribute('data-combobox-active')
+      inputRef.current.removeAttribute('data-combobox-focusing')
+    }
   }, [])
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -176,32 +181,18 @@ export function CustomCombobox({
       const currentIndex = filteredOptions.findIndex(option => option.value === value)
       setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
       
-      // Only focus the input if the combobox button was the trigger
-      // This prevents stealing focus from other elements
-      if (document.activeElement === buttonRef.current) {
-        const focusInput = () => {
-          if (inputRef.current) {
-            inputRef.current.focus()
-            
-            // Set cursor to end
-            const len = inputRef.current.value.length
-            inputRef.current.setSelectionRange(len, len)
+      // Focus the input when opening - simplified
+      if (inputRef.current) {
+        setTimeout(() => {
+          if (inputRef.current && open) {
+            inputRef.current.focus({ preventScroll: true })
           }
-        }
-
-        // Focus the input after a brief delay to ensure the dropdown is rendered
-        requestAnimationFrame(focusInput)
+        }, 50)
       }
     }
-  }, [open, filteredOptions, value])
+  }, [open])
 
-  // Reset highlighted index when filtered options change
-  React.useEffect(() => {
-    if (open && filteredOptions.length > 0) {
-      const currentIndex = filteredOptions.findIndex(option => option.value === value)
-      setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
-    }
-  }, [filteredOptions, value, open])
+
 
   // Scroll highlighted option into view
   React.useEffect(() => {
@@ -216,6 +207,8 @@ export function CustomCombobox({
   // Handle keyboard navigation and outside clicks
   React.useEffect(() => {
     if (!open) return
+
+
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
@@ -297,6 +290,22 @@ export function CustomCombobox({
   }
 
   const handleButtonClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    // Prevent any form validation from being triggered
+    const form = e.currentTarget.closest('form')
+    if (form) {
+      // Temporarily disable form validation
+      const originalNoValidate = form.noValidate
+      form.noValidate = true
+      
+      // Restore original validation state after a delay
+      setTimeout(() => {
+        form.noValidate = originalNoValidate
+      }, 100)
+    }
+    
     if (!disabled) {
       setOpen(!open)
     }
@@ -304,24 +313,77 @@ export function CustomCombobox({
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.stopPropagation()
-    // Ensure the input stays focused
-    if (e.target !== document.activeElement) {
-      e.target.focus()
+    
+    // Mark this input as actively focused
+    e.target.setAttribute('data-combobox-active', 'true')
+  }
+
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const relatedTarget = e.relatedTarget as Element
+    
+    // Always clean up the active flag when blurring
+    e.target.removeAttribute('data-combobox-active')
+    
+    // Allow blur to combobox options, buttons, or other valid form elements
+    if (relatedTarget && (
+      relatedTarget.closest('[role="option"]') ||
+      relatedTarget.closest('[data-dropdown-trigger]') ||
+      relatedTarget === buttonRef.current ||
+      relatedTarget.closest('button') ||
+      relatedTarget.tagName === 'BUTTON'
+    )) {
+      return
+    }
+    
+    // If focus is moving to another input in the same form, allow it
+    if (relatedTarget && (
+      relatedTarget.tagName === 'INPUT' ||
+      relatedTarget.tagName === 'SELECT' ||
+      relatedTarget.tagName === 'TEXTAREA'
+    )) {
+      return
+    }
+    
+    // For clicking outside the combobox, close it
+    if (open && !relatedTarget) {
+      // Small delay to allow option clicks to register
+      setTimeout(() => {
+        if (open) {
+          closeCombobox()
+        }
+      }, 150)
     }
   }
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     e.stopPropagation()
-    e.preventDefault()
     
-    // Force focus
+    // Prevent any form validation from being triggered
+    const form = e.currentTarget.closest('form')
+    if (form) {
+      // Temporarily disable form validation
+      const originalNoValidate = form.noValidate
+      form.noValidate = true
+      
+      // Restore original validation state after a delay
+      setTimeout(() => {
+        form.noValidate = originalNoValidate
+      }, 100)
+    }
+    
+    // Mark as active and ensure focus
     const input = e.currentTarget
-    input.focus()
+    input.setAttribute('data-combobox-active', 'true')
     
-    // Set cursor to end
-    const len = input.value.length
-    input.setSelectionRange(len, len)
+    // Simple focus without preventing default (allow normal input behavior)
+    if (document.activeElement !== input) {
+      input.focus({ preventScroll: true })
+    }
+    
+    // Don't set cursor position - let the browser handle it naturally
   }
+
+
 
   return (
     <>
@@ -353,34 +415,54 @@ export function CustomCombobox({
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      {open && buttonRect && createPortal(
-        <div
-          ref={dropdownRef}
-          role="listbox"
-          aria-label="Options"
-          className={cn(
-            "fixed bg-popover border border-border rounded-2xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
-            width
-          )}
-          style={{
-            top: buttonRect.bottom + window.scrollY + 4,
-            left: buttonRect.left + window.scrollX,
-            width: buttonRect.width,
-            zIndex: 'var(--z-index-portal-dropdown)',
-            pointerEvents: 'auto'
-          }}
-          onMouseDown={(e) => {
-            // Only stop propagation for non-scroll interactions
-            const target = e.target as Element
-            if (!target.closest('[data-scroll-area]')) {
+      {open && buttonRect && (() => {
+        const isInModal = buttonRef.current?.closest('[role="dialog"]')
+        const portalTarget = isInModal ? isInModal : document.body
+        
+        // Calculate position based on portal target
+        let top, left
+        if (isInModal) {
+          // When portaling to modal, calculate position relative to modal
+          const modalRect = isInModal.getBoundingClientRect()
+          top = buttonRect.bottom - modalRect.top + 4
+          left = buttonRect.left - modalRect.left
+        } else {
+          // When portaling to body, use viewport coordinates
+          top = buttonRect.bottom + window.scrollY + 4
+          left = buttonRect.left + window.scrollX
+        }
+        
+        return createPortal(
+          <div
+            ref={dropdownRef}
+            role="listbox"
+            aria-label="Options"
+            className={cn(
+              isInModal ? "absolute" : "fixed",
+              "bg-popover border border-border rounded-2xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
+              width
+            )}
+            style={{
+              top,
+              left,
+              width: buttonRect.width,
+              zIndex: isInModal ? 9999 : 'var(--z-index-portal-dropdown)',
+              pointerEvents: 'auto'
+            }}
+            data-dialog-ignore-interaction
+            data-combobox-dropdown
+            onMouseDown={(e) => {
+              // Only stop propagation for non-scroll interactions
+              const target = e.target as Element
+              if (!target.closest('[data-scroll-area]')) {
+                e.stopPropagation()
+              }
+            }}
+            onWheel={(e) => {
+              // Allow wheel events to pass through for scrolling
               e.stopPropagation()
-            }
-          }}
-          onWheel={(e) => {
-            // Allow wheel events to pass through for scrolling
-            e.stopPropagation()
-          }}
-        >
+            }}
+          >
           <div className="flex flex-col">
             {/* Custom search input with aggressive focus management */}
             <div className="flex items-center border-b px-3 py-2">
@@ -392,6 +474,7 @@ export function CustomCombobox({
                 placeholder={searchPlaceholder}
                 value={inputValue}
                 onChange={(e) => {
+                  e.stopPropagation()
                   setInputValue(e.target.value)
                   // Reset highlighted index when searching
                   setHighlightedIndex(0)
@@ -403,25 +486,25 @@ export function CustomCombobox({
                   if (navigationKeys.includes(e.key)) {
                     handleNavigationKey(e.key, e)
                   }
-                  // For all other keys (including text input, Cmd+A, Cmd+C, Cmd+V, Cmd+Delete, etc.)
-                  // let the native input handle them and just update our state
-                  // Don't prevent default or stop propagation
+                  // For all other keys, let the browser handle them naturally
                 }}
-                onFocus={handleInputFocus}
-                onClick={handleInputClick}
-                onMouseDown={(e) => e.stopPropagation()}
+                onFocus={(e) => {
+                  e.stopPropagation()
+                  e.target.setAttribute('data-combobox-active', 'true')
+                }}
+                onBlur={(e) => {
+                  e.target.removeAttribute('data-combobox-active')
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                }}
                 className="flex h-8 w-full rounded-lg bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ 
-                  pointerEvents: 'auto',
-                  userSelect: 'text',
-                  WebkitUserSelect: 'text'
-                }}
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck="false"
-                tabIndex={0}
                 data-dialog-ignore-interaction
+                data-combobox-input
               />
             </div>
             
@@ -508,9 +591,10 @@ export function CustomCombobox({
               )}
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          portalTarget
+        )
+      })()}
     </>
   )
 }
