@@ -6,6 +6,7 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { createPortal } from "react-dom"
 
 import { cn } from "@/lib/utils"
+import { dropdownManager } from "@/lib/dropdown-manager"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -54,6 +55,10 @@ export function CustomCombobox({
   const [inputValue, setInputValue] = React.useState("")
   const [buttonRect, setButtonRect] = React.useState<DOMRect | null>(null)
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
+
+  const closeCombobox = React.useCallback(() => {
+    setOpen(false)
+  }, [])
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
@@ -94,7 +99,7 @@ export function CustomCombobox({
           const selectedOption = filteredOptions[highlightedIndex]
           if (!selectedOption.disabled) {
             onChange(selectedOption.value === value ? null : selectedOption.value)
-            setOpen(false)
+            closeCombobox()
             buttonRef.current?.focus()
           }
         }
@@ -102,7 +107,7 @@ export function CustomCombobox({
         
       case 'Escape':
         event.preventDefault()
-        setOpen(false)
+        closeCombobox()
         buttonRef.current?.focus()
         break
         
@@ -118,10 +123,23 @@ export function CustomCombobox({
         
       case 'Tab':
         // Allow tab to close dropdown and move focus
-        setOpen(false)
+        closeCombobox()
         break
     }
   }, [filteredOptions, highlightedIndex, value, onChange])
+
+  // Register with dropdown manager
+  React.useEffect(() => {
+    if (open) {
+      // Close all other dropdowns when this one opens
+      dropdownManager.closeAllExcept(closeCombobox)
+      
+      // Register this combobox
+      const unregister = dropdownManager.register(closeCombobox)
+      
+      return unregister
+    }
+  }, [open, closeCombobox])
 
   // Reset input and highlighted index when opening/closing
   React.useEffect(() => {
@@ -190,7 +208,7 @@ export function CustomCombobox({
       const target = event.target as Element
       if (!dropdownRef.current?.contains(target as Node) && 
           !buttonRef.current?.contains(target as Node)) {
-        setOpen(false)
+        closeCombobox()
       }
     }
 
@@ -204,7 +222,7 @@ export function CustomCombobox({
         // Only handle escape when input is focused
         if (event.key === 'Escape') {
           event.preventDefault()
-          setOpen(false)
+          closeCombobox()
           buttonRef.current?.focus()
         }
         return
@@ -468,7 +486,7 @@ export function CustomCombobox({
                     onClick={() => {
                       if (!option.disabled) {
                         onChange(option.value === value ? null : option.value)
-                        setOpen(false)
+                        closeCombobox()
                         buttonRef.current?.focus()
                       }
                     }}

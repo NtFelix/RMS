@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
+import { dropdownManager } from "@/lib/dropdown-manager"
 
 // Minimum space required below trigger before opening dropdown upward
 const DROPDOWN_MIN_SPACE_BELOW = 200
@@ -180,6 +181,19 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const closeDropdown = useCallback(() => {
     setIsOpen(false)
   }, [])
+
+  // Register with dropdown manager
+  useEffect(() => {
+    if (isOpen) {
+      // Close all other dropdowns when this one opens
+      dropdownManager.closeAllExcept(closeDropdown)
+      
+      // Register this dropdown
+      const unregister = dropdownManager.register(closeDropdown)
+      
+      return unregister
+    }
+  }, [isOpen, closeDropdown])
 
   const getPositionStyles = () => {
     if (position === "top") {
