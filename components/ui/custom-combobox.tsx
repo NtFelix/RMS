@@ -54,6 +54,7 @@ export function CustomCombobox({
   const [inputValue, setInputValue] = React.useState("")
   const [buttonRect, setButtonRect] = React.useState<DOMRect | null>(null)
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
+  const [isKeyboardNavigation, setIsKeyboardNavigation] = React.useState(false)
 
   const closeCombobox = React.useCallback(() => {
     setOpen(false)
@@ -83,6 +84,7 @@ export function CustomCombobox({
     switch (key) {
       case 'ArrowDown':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(prev => {
           const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0
           return nextIndex
@@ -91,6 +93,7 @@ export function CustomCombobox({
         
       case 'ArrowUp':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(prev => {
           const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1
           return nextIndex
@@ -117,11 +120,13 @@ export function CustomCombobox({
         
       case 'Home':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(0)
         break
         
       case 'End':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(filteredOptions.length - 1)
         break
         
@@ -163,6 +168,7 @@ export function CustomCombobox({
     if (!open) {
       setInputValue("")
       setHighlightedIndex(-1)
+      setIsKeyboardNavigation(false)
       // Reset buttonRect when closing so it gets recaptured fresh next time
       setButtonRect(null)
       
@@ -180,6 +186,8 @@ export function CustomCombobox({
       // Set initial highlighted index to current selection or first option
       const currentIndex = filteredOptions.findIndex(option => option.value === value)
       setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      // Start in mouse mode by default
+      setIsKeyboardNavigation(false)
       
       // Focus the input when opening - simplified
       if (inputRef.current) {
@@ -278,7 +286,17 @@ export function CustomCombobox({
 
   // Handle mouse hover to update highlighted index
   const handleOptionMouseEnter = (index: number) => {
-    setHighlightedIndex(index)
+    // Only update highlight on mouse hover if we're not in keyboard navigation mode
+    if (!isKeyboardNavigation) {
+      setHighlightedIndex(index)
+    }
+  }
+
+  // Reset keyboard navigation mode when mouse moves
+  const handleOptionMouseMove = () => {
+    if (isKeyboardNavigation) {
+      setIsKeyboardNavigation(false)
+    }
   }
 
   const handleButtonClick = (e: React.MouseEvent) => {
@@ -468,7 +486,8 @@ export function CustomCombobox({
                 onChange={(e) => {
                   e.stopPropagation()
                   setInputValue(e.target.value)
-                  // Reset highlighted index when searching
+                  // Reset highlighted index when searching and enable keyboard navigation
+                  setIsKeyboardNavigation(true)
                   setHighlightedIndex(0)
                 }}
                 onKeyDown={(e) => {
@@ -551,10 +570,12 @@ export function CustomCombobox({
                         : [
                             // Base interactive styles
                             "cursor-pointer",
-                            // Mouse hover styles (always enabled for combobox since it's primarily mouse-driven)
-                            "hover:bg-accent hover:text-accent-foreground",
-                            // Active state for currently highlighted item
-                            highlightedIndex === index && "bg-accent text-accent-foreground"
+                            // Keyboard navigation highlight (takes priority)
+                            isKeyboardNavigation && highlightedIndex === index && "bg-accent text-accent-foreground",
+                            // Mouse hover styles (only when not in keyboard navigation mode)
+                            !isKeyboardNavigation && "hover:bg-accent hover:text-accent-foreground",
+                            // Mouse hover highlight (when not in keyboard mode)
+                            !isKeyboardNavigation && highlightedIndex === index && "bg-accent text-accent-foreground"
                           ]
                     )}
                     onClick={() => {
@@ -565,6 +586,7 @@ export function CustomCombobox({
                       }
                     }}
                     onMouseEnter={() => handleOptionMouseEnter(index)}
+                    onMouseMove={handleOptionMouseMove}
                     onMouseDown={(e) => {
                       // Only prevent default for selection, not scrolling
                       if (e.button === 0) { // Left click only
