@@ -504,10 +504,17 @@ export function CustomCombobox({
                     aria-selected={value === option.value}
                     aria-disabled={option.disabled}
                     className={cn(
-                      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      highlightedIndex === index && "bg-accent text-accent-foreground",
-                      option.disabled && "pointer-events-none opacity-50"
+                      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-colors",
+                      option.disabled
+                        ? "pointer-events-none opacity-50"
+                        : [
+                            // Base interactive styles
+                            "cursor-pointer",
+                            // Mouse hover styles (always enabled for combobox since it's primarily mouse-driven)
+                            "hover:bg-accent hover:text-accent-foreground",
+                            // Active state for currently highlighted item
+                            highlightedIndex === index && "bg-accent text-accent-foreground"
+                          ]
                     )}
                     onClick={() => {
                       if (!option.disabled) {
