@@ -146,7 +146,7 @@ export function DashboardCharts() {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
       {/* Einnahmen & Ausgaben */}
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
           <CardTitle>Einnahmen & Ausgaben</CardTitle>
           <CardDescription>Monatliche Übersicht über Mieteinnahmen und Betriebskosten</CardDescription>
@@ -181,7 +181,7 @@ export function DashboardCharts() {
         </CardContent>
       </Card>
       {/* Belegung */}
-      <Card>
+      <Card className="rounded-xl">
         <CardHeader>
           <CardTitle>Belegung</CardTitle>
           <CardDescription>Monatliche Übersicht über vermietete und freie Wohnungen</CardDescription>

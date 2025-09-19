@@ -129,7 +129,7 @@ const isChartDataEmpty = (data: ChartData): boolean => {
 
 // Empty state component
 const EmptyChartState = ({ title, description }: { title: string; description: string }) => (
-  <Card>
+  <Card className="rounded-xl">
     <CardHeader>
       <CardTitle>{title}</CardTitle>
       <CardDescription>{description}</CardDescription>
@@ -230,7 +230,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
   }, [chartData])
 
   return (
-    <Card className="p-4">
+    <Card className="p-4 rounded-xl">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <ToggleGroup type="single" value={selectedChart} onValueChange={setSelectedChart} className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <ToggleGroupItem value="apartment-income">Wohnung</ToggleGroupItem>
@@ -303,7 +303,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         <div className="animate-in fade-in-0 duration-500">
         {selectedChart === 'apartment-income' && (
           hasUserData ? (
-            <Card>
+            <Card className="rounded-xl">
               <CardHeader>
                 <CardTitle>Einnahmen nach Wohnung</CardTitle>
                 <CardDescription>Verteilung der Mieteinnahmen nach Wohnungen in {selectedYear}</CardDescription>
@@ -341,7 +341,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'monthly-income' && (
           hasUserData ? (
-            <Card>
+            <Card className="rounded-xl">
               <CardHeader>
                 <CardTitle>Monatliche Einnahmen</CardTitle>
                 <CardDescription>Monatliche Einnahmen für das Jahr {selectedYear}</CardDescription>
@@ -379,7 +379,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'income-expense' && (
           hasUserData ? (
-            <Card>
+            <Card className="rounded-xl">
               <CardHeader>
                 <CardTitle>Einnahmen-Ausgaben-Verhältnis</CardTitle>
                 <CardDescription>Vergleich von Einnahmen und Ausgaben im Jahr {selectedYear}</CardDescription>
@@ -422,7 +422,7 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
         )}
         {selectedChart === 'expense-categories' && (
           hasUserData ? (
-            <Card>
+            <Card className="rounded-xl">
               <CardHeader>
                 <CardTitle>Ausgabenkategorien</CardTitle>
                 <CardDescription>Verteilung der Ausgaben nach Kategorien in {selectedYear}</CardDescription>
