@@ -247,7 +247,7 @@ export function FinanceTransactions({
                 <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</ButtonWithTooltip>
               </div>
             </div>
-            <div className="rounded-md border relative min-h-[60vh]">
+            <div className="rounded-lg border relative min-h-[60vh]">
               {isFilterLoading && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex items-center justify-center">
                   <div className="flex flex-col items-center gap-3 p-6">

@@ -206,7 +206,7 @@ export function HouseTable({ filter, searchQuery, reloadRef, onEdit, initialHous
   )
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>

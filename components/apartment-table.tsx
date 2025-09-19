@@ -148,7 +148,7 @@ export function ApartmentTable({ filter, searchQuery, reloadRef, onEdit, onTable
   )
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>
