@@ -233,11 +233,11 @@ export function FinanceTransactions({
                   width="w-full"
                 />
                 <div className="relative col-span-1 sm:col-span-2">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type="search" 
                     placeholder="Transaktion suchen..." 
-                    className="pl-8" 
+                    className="pl-10" 
                     value={filters.searchQuery} 
                     onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
                   />
