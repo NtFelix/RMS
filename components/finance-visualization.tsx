@@ -239,7 +239,6 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
           <ToggleGroupItem value="expense-categories">Kategorien</ToggleGroupItem>
         </ToggleGroup>
         <div className="mt-4 md:mt-0 flex items-center gap-2">
-          <label htmlFor="jahr-select" className="text-sm font-medium">Jahr:</label>
           <Select value={selectedYear} onValueChange={setSelectedYear} disabled={isLoading}>
             <SelectTrigger id="jahr-select" className={`w-24 transition-all duration-200 ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:border-primary/50'}`}>
               <SelectValue />
