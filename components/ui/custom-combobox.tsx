@@ -232,7 +232,7 @@ export function CustomCombobox({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!open) return
 
-      // Only handle keyboard events if the combobox or its input is focused
+      // Only handle keyboard events if the combobox button is focused
       const isComboboxFocused = document.activeElement === buttonRef.current
       const isInputFocused = document.activeElement === inputRef.current
       
@@ -241,16 +241,8 @@ export function CustomCombobox({
         return
       }
 
-      // If the input is focused, let it handle everything except escape and navigation
+      // If the input is focused, don't handle navigation here - let the input's onKeyDown handle it
       if (isInputFocused) {
-        // Only handle escape and navigation keys when input is focused
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          closeCombobox()
-          buttonRef.current?.focus()
-        } else if (['ArrowDown', 'ArrowUp', 'Enter', 'Home', 'End'].includes(event.key)) {
-          handleNavigationKey(event.key, event)
-        }
         return
       }
       
@@ -484,6 +476,8 @@ export function CustomCombobox({
                   const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
                   
                   if (navigationKeys.includes(e.key)) {
+                    // Stop propagation to prevent the global handler from also processing this event
+                    e.stopPropagation()
                     handleNavigationKey(e.key, e)
                   }
                   // For all other keys, let the browser handle them naturally
