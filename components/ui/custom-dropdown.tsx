@@ -249,6 +249,15 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
   const context = React.useContext(CustomDropdownContext)
   const itemRef = useRef<HTMLDivElement>(null)
   
+  // Get current item index
+  const getCurrentIndex = useCallback(() => {
+    if (!itemRef.current) return -1
+    const menuItems = Array.from(itemRef.current.parentElement?.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])') || [])
+    return menuItems.indexOf(itemRef.current)
+  }, [])
+
+  const isCurrentlyFocused = context ? getCurrentIndex() === context.focusedIndex : false
+  
   const handleClick = () => {
     if (!disabled && onClick) {
       onClick()
@@ -271,10 +280,6 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       const index = menuItems.indexOf(itemRef.current)
       if (index !== -1) {
         context.setFocusedIndex(index)
-        // Only focus if we're in keyboard mode, otherwise just update the index
-        if (context.isKeyboardMode) {
-          itemRef.current.focus()
-        }
       }
     }
   }
@@ -296,7 +301,16 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
         "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-colors",
         disabled
           ? "pointer-events-none opacity-50"
-          : "focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer",
+          : [
+              // Base interactive styles
+              "cursor-pointer",
+              // Keyboard focus styles (only when in keyboard mode)
+              context?.isKeyboardMode && "focus:bg-accent focus:text-accent-foreground",
+              // Mouse hover styles (only when NOT in keyboard mode)
+              !context?.isKeyboardMode && "hover:bg-accent hover:text-accent-foreground",
+              // Active state for currently focused item
+              isCurrentlyFocused && "bg-accent text-accent-foreground"
+            ],
         className
       )}
       onClick={handleClick}
