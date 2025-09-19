@@ -169,10 +169,10 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-all duration-200",
+        "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-colors",
         disabled
           ? "pointer-events-none opacity-50"
-          : "focus:bg-gray-100 focus:text-gray-900 hover:bg-gray-100 hover:text-gray-900 hover:scale-[1.02] cursor-pointer dark:focus:bg-gray-700 dark:focus:text-gray-100 dark:hover:bg-gray-700 dark:hover:text-gray-100",
+          : "focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer",
         className
       )}
       onClick={handleClick}
