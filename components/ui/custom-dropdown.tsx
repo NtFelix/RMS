@@ -65,15 +65,16 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   // Focus management effect
   useEffect(() => {
     if (isOpen) {
-      // Only auto-focus first item if opened via keyboard
       if (isKeyboardMode) {
+        // Auto-focus first item if opened via keyboard
         const focusableItems = getFocusableItems()
         if (focusableItems.length > 0) {
           setFocusedIndex(0)
           focusableItems[0].focus()
         }
       } else {
-        setFocusedIndex(-1)
+        // For mouse mode, highlight first item but don't focus it
+        setFocusedIndex(0)
       }
     } else if (triggerRef.current) {
       // Return focus to trigger when dropdown closes
@@ -248,15 +249,18 @@ const CustomDropdownContext = React.createContext<{
 export function CustomDropdownItem({ children, onClick, disabled = false, className, ...props }: CustomDropdownItemProps & React.HTMLAttributes<HTMLDivElement>) {
   const context = React.useContext(CustomDropdownContext)
   const itemRef = useRef<HTMLDivElement>(null)
+  const [itemIndex, setItemIndex] = useState(-1)
   
-  // Get current item index
-  const getCurrentIndex = useCallback(() => {
-    if (!itemRef.current) return -1
-    const menuItems = Array.from(itemRef.current.parentElement?.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])') || [])
-    return menuItems.indexOf(itemRef.current)
+  // Calculate and store item index once when component mounts or parent changes
+  useEffect(() => {
+    if (itemRef.current) {
+      const menuItems = Array.from(itemRef.current.parentElement?.querySelectorAll('[role="menuitem"]:not([aria-disabled="true"])') || [])
+      const index = menuItems.indexOf(itemRef.current)
+      setItemIndex(index)
+    }
   }, [])
 
-  const isCurrentlyFocused = context ? getCurrentIndex() === context.focusedIndex : false
+  const isCurrentlyFocused = context ? itemIndex === context.focusedIndex && itemIndex !== -1 : false
   
   const handleClick = () => {
     if (!disabled && onClick) {
