@@ -3,7 +3,6 @@
 import * as React from "react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { cn } from "@/lib/utils"
-import { dropdownManager } from "@/lib/dropdown-manager"
 
 // Minimum space required below trigger before opening dropdown upward
 const DROPDOWN_MIN_SPACE_BELOW = 200
@@ -87,13 +86,24 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Element
+      
+      // Close if clicking outside this dropdown
       if (
         dropdownRef.current &&
         triggerRef.current &&
-        !dropdownRef.current.contains(event.target as Node) &&
-        !triggerRef.current.contains(event.target as Node)
+        !dropdownRef.current.contains(target as Node) &&
+        !triggerRef.current.contains(target as Node)
       ) {
+        // Check if clicking on another dropdown trigger or interactive element
+        const isClickingOnInteractiveElement = target.closest('[role="button"], [role="combobox"], button, [data-dropdown-trigger]')
+        
         setIsOpen(false)
+        
+        // If clicking on another interactive element, prevent focus return to avoid conflicts
+        if (isClickingOnInteractiveElement) {
+          return
+        }
       }
     }
 
@@ -182,18 +192,31 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
     setIsOpen(false)
   }, [])
 
-  // Register with dropdown manager
+  // Global dropdown coordination - close other dropdowns when this opens
   useEffect(() => {
     if (isOpen) {
-      // Close all other dropdowns when this one opens
-      dropdownManager.closeAllExcept(closeDropdown)
-      
-      // Register this dropdown
-      const unregister = dropdownManager.register(closeDropdown)
-      
-      return unregister
+      // Dispatch custom event to close other dropdowns
+      window.dispatchEvent(new CustomEvent('dropdown-opened', { 
+        detail: { source: triggerRef.current } 
+      }))
     }
-  }, [isOpen, closeDropdown])
+  }, [isOpen])
+
+  // Listen for other dropdowns opening
+  useEffect(() => {
+    const handleOtherDropdownOpened = (event: CustomEvent) => {
+      // Close this dropdown if another one opened (but not if it's this one)
+      if (event.detail.source !== triggerRef.current && isOpen) {
+        setIsOpen(false)
+      }
+    }
+
+    window.addEventListener('dropdown-opened', handleOtherDropdownOpened as EventListener)
+    
+    return () => {
+      window.removeEventListener('dropdown-opened', handleOtherDropdownOpened as EventListener)
+    }
+  }, [isOpen])
 
   const getPositionStyles = () => {
     if (position === "top") {
@@ -211,6 +234,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         tabIndex={0}
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        data-dropdown-trigger
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();

@@ -6,7 +6,6 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { createPortal } from "react-dom"
 
 import { cn } from "@/lib/utils"
-import { dropdownManager } from "@/lib/dropdown-manager"
 import { Button } from "@/components/ui/button"
 import {
   Command,
@@ -128,16 +127,29 @@ export function CustomCombobox({
     }
   }, [filteredOptions, highlightedIndex, value, onChange])
 
-  // Register with dropdown manager
+  // Global dropdown coordination - close other dropdowns when this opens
   React.useEffect(() => {
     if (open) {
-      // Close all other dropdowns when this one opens
-      dropdownManager.closeAllExcept(closeCombobox)
-      
-      // Register this combobox
-      const unregister = dropdownManager.register(closeCombobox)
-      
-      return unregister
+      // Dispatch custom event to close other dropdowns
+      window.dispatchEvent(new CustomEvent('dropdown-opened', { 
+        detail: { source: buttonRef.current } 
+      }))
+    }
+  }, [open])
+
+  // Listen for other dropdowns opening
+  React.useEffect(() => {
+    const handleOtherDropdownOpened = (event: CustomEvent) => {
+      // Close this combobox if another dropdown opened (but not if it's this one)
+      if (event.detail.source !== buttonRef.current && open) {
+        closeCombobox()
+      }
+    }
+
+    window.addEventListener('dropdown-opened', handleOtherDropdownOpened as EventListener)
+    
+    return () => {
+      window.removeEventListener('dropdown-opened', handleOtherDropdownOpened as EventListener)
     }
   }, [open, closeCombobox])
 
@@ -206,9 +218,20 @@ export function CustomCombobox({
 
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
+      
+      // Close if clicking outside this combobox
       if (!dropdownRef.current?.contains(target as Node) && 
           !buttonRef.current?.contains(target as Node)) {
+        
+        // Check if clicking on another dropdown trigger or interactive element
+        const isClickingOnInteractiveElement = target.closest('[role="button"], [role="combobox"], button, [data-dropdown-trigger]')
+        
         closeCombobox()
+        
+        // If clicking on another interactive element, let it handle the interaction
+        if (isClickingOnInteractiveElement) {
+          return
+        }
       }
     }
 
@@ -335,6 +358,7 @@ export function CustomCombobox({
         className={cn("justify-between", width, !value && "text-muted-foreground")}
         disabled={disabled}
         id={id}
+        data-dropdown-trigger
         onClick={handleButtonClick}
         onMouseDown={(e) => e.preventDefault()} // Prevent focus issues
         onKeyDown={(e) => {
