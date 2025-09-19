@@ -132,7 +132,7 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
           ref={dropdownRef}
           role="menu"
           className={cn(
-            "absolute z-50 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md",
+            "absolute z-50 min-w-[8rem] overflow-hidden rounded-2xl border bg-popover p-2 text-popover-foreground shadow-xl",
             "animate-in fade-in-0 zoom-in-95 duration-200",
             align === "end" && "right-0",
             align === "start" && "left-0",
@@ -175,7 +175,7 @@ export function CustomDropdownItem({ children, onClick, disabled = false, classN
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled}
       className={cn(
-        "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors",
+        "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 text-sm outline-none transition-colors",
         disabled
           ? "pointer-events-none opacity-50"
           : "focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer",
