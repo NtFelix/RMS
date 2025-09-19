@@ -92,7 +92,7 @@ export function UserSettings() {
         className="w-56 ml-4"
         trigger={
           <div
-            className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors duration-150"
+            className="flex items-center space-x-3 p-2 rounded-xl hover:bg-accent hover:text-accent-foreground cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md"
             aria-label="User menu"
           >
             <Avatar className="h-10 w-10">
