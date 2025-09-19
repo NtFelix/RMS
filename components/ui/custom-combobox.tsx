@@ -160,6 +160,11 @@ export function CustomCombobox({
       setHighlightedIndex(-1)
       // Reset buttonRect when closing so it gets recaptured fresh next time
       setButtonRect(null)
+      
+      // Return focus to button when closing (similar to custom dropdown)
+      if (buttonRef.current && document.activeElement !== buttonRef.current) {
+        buttonRef.current.focus()
+      }
     } else {
       // Capture button position only once when opening (not on subsequent renders)
       if (buttonRef.current && !buttonRect) {
@@ -317,9 +322,6 @@ export function CustomCombobox({
   }
 
   const handleButtonClick = (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    
     if (!disabled) {
       setOpen(!open)
     }
@@ -352,6 +354,7 @@ export function CustomCombobox({
         ref={buttonRef}
         variant="outline"
         role="combobox"
+        tabIndex={disabled ? -1 : 0}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
@@ -360,7 +363,6 @@ export function CustomCombobox({
         id={id}
         data-dropdown-trigger
         onClick={handleButtonClick}
-        onMouseDown={(e) => e.preventDefault()} // Prevent focus issues
         onKeyDown={(e) => {
           // Check if this is a printable character
           const isPrintableChar = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
