@@ -121,16 +121,16 @@ function Calendar({
 
           const months = Array.from({ length: 12 }, (_, i) => ({
             value: i,
-            label: de.localize?.month(i, { width: 'wide' }) ?? `Monat ${i + 1}`
+            label: (de.localize?.month(i, { width: 'abbreviated' }) ?? `Monat ${i + 1}`).slice(0, 3)
           }));
 
           return (
-            <div className="flex justify-between items-center pt-1 relative w-full">
+            <div className="flex items-center justify-between pt-1 relative w-full">
               {/* Left arrow button */}
               <Button
                 variant="outline"
                 size="icon"
-                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25"
+                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0"
                 onClick={handlePreviousMonth}
                 disabled={!canGoPrevious()}
                 type="button"
@@ -139,10 +139,10 @@ function Calendar({
                 <ChevronLeft className="h-4 w-4" />
               </Button>
 
-              {/* Center dropdowns */}
-              <div className="flex items-center space-x-2">
+              {/* Center dropdowns - dynamically sized */}
+              <div className="flex items-center gap-2 flex-1 justify-center px-2 min-w-0">
                 <Select value={currentMonth.toString()} onValueChange={handleMonthChange}>
-                  <SelectTrigger className="h-7 w-[120px] text-xs">
+                  <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -154,7 +154,7 @@ function Calendar({
                   </SelectContent>
                 </Select>
                 <Select value={currentYear.toString()} onValueChange={handleYearChange}>
-                  <SelectTrigger className="h-7 w-[80px] text-xs">
+                  <SelectTrigger className="h-7 flex-1 min-w-[50px] max-w-[80px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -171,7 +171,7 @@ function Calendar({
               <Button
                 variant="outline"
                 size="icon"
-                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25"
+                className="h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 disabled:opacity-25 flex-shrink-0"
                 onClick={handleNextMonth}
                 disabled={!canGoNext()}
                 type="button"
