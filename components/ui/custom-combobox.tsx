@@ -161,8 +161,8 @@ export function CustomCombobox({
       // Reset buttonRect when closing so it gets recaptured fresh next time
       setButtonRect(null)
       
-      // Return focus to button when closing (similar to custom dropdown)
-      if (buttonRef.current && document.activeElement !== buttonRef.current) {
+      // Only return focus to button when closing if no other element should have focus
+      if (buttonRef.current && document.activeElement === inputRef.current) {
         buttonRef.current.focus()
       }
     } else {
@@ -176,26 +176,22 @@ export function CustomCombobox({
       const currentIndex = filteredOptions.findIndex(option => option.value === value)
       setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
       
-      // AGGRESSIVE focus management - try multiple approaches
-      const focusInput = () => {
-        if (inputRef.current) {
-          // Remove any existing focus
-          if (document.activeElement && 'blur' in document.activeElement) {
-            (document.activeElement as HTMLElement).blur()
+      // Only focus the input if the combobox button was the trigger
+      // This prevents stealing focus from other elements
+      if (document.activeElement === buttonRef.current) {
+        const focusInput = () => {
+          if (inputRef.current) {
+            inputRef.current.focus()
+            
+            // Set cursor to end
+            const len = inputRef.current.value.length
+            inputRef.current.setSelectionRange(len, len)
           }
-          
-          // Force focus
-          inputRef.current.focus()
-          
-          // Set cursor to end
-          const len = inputRef.current.value.length
-          inputRef.current.setSelectionRange(len, len)
         }
-      }
 
-      // Try focusing immediately and again after the next frame to handle race conditions
-      focusInput()
-      requestAnimationFrame(focusInput)
+        // Focus the input after a brief delay to ensure the dropdown is rendered
+        requestAnimationFrame(focusInput)
+      }
     }
   }, [open, filteredOptions, value])
 
@@ -217,7 +213,7 @@ export function CustomCombobox({
     }
   }, [highlightedIndex, open])
 
-  // Handle keyboard navigation, typing capture, and outside clicks
+  // Handle keyboard navigation and outside clicks
   React.useEffect(() => {
     if (!open) return
 
@@ -243,64 +239,44 @@ export function CustomCombobox({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!open) return
 
-      // If the input is focused, let it handle everything except escape
+      // Only handle keyboard events if the combobox or its input is focused
+      const isComboboxFocused = document.activeElement === buttonRef.current
       const isInputFocused = document.activeElement === inputRef.current
       
+      if (!isComboboxFocused && !isInputFocused) {
+        // If neither the button nor input is focused, don't interfere with typing
+        return
+      }
+
+      // If the input is focused, let it handle everything except escape and navigation
       if (isInputFocused) {
-        // Only handle escape when input is focused
+        // Only handle escape and navigation keys when input is focused
         if (event.key === 'Escape') {
           event.preventDefault()
           closeCombobox()
           buttonRef.current?.focus()
+        } else if (['ArrowDown', 'ArrowUp', 'Enter', 'Home', 'End'].includes(event.key)) {
+          handleNavigationKey(event.key, event)
         }
         return
       }
       
-      // Handle keys when input is not focused
+      // Handle keys when combobox button is focused
       const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
       
       if (navigationKeys.includes(event.key)) {
         handleNavigationKey(event.key, event)
       } else {
-        // Handle non-navigation keys only when dropdown is already open
-        switch (event.key) {
-          case 'Backspace':
-          case 'Delete':
-            // Only handle deletion shortcuts when dropdown is open
-            event.preventDefault()
-            if (inputRef.current) {
-              inputRef.current.focus()
-              
-              // Handle Cmd+Delete (or Cmd+Backspace) to clear entire input
-              if (event.metaKey || event.ctrlKey) {
-                setInputValue('')
-              } else {
-                // Handle single character deletion shortcuts (when input is not focused)
-                if (event.key === 'Backspace') {
-                  // Backspace shortcut: focus input and remove last character
-                  setInputValue(prev => prev.slice(0, -1))
-                } else if (event.key === 'Delete') {
-                  // Delete shortcut: focus input but preserve value
-                  // This allows user to then use native Delete behavior (remove char to right of cursor)
-                }
-              }
-              setHighlightedIndex(0)
-            }
-            break
-            
-          default:
-            // Handle printable characters for typing only when dropdown is already open
-            const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
-            if (isPrintableChar) {
-              event.preventDefault()
-              if (inputRef.current) {
-                // Focus the input and add the character
-                inputRef.current.focus()
-                setInputValue(prev => prev + event.key)
-                setHighlightedIndex(0)
-              }
-            }
-            break
+        // Handle typing only when the combobox button is focused
+        const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+        if (isPrintableChar) {
+          event.preventDefault()
+          if (inputRef.current) {
+            // Focus the input and add the character
+            inputRef.current.focus()
+            setInputValue(event.key)
+            setHighlightedIndex(0)
+          }
         }
       }
     }
