@@ -258,12 +258,25 @@ export default function SubscriptionPaymentMethods({ profile }: SubscriptionPaym
       </div>
 
       {isLoadingPaymentMethods ? (
-        <div className="space-y-3">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-20 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+        <div className="space-y-6">
+          {/* Credit Card Skeleton */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-md aspect-[1.586/1] rounded-2xl bg-gray-200 dark:bg-gray-700 animate-pulse" />
+          </div>
+          
+          {/* Card Details Skeleton */}
+          <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="space-y-1">
+                <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-4 w-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              </div>
+              <div className="space-y-1">
+                <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+                <div className="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              </div>
             </div>
-          ))}
+          </div>
         </div>
       ) : paymentMethods.length > 0 ? (
         <div className="space-y-6">
