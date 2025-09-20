@@ -1012,7 +1012,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         onClick={handleManageSubscription}
                         disabled={isManagingSubscription}
                         className="w-full"
-                        variant="outline"
+                        variant="default"
                       >
                         {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
                       </Button>

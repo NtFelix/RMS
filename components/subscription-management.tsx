@@ -384,30 +384,12 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
       {/* Subscription Overview Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Abonnement-Übersicht
-              </CardTitle>
-              <CardDescription>
-                Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails
-              </CardDescription>
-            </div>
-            <Button
-              onClick={createCustomerPortalSession}
-              disabled={isCreatingPortalSession || !profile.stripe_customer_id}
-              variant="outline"
-              size="sm"
-            >
-              {isCreatingPortalSession ? (
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Settings className="h-4 w-4 mr-2" />
-              )}
-              Kundenportal
-            </Button>
-          </div>
+          <CardTitle>
+            Abonnement-Übersicht
+          </CardTitle>
+          <CardDescription>
+            Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {profile.activePlan ? (
