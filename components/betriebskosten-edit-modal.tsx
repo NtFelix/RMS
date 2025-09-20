@@ -594,7 +594,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         onAttemptClose={attemptClose}
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-          <DialogHeader>
+          <DialogHeader className="px-4">
             <DialogTitle>
               {betriebskostenInitialData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
             </DialogTitle>
@@ -771,7 +771,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-4">
             <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isLoadingDetails}>
               Abbrechen
             </Button>
