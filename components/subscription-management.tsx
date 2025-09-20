@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/utils/supabase/client';
 import { 
   CreditCard, 
   FileText, 
@@ -87,6 +88,9 @@ interface PaymentMethod {
     exp_year: number;
     funding: string;
   } | null;
+  billing_details?: {
+    name?: string | null;
+  } | null;
   created: number;
 }
 
@@ -95,12 +99,99 @@ interface SubscriptionManagementProps {
   onProfileUpdate: () => void;
 }
 
+// Credit card brand colors and styling
+const getCardBrandStyles = (brand: string) => {
+  switch (brand.toLowerCase()) {
+    case 'visa':
+      return {
+        gradient: 'bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800',
+        textColor: 'text-white',
+        logo: '💳', // You can replace with actual Visa logo
+      };
+    case 'mastercard':
+      return {
+        gradient: 'bg-gradient-to-br from-red-500 via-orange-500 to-yellow-500',
+        textColor: 'text-white',
+        logo: '💳',
+      };
+    case 'amex':
+    case 'american_express':
+      return {
+        gradient: 'bg-gradient-to-br from-green-600 via-green-700 to-green-800',
+        textColor: 'text-white',
+        logo: '💳',
+      };
+    default:
+      return {
+        gradient: 'bg-gradient-to-br from-gray-600 via-gray-700 to-gray-800',
+        textColor: 'text-white',
+        logo: '💳',
+      };
+  }
+};
+
+// Credit Card Component
+const CreditCardDisplay = ({ paymentMethod, cardholderName }: { paymentMethod: PaymentMethod; cardholderName: string }) => {
+  if (!paymentMethod.card) return null;
+  
+  const { card } = paymentMethod;
+  const brandStyles = getCardBrandStyles(card.brand);
+  
+  return (
+    <div className={`relative w-full max-w-sm h-48 rounded-2xl p-6 shadow-xl ${brandStyles.gradient} ${brandStyles.textColor}`}>
+      {/* Card Background Pattern */}
+      <div className="absolute inset-0 rounded-2xl opacity-10">
+        <div className="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/20"></div>
+        <div className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/10"></div>
+        <div className="absolute bottom-4 left-4 w-16 h-16 rounded-full bg-white/5"></div>
+      </div>
+      
+      {/* Card Content */}
+      <div className="relative z-10 h-full flex flex-col justify-between">
+        {/* Top Section - Brand and Type */}
+        <div className="flex justify-between items-start">
+          <div className="text-sm font-medium opacity-90">
+            {card.funding.toUpperCase()}
+          </div>
+          <div className="text-lg font-bold">
+            {card.brand.toUpperCase()}
+          </div>
+        </div>
+        
+        {/* Middle Section - Card Number */}
+        <div className="space-y-4">
+          <div className="text-xl font-mono tracking-wider">
+            •••• •••• •••• {card.last4}
+          </div>
+        </div>
+        
+        {/* Bottom Section - Name and Expiry */}
+        <div className="flex justify-between items-end">
+          <div>
+            <div className="text-xs opacity-70 uppercase tracking-wide">Karteninhaber</div>
+            <div className="text-sm font-medium truncate max-w-[180px]">
+              {cardholderName}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs opacity-70 uppercase tracking-wide">Gültig bis</div>
+            <div className="text-sm font-mono">
+              {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function SubscriptionManagement({ profile, onProfileUpdate }: SubscriptionManagementProps) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
   const [isLoadingPaymentMethods, setIsLoadingPaymentMethods] = useState(false);
   const [isCreatingPortalSession, setIsCreatingPortalSession] = useState(false);
+  const [cardholderName, setCardholderName] = useState<string>('');
   const { toast } = useToast();
 
   const formatBillingCycle = (interval?: string | null, intervalCount?: number | null) => {
@@ -224,6 +315,28 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
       setIsCreatingPortalSession(false);
     }
   };
+
+  // Fetch cardholder name from user metadata
+  useEffect(() => {
+    const fetchCardholderName = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.user_metadata) {
+          const firstName = user.user_metadata.first_name || '';
+          const lastName = user.user_metadata.last_name || '';
+          setCardholderName(`${firstName} ${lastName}`.trim() || 'Karteninhaber');
+        } else {
+          setCardholderName('Karteninhaber');
+        }
+      } catch (error) {
+        console.error('Error fetching cardholder name:', error);
+        setCardholderName('Karteninhaber');
+      }
+    };
+
+    fetchCardholderName();
+  }, []);
 
   useEffect(() => {
     if (profile.stripe_customer_id) {
@@ -401,26 +514,31 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
               ))}
             </div>
           ) : paymentMethods.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-6">
               {paymentMethods.map((pm) => (
-                <div key={pm.id} className="border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                        <CreditCard className="h-5 w-5" />
+                <div key={pm.id} className="space-y-4">
+                  {/* Credit Card Display */}
+                  <div className="flex justify-center">
+                    <CreditCardDisplay 
+                      paymentMethod={pm} 
+                      cardholderName={pm.billing_details?.name || cardholderName}
+                    />
+                  </div>
+                  
+                  {/* Card Details */}
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Kartentyp:</span>
+                        <div className="font-medium capitalize">{pm.card?.funding}</div>
                       </div>
                       <div>
+                        <span className="text-muted-foreground">Hinzugefügt:</span>
                         <div className="font-medium">
-                          {pm.card?.brand.toUpperCase()} •••• {pm.card?.last4}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          Läuft ab {pm.card?.exp_month}/{pm.card?.exp_year}
+                          {new Date(pm.created * 1000).toLocaleDateString('de-DE')}
                         </div>
                       </div>
                     </div>
-                    <Badge variant="outline" className="capitalize">
-                      {pm.card?.funding}
-                    </Badge>
                   </div>
                 </div>
               ))}
