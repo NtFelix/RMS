@@ -710,7 +710,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
-              <div className="rounded-md border p-4 space-y-0 shadow-sm">
+              <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-4 space-y-0">
                 {isLoadingDetails ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-3 py-2 border-b last:border-b-0">

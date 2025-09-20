@@ -90,7 +90,7 @@ export function SortableCostItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col gap-3 py-2 border-b last:border-b-0 ${isDragging ? 'z-10' : ''}`}
+      className={`flex flex-col gap-3 p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-xl mb-3 last:mb-0 ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
       role="group"
       aria-label={`Kostenposition ${index + 1}`}
     >
@@ -98,12 +98,12 @@ export function SortableCostItem({
         <div className="flex items-center justify-center flex-none w-8 h-10">
           <button
             type="button"
-            className="cursor-grab active:cursor-grabbing p-1 hover:bg-gray-100 rounded transition-colors flex items-center justify-center w-6 h-6"
+            className="cursor-grab active:cursor-grabbing p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors flex items-center justify-center w-8 h-8 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600"
             {...attributes}
             {...listeners}
             aria-label="Kostenposition verschieben"
           >
-            <GripVertical className="h-4 w-4 text-gray-400" />
+            <GripVertical className="h-4 w-4 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
         <div className="w-full sm:flex-[4_1_0%]">
@@ -197,8 +197,8 @@ export function SortableCostItem({
       </div>
 
       {item.berechnungsart === 'nach Rechnung' && (
-        <div className="mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3 shadow-sm">
-          <h4 className="text-md font-semibold text-gray-700">
+        <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-3">
+          <h4 className="text-md font-semibold text-blue-800 dark:text-blue-200">
             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
           </h4>
           {isFetchingTenants ? (
@@ -225,7 +225,7 @@ export function SortableCostItem({
                   {selectedHausMieter.map(mieter => {
                     const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
                     return (
-                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-1 border-b border-gray-100 last:border-b-0">
+                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b border-blue-200 dark:border-blue-700 last:border-b-0">
                         <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="col-span-6 sm:col-span-7 truncate text-sm" title={mieter.name}>
                           {mieter.name}
                         </Label>
@@ -247,8 +247,8 @@ export function SortableCostItem({
                 </div>
               )}
               {rechnungen[item.id] && selectedHausMieter.length > 0 && (
-                <div className="pt-2 mt-2 border-t border-gray-300 flex justify-end">
-                  <p className="text-sm font-semibold text-gray-700">
+                <div className="pt-2 mt-2 border-t border-blue-300 dark:border-blue-600 flex justify-end">
+                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
                     Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0))} €
                   </p>
                 </div>
