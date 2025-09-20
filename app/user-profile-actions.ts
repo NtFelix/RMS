@@ -13,8 +13,12 @@ export interface UserProfileForSettings extends SupabaseProfile {
   activePlan?: {
     priceId: string; // Added
     name: string; // Kept, ensure it's string not string? if always present
+    productName?: string;
+    description?: string | null;
     price: number | null;
     currency: string;
+    interval?: string | null;
+    interval_count?: number | null;
     features: string[];
     limitWohnungen: number | null;
   } | null | undefined;

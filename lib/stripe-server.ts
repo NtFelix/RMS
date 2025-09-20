@@ -39,8 +39,12 @@ export async function getPlanDetails(priceId: string) {
     const planDetails = {
       priceId: price.id,
       name: price.nickname || product.name,
+      productName: product.name,
+      description: product.description,
       price: price.unit_amount,
       currency: price.currency,
+      interval: price.recurring?.interval || null,
+      interval_count: price.recurring?.interval_count || null,
       features: featuresArray, // Now a string[]
       limitWohnungen: limitWohnungenValue, // Now a number or null
     };

@@ -1027,14 +1027,9 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                             <div className="space-y-3">
                               {/* Plan Name and Description */}
                               <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <h3 className="text-base font-semibold">{profile.activePlan.productName || profile.activePlan.name}</h3>
-                                  {profile.activePlan.productName && profile.activePlan.name !== profile.activePlan.productName && (
-                                    <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
-                                      {profile.activePlan.name}
-                                    </span>
-                                  )}
-                                </div>
+                                <h3 className="text-base font-semibold">
+                                  {profile.activePlan.productName || 'Abonnement'}
+                                </h3>
                                 {profile.activePlan.description && (
                                   <p className="text-sm text-muted-foreground">{profile.activePlan.description}</p>
                                 )}
@@ -1047,11 +1042,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                                     <span className="text-muted-foreground">Preis:</span>
                                     <div className="font-medium">
                                       {(profile.activePlan.price / 100).toFixed(2)} {profile.activePlan.currency.toUpperCase()}
-                                      {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count) && (
-                                        <span className="text-muted-foreground ml-1">
-                                          / {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count)?.toLowerCase()}
-                                        </span>
-                                      )}
                                     </div>
                                   </div>
                                 )}
