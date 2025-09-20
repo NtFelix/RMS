@@ -18,6 +18,7 @@ import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import an
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
+import SubscriptionManagement from '@/components/subscription-management';
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -160,25 +161,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
     }
   }
 
-  // Helper to format billing cycle
-  const formatBillingCycle = (interval?: string | null, intervalCount?: number | null) => {
-    if (!interval) return null;
-    
-    const count = intervalCount || 1;
-    
-    switch (interval) {
-      case 'month':
-        return count === 1 ? 'Monatlich' : `Alle ${count} Monate`;
-      case 'year':
-        return count === 1 ? 'Jährlich' : `Alle ${count} Jahre`;
-      case 'week':
-        return count === 1 ? 'Wöchentlich' : `Alle ${count} Wochen`;
-      case 'day':
-        return count === 1 ? 'Täglich' : `Alle ${count} Tage`;
-      default:
-        return `Alle ${count} ${interval}`;
-    }
-  }
+
 
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
@@ -1015,97 +998,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             ) : (
               <SettingsCard>
                 <div className="space-y-4">
-                  <div className="space-y-4">
-                    {/* Subscription Card */}
-                    <div className="p-4 border rounded-lg bg-card">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-full bg-primary/10">
-                          <CreditCard className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1 space-y-3">
-                          {profile.stripe_subscription_status === 'active' && profile.activePlan ? (
-                            <div className="space-y-3">
-                              {/* Plan Name and Description */}
-                              <div className="space-y-1">
-                                <h3 className="text-base font-semibold">
-                                  {profile.activePlan.productName || 'Abonnement'}
-                                </h3>
-                                {profile.activePlan.description && (
-                                  <p className="text-sm text-muted-foreground">{profile.activePlan.description}</p>
-                                )}
-                              </div>
-
-                              {/* Plan Details */}
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                {profile.activePlan.price && (
-                                  <div>
-                                    <span className="text-muted-foreground">Preis:</span>
-                                    <div className="font-medium">
-                                      {(profile.activePlan.price / 100).toFixed(2)} {profile.activePlan.currency.toUpperCase()}
-                                    </div>
-                                  </div>
-                                )}
-                                {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count) && (
-                                  <div>
-                                    <span className="text-muted-foreground">Abrechnungszyklus:</span>
-                                    <div className="font-medium">{formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count)}</div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Status and Next Billing */}
-                              {profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
-                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                                  <p className="text-sm text-orange-700 dark:text-orange-300">
-                                    <strong>Kündigung geplant:</strong> Dein Abonnement endet am <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong>
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="space-y-2">
-                                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                                    <p className="text-sm text-green-700 dark:text-green-300">
-                                      <strong>Status:</strong> Aktiv
-                                    </p>
-                                  </div>
-                                  {currentPeriodEnd && (
-                                    <div className="text-sm">
-                                      <span className="text-muted-foreground">Nächste Verlängerung:</span>
-                                      <span className="font-medium ml-1">{currentPeriodEnd}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Usage Information */}
-                              {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
-                                <div className="pt-2 border-t">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">Genutzte Wohnungen:</span>
-                                    <span className="font-medium">{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
-                                  </div>
-                                  <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                    <div 
-                                      className="bg-primary h-2 rounded-full transition-all duration-300" 
-                                      style={{ width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <h3 className="text-base font-semibold">Kein aktives Abonnement</h3>
-                              <div className="flex items-center gap-2 text-sm">
-                                <span className="text-muted-foreground">Status:</span>
-                                <span className="font-medium">{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</span>
-                              </div>
-                              <p className="text-sm text-muted-foreground">Du hast derzeit kein aktives Abonnement.</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <SubscriptionManagement 
+                    profile={profile} 
+                    onProfileUpdate={refreshUserProfile}
+                  />
 
                   {profile.stripe_customer_id && (
                     <div className="pt-4 border-t space-y-3">
