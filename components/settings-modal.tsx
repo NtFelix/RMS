@@ -958,43 +958,41 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 title="Abonnement-Übersicht"
                 description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails"
               >
-                <SettingsCard>
-                  <div className="space-y-6">
-                    {/* Header */}
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-48" />
-                      <Skeleton className="h-4 w-64" />
-                    </div>
-                    
-                    {/* Plan Information */}
-                    <div className="space-y-4">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3">
-                            <Skeleton className="h-6 w-32" />
-                            <Skeleton className="h-5 w-16" />
-                          </div>
-                          <Skeleton className="h-4 w-48" />
+                <SettingsCard className="space-y-6">
+                  <div className="space-y-4">
+                    {/* Plan Information Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-7 w-32" />
+                          <Skeleton className="h-6 w-16 rounded-full" />
                         </div>
-                        <div className="text-right space-y-1">
-                          <Skeleton className="h-8 w-24" />
-                          <Skeleton className="h-4 w-20" />
-                        </div>
+                        <Skeleton className="h-4 w-48" />
                       </div>
-                      
-                      <div className="h-px bg-border" />
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <Skeleton className="h-4 w-32" />
+                      <div className="text-right space-y-1">
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-border" />
+
+                    {/* Subscription Details Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-32" />
+                        <div className="flex items-center gap-1">
                           <Skeleton className="h-5 w-24" />
                         </div>
-                        <div className="space-y-1">
-                          <Skeleton className="h-4 w-28" />
-                          <div className="space-y-2">
-                            <Skeleton className="h-4 w-20" />
-                            <Skeleton className="h-2 w-full" />
+                      </div>
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-28" />
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <Skeleton className="h-4 w-16" />
+                            <Skeleton className="h-4 w-8" />
                           </div>
+                          <Skeleton className="h-2 w-full rounded-full" />
                         </div>
                       </div>
                     </div>
@@ -1008,13 +1006,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                 description="Verwalten Sie Ihre gespeicherten Zahlungsmethoden"
               >
                 <SettingsCard>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Skeleton className="h-6 w-36" />
-                        <Skeleton className="h-4 w-56" />
-                      </div>
-                      <Skeleton className="h-8 w-8" />
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div></div>
+                      <Skeleton className="h-8 w-8 rounded" />
                     </div>
                     
                     {/* Credit Card Skeleton */}
@@ -1024,7 +1019,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     
                     {/* Card Details Skeleton */}
                     <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
                         <div className="space-y-1">
                           <Skeleton className="h-4 w-20" />
                           <Skeleton className="h-4 w-16" />
@@ -1046,25 +1041,22 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               >
                 <SettingsCard>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Skeleton className="h-6 w-40" />
-                        <Skeleton className="h-4 w-60" />
-                      </div>
-                      <Skeleton className="h-8 w-8" />
+                    <div className="flex items-center justify-between mb-4">
+                      <div></div>
+                      <Skeleton className="h-8 w-8 rounded" />
                     </div>
                     
                     <div className="space-y-3">
                       {[...Array(3)].map((_, i) => (
                         <div key={i} className="border rounded-lg p-4 space-y-3">
                           <div className="flex items-start justify-between">
-                            <div className="space-y-2">
+                            <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <Skeleton className="h-5 w-32" />
-                                <Skeleton className="h-5 w-16" />
+                                <Skeleton className="h-5 w-16 rounded-full" />
                               </div>
                               <Skeleton className="h-4 w-48" />
-                              <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-4 text-sm">
                                 <Skeleton className="h-4 w-24" />
                                 <Skeleton className="h-4 w-28" />
                               </div>
@@ -1072,8 +1064,18 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                             <div className="text-right space-y-2">
                               <Skeleton className="h-6 w-20" />
                               <div className="flex gap-2">
-                                <Skeleton className="h-8 w-16" />
-                                <Skeleton className="h-8 w-12" />
+                                <Skeleton className="h-8 w-16 rounded" />
+                                <Skeleton className="h-8 w-12 rounded" />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Invoice Line Items Skeleton */}
+                          <div className="pt-2 border-t">
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-4 w-16" />
                               </div>
                             </div>
                           </div>
