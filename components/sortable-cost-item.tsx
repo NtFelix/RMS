@@ -90,7 +90,7 @@ export function SortableCostItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`flex flex-col gap-3 p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-xl mb-3 last:mb-0 ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
+      className={`flex flex-col gap-3 p-4 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-xl ${isDragging ? 'z-10 shadow-lg bg-white dark:bg-gray-800' : ''}`}
       role="group"
       aria-label={`Kostenposition ${index + 1}`}
     >
