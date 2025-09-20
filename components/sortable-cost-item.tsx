@@ -225,11 +225,11 @@ export function SortableCostItem({
                   {selectedHausMieter.map(mieter => {
                     const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
                     return (
-                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
-                        <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="col-span-6 sm:col-span-7 truncate text-sm" title={mieter.name}>
+                      <div key={mieter.id} className="flex items-center justify-between gap-4 py-3 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
+                        <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="flex-1 text-sm font-medium" title={mieter.name}>
                           {mieter.name}
                         </Label>
-                        <div className="col-span-4 sm:col-span-3">
+                        <div className="flex-shrink-0 w-32">
                           <Input
                             id={`rechnung-${item.id}-${mieter.id}`}
                             type="number"
@@ -237,7 +237,6 @@ export function SortableCostItem({
                             placeholder="Betrag (€)"
                             value={rechnungForMieter?.betrag || ''}
                             onChange={(e) => onRechnungChange(item.id, mieter.id, e.target.value)}
-                            className="w-full text-sm"
                             disabled={isLoadingDetails || isSaving}
                           />
                         </div>
