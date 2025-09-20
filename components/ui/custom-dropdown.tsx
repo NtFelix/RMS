@@ -52,10 +52,28 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const [position, setPosition] = useState<"top" | "bottom">("bottom")
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const [isKeyboardMode, setIsKeyboardMode] = useState(false)
-  const [hasUserInteracted, setHasUserInteracted] = useState(false)
+  const hasInteractedRef = useRef(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const menuItemsRef = useRef<HTMLDivElement[]>([])
+
+  // Track first user interaction globally to prevent unwanted auto-focus on page load
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      hasInteractedRef.current = true
+      window.removeEventListener("keydown", handleFirstInteraction, true)
+      window.removeEventListener("mousedown", handleFirstInteraction, true)
+    }
+
+    // Use capture phase to ensure this runs before other listeners
+    window.addEventListener("keydown", handleFirstInteraction, true)
+    window.addEventListener("mousedown", handleFirstInteraction, true)
+
+    return () => {
+      window.removeEventListener("keydown", handleFirstInteraction, true)
+      window.removeEventListener("mousedown", handleFirstInteraction, true)
+    }
+  }, [])
 
   // Get all focusable menu items
   const getFocusableItems = useCallback(() => {
@@ -175,7 +193,6 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   }, [isOpen, focusedIndex, getFocusableItems])
 
   const handleTriggerClick = () => {
-    setHasUserInteracted(true)
     if (!isOpen && triggerRef.current) {
       // Calculate if dropdown should open upward or downward
       const triggerRect = triggerRef.current.getBoundingClientRect()
@@ -242,13 +259,11 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         data-dropdown-trigger
         onFocus={(e) => {
           // Prevent auto-focus on page load by blurring if user hasn't interacted yet
-          if (!hasUserInteracted) {
+          if (!hasInteractedRef.current) {
             e.target.blur()
           }
         }}
-        onMouseDown={() => setHasUserInteracted(true)}
         onKeyDown={(e) => {
-          setHasUserInteracted(true)
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             setIsKeyboardMode(true);
