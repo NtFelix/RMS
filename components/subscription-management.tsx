@@ -301,12 +301,7 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
               <Separator />
 
               {/* Subscription Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <div className="text-sm font-medium text-muted-foreground">Status</div>
-                  <div>{getStatusBadge(profile.stripe_subscription_status || 'unknown')}</div>
-                </div>
-                
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {currentPeriodEnd && (
                   <div className="space-y-1">
                     <div className="text-sm font-medium text-muted-foreground">
