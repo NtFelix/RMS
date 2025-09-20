@@ -197,8 +197,8 @@ export function SortableCostItem({
       </div>
 
       {item.berechnungsart === 'nach Rechnung' && (
-        <div className="mt-3 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl space-y-3">
-          <h4 className="text-md font-semibold text-blue-800 dark:text-blue-200">
+        <div className="mt-3 p-4 bg-gray-100 dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-xl space-y-3">
+          <h4 className="text-md font-semibold text-gray-800 dark:text-gray-200">
             Einzelbeträge für: <span className="font-normal italic">"{item.art || 'Unbenannte Kostenart'}"</span>
           </h4>
           {isFetchingTenants ? (
@@ -225,7 +225,7 @@ export function SortableCostItem({
                   {selectedHausMieter.map(mieter => {
                     const rechnungForMieter = (rechnungen[item.id] || []).find(r => r.mieterId === mieter.id);
                     return (
-                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b border-blue-200 dark:border-blue-700 last:border-b-0">
+                      <div key={mieter.id} className="grid grid-cols-10 gap-2 items-center py-2 border-b border-gray-300 dark:border-gray-600 last:border-b-0">
                         <Label htmlFor={`rechnung-${item.id}-${mieter.id}`} className="col-span-6 sm:col-span-7 truncate text-sm" title={mieter.name}>
                           {mieter.name}
                         </Label>
@@ -247,8 +247,8 @@ export function SortableCostItem({
                 </div>
               )}
               {rechnungen[item.id] && selectedHausMieter.length > 0 && (
-                <div className="pt-2 mt-2 border-t border-blue-300 dark:border-blue-600 flex justify-end">
-                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                <div className="pt-2 mt-2 border-t border-gray-400 dark:border-gray-500 flex justify-end">
+                  <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">
                     Summe: {formatNumber((rechnungen[item.id] || []).reduce((sum, r) => sum + (parseFloat(r.betrag) || 0), 0))} €
                   </p>
                 </div>
