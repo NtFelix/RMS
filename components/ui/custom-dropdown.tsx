@@ -52,9 +52,28 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
   const [position, setPosition] = useState<"top" | "bottom">("bottom")
   const [focusedIndex, setFocusedIndex] = useState(-1)
   const [isKeyboardMode, setIsKeyboardMode] = useState(false)
+  const hasInteractedRef = useRef(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLDivElement>(null)
   const menuItemsRef = useRef<HTMLDivElement[]>([])
+
+  // Track first user interaction globally to prevent unwanted auto-focus on page load
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      hasInteractedRef.current = true
+      window.removeEventListener("keydown", handleFirstInteraction, true)
+      window.removeEventListener("mousedown", handleFirstInteraction, true)
+    }
+
+    // Use capture phase to ensure this runs before other listeners
+    window.addEventListener("keydown", handleFirstInteraction, true)
+    window.addEventListener("mousedown", handleFirstInteraction, true)
+
+    return () => {
+      window.removeEventListener("keydown", handleFirstInteraction, true)
+      window.removeEventListener("mousedown", handleFirstInteraction, true)
+    }
+  }, [])
 
   // Get all focusable menu items
   const getFocusableItems = useCallback(() => {
@@ -76,9 +95,12 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         // For mouse mode, highlight first item but don't focus it
         setFocusedIndex(0)
       }
-    } else if (triggerRef.current) {
-      // Return focus to trigger when dropdown closes
-      triggerRef.current.focus()
+    } else {
+      // Only return focus to trigger when dropdown closes if it was opened via keyboard
+      // This prevents unwanted focus on page load
+      if (isKeyboardMode && triggerRef.current) {
+        triggerRef.current.focus()
+      }
       setFocusedIndex(-1)
       setIsKeyboardMode(false)
     }
@@ -235,6 +257,12 @@ export function CustomDropdown({ children, trigger, align = "end", className }: 
         aria-expanded={isOpen}
         aria-haspopup="menu"
         data-dropdown-trigger
+        onFocus={(e) => {
+          // Prevent auto-focus on page load by blurring if user hasn't interacted yet
+          if (!hasInteractedRef.current) {
+            e.target.blur()
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
