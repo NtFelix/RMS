@@ -1435,7 +1435,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </h3>
                     <div className="space-y-3">
                       {features.map((f) => (
-                        <SettingsCard key={f.flagKey} className="hover:scale-[1.01]">
+                        <SettingsCard key={f.flagKey}>
                           <div className="flex items-center justify-between gap-4">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
