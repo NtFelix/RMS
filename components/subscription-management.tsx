@@ -25,6 +25,8 @@ import {
   Eye
 } from 'lucide-react';
 
+
+
 interface SubscriptionPlan {
   priceId: string;
   name: string;
@@ -132,19 +134,45 @@ const getCardBrandStyles = (brand: string) => {
 
 // Credit Card Component
 const CreditCardDisplay = ({ paymentMethod, cardholderName }: { paymentMethod: PaymentMethod; cardholderName: string }) => {
+  const [isHovered, setIsHovered] = React.useState(false);
+
   if (!paymentMethod.card) return null;
   
   const { card } = paymentMethod;
   const brandStyles = getCardBrandStyles(card.brand);
+
+  const handleMouseEnter = () => setIsHovered(true);
+  const handleMouseLeave = () => setIsHovered(false);
   
   return (
-    <div className={`relative w-full max-w-sm h-48 rounded-2xl p-6 shadow-xl ${brandStyles.gradient} ${brandStyles.textColor}`}>
+    <div 
+      className={`relative w-full max-w-md aspect-[1.586/1] rounded-2xl p-6 shadow-lg cursor-pointer overflow-hidden transition-all duration-300 hover:shadow-xl hover:scale-[1.02] ${brandStyles.gradient} ${brandStyles.textColor}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       {/* Card Background Pattern */}
       <div className="absolute inset-0 rounded-2xl opacity-10">
         <div className="absolute top-4 right-4 w-12 h-12 rounded-full bg-white/20"></div>
-        <div className="absolute top-8 right-8 w-8 h-8 rounded-full bg-white/10"></div>
+        <div className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/15"></div>
         <div className="absolute bottom-4 left-4 w-16 h-16 rounded-full bg-white/5"></div>
       </div>
+      
+      {/* Simple Hover Glow */}
+      <div 
+        className={`absolute inset-0 rounded-2xl bg-white/10 pointer-events-none transition-opacity duration-300 ${
+          isHovered ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      
+      {/* Subtle Shine Effect */}
+      <div 
+        className={`absolute inset-0 rounded-2xl pointer-events-none transition-all duration-500 ${
+          isHovered ? 'opacity-30' : 'opacity-0'
+        }`}
+        style={{
+          background: 'linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.4) 50%, transparent 70%)',
+        }}
+      />
       
       {/* Card Content */}
       <div className="relative z-10 h-full flex flex-col justify-between">
@@ -153,13 +181,13 @@ const CreditCardDisplay = ({ paymentMethod, cardholderName }: { paymentMethod: P
           <div className="text-sm font-medium opacity-90">
             {card.funding.toUpperCase()}
           </div>
-          <div className="text-lg font-bold">
+          <div className="text-xl font-bold">
             {card.brand.toUpperCase()}
           </div>
         </div>
         
         {/* Middle Section - Card Number */}
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 flex items-center">
           <div className="text-xl font-mono tracking-wider">
             •••• •••• •••• {card.last4}
           </div>
@@ -167,13 +195,13 @@ const CreditCardDisplay = ({ paymentMethod, cardholderName }: { paymentMethod: P
         
         {/* Bottom Section - Name and Expiry */}
         <div className="flex justify-between items-end">
-          <div>
+          <div className="flex-1 min-w-0">
             <div className="text-xs opacity-70 uppercase tracking-wide">Karteninhaber</div>
-            <div className="text-sm font-medium truncate max-w-[180px]">
+            <div className="text-sm font-medium truncate pr-4">
               {cardholderName}
             </div>
           </div>
-          <div>
+          <div className="flex-shrink-0">
             <div className="text-xs opacity-70 uppercase tracking-wide">Gültig bis</div>
             <div className="text-sm font-mono">
               {String(card.exp_month).padStart(2, '0')}/{String(card.exp_year).slice(-2)}
@@ -193,6 +221,8 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
   const [isCreatingPortalSession, setIsCreatingPortalSession] = useState(false);
   const [cardholderName, setCardholderName] = useState<string>('');
   const { toast } = useToast();
+
+
 
   const formatBillingCycle = (interval?: string | null, intervalCount?: number | null) => {
     if (!interval) return null;
