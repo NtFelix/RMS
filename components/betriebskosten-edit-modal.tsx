@@ -639,7 +639,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-10 w-full rounded-md"
+                        size="sm"
+                        className="h-10 w-full rounded-full"
                         onClick={() => {
                           // Extract year from current startdatum and subtract 1
                           const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
@@ -657,7 +658,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-10 w-full rounded-md"
+                        size="sm"
+                        className="h-10 w-full rounded-full"
                         onClick={() => {
                           // Extract year from current startdatum and add 1
                           const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
