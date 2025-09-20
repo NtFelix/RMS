@@ -30,8 +30,12 @@ interface UserProfileWithSubscription extends SupabaseProfile {
   activePlan?: {
     priceId: string;
     name: string;
+    productName?: string;
+    description?: string;
     price: number | null;
     currency: string;
+    interval?: string | null;
+    interval_count?: number | null;
     features: string[];
     limitWohnungen: number | null;
   } | null;
@@ -44,8 +48,12 @@ interface UserProfileWithSubscription extends SupabaseProfile {
 interface Plan {
   id: string;
   name: string;
+  productName?: string;
+  description?: string;
   price: number | null;
   currency: string;
+  interval?: string | null;
+  interval_count?: number | null;
   features: string[];
   limitWohnungen: number | null;
   priceId: string; // priceId is the lookup key for Stripe
@@ -149,6 +157,26 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       case 'beta': return 'Beta';
       case 'concept': return 'Geplant';
       default: return stage.charAt(0).toUpperCase() + stage.slice(1);
+    }
+  }
+
+  // Helper to format billing cycle
+  const formatBillingCycle = (interval?: string | null, intervalCount?: number | null) => {
+    if (!interval) return null;
+    
+    const count = intervalCount || 1;
+    
+    switch (interval) {
+      case 'month':
+        return count === 1 ? 'Monatlich' : `Alle ${count} Monate`;
+      case 'year':
+        return count === 1 ? 'Jährlich' : `Alle ${count} Jahre`;
+      case 'week':
+        return count === 1 ? 'Wöchentlich' : `Alle ${count} Wochen`;
+      case 'day':
+        return count === 1 ? 'Täglich' : `Alle ${count} Tage`;
+      default:
+        return `Alle ${count} ${interval}`;
     }
   }
 
@@ -987,60 +1015,105 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             ) : (
               <SettingsCard>
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <CreditCard className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1 space-y-3">
-                      {profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">Aktueller Plan:</span>
-                            <span className="text-sm font-semibold">{profile.activePlan?.name || 'Unbekannt'}</span>
-                          </div>
-                          <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
-                            <p className="text-sm text-orange-700 dark:text-orange-300">
-                              Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
-                            </p>
-                          </div>
+                  <div className="space-y-4">
+                    {/* Subscription Card */}
+                    <div className="p-4 border rounded-lg bg-card">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-full bg-primary/10">
+                          <CreditCard className="h-4 w-4 text-primary" />
                         </div>
-                      ) : profile.stripe_subscription_status === 'active' && profile.activePlan ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">Aktueller Plan:</span>
-                            <span className="text-sm font-semibold">{profile.activePlan.name}</span>
-                          </div>
-                          {currentPeriodEnd && (
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">Nächste Verlängerung am:</span>
-                              <span className="text-sm font-medium">{currentPeriodEnd}</span>
+                        <div className="flex-1 space-y-3">
+                          {profile.stripe_subscription_status === 'active' && profile.activePlan ? (
+                            <div className="space-y-3">
+                              {/* Plan Name and Description */}
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-base font-semibold">{profile.activePlan.productName || profile.activePlan.name}</h3>
+                                  {profile.activePlan.productName && profile.activePlan.name !== profile.activePlan.productName && (
+                                    <span className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-full">
+                                      {profile.activePlan.name}
+                                    </span>
+                                  )}
+                                </div>
+                                {profile.activePlan.description && (
+                                  <p className="text-sm text-muted-foreground">{profile.activePlan.description}</p>
+                                )}
+                              </div>
+
+                              {/* Plan Details */}
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                {profile.activePlan.price && (
+                                  <div>
+                                    <span className="text-muted-foreground">Preis:</span>
+                                    <div className="font-medium">
+                                      {(profile.activePlan.price / 100).toFixed(2)} {profile.activePlan.currency.toUpperCase()}
+                                      {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count) && (
+                                        <span className="text-muted-foreground ml-1">
+                                          / {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count)?.toLowerCase()}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count) && (
+                                  <div>
+                                    <span className="text-muted-foreground">Abrechnungszyklus:</span>
+                                    <div className="font-medium">{formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count)}</div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Status and Next Billing */}
+                              {profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
+                                <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                                  <p className="text-sm text-orange-700 dark:text-orange-300">
+                                    <strong>Kündigung geplant:</strong> Dein Abonnement endet am <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong>
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                                    <p className="text-sm text-green-700 dark:text-green-300">
+                                      <strong>Status:</strong> Aktiv
+                                    </p>
+                                  </div>
+                                  {currentPeriodEnd && (
+                                    <div className="text-sm">
+                                      <span className="text-muted-foreground">Nächste Verlängerung:</span>
+                                      <span className="font-medium ml-1">{currentPeriodEnd}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Usage Information */}
+                              {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
+                                <div className="pt-2 border-t">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">Genutzte Wohnungen:</span>
+                                    <span className="font-medium">{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
+                                  </div>
+                                  <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div 
+                                      className="bg-primary h-2 rounded-full transition-all duration-300" 
+                                      style={{ width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <h3 className="text-base font-semibold">Kein aktives Abonnement</h3>
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="text-muted-foreground">Status:</span>
+                                <span className="font-medium">{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</span>
+                              </div>
+                              <p className="text-sm text-muted-foreground">Du hast derzeit kein aktives Abonnement.</p>
                             </div>
                           )}
-                          <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
-                            <p className="text-sm text-green-700 dark:text-green-300">
-                              Dein Abonnement ist aktiv.
-                            </p>
-                          </div>
                         </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm">Dein aktueller Abo-Status:</span>
-                            <span className="text-sm font-medium">{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</span>
-                          </div>
-                          {(!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
-                            !(profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
-                              <p className="text-sm text-muted-foreground">Du hast derzeit kein aktives Abonnement.</p>
-                            )}
-                        </div>
-                      )}
-
-                      {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">Genutzte Wohnungen:</span>
-                          <span className="text-sm font-medium">{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
 
