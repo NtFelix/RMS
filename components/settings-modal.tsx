@@ -954,36 +954,123 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
             description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsinformationen."
           >
             {isFetchingStatus ? (
-              <SettingsCard>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-muted">
-                      <CreditCard className="h-4 w-4" />
+              <div className="space-y-6">
+                {/* Subscription Overview Skeleton */}
+                <SettingsCard>
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="space-y-2">
+                      <Skeleton className="h-6 w-48" />
+                      <Skeleton className="h-4 w-64" />
                     </div>
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Aktueller Plan:</span>
-                        <Skeleton className="h-4 w-32" />
+                    
+                    {/* Plan Information */}
+                    <div className="space-y-4">
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <Skeleton className="h-6 w-32" />
+                            <Skeleton className="h-5 w-16" />
+                          </div>
+                          <Skeleton className="h-4 w-48" />
+                        </div>
+                        <div className="text-right space-y-1">
+                          <Skeleton className="h-8 w-24" />
+                          <Skeleton className="h-4 w-20" />
+                        </div>
                       </div>
-                      <Skeleton className="h-4 w-48" />
+                      
+                      <div className="h-px bg-border" />
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-5 w-24" />
+                        </div>
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-28" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-20" />
+                            <Skeleton className="h-2 w-full" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Nächste Verlängerung am:</span>
-                      <Skeleton className="h-4 w-24" />
+                </SettingsCard>
+
+                {/* Payment Methods Skeleton */}
+                <SettingsCard>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Skeleton className="h-6 w-36" />
+                        <Skeleton className="h-4 w-56" />
+                      </div>
+                      <Skeleton className="h-8 w-8" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">Genutzte Wohnungen:</span>
-                      <Skeleton className="h-4 w-20" />
+                    
+                    {/* Credit Card Skeleton */}
+                    <div className="flex justify-center">
+                      <Skeleton className="w-full max-w-md aspect-[1.586/1] rounded-2xl" />
+                    </div>
+                    
+                    {/* Card Details Skeleton */}
+                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-16" />
+                        </div>
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-20" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="pt-4 border-t">
-                    <Skeleton className="h-4 w-3/4 mb-3" />
-                    <Skeleton className="h-10 w-full" />
+                </SettingsCard>
+
+                {/* Payment History Skeleton */}
+                <SettingsCard>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <Skeleton className="h-6 w-40" />
+                        <Skeleton className="h-4 w-60" />
+                      </div>
+                      <Skeleton className="h-8 w-8" />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2">
+                                <Skeleton className="h-5 w-32" />
+                                <Skeleton className="h-5 w-16" />
+                              </div>
+                              <Skeleton className="h-4 w-48" />
+                              <div className="flex items-center gap-4">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-4 w-28" />
+                              </div>
+                            </div>
+                            <div className="text-right space-y-2">
+                              <Skeleton className="h-6 w-20" />
+                              <div className="flex gap-2">
+                                <Skeleton className="h-8 w-16" />
+                                <Skeleton className="h-8 w-12" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              </SettingsCard>
+                </SettingsCard>
+              </div>
             ) : subscriptionStatus === 'error' || !profile ? (
               <SettingsCard className="border-destructive/20 bg-destructive/5">
                 <div className="flex items-center gap-3">
