@@ -19,6 +19,8 @@ import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Impor
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
 import SubscriptionManagement from '@/components/subscription-management';
+import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
+import SubscriptionPaymentHistory from '@/components/subscription-payment-history';
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -948,14 +950,14 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Abo",
       icon: CreditCard,
       content: (
-        <div className="space-y-6">
-          <SettingsSection 
-            title="Abonnement"
-            description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsinformationen."
-          >
-            {isFetchingStatus ? (
-              <div className="space-y-6">
-                {/* Subscription Overview Skeleton */}
+        <>
+          {isFetchingStatus ? (
+            <>
+              {/* Subscription Overview Skeleton */}
+              <SettingsSection 
+                title="Abonnement-Übersicht"
+                description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails"
+              >
                 <SettingsCard>
                   <div className="space-y-6">
                     {/* Header */}
@@ -998,8 +1000,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </div>
                   </div>
                 </SettingsCard>
+              </SettingsSection>
 
-                {/* Payment Methods Skeleton */}
+              {/* Payment Methods Skeleton */}
+              <SettingsSection 
+                title="Zahlungsmethoden"
+                description="Verwalten Sie Ihre gespeicherten Zahlungsmethoden"
+              >
                 <SettingsCard>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1030,8 +1037,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </div>
                   </div>
                 </SettingsCard>
+              </SettingsSection>
 
-                {/* Payment History Skeleton */}
+              {/* Payment History Skeleton */}
+              <SettingsSection 
+                title="Rechnungshistorie"
+                description="Alle Ihre Rechnungen und Zahlungen im Überblick"
+              >
                 <SettingsCard>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -1070,8 +1082,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                     </div>
                   </div>
                 </SettingsCard>
-              </div>
-            ) : subscriptionStatus === 'error' || !profile ? (
+              </SettingsSection>
+            </>
+          ) : subscriptionStatus === 'error' || !profile ? (
+            <SettingsSection 
+              title="Abonnement"
+              description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsinformationen."
+            >
               <SettingsCard className="border-destructive/20 bg-destructive/5">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-destructive/10">
@@ -1082,16 +1099,171 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                   </p>
                 </div>
               </SettingsCard>
-            ) : (
-              <SettingsCard>
-                <div className="space-y-4">
-                  <SubscriptionManagement 
+            </SettingsSection>
+          ) : (
+            <>
+              {/* Subscription Overview Section */}
+              <SettingsSection 
+                title="Abonnement-Übersicht"
+                description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails"
+              >
+                <SettingsCard className="space-y-6">
+                  {profile.activePlan ? (
+                    <div className="space-y-4">
+                      {/* Plan Information */}
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-semibold">
+                              {profile.activePlan.productName || 'Abonnement'}
+                            </h3>
+                            {profile.stripe_subscription_status && (
+                              <div className="inline-flex">
+                                {profile.stripe_subscription_status === 'active' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                    Aktiv
+                                  </div>
+                                )}
+                                {profile.stripe_subscription_status === 'trialing' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+                                    Testphase
+                                  </div>
+                                )}
+                                {profile.stripe_subscription_status === 'canceled' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 rounded-full">
+                                    Gekündigt
+                                  </div>
+                                )}
+                                {profile.stripe_subscription_status === 'past_due' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300 rounded-full">
+                                    Überfällig
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {profile.activePlan.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {profile.activePlan.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {profile.activePlan.price && (
+                            <div className="text-2xl font-bold">
+                              {(profile.activePlan.price / 100).toFixed(2)} {profile.activePlan.currency.toUpperCase()}
+                            </div>
+                          )}
+                          {profile.activePlan.interval && (
+                            <div className="text-sm text-muted-foreground">
+                              {profile.activePlan.interval === 'month' ? 'Monatlich' : 
+                               profile.activePlan.interval === 'year' ? 'Jährlich' : 
+                               profile.activePlan.interval}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="h-px bg-border" />
+
+                      {/* Subscription Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {currentPeriodEnd && (
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              {profile.stripe_cancel_at_period_end ? 'Endet am' : 'Nächste Verlängerung'}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>{currentPeriodEnd}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {profile.currentWohnungenCount !== undefined && profile.activePlan.limitWohnungen && (
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-muted-foreground">Wohnungen genutzt</div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span>{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
+                                <span className="text-muted-foreground">
+                                  {Math.round((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div 
+                                  className="bg-primary h-2 rounded-full transition-all duration-300" 
+                                  style={{ 
+                                    width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%` 
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cancellation Notice */}
+                      {profile.stripe_cancel_at_period_end && profile.stripe_current_period_end && (
+                        <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                          <div className="flex items-start gap-3">
+                            <div>
+                              <h4 className="font-medium text-orange-800 dark:text-orange-200">
+                                Kündigung geplant
+                              </h4>
+                              <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                                Ihr Abonnement endet am {new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}. 
+                                Sie können es jederzeit über das Kundenportal reaktivieren.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Kein aktives Abonnement</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Sie haben derzeit kein aktives Abonnement.
+                      </p>
+                    </div>
+                  )}
+                </SettingsCard>
+              </SettingsSection>
+
+              {/* Payment Methods Section */}
+              <SettingsSection 
+                title="Zahlungsmethoden"
+                description="Verwalten Sie Ihre gespeicherten Zahlungsmethoden"
+              >
+                <SettingsCard>
+                  <SubscriptionPaymentMethods 
                     profile={profile} 
                     onProfileUpdate={refreshUserProfile}
                   />
+                </SettingsCard>
+              </SettingsSection>
 
-                  {profile.stripe_customer_id && (
-                    <div className="pt-4 border-t space-y-3">
+              {/* Payment History Section */}
+              <SettingsSection 
+                title="Rechnungshistorie"
+                description="Alle Ihre Rechnungen und Zahlungen im Überblick"
+              >
+                <SettingsCard>
+                  <SubscriptionPaymentHistory 
+                    profile={profile} 
+                    onProfileUpdate={refreshUserProfile}
+                  />
+                </SettingsCard>
+              </SettingsSection>
+
+              {profile.stripe_customer_id && (
+                <SettingsSection 
+                  title="Erweiterte Verwaltung"
+                  description="Zusätzliche Optionen für Ihr Abonnement"
+                >
+                  <SettingsCard>
+                    <div className="space-y-3">
                       <p className="text-sm text-muted-foreground">
                         Du kannst dein Abonnement, deine Zahlungsmethoden und Rechnungen über das Stripe Kundenportal verwalten.
                       </p>
@@ -1104,12 +1276,12 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
                       </Button>
                     </div>
-                  )}
-                </div>
-              </SettingsCard>
-            )}
-          </SettingsSection>
-        </div>
+                  </SettingsCard>
+                </SettingsSection>
+              )}
+            </>
+          )}
+        </>
       ),
     },
     {

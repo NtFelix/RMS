@@ -380,128 +380,18 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
     : null;
 
   return (
-    <div className="space-y-6">
-      {/* Subscription Overview Card */}
+    <>
+      {/* Payment Methods Card */}
       <Card>
         <CardHeader>
-          <CardTitle>
-            Abonnement-Übersicht
-          </CardTitle>
+          <CardTitle>Zahlungsmethoden</CardTitle>
           <CardDescription>
-            Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails
+            Verwalten Sie Ihre gespeicherten Zahlungsmethoden
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {profile.activePlan ? (
-            <div className="space-y-4">
-              {/* Plan Information */}
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold">
-                      {profile.activePlan.productName || 'Abonnement'}
-                    </h3>
-                    {getStatusBadge(profile.stripe_subscription_status || 'unknown')}
-                  </div>
-                  {profile.activePlan.description && (
-                    <p className="text-sm text-muted-foreground">
-                      {profile.activePlan.description}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  {profile.activePlan.price && (
-                    <div className="text-2xl font-bold">
-                      {(profile.activePlan.price / 100).toFixed(2)} {profile.activePlan.currency.toUpperCase()}
-                    </div>
-                  )}
-                  {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count) && (
-                    <div className="text-sm text-muted-foreground">
-                      {formatBillingCycle(profile.activePlan.interval, profile.activePlan.interval_count)}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Subscription Details Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {currentPeriodEnd && (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">
-                      {profile.stripe_cancel_at_period_end ? 'Endet am' : 'Nächste Verlängerung'}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>{currentPeriodEnd}</span>
-                    </div>
-                  </div>
-                )}
-
-                {profile.currentWohnungenCount !== undefined && profile.activePlan.limitWohnungen && (
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium text-muted-foreground">Wohnungen genutzt</div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
-                        <span className="text-muted-foreground">
-                          {Math.round((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100)}%
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all duration-300" 
-                          style={{ 
-                            width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%` 
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Cancellation Notice */}
-              {profile.stripe_cancel_at_period_end && profile.stripe_current_period_end && (
-                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5" />
-                    <div>
-                      <h4 className="font-medium text-orange-800 dark:text-orange-200">
-                        Kündigung geplant
-                      </h4>
-                      <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                        Ihr Abonnement endet am {new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}. 
-                        Sie können es jederzeit über das Kundenportal reaktivieren.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">Kein aktives Abonnement</h3>
-              <p className="text-muted-foreground mb-4">
-                Sie haben derzeit kein aktives Abonnement.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Payment Methods Section */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Zahlungsmethoden</CardTitle>
-              <CardDescription>
-                Verwalten Sie Ihre gespeicherten Zahlungsmethoden
-              </CardDescription>
-            </div>
+        <CardContent>
+          <div className="flex items-center justify-between mb-4">
+            <div></div>
             <Button
               onClick={fetchPaymentMethods}
               disabled={isLoadingPaymentMethods}
@@ -515,8 +405,6 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
               )}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
           {isLoadingPaymentMethods ? (
             <div className="space-y-3">
               {[...Array(2)].map((_, i) => (
@@ -573,16 +461,17 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
         </CardContent>
       </Card>
 
-      {/* Payment History Section */}
+      {/* Payment History Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Rechnungshistorie</CardTitle>
-              <CardDescription>
-                Alle Ihre Rechnungen und Zahlungen im Überblick
-              </CardDescription>
-            </div>
+          <CardTitle>Rechnungshistorie</CardTitle>
+          <CardDescription>
+            Alle Ihre Rechnungen und Zahlungen im Überblick
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between mb-4">
+            <div></div>
             <Button
               onClick={fetchInvoices}
               disabled={isLoadingInvoices}
@@ -596,8 +485,6 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
               )}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
           {isLoadingInvoices ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
@@ -697,6 +584,6 @@ export default function SubscriptionManagement({ profile, onProfileUpdate }: Sub
           )}
         </CardContent>
       </Card>
-    </div>
+    </>
   );
 }
