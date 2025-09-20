@@ -605,7 +605,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           
           <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
             {/* Property & Period Selection Section */}
-            <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+            <div className="bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-4">
               {/* House Selection */}
               <div className="space-y-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
@@ -680,7 +680,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       return (
                         <div className="space-y-2">
                           {validation.isValid && validation.periodDays && (
-                            <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                            <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-xl">
                               <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
                             </div>
                           )}
