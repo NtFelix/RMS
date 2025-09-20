@@ -66,7 +66,7 @@ type Tab = { value: string; label: string; icon: React.ElementType; content: Rea
 const SettingsCard = ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div 
     className={cn(
-      "p-6 bg-muted/30 rounded-2xl border border-border/50 transition-all duration-300 hover:bg-muted/50 hover:shadow-md hover:border-ring/30",
+      "p-6 bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800",
       className
     )}
     {...props}
