@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     const invoicesParams: Stripe.InvoiceListParams = {
       customer: profile.stripe_customer_id,
       limit: Math.min(limit, 100), // Cap at 100
-      expand: ['data.payment_intent', 'data.subscription'],
+      expand: ['data.payment_intent', 'data.subscription', 'data.lines.data.price'],
     };
 
     if (startingAfter) {
@@ -62,20 +62,18 @@ export async function GET(request: Request) {
       hosted_invoice_url: invoice.hosted_invoice_url,
       invoice_pdf: invoice.invoice_pdf,
       description: invoice.description,
-      subscription_id: invoice.subscription,
-      payment_intent_id: typeof invoice.payment_intent === 'string' 
-        ? invoice.payment_intent 
-        : invoice.payment_intent?.id,
+      subscription_id: (invoice as any).subscription || null,
+      payment_intent_id: (invoice as any).payment_intent || null,
       lines: invoice.lines.data.map(line => ({
         id: line.id,
         description: line.description,
         amount: line.amount,
         quantity: line.quantity,
-        price: line.price ? {
-          id: line.price.id,
-          nickname: line.price.nickname,
-          unit_amount: line.price.unit_amount,
-          recurring: line.price.recurring,
+        price: (line as any).price ? {
+          id: (line as any).price.id,
+          nickname: (line as any).price.nickname,
+          unit_amount: (line as any).price.unit_amount,
+          recurring: (line as any).price.recurring,
         } : null,
       })),
     }));
