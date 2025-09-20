@@ -840,7 +840,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                         window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
                       }
                     }}
-                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
                   />
                 </div>
               </div>
@@ -1459,7 +1459,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
                             <Switch
                               checked={!!f.enabled}
                               onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
-                              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
+                              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
                               disabled={isLoadingFeatures}
                             />
                           </div>
