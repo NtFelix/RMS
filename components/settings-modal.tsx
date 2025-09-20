@@ -1339,12 +1339,6 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
           <div className="flex h-full overflow-hidden">
             {/* Enhanced sidebar navigation */}
             <nav className="w-48 min-w-[12rem] flex flex-col gap-2 py-4 px-3 mr-6 border-r border-border/50">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold tracking-tight px-3">Einstellungen</h2>
-                <p className="text-sm text-muted-foreground px-3 mt-1">
-                  Verwalten Sie Ihre Kontoeinstellungen
-                </p>
-              </div>
               
               {tabs.map(tab => (
                 <button
