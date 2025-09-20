@@ -950,7 +950,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Abo",
       icon: CreditCard,
       content: (
-        <>
+        <div className="space-y-6">
           {isFetchingStatus ? (
             <>
               {/* Subscription Overview Skeleton */}
@@ -1281,7 +1281,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               )}
             </>
           )}
-        </>
+        </div>
       ),
     },
     {
