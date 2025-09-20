@@ -76,12 +76,14 @@ const SettingsCard = ({ children, className, ...props }: React.HTMLAttributes<HT
 )
 
 // Enhanced section component for better visual hierarchy
-const SettingsSection = ({ title, description, children, className, ...props }: {
+type SettingsSectionProps = {
   title?: string;
   description?: string;
   children: React.ReactNode;
   className?: string;
-} & React.HTMLAttributes<HTMLDivElement>) => (
+} & React.HTMLAttributes<HTMLDivElement>;
+
+const SettingsSection = ({ title, description, children, className, ...props }: SettingsSectionProps) => (
   <div className={cn("space-y-4", className)} {...props}>
     {title && (
       <div className="space-y-1">
