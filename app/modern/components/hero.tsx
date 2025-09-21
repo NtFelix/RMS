@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
 import { VideoPlayer } from "@/components/ui/video-player"
+import { BackgroundBeams } from "@/components/ui/background-beams"
 import { HERO_VIDEO_URL } from "@/lib/constants"
 
 interface HeroProps {
@@ -12,7 +13,8 @@ interface HeroProps {
 export default function Hero({ onGetStarted }: HeroProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background text-foreground">
-
+      {/* Animated Background Beams */}
+      <BackgroundBeams />
 
       <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-16">
         <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12 items-center">
@@ -85,4 +87,3 @@ export default function Hero({ onGetStarted }: HeroProps) {
     </section>
   )
 }
-
