@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { AnimatePresence, motion } from "framer-motion"
 import { Menu, X, DollarSign, Home, User as UserIcon, LogIn, LogOut, Check, LayoutDashboard, BookOpen } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
@@ -116,12 +116,7 @@ export default function Navigation({ onLogin }: NavigationProps) {
   };
 
   return (
-    <motion.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4"
-    >
+    <nav className="fixed top-2 sm:top-4 left-0 right-0 z-50 px-2 sm:px-4">
       <div className="max-w-7xl mx-auto flex items-center justify-between relative">
         {/* Mobile Header with Menu Button and Logo */}
         <div className="flex-shrink-0 z-10 md:hidden flex items-center space-x-2">
@@ -399,6 +394,6 @@ export default function Navigation({ onLogin }: NavigationProps) {
           </>
         )}
       </AnimatePresence>
-    </motion.nav>
+    </nav>
   )
 }
