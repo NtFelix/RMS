@@ -58,7 +58,6 @@ interface UserProfile {
 
 interface SubscriptionPaymentHistoryProps {
   profile: UserProfile;
-  onProfileUpdate: () => void;
 }
 
 export default function SubscriptionPaymentHistory({ profile }: SubscriptionPaymentHistoryProps) {
