@@ -3,6 +3,16 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@/utils/supabase/server';
 
+// Define interfaces for expanded Stripe objects
+interface ExpandedStripeInvoice extends Stripe.Invoice {
+  subscription: Stripe.Subscription | Stripe.DeletedSubscription | string | null;
+  payment_intent: Stripe.PaymentIntent | string | null;
+}
+
+interface ExpandedStripeLineItem extends Stripe.LineItem {
+  price: Stripe.Price | null;
+}
+
 export async function GET(request: Request) {
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: 'Stripe secret key not configured.' }, { status: 500 });
@@ -51,8 +61,8 @@ export async function GET(request: Request) {
 
     // Transform the data for frontend consumption
     const transformedInvoices = invoices.data.map(invoice => {
-      // Handle expanded properties safely - cast to any to access expanded properties
-      const invoiceWithExpanded = invoice as any;
+      // Handle expanded properties safely with proper typing
+      const invoiceWithExpanded = invoice as ExpandedStripeInvoice;
       const subscription = invoiceWithExpanded.subscription;
       const paymentIntent = invoiceWithExpanded.payment_intent;
       
@@ -71,7 +81,7 @@ export async function GET(request: Request) {
         subscription_id: typeof subscription === 'object' && subscription ? subscription.id : subscription,
         payment_intent_id: typeof paymentIntent === 'object' && paymentIntent ? paymentIntent.id : paymentIntent,
         lines: invoice.lines.data.map(line => {
-          const lineWithExpanded = line as any;
+          const lineWithExpanded = line as ExpandedStripeLineItem;
           const price = lineWithExpanded.price;
           
           return {
