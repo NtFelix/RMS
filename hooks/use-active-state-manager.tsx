@@ -134,7 +134,7 @@ export function useActiveStateManager() {
   // Sync with Next.js router changes
   useEffect(() => {
     store.updateActiveRoute(pathname)
-  }, [pathname, store])
+  }, [pathname, store.updateActiveRoute])
   
   return store
 }
@@ -149,7 +149,7 @@ export function useSidebarActiveState() {
   // Update active route when pathname changes
   useEffect(() => {
     store.updateActiveRoute(pathname)
-  }, [pathname, store])
+  }, [pathname, store.updateActiveRoute])
   
   return {
     isRouteActive: store.isRouteActive,
@@ -198,15 +198,15 @@ export function useActiveStateSync() {
   
   const syncActiveState = useCallback((currentPath: string, breadcrumbs: BreadcrumbItem[]) => {
     store.syncWithNavigation(currentPath, breadcrumbs)
-  }, [store])
+  }, [store.syncWithNavigation])
   
   const updateActiveDirectory = useCallback((path: string, breadcrumbs?: BreadcrumbItem[]) => {
     store.updateActiveDirectory(path, breadcrumbs)
-  }, [store])
+  }, [store.updateActiveDirectory])
   
   const updateBreadcrumbs = useCallback((breadcrumbs: BreadcrumbItem[]) => {
     store.updateBreadcrumbs(breadcrumbs)
-  }, [store])
+  }, [store.updateBreadcrumbs])
   
   return {
     syncActiveState,
@@ -227,7 +227,7 @@ export function useComprehensiveActiveState() {
   // Auto-sync with router
   useEffect(() => {
     store.updateActiveRoute(pathname)
-  }, [pathname, store])
+  }, [pathname, store.updateActiveRoute])
   
   return {
     // Current state
