@@ -46,13 +46,55 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
     
-    // Fetch all financial data for the specified year with apartment information
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
-      .gte('datum', startDate)
-      .lte('datum', endDate)
-      .order('datum', { ascending: false });
+    // Try to use the optimized Supabase function first
+    let data: FinancialItem[] = [];
+    let error: any = null;
+    
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_summary_data', {
+        target_year: year
+      });
+      
+      if (!rpcError && rpcData) {
+        // Convert the RPC result to match our expected format
+        // Note: RPC function returns minimal data, so we need to fetch full data for charts
+        const { data: fullData, error: fullError } = await supabase
+          .from('Finanzen')
+          .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
+          .in('id', rpcData.map((item: any) => item.id))
+          .order('datum', { ascending: false });
+          
+        if (!fullError) {
+          data = fullData as FinancialItem[];
+        } else {
+          // If the full query fails, use the RPC data with limited fields
+          data = rpcData.map((item: any) => ({
+            id: item.id || '',
+            betrag: item.betrag,
+            ist_einnahmen: item.ist_einnahmen,
+            datum: item.datum,
+            name: item.name || '',
+            wohnung_id: item.wohnung_id || '',
+            Wohnungen: null
+          }));
+        }
+      } else {
+        throw new Error('RPC function failed or returned no data');
+      }
+    } catch (rpcError) {
+      console.log('Charts API: RPC function not available, using fallback query');
+      
+      // Fallback to direct query (with potential pagination issues for very large datasets)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('Finanzen')
+        .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
+        .gte('datum', startDate)
+        .lte('datum', endDate)
+        .order('datum', { ascending: false });
+        
+      data = fallbackData as FinancialItem[] || [];
+      error = fallbackError;
+    }
       
     if (error) {
       console.error('GET /api/finanzen/charts error:', error);

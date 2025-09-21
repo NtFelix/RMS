@@ -14,13 +14,34 @@ export async function GET(request: Request) {
 
     const supabase = await createClient();
     
-    // Fetch all financial data for the specified year
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .select('id, betrag, ist_einnahmen, datum')
-      .gte('datum', startDate)
-      .lte('datum', endDate)
-      .order('datum', { ascending: false });
+    // Try to use the optimized Supabase function first
+    let data: any[] = [];
+    let error: any = null;
+    
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_summary_data', {
+        target_year: year
+      });
+      
+      if (!rpcError && rpcData) {
+        data = rpcData;
+      } else {
+        throw new Error('RPC function failed or returned no data');
+      }
+    } catch (rpcError) {
+      console.log('Summary API: RPC function not available, using fallback query');
+      
+      // Fallback to direct query (with potential pagination issues for very large datasets)
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('Finanzen')
+        .select('id, betrag, ist_einnahmen, datum')
+        .gte('datum', startDate)
+        .lte('datum', endDate)
+        .order('datum', { ascending: false });
+        
+      data = fallbackData || [];
+      error = fallbackError;
+    }
       
     if (error) {
       console.error('GET /api/finanzen/summary error:', error);

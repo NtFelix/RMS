@@ -64,24 +64,22 @@ async function getOptimizedMonthlyData(supabase: any, year: number): Promise<Rec
     console.log(`❌ [Finance Analytics] RPC function not available or failed:`, error);
   }
 
-  // Fallback to regular query and client-side calculation
-  console.log(`🔄 [Finance Analytics] FALLBACK: Using server-side calculation...`);
+  // Fallback to pagination-safe function
+  console.log(`🔄 [Finance Analytics] FALLBACK: Using pagination-safe function...`);
   const fallbackStartTime = Date.now();
   
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('betrag, ist_einnahmen, datum')
-    .gte('datum', startDate)
-    .lte('datum', endDate);
+  const { data, error } = await supabase.rpc('get_financial_summary_data', {
+    target_year: year
+  });
 
   const fallbackDuration = Date.now() - fallbackStartTime;
 
   if (error) {
-    console.error(`❌ [Finance Analytics] Fallback query failed:`, error);
+    console.error(`❌ [Finance Analytics] Fallback RPC query failed:`, error);
     throw error;
   }
 
-  console.log(`📊 [Finance Analytics] Fallback query completed (${fallbackDuration}ms) - processing ${data?.length || 0} records`);
+  console.log(`📊 [Finance Analytics] Fallback RPC completed (${fallbackDuration}ms) - processing ${data?.length || 0} records`);
   
   const summary = calculateFinancialSummary(data || [], year, new Date());
   console.log(`✅ [Finance Analytics] Server-side calculation completed`);
@@ -135,26 +133,99 @@ export async function GET(request: Request) {
 }
 
 async function handleSummary(supabase: any, year: number): Promise<Response> {
-  const startDate = `${year}-01-01`;
-  const endDate = `${year}-12-31`;
-  
-  console.log(`📊 [Finance Analytics] Summary: Querying transactions from ${startDate} to ${endDate}`);
+  console.log(`📊 [Finance Analytics] Summary: Fetching data for year ${year}`);
   const queryStartTime = Date.now();
 
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('betrag, ist_einnahmen, datum')
-    .gte('datum', startDate)
-    .lte('datum', endDate);
+  try {
+    // Try to use the optimized Supabase function first
+    const { data: summaryData, error: rpcError } = await supabase.rpc('get_financial_year_summary', {
+      target_year: year
+    });
 
-  const queryDuration = Date.now() - queryStartTime;
+    const rpcDuration = Date.now() - queryStartTime;
+
+    if (!rpcError && summaryData && summaryData.length > 0) {
+      console.log(`✅ [Finance Analytics] Summary: Used optimized RPC function (${rpcDuration}ms)`);
+      
+      const summary = summaryData[0];
+      
+      // Convert the database result to our expected format
+      const monthlyData: Record<number, { income: number; expenses: number; cashflow: number }> = {};
+      
+      // Initialize all months
+      for (let i = 0; i < 12; i++) {
+        monthlyData[i] = { income: 0, expenses: 0, cashflow: 0 };
+      }
+      
+      // Populate with actual data from the database
+      if (summary.monthly_data) {
+        Object.entries(summary.monthly_data as Record<string, any>).forEach(([month, data]) => {
+          const monthIndex = parseInt(month);
+          if (monthIndex >= 0 && monthIndex < 12) {
+            monthlyData[monthIndex] = {
+              income: Number(data.income || 0),
+              expenses: Number(data.expenses || 0),
+              cashflow: Number(data.cashflow || 0)
+            };
+          }
+        });
+      }
+
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const monthsPassed = year === currentYear ? currentDate.getMonth() + 1 : 12;
+      
+      // Calculate averages based on passed months
+      let incomeForPassedMonths = 0;
+      let expensesForPassedMonths = 0;
+      
+      for (let i = 0; i < (year === currentYear ? currentDate.getMonth() + 1 : 12); i++) {
+        incomeForPassedMonths += monthlyData[i].income;
+        expensesForPassedMonths += monthlyData[i].expenses;
+      }
+      
+      const averageMonthlyIncome = monthsPassed > 0 ? incomeForPassedMonths / monthsPassed : 0;
+      const averageMonthlyExpenses = monthsPassed > 0 ? expensesForPassedMonths / monthsPassed : 0;
+      const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
+
+      const result = {
+        year,
+        totalIncome: Number(summary.total_income || 0),
+        totalExpenses: Number(summary.total_expenses || 0),
+        totalCashflow: Number(summary.total_cashflow || 0),
+        averageMonthlyIncome,
+        averageMonthlyExpenses,
+        averageMonthlyCashflow,
+        yearlyProjection: averageMonthlyCashflow * 12,
+        monthsPassed,
+        monthlyData
+      };
+
+      console.log(`💰 [Finance Analytics] Summary results: Income: €${result.totalIncome}, Expenses: €${result.totalExpenses}, Cashflow: €${result.totalCashflow}`);
+      return NextResponse.json(result, { status: 200 });
+    } else {
+      console.log(`⚠️ [Finance Analytics] Summary: RPC function failed or returned no data, using fallback`);
+    }
+  } catch (error) {
+    console.log(`🔄 [Finance Analytics] Summary: RPC function not available, using fallback method`);
+  }
+
+  // Fallback to the function that returns all transactions for the year
+  console.log(`🔄 [Finance Analytics] Summary: Using fallback with pagination-safe function`);
+  const fallbackStartTime = Date.now();
+  
+  const { data, error } = await supabase.rpc('get_financial_summary_data', {
+    target_year: year
+  });
+
+  const fallbackDuration = Date.now() - fallbackStartTime;
 
   if (error) {
-    console.error('❌ [Finance Analytics] Summary database error:', error);
+    console.error('❌ [Finance Analytics] Summary fallback database error:', error);
     return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
   }
 
-  console.log(`📈 [Finance Analytics] Summary: Retrieved ${data?.length || 0} transactions (${queryDuration}ms)`);
+  console.log(`📈 [Finance Analytics] Summary: Fallback retrieved ${data?.length || 0} transactions (${fallbackDuration}ms)`);
   
   const calcStartTime = Date.now();
   const summary = calculateFinancialSummary(data || [], year, new Date());
