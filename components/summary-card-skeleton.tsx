@@ -8,7 +8,7 @@ interface SummaryCardSkeletonProps {
 
 export function SummaryCardSkeleton({ title, icon }: SummaryCardSkeletonProps) {
   return (
-    <Card className="overflow-hidden rounded-xl shadow-md flex-1">
+    <Card className="overflow-hidden rounded-2xl shadow-md flex-1">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         {title ? (
           <span className="text-sm font-medium text-muted-foreground">{title}</span>
