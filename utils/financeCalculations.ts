@@ -3,6 +3,7 @@ import { Finanzen } from "../types/finanzen";
 export interface MonthlyData {
   income: number;
   expenses: number;
+  cashflow: number;
 }
 
 export interface FinancialSummary {
@@ -18,8 +19,15 @@ export interface FinancialSummary {
   monthlyData: Record<number, MonthlyData>;
 }
 
+// Minimal interface for what the calculation function actually needs
+export interface FinanceTransaction {
+  betrag: number;
+  ist_einnahmen: boolean;
+  datum: string;
+}
+
 export function calculateFinancialSummary(
-  transactions: Finanzen[],
+  transactions: FinanceTransaction[],
   year: number,
   currentDate: Date = new Date()
 ): FinancialSummary {
@@ -31,7 +39,7 @@ export function calculateFinancialSummary(
   
   // Initialize all months
   for (let i = 0; i < 12; i++) {
-    monthlyData[i] = { income: 0, expenses: 0 };
+    monthlyData[i] = { income: 0, expenses: 0, cashflow: 0 };
   }
   
   // Process each transaction
@@ -47,6 +55,12 @@ export function calculateFinancialSummary(
     } else {
       monthlyData[month].expenses += amount;
     }
+  });
+
+  // Calculate cashflow for each month
+  Object.keys(monthlyData).forEach(monthKey => {
+    const month = Number(monthKey);
+    monthlyData[month].cashflow = monthlyData[month].income - monthlyData[month].expenses;
   });
 
   // Calculate summary statistics

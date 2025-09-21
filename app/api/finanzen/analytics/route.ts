@@ -1,7 +1,7 @@
 export const runtime = 'edge';
 import { createClient } from "@/utils/supabase/server";
 import { NextResponse } from "next/server";
-import { calculateFinancialSummary } from "@/utils/financeCalculations";
+import { calculateFinancialSummary, type FinanceTransaction } from "@/utils/financeCalculations";
 
 interface FinanceRecord {
   betrag: number;
@@ -12,11 +12,7 @@ interface FinanceRecord {
   notiz?: string;
 }
 
-interface MonthlyData {
-  income: number;
-  expenses: number;
-  cashflow: number;
-}
+import type { MonthlyData } from "@/utils/financeCalculations";
 
 async function getOptimizedMonthlyData(supabase: any, year: number): Promise<Record<number, MonthlyData>> {
   const startDate = `${year}-01-01`;
@@ -310,7 +306,7 @@ async function handleAvailableYears(supabase: any): Promise<Response> {
   years.add(currentYear);
   
   // Process dates to extract years
-  data?.forEach(item => {
+  data?.forEach((item: { datum: string | null }) => {
     if (!item.datum) return;
     
     try {
