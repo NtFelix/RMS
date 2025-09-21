@@ -125,6 +125,7 @@ export const useActiveStateStore = create<ActiveStateManager>()(
 
 /**
  * Custom hook to sync pathname with store - DRY principle
+ * Centralizes pathname syncing logic to avoid repetition across multiple hooks
  */
 function useSyncPathnameWithStore() {
   const store = useActiveStateStore()
