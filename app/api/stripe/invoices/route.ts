@@ -5,11 +5,11 @@ import { createClient } from '@/utils/supabase/server';
 
 // Define interfaces for expanded Stripe objects
 interface ExpandedStripeInvoice extends Stripe.Invoice {
-  subscription: Stripe.Subscription | Stripe.DeletedSubscription | string | null;
+  subscription: Stripe.Subscription | string | null;
   payment_intent: Stripe.PaymentIntent | string | null;
 }
 
-interface ExpandedStripeLineItem extends Stripe.LineItem {
+interface ExpandedStripeLineItem extends Stripe.InvoiceLineItem {
   price: Stripe.Price | null;
 }
 
