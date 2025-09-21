@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react"
 import { CallToAction } from "./call-to-action"
 import { VideoPlayer } from "@/components/ui/video-player"
+import { BackgroundBeams } from "@/components/ui/background-beams"
 import { HERO_VIDEO_URL } from "@/lib/constants"
 
 interface HeroProps {
@@ -12,23 +13,8 @@ interface HeroProps {
 export default function Hero({ onGetStarted }: HeroProps) {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background text-foreground">
-      {/* Static Background Pattern - Adjusted for theme */}
-      <div className="absolute inset-0 opacity-20 dark:opacity-10">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-background" />
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `radial-gradient(circle at 25% 25%, hsl(var(--primary-foreground)/0.05) 0%, transparent 50%),
-                           radial-gradient(circle at 75% 75%, hsl(var(--secondary-foreground)/0.05) 0%, transparent 50%),
-                           linear-gradient(45deg, transparent 40%, hsl(var(--muted-foreground)/0.03) 50%, transparent 60%)`,
-          }}
-        />
-      </div>
-
-      {/* Static Decorative Elements - Adjusted for theme */}
-      <div className="absolute top-20 left-20 w-4 h-4 bg-primary/50 rounded-full opacity-60" />
-      <div className="absolute top-40 right-32 w-6 h-6 border-2 border-secondary/50 rotate-45 opacity-60" />
-      <div className="absolute bottom-32 left-32 w-8 h-8 bg-gradient-to-r from-primary/60 to-secondary/60 rounded-full opacity-60" />
+      {/* Animated Background Beams */}
+      <BackgroundBeams />
 
       <div className="relative z-10 w-full px-4 sm:px-6 lg:px-8 pt-28 md:pt-32 pb-16">
         <div className="max-w-7xl mx-auto grid grid-cols-1 gap-12 items-center">
@@ -101,4 +87,3 @@ export default function Hero({ onGetStarted }: HeroProps) {
     </section>
   )
 }
-
