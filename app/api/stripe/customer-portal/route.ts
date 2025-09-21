@@ -36,7 +36,9 @@ export async function POST(request: Request) {
     const origin = request.headers.get('origin') || 'http://localhost:3000';
     const returnUrl = body.return_url || `${origin}/dashboard`;
     
-    console.log('Creating Stripe portal session with return_url:', returnUrl);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Creating Stripe portal session with return_url:', returnUrl);
+    }
     
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
