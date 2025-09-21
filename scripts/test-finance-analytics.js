@@ -23,6 +23,11 @@ async function testAnalyticsAPI() {
       name: 'Filtered Summary',
       url: `${BASE_URL}/api/finanzen/analytics?action=filtered-summary&selectedType=Alle Transaktionen`,
       expectedFields: ['totalBalance', 'totalIncome', 'totalExpenses']
+    },
+    {
+      name: 'Available Years',
+      url: `${BASE_URL}/api/finanzen/analytics?action=available-years`,
+      expectedFields: [] // This returns an array directly
     }
   ];
 
@@ -39,13 +44,21 @@ async function testAnalyticsAPI() {
         continue;
       }
       
-      // Check if expected fields are present
-      const missingFields = test.expectedFields.filter(field => !(field in data));
-      
-      if (missingFields.length > 0) {
-        console.log(`⚠️  ${test.name}: Missing fields: ${missingFields.join(', ')}`);
+      // Check if expected fields are present (skip for Available Years which returns array)
+      if (test.name === 'Available Years') {
+        if (Array.isArray(data)) {
+          console.log(`✅ ${test.name}: Returned array with ${data.length} years`);
+        } else {
+          console.log(`⚠️  ${test.name}: Expected array but got: ${typeof data}`);
+        }
       } else {
-        console.log(`✅ ${test.name}: All expected fields present`);
+        const missingFields = test.expectedFields.filter(field => !(field in data));
+        
+        if (missingFields.length > 0) {
+          console.log(`⚠️  ${test.name}: Missing fields: ${missingFields.join(', ')}`);
+        } else {
+          console.log(`✅ ${test.name}: All expected fields present`);
+        }
       }
       
       // Log some sample data

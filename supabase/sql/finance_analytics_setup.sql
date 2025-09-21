@@ -32,6 +32,29 @@ $$;
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_monthly_finance_data(DATE, DATE) TO authenticated;
 
+-- Create a function to get available years with transaction data
+CREATE OR REPLACE FUNCTION get_available_finance_years()
+RETURNS TABLE (
+  year INTEGER
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT 
+    EXTRACT(YEAR FROM f.datum)::INTEGER as year
+  FROM "Finanzen" f
+  WHERE f.datum IS NOT NULL
+    AND f.user_id = auth.uid()  -- Ensure RLS compliance
+    AND EXTRACT(YEAR FROM f.datum) <= EXTRACT(YEAR FROM CURRENT_DATE) + 1
+  ORDER BY year DESC;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_available_finance_years() TO authenticated;
+
 -- Create optimized indexes for finance queries if they don't exist
 CREATE INDEX IF NOT EXISTS idx_finanzen_user_datum_einnahmen 
 ON "Finanzen" (user_id, datum, ist_einnahmen);

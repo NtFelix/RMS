@@ -42,6 +42,7 @@ interface FinanzenClientWrapperProps {
   finances: Finanz[];
   wohnungen: Wohnung[];
   summaryData: SummaryData | null;
+  initialAvailableYears?: number[];
 }
 
 // Utility function to remove duplicates based on ID
@@ -56,7 +57,7 @@ const deduplicateFinances = (finances: Finanz[]): Finanz[] => {
   });
 };
 
-export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData }: FinanzenClientWrapperProps) {
+export default function FinanzenClientWrapper({ finances: initialFinances, wohnungen, summaryData: initialSummaryData, initialAvailableYears = [] }: FinanzenClientWrapperProps) {
   const [finData, setFinData] = useState<Finanz[]>(deduplicateFinances(initialFinances));
   const [summaryData, setSummaryData] = useState<SummaryData | null>(initialSummaryData);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -65,7 +66,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const [availableYears, setAvailableYears] = useState<number[]>(initialAvailableYears);
   const [filters, setFilters] = useState({
     searchQuery: '',
     selectedApartment: 'Alle Wohnungen',
@@ -252,10 +253,18 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
 
   const fetchAvailableYears = useCallback(async () => {
     try {
-      const response = await fetch('/api/finanzen/years');
+      const response = await fetch('/api/finanzen/analytics?action=available-years');
       if (response.ok) {
         const years = await response.json();
         setAvailableYears(years);
+      } else {
+        // Fallback to the old API if the new one fails
+        console.warn('New analytics API failed, falling back to old years API');
+        const fallbackResponse = await fetch('/api/finanzen/years');
+        if (fallbackResponse.ok) {
+          const years = await fallbackResponse.json();
+          setAvailableYears(years);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch available years:', error);

@@ -36,6 +36,57 @@ async function getSummaryData(year: number) {
   }
 }
 
+async function getAvailableYears() {
+  const supabase = await createClient();
+  
+  try {
+    // Try to use the optimized database function
+    const { data, error } = await supabase.rpc('get_available_finance_years');
+    
+    if (!error && data) {
+      return data.map((item: any) => item.year).sort((a: number, b: number) => b - a);
+    }
+  } catch (error) {
+    console.log('RPC function not available for years, using fallback');
+  }
+
+  // Fallback to regular query
+  const { data, error } = await supabase
+    .from('Finanzen')
+    .select('datum')
+    .not('datum', 'is', null);
+
+  if (error) {
+    console.error('Error fetching available years:', error);
+    return [new Date().getFullYear()]; // Return current year as fallback
+  }
+
+  const currentYear = new Date().getFullYear();
+  const years = new Set<number>();
+  
+  // Add current year by default
+  years.add(currentYear);
+  
+  // Process dates to extract years
+  data?.forEach(item => {
+    if (!item.datum) return;
+    
+    try {
+      const date = new Date(item.datum);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        if (year <= currentYear + 1) {
+          years.add(year);
+        }
+      }
+    } catch (e) {
+      console.warn('Invalid date format:', item.datum);
+    }
+  });
+
+  return Array.from(years).sort((a, b) => b - a);
+}
+
 export default async function FinanzenPage() {
   const supabase = await createClient();
   
@@ -54,6 +105,14 @@ export default async function FinanzenPage() {
   // Summary-Daten für das aktuelle Jahr laden
   const currentYear = new Date().getFullYear();
   const summaryData = await getSummaryData(currentYear);
+  
+  // Available years laden
+  const availableYears = await getAvailableYears();
 
-  return <FinanzenClientWrapper finances={finances} wohnungen={wohnungen} summaryData={summaryData} />;
+  return <FinanzenClientWrapper 
+    finances={finances} 
+    wohnungen={wohnungen} 
+    summaryData={summaryData}
+    initialAvailableYears={availableYears}
+  />;
 }
