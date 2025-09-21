@@ -106,7 +106,7 @@ export function SummaryCard({
       <Card
         className={cn(
           // Main-Style-Äquivalent: abgeleitet von main, ohne Opacity-Loading (Skeleton übernimmt)
-          "relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card",
+          "relative overflow-hidden rounded-2xl shadow-md transition-opacity duration-200 summary-card",
           // sichtbare Border wie im Main-Design
           "border",
           // Add cursor pointer and hover scale when onClick is provided
@@ -156,7 +156,7 @@ export function SummaryCardSkeleton({ className }: { className?: string }) {
   return (
     <Card
       className={cn(
-        "relative overflow-hidden rounded-xl shadow-md transition-opacity duration-200 summary-card",
+        "relative overflow-hidden rounded-2xl shadow-md transition-opacity duration-200 summary-card",
         // konsistent zur Hauptkarte: sichtbare Border
         "border",
         className

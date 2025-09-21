@@ -138,7 +138,7 @@ describe('BetriebskostenClientView - Layout Changes', () => {
       const { container } = render(<BetriebskostenClientView {...defaultProps} />);
 
       // Verify card structure
-      const card = container.querySelector('[class*="rounded-xl"][class*="shadow-md"]');
+      const card = container.querySelector('[class*="rounded-2xl"][class*="shadow-md"]');
       expect(card).toBeInTheDocument();
     });
   });
