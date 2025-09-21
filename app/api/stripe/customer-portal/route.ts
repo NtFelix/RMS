@@ -31,17 +31,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
-    const { return_url } = await request.json();
-
-    // Create customer portal session
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-                   (process.env.NODE_ENV === 'production' 
-                     ? 'https://your-domain.com' 
-                     : 'http://localhost:3000');
+    // Get the origin from the request headers for return URL
+    const origin = request.headers.get('origin') || 'http://localhost:3000';
     
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: return_url || `${baseUrl}/dashboard`,
+      return_url: `${origin}/dashboard`,
     });
 
     return NextResponse.json({
