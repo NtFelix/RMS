@@ -24,18 +24,13 @@ Created Supabase database functions that handle pagination internally and return
 
 ## Deployment Instructions
 
-### For New Deployments
 1. Open your Supabase SQL Editor
 2. Run the contents of `supabase/sql/finance_analytics_setup.sql`
 
-### For Existing Deployments (if you already ran the previous version)
-1. Open your Supabase SQL Editor
-2. Run the contents of `supabase/migrations/update_finance_functions.sql`
-
-This will update the existing functions with the new signatures required for chart data.
+The script includes `DROP FUNCTION IF EXISTS` statements to handle existing deployments safely.
 
 ### Troubleshooting
-If you get an error like "cannot change return type of existing function", it means you have the old function already deployed. Use the migration script in `supabase/migrations/update_finance_functions.sql` instead of the main setup file.
+If you encounter any issues with existing functions, the script will automatically drop and recreate them with the correct signatures.
 
 ## How It Works
 
