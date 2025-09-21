@@ -80,9 +80,12 @@ CREATE OR REPLACE FUNCTION get_financial_summary_data(
   target_year INTEGER
 )
 RETURNS TABLE (
+  id UUID,
   betrag DECIMAL,
   ist_einnahmen BOOLEAN,
-  datum DATE
+  datum DATE,
+  name TEXT,
+  wohnung_id UUID
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -90,9 +93,12 @@ AS $$
 BEGIN
   RETURN QUERY
   SELECT 
+    f.id,
     f.betrag,
     f.ist_einnahmen,
-    f.datum
+    f.datum,
+    f.name,
+    f.wohnung_id
   FROM "Finanzen" f
   WHERE EXTRACT(YEAR FROM f.datum) = target_year
     AND f.user_id = auth.uid()  -- Ensure RLS compliance
@@ -103,6 +109,45 @@ $$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_financial_summary_data(INTEGER) TO authenticated;
+
+-- Create a function to get complete financial data with apartment info for charts
+-- This function returns all necessary fields for chart generation
+CREATE OR REPLACE FUNCTION get_financial_chart_data(
+  target_year INTEGER
+)
+RETURNS TABLE (
+  id UUID,
+  betrag DECIMAL,
+  ist_einnahmen BOOLEAN,
+  datum DATE,
+  name TEXT,
+  wohnung_id UUID,
+  apartment_name TEXT
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    f.id,
+    f.betrag,
+    f.ist_einnahmen,
+    f.datum,
+    f.name,
+    f.wohnung_id,
+    w.name as apartment_name
+  FROM "Finanzen" f
+  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  WHERE EXTRACT(YEAR FROM f.datum) = target_year
+    AND f.user_id = auth.uid()  -- Ensure RLS compliance
+    AND f.datum IS NOT NULL
+  ORDER BY f.datum;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_financial_chart_data(INTEGER) TO authenticated;
 
 -- Create a function to get aggregated financial summary for a year
 -- This provides pre-calculated totals to avoid client-side processing of large datasets
@@ -166,3 +211,4 @@ GRANT EXECUTE ON FUNCTION get_financial_year_summary(INTEGER) TO authenticated;
 -- Test the functions (optional - you can run these to verify they work)
 -- SELECT * FROM get_financial_summary_data(2024);
 -- SELECT * FROM get_financial_year_summary(2024);
+-- SELECT * FROM get_financial_chart_data(2024);

@@ -9,8 +9,9 @@ Created Supabase database functions that handle pagination internally and return
 ## Changes Made
 
 ### 1. New Supabase Functions
-- `get_financial_summary_data(target_year)`: Returns all transactions for a specific year
+- `get_financial_summary_data(target_year)`: Returns all transactions for a specific year (basic fields)
 - `get_financial_year_summary(target_year)`: Returns pre-calculated aggregated summary data
+- `get_financial_chart_data(target_year)`: Returns all transactions with apartment data for chart generation
 
 ### 2. Updated Files
 - `supabase/sql/finance_analytics_setup.sql`: Added new functions
@@ -19,6 +20,7 @@ Created Supabase database functions that handle pagination internally and return
 - `app/api/finanzen/charts/route.ts`: Updated to use pagination-safe functions
 - `app/api/finanzen/summary/route.ts`: Updated to use pagination-safe functions
 - `app/api/finanzen/years/route.ts`: Added pagination to available years query
+- `components/finance-visualization.tsx`: Fixed to use dynamic data from charts API instead of static data
 
 ## Deployment Instructions
 

@@ -51,33 +51,21 @@ export async function GET(request: Request) {
     let error: any = null;
     
     try {
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_summary_data', {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_financial_chart_data', {
         target_year: year
       });
       
       if (!rpcError && rpcData) {
         // Convert the RPC result to match our expected format
-        // Note: RPC function returns minimal data, so we need to fetch full data for charts
-        const { data: fullData, error: fullError } = await supabase
-          .from('Finanzen')
-          .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
-          .in('id', rpcData.map((item: any) => item.id))
-          .order('datum', { ascending: false });
-          
-        if (!fullError) {
-          data = fullData as FinancialItem[];
-        } else {
-          // If the full query fails, use the RPC data with limited fields
-          data = rpcData.map((item: any) => ({
-            id: item.id || '',
-            betrag: item.betrag,
-            ist_einnahmen: item.ist_einnahmen,
-            datum: item.datum,
-            name: item.name || '',
-            wohnung_id: item.wohnung_id || '',
-            Wohnungen: null
-          }));
-        }
+        data = rpcData.map((item: any) => ({
+          id: item.id,
+          betrag: item.betrag,
+          ist_einnahmen: item.ist_einnahmen,
+          datum: item.datum,
+          name: item.name || '',
+          wohnung_id: item.wohnung_id || '',
+          Wohnungen: item.apartment_name ? { name: item.apartment_name } : null
+        }));
       } else {
         throw new Error('RPC function failed or returned no data');
       }

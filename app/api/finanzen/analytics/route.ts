@@ -109,8 +109,10 @@ export async function GET(request: Request) {
         response = await handleFilteredSummary(supabase, searchParams);
         break;
       case 'chart-data':
-        console.log(`📈 [Finance Analytics] Handling chart data request for year ${year}`);
-        response = await handleChartData(supabase, year);
+        console.log(`📈 [Finance Analytics] Chart data action deprecated - use /api/finanzen/charts instead`);
+        return NextResponse.json({ 
+          error: 'Chart data action deprecated. Use /api/finanzen/charts endpoint instead.' 
+        }, { status: 410 });
         break;
       case 'available-years':
         console.log(`📅 [Finance Analytics] Handling available years request`);
@@ -304,29 +306,7 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
   return NextResponse.json(summary, { status: 200 });
 }
 
-async function handleChartData(supabase: any, year: number): Promise<Response> {
-  try {
-    console.log(`📈 [Finance Analytics] Chart Data: Starting data fetch for year ${year}`);
-    const chartStartTime = Date.now();
-    
-    const monthlyData = await getOptimizedMonthlyData(supabase, year);
-    
-    const chartDuration = Date.now() - chartStartTime;
-    console.log(`📊 [Finance Analytics] Chart Data: Completed in ${chartDuration}ms`);
-    
-    // Log summary of monthly data
-    const monthsWithData = Object.entries(monthlyData)
-      .filter(([_, data]) => data.income > 0 || data.expenses > 0)
-      .map(([month, _]) => parseInt(month) + 1); // Convert back to 1-based month numbers
-    
-    console.log(`📅 [Finance Analytics] Chart Data: Found data for months: ${monthsWithData.length > 0 ? monthsWithData.join(', ') : 'none'}`);
-    
-    return NextResponse.json({ monthlyData }, { status: 200 });
-  } catch (error) {
-    console.error('❌ [Finance Analytics] Chart data error:', error);
-    return NextResponse.json({ error: 'Failed to fetch chart data' }, { status: 500 });
-  }
-}
+
 
 async function handleAvailableYears(supabase: any): Promise<Response> {
   try {
