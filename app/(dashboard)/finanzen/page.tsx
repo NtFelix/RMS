@@ -124,39 +124,62 @@ async function getAvailableYears() {
     console.log('RPC function not available for years, using fallback');
   }
 
-  // Fallback to regular query
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('datum')
-    .not('datum', 'is', null);
-
-  if (error) {
-    console.error('Error fetching available years:', error);
-    return [new Date().getFullYear()]; // Return current year as fallback
-  }
-
+  // Fallback to regular query with pagination
   const currentYear = new Date().getFullYear();
   const years = new Set<number>();
   
   // Add current year by default
   years.add(currentYear);
   
-  // Process dates to extract years
-  data?.forEach(item => {
-    if (!item.datum) return;
-    
-    try {
-      const date = new Date(item.datum);
-      if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        if (year <= currentYear + 1) {
-          years.add(year);
-        }
+  try {
+    const pageSize = 1000;
+    let page = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('Finanzen')
+        .select('datum')
+        .not('datum', 'is', null)
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) {
+        console.error('Error fetching available years:', error);
+        break;
       }
-    } catch (e) {
-      console.warn('Invalid date format:', item.datum);
+
+      if (!data || data.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      // Process dates to extract years
+      data.forEach(item => {
+        if (!item.datum) return;
+        
+        try {
+          const date = new Date(item.datum);
+          if (!isNaN(date.getTime())) {
+            const year = date.getFullYear();
+            if (year <= currentYear + 1) {
+              years.add(year);
+            }
+          }
+        } catch (e) {
+          console.warn('Invalid date format:', item.datum);
+        }
+      });
+
+      // If we got fewer records than the page size, we've reached the end
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
     }
-  });
+  } catch (error) {
+    console.error('Error in pagination fallback for available years:', error);
+  }
 
   return Array.from(years).sort((a, b) => b - a);
 }
