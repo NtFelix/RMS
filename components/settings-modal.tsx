@@ -603,7 +603,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
       const { url } = await response.json();
       if (url) {
-        window.location.href = url;
+        // Validate URL has proper scheme
+        try {
+          new URL(url);
+          window.location.href = url;
+        } catch (urlError) {
+          throw new Error("Ungültige URL für Kundenportal erhalten.");
+        }
       } else {
         throw new Error("URL für Kundenportal nicht erhalten.");
       }
