@@ -130,6 +130,7 @@ function useSyncPathnameWithStore() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
+  // Sync with Next.js router changes
   useEffect(() => {
     store.updateActiveRoute(pathname)
   }, [pathname, store.updateActiveRoute])
