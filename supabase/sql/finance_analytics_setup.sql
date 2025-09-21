@@ -74,6 +74,9 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_finanzen_text_search 
 ON "Finanzen" USING gin((name || ' ' || COALESCE(notiz, '')) gin_trgm_ops);
 
+-- Drop existing function if it exists (required when changing return type)
+DROP FUNCTION IF EXISTS get_financial_summary_data(INTEGER);
+
 -- Create a function to get complete financial summary data for a year
 -- This function handles pagination internally and returns all transactions for accurate calculations
 CREATE OR REPLACE FUNCTION get_financial_summary_data(
