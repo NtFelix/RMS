@@ -124,14 +124,12 @@ export const useActiveStateStore = create<ActiveStateManager>()(
 )
 
 /**
- * Hook for managing active states across the application
- * Automatically syncs with Next.js router and navigation changes
+ * Custom hook to sync pathname with store - DRY principle
  */
-export function useActiveStateManager() {
+function useSyncPathnameWithStore() {
   const store = useActiveStateStore()
   const pathname = usePathname()
   
-  // Sync with Next.js router changes
   useEffect(() => {
     store.updateActiveRoute(pathname)
   }, [pathname, store.updateActiveRoute])
@@ -140,16 +138,18 @@ export function useActiveStateManager() {
 }
 
 /**
+ * Hook for managing active states across the application
+ * Automatically syncs with Next.js router and navigation changes
+ */
+export function useActiveStateManager() {
+  return useSyncPathnameWithStore()
+}
+
+/**
  * Hook specifically for sidebar navigation active states
  */
 export function useSidebarActiveState() {
-  const store = useActiveStateStore()
-  const pathname = usePathname()
-  
-  // Update active route when pathname changes
-  useEffect(() => {
-    store.updateActiveRoute(pathname)
-  }, [pathname, store.updateActiveRoute])
+  const store = useSyncPathnameWithStore()
   
   return {
     isRouteActive: store.isRouteActive,
@@ -221,13 +221,7 @@ export function useActiveStateSync() {
  * for components that need full active state functionality
  */
 export function useComprehensiveActiveState() {
-  const store = useActiveStateStore()
-  const pathname = usePathname()
-  
-  // Auto-sync with router
-  useEffect(() => {
-    store.updateActiveRoute(pathname)
-  }, [pathname, store.updateActiveRoute])
+  const store = useSyncPathnameWithStore()
   
   return {
     // Current state
