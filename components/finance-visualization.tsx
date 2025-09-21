@@ -170,17 +170,38 @@ export function FinanceVisualization({ finances, summaryData, availableYears }: 
       setError(null)
       
       try {
-        const response = await fetch(`/api/finanzen/charts?year=${selectedYear}`)
+        const response = await fetch(`/api/finanzen/analytics?action=chart-data&year=${selectedYear}`)
         if (!response.ok) {
           throw new Error(`Failed to load chart data: ${response.status} ${response.statusText}`)
         }
         
         const data = await response.json()
-        if (!data?.charts) {
+        if (!data?.monthlyData) {
           throw new Error('Invalid chart data format received from server')
         }
         
-        setChartData(data.charts)
+        // Transform the monthly data into chart format
+        const monthNames = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+        
+        const monthlyIncome = monthNames.map((month, index) => ({
+          month,
+          einnahmen: data.monthlyData[index]?.income || 0
+        }))
+        
+        const incomeExpenseRatio = monthNames.map((month, index) => ({
+          month,
+          einnahmen: data.monthlyData[index]?.income || 0,
+          ausgaben: data.monthlyData[index]?.expenses || 0
+        }))
+        
+        // For now, use static data for apartment and category breakdowns
+        // These would require additional API endpoints for proper implementation
+        setChartData({
+          monthlyIncome,
+          incomeExpenseRatio,
+          incomeByApartment: staticIncomeByApartment,
+          expenseCategories: staticExpenseCategories
+        })
       } catch (error) {
         let errorMessage = 'An unknown error occurred while loading chart data'
         

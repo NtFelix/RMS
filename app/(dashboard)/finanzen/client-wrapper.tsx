@@ -151,13 +151,14 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     setBalanceLoading(true);
     try {
       const params = new URLSearchParams({
+        action: 'filtered-summary',
         searchQuery: debouncedSearchQueryRef.current,
         selectedApartment: filtersRef.current.selectedApartment,
         selectedYear: filtersRef.current.selectedYear,
         selectedType: filtersRef.current.selectedType
       });
       
-      const response = await fetch(`/api/finanzen/balance?${params.toString()}`);
+      const response = await fetch(`/api/finanzen/analytics?${params.toString()}`);
       if (response.ok) {
         const { totalBalance, totalIncome, totalExpenses } = await response.json();
         setTotalBalance(totalBalance);
@@ -180,7 +181,7 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
     setIsSummaryLoading(true);
     try {
       const currentYear = new Date().getFullYear();
-      const response = await fetch(`/api/finanzen/summary?year=${currentYear}`);
+      const response = await fetch(`/api/finanzen/analytics?action=summary&year=${currentYear}`);
       if (response.ok) {
         const newSummaryData = await response.json();
         setSummaryData(newSummaryData);

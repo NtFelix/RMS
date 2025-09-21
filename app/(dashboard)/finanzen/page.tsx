@@ -4,63 +4,32 @@ export const dynamic = 'force-dynamic';
 import FinanzenClientWrapper from "./client-wrapper";
 import { createClient } from "@/utils/supabase/server";
 
-import { calculateFinancialSummary } from "@/utils/financeCalculations";
+
 import { PAGINATION } from "@/constants";
 
 async function getSummaryData(year: number) {
   const supabase = await createClient();
   
-  // Calculate date range for the specified year
-  const startDate = `${year}-01-01`;
-  const endDate = `${year}-12-31`;
-  
-  let allTransactions: any[] = [];
-  let page = 0;
-  const pageSize = 5000; // Increased batch size for better performance
-  let hasMore = true;
-  
   try {
-    // Fetch all financial data for the specified year with pagination
-    while (hasMore) {
-      const from = page * pageSize;
-      const to = (page + 1) * pageSize - 1;
+    // For server-side rendering, we'll use direct database queries
+    // The client-side will use the optimized analytics API
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+    
+    const { data, error } = await supabase
+      .from('Finanzen')
+      .select('betrag, ist_einnahmen, datum')
+      .gte('datum', startDate)
+      .lte('datum', endDate);
       
-      const { data, error, count } = await supabase
-        .from('Finanzen')
-        .select('id, betrag, ist_einnahmen, datum', { count: 'exact' })
-        .gte('datum', startDate)
-        .lte('datum', endDate)
-        .order('datum', { ascending: false })
-        .range(from, to);
-        
-      if (error) {
-        console.error('Error fetching summary data:', error);
-        return null;
-      }
-      
-      if (data && data.length > 0) {
-        allTransactions = [...allTransactions, ...data];
-        page++;
-        
-        // If we got fewer records than the page size, we've reached the end
-        if (!data || data.length < pageSize) {
-          hasMore = false;
-        }
-      } else {
-        hasMore = false;
-      }
+    if (error) {
+      console.error('Error fetching summary data:', error);
+      return null;
     }
-    
-    // Map the data to match the Finanzen type expected by calculateFinancialSummary
-    const transactions = allTransactions.map(item => ({
-      id: item.id,
-      betrag: item.betrag,
-      ist_einnahmen: item.ist_einnahmen,
-      datum: item.datum
-    }));
-    
-    // Use the shared utility function to calculate the summary
-    return calculateFinancialSummary(transactions, year, new Date());
+
+    // Calculate summary using the utility function
+    const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+    return calculateFinancialSummary(data || [], year, new Date());
   } catch (error) {
     console.error('Error in getSummaryData:', error);
     return null;
