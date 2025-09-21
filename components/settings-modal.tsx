@@ -593,7 +593,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const response = await fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeCustomerId: profile.stripe_customer_id }),
+        body: JSON.stringify({ 
+          stripeCustomerId: profile.stripe_customer_id,
+          return_url: window.location.href
+        }),
       });
 
       if (!response.ok) {
