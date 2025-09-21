@@ -5,45 +5,46 @@ import Image from "next/image"
 import { Home, Building2, Users, Wallet, FileSpreadsheet, CheckSquare } from "lucide-react"
 import { LOGO_URL } from "@/lib/constants"
 
+const quickLinks = [
+  {
+    title: "Dashboard",
+    href: "/home",
+    icon: Home,
+    description: "Zurück zur Übersicht"
+  },
+  {
+    title: "Häuser",
+    href: "/haeuser",
+    icon: Building2,
+    description: "Immobilien verwalten"
+  },
+  {
+    title: "Mieter",
+    href: "/mieter",
+    icon: Users,
+    description: "Mieter verwalten"
+  },
+  {
+    title: "Finanzen",
+    href: "/finanzen",
+    icon: Wallet,
+    description: "Finanzübersicht"
+  },
+  {
+    title: "Betriebskosten",
+    href: "/betriebskosten",
+    icon: FileSpreadsheet,
+    description: "Nebenkosten verwalten"
+  },
+  {
+    title: "Aufgaben",
+    href: "/todos",
+    icon: CheckSquare,
+    description: "To-Do Liste"
+  }
+]
+
 export default function NotFound() {
-  const quickLinks = [
-    {
-      title: "Dashboard",
-      href: "/home",
-      icon: Home,
-      description: "Zurück zur Übersicht"
-    },
-    {
-      title: "Häuser",
-      href: "/haeuser",
-      icon: Building2,
-      description: "Immobilien verwalten"
-    },
-    {
-      title: "Mieter",
-      href: "/mieter",
-      icon: Users,
-      description: "Mieter verwalten"
-    },
-    {
-      title: "Finanzen",
-      href: "/finanzen",
-      icon: Wallet,
-      description: "Finanzübersicht"
-    },
-    {
-      title: "Betriebskosten",
-      href: "/betriebskosten",
-      icon: FileSpreadsheet,
-      description: "Nebenkosten verwalten"
-    },
-    {
-      title: "Aufgaben",
-      href: "/todos",
-      icon: CheckSquare,
-      description: "To-Do Liste"
-    }
-  ]
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
