@@ -18,7 +18,6 @@ import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import an
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
-import SubscriptionManagement from '@/components/subscription-management';
 import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
 import SubscriptionPaymentHistory from '@/components/subscription-payment-history';
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
