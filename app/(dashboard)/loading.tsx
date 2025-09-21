@@ -9,7 +9,7 @@ export default function Loading() {
       </div>
       <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
         {/* Row 1: Three summary cards (1+2+1 columns) + Tenant Payment List (2 columns) */}
-        <Card className="col-span-1 row-span-1 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-1 row-span-1 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <Skeleton className="h-4 w-16" />
             <Skeleton className="h-8 w-8 rounded-lg" />
@@ -20,7 +20,7 @@ export default function Loading() {
           </CardContent>
         </Card>
         
-        <Card className="col-span-2 row-span-1 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-2 row-span-1 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-8 w-8 rounded-lg" />
@@ -31,7 +31,7 @@ export default function Loading() {
           </CardContent>
         </Card>
         
-        <Card className="col-span-1 row-span-1 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-1 row-span-1 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <Skeleton className="h-4 w-12" />
             <Skeleton className="h-8 w-8 rounded-lg" />
@@ -43,7 +43,7 @@ export default function Loading() {
         </Card>
         
         {/* Tenant Payment List */}
-        <Card className="col-span-2 row-span-4 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-2 row-span-4 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-3 w-48" />
@@ -65,7 +65,7 @@ export default function Loading() {
         </Card>
 
         {/* Row 2: Occupancy Chart (4 columns, 3 rows) */}
-        <Card className="col-span-4 row-span-3 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-4 row-span-3 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-24" />
             <Skeleton className="h-3 w-40" />
@@ -76,7 +76,7 @@ export default function Loading() {
         </Card>
 
         {/* Row 5: Revenue Chart (4 columns, 3 rows) + Stacked summary cards (2 columns, 3 rows) */}
-        <Card className="col-span-4 row-span-3 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-4 row-span-3 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-3 w-48" />
@@ -88,7 +88,7 @@ export default function Loading() {
         
         {/* Vertically stacked summary cards */}
         <div className="col-span-2 row-span-3 h-full flex flex-col gap-4">
-          <Card className="flex-1 overflow-hidden rounded-xl shadow-md">
+          <Card className="flex-1 overflow-hidden rounded-2xl shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-16" />
               <Skeleton className="h-8 w-8 rounded-lg" />
@@ -102,7 +102,7 @@ export default function Loading() {
             </CardContent>
           </Card>
           
-          <Card className="flex-1 overflow-hidden rounded-xl shadow-md">
+          <Card className="flex-1 overflow-hidden rounded-2xl shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-8 w-8 rounded-lg" />
@@ -116,7 +116,7 @@ export default function Loading() {
             </CardContent>
           </Card>
           
-          <Card className="flex-1 overflow-hidden rounded-xl shadow-md">
+          <Card className="flex-1 overflow-hidden rounded-2xl shadow-md">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-8 w-8 rounded-lg" />
@@ -132,7 +132,7 @@ export default function Loading() {
         </div>
 
         {/* Row 8: Last Transactions (3 columns) + Maintenance Chart (3 columns) */}
-        <Card className="col-span-3 row-span-3 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-3 row-span-3 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-3 w-40" />
@@ -153,7 +153,7 @@ export default function Loading() {
           </CardContent>
         </Card>
         
-        <Card className="col-span-3 row-span-3 h-full overflow-hidden rounded-xl shadow-md">
+        <Card className="col-span-3 row-span-3 h-full overflow-hidden rounded-2xl shadow-md">
           <CardHeader className="pb-3">
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-3 w-36" />

@@ -59,6 +59,8 @@ const DialogContent = React.forwardRef<
         target?.closest('[role="option"]') ||
         target?.closest('[role="listbox"]') ||
         target?.closest('[data-dialog-ignore-interaction]') ||
+        target?.closest('[data-combobox-dropdown]') ||
+        target?.hasAttribute('data-combobox-input') ||
         target?.tagName === 'INPUT' && target?.closest('[data-radix-popover-content]')) {
       // Allow interactions with combobox elements - just return without preventing
       return;
@@ -89,7 +91,7 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6 border bg-background p-8 shadow-xl duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-2xl backdrop-blur-sm",
           className
         )}
         onInteractOutside={handleInteraction} // Assign the correctly typed handler
@@ -101,6 +103,21 @@ const DialogContent = React.forwardRef<
           // Prevent auto focus on close
           e.preventDefault();
         }}
+        onFocusOutside={(e) => {
+          // Don't prevent focus from moving to combobox elements or when combobox is actively being used
+          const target = e.target as Element;
+          const activeComboboxInput = document.querySelector('[data-combobox-active="true"]')
+          
+          if (target?.hasAttribute('data-combobox-input') || 
+              target?.hasAttribute('data-combobox-active') ||
+              target?.closest('[data-dialog-ignore-interaction]') ||
+              target?.closest('[data-combobox-dropdown]') ||
+              target?.closest('[role="listbox"]') ||
+              target?.closest('[role="option"]') ||
+              activeComboboxInput) {
+            e.preventDefault();
+          }
+        }}
         {...props}
       >
         {/* Always add a fallback DialogTitle for accessibility - will be overridden by actual DialogTitle if present */}
@@ -109,7 +126,7 @@ const DialogContent = React.forwardRef<
         {!hideCloseButton && (
           <DialogPrimitive.Close
             onClick={handleCloseButtonClick}
-            className="absolute right-4 top-4 rounded-full p-3 opacity-70 ring-offset-background transition-all duration-200 hover:opacity-100 hover:bg-gray-200 hover:scale-105 active:scale-95 hover:shadow-md dark:modal-close-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
+            className="absolute right-6 top-6 rounded-full p-2.5 opacity-70 ring-offset-background transition-all duration-300 hover:opacity-100 hover:bg-gray-100 hover:scale-110 active:scale-95 hover:shadow-lg hover:rotate-90 dark:modal-close-hover focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
           >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>

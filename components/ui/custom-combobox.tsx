@@ -54,6 +54,15 @@ export function CustomCombobox({
   const [inputValue, setInputValue] = React.useState("")
   const [buttonRect, setButtonRect] = React.useState<DOMRect | null>(null)
   const [highlightedIndex, setHighlightedIndex] = React.useState(-1)
+  const [isKeyboardNavigation, setIsKeyboardNavigation] = React.useState(false)
+
+  const closeCombobox = React.useCallback(() => {
+    setOpen(false)
+    // Clean up active flag when closing
+    if (inputRef.current) {
+      inputRef.current.removeAttribute('data-combobox-active')
+    }
+  }, [])
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
@@ -74,6 +83,7 @@ export function CustomCombobox({
     switch (key) {
       case 'ArrowDown':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(prev => {
           const nextIndex = prev < filteredOptions.length - 1 ? prev + 1 : 0
           return nextIndex
@@ -82,6 +92,7 @@ export function CustomCombobox({
         
       case 'ArrowUp':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(prev => {
           const nextIndex = prev > 0 ? prev - 1 : filteredOptions.length - 1
           return nextIndex
@@ -94,7 +105,7 @@ export function CustomCombobox({
           const selectedOption = filteredOptions[highlightedIndex]
           if (!selectedOption.disabled) {
             onChange(selectedOption.value === value ? null : selectedOption.value)
-            setOpen(false)
+            closeCombobox()
             buttonRef.current?.focus()
           }
         }
@@ -102,35 +113,71 @@ export function CustomCombobox({
         
       case 'Escape':
         event.preventDefault()
-        setOpen(false)
+        closeCombobox()
         buttonRef.current?.focus()
         break
         
       case 'Home':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(0)
         break
         
       case 'End':
         event.preventDefault()
+        setIsKeyboardNavigation(true)
         setHighlightedIndex(filteredOptions.length - 1)
         break
         
       case 'Tab':
         // Allow tab to close dropdown and move focus
-        setOpen(false)
+        closeCombobox()
         break
     }
   }, [filteredOptions, highlightedIndex, value, onChange])
+
+  // Global dropdown coordination - close other dropdowns when this opens
+  React.useEffect(() => {
+    if (open) {
+      // Dispatch custom event to close other dropdowns
+      window.dispatchEvent(new CustomEvent('dropdown-opened', { 
+        detail: { source: buttonRef.current } 
+      }))
+    }
+  }, [open])
+
+  // Listen for other dropdowns opening
+  React.useEffect(() => {
+    const handleOtherDropdownOpened = (event: CustomEvent) => {
+      // Close this combobox if another dropdown opened (but not if it's this one)
+      if (event.detail.source !== buttonRef.current && open) {
+        closeCombobox()
+      }
+    }
+
+    window.addEventListener('dropdown-opened', handleOtherDropdownOpened as EventListener)
+    
+    return () => {
+      window.removeEventListener('dropdown-opened', handleOtherDropdownOpened as EventListener)
+    }
+  }, [open, closeCombobox])
 
   // Reset input and highlighted index when opening/closing
   React.useEffect(() => {
     if (!open) {
       setInputValue("")
       setHighlightedIndex(-1)
+      setIsKeyboardNavigation(false)
+      // Reset buttonRect when closing so it gets recaptured fresh next time
+      setButtonRect(null)
+      
+      // Only return focus to button when closing if no other element should have focus
+      if (buttonRef.current && document.activeElement === inputRef.current) {
+        buttonRef.current.focus()
+      }
     } else {
-      // Get button position when opening
-      if (buttonRef.current) {
+      // Capture button position only once when opening (not on subsequent renders)
+      if (buttonRef.current && !buttonRect) {
         const rect = buttonRef.current.getBoundingClientRect()
         setButtonRect(rect)
       }
@@ -138,37 +185,21 @@ export function CustomCombobox({
       // Set initial highlighted index to current selection or first option
       const currentIndex = filteredOptions.findIndex(option => option.value === value)
       setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
+      // Start in mouse mode by default
+      setIsKeyboardNavigation(false)
       
-      // AGGRESSIVE focus management - try multiple approaches
-      const focusInput = () => {
-        if (inputRef.current) {
-          // Remove any existing focus
-          if (document.activeElement && 'blur' in document.activeElement) {
-            (document.activeElement as HTMLElement).blur()
+      // Focus the input when opening - simplified
+      if (inputRef.current) {
+        setTimeout(() => {
+          if (inputRef.current && open) {
+            inputRef.current.focus({ preventScroll: true })
           }
-          
-          // Force focus
-          inputRef.current.focus()
-          
-          // Set cursor to end
-          const len = inputRef.current.value.length
-          inputRef.current.setSelectionRange(len, len)
-        }
+        }, 50)
       }
-
-      // Try focusing immediately and again after the next frame to handle race conditions
-      focusInput()
-      requestAnimationFrame(focusInput)
     }
-  }, [open, filteredOptions, value])
+  }, [open])
 
-  // Reset highlighted index when filtered options change
-  React.useEffect(() => {
-    if (open && filteredOptions.length > 0) {
-      const currentIndex = filteredOptions.findIndex(option => option.value === value)
-      setHighlightedIndex(currentIndex >= 0 ? currentIndex : 0)
-    }
-  }, [filteredOptions, value, open])
+
 
   // Scroll highlighted option into view
   React.useEffect(() => {
@@ -180,80 +211,64 @@ export function CustomCombobox({
     }
   }, [highlightedIndex, open])
 
-  // Handle keyboard navigation, typing capture, and outside clicks
+  // Handle keyboard navigation and outside clicks
   React.useEffect(() => {
     if (!open) return
 
+
+
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element
+      
+      // Close if clicking outside this combobox
       if (!dropdownRef.current?.contains(target as Node) && 
           !buttonRef.current?.contains(target as Node)) {
-        setOpen(false)
+        
+        // Check if clicking on another dropdown trigger or interactive element
+        const isClickingOnInteractiveElement = target.closest('[role="button"], [role="combobox"], button, [data-dropdown-trigger]')
+        
+        closeCombobox()
+        
+        // If clicking on another interactive element, let it handle the interaction
+        if (isClickingOnInteractiveElement) {
+          return
+        }
       }
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!open) return
 
-      // If the input is focused, let it handle everything except escape
+      // Only handle keyboard events if the combobox button is focused
+      const isComboboxFocused = document.activeElement === buttonRef.current
       const isInputFocused = document.activeElement === inputRef.current
       
+      if (!isComboboxFocused && !isInputFocused) {
+        // If neither the button nor input is focused, don't interfere with typing
+        return
+      }
+
+      // If the input is focused, don't handle navigation here - let the input's onKeyDown handle it
       if (isInputFocused) {
-        // Only handle escape when input is focused
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          setOpen(false)
-          buttonRef.current?.focus()
-        }
         return
       }
       
-      // Check if this is a printable character for typing
-      const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
-      
-      // Handle keys when input is not focused
+      // Handle keys when combobox button is focused
       const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
       
       if (navigationKeys.includes(event.key)) {
         handleNavigationKey(event.key, event)
       } else {
-        // Handle non-navigation keys
-        switch (event.key) {
-          case 'Backspace':
-          case 'Delete':
-            event.preventDefault()
-            if (inputRef.current) {
-              inputRef.current.focus()
-              
-              // Handle Cmd+Delete (or Cmd+Backspace) to clear entire input
-              if (event.metaKey || event.ctrlKey) {
-                setInputValue('')
-              } else {
-                // Handle single character deletion shortcuts (when input is not focused)
-                if (event.key === 'Backspace') {
-                  // Backspace shortcut: focus input and remove last character
-                  setInputValue(prev => prev.slice(0, -1))
-                } else if (event.key === 'Delete') {
-                  // Delete shortcut: focus input but preserve value
-                  // This allows user to then use native Delete behavior (remove char to right of cursor)
-                }
-              }
-              setHighlightedIndex(0)
-            }
-            break
-            
-          default:
-            // Handle printable characters for auto-typing
-            if (isPrintableChar) {
-              event.preventDefault()
-              if (inputRef.current) {
-                // Focus the input and add the character
-                inputRef.current.focus()
-                setInputValue(prev => prev + event.key)
-                setHighlightedIndex(0)
-              }
-            }
-            break
+        // Handle typing only when the combobox button is focused
+        const isPrintableChar = event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey
+        if (isPrintableChar) {
+          event.preventDefault()
+          if (inputRef.current) {
+            // Focus the input and add the character
+            inputRef.current.focus()
+            setInputValue(event.key)
+            setHighlightedIndex(0)
+          }
         }
       }
     }
@@ -270,12 +285,35 @@ export function CustomCombobox({
 
   // Handle mouse hover to update highlighted index
   const handleOptionMouseEnter = (index: number) => {
-    setHighlightedIndex(index)
+    // Only update highlight on mouse hover if we're not in keyboard navigation mode
+    if (!isKeyboardNavigation) {
+      setHighlightedIndex(index)
+    }
+  }
+
+  // Reset keyboard navigation mode when mouse moves
+  const handleOptionMouseMove = () => {
+    if (isKeyboardNavigation) {
+      setIsKeyboardNavigation(false)
+    }
   }
 
   const handleButtonClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
+    
+    // Prevent any form validation from being triggered
+    const form = e.currentTarget.closest('form')
+    if (form) {
+      // Temporarily disable form validation
+      const originalNoValidate = form.noValidate
+      form.noValidate = true
+      
+      // Restore original validation state after a delay
+      setTimeout(() => {
+        form.noValidate = originalNoValidate
+      }, 100)
+    }
     
     if (!disabled) {
       setOpen(!open)
@@ -284,24 +322,77 @@ export function CustomCombobox({
 
   const handleInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.stopPropagation()
-    // Ensure the input stays focused
-    if (e.target !== document.activeElement) {
-      e.target.focus()
+    
+    // Mark this input as actively focused
+    e.target.setAttribute('data-combobox-active', 'true')
+  }
+
+  const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const relatedTarget = e.relatedTarget as Element
+    
+    // Always clean up the active flag when blurring
+    e.target.removeAttribute('data-combobox-active')
+    
+    // Allow blur to combobox options, buttons, or other valid form elements
+    if (relatedTarget && (
+      relatedTarget.closest('[role="option"]') ||
+      relatedTarget.closest('[data-dropdown-trigger]') ||
+      relatedTarget === buttonRef.current ||
+      relatedTarget.closest('button') ||
+      relatedTarget.tagName === 'BUTTON'
+    )) {
+      return
+    }
+    
+    // If focus is moving to another input in the same form, allow it
+    if (relatedTarget && (
+      relatedTarget.tagName === 'INPUT' ||
+      relatedTarget.tagName === 'SELECT' ||
+      relatedTarget.tagName === 'TEXTAREA'
+    )) {
+      return
+    }
+    
+    // For clicking outside the combobox, close it
+    if (open && !relatedTarget) {
+      // Small delay to allow option clicks to register
+      setTimeout(() => {
+        if (open) {
+          closeCombobox()
+        }
+      }, 150)
     }
   }
 
   const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
     e.stopPropagation()
-    e.preventDefault()
     
-    // Force focus
+    // Prevent any form validation from being triggered
+    const form = e.currentTarget.closest('form')
+    if (form) {
+      // Temporarily disable form validation
+      const originalNoValidate = form.noValidate
+      form.noValidate = true
+      
+      // Restore original validation state after a delay
+      setTimeout(() => {
+        form.noValidate = originalNoValidate
+      }, 100)
+    }
+    
+    // Mark as active and ensure focus
     const input = e.currentTarget
-    input.focus()
+    input.setAttribute('data-combobox-active', 'true')
     
-    // Set cursor to end
-    const len = input.value.length
-    input.setSelectionRange(len, len)
+    // Simple focus without preventing default (allow normal input behavior)
+    if (document.activeElement !== input) {
+      input.focus({ preventScroll: true })
+    }
+    
+    // Don't set cursor position - let the browser handle it naturally
   }
+
+
 
   return (
     <>
@@ -309,68 +400,78 @@ export function CustomCombobox({
         ref={buttonRef}
         variant="outline"
         role="combobox"
+        tabIndex={disabled ? -1 : 0}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label={id ? undefined : (selectedOption ? `Selected: ${selectedOption.label}` : placeholder)}
         className={cn("justify-between", width, !value && "text-muted-foreground")}
         disabled={disabled}
         id={id}
+        data-dropdown-trigger
         onClick={handleButtonClick}
-        onMouseDown={(e) => e.preventDefault()} // Prevent focus issues
         onKeyDown={(e) => {
-          // Check if this is a printable character
-          const isPrintableChar = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey
-          
-          // Handle keyboard opening and typing
+          // Handle keyboard opening - only for specific navigation keys, not typing
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             if (!open) {
               setOpen(true)
             }
-          } else if (isPrintableChar && !open) {
-            // Open dropdown and start typing
-            e.preventDefault()
-            setOpen(true)
-            // Set the initial input value
-            setTimeout(() => {
-              setInputValue(e.key)
-              setHighlightedIndex(0)
-            }, 0)
           }
+          // Remove automatic opening on typing - user must click to open
         }}
       >
         {selectedOption ? selectedOption.label : placeholder}
         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </Button>
 
-      {open && buttonRect && createPortal(
-        <div
-          ref={dropdownRef}
-          role="listbox"
-          aria-label="Options"
-          className={cn(
-            "fixed bg-popover border border-border rounded-md shadow-lg p-0 pointer-events-auto",
-            width
-          )}
-          style={{
-            top: buttonRect.bottom + window.scrollY + 4,
-            left: buttonRect.left + window.scrollX,
-            width: buttonRect.width,
-            zIndex: 'var(--z-index-portal-dropdown)',
-            pointerEvents: 'auto'
-          }}
-          onMouseDown={(e) => {
-            // Only stop propagation for non-scroll interactions
-            const target = e.target as Element
-            if (!target.closest('[data-scroll-area]')) {
+      {open && buttonRect && (() => {
+        const isInModal = buttonRef.current?.closest('[role="dialog"]')
+        const portalTarget = isInModal ? isInModal : document.body
+        
+        // Calculate position based on portal target
+        let top, left
+        if (isInModal) {
+          // When portaling to modal, calculate position relative to modal
+          const modalRect = isInModal.getBoundingClientRect()
+          top = buttonRect.bottom - modalRect.top + 4
+          left = buttonRect.left - modalRect.left
+        } else {
+          // When portaling to body, use viewport coordinates
+          top = buttonRect.bottom + window.scrollY + 4
+          left = buttonRect.left + window.scrollX
+        }
+        
+        return createPortal(
+          <div
+            ref={dropdownRef}
+            role="listbox"
+            aria-label="Options"
+            className={cn(
+              isInModal ? "absolute" : "fixed",
+              "bg-popover border border-border rounded-2xl shadow-xl p-0 pointer-events-auto backdrop-blur-sm",
+              width
+            )}
+            style={{
+              top,
+              left,
+              width: buttonRect.width,
+              zIndex: isInModal ? 9999 : 'var(--z-index-portal-dropdown)',
+              pointerEvents: 'auto'
+            }}
+            data-dialog-ignore-interaction
+            data-combobox-dropdown
+            onMouseDown={(e) => {
+              // Only stop propagation for non-scroll interactions
+              const target = e.target as Element
+              if (!target.closest('[data-scroll-area]')) {
+                e.stopPropagation()
+              }
+            }}
+            onWheel={(e) => {
+              // Allow wheel events to pass through for scrolling
               e.stopPropagation()
-            }
-          }}
-          onWheel={(e) => {
-            // Allow wheel events to pass through for scrolling
-            e.stopPropagation()
-          }}
-        >
+            }}
+          >
           <div className="flex flex-col">
             {/* Custom search input with aggressive focus management */}
             <div className="flex items-center border-b px-3 py-2">
@@ -382,8 +483,10 @@ export function CustomCombobox({
                 placeholder={searchPlaceholder}
                 value={inputValue}
                 onChange={(e) => {
+                  e.stopPropagation()
                   setInputValue(e.target.value)
-                  // Reset highlighted index when searching
+                  // Reset highlighted index when searching and enable keyboard navigation
+                  setIsKeyboardNavigation(true)
                   setHighlightedIndex(0)
                 }}
                 onKeyDown={(e) => {
@@ -391,34 +494,36 @@ export function CustomCombobox({
                   const navigationKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Home', 'End', 'Tab']
                   
                   if (navigationKeys.includes(e.key)) {
+                    // Stop propagation to prevent the global handler from also processing this event
+                    e.stopPropagation()
                     handleNavigationKey(e.key, e)
                   }
-                  // For all other keys (including text input, Cmd+A, Cmd+C, Cmd+V, Cmd+Delete, etc.)
-                  // let the native input handle them and just update our state
-                  // Don't prevent default or stop propagation
+                  // For all other keys, let the browser handle them naturally
                 }}
-                onFocus={handleInputFocus}
-                onClick={handleInputClick}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="flex h-8 w-full rounded-md bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                style={{ 
-                  pointerEvents: 'auto',
-                  userSelect: 'text',
-                  WebkitUserSelect: 'text'
+                onFocus={(e) => {
+                  e.stopPropagation()
+                  e.target.setAttribute('data-combobox-active', 'true')
                 }}
+                onBlur={(e) => {
+                  e.target.removeAttribute('data-combobox-active')
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                }}
+                className="flex h-8 w-full rounded-lg bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
                 autoComplete="off"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck="false"
-                tabIndex={0}
                 data-dialog-ignore-interaction
+                data-combobox-input
               />
             </div>
             
             {/* Custom options list with proper scrolling */}
             <div 
               data-scroll-area=""
-              className="max-h-[300px] overflow-y-auto p-1"
+              className="max-h-[300px] overflow-y-auto p-2"
               style={{ 
                 pointerEvents: 'auto',
                 overscrollBehavior: 'contain',
@@ -458,19 +563,29 @@ export function CustomCombobox({
                     aria-selected={value === option.value}
                     aria-disabled={option.disabled}
                     className={cn(
-                      "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none",
-                      "hover:bg-accent hover:text-accent-foreground",
-                      highlightedIndex === index && "bg-accent text-accent-foreground",
-                      option.disabled && "pointer-events-none opacity-50"
+                      "relative flex cursor-default select-none items-center rounded-lg px-2 py-1.5 my-0.5 text-sm outline-none transition-colors",
+                      option.disabled
+                        ? "pointer-events-none opacity-50"
+                        : [
+                            // Base interactive styles
+                            "cursor-pointer",
+                            // Keyboard navigation highlight (takes priority)
+                            isKeyboardNavigation && highlightedIndex === index && "bg-accent text-accent-foreground",
+                            // Mouse hover styles (only when not in keyboard navigation mode)
+                            !isKeyboardNavigation && "hover:bg-accent hover:text-accent-foreground",
+                            // Mouse hover highlight (when not in keyboard mode)
+                            !isKeyboardNavigation && highlightedIndex === index && "bg-accent text-accent-foreground"
+                          ]
                     )}
                     onClick={() => {
                       if (!option.disabled) {
                         onChange(option.value === value ? null : option.value)
-                        setOpen(false)
+                        closeCombobox()
                         buttonRef.current?.focus()
                       }
                     }}
                     onMouseEnter={() => handleOptionMouseEnter(index)}
+                    onMouseMove={handleOptionMouseMove}
                     onMouseDown={(e) => {
                       // Only prevent default for selection, not scrolling
                       if (e.button === 0) { // Left click only
@@ -491,9 +606,10 @@ export function CustomCombobox({
               )}
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          portalTarget
+        )
+      })()}
     </>
   )
 }

@@ -134,7 +134,7 @@ export function TenantTable({ tenants, wohnungen, filter, searchQuery, onEdit, o
   )
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>

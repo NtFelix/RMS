@@ -11,7 +11,7 @@ export default function Loading() {
         <SummaryCardSkeleton title="Wohnungen" icon={<Home className="h-4 w-4 text-muted-foreground" />} />
         <SummaryCardSkeleton title="Freie Wohnungen" icon={<Key className="h-4 w-4 text-muted-foreground" />} />
       </div>
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40 mb-2" />
         </CardHeader>

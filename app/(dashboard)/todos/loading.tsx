@@ -8,7 +8,7 @@ export default function Loading() {
         <Skeleton className="h-8 w-48 mb-2" />
         <Skeleton className="h-4 w-64" />
       </div>
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <Skeleton className="h-6 w-40 mb-2" />
         </CardHeader>

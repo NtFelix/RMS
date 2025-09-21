@@ -114,7 +114,7 @@ export function OccupancyChart() {
   }, []);
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col rounded-xl">
       <CardHeader className="flex-shrink-0 pb-2">
         <CardTitle className="text-lg">Belegung</CardTitle>
         <CardDescription>Wohnungsbelegung nach Monat</CardDescription>

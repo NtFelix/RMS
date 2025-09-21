@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { ButtonWithTooltip } from "@/components/ui/button-with-tooltip"
 import { Search, Download, Edit, Trash, ChevronsUpDown, ArrowUp, ArrowDown, Loader2, CheckCircle2, Filter, Database, PlusCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FinanceContextMenu } from "@/components/finance-context-menu"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
@@ -219,20 +219,25 @@ export function FinanceTransactions({
                   emptyText="Kein Jahr gefunden"
                   width="w-full"
                 />
-                <Select value={filters.selectedType} onValueChange={(value) => handleFilterChange('selectedType', value)}>
-                  <SelectTrigger><SelectValue placeholder="Transaktionstyp auswählen" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Alle Transaktionen">Alle Transaktionen</SelectItem>
-                    <SelectItem value="Einnahme">Einnahme</SelectItem>
-                    <SelectItem value="Ausgabe">Ausgabe</SelectItem>
-                  </SelectContent>
-                </Select>
+                <CustomCombobox
+                  options={[
+                    { value: "Alle Transaktionen", label: "Alle Transaktionen" },
+                    { value: "Einnahme", label: "Einnahme" },
+                    { value: "Ausgabe", label: "Ausgabe" }
+                  ]}
+                  value={filters.selectedType}
+                  onChange={(value) => handleFilterChange('selectedType', value ?? 'Alle Transaktionen')}
+                  placeholder="Transaktionstyp auswählen"
+                  searchPlaceholder="Typ suchen..."
+                  emptyText="Kein Typ gefunden"
+                  width="w-full"
+                />
                 <div className="relative col-span-1 sm:col-span-2">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
                     type="search" 
                     placeholder="Transaktion suchen..." 
-                    className="pl-8" 
+                    className="pl-10" 
                     value={filters.searchQuery} 
                     onChange={(e) => handleFilterChange('searchQuery', e.target.value)} 
                   />
@@ -242,7 +247,7 @@ export function FinanceTransactions({
                 <ButtonWithTooltip variant="outline" size="sm" onClick={handleExportCsv}><Download className="mr-2 h-4 w-4" />Als CSV exportieren</ButtonWithTooltip>
               </div>
             </div>
-            <div className="rounded-md border relative min-h-[60vh]">
+            <div className="rounded-lg border relative min-h-[60vh]">
               {isFilterLoading && (
                 <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-10 rounded-md flex items-center justify-center">
                   <div className="flex flex-col items-center gap-3 p-6">

@@ -387,7 +387,7 @@ export function ApartmentTenantDetailsModal() {
                         </div>
                         <div className="space-y-2 pl-6">
                           {apartmentTenantDetailsData.tenant.paymentHistory.map((payment) => (
-                            <div key={payment.id} className="flex items-center justify-between p-2 border rounded">
+                            <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg transition-colors duration-150 hover:bg-accent/50">
                               <div className="flex items-center gap-2">
                                 <span className="text-sm">{formatDate(payment.date)}</span>
                                 {payment.description && (
@@ -525,7 +525,7 @@ function ApartmentTenantDetailsSkeleton({
             </div>
             <div className="space-y-2 pl-6">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="flex items-center justify-between p-2 border rounded">
+                <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center gap-2">
                     <Skeleton className="h-3 w-20" />
                     <Skeleton className="h-3 w-32" />

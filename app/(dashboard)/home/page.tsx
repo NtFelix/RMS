@@ -23,7 +23,7 @@ export default async function Dashboard() {
       <div className="grid gap-4 grid-cols-6 auto-rows-[140px] h-[calc(100vh-200px)]">
         {/* Row 1: Three wider summary cards (2/3 width - 4 columns total) + Tenant Payment List (1/3 width - 2 columns) */}
         <Link href="/haeuser" className="col-span-1 row-span-1">
-          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+          <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Häuser</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
@@ -37,7 +37,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
         <Link href="/wohnungen" className="col-span-2 row-span-1">
-          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+          <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Wohnungen</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
@@ -51,7 +51,7 @@ export default async function Dashboard() {
           </Card>
         </Link>
         <Link href="/mieter" className="col-span-1 row-span-1">
-          <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+          <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
               <CardTitle className="text-sm font-medium">Mieter</CardTitle>
               <div className="p-2 bg-muted rounded-lg">
@@ -82,7 +82,7 @@ export default async function Dashboard() {
           {/* Container for vertically stacked summary cards - 1/3 of page width */}
           <div className="h-full flex flex-col gap-4">
             <Link href="/todos" className="flex-1">
-              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+              <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Aufgaben</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
@@ -104,7 +104,7 @@ export default async function Dashboard() {
             </Link>
             
             <Link href="/finanzen" className="flex-1">
-              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+              <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Einnahmen</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">
@@ -124,7 +124,7 @@ export default async function Dashboard() {
             </Link>
             
             <Link href="/betriebskosten" className="flex-1">
-              <Card className="h-full overflow-hidden rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
+              <Card className="h-full overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all cursor-pointer summary-card flex flex-col">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
                   <CardTitle className="text-sm font-medium">Betriebskosten</CardTitle>
                   <div className="p-2 bg-muted rounded-lg">

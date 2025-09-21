@@ -18,6 +18,8 @@ import type { Profile as SupabaseProfile } from '@/types/supabase'; // Import an
 import { getUserProfileForSettings } from '@/app/user-profile-actions'; // Import the server action
 import Pricing from "@/app/modern/components/pricing"; // Corrected: Import Pricing component as default
 import { useDataExport } from '@/hooks/useDataExport'; // Import the custom hook
+import SubscriptionPaymentMethods from '@/components/subscription-payment-methods';
+import SubscriptionPaymentHistory from '@/components/subscription-payment-history';
 import { useToast } from "@/hooks/use-toast"; // Import the custom toast hook
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,8 +32,12 @@ interface UserProfileWithSubscription extends SupabaseProfile {
   activePlan?: {
     priceId: string;
     name: string;
+    productName?: string;
+    description?: string;
     price: number | null;
     currency: string;
+    interval?: string | null;
+    interval_count?: number | null;
     features: string[];
     limitWohnungen: number | null;
   } | null;
@@ -44,8 +50,12 @@ interface UserProfileWithSubscription extends SupabaseProfile {
 interface Plan {
   id: string;
   name: string;
+  productName?: string;
+  description?: string;
   price: number | null;
   currency: string;
+  interval?: string | null;
+  interval_count?: number | null;
   features: string[];
   limitWohnungen: number | null;
   priceId: string; // priceId is the lookup key for Stripe
@@ -61,6 +71,41 @@ const stripePromise = loadStripe(
 
 type SettingsModalProps = { open: boolean; onOpenChange: (open: boolean) => void }
 type Tab = { value: string; label: string; icon: React.ElementType; content: React.ReactNode }
+
+// Enhanced card component for consistent styling
+const SettingsCard = ({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
+  <div 
+    className={cn(
+      "p-6 bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800",
+      className
+    )}
+    {...props}
+  >
+    {children}
+  </div>
+)
+
+// Enhanced section component for better visual hierarchy
+type SettingsSectionProps = {
+  title?: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+} & React.HTMLAttributes<HTMLDivElement>;
+
+const SettingsSection = ({ title, description, children, className, ...props }: SettingsSectionProps) => (
+  <div className={cn("space-y-4", className)} {...props}>
+    {title && (
+      <div className="space-y-1">
+        <h3 className="text-lg font-semibold tracking-tight">{title}</h3>
+        {description && (
+          <p className="text-sm text-muted-foreground">{description}</p>
+        )}
+      </div>
+    )}
+    {children}
+  </div>
+)
 
 export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   const supabase = createClient()
@@ -116,6 +161,8 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       default: return stage.charAt(0).toUpperCase() + stage.slice(1);
     }
   }
+
+
 
   // Account deletion states
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState<boolean>(false)
@@ -546,7 +593,10 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       const response = await fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeCustomerId: profile.stripe_customer_id }),
+        body: JSON.stringify({ 
+          stripeCustomerId: profile.stripe_customer_id,
+          return_url: window.location.href
+        }),
       });
 
       if (!response.ok) {
@@ -556,7 +606,13 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
 
       const { url } = await response.json();
       if (url) {
-        window.location.href = url;
+        // Validate URL has proper scheme
+        try {
+          new URL(url);
+          window.location.href = url;
+        } catch (urlError) {
+          throw new Error("Ungültige URL für Kundenportal erhalten.");
+        }
       } else {
         throw new Error("URL für Kundenportal nicht erhalten.");
       }
@@ -615,72 +671,106 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Profil",
       icon: UserIcon,
       content: (
-        <div className="flex flex-col space-y-4">
-          <div>
-            <label className="text-sm font-medium">Vorname</label>
-            <Input
-              value={firstName}
-              onChange={e => setFirstName(e.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Nachname</label>
-            <Input
-              value={lastName}
-              onChange={e => setLastName(e.target.value)}
-              className="mt-1 w-full"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Dieser Name wird für die Betriebskostenabrechnung verwendet.
-            </p>
-          </div>
-          <Button onClick={handleProfileSave} disabled={loading}>
-            {loading ? "Speichern..." : "Profil speichern"}
-          </Button>
-
-          <div className="mt-6 pt-6 border-t border-destructive/50">
-            <p className="text-sm text-muted-foreground mb-3">
-              Hier können Sie Ihr Konto endgültig löschen. Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
-            </p>
-            <Button
-              variant="destructive"
-              onClick={() => setShowDeleteAccountConfirmModal(true)}
-              disabled={isDeleting} // Keep this disabled if any part of delete is in progress
-              className="w-full"
-            >
-              {isDeleting ? "Wird vorbereitet..." : <><Trash2 className="mr-2 h-4 w-4" />Konto löschen</>}
-            </Button>
-
-            {showDeleteConfirmation && (
-              <div className="mt-4 p-4 border border-destructive/50 rounded-md bg-destructive/5 space-y-3">
-                <p className="text-sm text-destructive font-medium">
-                  Zur Bestätigung wurde ein Code an Ihre E-Mail-Adresse gesendet. Bitte geben Sie den Code hier ein, um die Kontolöschung abzuschließen.
-                </p>
-                <div>
-                  <label htmlFor="reauthCode" className="text-sm font-medium text-destructive">
-                    Bestätigungscode (OTP)
+        <div className="space-y-6">
+          <SettingsSection 
+            title="Persönliche Informationen"
+            description="Verwalten Sie Ihre Profildaten und persönlichen Informationen."
+          >
+            <SettingsCard>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Vorname
                   </label>
                   <Input
-                    id="reauthCode"
-                    type="text" // Using text, but could be 'otp' if a dedicated component existed
-                    value={reauthCode}
-                    onChange={e => setReauthCode(e.target.value)}
-                    placeholder="Code aus E-Mail eingeben"
-                    className="mt-1 w-full border-destructive focus:ring-destructive"
+                    value={firstName}
+                    onChange={e => setFirstName(e.target.value)}
+                    className="w-full"
+                    disabled={loading}
                   />
                 </div>
-                <Button
-                  variant="destructive"
-                  onClick={handleConfirmDeleteAccount}
-                  disabled={!reauthCode || isDeleting}
-                  className="w-full"
-                >
-                  {isDeleting ? "Wird gelöscht..." : "Code bestätigen und Konto löschen"}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Nachname
+                  </label>
+                  <Input
+                    value={lastName}
+                    onChange={e => setLastName(e.target.value)}
+                    className="w-full"
+                    disabled={loading}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Dieser Name wird für die Betriebskostenabrechnung verwendet.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <Button onClick={handleProfileSave} disabled={loading} size="sm">
+                  {loading ? "Speichern..." : "Profil speichern"}
                 </Button>
               </div>
-            )}
-          </div>
+            </SettingsCard>
+          </SettingsSection>
+
+          <SettingsSection 
+            title="Gefährliche Aktionen"
+            description="Irreversible Aktionen, die Ihr Konto dauerhaft beeinträchtigen."
+          >
+            <SettingsCard className="border-destructive/20 bg-destructive/5 hover:bg-destructive/10">
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-full bg-destructive/10">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <h4 className="text-sm font-medium text-destructive">Konto löschen</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Alle Ihre Daten, einschließlich Häuser, Wohnungen, Mieter und Finanzdaten, werden unwiderruflich entfernt. Dieser Vorgang kann nicht rückgängig gemacht werden.
+                    </p>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteAccountConfirmModal(true)}
+                      disabled={isDeleting}
+                      className="mt-3"
+                    >
+                      {isDeleting ? "Wird vorbereitet..." : "Konto löschen"}
+                    </Button>
+                  </div>
+                </div>
+
+                {showDeleteConfirmation && (
+                  <div className="mt-4 p-4 border border-destructive/50 rounded-xl bg-destructive/10 space-y-3">
+                    <p className="text-sm text-destructive font-medium">
+                      Zur Bestätigung wurde ein Code an Ihre E-Mail-Adresse gesendet. Bitte geben Sie den Code hier ein, um die Kontolöschung abzuschließen.
+                    </p>
+                    <div className="space-y-2">
+                      <label htmlFor="reauthCode" className="text-sm font-medium text-destructive">
+                        Bestätigungscode (OTP)
+                      </label>
+                      <Input
+                        id="reauthCode"
+                        type="text"
+                        value={reauthCode}
+                        onChange={e => setReauthCode(e.target.value)}
+                        placeholder="Code aus E-Mail eingeben"
+                        className="border-destructive focus:ring-destructive"
+                      />
+                    </div>
+                    <Button
+                      variant="destructive"
+                      onClick={handleConfirmDeleteAccount}
+                      disabled={!reauthCode || isDeleting}
+                      size="sm"
+                      className="w-full"
+                    >
+                      {isDeleting ? "Wird gelöscht..." : "Code bestätigen und Konto löschen"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </SettingsCard>
+          </SettingsSection>
         </div>
       ),
     },
@@ -689,73 +779,81 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Darstellung",
       icon: Monitor,
       content: (
-        <div className="flex flex-col space-y-4">
-          <h2 className="text-xl font-semibold">Darstellung</h2>
-          <p className="text-sm text-muted-foreground">
-            Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an.
-          </p>
-          {darkModeEnabled && (
-            <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
-              <div className="flex items-start justify-between gap-4">
+        <div className="space-y-6">
+          <SettingsSection 
+            title="Darstellung"
+            description="Passen Sie das Aussehen der Anwendung an Ihre Vorlieben an."
+          >
+            {darkModeEnabled && (
+              <SettingsCard>
+                <div className="flex items-start justify-between gap-6">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Design-Modus
+                      </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
+                    </p>
+                  </div>
+                  <div className="flex-shrink-0 w-36">
+                    <Select
+                      value={theme}
+                      onValueChange={(value) => {
+                        setTheme(value);
+                        toast({
+                          title: "Design geändert",
+                          description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
+                          variant: "success",
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Wählen Sie ein Design" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="light">Hell</SelectItem>
+                        <SelectItem value="dark">Dunkel</SelectItem>
+                        <SelectItem value="system">System</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </SettingsCard>
+            )}
+            
+            <SettingsCard>
+              <div className="flex items-start justify-between gap-6">
                 <div className="space-y-1 flex-1">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Design-Modus
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Anleitung auf Betriebskosten-Seite
+                    </label>
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    Wählen Sie zwischen hellem, dunklem Design oder folgen Sie den Systemeinstellungen.
+                    Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
                   </p>
                 </div>
-                <div className="flex-shrink-0 w-32">
-                  <Select
-                    value={theme}
-                    onValueChange={(value) => {
-                      setTheme(value);
-                      toast({
-                        title: "Design geändert",
-                        description: `${themeLabels[value as keyof typeof themeLabels]} aktiviert.`,
-                        variant: "success",
-                      });
+                <div className="flex-shrink-0">
+                  <Switch
+                    checked={betriebskostenGuideEnabled}
+                    onCheckedChange={(checked) => {
+                      setBetriebskostenGuideEnabled(checked);
+                      // Persist in cookie and notify listeners
+                      setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
+                      }
                     }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Wählen Sie ein Design" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="light">Hell</SelectItem>
-                      <SelectItem value="dark">Dunkel</SelectItem>
-                      <SelectItem value="system">System</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
+                  />
                 </div>
               </div>
-            </div>
-          )}
-          <div className="mt-6 p-4 bg-muted/30 rounded-lg transition-colors hover:bg-muted/50">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Anleitung auf Betriebskosten-Seite
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  Blendet die Schritt-für-Schritt Anleitung für die Betriebskostenabrechnung ein oder aus.
-                </p>
-              </div>
-              <div className="flex-shrink-0">
-                <Switch
-                  checked={betriebskostenGuideEnabled}
-                  onCheckedChange={(checked) => {
-                    setBetriebskostenGuideEnabled(checked);
-                    // Persist in cookie and notify listeners
-                    setCookie(BETRIEBSKOSTEN_GUIDE_COOKIE, checked ? 'false' : 'true', 365);
-                    if (typeof window !== 'undefined') {
-                      window.dispatchEvent(new CustomEvent(BETRIEBSKOSTEN_GUIDE_VISIBILITY_CHANGED, { detail: { hidden: !checked } }));
-                    }
-                  }}
-                  className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-                />
-              </div>
-            </div>
-          </div>
+            </SettingsCard>
+          </SettingsSection>
         </div>
       ),
     },
@@ -764,49 +862,94 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Sicherheit",
       icon: Lock,
       content: (
-        <div className="flex flex-col space-y-4">
-          <div>
-            <label className="text-sm font-medium">E-Mail</label>
-            <Input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Bestätige E-Mail</label>
-            <Input
-              type="email"
-              value={confirmEmail}
-              onChange={e => setConfirmEmail(e.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-          <Button onClick={handleEmailSave} disabled={loading}>
-            {loading ? "Speichern..." : "E-Mail speichern"}
-          </Button>
-          <div>
-            <label className="text-sm font-medium">Passwort</label>
-            <Input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Bestätige Passwort</label>
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              className="mt-1 w-full"
-            />
-          </div>
-          <Button onClick={handlePasswordSave} disabled={loading}>
-            {loading ? "Speichern..." : "Passwort speichern"}
-          </Button>
+        <div className="space-y-6">
+          <SettingsSection 
+            title="E-Mail-Adresse"
+            description="Ändern Sie Ihre E-Mail-Adresse für Ihr Konto."
+          >
+            <SettingsCard>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        E-Mail
+                      </label>
+                    </div>
+                    <Input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="w-full"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      E-Mail bestätigen
+                    </label>
+                    <Input
+                      type="email"
+                      value={confirmEmail}
+                      onChange={e => setConfirmEmail(e.target.value)}
+                      className="w-full"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={handleEmailSave} disabled={loading} size="sm">
+                    {loading ? "Speichern..." : "E-Mail speichern"}
+                  </Button>
+                </div>
+              </div>
+            </SettingsCard>
+          </SettingsSection>
+
+          <SettingsSection 
+            title="Passwort"
+            description="Ändern Sie Ihr Passwort für zusätzliche Sicherheit."
+          >
+            <SettingsCard>
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4 text-muted-foreground" />
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Neues Passwort
+                      </label>
+                    </div>
+                    <Input
+                      type="password"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="w-full"
+                      disabled={loading}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                      Passwort bestätigen
+                    </label>
+                    <Input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="w-full"
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={handlePasswordSave} disabled={loading} size="sm">
+                    {loading ? "Speichern..." : "Passwort speichern"}
+                  </Button>
+                </div>
+              </div>
+            </SettingsCard>
+          </SettingsSection>
         </div>
       ),
     },
@@ -815,85 +958,335 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Abo",
       icon: CreditCard,
       content: (
-        <div className="flex flex-col space-y-4">
+        <div className="space-y-6">
           {isFetchingStatus ? (
-            <div className="space-y-3">
-              <div className="space-y-1">
-                <div className="text-sm font-medium">Aktueller Plan: <Skeleton className="h-4 w-32 inline-block" /></div>
-                <Skeleton className="h-4 w-48" /> {/* For status message */}
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm">Nächste Verlängerung am: <Skeleton className="h-4 w-24 inline-block" /></p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm">Genutzte Wohnungen: <Skeleton className="h-4 w-20 inline-block" /></p>
-              </div>
-              {/* Skeleton for Manage Subscription Button section */}
-              <div className="mt-6 pt-4 border-t">
-                <Skeleton className="h-4 w-3/4 mb-2" /> {/* For description paragraph */}
-                <Skeleton className="h-10 w-full" /> {/* For button */}
-              </div>
-            </div>
+            <>
+              {/* Subscription Overview Skeleton */}
+              <SettingsSection 
+                title="Abonnement-Übersicht"
+                description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails"
+              >
+                <SettingsCard className="space-y-6">
+                  <div className="space-y-4">
+                    {/* Plan Information Header */}
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-7 w-32" />
+                          <Skeleton className="h-6 w-16 rounded-full" />
+                        </div>
+                        <Skeleton className="h-4 w-48" />
+                      </div>
+                      <div className="text-right space-y-1">
+                        <Skeleton className="h-8 w-24" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-border" />
+
+                    {/* Subscription Details Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-32" />
+                        <div className="flex items-center gap-1">
+                          <Skeleton className="h-5 w-24" />
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-28" />
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-sm">
+                            <Skeleton className="h-4 w-16" />
+                            <Skeleton className="h-4 w-8" />
+                          </div>
+                          <Skeleton className="h-2 w-full rounded-full" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </SettingsCard>
+              </SettingsSection>
+
+              {/* Payment Methods Skeleton */}
+              <SettingsSection 
+                title="Zahlungsmethoden"
+                description="Verwalten Sie Ihre gespeicherten Zahlungsmethoden"
+              >
+                <SettingsCard>
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div></div>
+                      <Skeleton className="h-8 w-8 rounded" />
+                    </div>
+                    
+                    {/* Credit Card Skeleton */}
+                    <div className="flex justify-center">
+                      <Skeleton className="w-full max-w-md aspect-[1.586/1] rounded-2xl" />
+                    </div>
+                    
+                    {/* Card Details Skeleton */}
+                    <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-20" />
+                          <Skeleton className="h-4 w-16" />
+                        </div>
+                        <div className="space-y-1">
+                          <Skeleton className="h-4 w-24" />
+                          <Skeleton className="h-4 w-20" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </SettingsCard>
+              </SettingsSection>
+
+              {/* Payment History Skeleton */}
+              <SettingsSection 
+                title="Rechnungshistorie"
+                description="Alle Ihre Rechnungen und Zahlungen im Überblick"
+              >
+                <SettingsCard>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div></div>
+                      <Skeleton className="h-8 w-8 rounded" />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="border rounded-lg p-4 space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Skeleton className="h-5 w-32" />
+                                <Skeleton className="h-5 w-16 rounded-full" />
+                              </div>
+                              <Skeleton className="h-4 w-48" />
+                              <div className="flex items-center gap-4 text-sm">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-4 w-28" />
+                              </div>
+                            </div>
+                            <div className="text-right space-y-2">
+                              <Skeleton className="h-6 w-20" />
+                              <div className="flex gap-2">
+                                <Skeleton className="h-8 w-16 rounded" />
+                                <Skeleton className="h-8 w-12 rounded" />
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Invoice Line Items Skeleton */}
+                          <div className="pt-2 border-t">
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-4 w-16" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </SettingsCard>
+              </SettingsSection>
+            </>
           ) : subscriptionStatus === 'error' || !profile ? (
-            <p className="text-red-500">Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.</p>
+            <SettingsSection 
+              title="Abonnement"
+              description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsinformationen."
+            >
+              <SettingsCard className="border-destructive/20 bg-destructive/5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-destructive/10">
+                    <CreditCard className="h-4 w-4 text-destructive" />
+                  </div>
+                  <p className="text-sm text-destructive">
+                    Abo-Details konnten nicht geladen werden. Bitte stelle sicher, dass du angemeldet bist und versuche es erneut.
+                  </p>
+                </div>
+              </SettingsCard>
+            </SettingsSection>
           ) : (
             <>
-              {/* Simplified Subscription Info Display */}
-              <div className="space-y-2 mb-4">
-                {profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end && profile.stripe_current_period_end ? (
-                  <>
-                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan?.name || 'Unbekannt'}</strong></p>
-                    <p className="text-sm text-orange-500">
-                      Dein Abonnement ist aktiv und wird zum <strong>{new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}</strong> gekündigt.
-                    </p>
-                  </>
-                ) : profile.stripe_subscription_status === 'active' && profile.activePlan ? (
-                  <>
-                    <p className="text-sm font-medium">Aktueller Plan: <strong>{profile.activePlan.name}</strong></p>
-                    {currentPeriodEnd && (
-                      <p className="text-sm">Nächste Verlängerung am: <strong>{currentPeriodEnd}</strong></p>
-                    )}
-                    <p className="text-sm text-green-600">Dein Abonnement ist aktiv.</p>
-                  </>
-                ) : (
-                  <p className="text-sm">
-                    Dein aktueller Abo-Status: <strong>{profile.stripe_subscription_status ? profile.stripe_subscription_status.replace('_', ' ') : 'Nicht abonniert'}</strong>.
-                  </p>
-                )}
+              {/* Subscription Overview Section */}
+              <SettingsSection 
+                title="Abonnement-Übersicht"
+                description="Verwalten Sie Ihr Abonnement und Ihre Zahlungsdetails"
+              >
+                <SettingsCard className="space-y-6">
+                  {profile.activePlan ? (
+                    <div className="space-y-4">
+                      {/* Plan Information */}
+                      <div className="flex items-start justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3">
+                            <h3 className="text-lg font-semibold">
+                              {profile.activePlan.productName || 'Abonnement'}
+                            </h3>
+                            {profile.stripe_subscription_status && (
+                              <div className="inline-flex">
+                                {profile.stripe_subscription_status === 'active' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                    Aktiv
+                                  </div>
+                                )}
+                                {profile.stripe_subscription_status === 'trialing' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded-full">
+                                    Testphase
+                                  </div>
+                                )}
+                                {profile.stripe_subscription_status === 'canceled' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 rounded-full">
+                                    Gekündigt
+                                  </div>
+                                )}
+                                {profile.stripe_subscription_status === 'past_due' && (
+                                  <div className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300 rounded-full">
+                                    Überfällig
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {profile.activePlan.description && (
+                            <p className="text-sm text-muted-foreground">
+                              {profile.activePlan.description}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          {profile.activePlan.price && (
+                            <div className="text-2xl font-bold">
+                              {(profile.activePlan.price / 100).toFixed(2)} {profile.activePlan.currency.toUpperCase()}
+                            </div>
+                          )}
+                          {profile.activePlan.interval && (
+                            <div className="text-sm text-muted-foreground">
+                              {profile.activePlan.interval === 'month' ? 'Monatlich' : 
+                               profile.activePlan.interval === 'year' ? 'Jährlich' : 
+                               profile.activePlan.interval}
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                {/* Message for truly non-active states */}
-                {(!profile.stripe_subscription_status || !['active', 'trialing'].includes(profile.stripe_subscription_status ?? '')) &&
-                  !(profile.stripe_subscription_status === 'active' && profile.stripe_cancel_at_period_end) && (
-                    <p className="text-sm mt-2">Du hast derzeit kein aktives Abonnement.</p>
+                      <div className="h-px bg-border" />
+
+                      {/* Subscription Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {currentPeriodEnd && (
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              {profile.stripe_cancel_at_period_end ? 'Endet am' : 'Nächste Verlängerung'}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>{currentPeriodEnd}</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {profile.currentWohnungenCount !== undefined && profile.activePlan.limitWohnungen && (
+                          <div className="space-y-1">
+                            <div className="text-sm font-medium text-muted-foreground">Wohnungen genutzt</div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span>{profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}</span>
+                                <span className="text-muted-foreground">
+                                  {Math.round((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100)}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div 
+                                  className="bg-primary h-2 rounded-full transition-all duration-300" 
+                                  style={{ 
+                                    width: `${Math.min((profile.currentWohnungenCount / profile.activePlan.limitWohnungen) * 100, 100)}%` 
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Cancellation Notice */}
+                      {profile.stripe_cancel_at_period_end && profile.stripe_current_period_end && (
+                        <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
+                          <div className="flex items-start gap-3">
+                            <div>
+                              <h4 className="font-medium text-orange-800 dark:text-orange-200">
+                                Kündigung geplant
+                              </h4>
+                              <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                                Ihr Abonnement endet am {new Date(profile.stripe_current_period_end).toLocaleDateString('de-DE')}. 
+                                Sie können es jederzeit über das Kundenportal reaktivieren.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <CreditCard className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">Kein aktives Abonnement</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Sie haben derzeit kein aktives Abonnement.
+                      </p>
+                    </div>
                   )}
+                </SettingsCard>
+              </SettingsSection>
 
-                {/* Display Wohnungen usage - keep if still relevant */}
-                {profile && typeof profile.currentWohnungenCount === 'number' && profile.activePlan?.limitWohnungen != null && (
-                  <p className="text-sm mt-2">
-                    Genutzte Wohnungen: {profile.currentWohnungenCount} / {profile.activePlan.limitWohnungen}
-                  </p>
-                )}
-              </div>
+              {/* Payment Methods Section */}
+              <SettingsSection 
+                title="Zahlungsmethoden"
+                description="Verwalten Sie Ihre gespeicherten Zahlungsmethoden"
+              >
+                <SettingsCard>
+                  <SubscriptionPaymentMethods 
+                    profile={profile}
+                  />
+                </SettingsCard>
+              </SettingsSection>
 
-              {/* REMOVED: Pricing component for plan overview */}
+              {/* Payment History Section */}
+              <SettingsSection 
+                title="Rechnungshistorie"
+                description="Alle Ihre Rechnungen und Zahlungen im Überblick"
+              >
+                <SettingsCard>
+                  <SubscriptionPaymentHistory 
+                    profile={profile}
+                  />
+                </SettingsCard>
+              </SettingsSection>
 
-              {/* Manage Subscription Button - visible if user has a stripe_customer_id */}
               {profile.stripe_customer_id && (
-                <div className="mt-6 pt-4 border-t">
-                  <p className="text-sm mb-2 text-gray-600">
-                    Du kannst dein Abonnement, deine Zahlungsmethoden und Rechnungen über das Stripe Kundenportal verwalten.
-                  </p>
-                  <Button
-                    onClick={handleManageSubscription}
-                    disabled={isManagingSubscription} // Only disable if this specific action is loading
-                    className="w-full"
-                    variant="outline"
-                  >
-                    {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
-                  </Button>
-                </div>
+                <SettingsSection 
+                  title="Erweiterte Verwaltung"
+                  description="Zusätzliche Optionen für Ihr Abonnement"
+                >
+                  <SettingsCard>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground">
+                        Du kannst dein Abonnement, deine Zahlungsmethoden und Rechnungen über das Stripe Kundenportal verwalten.
+                      </p>
+                      <Button
+                        onClick={handleManageSubscription}
+                        disabled={isManagingSubscription}
+                        className="w-full"
+                        variant="default"
+                      >
+                        {isManagingSubscription ? 'Wird geladen...' : 'Abonnement verwalten (Stripe Portal)'}
+                      </Button>
+                    </div>
+                  </SettingsCard>
+                </SettingsSection>
               )}
-              {/* REMOVED: Cancel Subscription button and logic */}
             </>
           )}
         </div>
@@ -904,34 +1297,60 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Datenexport",
       icon: DownloadCloud,
       content: (
-        <div className="flex flex-col space-y-4">
-          <h2 className="text-xl font-semibold">Daten exportieren</h2>
-          <p className="text-sm text-muted-foreground">
-            Laden Sie alle Ihre Daten als CSV-Dateien herunter, verpackt in einem ZIP-Archiv.
-            Dies beinhaltet Daten zu Häusern, Wohnungen, Mietern, Finanzen und mehr.
-            Fremdschlüsselbeziehungen (Verknüpfungen zwischen Tabellen) werden nicht exportiert.
-          </p>
-          <Button onClick={performDataExport} disabled={isExporting} className="w-full sm:w-auto">
-            {isExporting ? (
-              <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Exportiere...
-              </>
-            ) : (
-              <>
-                <DownloadCloud className="mr-2 h-4 w-4" />
-                Daten als ZIP herunterladen
-              </>
-            )}
-          </Button>
-          {isExporting && (
-            <p className="text-sm text-muted-foreground text-center">
-              Der Export kann je nach Datenmenge einige Augenblicke dauern. Bitte haben Sie Geduld.
-            </p>
-          )}
+        <div className="space-y-6">
+          <SettingsSection 
+            title="Daten exportieren"
+            description="Laden Sie alle Ihre Daten als CSV-Dateien herunter, verpackt in einem ZIP-Archiv."
+          >
+            <SettingsCard>
+              <div className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/20">
+                    <DownloadCloud className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <h4 className="text-sm font-medium">Vollständiger Datenexport</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Dies beinhaltet Daten zu Häusern, Wohnungen, Mietern, Finanzen und mehr.
+                        Fremdschlüsselbeziehungen (Verknüpfungen zwischen Tabellen) werden nicht exportiert.
+                      </p>
+                    </div>
+                    
+                    <Button 
+                      onClick={performDataExport} 
+                      disabled={isExporting} 
+                      className="w-full sm:w-auto"
+                      size="sm"
+                    >
+                      {isExporting ? (
+                        <>
+                          <svg className="animate-spin -ml-1 mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Exportiere...
+                        </>
+                      ) : (
+                        <>
+                          <DownloadCloud className="mr-2 h-4 w-4" />
+                          Daten als ZIP herunterladen
+                        </>
+                      )}
+                    </Button>
+                    
+                    {isExporting && (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Der Export kann je nach Datenmenge einige Augenblicke dauern. Bitte haben Sie Geduld.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </SettingsCard>
+          </SettingsSection>
         </div>
       ),
     },
@@ -940,134 +1359,153 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Vorschau",
       icon: FlaskConical,
       content: (
-        <div className="flex flex-col space-y-6">
-          <div>
-            <h2 className="text-xl font-semibold mb-4">Feature Vorschau</h2>
-            <p className="text-sm text-muted-foreground mb-6">
-              Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto.
-            </p>
-
+        <div className="space-y-6">
+          <SettingsSection 
+            title="Feature Vorschau"
+            description="Verwalten Sie experimentelle Funktionen. Opt-in/Opt-out wirkt sofort für Ihr Konto."
+          >
             {isLoadingFeatures ? (
-              <div className="space-y-3">
-                <Skeleton className="h-6 w-40" />
-                <Skeleton className="h-20 w-full" />
-                <Skeleton className="h-6 w-32" />
-                <Skeleton className="h-20 w-full" />
+              <SettingsCard>
+                <div className="space-y-4">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-20 w-full" />
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-20 w-full" />
+                </div>
+              </SettingsCard>
+            ) : useLocalFeatures ? (
+              <div className="space-y-4">
+                <SettingsCard className="border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-900/20">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/40">
+                      <Info className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                          Early-Access-Funktionen können nicht geladen werden
+                        </h4>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                          Die Verbindung zu unserem Feature-System konnte nicht hergestellt werden. Dies kann folgende Ursachen haben:
+                        </p>
+                      </div>
+                      <ul className="text-sm text-yellow-700 dark:text-yellow-300 space-y-1 ml-4 list-disc">
+                        <li>Werbeblocker oder Datenschutz-Erweiterungen blockieren die Anfragen</li>
+                        <li>Cookies sind deaktiviert oder wurden nicht akzeptiert</li>
+                        <li>Netzwerkverbindung ist eingeschränkt</li>
+                      </ul>
+                    </div>
+                  </div>
+                </SettingsCard>
+                
+                <SettingsCard className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/40">
+                      <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div className="flex-1 space-y-3">
+                      <div>
+                        <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                          So können Sie das Problem beheben:
+                        </h4>
+                      </div>
+                      <ol className="text-sm text-blue-700 dark:text-blue-300 space-y-1 ml-4 list-decimal">
+                        <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
+                        <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
+                        <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded text-xs">eu.i.posthog.com</code> in Ihren Browser-Einstellungen</li>
+                        <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
+                      </ol>
+                      <div className="pt-2">
+                        <Button 
+                          onClick={() => window.location.reload()} 
+                          variant="outline"
+                          size="sm"
+                        >
+                          Seite neu laden
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </SettingsCard>
               </div>
             ) : (
-              <div className="space-y-8">
-                {useLocalFeatures ? (
-                  // Show error message when PostHog is blocked instead of local features
-                  <div className="space-y-4">
-                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-md text-sm text-yellow-800 dark:text-yellow-200">
-                      <div className="flex items-start">
-                        <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-                        <div className="space-y-2">
-                          <p className="font-medium">Early-Access-Funktionen können nicht geladen werden</p>
-                          <p>Die Verbindung zu unserem Feature-System konnte nicht hergestellt werden. Dies kann folgende Ursachen haben:</p>
-                          <ul className="list-disc list-inside space-y-1 ml-2">
-                            <li>Werbeblocker oder Datenschutz-Erweiterungen blockieren die Anfragen</li>
-                            <li>Cookies sind deaktiviert oder wurden nicht akzeptiert</li>
-                            <li>Netzwerkverbindung ist eingeschränkt</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md text-sm text-blue-800 dark:text-blue-200">
-                      <div className="flex items-start">
-                        <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-                        <div className="space-y-2">
-                          <p className="font-medium">So können Sie das Problem beheben:</p>
-                          <ol className="list-decimal list-inside space-y-1 ml-2">
-                            <li>Stellen Sie sicher, dass Sie alle Cookies akzeptiert haben</li>
-                            <li>Deaktivieren Sie temporär Ihren Werbeblocker für diese Seite</li>
-                            <li>Erlauben Sie Anfragen an <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">eu.i.posthog.com</code> in Ihren Browser-Einstellungen</li>
-                            <li>Laden Sie die Seite neu, nachdem Sie die Einstellungen geändert haben</li>
-                          </ol>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="text-center">
-                      <Button 
-                        onClick={() => window.location.reload()} 
-                        variant="outline"
-                        className="mt-2"
-                      >
-                        Seite neu laden
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  // Show PostHog features when available
-                  <>
-                    {[
-                      { stage: 'alpha', features: alphaFeatures },
-                      { stage: 'beta', features: betaFeatures },
-                      { stage: 'concept', features: conceptFeatures },
-                      { stage: 'other', features: otherFeatures }
-                    ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
-                      <div key={stage} className="space-y-3">
-                        <h3 className="text-sm font-semibold">{getStageDisplayName(stage)}</h3>
-                        <div className="space-y-3">
-                          {features.map((f) => (
-                            <div key={f.flagKey} className="flex items-center justify-between p-4 rounded-lg border">
-                              <div className="pr-4">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{f.name}</span>
-                                  {f.documentationUrl && (
-                                    <a 
-                                      className="text-xs text-muted-foreground underline hover:text-primary" 
-                                      href={f.documentationUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      Dokumentation
-                                    </a>
-                                  )}
-                                </div>
-                                {f.description && (
-                                  <p className="text-sm text-muted-foreground mt-1">{f.description}</p>
+              <div className="space-y-6">
+                {[
+                  { stage: 'alpha', features: alphaFeatures },
+                  { stage: 'beta', features: betaFeatures },
+                  { stage: 'concept', features: conceptFeatures },
+                  { stage: 'other', features: otherFeatures }
+                ].filter(({ features }) => features.length > 0).map(({ stage, features }) => (
+                  <div key={stage} className="space-y-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <FlaskConical className="h-4 w-4" />
+                      {getStageDisplayName(stage)}
+                    </h3>
+                    <div className="space-y-3">
+                      {features.map((f) => (
+                        <SettingsCard key={f.flagKey}>
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-sm">{f.name}</span>
+                                {f.documentationUrl && (
+                                  <a 
+                                    className="text-xs text-muted-foreground underline hover:text-primary transition-colors" 
+                                    href={f.documentationUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    Dokumentation
+                                  </a>
                                 )}
                               </div>
-                              <Switch
-                                checked={!!f.enabled}
-                                onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
-                                className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input"
-                                disabled={isLoadingFeatures}
-                              />
+                              {f.description && (
+                                <p className="text-sm text-muted-foreground">{f.description}</p>
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-
-                {/* Show message when no features are available */}
-                {!useLocalFeatures && [alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      Derzeit sind keine Early-Access-Funktionen verfügbar.
-                    </p>
-                  </div>
-                )}
-
-
-                <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-md text-sm text-amber-800 dark:text-amber-200">
-                  <div className="flex items-start">
-                    <Info className="h-4 w-4 mt-0.5 mr-2 flex-shrink-0" />
-                    <div>
-                      <p className="font-medium">Wichtiger Hinweis</p>
-                      <p>Diese Funktionen befinden sich in der Entwicklung und sind möglicherweise nicht vollständig funktionsfähig. Es kann zu unerwartetem Verhalten kommen. Bitte nutzen Sie diese Funktionen mit Vorsicht und melden Sie uns etwaige Probleme.</p>
+                            <Switch
+                              checked={!!f.enabled}
+                              onCheckedChange={(checked) => toggleEarlyAccess(f.flagKey, checked)}
+                              className="data-[state=checked]:bg-primary data-[state=unchecked]:bg-input hover:scale-105 transition-transform duration-150 ease-in-out"
+                              disabled={isLoadingFeatures}
+                            />
+                          </div>
+                        </SettingsCard>
+                      ))}
                     </div>
                   </div>
-                </div>
+                ))}
+
+                {[alphaFeatures, betaFeatures, conceptFeatures, otherFeatures].every(arr => arr.length === 0) && !isLoadingFeatures && (
+                  <SettingsCard>
+                    <div className="text-center py-8">
+                      <FlaskConical className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Derzeit sind keine Early-Access-Funktionen verfügbar.
+                      </p>
+                    </div>
+                  </SettingsCard>
+                )}
+
+                <SettingsCard className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-full bg-amber-100 dark:bg-amber-900/40">
+                      <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-sm font-medium text-amber-800 dark:text-amber-200 mb-1">
+                        Wichtiger Hinweis
+                      </h4>
+                      <p className="text-sm text-amber-700 dark:text-amber-300">
+                        Diese Funktionen befinden sich in der Entwicklung und sind möglicherweise nicht vollständig funktionsfähig. Es kann zu unerwartetem Verhalten kommen. Bitte nutzen Sie diese Funktionen mit Vorsicht und melden Sie uns etwaige Probleme.
+                      </p>
+                    </div>
+                  </div>
+                </SettingsCard>
               </div>
             )}
-          </div>
+          </SettingsSection>
         </div>
       )
     },
@@ -1076,12 +1514,33 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
       label: "Informationen",
       icon: Info,
       content: (
-        <div className="flex flex-col space-y-4">
-          <h2 className="text-xl font-semibold">App Informationen</h2>
-          <p className="text-sm">Version: <span id="app-version">{packageJsonVersion}</span></p>
-          <p className="text-sm text-muted-foreground">
-            Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
-          </p>
+        <div className="space-y-6">
+          <SettingsSection 
+            title="App Informationen"
+            description="Informationen über Ihre Hausverwaltungssoftware."
+          >
+            <SettingsCard>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Info className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-medium">Rent-Managing-System (RMS)</h4>
+                    <p className="text-sm text-muted-foreground">
+                      Version: <span id="app-version" className="font-mono">{packageJsonVersion}</span>
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Dies ist Ihre Hausverwaltungssoftware. Bei Fragen oder Problemen wenden Sie sich bitte an den Support.
+                  </p>
+                </div>
+              </div>
+            </SettingsCard>
+          </SettingsSection>
         </div>
       )
     }
@@ -1097,37 +1556,45 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[700px] h-[75vh] max-w-full max-h-full overflow-hidden mt-2 ml-2">
-          <DialogHeader className="sr-only"> {/* Wrap Title and Description, make Header sr-only if Title is already sr-only */}
+        <DialogContent className="w-[900px] h-[80vh] max-w-[95vw] max-h-[95vh] overflow-hidden">
+          <DialogHeader className="sr-only">
             <DialogTitle>Einstellungen</DialogTitle>
             <DialogDescription>Benutzereinstellungen und Kontoverwaltung.</DialogDescription>
           </DialogHeader>
+          
           <div className="flex h-full overflow-hidden">
-            <nav className="w-36 min-w-[9rem] flex flex-col gap-1 py-1 px-0 mr-4 sticky top-0">
+            {/* Enhanced sidebar navigation */}
+            <nav className="w-48 min-w-[12rem] flex flex-col gap-2 py-4 px-3 mr-6 border-r border-border/50">
+              
               {tabs.map(tab => (
                 <button
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value)}
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-md transition-colors outline-none',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 outline-none text-left',
                     activeTab === tab.value
-                      ? 'bg-accent text-accent-foreground shadow-sm font-medium'
-                      : 'text-muted-foreground hover:bg-muted focus:bg-accent/60 focus:text-accent-foreground',
+                      ? 'bg-primary text-primary-foreground shadow-sm font-medium scale-[1.02]'
+                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground focus:bg-accent/60 focus:text-accent-foreground hover:scale-[1.01]',
                   )}
                 >
-                  <tab.icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  <tab.icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="text-sm">{tab.label}</span>
                 </button>
               ))}
             </nav>
-            <div className="flex-1 flex flex-col">
-              <section className="flex-1 overflow-y-auto p-3">
-                {tabs.find(tab => tab.value === activeTab)?.content}
-              </section>
-            </div> {/* Corrected from </nav> to </div> and removed duplicated block */}
+            
+            {/* Content area with enhanced scrolling */}
+            <div className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto py-4 pr-2">
+                <div className="max-w-3xl">
+                  {tabs.find(tab => tab.value === activeTab)?.content}
+                </div>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
+      
       <ConfirmationAlertDialog
         isOpen={showDeleteAccountConfirmModal}
         onOpenChange={setShowDeleteAccountConfirmModal}

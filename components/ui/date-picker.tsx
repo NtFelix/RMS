@@ -119,7 +119,7 @@ export function DatePicker({ value, onChange, placeholder = "Datum auswählen", 
               variant="outline"
               size="icon"
               className={cn(
-                "absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2 rounded-md text-muted-foreground hover:text-foreground",
+                "absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full text-muted-foreground hover:text-foreground border-0 bg-muted/50 hover:bg-muted hover:scale-105 transition-all duration-200",
                 disabled && "cursor-not-allowed opacity-50"
               )}
               disabled={disabled}

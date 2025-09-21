@@ -256,7 +256,7 @@ export default function BetriebskostenClientView({
               return (
                 <Card 
                   key={card.id}
-                  className="relative overflow-hidden rounded-xl shadow-md border summary-card"
+                  className="relative overflow-hidden rounded-2xl shadow-md border summary-card"
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -276,7 +276,7 @@ export default function BetriebskostenClientView({
       )}
 
       {/* Main Content Area including Card, Table, Modals */}
-      <Card className="overflow-hidden rounded-xl shadow-md">
+      <Card className="overflow-hidden rounded-2xl shadow-md">
         <CardHeader>
           <div className="flex flex-row items-center justify-between">
             <CardTitle>Betriebskostenübersicht</CardTitle>

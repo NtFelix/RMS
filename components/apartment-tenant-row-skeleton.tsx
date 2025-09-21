@@ -15,7 +15,7 @@ export function ApartmentTenantRowSkeleton({
     <div className="space-y-3">
       {showTitle && <Skeleton className="h-5 w-24 mb-3" />}
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+        <div key={i} className="flex items-center justify-between p-4 border rounded-xl">
           {/* Left side - Apartment info skeleton */}
           <div className="flex items-center gap-4 flex-1">
             <div className="flex items-center gap-2">
@@ -62,7 +62,7 @@ export function ApartmentTenantRowSkeletonCompact({ count = 3 }: { count?: numbe
   return (
     <div className="space-y-2">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex items-center justify-between p-2 border rounded">
+        <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
           <div className="flex items-center gap-2">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="h-3 w-32" />

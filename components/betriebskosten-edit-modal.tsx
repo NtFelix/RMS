@@ -594,7 +594,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
         onAttemptClose={attemptClose}
       >
         <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
-          <DialogHeader>
+          <DialogHeader className="px-4">
             <DialogTitle>
               {betriebskostenInitialData?.id ? "Betriebskosten bearbeiten" : "Neue Betriebskostenabrechnung"}
             </DialogTitle>
@@ -605,7 +605,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
           
           <div className="space-y-6 overflow-y-auto max-h-[70vh] p-4">
             {/* Property & Period Selection Section */}
-            <div className="bg-muted/50 rounded-lg p-4 space-y-4">
+            <div className="bg-gray-50 dark:bg-gray-900/20 rounded-2xl border border-gray-200 dark:border-gray-800 p-4 space-y-4">
               {/* House Selection */}
               <div className="space-y-2">
                 <LabelWithTooltip htmlFor="formHausId" infoText="Wählen Sie das Haus aus, für das die Nebenkostenabrechnung erstellt wird.">
@@ -639,7 +639,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-10 w-full rounded-md"
+                        size="sm"
+                        className="h-10 w-full rounded-full"
                         onClick={() => {
                           // Extract year from current startdatum and subtract 1
                           const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
@@ -657,7 +658,8 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       <Button
                         type="button"
                         variant="outline"
-                        className="h-10 w-full rounded-md"
+                        size="sm"
+                        className="h-10 w-full rounded-full"
                         onClick={() => {
                           // Extract year from current startdatum and add 1
                           const currentStartYear = startdatum ? parseInt(startdatum.split('.')[2]) : new Date().getFullYear();
@@ -680,7 +682,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
                       return (
                         <div className="space-y-2">
                           {validation.isValid && validation.periodDays && (
-                            <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                            <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-xl">
                               <strong>Abrechnungszeitraum:</strong> {formatPeriodDuration(startdatum, enddatum)}
                             </div>
                           )}
@@ -710,7 +712,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
 
             <div className="space-y-2">
               <h3 className="text-lg font-semibold tracking-tight">Kostenaufstellung</h3>
-              <div className="rounded-md border p-4 space-y-0 shadow-sm">
+              <div className="rounded-2xl bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 p-4 space-y-4">
                 {isLoadingDetails ? (
                   Array.from({ length: 3 }).map((_, idx) => (
                     <div key={`skel-cost-${idx}`} className="flex flex-col gap-3 py-2 border-b last:border-b-0">
@@ -769,7 +771,7 @@ export function BetriebskostenEditModal({}: BetriebskostenEditModalPropsRefactor
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="px-4">
             <Button type="button" variant="outline" onClick={handleCancelClick} disabled={isSaving || isLoadingDetails}>
               Abbrechen
             </Button>

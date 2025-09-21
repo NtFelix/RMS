@@ -295,7 +295,7 @@ describe('HouseFilters', () => {
       );
 
       const searchInput = screen.getByPlaceholderText('Haus suchen...');
-      expect(searchInput).toHaveClass('pl-8'); // Left padding for search icon
+      expect(searchInput).toHaveClass('pl-10'); // Left padding for search icon
       
       const searchContainer = searchInput.parentElement;
       expect(searchContainer).toHaveClass('relative', 'w-full', 'sm:w-auto', 'sm:min-w-[300px]');
@@ -309,7 +309,7 @@ describe('HouseFilters', () => {
         />
       );
 
-      const searchIcon = container.querySelector('.absolute.left-2\\.5.top-2\\.5');
+      const searchIcon = container.querySelector('.absolute.left-3.top-1\\/2.-translate-y-1\\/2');
       expect(searchIcon).toBeInTheDocument();
       expect(searchIcon).toHaveClass('h-4', 'w-4', 'text-muted-foreground');
     });

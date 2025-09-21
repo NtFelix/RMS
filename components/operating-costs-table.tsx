@@ -156,7 +156,7 @@ export function OperatingCostsTable({
   };
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border">
       <Table>
         <TableHeader>
           <TableRow>

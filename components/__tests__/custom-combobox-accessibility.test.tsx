@@ -159,7 +159,7 @@ describe('CustomCombobox Accessibility', () => {
     expect(mockOnChange).not.toHaveBeenCalled()
   })
 
-  it('should automatically capture typing when dropdown is open', async () => {
+  it('should capture typing when combobox button is focused and dropdown is open', async () => {
     const user = userEvent.setup()
     
     render(
@@ -172,23 +172,34 @@ describe('CustomCombobox Accessibility', () => {
     )
 
     const combobox = screen.getByRole('combobox')
-    await user.click(combobox)
+    
+    // Focus the combobox button and open with keyboard
+    combobox.focus()
+    fireEvent.keyDown(combobox, { key: 'Enter' })
     
     await waitFor(() => {
       expect(screen.getByRole('listbox')).toBeInTheDocument()
     })
 
-    // Type characters - should automatically update search input
+    // Type character while button is focused - should focus input and add character
     fireEvent.keyDown(document, { key: 'O' })
-    fireEvent.keyDown(document, { key: 'p' })
     
     await waitFor(() => {
       const searchInput = screen.getByRole('searchbox')
+      expect(searchInput).toHaveValue('O')
+      expect(searchInput).toHaveFocus()
+    })
+    
+    // Now that input is focused, type directly into it
+    const searchInput = screen.getByRole('searchbox')
+    await user.type(searchInput, 'p')
+    
+    await waitFor(() => {
       expect(searchInput).toHaveValue('Op')
     })
   })
 
-  it('should open dropdown and start typing when typing on closed combobox', async () => {
+  it('should NOT open dropdown when typing on closed combobox (click-to-open behavior)', async () => {
     render(
       <CustomCombobox
         options={mockOptions}
@@ -201,12 +212,109 @@ describe('CustomCombobox Accessibility', () => {
     const combobox = screen.getByRole('combobox')
     combobox.focus()
     
-    // Type a character on the closed combobox
+    // Type a character on the closed combobox - should NOT open
     fireEvent.keyDown(combobox, { key: 'O' })
+    
+    // Dropdown should remain closed
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it('should open dropdown with navigation keys and clicks', async () => {
+    const user = userEvent.setup()
+    
+    render(
+      <CustomCombobox
+        options={mockOptions}
+        value={null}
+        onChange={mockOnChange}
+        placeholder="Select option"
+      />
+    )
+
+    const combobox = screen.getByRole('combobox')
+    
+    // Should open with click
+    await user.click(combobox)
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+    
+    // Close it
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    })
+    
+    // Should open with Enter key
+    combobox.focus()
+    fireEvent.keyDown(combobox, { key: 'Enter' })
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+    
+    // Close it
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    })
+    
+    // Should open with ArrowDown key
+    combobox.focus()
+    fireEvent.keyDown(combobox, { key: 'ArrowDown' })
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+  })
+
+  it('should NOT capture global typing when dropdown is open but focus is elsewhere', async () => {
+    const user = userEvent.setup()
+    
+    render(
+      <div>
+        <input data-testid="other-input" placeholder="Other input" />
+        <CustomCombobox
+          options={mockOptions}
+          value={null}
+          onChange={mockOnChange}
+          placeholder="Select option"
+        />
+      </div>
+    )
+
+    const combobox = screen.getByRole('combobox')
+    const otherInput = screen.getByTestId('other-input')
+    
+    // Focus the other input first
+    otherInput.focus()
+    
+    // Open the combobox with keyboard while other input is focused
+    combobox.focus()
+    fireEvent.keyDown(combobox, { key: 'Enter' })
     
     await waitFor(() => {
       expect(screen.getByRole('listbox')).toBeInTheDocument()
     })
+
+    // Move focus back to the other input using Tab (simulating user navigation)
+    otherInput.focus()
+    
+    await waitFor(() => {
+      expect(otherInput).toHaveFocus()
+      // Dropdown should still be open
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+
+    // Type characters - should go to the focused input, not be captured by combobox
+    fireEvent.keyDown(document, { key: 't' })
+    fireEvent.keyDown(document, { key: 'e' })
+    fireEvent.keyDown(document, { key: 's' })
+    fireEvent.keyDown(document, { key: 't' })
+    
+    // The combobox search input should remain empty since focus is elsewhere
+    const searchInput = screen.getByRole('searchbox')
+    expect(searchInput).toHaveValue('')
+    
+    // This test verifies that global typing is not captured when focus is elsewhere
   })
 
   it('should handle backspace in search input', async () => {
@@ -228,13 +336,18 @@ describe('CustomCombobox Accessibility', () => {
       expect(screen.getByRole('listbox')).toBeInTheDocument()
     })
 
-    // Type and then backspace
-    fireEvent.keyDown(document, { key: 'O' })
-    fireEvent.keyDown(document, { key: 'p' })
-    fireEvent.keyDown(document, { key: 'Backspace' })
+    // Get the search input and type into it directly
+    const searchInput = screen.getByRole('searchbox')
+    await user.type(searchInput, 'Op')
     
     await waitFor(() => {
-      const searchInput = screen.getByRole('searchbox')
+      expect(searchInput).toHaveValue('Op')
+    })
+    
+    // Use backspace
+    await user.keyboard('{Backspace}')
+    
+    await waitFor(() => {
       expect(searchInput).toHaveValue('O')
     })
   })
