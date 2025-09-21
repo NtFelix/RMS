@@ -61,7 +61,6 @@ export function CustomCombobox({
     // Clean up active flag when closing
     if (inputRef.current) {
       inputRef.current.removeAttribute('data-combobox-active')
-      inputRef.current.removeAttribute('data-combobox-focusing')
     }
   }, [])
   const buttonRef = React.useRef<HTMLButtonElement>(null)

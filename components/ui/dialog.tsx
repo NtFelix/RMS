@@ -110,7 +110,6 @@ const DialogContent = React.forwardRef<
           
           if (target?.hasAttribute('data-combobox-input') || 
               target?.hasAttribute('data-combobox-active') ||
-              target?.hasAttribute('data-combobox-focusing') ||
               target?.closest('[data-dialog-ignore-interaction]') ||
               target?.closest('[data-combobox-dropdown]') ||
               target?.closest('[role="listbox"]') ||
