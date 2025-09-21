@@ -89,13 +89,13 @@ export default function NotFound() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className="group p-4 rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:shadow-md"
+                    className="group p-4 rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] hover:shadow-lg hover:shadow-accent/20 hover:-translate-y-1 hover:border-accent/50 transform-gpu"
                   >
                     <div className="flex flex-col items-center space-y-2 text-center">
-                      <link.icon className="h-8 w-8 text-primary group-hover:text-accent-foreground group-hover:scale-110 transition-all duration-200" />
-                      <div>
-                        <h4 className="font-medium">{link.title}</h4>
-                        <p className="text-sm text-muted-foreground group-hover:text-accent-foreground/80">
+                      <link.icon className="h-8 w-8 text-primary group-hover:text-accent-foreground group-hover:scale-125 group-hover:rotate-3 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]" />
+                      <div className="group-hover:-translate-y-0.5 transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]">
+                        <h4 className="font-medium group-hover:font-semibold transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]">{link.title}</h4>
+                        <p className="text-sm text-muted-foreground group-hover:text-accent-foreground/80 transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]">
                           {link.description}
                         </p>
                       </div>
