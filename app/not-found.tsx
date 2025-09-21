@@ -92,7 +92,7 @@ export default function NotFound() {
                     className="group p-4 rounded-lg border border-border bg-card hover:bg-accent hover:text-accent-foreground transition-all duration-200 hover:shadow-md"
                   >
                     <div className="flex flex-col items-center space-y-2 text-center">
-                      <link.icon className="h-8 w-8 text-primary group-hover:scale-110 transition-transform duration-200" />
+                      <link.icon className="h-8 w-8 text-primary group-hover:text-accent-foreground group-hover:scale-110 transition-all duration-200" />
                       <div>
                         <h4 className="font-medium">{link.title}</h4>
                         <p className="text-sm text-muted-foreground group-hover:text-accent-foreground/80">
