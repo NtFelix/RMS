@@ -1239,8 +1239,7 @@ export function SettingsModal({ open, onOpenChange }: SettingsModalProps) {
               >
                 <SettingsCard>
                   <SubscriptionPaymentMethods 
-                    profile={profile} 
-                    onProfileUpdate={refreshUserProfile}
+                    profile={profile}
                   />
                 </SettingsCard>
               </SettingsSection>

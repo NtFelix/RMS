@@ -38,7 +38,6 @@ interface UserProfile {
 
 interface SubscriptionPaymentMethodsProps {
   profile: UserProfile;
-  onProfileUpdate: () => void;
 }
 
 // Credit card brand colors and styling
