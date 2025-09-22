@@ -256,7 +256,7 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
     }
     
     if (data && data.length > 0) {
-      allRecords = [...allRecords, ...data];
+      allRecords.push(...data);
       
       // If we got fewer records than the page size, we've reached the end
       if (data.length < pageSize) {
