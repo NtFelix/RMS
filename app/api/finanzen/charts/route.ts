@@ -70,18 +70,40 @@ export async function GET(request: Request) {
         throw new Error('RPC function failed or returned no data');
       }
     } catch (rpcError) {
-      console.log('Charts API: RPC function not available, using fallback query');
+      console.log('Charts API: RPC function not available, using fallback query with pagination');
       
-      // Fallback to direct query (with potential pagination issues for very large datasets)
-      const { data: fallbackData, error: fallbackError } = await supabase
-        .from('Finanzen')
-        .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
-        .gte('datum', startDate)
-        .lte('datum', endDate)
-        .order('datum', { ascending: false });
+      // Fallback to direct query with pagination
+      const allData: any[] = [];
+      const pageSize = 1000;
+      let page = 0;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const { data: pageData, error: pageError } = await supabase
+          .from('Finanzen')
+          .select('id, betrag, ist_einnahmen, datum, name, wohnung_id, Wohnungen(name)')
+          .gte('datum', startDate)
+          .lte('datum', endDate)
+          .order('datum', { ascending: false })
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+          
+        if (pageError) {
+          error = pageError;
+          break; // Exit loop on error
+        }
         
-      data = fallbackData as FinancialItem[] || [];
-      error = fallbackError;
+        if (pageData && pageData.length > 0) {
+          allData.push(...pageData);
+        }
+        
+        if (!pageData || pageData.length < pageSize) {
+          hasMore = false;
+        } else {
+          page++;
+        }
+      }
+      
+      data = allData as FinancialItem[] || [];
     }
       
     if (error) {
