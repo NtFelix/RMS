@@ -304,77 +304,23 @@ async function handleAvailableYears(supabase: any): Promise<Response> {
     console.log(`🔄 [Finance Analytics] Available Years: RPC failed, using fallback method`);
   }
 
-  // Fallback to regular query with pagination
+  // Fallback to utility function with pagination
   console.log(`🔄 [Finance Analytics] Available Years: Using fallback query method with pagination`);
   const fallbackStartTime = Date.now();
   
-  const currentYear = new Date().getFullYear();
-  const years = new Set<number>();
-  
-  // Add current year by default
-  years.add(currentYear);
-  
   try {
-    const pageSize = 1000;
-    let page = 0;
-    let hasMore = true;
-    let totalRecords = 0;
-
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from('Finanzen')
-        .select('datum')
-        .not('datum', 'is', null)
-        .range(page * pageSize, (page + 1) * pageSize - 1);
-
-      if (error) {
-        console.error('❌ [Finance Analytics] Available Years: Database error:', error);
-        return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500 });
-      }
-
-      if (!data || data.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      totalRecords += data.length;
-
-      // Process dates to extract years
-      data.forEach((item: { datum: string | null }) => {
-        if (!item.datum) return;
-        
-        try {
-          const date = new Date(item.datum);
-          if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            if (year <= currentYear + 1) {
-              years.add(year);
-            }
-          }
-        } catch (e) {
-          console.warn('❌ [Finance Analytics] Invalid date format:', item.datum);
-        }
-      });
-
-      // If we got fewer records than the page size, we've reached the end
-      if (data.length < pageSize) {
-        hasMore = false;
-      } else {
-        page++;
-      }
-    }
-
+    const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
+    const years = await fetchAvailableFinanceYears(supabase);
+    
     const fallbackDuration = Date.now() - fallbackStartTime;
-    console.log(`📊 [Finance Analytics] Available Years: Fallback pagination completed - processed ${totalRecords} records in ${page + 1} pages (${fallbackDuration}ms)`);
+    console.log(`📊 [Finance Analytics] Available Years: Fallback completed (${fallbackDuration}ms)`);
+    console.log(`📅 [Finance Analytics] Available Years: Processed years: ${years.join(', ')}`);
+    
+    return NextResponse.json(years, { status: 200 });
   } catch (error) {
-    console.error('❌ [Finance Analytics] Available Years: Pagination error:', error);
+    console.error('❌ [Finance Analytics] Available Years: Fallback error:', error);
     return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500 });
   }
-
-  const sortedYears = Array.from(years).sort((a, b) => b - a);
-  console.log(`📅 [Finance Analytics] Available Years: Processed years: ${sortedYears.join(', ')}`);
-  
-  return NextResponse.json(sortedYears, { status: 200 });
 }
 
 function calculateFilteredSummary(transactions: FinanceRecord[]) {
