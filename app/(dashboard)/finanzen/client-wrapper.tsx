@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
 
 import { ArrowUpCircle, ArrowDownCircle, BarChart3, Wallet } from "lucide-react";
 import { FinanceVisualization } from "@/components/finance-visualization";
@@ -151,7 +152,6 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
   const fetchBalance = useCallback(async () => {
     setBalanceLoading(true);
     try {
-      const { createClient } = await import("@/utils/supabase/client");
       const supabase = createClient();
       
       const { data, error } = await supabase.rpc('get_filtered_financial_summary', {
