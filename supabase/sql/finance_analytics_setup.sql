@@ -13,7 +13,7 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $$$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -27,7 +27,7 @@ BEGIN
   GROUP BY EXTRACT(MONTH FROM f.datum)
   ORDER BY month;
 END;
-$$;
+$$$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_monthly_finance_data(DATE, DATE) TO authenticated;
@@ -39,7 +39,7 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $$$
 BEGIN
   RETURN QUERY
   SELECT DISTINCT 
@@ -50,7 +50,7 @@ BEGIN
     AND EXTRACT(YEAR FROM f.datum) <= EXTRACT(YEAR FROM CURRENT_DATE) + 1
   ORDER BY year DESC;
 END;
-$$;
+$$$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_available_finance_years() TO authenticated;
@@ -92,7 +92,7 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $$$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -108,7 +108,7 @@ BEGIN
     AND f.datum IS NOT NULL
   ORDER BY f.datum;
 END;
-$$;
+$$$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_financial_summary_data(INTEGER) TO authenticated;
@@ -129,7 +129,7 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $$$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -147,7 +147,7 @@ BEGIN
     AND f.datum IS NOT NULL
   ORDER BY f.datum;
 END;
-$$;
+$$$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_financial_chart_data(INTEGER) TO authenticated;
@@ -168,7 +168,7 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $$$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -196,7 +196,7 @@ BEGIN
     GROUP BY EXTRACT(MONTH FROM f.datum)
   ) monthly;
 END;
-$$;
+$$$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_financial_year_summary(INTEGER) TO authenticated;
@@ -216,7 +216,7 @@ RETURNS TABLE (
 ) 
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $
+AS $$$
 BEGIN
   RETURN QUERY
   SELECT 
@@ -240,7 +240,7 @@ BEGIN
          (transaction_type = 'Einnahme' AND f.ist_einnahmen = true) OR
          (transaction_type = 'Ausgabe' AND f.ist_einnahmen = false));
 END;
-$;
+$$$;
 
 -- Grant execute permission to authenticated users
 GRANT EXECUTE ON FUNCTION get_filtered_financial_summary(TEXT, TEXT, TEXT, TEXT) TO authenticated;
