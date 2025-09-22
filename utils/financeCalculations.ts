@@ -136,7 +136,7 @@ export async function fetchAvailableFinanceYears(supabase: any): Promise<number[
       }
 
       // Process dates to extract years
-      data.forEach(item => {
+      data.forEach((item: { datum: string | null }) => {
         if (!item.datum) return;
         
         try {
