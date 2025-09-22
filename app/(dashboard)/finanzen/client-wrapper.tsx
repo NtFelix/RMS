@@ -166,17 +166,12 @@ export default function FinanzenClientWrapper({ finances: initialFinances, wohnu
         throw new Error(error.message);
       }
       
-      if (data && data.length > 0) {
-        const summary = data[0];
-        setTotalBalance(Number(summary.total_balance));
-        setFilteredIncome(Number(summary.total_income));
-        setFilteredExpenses(Number(summary.total_expenses));
-      } else {
-        // No data found, set to zero
-        setTotalBalance(0);
-        setFilteredIncome(0);
-        setFilteredExpenses(0);
-      }
+      // The RPC function is designed to always return a single row.
+      // We provide a fallback just in case the contract changes or an unexpected error occurs.
+      const summary = data?.[0] ?? { total_balance: 0, total_income: 0, total_expenses: 0 };
+      setTotalBalance(Number(summary.total_balance));
+      setFilteredIncome(Number(summary.total_income));
+      setFilteredExpenses(Number(summary.total_expenses));
     } catch (error) {
       console.error('Failed to fetch balance:', error);
       if (error instanceof Error) {
