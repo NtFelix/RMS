@@ -149,59 +149,8 @@ async function handleSummary(supabase: any, year: number): Promise<Response> {
     if (!rpcError && summaryData && summaryData.length > 0) {
       console.log(`✅ [Finance Analytics] Summary: Used optimized RPC function (${rpcDuration}ms)`);
       
-      const summary = summaryData[0];
-      
-      // Convert the database result to our expected format
-      const monthlyData: Record<number, { income: number; expenses: number; cashflow: number }> = {};
-      
-      // Initialize all months
-      for (let i = 0; i < 12; i++) {
-        monthlyData[i] = { income: 0, expenses: 0, cashflow: 0 };
-      }
-      
-      // Populate with actual data from the database
-      if (summary.monthly_data) {
-        Object.entries(summary.monthly_data as Record<string, any>).forEach(([month, data]) => {
-          const monthIndex = parseInt(month);
-          if (monthIndex >= 0 && monthIndex < 12) {
-            monthlyData[monthIndex] = {
-              income: Number(data.income || 0),
-              expenses: Number(data.expenses || 0),
-              cashflow: Number(data.cashflow || 0)
-            };
-          }
-        });
-      }
-
-      const currentDate = new Date();
-      const currentYear = currentDate.getFullYear();
-      const monthsPassed = year === currentYear ? currentDate.getMonth() + 1 : 12;
-      
-      // Calculate averages based on passed months
-      let incomeForPassedMonths = 0;
-      let expensesForPassedMonths = 0;
-      
-      for (let i = 0; i < (year === currentYear ? currentDate.getMonth() + 1 : 12); i++) {
-        incomeForPassedMonths += monthlyData[i].income;
-        expensesForPassedMonths += monthlyData[i].expenses;
-      }
-      
-      const averageMonthlyIncome = monthsPassed > 0 ? incomeForPassedMonths / monthsPassed : 0;
-      const averageMonthlyExpenses = monthsPassed > 0 ? expensesForPassedMonths / monthsPassed : 0;
-      const averageMonthlyCashflow = averageMonthlyIncome - averageMonthlyExpenses;
-
-      const result = {
-        year,
-        totalIncome: Number(summary.total_income || 0),
-        totalExpenses: Number(summary.total_expenses || 0),
-        totalCashflow: Number(summary.total_cashflow || 0),
-        averageMonthlyIncome,
-        averageMonthlyExpenses,
-        averageMonthlyCashflow,
-        yearlyProjection: averageMonthlyCashflow * 12,
-        monthsPassed,
-        monthlyData
-      };
+      const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
+      const result = processRpcFinancialSummary(summaryData[0], year);
 
       console.log(`💰 [Finance Analytics] Summary results: Income: €${result.totalIncome}, Expenses: €${result.totalExpenses}, Cashflow: €${result.totalCashflow}`);
       return NextResponse.json(result, { status: 200 });
