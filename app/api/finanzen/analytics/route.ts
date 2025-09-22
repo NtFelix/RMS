@@ -64,24 +64,22 @@ async function getOptimizedMonthlyData(supabase: any, year: number): Promise<Rec
     console.log(`❌ [Finance Analytics] RPC function not available or failed:`, error);
   }
 
-  // Fallback to regular query and client-side calculation
-  console.log(`🔄 [Finance Analytics] FALLBACK: Using server-side calculation...`);
+  // Fallback to pagination-safe function
+  console.log(`🔄 [Finance Analytics] FALLBACK: Using pagination-safe function...`);
   const fallbackStartTime = Date.now();
   
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('betrag, ist_einnahmen, datum')
-    .gte('datum', startDate)
-    .lte('datum', endDate);
+  const { data, error } = await supabase.rpc('get_financial_summary_data', {
+    target_year: year
+  });
 
   const fallbackDuration = Date.now() - fallbackStartTime;
 
   if (error) {
-    console.error(`❌ [Finance Analytics] Fallback query failed:`, error);
+    console.error(`❌ [Finance Analytics] Fallback RPC query failed:`, error);
     throw error;
   }
 
-  console.log(`📊 [Finance Analytics] Fallback query completed (${fallbackDuration}ms) - processing ${data?.length || 0} records`);
+  console.log(`📊 [Finance Analytics] Fallback RPC completed (${fallbackDuration}ms) - processing ${data?.length || 0} records`);
   
   const summary = calculateFinancialSummary(data || [], year, new Date());
   console.log(`✅ [Finance Analytics] Server-side calculation completed`);
@@ -107,12 +105,14 @@ export async function GET(request: Request) {
         response = await handleSummary(supabase, year);
         break;
       case 'filtered-summary':
-        console.log(`🔍 [Finance Analytics] Handling filtered summary request`);
+        console.log(`🔍 [Finance Analytics] Handling filtered summary request (DEPRECATED - use Supabase RPC instead)`);
         response = await handleFilteredSummary(supabase, searchParams);
         break;
       case 'chart-data':
-        console.log(`📈 [Finance Analytics] Handling chart data request for year ${year}`);
-        response = await handleChartData(supabase, year);
+        console.log(`📈 [Finance Analytics] Chart data action deprecated - use /api/finanzen/charts instead`);
+        return NextResponse.json({ 
+          error: 'Chart data action deprecated. Use /api/finanzen/charts endpoint instead.' 
+        }, { status: 410 });
         break;
       case 'available-years':
         console.log(`📅 [Finance Analytics] Handling available years request`);
@@ -135,26 +135,48 @@ export async function GET(request: Request) {
 }
 
 async function handleSummary(supabase: any, year: number): Promise<Response> {
-  const startDate = `${year}-01-01`;
-  const endDate = `${year}-12-31`;
-  
-  console.log(`📊 [Finance Analytics] Summary: Querying transactions from ${startDate} to ${endDate}`);
+  console.log(`📊 [Finance Analytics] Summary: Fetching data for year ${year}`);
   const queryStartTime = Date.now();
 
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('betrag, ist_einnahmen, datum')
-    .gte('datum', startDate)
-    .lte('datum', endDate);
+  try {
+    // Try to use the optimized Supabase function first
+    const { data: summaryData, error: rpcError } = await supabase.rpc('get_financial_year_summary', {
+      target_year: year
+    });
 
-  const queryDuration = Date.now() - queryStartTime;
+    const rpcDuration = Date.now() - queryStartTime;
+
+    if (!rpcError && summaryData && summaryData.length > 0) {
+      console.log(`✅ [Finance Analytics] Summary: Used optimized RPC function (${rpcDuration}ms)`);
+      
+      const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
+      const result = processRpcFinancialSummary(summaryData[0], year);
+
+      console.log(`💰 [Finance Analytics] Summary results: Income: €${result.totalIncome}, Expenses: €${result.totalExpenses}, Cashflow: €${result.totalCashflow}`);
+      return NextResponse.json(result, { status: 200 });
+    } else {
+      console.log(`⚠️ [Finance Analytics] Summary: RPC function failed or returned no data, using fallback`);
+    }
+  } catch (error) {
+    console.log(`🔄 [Finance Analytics] Summary: RPC function not available, using fallback method`);
+  }
+
+  // Fallback to the function that returns all transactions for the year
+  console.log(`🔄 [Finance Analytics] Summary: Using fallback with pagination-safe function`);
+  const fallbackStartTime = Date.now();
+  
+  const { data, error } = await supabase.rpc('get_financial_summary_data', {
+    target_year: year
+  });
+
+  const fallbackDuration = Date.now() - fallbackStartTime;
 
   if (error) {
-    console.error('❌ [Finance Analytics] Summary database error:', error);
+    console.error('❌ [Finance Analytics] Summary fallback database error:', error);
     return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
   }
 
-  console.log(`📈 [Finance Analytics] Summary: Retrieved ${data?.length || 0} transactions (${queryDuration}ms)`);
+  console.log(`📈 [Finance Analytics] Summary: Fallback retrieved ${data?.length || 0} transactions (${fallbackDuration}ms)`);
   
   const calcStartTime = Date.now();
   const summary = calculateFinancialSummary(data || [], year, new Date());
@@ -217,45 +239,46 @@ async function handleFilteredSummary(supabase: any, searchParams: URLSearchParam
   console.log(`🎯 [Finance Analytics] Applied filters: ${appliedFilters.length > 0 ? appliedFilters.join(', ') : 'none'}`);
   
   const queryStartTime = Date.now();
-  const { data, error } = await query;
-  const queryDuration = Date.now() - queryStartTime;
+  
+  // Fetch all records with pagination to handle large datasets
+  const pageSize = 1000;
+  let page = 0;
+  let allRecords: any[] = [];
+  let hasMore = true;
 
-  if (error) {
-    console.error('❌ [Finance Analytics] Filtered summary database error:', error);
-    return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+  while (hasMore) {
+    const { data, error } = await query
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    
+    if (error) {
+      console.error('❌ [Finance Analytics] Filtered summary database error:', error);
+      return NextResponse.json({ error: 'Database query failed' }, { status: 500 });
+    }
+    
+    if (data && data.length > 0) {
+      allRecords.push(...data);
+      
+      // If we got fewer records than the page size, we've reached the end
+      if (data.length < pageSize) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+    } else {
+      hasMore = false;
+    }
   }
 
-  console.log(`📊 [Finance Analytics] Filtered query returned ${data?.length || 0} transactions (${queryDuration}ms)`);
+  const queryDuration = Date.now() - queryStartTime;
+  console.log(`📊 [Finance Analytics] Filtered query returned ${allRecords.length} transactions in ${page + 1} pages (${queryDuration}ms)`);
   
-  const summary = calculateFilteredSummary(data || []);
+  const summary = calculateFilteredSummary(allRecords);
   console.log(`💰 [Finance Analytics] Filtered results: Balance: €${summary.totalBalance}, Income: €${summary.totalIncome}, Expenses: €${summary.totalExpenses}`);
   
   return NextResponse.json(summary, { status: 200 });
 }
 
-async function handleChartData(supabase: any, year: number): Promise<Response> {
-  try {
-    console.log(`📈 [Finance Analytics] Chart Data: Starting data fetch for year ${year}`);
-    const chartStartTime = Date.now();
-    
-    const monthlyData = await getOptimizedMonthlyData(supabase, year);
-    
-    const chartDuration = Date.now() - chartStartTime;
-    console.log(`📊 [Finance Analytics] Chart Data: Completed in ${chartDuration}ms`);
-    
-    // Log summary of monthly data
-    const monthsWithData = Object.entries(monthlyData)
-      .filter(([_, data]) => data.income > 0 || data.expenses > 0)
-      .map(([month, _]) => parseInt(month) + 1); // Convert back to 1-based month numbers
-    
-    console.log(`📅 [Finance Analytics] Chart Data: Found data for months: ${monthsWithData.length > 0 ? monthsWithData.join(', ') : 'none'}`);
-    
-    return NextResponse.json({ monthlyData }, { status: 200 });
-  } catch (error) {
-    console.error('❌ [Finance Analytics] Chart data error:', error);
-    return NextResponse.json({ error: 'Failed to fetch chart data' }, { status: 500 });
-  }
-}
+
 
 async function handleAvailableYears(supabase: any): Promise<Response> {
   try {
@@ -281,51 +304,23 @@ async function handleAvailableYears(supabase: any): Promise<Response> {
     console.log(`🔄 [Finance Analytics] Available Years: RPC failed, using fallback method`);
   }
 
-  // Fallback to regular query
-  console.log(`🔄 [Finance Analytics] Available Years: Using fallback query method`);
+  // Fallback to utility function with pagination
+  console.log(`🔄 [Finance Analytics] Available Years: Using fallback query method with pagination`);
   const fallbackStartTime = Date.now();
   
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('datum')
-    .not('datum', 'is', null);
-
-  const fallbackDuration = Date.now() - fallbackStartTime;
-
-  if (error) {
-    console.error('❌ [Finance Analytics] Available Years: Database error:', error);
+  try {
+    const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
+    const years = await fetchAvailableFinanceYears(supabase);
+    
+    const fallbackDuration = Date.now() - fallbackStartTime;
+    console.log(`📊 [Finance Analytics] Available Years: Fallback completed (${fallbackDuration}ms)`);
+    console.log(`📅 [Finance Analytics] Available Years: Processed years: ${years.join(', ')}`);
+    
+    return NextResponse.json(years, { status: 200 });
+  } catch (error) {
+    console.error('❌ [Finance Analytics] Available Years: Fallback error:', error);
     return NextResponse.json({ error: 'Failed to fetch available years' }, { status: 500 });
   }
-
-  console.log(`📊 [Finance Analytics] Available Years: Fallback query returned ${data?.length || 0} records (${fallbackDuration}ms)`);
-
-  const currentYear = new Date().getFullYear();
-  const years = new Set<number>();
-  
-  // Add current year by default
-  years.add(currentYear);
-  
-  // Process dates to extract years
-  data?.forEach((item: { datum: string | null }) => {
-    if (!item.datum) return;
-    
-    try {
-      const date = new Date(item.datum);
-      if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        if (year <= currentYear + 1) {
-          years.add(year);
-        }
-      }
-    } catch (e) {
-      console.warn('❌ [Finance Analytics] Invalid date format:', item.datum);
-    }
-  });
-
-  const sortedYears = Array.from(years).sort((a, b) => b - a);
-  console.log(`📅 [Finance Analytics] Available Years: Processed years: ${sortedYears.join(', ')}`);
-  
-  return NextResponse.json(sortedYears, { status: 200 });
 }
 
 function calculateFilteredSummary(transactions: FinanceRecord[]) {

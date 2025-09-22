@@ -11,19 +11,42 @@ async function getSummaryData(year: number) {
   const supabase = await createClient();
   
   try {
-    // For server-side rendering, we'll use direct database queries
-    // The client-side will use the optimized analytics API
-    const startDate = `${year}-01-01`;
-    const endDate = `${year}-12-31`;
+    // Use the optimized Supabase function that handles pagination internally
+    const { data, error } = await supabase.rpc('get_financial_year_summary', {
+      target_year: year
+    });
     
-    const { data, error } = await supabase
-      .from('Finanzen')
-      .select('betrag, ist_einnahmen, datum')
-      .gte('datum', startDate)
-      .lte('datum', endDate);
-      
     if (error) {
-      console.error('Error fetching summary data:', error);
+      console.error('Error fetching summary data with RPC:', error);
+      // Fallback to the function that returns raw data for client-side calculation
+      return await getSummaryDataFallback(year);
+    }
+
+    if (!data || data.length === 0) {
+      // Return empty summary for the year
+      const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
+      return calculateFinancialSummary([], year, new Date());
+    }
+
+    const { processRpcFinancialSummary } = await import("@/utils/financeCalculations");
+    return processRpcFinancialSummary(data[0], year);
+  } catch (error) {
+    console.error('Error in getSummaryData:', error);
+    return await getSummaryDataFallback(year);
+  }
+}
+
+async function getSummaryDataFallback(year: number) {
+  const supabase = await createClient();
+  
+  try {
+    // Fallback: Use the function that returns all transactions for the year
+    const { data, error } = await supabase.rpc('get_financial_summary_data', {
+      target_year: year
+    });
+    
+    if (error) {
+      console.error('Error fetching summary data with fallback RPC:', error);
       return null;
     }
 
@@ -31,60 +54,15 @@ async function getSummaryData(year: number) {
     const { calculateFinancialSummary } = await import("@/utils/financeCalculations");
     return calculateFinancialSummary(data || [], year, new Date());
   } catch (error) {
-    console.error('Error in getSummaryData:', error);
+    console.error('Error in getSummaryDataFallback:', error);
     return null;
   }
 }
 
 async function getAvailableYears() {
   const supabase = await createClient();
-  
-  try {
-    // Try to use the optimized database function
-    const { data, error } = await supabase.rpc('get_available_finance_years');
-    
-    if (!error && data) {
-      return data.map((item: any) => item.year).sort((a: number, b: number) => b - a);
-    }
-  } catch (error) {
-    console.log('RPC function not available for years, using fallback');
-  }
-
-  // Fallback to regular query
-  const { data, error } = await supabase
-    .from('Finanzen')
-    .select('datum')
-    .not('datum', 'is', null);
-
-  if (error) {
-    console.error('Error fetching available years:', error);
-    return [new Date().getFullYear()]; // Return current year as fallback
-  }
-
-  const currentYear = new Date().getFullYear();
-  const years = new Set<number>();
-  
-  // Add current year by default
-  years.add(currentYear);
-  
-  // Process dates to extract years
-  data?.forEach(item => {
-    if (!item.datum) return;
-    
-    try {
-      const date = new Date(item.datum);
-      if (!isNaN(date.getTime())) {
-        const year = date.getFullYear();
-        if (year <= currentYear + 1) {
-          years.add(year);
-        }
-      }
-    } catch (e) {
-      console.warn('Invalid date format:', item.datum);
-    }
-  });
-
-  return Array.from(years).sort((a, b) => b - a);
+  const { fetchAvailableFinanceYears } = await import("@/utils/financeCalculations");
+  return await fetchAvailableFinanceYears(supabase);
 }
 
 export default async function FinanzenPage() {

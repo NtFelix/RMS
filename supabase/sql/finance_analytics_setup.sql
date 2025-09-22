@@ -74,5 +74,178 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX IF NOT EXISTS idx_finanzen_text_search 
 ON "Finanzen" USING gin((name || ' ' || COALESCE(notiz, '')) gin_trgm_ops);
 
--- Test the function (optional - you can run this to verify it works)
--- SELECT * FROM get_monthly_finance_data('2024-01-01', '2024-12-31');
+-- Drop existing function if it exists (required when changing return type)
+DROP FUNCTION IF EXISTS get_financial_summary_data(INTEGER);
+
+-- Create a function to get complete financial summary data for a year
+-- This function handles pagination internally and returns all transactions for accurate calculations
+CREATE OR REPLACE FUNCTION get_financial_summary_data(
+  target_year INTEGER
+)
+RETURNS TABLE (
+  id UUID,
+  betrag DECIMAL,
+  ist_einnahmen BOOLEAN,
+  datum DATE,
+  name TEXT,
+  wohnung_id UUID
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    f.id,
+    f.betrag,
+    f.ist_einnahmen,
+    f.datum,
+    f.name,
+    f.wohnung_id
+  FROM "Finanzen" f
+  WHERE EXTRACT(YEAR FROM f.datum) = target_year
+    AND f.user_id = auth.uid()  -- Ensure RLS compliance
+    AND f.datum IS NOT NULL
+  ORDER BY f.datum;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_financial_summary_data(INTEGER) TO authenticated;
+
+-- Create a function to get complete financial data with apartment info for charts
+-- This function returns all necessary fields for chart generation
+CREATE OR REPLACE FUNCTION get_financial_chart_data(
+  target_year INTEGER
+)
+RETURNS TABLE (
+  id UUID,
+  betrag DECIMAL,
+  ist_einnahmen BOOLEAN,
+  datum DATE,
+  name TEXT,
+  wohnung_id UUID,
+  apartment_name TEXT
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    f.id,
+    f.betrag,
+    f.ist_einnahmen,
+    f.datum,
+    f.name,
+    f.wohnung_id,
+    w.name as apartment_name
+  FROM "Finanzen" f
+  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  WHERE EXTRACT(YEAR FROM f.datum) = target_year
+    AND f.user_id = auth.uid()  -- Ensure RLS compliance
+    AND f.datum IS NOT NULL
+  ORDER BY f.datum;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_financial_chart_data(INTEGER) TO authenticated;
+
+-- Create a function to get aggregated financial summary for a year
+-- This provides pre-calculated totals to avoid client-side processing of large datasets
+-- Optimized to use a single table scan for better performance
+CREATE OR REPLACE FUNCTION get_financial_year_summary(
+  target_year INTEGER
+)
+RETURNS TABLE (
+  year INTEGER,
+  total_income DECIMAL,
+  total_expenses DECIMAL,
+  total_cashflow DECIMAL,
+  transaction_count INTEGER,
+  monthly_data JSONB
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    target_year as year,
+    COALESCE(SUM(monthly.total_income), 0) as total_income,
+    COALESCE(SUM(monthly.total_expenses), 0) as total_expenses,
+    COALESCE(SUM(monthly.total_income - monthly.total_expenses), 0) as total_cashflow,
+    COALESCE(SUM(monthly.transaction_count), 0)::INTEGER as transaction_count,
+    COALESCE(jsonb_object_agg(monthly.month_num::text, 
+      jsonb_build_object(
+        'income', monthly.total_income,
+        'expenses', monthly.total_expenses,
+        'cashflow', monthly.total_income - monthly.total_expenses
+      )) FILTER (WHERE monthly.month_num IS NOT NULL), '{}'::jsonb) as monthly_data
+  FROM (
+    SELECT 
+      EXTRACT(MONTH FROM f.datum)::INTEGER - 1 as month_num, -- 0-based months for JS compatibility
+      SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END) as total_income,
+      SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END) as total_expenses,
+      COUNT(*) as transaction_count
+    FROM "Finanzen" f
+    WHERE EXTRACT(YEAR FROM f.datum) = target_year
+      AND f.user_id = auth.uid()
+      AND f.datum IS NOT NULL
+    GROUP BY EXTRACT(MONTH FROM f.datum)
+  ) monthly;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_financial_year_summary(INTEGER) TO authenticated;
+
+-- Create a function to get filtered financial summary
+-- This provides pre-calculated totals based on filters to avoid client-side processing
+CREATE OR REPLACE FUNCTION get_filtered_financial_summary(
+  search_query TEXT DEFAULT '',
+  apartment_name TEXT DEFAULT '',
+  target_year TEXT DEFAULT '',
+  transaction_type TEXT DEFAULT ''
+)
+RETURNS TABLE (
+  total_income DECIMAL,
+  total_expenses DECIMAL,
+  total_balance DECIMAL
+) 
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END), 0) as total_income,
+    COALESCE(SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END), 0) as total_expenses,
+    COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE -f.betrag END), 0) as total_balance
+  FROM "Finanzen" f
+  LEFT JOIN "Wohnungen" w ON f.wohnung_id = w.id
+  WHERE f.user_id = auth.uid()
+    AND f.datum IS NOT NULL
+    -- Text search filter
+    AND (search_query = '' OR 
+         f.name ILIKE '%' || search_query || '%' OR 
+         COALESCE(f.notiz, '') ILIKE '%' || search_query || '%')
+    -- Apartment filter
+    AND (apartment_name = '' OR apartment_name = 'Alle Wohnungen' OR w.name = apartment_name)
+    -- Year filter
+    AND (target_year = '' OR target_year = 'Alle Jahre' OR EXTRACT(YEAR FROM f.datum)::TEXT = target_year)
+    -- Transaction type filter
+    AND (transaction_type = '' OR transaction_type = 'Alle Transaktionen' OR 
+         (transaction_type = 'Einnahme' AND f.ist_einnahmen = true) OR
+         (transaction_type = 'Ausgabe' AND f.ist_einnahmen = false));
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION get_filtered_financial_summary(TEXT, TEXT, TEXT, TEXT) TO authenticated;
+
+-- Test the functions (optional - you can run these to verify they work)
+-- SELECT * FROM get_financial_summary_data(2024);
+-- SELECT * FROM get_financial_year_summary(2024);
+-- SELECT * FROM get_financial_chart_data(2024);
