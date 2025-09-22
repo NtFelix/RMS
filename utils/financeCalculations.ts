@@ -65,7 +65,7 @@ export function processRpcFinancialSummary(rpcSummary: any, year: number): Finan
   let incomeForPassedMonths = 0;
   let expensesForPassedMonths = 0;
   
-  for (let i = 0; i < (year === currentYear ? currentDate.getMonth() + 1 : 12); i++) {
+  for (let i = 0; i < monthsPassed; i++) {
     incomeForPassedMonths += monthlyData[i].income;
     expensesForPassedMonths += monthlyData[i].expenses;
   }
