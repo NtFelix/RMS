@@ -154,6 +154,7 @@ GRANT EXECUTE ON FUNCTION get_financial_chart_data(INTEGER) TO authenticated;
 
 -- Create a function to get aggregated financial summary for a year
 -- This provides pre-calculated totals to avoid client-side processing of large datasets
+-- Optimized to use a single table scan for better performance
 CREATE OR REPLACE FUNCTION get_financial_year_summary(
   target_year INTEGER
 )
@@ -168,43 +169,32 @@ RETURNS TABLE (
 LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
-DECLARE
-  monthly_summary JSONB;
 BEGIN
-  -- Calculate monthly aggregations
-  SELECT jsonb_object_agg(
-    month_num::text,
-    jsonb_build_object(
-      'income', COALESCE(income, 0),
-      'expenses', COALESCE(expenses, 0),
-      'cashflow', COALESCE(income, 0) - COALESCE(expenses, 0)
-    )
-  ) INTO monthly_summary
+  RETURN QUERY
+  SELECT 
+    target_year as year,
+    COALESCE(SUM(monthly.total_income), 0) as total_income,
+    COALESCE(SUM(monthly.total_expenses), 0) as total_expenses,
+    COALESCE(SUM(monthly.total_income - monthly.total_expenses), 0) as total_cashflow,
+    COALESCE(SUM(monthly.transaction_count), 0)::INTEGER as transaction_count,
+    COALESCE(jsonb_object_agg(monthly.month_num::text, 
+      jsonb_build_object(
+        'income', monthly.total_income,
+        'expenses', monthly.total_expenses,
+        'cashflow', monthly.total_income - monthly.total_expenses
+      )) FILTER (WHERE monthly.month_num IS NOT NULL), '{}'::jsonb) as monthly_data
   FROM (
     SELECT 
       EXTRACT(MONTH FROM f.datum)::INTEGER - 1 as month_num, -- 0-based months for JS compatibility
-      SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END) as income,
-      SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END) as expenses
+      SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END) as total_income,
+      SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END) as total_expenses,
+      COUNT(*) as transaction_count
     FROM "Finanzen" f
     WHERE EXTRACT(YEAR FROM f.datum) = target_year
       AND f.user_id = auth.uid()
       AND f.datum IS NOT NULL
     GROUP BY EXTRACT(MONTH FROM f.datum)
-  ) monthly_calc;
-
-  -- Return the aggregated summary
-  RETURN QUERY
-  SELECT 
-    target_year as year,
-    COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE 0 END), 0) as total_income,
-    COALESCE(SUM(CASE WHEN f.ist_einnahmen = false THEN f.betrag ELSE 0 END), 0) as total_expenses,
-    COALESCE(SUM(CASE WHEN f.ist_einnahmen = true THEN f.betrag ELSE -f.betrag END), 0) as total_cashflow,
-    COUNT(*)::INTEGER as transaction_count,
-    COALESCE(monthly_summary, '{}'::jsonb) as monthly_data
-  FROM "Finanzen" f
-  WHERE EXTRACT(YEAR FROM f.datum) = target_year
-    AND f.user_id = auth.uid()
-    AND f.datum IS NOT NULL;
+  ) monthly;
 END;
 $$;
 
